@@ -69,15 +69,37 @@ struct WeeklyReportView: View {
                             Text("Reading latest weight…")
                         }
 
-                    case .available(let measurement):
+                    case .available(let summary):
                         LabeledContent(
                             "Latest Weight",
-                            value: HealthReportFormatter.weightKilograms(measurement.kilograms)
+                            value: HealthReportFormatter.weightKilograms(summary.latest.kilograms)
                         )
                         LabeledContent(
                             "Measured",
-                            value: measurement.date.formatted(date: .abbreviated, time: .shortened)
+                            value: summary.latest.date.formatted(date: .abbreviated, time: .shortened)
                         )
+                        if let average = summary.currentSevenDayAverage {
+                            LabeledContent(
+                                "7-day Average",
+                                value: HealthReportFormatter.weightKilograms(average)
+                            )
+                        } else {
+                            LabeledContent("7-day Average", value: "Insufficient history")
+                                .foregroundStyle(.secondary)
+                        }
+                        if let trend = summary.trendKilograms {
+                            LabeledContent(
+                                "Weight Trend",
+                                value: HealthReportFormatter.signedChange(
+                                    trend,
+                                    unit: "kg",
+                                    comparison: "previous 7d"
+                                )
+                            )
+                        } else {
+                            LabeledContent("Weight Trend", value: "Insufficient history")
+                                .foregroundStyle(.secondary)
+                        }
 
                     case .noDataOrAccess:
                         Text("No weight data is visible, or Health access was not granted.")
@@ -167,13 +189,15 @@ struct WeeklyReportView: View {
                     metricRow(
                         "Resting HR Average",
                         state: viewModel.restingHeartRateState,
-                        format: { HealthReportFormatter.heartRate($0.average) }
+                        format: { HealthReportFormatter.heartRate($0.current.average) }
                     )
+                    heartTrendRow("Resting HR Trend", state: viewModel.restingHeartRateState, unit: "bpm")
                     metricRow(
                         "HRV Average",
                         state: viewModel.hrvState,
-                        format: { HealthReportFormatter.hrvMilliseconds($0.average) }
+                        format: { HealthReportFormatter.hrvMilliseconds($0.current.average) }
                     )
+                    heartTrendRow("HRV Trend", state: viewModel.hrvState, unit: "ms")
                 }
 
                 Section("Activity") {
@@ -285,6 +309,23 @@ struct WeeklyReportView: View {
                                 Text(diagnosticPercentage(sample.percentage))
                                     .monospacedDigit()
                             }
+                        }
+                    }
+                }
+
+                if case .available(let summary) = viewModel.weightState {
+                    Section("Weight diagnostics") {
+                        if let current = summary.currentSevenDayAverage {
+                            LabeledContent("Current 7d daily mean", value: HealthReportFormatter.weightKilograms(current))
+                        }
+                        if let previous = summary.previousSevenDayAverage {
+                            LabeledContent("Previous 7d daily mean", value: HealthReportFormatter.weightKilograms(previous))
+                        }
+                        ForEach(summary.dailyValues) { daily in
+                            LabeledContent(
+                                daily.day.formatted(.dateTime.day().month(.abbreviated)),
+                                value: "\(daily.kilograms.formatted(.number.precision(.fractionLength(3)))) kg (\(daily.sampleCount))"
+                            )
                         }
                     }
                 }
@@ -426,22 +467,69 @@ struct WeeklyReportView: View {
         }
     }
 
+    @ViewBuilder
+    private func heartTrendRow(
+        _ label: String,
+        state: MetricState<HeartMetricTrendSummary>,
+        unit: String
+    ) -> some View {
+        switch state {
+        case .available(let summary):
+            if let trend = summary.trend {
+                LabeledContent(
+                    label,
+                    value: HealthReportFormatter.signedChange(
+                        trend,
+                        unit: unit,
+                        comparison: "previous \(viewModel.period.completedDays.count)d"
+                    )
+                )
+            } else {
+                LabeledContent(label, value: "Insufficient history")
+                    .foregroundStyle(.secondary)
+            }
+        case .idle, .loading:
+            LabeledContent(label) { ProgressView() }
+        case .noDataOrAccess:
+            LabeledContent(label, value: "No data").foregroundStyle(.secondary)
+        case .healthUnavailable:
+            LabeledContent(label, value: "Unavailable").foregroundStyle(.secondary)
+        case .failed:
+            LabeledContent(label, value: "Query failed").foregroundStyle(.red)
+        }
+    }
+
     #if DEBUG
     @ViewBuilder
     private func heartDiagnostics(
         title: String,
-        summary: HeartMetricSummary,
+        summary: HeartMetricTrendSummary,
         unit: String
     ) -> some View {
         Section(title) {
-            LabeledContent("Valid days", value: String(summary.validDayCount))
-            ForEach(summary.dailyValues) { daily in
+            LabeledContent("Current valid days", value: String(summary.current.validDayCount))
+            if let previous = summary.previous {
+                LabeledContent("Previous valid days", value: String(previous.validDayCount))
+            }
+            Text("Current period").font(.headline)
+            ForEach(summary.current.dailyValues) { daily in
                 LabeledContent(
                     daily.day.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)),
                     value: daily.value.map {
                         "\($0.formatted(.number.precision(.fractionLength(3)))) \(unit)"
                     } ?? "No visible data"
                 )
+            }
+            if let previous = summary.previous {
+                Text("Previous equivalent period").font(.headline)
+                ForEach(previous.dailyValues) { daily in
+                    LabeledContent(
+                        daily.day.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)),
+                        value: daily.value.map {
+                            "\($0.formatted(.number.precision(.fractionLength(3)))) \(unit)"
+                        } ?? "No visible data"
+                    )
+                }
             }
         }
     }

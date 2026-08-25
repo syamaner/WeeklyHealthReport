@@ -26,7 +26,7 @@ final class WeeklyReportViewModel: ObservableObject {
         case failed(String)
     }
 
-    typealias WeightState = MetricState<WeightMeasurement>
+    typealias WeightState = MetricState<WeightTrendSummary>
     typealias BodyFatState = MetricState<BodyFatTrendSummary>
     typealias BMIState = MetricState<BMIMeasurement>
 
@@ -36,8 +36,8 @@ final class WeeklyReportViewModel: ObservableObject {
     @Published private(set) var weightState: WeightState = .idle
     @Published private(set) var bodyFatState: BodyFatState = .idle
     @Published private(set) var bmiState: BMIState = .idle
-    @Published private(set) var restingHeartRateState: MetricState<HeartMetricSummary> = .idle
-    @Published private(set) var hrvState: MetricState<HeartMetricSummary> = .idle
+    @Published private(set) var restingHeartRateState: MetricState<HeartMetricTrendSummary> = .idle
+    @Published private(set) var hrvState: MetricState<HeartMetricTrendSummary> = .idle
     @Published private(set) var exerciseState: MetricState<Double> = .idle
     @Published private(set) var activeEnergyState: MetricState<Double> = .idle
     @Published private(set) var workoutState: MetricState<WorkoutSummary> = .idle
@@ -130,9 +130,14 @@ final class WeeklyReportViewModel: ObservableObject {
 
     private func loadContextMetrics(asOf date: Date, generation: Int) async {
         do {
-            let measurement = try await healthData.fetchLatestWeight(asOf: date)
+            let measurements = try await healthData.fetchWeightMeasurements(asOf: date)
             guard generation == refreshGeneration else { return }
-            weightState = measurement.map(WeightState.available) ?? .noDataOrAccess
+            let summary = WeightTrendSummary.calculate(
+                measurements: measurements,
+                asOf: date,
+                calendar: calendar
+            )
+            weightState = summary.map(WeightState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
             weightState = .failed(error.localizedDescription)
@@ -165,6 +170,12 @@ final class WeeklyReportViewModel: ObservableObject {
     }
 
     private func loadPeriodMetrics(generation: Int) async {
+        guard let previousPeriod = period.precedingEquivalent(calendar: calendar) else {
+            restingHeartRateState = .noDataOrAccess
+            hrvState = .noDataOrAccess
+            return
+        }
+
         do {
             let values = try await healthData.fetchDailySteps(for: period)
             guard generation == refreshGeneration else { return }
@@ -176,9 +187,13 @@ final class WeeklyReportViewModel: ObservableObject {
         guard generation == refreshGeneration else { return }
 
         do {
-            let values = try await healthData.fetchDailyRestingHeartRate(for: period)
+            let currentValues = try await healthData.fetchDailyRestingHeartRate(for: period)
+            let previousValues = try await healthData.fetchDailyRestingHeartRate(for: previousPeriod)
             guard generation == refreshGeneration else { return }
-            restingHeartRateState = HeartMetricSummary.aggregate(values)
+            restingHeartRateState = HeartMetricTrendSummary.calculate(
+                currentValues: currentValues,
+                previousValues: previousValues
+            )
                 .map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
@@ -187,9 +202,13 @@ final class WeeklyReportViewModel: ObservableObject {
         guard generation == refreshGeneration else { return }
 
         do {
-            let values = try await healthData.fetchDailyHRV(for: period)
+            let currentValues = try await healthData.fetchDailyHRV(for: period)
+            let previousValues = try await healthData.fetchDailyHRV(for: previousPeriod)
             guard generation == refreshGeneration else { return }
-            hrvState = HeartMetricSummary.aggregate(values)
+            hrvState = HeartMetricTrendSummary.calculate(
+                currentValues: currentValues,
+                previousValues: previousValues
+            )
                 .map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }

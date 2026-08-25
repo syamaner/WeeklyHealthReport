@@ -61,6 +61,19 @@ enum HealthReportFormatter {
         return "No change vs previous 28d"
     }
 
+    static func signedChange(
+        _ value: Double,
+        unit: String,
+        comparison: String,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let magnitude = abs(value).formatted(
+            .number.locale(locale).precision(.fractionLength(1))
+        )
+        let sign = value < 0 ? "-" : value > 0 ? "+" : ""
+        return "\(sign)\(magnitude) \(unit) vs \(comparison)"
+    }
+
     static func heartRate(_ value: Double, locale: Locale = .autoupdatingCurrent) -> String {
         "\(integer(value, locale: locale)) bpm"
     }
@@ -130,19 +143,24 @@ enum HealthReportFormatter {
         } else {
             bodyFatTrend = "Insufficient history"
         }
+        let comparison = "previous \(report.period.completedDays.count)d"
 
         let lines = [
             "Weekly Health Report",
             period(report.period, calendar: calendar, locale: locale),
             "",
-            "Latest Weight: \(report.weight.map { weightKilograms($0.kilograms, locale: locale) } ?? "No data")",
+            "Latest Weight: \(report.weight.map { weightKilograms($0.latest.kilograms, locale: locale) } ?? "No data")",
+            "Weight 7-day Avg: \(report.weight?.currentSevenDayAverage.map { weightKilograms($0, locale: locale) } ?? "Insufficient history")",
+            "Weight Trend: \(report.weight?.trendKilograms.map { signedChange($0, unit: "kg", comparison: "previous 7d", locale: locale) } ?? "Insufficient history")",
             "BMI: \(report.bmi.map { bmi($0.value, locale: locale) } ?? "No data")",
             "Body Fat: \(report.bodyFat.map { percentage($0.latest.percentage, locale: locale) } ?? "No data")",
             "Body Fat 28-day Avg: \(report.bodyFat?.current28DayAverage.map { percentage($0, locale: locale) } ?? "Insufficient history")",
             "Body Fat Trend: \(bodyFatTrend)",
             "Average Daily Steps: \(report.steps.map { integer($0.averageDailySteps, locale: locale) } ?? "No data")",
-            "Resting HR Average: \(report.restingHeartRate.map { heartRate($0.average, locale: locale) } ?? "No data")",
-            "HRV Average: \(report.hrv.map { hrvMilliseconds($0.average, locale: locale) } ?? "No data")",
+            "Resting HR Average: \(report.restingHeartRate.map { heartRate($0.current.average, locale: locale) } ?? "No data")",
+            "Resting HR Trend: \(report.restingHeartRate?.trend.map { signedChange($0, unit: "bpm", comparison: comparison, locale: locale) } ?? "Insufficient history")",
+            "HRV Average: \(report.hrv.map { hrvMilliseconds($0.current.average, locale: locale) } ?? "No data")",
+            "HRV Trend: \(report.hrv?.trend.map { signedChange($0, unit: "ms", comparison: comparison, locale: locale) } ?? "Insufficient history")",
             "Average Sleep: \(report.sleep.map { duration($0.averageDuration) } ?? "No data")",
             "Active Energy: \(report.activeEnergyKilocalories.map { energyKilocalories($0, locale: locale) } ?? "No data")",
             "Exercise: \(report.exerciseMinutes.map { minutes($0, locale: locale) } ?? "No data")",

@@ -2,12 +2,12 @@ import Foundation
 
 struct WeeklyReportSnapshot: Equatable {
     let period: ReportPeriod
-    let weight: WeightMeasurement?
+    let weight: WeightTrendSummary?
     let bmi: BMIMeasurement?
     let bodyFat: BodyFatTrendSummary?
     let steps: StepSummary?
-    let restingHeartRate: HeartMetricSummary?
-    let hrv: HeartMetricSummary?
+    let restingHeartRate: HeartMetricTrendSummary?
+    let hrv: HeartMetricTrendSummary?
     let sleep: SleepSummary?
     let activeEnergyKilocalories: Double?
     let exerciseMinutes: Double?

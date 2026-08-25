@@ -58,6 +58,19 @@ final class ReportPeriodTests: XCTestCase {
         XCTAssertTrue(period.completedDays.contains { $0.duration == 25 * 60 * 60 })
     }
 
+    func testPrecedingEquivalentHasSameNumberOfCompletedCalendarDays() throws {
+        let current = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: date(2026, 8, 25, 14),
+            calendar: calendar
+        )
+        let previous = try XCTUnwrap(current.precedingEquivalent(calendar: calendar))
+
+        XCTAssertEqual(previous.interval.start, date(2026, 8, 11))
+        XCTAssertEqual(previous.interval.end, date(2026, 8, 18))
+        XCTAssertEqual(previous.completedDays.count, current.completedDays.count)
+    }
+
     private func date(_ year: Int, _ month: Int, _ day: Int, _ hour: Int = 0) -> Date {
         calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour))!
     }

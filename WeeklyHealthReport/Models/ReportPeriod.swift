@@ -47,6 +47,25 @@ struct ReportPeriod: Equatable {
             completedDays: calendar.completeDayIntervals(from: start, to: end)
         )
     }
+
+    func precedingEquivalent(
+        calendar suppliedCalendar: Calendar = .autoupdatingCurrent
+    ) -> ReportPeriod? {
+        guard !completedDays.isEmpty else { return nil }
+        var calendar = suppliedCalendar
+        calendar.timeZone = suppliedCalendar.timeZone
+        let end = interval.start
+        guard let start = calendar.date(
+            byAdding: .day,
+            value: -completedDays.count,
+            to: end
+        ) else { return nil }
+        return ReportPeriod(
+            selection: selection,
+            interval: DateInterval(start: start, end: end),
+            completedDays: calendar.completeDayIntervals(from: start, to: end)
+        )
+    }
 }
 
 extension Calendar {

@@ -26,12 +26,18 @@ final class HealthReportFormatterTests: XCTestCase {
         ))
         let report = WeeklyReportSnapshot(
             period: period,
-            weight: WeightMeasurement(date: period.interval.end, kilograms: 100.6),
+            weight: WeightTrendSummary(
+                latest: WeightMeasurement(date: period.interval.end, kilograms: 100.6),
+                currentSevenDayAverage: 100.8,
+                previousSevenDayAverage: 101.2,
+                trendKilograms: -0.4,
+                dailyValues: []
+            ),
             bmi: BMIMeasurement(date: period.interval.end, value: 30.8),
             bodyFat: bodyFat,
             steps: stepSummary(period: period),
-            restingHeartRate: heartSummary(period: period, value: 73),
-            hrv: heartSummary(period: period, value: 42),
+            restingHeartRate: heartSummary(period: period, current: 73, previous: 70),
+            hrv: heartSummary(period: period, current: 42, previous: 47),
             sleep: SleepSummary(nights: [], averageDuration: 6 * 3600 + 48 * 60),
             activeEnergyKilocalories: 1974,
             exerciseMinutes: 89,
@@ -51,13 +57,17 @@ final class HealthReportFormatterTests: XCTestCase {
         18–24 Aug 2026
 
         Latest Weight: 100.6 kg
+        Weight 7-day Avg: 100.8 kg
+        Weight Trend: -0.4 kg vs previous 7d
         BMI: 30.8
         Body Fat: 26.5%
         Body Fat 28-day Avg: 26.7%
         Body Fat Trend: -0.9 pp vs previous 28d
         Average Daily Steps: 2,727
         Resting HR Average: 73 bpm
+        Resting HR Trend: +3.0 bpm vs previous 7d
         HRV Average: 42 ms
+        HRV Trend: -5.0 ms vs previous 7d
         Average Sleep: 6h 48m
         Active Energy: 1,974 kcal
         Exercise: 89 min
@@ -90,10 +100,27 @@ final class HealthReportFormatterTests: XCTestCase {
         )
     }
 
-    private func heartSummary(period: ReportPeriod, value: Double) -> HeartMetricSummary {
-        HeartMetricSummary(
-            dailyValues: [DailyHeartMetricValue(day: period.completedDays[0], value: value, sourceNames: [])],
-            average: value
+    private func heartSummary(
+        period: ReportPeriod,
+        current: Double,
+        previous: Double
+    ) -> HeartMetricTrendSummary {
+        let currentSummary = HeartMetricSummary(
+            dailyValues: period.completedDays.prefix(3).map {
+                DailyHeartMetricValue(day: $0, value: current, sourceNames: [])
+            },
+            average: current
+        )
+        let previousSummary = HeartMetricSummary(
+            dailyValues: period.completedDays.prefix(3).map {
+                DailyHeartMetricValue(day: $0, value: previous, sourceNames: [])
+            },
+            average: previous
+        )
+        return HeartMetricTrendSummary(
+            current: currentSummary,
+            previous: previousSummary,
+            trend: current - previous
         )
     }
 

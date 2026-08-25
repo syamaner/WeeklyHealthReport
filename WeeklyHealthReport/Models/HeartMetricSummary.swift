@@ -29,3 +29,27 @@ struct HeartMetricSummary: Equatable {
         )
     }
 }
+
+struct HeartMetricTrendSummary: Equatable {
+    let current: HeartMetricSummary
+    let previous: HeartMetricSummary?
+    let trend: Double?
+
+    static func calculate(
+        currentValues: [DailyHeartMetricValue],
+        previousValues: [DailyHeartMetricValue],
+        minimumValidDays: Int = 3
+    ) -> HeartMetricTrendSummary? {
+        guard let current = HeartMetricSummary.aggregate(currentValues) else { return nil }
+        let previous = HeartMetricSummary.aggregate(previousValues)
+        let trend: Double?
+        if current.validDayCount >= minimumValidDays,
+           let previous,
+           previous.validDayCount >= minimumValidDays {
+            trend = current.average - previous.average
+        } else {
+            trend = nil
+        }
+        return HeartMetricTrendSummary(current: current, previous: previous, trend: trend)
+    }
+}

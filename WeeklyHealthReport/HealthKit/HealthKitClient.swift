@@ -123,7 +123,7 @@ final class HealthKitClient: HealthDataProviding {
         }
     }
 
-    func fetchLatestWeight(asOf date: Date) async throws -> WeightMeasurement? {
+    func fetchWeightMeasurements(asOf date: Date) async throws -> [WeightMeasurement] {
         guard isHealthDataAvailable else {
             throw HealthDataError.unavailable
         }
@@ -135,7 +135,7 @@ final class HealthKitClient: HealthDataProviding {
             value: -30,
             to: date
         ) else {
-            return nil
+            return []
         }
 
         let datePredicate = HKQuery.predicateForSamples(
@@ -149,8 +149,7 @@ final class HealthKitClient: HealthDataProviding {
         )
         let descriptor = HKSampleQueryDescriptor(
             predicates: [samplePredicate],
-            sortDescriptors: [SortDescriptor(\.endDate, order: .reverse)],
-            limit: 1
+            sortDescriptors: [SortDescriptor(\.endDate, order: .forward)]
         )
 
         let samples = try await descriptor.result(for: store)
@@ -161,7 +160,7 @@ final class HealthKitClient: HealthDataProviding {
                 kilograms: sample.quantity.doubleValue(for: kilograms)
             )
         }
-        return WeightMeasurement.latest(in: measurements)
+        return measurements
     }
 
     func fetchBodyFatMeasurements(asOf date: Date) async throws -> [BodyFatMeasurement] {
