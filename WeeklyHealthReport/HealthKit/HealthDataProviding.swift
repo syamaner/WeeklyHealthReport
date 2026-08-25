@@ -5,4 +5,5 @@ protocol HealthDataProviding {
 
     func requestReadAuthorization() async throws
     func fetchDailySteps(for period: ReportPeriod) async throws -> [DailyStepTotal]
+    func fetchLatestWeight(asOf date: Date) async throws -> WeightMeasurement?
 }

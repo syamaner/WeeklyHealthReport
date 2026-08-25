@@ -12,9 +12,19 @@ final class WeeklyReportViewModel: ObservableObject {
         case failed(String)
     }
 
+    enum WeightState: Equatable {
+        case idle
+        case loading
+        case available(WeightMeasurement)
+        case noDataOrAccess
+        case healthUnavailable
+        case failed(String)
+    }
+
     @Published var selection: ReportPeriodSelection = .lastSevenCompletedDays
     @Published private(set) var period: ReportPeriod
     @Published private(set) var state: State = .idle
+    @Published private(set) var weightState: WeightState = .idle
     @Published private(set) var lastRefreshed: Date?
 
     private let healthData: HealthDataProviding
@@ -41,20 +51,45 @@ final class WeeklyReportViewModel: ObservableObject {
         refreshGeneration += 1
         let generation = refreshGeneration
         state = .loading
+        weightState = .loading
         period = ReportPeriod.make(selection: selection, now: now(), calendar: calendar)
 
         guard healthData.isHealthDataAvailable else {
             state = .healthUnavailable
+            weightState = .healthUnavailable
             return
         }
+
+        do {
+            try await healthData.requestReadAuthorization()
+        } catch let error as HealthDataError where error == .unavailable {
+            guard generation == refreshGeneration else { return }
+            state = .healthUnavailable
+            weightState = .healthUnavailable
+            return
+        } catch {
+            guard generation == refreshGeneration else { return }
+            state = .failed(error.localizedDescription)
+            weightState = .failed(error.localizedDescription)
+            return
+        }
+        guard generation == refreshGeneration else { return }
+
+        do {
+            let measurement = try await healthData.fetchLatestWeight(asOf: now())
+            guard generation == refreshGeneration else { return }
+            weightState = measurement.map(WeightState.available) ?? .noDataOrAccess
+        } catch {
+            guard generation == refreshGeneration else { return }
+            weightState = .failed(error.localizedDescription)
+        }
+
         guard !period.completedDays.isEmpty else {
             state = .noCompletedDays
             return
         }
 
         do {
-            try await healthData.requestReadAuthorization()
-            guard generation == refreshGeneration else { return }
             let dailyTotals = try await healthData.fetchDailySteps(for: period)
             guard generation == refreshGeneration else { return }
             if let summary = StepSummary.aggregate(dailyTotals) {
@@ -63,9 +98,6 @@ final class WeeklyReportViewModel: ObservableObject {
             } else {
                 state = .noDataOrAccess
             }
-        } catch let error as HealthDataError where error == .unavailable {
-            guard generation == refreshGeneration else { return }
-            state = .healthUnavailable
         } catch {
             guard generation == refreshGeneration else { return }
             state = .failed(error.localizedDescription)

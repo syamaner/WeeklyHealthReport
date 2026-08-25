@@ -6,7 +6,7 @@ A small, local-only iPhone utility for producing a trustworthy weekly summary fr
 
 The app reads HealthKit data on-device. It has no accounts, analytics, network service, cloud storage, database, telemetry, or background synchronization. Health data is not logged or uploaded.
 
-## Current milestone: Steps validation
+## Current milestone: Steps validated, Weight validation
 
 Steps are read using a daily `HKStatisticsCollectionQueryDescriptor` with `cumulativeSum`. HealthKit merges contributing sources before calculating each statistic. The app never manually sums raw Watch and iPhone samples.
 
@@ -17,6 +17,9 @@ sum of visible daily HealthKit totals / number of completed reporting days
 ```
 
 For Last 7 Completed Days, the denominator is seven. If no daily statistics are visible, the app displays an unavailable state instead of zero. A successful HealthKit authorization request does not reveal whether read access was granted; Apple intentionally makes denied read access indistinguishable from no data.
+
+
+Weight uses the single most recent body-mass sample visible in the preceding 30 days, regardless of the selected weekly reporting period. It is converted to kilograms and displayed to one decimal place; it is never averaged.
 
 ## Reporting periods
 
@@ -35,7 +38,7 @@ Intervals are half-open: the start is included and the end is excluded.
 3. Replace `com.example.WeeklyHealthReport` if that bundle identifier is unavailable for your team.
 4. Confirm **HealthKit** appears under Signing & Capabilities.
 5. Connect and trust your iPhone, select it as the run destination, then build and run.
-6. Grant read access to Steps when iOS presents the Health permission sheet.
+6. Grant read access to Steps and Weight when iOS presents the Health permission sheet.
 
 No App Store configuration is required.
 

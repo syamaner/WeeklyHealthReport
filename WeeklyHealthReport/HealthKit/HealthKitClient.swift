@@ -4,6 +4,7 @@ import HealthKit
 enum HealthDataError: LocalizedError {
     case unavailable
     case missingStepType
+    case missingBodyMassType
 
     var errorDescription: String? {
         switch self {
@@ -11,6 +12,8 @@ enum HealthDataError: LocalizedError {
             return "Health data is unavailable on this device."
         case .missingStepType:
             return "The HealthKit step-count type is unavailable."
+        case .missingBodyMassType:
+            return "The HealthKit body-mass type is unavailable."
         }
     }
 }
@@ -33,10 +36,13 @@ final class HealthKitClient: HealthDataProviding {
         guard let stepType = HKObjectType.quantityType(forIdentifier: .stepCount) else {
             throw HealthDataError.missingStepType
         }
+        guard let bodyMassType = HKObjectType.quantityType(forIdentifier: .bodyMass) else {
+            throw HealthDataError.missingBodyMassType
+        }
 
         // A successful request means the authorization sheet completed. HealthKit
         // intentionally does not reveal whether read access was granted or denied.
-        try await store.requestAuthorization(toShare: [], read: [stepType])
+        try await store.requestAuthorization(toShare: [], read: [stepType, bodyMassType])
     }
 
     func fetchDailySteps(for period: ReportPeriod) async throws -> [DailyStepTotal] {
@@ -84,5 +90,46 @@ final class HealthKitClient: HealthDataProviding {
             let sources = statistics?.sources?.map(\.name).sorted() ?? []
             return DailyStepTotal(day: day, steps: steps, sourceNames: sources)
         }
+    }
+
+    func fetchLatestWeight(asOf date: Date) async throws -> WeightMeasurement? {
+        guard isHealthDataAvailable else {
+            throw HealthDataError.unavailable
+        }
+        guard let bodyMassType = HKObjectType.quantityType(forIdentifier: .bodyMass) else {
+            throw HealthDataError.missingBodyMassType
+        }
+        guard let lookbackStart = Calendar.autoupdatingCurrent.date(
+            byAdding: .day,
+            value: -30,
+            to: date
+        ) else {
+            return nil
+        }
+
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: lookbackStart,
+            end: date,
+            options: []
+        )
+        let samplePredicate = HKSamplePredicate.quantitySample(
+            type: bodyMassType,
+            predicate: datePredicate
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [samplePredicate],
+            sortDescriptors: [SortDescriptor(\.endDate, order: .reverse)],
+            limit: 1
+        )
+
+        let samples = try await descriptor.result(for: store)
+        let kilograms = HKUnit.gramUnit(with: .kilo)
+        let measurements = samples.map { sample in
+            WeightMeasurement(
+                date: sample.endDate,
+                kilograms: sample.quantity.doubleValue(for: kilograms)
+            )
+        }
+        return WeightMeasurement.latest(in: measurements)
     }
 }

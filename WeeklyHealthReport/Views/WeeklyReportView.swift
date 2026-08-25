@@ -59,6 +59,38 @@ struct WeeklyReportView: View {
                     }
                 }
 
+                Section("Weight validation") {
+                    switch viewModel.weightState {
+                    case .idle, .loading:
+                        HStack {
+                            ProgressView()
+                            Text("Reading latest weight…")
+                        }
+
+                    case .available(let measurement):
+                        LabeledContent(
+                            "Latest Weight",
+                            value: HealthReportFormatter.weightKilograms(measurement.kilograms)
+                        )
+                        LabeledContent(
+                            "Measured",
+                            value: measurement.date.formatted(date: .abbreviated, time: .shortened)
+                        )
+
+                    case .noDataOrAccess:
+                        Text("No weight data is visible, or Health access was not granted.")
+                            .foregroundStyle(.secondary)
+
+                    case .healthUnavailable:
+                        Text("Health data is unavailable on this device.")
+                            .foregroundStyle(.secondary)
+
+                    case .failed(let message):
+                        Text("Weight query failed: \(message)")
+                            .foregroundStyle(.red)
+                    }
+                }
+
                 #if DEBUG
                 if case .loaded(let summary) = viewModel.state {
                     Section("Developer diagnostics") {
