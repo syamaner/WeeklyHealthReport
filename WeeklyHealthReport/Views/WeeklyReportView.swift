@@ -91,6 +91,76 @@ struct WeeklyReportView: View {
                     }
                 }
 
+                Section("Body composition validation") {
+                    switch viewModel.bodyFatState {
+                    case .idle, .loading:
+                        HStack {
+                            ProgressView()
+                            Text("Reading body-fat history…")
+                        }
+
+                    case .available(let summary):
+                        LabeledContent(
+                            "Body Fat",
+                            value: "\(HealthReportFormatter.percentage(summary.latest.percentage)) latest"
+                        )
+                        if let average = summary.sevenDayAverage {
+                            LabeledContent(
+                                "7-day Average",
+                                value: HealthReportFormatter.percentage(average)
+                            )
+                        }
+                        if let average = summary.current28DayAverage {
+                            LabeledContent(
+                                "28-day Average",
+                                value: HealthReportFormatter.percentage(average)
+                            )
+                        } else {
+                            LabeledContent("28-day Average", value: "Insufficient history")
+                                .foregroundStyle(.secondary)
+                        }
+                        if let trend = summary.trendPercentagePoints {
+                            LabeledContent(
+                                "Body Fat Trend",
+                                value: HealthReportFormatter.percentagePointTrend(trend)
+                            )
+                        } else {
+                            LabeledContent("Body Fat Trend", value: "Insufficient history")
+                                .foregroundStyle(.secondary)
+                        }
+
+                    case .noDataOrAccess:
+                        Text("No body-fat data is visible, or Health access was not granted.")
+                            .foregroundStyle(.secondary)
+
+                    case .healthUnavailable:
+                        Text("Health data is unavailable on this device.")
+                            .foregroundStyle(.secondary)
+
+                    case .failed(let message):
+                        Text("Body-fat query failed: \(message)")
+                            .foregroundStyle(.red)
+                    }
+
+                    switch viewModel.bmiState {
+                    case .idle, .loading:
+                        HStack {
+                            ProgressView()
+                            Text("Reading latest BMI…")
+                        }
+                    case .available(let measurement):
+                        LabeledContent("BMI", value: HealthReportFormatter.bmi(measurement.value))
+                    case .noDataOrAccess:
+                        LabeledContent("BMI", value: "No data")
+                            .foregroundStyle(.secondary)
+                    case .healthUnavailable:
+                        EmptyView()
+                    case .failed(let message):
+                        Text("BMI query failed: \(message)")
+                            .foregroundStyle(.red)
+                    }
+                }
+
                 #if DEBUG
                 if case .loaded(let summary) = viewModel.state {
                     Section("Developer diagnostics") {
@@ -120,6 +190,70 @@ struct WeeklyReportView: View {
                                 }
                             }
                         }
+                    }
+                }
+
+                if case .available(let summary) = viewModel.bodyFatState {
+                    Section("Body-fat diagnostics") {
+                        LabeledContent(
+                            "Latest sample",
+                            value: diagnosticPercentage(summary.latest.percentage)
+                        )
+                        LabeledContent(
+                            "Latest timestamp",
+                            value: diagnosticDate(summary.latest.date)
+                        )
+                        if let average = summary.sevenDayAverage {
+                            LabeledContent("7-day daily mean", value: diagnosticPercentage(average))
+                        }
+                        if let average = summary.current28DayAverage {
+                            LabeledContent("Current 28d daily mean", value: diagnosticPercentage(average))
+                        }
+                        if let average = summary.previous28DayAverage {
+                            LabeledContent("Previous 28d daily mean", value: diagnosticPercentage(average))
+                        }
+
+                        Text("Daily values")
+                            .font(.headline)
+                        ForEach(summary.dailyValues) { daily in
+                            HStack {
+                                Text(daily.day.formatted(.dateTime.day().month(.abbreviated).year()))
+                                Spacer()
+                                VStack(alignment: .trailing) {
+                                    Text(diagnosticPercentage(daily.percentage))
+                                        .monospacedDigit()
+                                    Text("\(daily.sampleCount) sample\(daily.sampleCount == 1 ? "" : "s")")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+
+                        Text("Raw samples")
+                            .font(.headline)
+                        ForEach(Array(summary.measurements.enumerated()), id: \.offset) { _, sample in
+                            HStack {
+                                Text(diagnosticDate(sample.date))
+                                Spacer()
+                                Text(diagnosticPercentage(sample.percentage))
+                                    .monospacedDigit()
+                            }
+                        }
+                    }
+                }
+
+                if case .available(let measurement) = viewModel.bmiState {
+                    Section("BMI diagnostics") {
+                        LabeledContent(
+                            "Latest BMI",
+                            value: measurement.value.formatted(
+                                .number.precision(.fractionLength(3))
+                            )
+                        )
+                        LabeledContent(
+                            "Latest timestamp",
+                            value: diagnosticDate(measurement.date)
+                        )
                     }
                 }
                 #endif
@@ -166,5 +300,9 @@ struct WeeklyReportView: View {
 
     private func diagnosticDate(_ date: Date) -> String {
         date.formatted(.iso8601.year().month().day().dateSeparator(.dash).time(includingFractionalSeconds: false))
+    }
+
+    private func diagnosticPercentage(_ value: Double) -> String {
+        "\(value.formatted(.number.precision(.fractionLength(3))))%"
     }
 }

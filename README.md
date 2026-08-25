@@ -6,7 +6,7 @@ A small, local-only iPhone utility for producing a trustworthy weekly summary fr
 
 The app reads HealthKit data on-device. It has no accounts, analytics, network service, cloud storage, database, telemetry, or background synchronization. Health data is not logged or uploaded.
 
-## Current milestone: Steps validated, Weight validation
+## Current milestone: Steps and Weight validated, Body Composition validation
 
 Steps are read using a daily `HKStatisticsCollectionQueryDescriptor` with `cumulativeSum`. HealthKit merges contributing sources before calculating each statistic. The app never manually sums raw Watch and iPhone samples.
 
@@ -20,6 +20,8 @@ For Last 7 Completed Days, the denominator is seven. If no daily statistics are 
 
 
 Weight uses the single most recent body-mass sample visible in the preceding 30 days, regardless of the selected weekly reporting period. It is converted to kilograms and displayed to one decimal place; it is never averaged.
+
+Body Fat uses the latest visible sample plus calendar-day trend windows. Multiple samples from the same day are first averaged into one daily value, then each sampled day receives equal weight. The 7-day and 28-day averages require at least two distinct sampled days. The percentage-point trend is shown only when both the current and previous 28-day windows meet that threshold. BMI is latest-sample context only and is not used to infer body composition.
 
 ## Reporting periods
 
@@ -38,7 +40,7 @@ Intervals are half-open: the start is included and the end is excluded.
 3. Replace `com.example.WeeklyHealthReport` if that bundle identifier is unavailable for your team.
 4. Confirm **HealthKit** appears under Signing & Capabilities.
 5. Connect and trust your iPhone, select it as the run destination, then build and run.
-6. Grant read access to Steps and Weight when iOS presents the Health permission sheet.
+6. Grant read access to Steps, Weight, Body Fat Percentage, and BMI when iOS presents the Health permission sheet.
 
 No App Store configuration is required.
 

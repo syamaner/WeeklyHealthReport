@@ -5,6 +5,8 @@ enum HealthDataError: LocalizedError {
     case unavailable
     case missingStepType
     case missingBodyMassType
+    case missingBodyFatType
+    case missingBMIType
 
     var errorDescription: String? {
         switch self {
@@ -14,6 +16,10 @@ enum HealthDataError: LocalizedError {
             return "The HealthKit step-count type is unavailable."
         case .missingBodyMassType:
             return "The HealthKit body-mass type is unavailable."
+        case .missingBodyFatType:
+            return "The HealthKit body-fat type is unavailable."
+        case .missingBMIType:
+            return "The HealthKit BMI type is unavailable."
         }
     }
 }
@@ -39,10 +45,19 @@ final class HealthKitClient: HealthDataProviding {
         guard let bodyMassType = HKObjectType.quantityType(forIdentifier: .bodyMass) else {
             throw HealthDataError.missingBodyMassType
         }
+        guard let bodyFatType = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) else {
+            throw HealthDataError.missingBodyFatType
+        }
+        guard let bmiType = HKObjectType.quantityType(forIdentifier: .bodyMassIndex) else {
+            throw HealthDataError.missingBMIType
+        }
 
         // A successful request means the authorization sheet completed. HealthKit
         // intentionally does not reveal whether read access was granted or denied.
-        try await store.requestAuthorization(toShare: [], read: [stepType, bodyMassType])
+        try await store.requestAuthorization(
+            toShare: [],
+            read: [stepType, bodyMassType, bodyFatType, bmiType]
+        )
     }
 
     func fetchDailySteps(for period: ReportPeriod) async throws -> [DailyStepTotal] {
@@ -131,5 +146,83 @@ final class HealthKitClient: HealthDataProviding {
             )
         }
         return WeightMeasurement.latest(in: measurements)
+    }
+
+    func fetchBodyFatMeasurements(asOf date: Date) async throws -> [BodyFatMeasurement] {
+        guard isHealthDataAvailable else {
+            throw HealthDataError.unavailable
+        }
+        guard let bodyFatType = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) else {
+            throw HealthDataError.missingBodyFatType
+        }
+        guard let lookbackStart = Calendar.autoupdatingCurrent.date(
+            byAdding: .day,
+            value: -60,
+            to: date
+        ) else {
+            return []
+        }
+
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: lookbackStart,
+            end: date,
+            options: []
+        )
+        let samplePredicate = HKSamplePredicate.quantitySample(
+            type: bodyFatType,
+            predicate: datePredicate
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [samplePredicate],
+            sortDescriptors: [SortDescriptor(\.endDate, order: .forward)]
+        )
+
+        let samples = try await descriptor.result(for: store)
+        return samples.map { sample in
+            BodyFatMeasurement(
+                date: sample.endDate,
+                percentage: sample.quantity.doubleValue(for: .percent())
+            )
+        }
+    }
+
+    func fetchLatestBMI(asOf date: Date) async throws -> BMIMeasurement? {
+        guard isHealthDataAvailable else {
+            throw HealthDataError.unavailable
+        }
+        guard let bmiType = HKObjectType.quantityType(forIdentifier: .bodyMassIndex) else {
+            throw HealthDataError.missingBMIType
+        }
+        guard let lookbackStart = Calendar.autoupdatingCurrent.date(
+            byAdding: .day,
+            value: -30,
+            to: date
+        ) else {
+            return nil
+        }
+
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: lookbackStart,
+            end: date,
+            options: []
+        )
+        let samplePredicate = HKSamplePredicate.quantitySample(
+            type: bmiType,
+            predicate: datePredicate
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [samplePredicate],
+            sortDescriptors: [SortDescriptor(\.endDate, order: .reverse)],
+            limit: 1
+        )
+
+        let samples = try await descriptor.result(for: store)
+        let measurements = samples.map { sample in
+            BMIMeasurement(
+                date: sample.endDate,
+                value: sample.quantity.doubleValue(for: .count())
+            )
+        }
+        return BMIMeasurement.latest(in: measurements)
     }
 }

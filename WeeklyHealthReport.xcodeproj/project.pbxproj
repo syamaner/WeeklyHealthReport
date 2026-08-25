@@ -20,6 +20,8 @@
 		A0000000000000000000000B /* WeightMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000E /* WeightMeasurement.swift */; };
 		A0000000000000000000000C /* HealthReportFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000F /* HealthReportFormatter.swift */; };
 		A0000000000000000000000D /* WeightMeasurementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000010 /* WeightMeasurementTests.swift */; };
+		A0000000000000000000000E /* BodyCompositionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000011 /* BodyCompositionTests.swift */; };
+		A0000000000000000000000F /* BodyComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000012 /* BodyComposition.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -49,6 +51,8 @@
 		B0000000000000000000000E /* WeightMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightMeasurement.swift; sourceTree = "<group>"; };
 		B0000000000000000000000F /* HealthReportFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthReportFormatter.swift; sourceTree = "<group>"; };
 		B00000000000000000000010 /* WeightMeasurementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightMeasurementTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000011 /* BodyCompositionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyCompositionTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000012 /* BodyComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyComposition.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -99,6 +103,7 @@
 				B00000000000000000000002 /* ReportPeriod.swift */,
 				B00000000000000000000003 /* StepSummary.swift */,
 				B0000000000000000000000E /* WeightMeasurement.swift */,
+				B00000000000000000000012 /* BodyComposition.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -127,6 +132,7 @@
 				B00000000000000000000009 /* ReportPeriodTests.swift */,
 				B0000000000000000000000A /* StepSummaryTests.swift */,
 				B00000000000000000000010 /* WeightMeasurementTests.swift */,
+				B00000000000000000000011 /* BodyCompositionTests.swift */,
 			);
 			path = WeeklyHealthReportTests;
 			sourceTree = "<group>";
@@ -263,6 +269,7 @@
 				A00000000000000000000007 /* WeeklyReportView.swift in Sources */,
 				A0000000000000000000000B /* WeightMeasurement.swift in Sources */,
 				A0000000000000000000000C /* HealthReportFormatter.swift in Sources */,
+				A0000000000000000000000F /* BodyComposition.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -273,6 +280,7 @@
 				A00000000000000000000009 /* ReportPeriodTests.swift in Sources */,
 				A0000000000000000000000A /* StepSummaryTests.swift in Sources */,
 				A0000000000000000000000D /* WeightMeasurementTests.swift in Sources */,
+				A0000000000000000000000E /* BodyCompositionTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
