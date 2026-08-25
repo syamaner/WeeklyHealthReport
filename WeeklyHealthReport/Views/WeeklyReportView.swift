@@ -1,7 +1,9 @@
 import SwiftUI
+import UIKit
 
 struct WeeklyReportView: View {
     @StateObject private var viewModel = WeeklyReportViewModel()
+    @State private var copied = false
 
     var body: some View {
         NavigationStack {
@@ -161,6 +163,51 @@ struct WeeklyReportView: View {
                     }
                 }
 
+                Section("Heart") {
+                    metricRow(
+                        "Resting HR Average",
+                        state: viewModel.restingHeartRateState,
+                        format: { HealthReportFormatter.heartRate($0.average) }
+                    )
+                    metricRow(
+                        "HRV Average",
+                        state: viewModel.hrvState,
+                        format: { HealthReportFormatter.hrvMilliseconds($0.average) }
+                    )
+                }
+
+                Section("Activity") {
+                    metricRow(
+                        "Active Energy",
+                        state: viewModel.activeEnergyState,
+                        format: { HealthReportFormatter.energyKilocalories($0) }
+                    )
+                    metricRow(
+                        "Exercise",
+                        state: viewModel.exerciseState,
+                        format: { HealthReportFormatter.minutes($0) }
+                    )
+                    metricRow(
+                        "Workouts",
+                        state: viewModel.workoutState,
+                        format: { String($0.count) }
+                    )
+                    if case .available(let summary) = viewModel.workoutState {
+                        LabeledContent(
+                            "Workout Time",
+                            value: HealthReportFormatter.duration(summary.totalDuration)
+                        )
+                    }
+                }
+
+                Section("Sleep") {
+                    metricRow(
+                        "Average Sleep",
+                        state: viewModel.sleepState,
+                        format: { HealthReportFormatter.duration($0.averageDuration) }
+                    )
+                }
+
                 #if DEBUG
                 if case .loaded(let summary) = viewModel.state {
                     Section("Developer diagnostics") {
@@ -256,7 +303,64 @@ struct WeeklyReportView: View {
                         )
                     }
                 }
+
+                if case .available(let summary) = viewModel.restingHeartRateState {
+                    heartDiagnostics(title: "Resting HR diagnostics", summary: summary, unit: "bpm")
+                }
+
+                if case .available(let summary) = viewModel.hrvState {
+                    heartDiagnostics(title: "HRV diagnostics", summary: summary, unit: "ms")
+                }
+
+                Section("Activity diagnostics") {
+                    diagnosticMetric("Active energy exact total", state: viewModel.activeEnergyState, unit: "kcal")
+                    diagnosticMetric("Exercise exact total", state: viewModel.exerciseState, unit: "min")
+                    if case .available(let summary) = viewModel.workoutState {
+                        LabeledContent("Workout count", value: String(summary.count))
+                        LabeledContent(
+                            "Workout duration",
+                            value: "\((summary.totalDuration / 60).formatted(.number.precision(.fractionLength(2)))) min"
+                        )
+                        ForEach(summary.workouts) { workout in
+                            LabeledContent(
+                                workout.activityName,
+                                value: HealthReportFormatter.duration(workout.duration)
+                            )
+                        }
+                    }
+                }
+
+                if case .available(let summary) = viewModel.sleepState {
+                    Section("Sleep diagnostics") {
+                        LabeledContent("Valid nights", value: String(summary.nights.count))
+                        ForEach(summary.nights) { night in
+                            LabeledContent(
+                                night.wakeDay.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)),
+                                value: HealthReportFormatter.duration(night.duration)
+                            )
+                        }
+                    }
+                }
                 #endif
+
+                Section {
+                    Button {
+                        UIPasteboard.general.string = HealthReportFormatter.clipboardReport(
+                            viewModel.reportSnapshot
+                        )
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        copied = true
+                        Task {
+                            try? await Task.sleep(for: .seconds(2))
+                            copied = false
+                        }
+                    } label: {
+                        Label(copied ? "Copied" : "Copy Report", systemImage: copied ? "checkmark" : "doc.on.doc")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(viewModel.state == .loading)
+                }
 
                 Section {
                     Button("Refresh") {
@@ -286,16 +390,9 @@ struct WeeklyReportView: View {
     }
 
     private var periodText: String {
-        guard !viewModel.period.completedDays.isEmpty else {
-            return "No completed days"
-        }
-        guard let lastDay = Calendar.autoupdatingCurrent.date(
-            byAdding: .day,
-            value: -1,
-            to: viewModel.period.interval.end
-        ) else { return "Unavailable" }
-
-        return "\(viewModel.period.interval.start.formatted(.dateTime.day().month(.abbreviated)))–\(lastDay.formatted(.dateTime.day().month(.abbreviated).year()))"
+        viewModel.period.completedDays.isEmpty
+            ? "No completed days"
+            : HealthReportFormatter.period(viewModel.period)
     }
 
     private func diagnosticDate(_ date: Date) -> String {
@@ -305,4 +402,62 @@ struct WeeklyReportView: View {
     private func diagnosticPercentage(_ value: Double) -> String {
         "\(value.formatted(.number.precision(.fractionLength(3))))%"
     }
+
+    @ViewBuilder
+    private func metricRow<Value: Equatable>(
+        _ label: String,
+        state: MetricState<Value>,
+        format: (Value) -> String
+    ) -> some View {
+        switch state {
+        case .idle, .loading:
+            LabeledContent(label) { ProgressView() }
+        case .available(let value):
+            LabeledContent(label, value: format(value))
+        case .noDataOrAccess:
+            LabeledContent(label, value: "No data")
+                .foregroundStyle(.secondary)
+        case .healthUnavailable:
+            LabeledContent(label, value: "Unavailable")
+                .foregroundStyle(.secondary)
+        case .failed:
+            LabeledContent(label, value: "Query failed")
+                .foregroundStyle(.red)
+        }
+    }
+
+    #if DEBUG
+    @ViewBuilder
+    private func heartDiagnostics(
+        title: String,
+        summary: HeartMetricSummary,
+        unit: String
+    ) -> some View {
+        Section(title) {
+            LabeledContent("Valid days", value: String(summary.validDayCount))
+            ForEach(summary.dailyValues) { daily in
+                LabeledContent(
+                    daily.day.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)),
+                    value: daily.value.map {
+                        "\($0.formatted(.number.precision(.fractionLength(3)))) \(unit)"
+                    } ?? "No visible data"
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func diagnosticMetric(
+        _ label: String,
+        state: MetricState<Double>,
+        unit: String
+    ) -> some View {
+        if case .available(let value) = state {
+            LabeledContent(
+                label,
+                value: "\(value.formatted(.number.precision(.fractionLength(3)))) \(unit)"
+            )
+        }
+    }
+    #endif
 }

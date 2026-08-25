@@ -1,6 +1,13 @@
 import Foundation
 
 enum HealthReportFormatter {
+    static func integer(
+        _ value: Double,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        value.formatted(.number.locale(locale).precision(.fractionLength(0)))
+    }
+
     static func weightKilograms(
         _ kilograms: Double,
         locale: Locale = .autoupdatingCurrent
@@ -52,5 +59,95 @@ enum HealthReportFormatter {
             return "↑ \(magnitude) pp vs previous 28d"
         }
         return "No change vs previous 28d"
+    }
+
+    static func heartRate(_ value: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(integer(value, locale: locale)) bpm"
+    }
+
+    static func hrvMilliseconds(_ value: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(integer(value, locale: locale)) ms"
+    }
+
+    static func minutes(_ value: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(integer(value, locale: locale)) min"
+    }
+
+    static func energyKilocalories(_ value: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(integer(value, locale: locale)) kcal"
+    }
+
+    static func duration(_ interval: TimeInterval) -> String {
+        let totalMinutes = Int((interval / 60).rounded())
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        if hours == 0 { return "\(minutes)m" }
+        if minutes == 0 { return "\(hours)h" }
+        return "\(hours)h \(minutes)m"
+    }
+
+    static func period(
+        _ period: ReportPeriod,
+        calendar suppliedCalendar: Calendar = .autoupdatingCurrent,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        guard let lastDay = suppliedCalendar.date(byAdding: .day, value: -1, to: period.interval.end)
+        else { return "Unavailable" }
+        let start = period.interval.start
+        let sameYear = suppliedCalendar.component(.year, from: start) == suppliedCalendar.component(.year, from: lastDay)
+        let sameMonth = sameYear && suppliedCalendar.component(.month, from: start) == suppliedCalendar.component(.month, from: lastDay)
+
+        func formatted(_ date: Date, template: String) -> String {
+            let formatter = DateFormatter()
+            formatter.calendar = suppliedCalendar
+            formatter.timeZone = suppliedCalendar.timeZone
+            formatter.locale = locale
+            formatter.setLocalizedDateFormatFromTemplate(template)
+            return formatter.string(from: date)
+        }
+
+        if sameMonth {
+            return "\(formatted(start, template: "d"))–\(formatted(lastDay, template: "dMMMyyyy"))"
+        }
+        if sameYear {
+            return "\(formatted(start, template: "dMMM"))–\(formatted(lastDay, template: "dMMMyyyy"))"
+        }
+        return "\(formatted(start, template: "dMMMyyyy"))–\(formatted(lastDay, template: "dMMMyyyy"))"
+    }
+
+    static func clipboardReport(
+        _ report: WeeklyReportSnapshot,
+        calendar: Calendar = .autoupdatingCurrent,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let bodyFatTrend: String
+        if let trend = report.bodyFat?.trendPercentagePoints {
+            let magnitude = abs(trend).formatted(
+                .number.locale(locale).precision(.fractionLength(1))
+            )
+            let sign = trend < 0 ? "-" : trend > 0 ? "+" : ""
+            bodyFatTrend = "\(sign)\(magnitude) pp vs previous 28d"
+        } else {
+            bodyFatTrend = "Insufficient history"
+        }
+
+        let lines = [
+            "Weekly Health Report",
+            period(report.period, calendar: calendar, locale: locale),
+            "",
+            "Latest Weight: \(report.weight.map { weightKilograms($0.kilograms, locale: locale) } ?? "No data")",
+            "BMI: \(report.bmi.map { bmi($0.value, locale: locale) } ?? "No data")",
+            "Body Fat: \(report.bodyFat.map { percentage($0.latest.percentage, locale: locale) } ?? "No data")",
+            "Body Fat 28-day Avg: \(report.bodyFat?.current28DayAverage.map { percentage($0, locale: locale) } ?? "Insufficient history")",
+            "Body Fat Trend: \(bodyFatTrend)",
+            "Average Daily Steps: \(report.steps.map { integer($0.averageDailySteps, locale: locale) } ?? "No data")",
+            "Resting HR Average: \(report.restingHeartRate.map { heartRate($0.average, locale: locale) } ?? "No data")",
+            "HRV Average: \(report.hrv.map { hrvMilliseconds($0.average, locale: locale) } ?? "No data")",
+            "Average Sleep: \(report.sleep.map { duration($0.averageDuration) } ?? "No data")",
+            "Active Energy: \(report.activeEnergyKilocalories.map { energyKilocalories($0, locale: locale) } ?? "No data")",
+            "Exercise: \(report.exerciseMinutes.map { minutes($0, locale: locale) } ?? "No data")",
+            "Workouts: \(report.workouts.map { String($0.count) } ?? "No data")"
+        ]
+        return lines.joined(separator: "\n")
     }
 }

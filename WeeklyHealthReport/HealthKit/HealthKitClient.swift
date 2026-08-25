@@ -1,12 +1,13 @@
 import Foundation
 import HealthKit
 
-enum HealthDataError: LocalizedError {
+enum HealthDataError: LocalizedError, Equatable {
     case unavailable
     case missingStepType
     case missingBodyMassType
     case missingBodyFatType
     case missingBMIType
+    case missingType(String)
 
     var errorDescription: String? {
         switch self {
@@ -20,6 +21,8 @@ enum HealthDataError: LocalizedError {
             return "The HealthKit body-fat type is unavailable."
         case .missingBMIType:
             return "The HealthKit BMI type is unavailable."
+        case .missingType(let name):
+            return "The HealthKit \(name) type is unavailable."
         }
     }
 }
@@ -51,12 +54,25 @@ final class HealthKitClient: HealthDataProviding {
         guard let bmiType = HKObjectType.quantityType(forIdentifier: .bodyMassIndex) else {
             throw HealthDataError.missingBMIType
         }
+        guard let restingHeartRateType = HKObjectType.quantityType(forIdentifier: .restingHeartRate),
+              let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
+              let exerciseType = HKObjectType.quantityType(forIdentifier: .appleExerciseTime),
+              let activeEnergyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned),
+              let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
+        else {
+            throw HealthDataError.missingType("required metric")
+        }
+        let workoutType = HKObjectType.workoutType()
 
         // A successful request means the authorization sheet completed. HealthKit
         // intentionally does not reveal whether read access was granted or denied.
         try await store.requestAuthorization(
             toShare: [],
-            read: [stepType, bodyMassType, bodyFatType, bmiType]
+            read: [
+                stepType, bodyMassType, bodyFatType, bmiType,
+                restingHeartRateType, hrvType, exerciseType, activeEnergyType,
+                workoutType, sleepType
+            ]
         )
     }
 
@@ -224,5 +240,172 @@ final class HealthKitClient: HealthDataProviding {
             )
         }
         return BMIMeasurement.latest(in: measurements)
+    }
+
+    func fetchDailyRestingHeartRate(for period: ReportPeriod) async throws -> [DailyHeartMetricValue] {
+        guard let type = HKObjectType.quantityType(forIdentifier: .restingHeartRate) else {
+            throw HealthDataError.missingType("resting-heart-rate")
+        }
+        let unit = HKUnit.count().unitDivided(by: .minute())
+        return try await fetchDailyDiscreteAverage(type: type, unit: unit, period: period)
+    }
+
+    func fetchDailyHRV(for period: ReportPeriod) async throws -> [DailyHeartMetricValue] {
+        guard let type = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN) else {
+            throw HealthDataError.missingType("HRV")
+        }
+        return try await fetchDailyDiscreteAverage(
+            type: type,
+            unit: .secondUnit(with: .milli),
+            period: period
+        )
+    }
+
+    func fetchExerciseMinutes(for period: ReportPeriod) async throws -> Double? {
+        guard let type = HKObjectType.quantityType(forIdentifier: .appleExerciseTime) else {
+            throw HealthDataError.missingType("Apple Exercise Time")
+        }
+        return try await fetchCumulativeTotal(type: type, unit: .minute(), period: period)
+    }
+
+    func fetchActiveEnergyKilocalories(for period: ReportPeriod) async throws -> Double? {
+        guard let type = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) else {
+            throw HealthDataError.missingType("active-energy")
+        }
+        return try await fetchCumulativeTotal(type: type, unit: .kilocalorie(), period: period)
+    }
+
+    func fetchWorkouts(for period: ReportPeriod) async throws -> [WorkoutRecord] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: period.interval.start,
+            end: period.interval.end,
+            options: .strictStartDate
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.workout(datePredicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
+        )
+        let workouts = try await descriptor.result(for: store)
+        return workouts.map {
+            WorkoutRecord(
+                id: $0.uuid,
+                startDate: $0.startDate,
+                duration: $0.duration,
+                activityName: Self.workoutName($0.workoutActivityType)
+            )
+        }
+    }
+
+    func fetchAsleepIntervals(
+        for period: ReportPeriod,
+        calendar: Calendar
+    ) async throws -> [AsleepInterval] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
+            throw HealthDataError.missingType("sleep-analysis")
+        }
+        guard let queryInterval = SleepSummary.queryInterval(for: period, calendar: calendar) else {
+            return []
+        }
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: queryInterval.start,
+            end: queryInterval.end,
+            options: []
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.categorySample(type: sleepType, predicate: datePredicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
+        )
+        let samples = try await descriptor.result(for: store)
+        // Awake and inBed samples are intentionally excluded. The pure sleep
+        // aggregator clips and unions all included intervals across sources.
+        return samples.compactMap { sample in
+            guard Self.sleepStage(for: sample.value).countsAsAsleep else { return nil }
+            return AsleepInterval(start: sample.startDate, end: sample.endDate)
+        }
+    }
+
+    private func fetchDailyDiscreteAverage(
+        type: HKQuantityType,
+        unit: HKUnit,
+        period: ReportPeriod
+    ) async throws -> [DailyHeartMetricValue] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard !period.completedDays.isEmpty else { return [] }
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: period.interval.start,
+            end: period.interval.end,
+            options: []
+        )
+        let descriptor = HKStatisticsCollectionQueryDescriptor(
+            predicate: .quantitySample(type: type, predicate: datePredicate),
+            options: .discreteAverage,
+            anchorDate: period.interval.start,
+            intervalComponents: DateComponents(day: 1)
+        )
+        let collection = try await descriptor.result(for: store)
+        var statisticsByStart: [Date: HKStatistics] = [:]
+        collection.enumerateStatistics(from: period.interval.start, to: period.interval.end) {
+            statistics, _ in
+            guard statistics.startDate >= period.interval.start,
+                  statistics.startDate < period.interval.end else { return }
+            statisticsByStart[statistics.startDate] = statistics
+        }
+        return period.completedDays.map { day in
+            let statistics = statisticsByStart[day.start]
+            return DailyHeartMetricValue(
+                day: day,
+                value: statistics?.averageQuantity()?.doubleValue(for: unit),
+                sourceNames: statistics?.sources?.map(\.name).sorted() ?? []
+            )
+        }
+    }
+
+    private func fetchCumulativeTotal(
+        type: HKQuantityType,
+        unit: HKUnit,
+        period: ReportPeriod
+    ) async throws -> Double? {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: period.interval.start,
+            end: period.interval.end,
+            options: []
+        )
+        let descriptor = HKStatisticsQueryDescriptor(
+            predicate: .quantitySample(type: type, predicate: datePredicate),
+            options: .cumulativeSum
+        )
+        let statistics = try await descriptor.result(for: store)
+        return statistics?.sumQuantity()?.doubleValue(for: unit)
+    }
+
+    private static func workoutName(_ activity: HKWorkoutActivityType) -> String {
+        switch activity {
+        case .walking: "Walking"
+        case .running: "Running"
+        case .cycling: "Cycling"
+        case .functionalStrengthTraining: "Functional Strength Training"
+        case .traditionalStrengthTraining: "Traditional Strength Training"
+        case .hiking: "Hiking"
+        case .yoga: "Yoga"
+        case .swimming: "Swimming"
+        case .elliptical: "Elliptical"
+        case .highIntensityIntervalTraining: "HIIT"
+        default: "Workout"
+        }
+    }
+
+    private static func sleepStage(for value: Int) -> SleepStage {
+        switch value {
+        case HKCategoryValueSleepAnalysis.inBed.rawValue: .inBed
+        case HKCategoryValueSleepAnalysis.awake.rawValue: .awake
+        case HKCategoryValueSleepAnalysis.asleepUnspecified.rawValue: .asleepUnspecified
+        case HKCategoryValueSleepAnalysis.asleepCore.rawValue: .asleepCore
+        case HKCategoryValueSleepAnalysis.asleepDeep.rawValue: .asleepDeep
+        case HKCategoryValueSleepAnalysis.asleepREM.rawValue: .asleepREM
+        default: .other
+        }
     }
 }
