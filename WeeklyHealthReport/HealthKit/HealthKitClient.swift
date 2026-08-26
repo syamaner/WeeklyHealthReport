@@ -48,7 +48,8 @@ final class HealthKitClient: HealthDataProviding {
         guard let bodyFatType = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) else {
             throw HealthDataError.missingBodyFatType
         }
-        guard let restingHeartRateType = HKObjectType.quantityType(forIdentifier: .restingHeartRate),
+        guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate),
+              let restingHeartRateType = HKObjectType.quantityType(forIdentifier: .restingHeartRate),
               let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
               let exerciseType = HKObjectType.quantityType(forIdentifier: .appleExerciseTime),
               let activeEnergyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned),
@@ -64,7 +65,7 @@ final class HealthKitClient: HealthDataProviding {
             toShare: [],
             read: [
                 stepType, bodyMassType, bodyFatType,
-                restingHeartRateType, hrvType, exerciseType, activeEnergyType,
+                heartRateType, restingHeartRateType, hrvType, exerciseType, activeEnergyType,
                 workoutType, sleepType
             ]
         )
@@ -215,6 +216,34 @@ final class HealthKitClient: HealthDataProviding {
             unit: .secondUnit(with: .milli),
             period: period
         )
+    }
+
+    func fetchAppleWatchHeartRateSampleDates(for period: ReportPeriod) async throws -> [Date] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let type = HKObjectType.quantityType(forIdentifier: .heartRate) else {
+            throw HealthDataError.missingType("heart-rate")
+        }
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: period.interval.start,
+            end: period.interval.end,
+            options: []
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.quantitySample(type: type, predicate: datePredicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
+        )
+        let samples = try await descriptor.result(for: store)
+
+        // Heart-rate samples are an evidence marker for Watch presence, not a
+        // continuous wear-time measurement. Intermittent sampling cannot support
+        // an accurate hours-worn claim.
+        return samples.compactMap { sample in
+            let productType = sample.sourceRevision.productType ?? ""
+            let deviceModel = sample.device?.model ?? ""
+            let isAppleWatch = productType.hasPrefix("Watch")
+                || deviceModel.localizedCaseInsensitiveContains("watch")
+            return isAppleWatch ? sample.startDate : nil
+        }
     }
 
     func fetchExerciseMinutes(for period: ReportPeriod) async throws -> Double? {

@@ -31,6 +31,8 @@
 		A00000000000000000000016 /* SleepSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000019 /* SleepSummaryTests.swift */; };
 		A00000000000000000000017 /* HealthReportFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000001A /* HealthReportFormatterTests.swift */; };
 		A00000000000000000000018 /* DeveloperDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000001B /* DeveloperDiagnosticsView.swift */; };
+		A00000000000000000000019 /* WatchCoverageSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000001C /* WatchCoverageSummary.swift */; };
+		A0000000000000000000001A /* WatchCoverageSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000001D /* WatchCoverageSummaryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -71,6 +73,8 @@
 		B00000000000000000000019 /* SleepSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSummaryTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000001A /* HealthReportFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthReportFormatterTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000001B /* DeveloperDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperDiagnosticsView.swift; sourceTree = "<group>"; };
+		B0000000000000000000001C /* WatchCoverageSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchCoverageSummary.swift; sourceTree = "<group>"; };
+		B0000000000000000000001D /* WatchCoverageSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchCoverageSummaryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -126,6 +130,7 @@
 				B00000000000000000000014 /* ActivitySummary.swift */,
 				B00000000000000000000015 /* SleepSummary.swift */,
 				B00000000000000000000016 /* WeeklyReportSnapshot.swift */,
+				B0000000000000000000001C /* WatchCoverageSummary.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -160,6 +165,7 @@
 				B00000000000000000000018 /* ActivitySummaryTests.swift */,
 				B00000000000000000000019 /* SleepSummaryTests.swift */,
 				B0000000000000000000001A /* HealthReportFormatterTests.swift */,
+				B0000000000000000000001D /* WatchCoverageSummaryTests.swift */,
 			);
 			path = WeeklyHealthReportTests;
 			sourceTree = "<group>";
@@ -302,6 +308,7 @@
 				A00000000000000000000011 /* ActivitySummary.swift in Sources */,
 				A00000000000000000000012 /* SleepSummary.swift in Sources */,
 				A00000000000000000000013 /* WeeklyReportSnapshot.swift in Sources */,
+				A00000000000000000000019 /* WatchCoverageSummary.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -317,6 +324,7 @@
 				A00000000000000000000015 /* ActivitySummaryTests.swift in Sources */,
 				A00000000000000000000016 /* SleepSummaryTests.swift in Sources */,
 				A00000000000000000000017 /* HealthReportFormatterTests.swift in Sources */,
+				A0000000000000000000001A /* WatchCoverageSummaryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

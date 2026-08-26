@@ -6,7 +6,7 @@ A small native iPhone utility that reads selected Apple Health data, produces a 
 
 All HealthKit reading and aggregation happens on the device. The app has no accounts, analytics, telemetry, network service, backend, database, cloud storage, background sync, or remote transport. The only export is an explicit copy to the iOS clipboard. The repository contains synthetic health fixtures only, not exported HealthKit data.
 
-The app requests read-only access to Steps, Weight, Body Fat Percentage, Resting Heart Rate, Heart Rate Variability (SDNN), Apple Exercise Time, Active Energy, Workouts, and Sleep Analysis. HealthKit intentionally does not reveal whether read permission was denied, so an authorised query with no visible samples is presented as **No data**, never as a misleading zero.
+The app requests read-only access to Steps, Weight, Body Fat Percentage, Heart Rate, Resting Heart Rate, Heart Rate Variability (SDNN), Apple Exercise Time, Active Energy, Workouts, and Sleep Analysis. HealthKit intentionally does not reveal whether read permission was denied, so an authorised query with no visible samples is presented as **No data**, never as a misleading zero.
 
 ## Reporting periods
 
@@ -25,9 +25,10 @@ This is calendar-based, not a rolling 168-hour window, and remains seven days ac
 - **Steps:** one local-calendar-day `HKStatisticsCollectionQueryDescriptor` using `cumulativeSum`. HealthKit resolves contributing sources; raw iPhone and Watch samples are never manually summed. Weekly average is the sum of the daily totals divided by every complete reporting day, normally seven.
 - **Resting Heart Rate:** one HealthKit `discreteAverage` statistic per complete calendar day, followed by the arithmetic mean of valid daily values. Days without a visible value are omitted; days with more samples do not receive extra weight. The selected period is compared with the immediately preceding period containing the same number of complete days. A signed bpm trend requires at least three valid days on each side.
 - **HRV:** the same daily-first and equivalent-period comparison using `heartRateVariabilitySDNN`, converted to milliseconds. A signed trend requires at least three valid days on each side. It is not a readiness score or medical interpretation.
+- **Apple Watch coverage:** the number of complete reporting days containing at least one heart-rate sample whose HealthKit device metadata identifies an Apple Watch. This is evidence of Watch data on a day, not continuous wear time. An empty query is shown as **No data** because it may also mean heart-rate read access was denied.
 - **Apple Exercise Time:** one HealthKit `cumulativeSum` statistic over the exact report interval, converted to minutes. Raw samples are not summed manually.
 - **Active Energy:** one HealthKit `cumulativeSum` statistic over the exact report interval, converted to kcal. This is an activity metric, not total energy expenditure.
-- **Workouts:** `HKWorkout` samples whose start date is within the report interval. The app shows count and summed workout duration. Because missing read visibility is indistinguishable from an empty history, an empty result is shown as **No data** rather than a potentially misleading zero.
+- **Workouts:** `HKWorkout` samples whose start date is within the report interval. The app shows count, summed duration, and each workout's HealthKit activity type and duration. Because missing read visibility is indistinguishable from an empty history, an empty result is shown as **No data** rather than a potentially misleading zero.
 - **Sleep:** only `asleepUnspecified`, `asleepCore`, `asleepDeep`, and `asleepREM` samples are included. `awake` and `inBed` are excluded. Included intervals from all sources are clipped and unioned so overlaps are counted once. Each report date is a local noon-to-noon night bucket ending on that wake date; only nights with visible asleep time enter the average.
 
 Sleep source precedence in Apple's Health UI is not fully documented. Interval union is the closest transparent, defensible calculation, and nightly Debug diagnostics are provided for comparison.
@@ -55,6 +56,12 @@ Use a Debug build and select **Last 7 Completed Days**. Keep the app and Health 
 6. **Sleep:** compare each diagnostic night with the Health date on which you woke. Check overlapping third-party or manually entered records if a night differs.
 7. Tap **Copy Report**, paste into Notes, and confirm all Weight, RHR and HRV average/trend lines match the screen. Diagnostics must not appear in copied text.
 
+The copied report includes the local date and time at which it was generated, Watch data-day coverage, and each workout type and duration.
+
 Daily Steps totals have been compared successfully with Apple Health on a real iPhone. A one-step difference can still appear in the final displayed average when the two UIs round the same daily inputs differently. Simulator tests validate boundaries, daily-first means, overlap handling, workout totals, duration formatting, and clipboard output but cannot supply representative personal HealthKit data.
 
 Possible legitimate differences include Health data not yet synchronised, limited historical read access, different selected dates, display rounding, workouts crossing a boundary, and Apple's undocumented sleep source precedence. Material discrepancies should be investigated at the daily/nightly diagnostic level rather than hidden by rounding.
+
+## Licence
+
+Licensed under the [MIT License](LICENSE).

@@ -92,6 +92,18 @@ struct DeveloperDiagnosticsView: View {
                 heartSection(title: "HRV", summary: summary, unit: "ms")
             }
 
+            if case .available(let summary) = viewModel.watchCoverageState {
+                Section("Apple Watch Coverage") {
+                    LabeledContent(
+                        "Days with Watch heart-rate data",
+                        value: "\(summary.daysWithWatchData) / \(summary.reportingDayCount)"
+                    )
+                    ForEach(summary.coveredDays, id: \.start) { day in
+                        Text(day.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
+                    }
+                }
+            }
+
             Section("Activity") {
                 diagnosticMetric("Active energy exact total", state: viewModel.activeEnergyState, unit: "kcal")
                 diagnosticMetric("Exercise exact total", state: viewModel.exerciseState, unit: "min")

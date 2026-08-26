@@ -119,6 +119,7 @@ enum HealthReportFormatter {
 
     static func clipboardReport(
         _ report: WeeklyReportSnapshot,
+        generatedAt: Date = Date(),
         calendar: Calendar = .autoupdatingCurrent,
         locale: Locale = .autoupdatingCurrent
     ) -> String {
@@ -137,6 +138,7 @@ enum HealthReportFormatter {
         let lines = [
             "Weekly Health Report",
             period(report.period, calendar: calendar, locale: locale),
+            "Generated: \(dateAndTime(generatedAt, calendar: calendar, locale: locale))",
             "",
             "Latest Weight: \(report.weight.map { weightKilograms($0.latest.kilograms, locale: locale) } ?? "No data")",
             "Weight 7-day Avg: \(report.weight?.currentSevenDayAverage.map { weightKilograms($0, locale: locale) } ?? "Insufficient history")",
@@ -149,11 +151,29 @@ enum HealthReportFormatter {
             "Resting HR Trend: \(report.restingHeartRate?.trend.map { signedChange($0, unit: "bpm", comparison: comparison, locale: locale) } ?? "Insufficient history")",
             "HRV Average: \(report.hrv.map { hrvMilliseconds($0.current.average, locale: locale) } ?? "No data")",
             "HRV Trend: \(report.hrv?.trend.map { signedChange($0, unit: "ms", comparison: comparison, locale: locale) } ?? "Insufficient history")",
+            "Watch Data Coverage: \(report.watchCoverage.map { "\($0.daysWithWatchData) / \($0.reportingDayCount) days" } ?? "No data")",
             "Average Sleep: \(report.sleep.map { duration($0.averageDuration) } ?? "No data")",
             "Active Energy: \(report.activeEnergyKilocalories.map { energyKilocalories($0, locale: locale) } ?? "No data")",
             "Exercise: \(report.exerciseMinutes.map { minutes($0, locale: locale) } ?? "No data")",
             "Workouts: \(report.workouts.map { String($0.count) } ?? "No data")"
         ]
-        return lines.joined(separator: "\n")
+        let workoutLines = report.workouts?.workouts.map {
+            "Workout: \($0.activityName) — \(duration($0.duration))"
+        } ?? ["Workout Details: No data"]
+        return (lines + workoutLines).joined(separator: "\n")
+    }
+
+    static func dateAndTime(
+        _ date: Date,
+        calendar: Calendar = .autoupdatingCurrent,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.locale = locale
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
     }
 }

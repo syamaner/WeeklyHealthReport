@@ -180,6 +180,11 @@ struct WeeklyReportView: View {
                         format: { HealthReportFormatter.hrvMilliseconds($0.current.average) }
                     )
                     heartTrendRow("HRV Trend", state: viewModel.hrvState, unit: "ms")
+                    metricRow(
+                        "Watch Data Coverage",
+                        state: viewModel.watchCoverageState,
+                        format: { "\($0.daysWithWatchData) / \($0.reportingDayCount) days" }
+                    )
                 }
 
                 Section("Activity") {
@@ -203,6 +208,12 @@ struct WeeklyReportView: View {
                             "Workout Time",
                             value: HealthReportFormatter.duration(summary.totalDuration)
                         )
+                        ForEach(summary.workouts) { workout in
+                            LabeledContent(
+                                workout.activityName,
+                                value: HealthReportFormatter.duration(workout.duration)
+                            )
+                        }
                     }
                 }
 
@@ -217,7 +228,8 @@ struct WeeklyReportView: View {
                 Section {
                     Button {
                         UIPasteboard.general.string = HealthReportFormatter.clipboardReport(
-                            viewModel.reportSnapshot
+                            viewModel.reportSnapshot,
+                            generatedAt: Date()
                         )
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                         copied = true

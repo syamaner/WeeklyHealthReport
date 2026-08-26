@@ -36,6 +36,7 @@ final class WeeklyReportViewModel: ObservableObject {
     @Published private(set) var bodyFatState: BodyFatState = .idle
     @Published private(set) var restingHeartRateState: MetricState<HeartMetricTrendSummary> = .idle
     @Published private(set) var hrvState: MetricState<HeartMetricTrendSummary> = .idle
+    @Published private(set) var watchCoverageState: MetricState<WatchCoverageSummary> = .idle
     @Published private(set) var exerciseState: MetricState<Double> = .idle
     @Published private(set) var activeEnergyState: MetricState<Double> = .idle
     @Published private(set) var workoutState: MetricState<WorkoutSummary> = .idle
@@ -73,6 +74,7 @@ final class WeeklyReportViewModel: ObservableObject {
             }(),
             restingHeartRate: restingHeartRateState.value,
             hrv: hrvState.value,
+            watchCoverage: watchCoverageState.value,
             sleep: sleepState.value,
             activeEnergyKilocalories: activeEnergyState.value,
             exerciseMinutes: exerciseState.value,
@@ -112,6 +114,7 @@ final class WeeklyReportViewModel: ObservableObject {
             state = .noCompletedDays
             restingHeartRateState = .noDataOrAccess
             hrvState = .noDataOrAccess
+            watchCoverageState = .noDataOrAccess
             exerciseState = .noDataOrAccess
             activeEnergyState = .noDataOrAccess
             workoutState = .noDataOrAccess
@@ -204,6 +207,19 @@ final class WeeklyReportViewModel: ObservableObject {
         guard generation == refreshGeneration else { return }
 
         do {
+            let sampleDates = try await healthData.fetchAppleWatchHeartRateSampleDates(for: period)
+            guard generation == refreshGeneration else { return }
+            watchCoverageState = WatchCoverageSummary.calculate(
+                appleWatchSampleDates: sampleDates,
+                period: period
+            ).map(MetricState.available) ?? .noDataOrAccess
+        } catch {
+            guard generation == refreshGeneration else { return }
+            watchCoverageState = .failed(error.localizedDescription)
+        }
+        guard generation == refreshGeneration else { return }
+
+        do {
             let minutes = try await healthData.fetchExerciseMinutes(for: period)
             guard generation == refreshGeneration else { return }
             exerciseState = minutes.map(MetricState.available) ?? .noDataOrAccess
@@ -257,6 +273,7 @@ final class WeeklyReportViewModel: ObservableObject {
         bodyFatState = .loading
         restingHeartRateState = .loading
         hrvState = .loading
+        watchCoverageState = .loading
         exerciseState = .loading
         activeEnergyState = .loading
         workoutState = .loading
@@ -269,6 +286,7 @@ final class WeeklyReportViewModel: ObservableObject {
         bodyFatState = .healthUnavailable
         restingHeartRateState = .healthUnavailable
         hrvState = .healthUnavailable
+        watchCoverageState = .healthUnavailable
         exerciseState = .healthUnavailable
         activeEnergyState = .healthUnavailable
         workoutState = .healthUnavailable
@@ -281,6 +299,7 @@ final class WeeklyReportViewModel: ObservableObject {
         bodyFatState = .failed(message)
         restingHeartRateState = .failed(message)
         hrvState = .failed(message)
+        watchCoverageState = .failed(message)
         exerciseState = .failed(message)
         activeEnergyState = .failed(message)
         workoutState = .failed(message)
