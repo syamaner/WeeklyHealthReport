@@ -6,7 +6,7 @@ A small native iPhone utility that reads selected Apple Health data, produces a 
 
 <img src="docs/images/weekly-health-report-simulator.png" alt="Weekly Health Report running on an iPhone simulator" width="390">
 
-The simulator has no personal HealthKit records, so this capture intentionally demonstrates the app's explicit **No data** state. Real values are only available when the app runs on an authorised iPhone.
+The simulator screenshot uses an invented fixture created only for documentation. It contains no exported or personal HealthKit values. The production app reads real values only when it runs on an authorised iPhone.
 
 ## Privacy
 
@@ -33,25 +33,25 @@ Weekly Health Report
 19–25 Aug 2026
 Generated: 26 Aug 2026 at 08:30
 
-Latest Weight: 100.6 kg
+Latest Weight: 72.4 kg
 Weight Recorded: 26 Aug 2026 at 08:12
-Weight 7-day Avg: 100.8 kg
-Weight Trend: -0.4 kg vs previous 7d
-Body Fat: 26.5%
-Body Fat 28-day Avg: 26.7%
-Body Fat Trend: -0.9 pp vs previous 28d
-Average Daily Steps: 2,727
-Resting HR Average: 73 bpm
-Resting HR Trend: +3.0 bpm vs previous 7d
-HRV Average: 42 ms
-HRV Trend: -5.0 ms vs previous 7d
-Watch Data Coverage: 4 / 7 days
-Average Sleep: 6h 48m
-Active Energy: 1,974 kcal
-Exercise: 89 min
+Weight 7-day Avg: 72.6 kg
+Weight Trend: -0.5 kg vs previous 7d
+Body Fat: 18.2%
+Body Fat 28-day Avg: 18.7%
+Body Fat Trend: -0.6 pp vs previous 28d
+Average Daily Steps: 8,432
+Resting HR Average: 61 bpm
+Resting HR Trend: -2.0 bpm vs previous 7d
+HRV Average: 58 ms
+HRV Trend: +4.0 ms vs previous 7d
+Watch Data Coverage: 6 / 7 days
+Average Sleep: 7h 32m
+Active Energy: 3,456 kcal
+Exercise: 143 min
 Workouts: 2
-Workout: Walking — 31m
-Workout: Functional Strength Training — 18m
+Workout: Cycling — 42m
+Workout: Yoga — 36m
 ```
 
 ## Aggregation semantics
