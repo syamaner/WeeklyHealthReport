@@ -1,0 +1,54 @@
+name: iOS CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: macos-15
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select an available iPhone simulator
+        shell: bash
+        run: |
+          set -euo pipefail
+          simulator_id="$({ xcrun simctl list devices available -j; } | python3 -c '
+          import json
+          import sys
+
+          devices = json.load(sys.stdin)["devices"]
+          iphones = [
+              device
+              for runtime in devices.values()
+              for device in runtime
+              if device["name"].startswith("iPhone")
+          ]
+          if not iphones:
+              raise SystemExit("No available iPhone simulator found")
+          print(iphones[0]["udid"])
+          ' )"
+          echo "SIMULATOR_ID=$simulator_id" >> "$GITHUB_ENV"
+
+      - name: Run unit tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project WeeklyHealthReport.xcodeproj \
+            -scheme WeeklyHealthReport \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            CODE_SIGNING_ALLOWED=NO
