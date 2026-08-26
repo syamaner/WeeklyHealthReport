@@ -2,6 +2,12 @@
 
 A small native iPhone utility that reads selected Apple Health data, produces a weekly summary, and copies it as plain text. It is a personal informational utility, not medical software.
 
+## Screenshot
+
+<img src="docs/images/weekly-health-report-simulator.png" alt="Weekly Health Report running on an iPhone simulator" width="390">
+
+The simulator has no personal HealthKit records, so this capture intentionally demonstrates the app's explicit **No data** state. Real values are only available when the app runs on an authorised iPhone.
+
 ## Privacy
 
 All HealthKit reading and aggregation happens on the device. The app has no accounts, analytics, telemetry, network service, backend, database, cloud storage, background sync, or remote transport. The only export is an explicit copy to the iOS clipboard. The repository contains synthetic health fixtures only, not exported HealthKit data.
@@ -17,6 +23,36 @@ All boundaries use the device's local calendar and time zone. Intervals are half
 - **Previous Week:** the preceding complete locale-aware calendar week.
 
 This is calendar-based, not a rolling 168-hour window, and remains seven days across daylight-saving changes.
+
+## Clipboard output
+
+**Copy Report** places plain text on the clipboard. The report period covers completed days, while the independently selected latest weight may have been recorded today. The following is a synthetic formatting example:
+
+```text
+Weekly Health Report
+19–25 Aug 2026
+Generated: 26 Aug 2026 at 08:30
+
+Latest Weight: 100.6 kg
+Weight Recorded: 26 Aug 2026 at 08:12
+Weight 7-day Avg: 100.8 kg
+Weight Trend: -0.4 kg vs previous 7d
+Body Fat: 26.5%
+Body Fat 28-day Avg: 26.7%
+Body Fat Trend: -0.9 pp vs previous 28d
+Average Daily Steps: 2,727
+Resting HR Average: 73 bpm
+Resting HR Trend: +3.0 bpm vs previous 7d
+HRV Average: 42 ms
+HRV Trend: -5.0 ms vs previous 7d
+Watch Data Coverage: 4 / 7 days
+Average Sleep: 6h 48m
+Active Energy: 1,974 kcal
+Exercise: 89 min
+Workouts: 2
+Workout: Walking — 31m
+Workout: Functional Strength Training — 18m
+```
 
 ## Aggregation semantics
 
