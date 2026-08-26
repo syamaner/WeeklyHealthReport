@@ -194,9 +194,12 @@ final class HealthKitClient: HealthDataProviding {
 
         let samples = try await descriptor.result(for: store)
         return samples.map { sample in
-            BodyFatMeasurement(
+            let fraction = sample.quantity.doubleValue(for: .percent())
+            return BodyFatMeasurement(
                 date: sample.endDate,
-                percentage: sample.quantity.doubleValue(for: .percent())
+                percentage: BodyFatMeasurement.percentagePoints(
+                    fromHealthKitFraction: fraction
+                )
             )
         }
     }

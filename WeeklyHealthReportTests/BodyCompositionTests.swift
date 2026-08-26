@@ -2,6 +2,14 @@ import XCTest
 @testable import WeeklyHealthReport
 
 final class BodyCompositionTests: XCTestCase {
+    func testHealthKitBodyFatFractionConvertsToPercentagePoints() {
+        XCTAssertEqual(
+            BodyFatMeasurement.percentagePoints(fromHealthKitFraction: 0.30),
+            30.0,
+            accuracy: 0.0001
+        )
+    }
+
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/London")!

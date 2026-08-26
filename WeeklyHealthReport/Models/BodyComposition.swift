@@ -3,6 +3,12 @@ import Foundation
 struct BodyFatMeasurement: Equatable {
     let date: Date
     let percentage: Double
+
+    static func percentagePoints(fromHealthKitFraction fraction: Double) -> Double {
+        // HKUnit.percent values are defined by HealthKit on a 0.0...1.0 scale.
+        // The app's domain model uses percentage points so 0.30 becomes 30.0%.
+        fraction * 100
+    }
 }
 
 struct DailyBodyFatValue: Equatable, Identifiable {
