@@ -30,6 +30,7 @@
 		A00000000000000000000015 /* ActivitySummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000018 /* ActivitySummaryTests.swift */; };
 		A00000000000000000000016 /* SleepSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000019 /* SleepSummaryTests.swift */; };
 		A00000000000000000000017 /* HealthReportFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000001A /* HealthReportFormatterTests.swift */; };
+		A00000000000000000000018 /* DeveloperDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000001B /* DeveloperDiagnosticsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -69,6 +70,7 @@
 		B00000000000000000000018 /* ActivitySummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitySummaryTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000019 /* SleepSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSummaryTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000001A /* HealthReportFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthReportFormatterTests.swift; sourceTree = "<group>"; };
+		B0000000000000000000001B /* DeveloperDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperDiagnosticsView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -142,6 +144,7 @@
 			children = (
 				B00000000000000000000006 /* WeeklyReportViewModel.swift */,
 				B00000000000000000000007 /* WeeklyReportView.swift */,
+				B0000000000000000000001B /* DeveloperDiagnosticsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -291,6 +294,7 @@
 				A00000000000000000000005 /* HealthKitClient.swift in Sources */,
 				A00000000000000000000006 /* WeeklyReportViewModel.swift in Sources */,
 				A00000000000000000000007 /* WeeklyReportView.swift in Sources */,
+				A00000000000000000000018 /* DeveloperDiagnosticsView.swift in Sources */,
 				A0000000000000000000000B /* WeightMeasurement.swift in Sources */,
 				A0000000000000000000000C /* HealthReportFormatter.swift in Sources */,
 				A0000000000000000000000F /* BodyComposition.swift in Sources */,

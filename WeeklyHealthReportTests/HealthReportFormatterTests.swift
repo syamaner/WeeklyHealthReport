@@ -1,6 +1,7 @@
 import XCTest
 @testable import WeeklyHealthReport
 
+// All health values in this test file are synthetic fixtures.
 final class HealthReportFormatterTests: XCTestCase {
     func testDurationFormatting() {
         XCTAssertEqual(HealthReportFormatter.duration(6 * 3600 + 48 * 60), "6h 48m")
@@ -33,7 +34,6 @@ final class HealthReportFormatterTests: XCTestCase {
                 trendKilograms: -0.4,
                 dailyValues: []
             ),
-            bmi: BMIMeasurement(date: period.interval.end, value: 30.8),
             bodyFat: bodyFat,
             steps: stepSummary(period: period),
             restingHeartRate: heartSummary(period: period, current: 73, previous: 70),
@@ -59,7 +59,6 @@ final class HealthReportFormatterTests: XCTestCase {
         Latest Weight: 100.6 kg
         Weight 7-day Avg: 100.8 kg
         Weight Trend: -0.4 kg vs previous 7d
-        BMI: 30.8
         Body Fat: 26.5%
         Body Fat 28-day Avg: 26.7%
         Body Fat Trend: -0.9 pp vs previous 28d
@@ -83,7 +82,7 @@ final class HealthReportFormatterTests: XCTestCase {
             calendar: calendar
         )
         let report = WeeklyReportSnapshot(
-            period: period, weight: nil, bmi: nil, bodyFat: nil, steps: nil,
+            period: period, weight: nil, bodyFat: nil, steps: nil,
             restingHeartRate: nil, hrv: nil, sleep: nil,
             activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil
         )

@@ -1,6 +1,7 @@
 import XCTest
 @testable import WeeklyHealthReport
 
+// All health values in this test file are synthetic fixtures.
 final class BodyCompositionTests: XCTestCase {
     func testHealthKitBodyFatFractionConvertsToPercentagePoints() {
         XCTAssertEqual(
@@ -68,19 +69,10 @@ final class BodyCompositionTests: XCTestCase {
         XCTAssertNil(summary?.trendPercentagePoints)
     }
 
-    func testLatestBMISelectsNewestMeasurement() {
-        let latest = BMIMeasurement(date: date(2026, 8, 24, 8), value: 30.8)
-        let older = BMIMeasurement(date: date(2026, 8, 20, 8), value: 31.0)
-
-        XCTAssertEqual(BMIMeasurement.latest(in: [latest, older]), latest)
-        XCTAssertNil(BMIMeasurement.latest(in: []))
-    }
-
     func testBodyCompositionFormatting() {
         let locale = Locale(identifier: "en_GB")
 
         XCTAssertEqual(HealthReportFormatter.percentage(26.44, locale: locale), "26.4%")
-        XCTAssertEqual(HealthReportFormatter.bmi(30.84, locale: locale), "30.8")
         XCTAssertEqual(
             HealthReportFormatter.percentagePointTrend(-0.66, locale: locale),
             "↓ 0.7 pp vs previous 28d"

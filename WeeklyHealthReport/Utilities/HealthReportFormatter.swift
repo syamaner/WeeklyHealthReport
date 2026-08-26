@@ -32,17 +32,6 @@ enum HealthReportFormatter {
         return "\(value)%"
     }
 
-    static func bmi(
-        _ value: Double,
-        locale: Locale = .autoupdatingCurrent
-    ) -> String {
-        value.formatted(
-            .number
-                .locale(locale)
-                .precision(.fractionLength(1))
-        )
-    }
-
     static func percentagePointTrend(
         _ value: Double,
         locale: Locale = .autoupdatingCurrent
@@ -152,7 +141,6 @@ enum HealthReportFormatter {
             "Latest Weight: \(report.weight.map { weightKilograms($0.latest.kilograms, locale: locale) } ?? "No data")",
             "Weight 7-day Avg: \(report.weight?.currentSevenDayAverage.map { weightKilograms($0, locale: locale) } ?? "Insufficient history")",
             "Weight Trend: \(report.weight?.trendKilograms.map { signedChange($0, unit: "kg", comparison: "previous 7d", locale: locale) } ?? "Insufficient history")",
-            "BMI: \(report.bmi.map { bmi($0.value, locale: locale) } ?? "No data")",
             "Body Fat: \(report.bodyFat.map { percentage($0.latest.percentage, locale: locale) } ?? "No data")",
             "Body Fat 28-day Avg: \(report.bodyFat?.current28DayAverage.map { percentage($0, locale: locale) } ?? "Insufficient history")",
             "Body Fat Trend: \(bodyFatTrend)",

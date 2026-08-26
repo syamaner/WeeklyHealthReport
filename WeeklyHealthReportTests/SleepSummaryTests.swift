@@ -1,6 +1,7 @@
 import XCTest
 @testable import WeeklyHealthReport
 
+// All health values in this test file are synthetic fixtures.
 final class SleepSummaryTests: XCTestCase {
     func testOnlyRecognisedAsleepStagesAreIncluded() {
         XCTAssertTrue(SleepStage.asleepUnspecified.countsAsAsleep)

@@ -1,6 +1,7 @@
 import XCTest
 @testable import WeeklyHealthReport
 
+// All health values in this test file are synthetic fixtures.
 final class ActivitySummaryTests: XCTestCase {
     func testWorkoutCountAndDurationTotal() {
         let start = Date(timeIntervalSince1970: 1_700_000_000)

@@ -6,7 +6,6 @@ enum HealthDataError: LocalizedError, Equatable {
     case missingStepType
     case missingBodyMassType
     case missingBodyFatType
-    case missingBMIType
     case missingType(String)
 
     var errorDescription: String? {
@@ -19,8 +18,6 @@ enum HealthDataError: LocalizedError, Equatable {
             return "The HealthKit body-mass type is unavailable."
         case .missingBodyFatType:
             return "The HealthKit body-fat type is unavailable."
-        case .missingBMIType:
-            return "The HealthKit BMI type is unavailable."
         case .missingType(let name):
             return "The HealthKit \(name) type is unavailable."
         }
@@ -51,9 +48,6 @@ final class HealthKitClient: HealthDataProviding {
         guard let bodyFatType = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) else {
             throw HealthDataError.missingBodyFatType
         }
-        guard let bmiType = HKObjectType.quantityType(forIdentifier: .bodyMassIndex) else {
-            throw HealthDataError.missingBMIType
-        }
         guard let restingHeartRateType = HKObjectType.quantityType(forIdentifier: .restingHeartRate),
               let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
               let exerciseType = HKObjectType.quantityType(forIdentifier: .appleExerciseTime),
@@ -69,7 +63,7 @@ final class HealthKitClient: HealthDataProviding {
         try await store.requestAuthorization(
             toShare: [],
             read: [
-                stepType, bodyMassType, bodyFatType, bmiType,
+                stepType, bodyMassType, bodyFatType,
                 restingHeartRateType, hrvType, exerciseType, activeEnergyType,
                 workoutType, sleepType
             ]
@@ -202,46 +196,6 @@ final class HealthKitClient: HealthDataProviding {
                 )
             )
         }
-    }
-
-    func fetchLatestBMI(asOf date: Date) async throws -> BMIMeasurement? {
-        guard isHealthDataAvailable else {
-            throw HealthDataError.unavailable
-        }
-        guard let bmiType = HKObjectType.quantityType(forIdentifier: .bodyMassIndex) else {
-            throw HealthDataError.missingBMIType
-        }
-        guard let lookbackStart = Calendar.autoupdatingCurrent.date(
-            byAdding: .day,
-            value: -30,
-            to: date
-        ) else {
-            return nil
-        }
-
-        let datePredicate = HKQuery.predicateForSamples(
-            withStart: lookbackStart,
-            end: date,
-            options: []
-        )
-        let samplePredicate = HKSamplePredicate.quantitySample(
-            type: bmiType,
-            predicate: datePredicate
-        )
-        let descriptor = HKSampleQueryDescriptor(
-            predicates: [samplePredicate],
-            sortDescriptors: [SortDescriptor(\.endDate, order: .reverse)],
-            limit: 1
-        )
-
-        let samples = try await descriptor.result(for: store)
-        let measurements = samples.map { sample in
-            BMIMeasurement(
-                date: sample.endDate,
-                value: sample.quantity.doubleValue(for: .count())
-            )
-        }
-        return BMIMeasurement.latest(in: measurements)
     }
 
     func fetchDailyRestingHeartRate(for period: ReportPeriod) async throws -> [DailyHeartMetricValue] {

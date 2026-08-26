@@ -21,7 +21,7 @@ struct WeeklyReportView: View {
                     LabeledContent("Period", value: periodText)
                 }
 
-                Section("Steps validation") {
+                Section("Steps") {
                     switch viewModel.state {
                     case .idle, .loading:
                         HStack {
@@ -61,7 +61,7 @@ struct WeeklyReportView: View {
                     }
                 }
 
-                Section("Weight validation") {
+                Section("Weight") {
                     switch viewModel.weightState {
                     case .idle, .loading:
                         HStack {
@@ -115,7 +115,7 @@ struct WeeklyReportView: View {
                     }
                 }
 
-                Section("Body composition validation") {
+                Section("Body Composition") {
                     switch viewModel.bodyFatState {
                     case .idle, .loading:
                         HStack {
@@ -163,24 +163,6 @@ struct WeeklyReportView: View {
 
                     case .failed(let message):
                         Text("Body-fat query failed: \(message)")
-                            .foregroundStyle(.red)
-                    }
-
-                    switch viewModel.bmiState {
-                    case .idle, .loading:
-                        HStack {
-                            ProgressView()
-                            Text("Reading latest BMI…")
-                        }
-                    case .available(let measurement):
-                        LabeledContent("BMI", value: HealthReportFormatter.bmi(measurement.value))
-                    case .noDataOrAccess:
-                        LabeledContent("BMI", value: "No data")
-                            .foregroundStyle(.secondary)
-                    case .healthUnavailable:
-                        EmptyView()
-                    case .failed(let message):
-                        Text("BMI query failed: \(message)")
                             .foregroundStyle(.red)
                     }
                 }
@@ -232,158 +214,6 @@ struct WeeklyReportView: View {
                     )
                 }
 
-                #if DEBUG
-                if case .loaded(let summary) = viewModel.state {
-                    Section("Developer diagnostics") {
-                        LabeledContent("Query start", value: diagnosticDate(viewModel.period.interval.start))
-                        LabeledContent("Query end (exclusive)", value: diagnosticDate(viewModel.period.interval.end))
-                        LabeledContent("Time zone", value: TimeZone.autoupdatingCurrent.identifier)
-                        LabeledContent("Denominator", value: "\(summary.reportingDayCount) completed days")
-                        LabeledContent("Days with data", value: "\(summary.daysWithVisibleData)")
-
-                        ForEach(summary.dailyTotals) { daily in
-                            VStack(alignment: .leading, spacing: 4) {
-                                HStack {
-                                    Text(daily.day.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)))
-                                    Spacer()
-                                    if let steps = daily.steps {
-                                        Text(steps.formatted(.number.precision(.fractionLength(0))))
-                                            .monospacedDigit()
-                                    } else {
-                                        Text("No visible data")
-                                            .foregroundStyle(.secondary)
-                                    }
-                                }
-                                if !daily.sourceNames.isEmpty {
-                                    Text(daily.sourceNames.joined(separator: ", "))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if case .available(let summary) = viewModel.bodyFatState {
-                    Section("Body-fat diagnostics") {
-                        LabeledContent(
-                            "Latest sample",
-                            value: diagnosticPercentage(summary.latest.percentage)
-                        )
-                        LabeledContent(
-                            "Latest timestamp",
-                            value: diagnosticDate(summary.latest.date)
-                        )
-                        if let average = summary.sevenDayAverage {
-                            LabeledContent("7-day daily mean", value: diagnosticPercentage(average))
-                        }
-                        if let average = summary.current28DayAverage {
-                            LabeledContent("Current 28d daily mean", value: diagnosticPercentage(average))
-                        }
-                        if let average = summary.previous28DayAverage {
-                            LabeledContent("Previous 28d daily mean", value: diagnosticPercentage(average))
-                        }
-
-                        Text("Daily values")
-                            .font(.headline)
-                        ForEach(summary.dailyValues) { daily in
-                            HStack {
-                                Text(daily.day.formatted(.dateTime.day().month(.abbreviated).year()))
-                                Spacer()
-                                VStack(alignment: .trailing) {
-                                    Text(diagnosticPercentage(daily.percentage))
-                                        .monospacedDigit()
-                                    Text("\(daily.sampleCount) sample\(daily.sampleCount == 1 ? "" : "s")")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-
-                        Text("Raw samples")
-                            .font(.headline)
-                        ForEach(Array(summary.measurements.enumerated()), id: \.offset) { _, sample in
-                            HStack {
-                                Text(diagnosticDate(sample.date))
-                                Spacer()
-                                Text(diagnosticPercentage(sample.percentage))
-                                    .monospacedDigit()
-                            }
-                        }
-                    }
-                }
-
-                if case .available(let summary) = viewModel.weightState {
-                    Section("Weight diagnostics") {
-                        if let current = summary.currentSevenDayAverage {
-                            LabeledContent("Current 7d daily mean", value: HealthReportFormatter.weightKilograms(current))
-                        }
-                        if let previous = summary.previousSevenDayAverage {
-                            LabeledContent("Previous 7d daily mean", value: HealthReportFormatter.weightKilograms(previous))
-                        }
-                        ForEach(summary.dailyValues) { daily in
-                            LabeledContent(
-                                daily.day.formatted(.dateTime.day().month(.abbreviated)),
-                                value: "\(daily.kilograms.formatted(.number.precision(.fractionLength(3)))) kg (\(daily.sampleCount))"
-                            )
-                        }
-                    }
-                }
-
-                if case .available(let measurement) = viewModel.bmiState {
-                    Section("BMI diagnostics") {
-                        LabeledContent(
-                            "Latest BMI",
-                            value: measurement.value.formatted(
-                                .number.precision(.fractionLength(3))
-                            )
-                        )
-                        LabeledContent(
-                            "Latest timestamp",
-                            value: diagnosticDate(measurement.date)
-                        )
-                    }
-                }
-
-                if case .available(let summary) = viewModel.restingHeartRateState {
-                    heartDiagnostics(title: "Resting HR diagnostics", summary: summary, unit: "bpm")
-                }
-
-                if case .available(let summary) = viewModel.hrvState {
-                    heartDiagnostics(title: "HRV diagnostics", summary: summary, unit: "ms")
-                }
-
-                Section("Activity diagnostics") {
-                    diagnosticMetric("Active energy exact total", state: viewModel.activeEnergyState, unit: "kcal")
-                    diagnosticMetric("Exercise exact total", state: viewModel.exerciseState, unit: "min")
-                    if case .available(let summary) = viewModel.workoutState {
-                        LabeledContent("Workout count", value: String(summary.count))
-                        LabeledContent(
-                            "Workout duration",
-                            value: "\((summary.totalDuration / 60).formatted(.number.precision(.fractionLength(2)))) min"
-                        )
-                        ForEach(summary.workouts) { workout in
-                            LabeledContent(
-                                workout.activityName,
-                                value: HealthReportFormatter.duration(workout.duration)
-                            )
-                        }
-                    }
-                }
-
-                if case .available(let summary) = viewModel.sleepState {
-                    Section("Sleep diagnostics") {
-                        LabeledContent("Valid nights", value: String(summary.nights.count))
-                        ForEach(summary.nights) { night in
-                            LabeledContent(
-                                night.wakeDay.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)),
-                                value: HealthReportFormatter.duration(night.duration)
-                            )
-                        }
-                    }
-                }
-                #endif
-
                 Section {
                     Button {
                         UIPasteboard.general.string = HealthReportFormatter.clipboardReport(
@@ -417,6 +247,16 @@ struct WeeklyReportView: View {
                         .foregroundStyle(.secondary)
                     }
                 }
+
+                #if DEBUG
+                Section {
+                    NavigationLink {
+                        DeveloperDiagnosticsView(viewModel: viewModel)
+                    } label: {
+                        Label("Developer Diagnostics", systemImage: "stethoscope")
+                    }
+                }
+                #endif
             }
             .navigationTitle("Weekly Health Report")
             .task {
@@ -434,14 +274,6 @@ struct WeeklyReportView: View {
         viewModel.period.completedDays.isEmpty
             ? "No completed days"
             : HealthReportFormatter.period(viewModel.period)
-    }
-
-    private func diagnosticDate(_ date: Date) -> String {
-        date.formatted(.iso8601.year().month().day().dateSeparator(.dash).time(includingFractionalSeconds: false))
-    }
-
-    private func diagnosticPercentage(_ value: Double) -> String {
-        "\(value.formatted(.number.precision(.fractionLength(3))))%"
     }
 
     @ViewBuilder
@@ -499,53 +331,4 @@ struct WeeklyReportView: View {
         }
     }
 
-    #if DEBUG
-    @ViewBuilder
-    private func heartDiagnostics(
-        title: String,
-        summary: HeartMetricTrendSummary,
-        unit: String
-    ) -> some View {
-        Section(title) {
-            LabeledContent("Current valid days", value: String(summary.current.validDayCount))
-            if let previous = summary.previous {
-                LabeledContent("Previous valid days", value: String(previous.validDayCount))
-            }
-            Text("Current period").font(.headline)
-            ForEach(summary.current.dailyValues) { daily in
-                LabeledContent(
-                    daily.day.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)),
-                    value: daily.value.map {
-                        "\($0.formatted(.number.precision(.fractionLength(3)))) \(unit)"
-                    } ?? "No visible data"
-                )
-            }
-            if let previous = summary.previous {
-                Text("Previous equivalent period").font(.headline)
-                ForEach(previous.dailyValues) { daily in
-                    LabeledContent(
-                        daily.day.start.formatted(.dateTime.weekday(.abbreviated).day().month(.abbreviated)),
-                        value: daily.value.map {
-                            "\($0.formatted(.number.precision(.fractionLength(3)))) \(unit)"
-                        } ?? "No visible data"
-                    )
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private func diagnosticMetric(
-        _ label: String,
-        state: MetricState<Double>,
-        unit: String
-    ) -> some View {
-        if case .available(let value) = state {
-            LabeledContent(
-                label,
-                value: "\(value.formatted(.number.precision(.fractionLength(3)))) \(unit)"
-            )
-        }
-    }
-    #endif
 }

@@ -28,14 +28,12 @@ final class WeeklyReportViewModel: ObservableObject {
 
     typealias WeightState = MetricState<WeightTrendSummary>
     typealias BodyFatState = MetricState<BodyFatTrendSummary>
-    typealias BMIState = MetricState<BMIMeasurement>
 
     @Published var selection: ReportPeriodSelection = .lastSevenCompletedDays
     @Published private(set) var period: ReportPeriod
     @Published private(set) var state: State = .idle
     @Published private(set) var weightState: WeightState = .idle
     @Published private(set) var bodyFatState: BodyFatState = .idle
-    @Published private(set) var bmiState: BMIState = .idle
     @Published private(set) var restingHeartRateState: MetricState<HeartMetricTrendSummary> = .idle
     @Published private(set) var hrvState: MetricState<HeartMetricTrendSummary> = .idle
     @Published private(set) var exerciseState: MetricState<Double> = .idle
@@ -68,7 +66,6 @@ final class WeeklyReportViewModel: ObservableObject {
         WeeklyReportSnapshot(
             period: period,
             weight: weightState.value,
-            bmi: bmiState.value,
             bodyFat: bodyFatState.value,
             steps: {
                 if case .loaded(let summary) = state { return summary }
@@ -156,16 +153,6 @@ final class WeeklyReportViewModel: ObservableObject {
         } catch {
             guard generation == refreshGeneration else { return }
             bodyFatState = .failed(error.localizedDescription)
-        }
-        guard generation == refreshGeneration else { return }
-
-        do {
-            let measurement = try await healthData.fetchLatestBMI(asOf: date)
-            guard generation == refreshGeneration else { return }
-            bmiState = measurement.map(BMIState.available) ?? .noDataOrAccess
-        } catch {
-            guard generation == refreshGeneration else { return }
-            bmiState = .failed(error.localizedDescription)
         }
     }
 
@@ -268,7 +255,6 @@ final class WeeklyReportViewModel: ObservableObject {
         state = .loading
         weightState = .loading
         bodyFatState = .loading
-        bmiState = .loading
         restingHeartRateState = .loading
         hrvState = .loading
         exerciseState = .loading
@@ -281,7 +267,6 @@ final class WeeklyReportViewModel: ObservableObject {
         state = .healthUnavailable
         weightState = .healthUnavailable
         bodyFatState = .healthUnavailable
-        bmiState = .healthUnavailable
         restingHeartRateState = .healthUnavailable
         hrvState = .healthUnavailable
         exerciseState = .healthUnavailable
@@ -294,7 +279,6 @@ final class WeeklyReportViewModel: ObservableObject {
         state = .failed(message)
         weightState = .failed(message)
         bodyFatState = .failed(message)
-        bmiState = .failed(message)
         restingHeartRateState = .failed(message)
         hrvState = .failed(message)
         exerciseState = .failed(message)

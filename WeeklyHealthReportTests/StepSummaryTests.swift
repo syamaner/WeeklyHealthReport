@@ -1,6 +1,7 @@
 import XCTest
 @testable import WeeklyHealthReport
 
+// All health values in this test file are synthetic fixtures.
 final class StepSummaryTests: XCTestCase {
     func testAverageUsesEveryCompletedDayAsDenominator() {
         let totals = [

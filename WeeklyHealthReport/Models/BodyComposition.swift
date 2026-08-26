@@ -84,12 +84,3 @@ struct BodyFatTrendSummary: Equatable {
         )
     }
 }
-
-struct BMIMeasurement: Equatable {
-    let date: Date
-    let value: Double
-
-    static func latest(in measurements: [BMIMeasurement]) -> BMIMeasurement? {
-        measurements.max { lhs, rhs in lhs.date < rhs.date }
-    }
-}
