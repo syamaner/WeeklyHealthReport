@@ -71,10 +71,10 @@ Sleep source precedence in Apple's Health UI is not fully documented. Interval u
 
 ## Build on a personal iPhone
 
-1. Open `WeeklyHealthReport.xcodeproj` in the current stable Xcode.
-2. Select the **WeeklyHealthReport** target, then **Signing & Capabilities**.
-3. Choose your personal development team and replace the example `com.example.WeeklyHealthReport` bundle identifier with one unique to your team.
-4. Confirm the **HealthKit** capability is present. No background delivery or clinical-health-record access is required.
+1. Copy `Config/Signing.local.xcconfig.example` to `Config/Signing.local.xcconfig`.
+2. In the local file, replace `YOUR_TEAM_ID` with your Apple development team ID and use a bundle identifier unique to that team. The local file is ignored by Git.
+3. Open `WeeklyHealthReport.xcodeproj` in the current stable Xcode.
+4. Select the **WeeklyHealthReport** target, open **Signing & Capabilities**, and confirm the values from the local configuration are shown with the **HealthKit** capability. No background delivery or clinical-health-record access is required.
 5. Connect and trust the iPhone, enable Developer Mode if prompted, select it as the run destination, then Run.
 6. On the new Health permission sheet, enable read access for every listed metric. If the app was installed before new metrics were added, iOS should ask for the additional permissions on the next run.
 

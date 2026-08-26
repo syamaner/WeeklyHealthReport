@@ -1,0 +1,5 @@
+// Public defaults. Personal signing values belong in the optional ignored file.
+WEEKLY_HEALTH_REPORT_BUNDLE_IDENTIFIER = com.example.WeeklyHealthReport
+DEVELOPMENT_TEAM =
+
+#include? "Signing.local.xcconfig"

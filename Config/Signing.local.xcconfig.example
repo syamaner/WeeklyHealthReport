@@ -1,0 +1,3 @@
+// Copy this file to Signing.local.xcconfig and replace both placeholders.
+DEVELOPMENT_TEAM = YOUR_TEAM_ID
+WEEKLY_HEALTH_REPORT_BUNDLE_IDENTIFIER = com.yourname.WeeklyHealthReport
