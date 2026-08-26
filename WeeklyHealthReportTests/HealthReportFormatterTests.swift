@@ -63,6 +63,7 @@ final class HealthReportFormatterTests: XCTestCase {
         Generated: 26 Aug 2026 at 09:00
 
         Latest Weight: 100.6 kg
+        Weight Recorded: 25 Aug 2026 at 00:00
         Weight 7-day Avg: 100.8 kg
         Weight Trend: -0.4 kg vs previous 7d
         Body Fat: 26.5%
@@ -97,6 +98,7 @@ final class HealthReportFormatterTests: XCTestCase {
         let text = HealthReportFormatter.clipboardReport(report, calendar: calendar)
         XCTAssertTrue(text.contains("HRV Average: No data"))
         XCTAssertTrue(text.contains("Body Fat Trend: Insufficient history"))
+        XCTAssertTrue(text.contains("Weight Recorded: No data"))
         XCTAssertTrue(text.contains("Watch Data Coverage: No data"))
         XCTAssertTrue(text.contains("Workout Details: No data"))
         XCTAssertFalse(text.contains("HRV Average: 0"))

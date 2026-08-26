@@ -141,6 +141,7 @@ enum HealthReportFormatter {
             "Generated: \(dateAndTime(generatedAt, calendar: calendar, locale: locale))",
             "",
             "Latest Weight: \(report.weight.map { weightKilograms($0.latest.kilograms, locale: locale) } ?? "No data")",
+            "Weight Recorded: \(report.weight.map { dateAndTime($0.latest.date, calendar: calendar, locale: locale) } ?? "No data")",
             "Weight 7-day Avg: \(report.weight?.currentSevenDayAverage.map { weightKilograms($0, locale: locale) } ?? "Insufficient history")",
             "Weight Trend: \(report.weight?.trendKilograms.map { signedChange($0, unit: "kg", comparison: "previous 7d", locale: locale) } ?? "Insufficient history")",
             "Body Fat: \(report.bodyFat.map { percentage($0.latest.percentage, locale: locale) } ?? "No data")",
