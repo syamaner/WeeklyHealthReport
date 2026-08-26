@@ -30,11 +30,11 @@ This is calendar-based, not a rolling 168-hour window, and remains seven days ac
 
 ```text
 Weekly Health Report
-19–25 Aug 2026
-Generated: 26 Aug 2026 at 08:30
+3–9 Feb 2025
+Generated: 10 Feb 2025 at 09:41
 
 Latest Weight: 72.4 kg
-Weight Recorded: 26 Aug 2026 at 08:12
+Weight Recorded: 10 Feb 2025 at 09:11
 Weight 7-day Avg: 72.6 kg
 Weight Trend: -0.5 kg vs previous 7d
 Body Fat: 18.2%
