@@ -32,6 +32,40 @@ enum HealthReportFormatter {
         return "\(value)%"
     }
 
+    static func waistCentimetres(
+        _ centimetres: Double,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let value = centimetres.formatted(
+            .number.locale(locale).precision(.fractionLength(1))
+        )
+        return "\(value) cm"
+    }
+
+    static func glucose(
+        _ millimolesPerLiter: Double,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let value = millimolesPerLiter.formatted(
+            .number.locale(locale).precision(.fractionLength(1))
+        )
+        return "\(value) mmol/L"
+    }
+
+    static func glucoseRange(
+        minimum: Double,
+        maximum: Double,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let lower = minimum.formatted(
+            .number.locale(locale).precision(.fractionLength(1))
+        )
+        let upper = maximum.formatted(
+            .number.locale(locale).precision(.fractionLength(1))
+        )
+        return "\(lower)–\(upper) mmol/L"
+    }
+
     static func percentagePointTrend(
         _ value: Double,
         locale: Locale = .autoupdatingCurrent
@@ -147,6 +181,11 @@ enum HealthReportFormatter {
             "Body Fat: \(report.bodyFat.map { percentage($0.latest.percentage, locale: locale) } ?? "No data")",
             "Body Fat 28-day Avg: \(report.bodyFat?.current28DayAverage.map { percentage($0, locale: locale) } ?? "Insufficient history")",
             "Body Fat Trend: \(bodyFatTrend)",
+            "Waist Circumference: \(report.waist.map { waistCentimetres($0.latest.centimetres, locale: locale) } ?? "No data")",
+            "Waist Recorded: \(report.waist.map { dateAndTime($0.latest.date, calendar: calendar, locale: locale) } ?? "No data")",
+            "Glucose Daily Average: \(report.glucose.map { glucose($0.averageMillimolesPerLiter, locale: locale) } ?? "No data")",
+            "Glucose Observed Range: \(report.glucose.map { glucoseRange(minimum: $0.minimumMillimolesPerLiter, maximum: $0.maximumMillimolesPerLiter, locale: locale) } ?? "No data")",
+            "Glucose Data Coverage: \(report.glucose.map { "\($0.validDayCount) / \($0.reportingDayCount) days" } ?? "No data")",
             "Average Daily Steps: \(report.steps.map { integer($0.averageDailySteps, locale: locale) } ?? "No data")",
             "Resting HR Average: \(report.restingHeartRate.map { heartRate($0.current.average, locale: locale) } ?? "No data")",
             "Resting HR Trend: \(report.restingHeartRate?.trend.map { signedChange($0, unit: "bpm", comparison: comparison, locale: locale) } ?? "Insufficient history")",

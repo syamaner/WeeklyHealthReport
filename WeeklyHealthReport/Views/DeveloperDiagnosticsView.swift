@@ -84,6 +84,65 @@ struct DeveloperDiagnosticsView: View {
                 }
             }
 
+            if case .available(let summary) = viewModel.waistState {
+                Section("Waist Circumference") {
+                    LabeledContent(
+                        "Latest in period",
+                        value: HealthReportFormatter.waistCentimetres(summary.latest.centimetres)
+                    )
+                    LabeledContent("Latest timestamp", value: diagnosticDate(summary.latest.date))
+                    ForEach(Array(summary.measurements.enumerated()), id: \.offset) { _, sample in
+                        LabeledContent(
+                            diagnosticDate(sample.date),
+                            value: HealthReportFormatter.waistCentimetres(sample.centimetres)
+                        )
+                    }
+                }
+            }
+
+            if case .available(let summary) = viewModel.glucoseState {
+                Section("Blood Glucose") {
+                    LabeledContent(
+                        "Daily-first average",
+                        value: HealthReportFormatter.glucose(summary.averageMillimolesPerLiter)
+                    )
+                    LabeledContent(
+                        "Observed range",
+                        value: HealthReportFormatter.glucoseRange(
+                            minimum: summary.minimumMillimolesPerLiter,
+                            maximum: summary.maximumMillimolesPerLiter
+                        )
+                    )
+                    LabeledContent(
+                        "Valid days",
+                        value: "\(summary.validDayCount) / \(summary.reportingDayCount)"
+                    )
+                    ForEach(summary.dailyValues) { daily in
+                        VStack(alignment: .leading, spacing: 4) {
+                            LabeledContent(
+                                daily.day.start.formatted(
+                                    .dateTime.weekday(.abbreviated).day().month(.abbreviated)
+                                ),
+                                value: daily.averageMillimolesPerLiter.map {
+                                    HealthReportFormatter.glucose($0)
+                                } ?? "No visible data"
+                            )
+                            if let minimum = daily.minimumMillimolesPerLiter,
+                               let maximum = daily.maximumMillimolesPerLiter {
+                                Text("Range: \(HealthReportFormatter.glucoseRange(minimum: minimum, maximum: maximum))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if !daily.sourceNames.isEmpty {
+                                Text(daily.sourceNames.joined(separator: ", "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+            }
+
             if case .available(let summary) = viewModel.restingHeartRateState {
                 heartSection(title: "Resting Heart Rate", summary: summary, unit: "bpm")
             }

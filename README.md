@@ -12,7 +12,9 @@ The simulator screenshot uses an invented fixture created only for documentation
 
 All HealthKit reading and aggregation happens on the device. The app has no accounts, analytics, telemetry, network service, backend, database, cloud storage, background sync, or remote transport. The only export is an explicit copy to the iOS clipboard. The repository contains synthetic health fixtures only, not exported HealthKit data.
 
-The app requests read-only access to Steps, Weight, Body Fat Percentage, Heart Rate, Resting Heart Rate, Heart Rate Variability (SDNN), Apple Exercise Time, Active Energy, Workouts, and Sleep Analysis. HealthKit intentionally does not reveal whether read permission was denied, so an authorised query with no visible samples is presented as **No data**, never as a misleading zero.
+The app requests read-only access to Steps, Weight, Body Fat Percentage, Waist Circumference, Blood Glucose, Heart Rate, Resting Heart Rate, Heart Rate Variability (SDNN), Apple Exercise Time, Active Energy, Workouts, and Sleep Analysis. HealthKit intentionally does not reveal whether read permission was denied, so an authorised query with no visible samples is presented as **No data**, never as a misleading zero.
+
+Glucose is read only from HealthKit. The app does not connect to Abbott, Lingo, or any other sensor account and does not upload glucose data. A sensor vendor's app must first write `bloodGlucose` samples into Apple Health.
 
 ## Reporting periods
 
@@ -40,6 +42,11 @@ Weight Trend: -0.5 kg vs previous 7d
 Body Fat: 18.2%
 Body Fat 28-day Avg: 18.7%
 Body Fat Trend: -0.6 pp vs previous 28d
+Waist Circumference: 84.7 cm
+Waist Recorded: 8 Feb 2025 at 08:15
+Glucose Daily Average: 5.7 mmol/L
+Glucose Observed Range: 3.9–8.6 mmol/L
+Glucose Data Coverage: 7 / 7 days
 Average Daily Steps: 8,432
 Resting HR Average: 61 bpm
 Resting HR Trend: -2.0 bpm vs previous 7d
@@ -58,6 +65,8 @@ Workout: Yoga — 36m
 
 - **Weight:** the latest visible body-mass sample in the preceding 30 days is shown independently. For trend, multiple readings on a day are averaged first; the mean of sampled days in the latest seven completed days is compared with the preceding seven completed days. Each side requires at least three sampled days. The signed difference is reported in kg.
 - **Body Fat:** HealthKit percent values are fractional (`0.30` means `30.0%`) and are converted to percentage points at the query boundary. Up to 60 days of visible samples are read. Multiple readings on one calendar day are averaged first, then sampled days receive equal weight. Seven-day and current/previous 28-day averages require at least two sampled days. Trend is the current 28-day daily mean minus the previous 28-day daily mean, in percentage points.
+- **Waist Circumference:** the latest visible manual measurement whose start date falls inside the selected completed-day interval is displayed in centimetres with its timestamp. Sparse measurements are not averaged. A measurement entered today is intentionally excluded until that day is complete.
+- **Blood Glucose:** HealthKit's daily `discreteAverage`, `discreteMin`, and `discreteMax` statistics are calculated for each complete local calendar day. All source values are converted using HealthKit's blood-glucose molar mass and displayed in mmol/L. The weekly average is the arithmetic mean of valid daily averages, so days with more sensor readings do not dominate. The observed range is the minimum and maximum visible statistic across the period, and coverage reports days with data. No target range, time-in-range score, diagnosis, or medical interpretation is applied.
 - **Steps:** one local-calendar-day `HKStatisticsCollectionQueryDescriptor` using `cumulativeSum`. HealthKit resolves contributing sources; raw iPhone and Watch samples are never manually summed. Weekly average is the sum of the daily totals divided by every complete reporting day, normally seven.
 - **Resting Heart Rate:** one HealthKit `discreteAverage` statistic per complete calendar day, followed by the arithmetic mean of valid daily values. Days without a visible value are omitted; days with more samples do not receive extra weight. The selected period is compared with the immediately preceding period containing the same number of complete days. A signed bpm trend requires at least three valid days on each side.
 - **HRV:** the same daily-first and equivalent-period comparison using `heartRateVariabilitySDNN`, converted to milliseconds. A signed trend requires at least three valid days on each side. It is not a readiness score or medical interpretation.
@@ -86,17 +95,19 @@ Use a Debug build and select **Last 7 Completed Days**. Keep the app and Health 
 
 1. **Steps:** compare every daily diagnostic value, then calculate the seven-day average from those displayed values.
 2. **Weight:** compare the current and previous seven-day daily values, confirming that today's partial day is excluded from the averages while the latest measurement can still be today.
-3. **Resting HR and HRV:** compare each valid day's diagnostic value with Health's daily view for both the selected and immediately preceding equivalent periods, then average only those valid days.
-4. **Active Energy and Exercise:** compare the exact unrounded diagnostic totals over the selected dates before comparing rounded display values.
-5. **Workouts:** compare workout start dates, count, and total duration. A workout crossing midnight is assigned by its start date.
-6. **Sleep:** compare each diagnostic night with the Health date on which you woke. Check overlapping third-party or manually entered records if a night differs.
-7. Tap **Copy Report**, paste into Notes, and confirm all Weight, RHR and HRV average/trend lines match the screen. Diagnostics must not appear in copied text.
+3. **Waist:** compare the latest diagnostic measurement and timestamp with Health's Waist Circumference detail for the same completed-day dates.
+4. **Blood Glucose:** first confirm Lingo samples appear in Health. Compare each daily diagnostic average and range with Health for the same complete day, then average the valid daily averages. Allow for vendor-to-Health synchronisation delay.
+5. **Resting HR and HRV:** compare each valid day's diagnostic value with Health's daily view for both the selected and immediately preceding equivalent periods, then average only those valid days.
+6. **Active Energy and Exercise:** compare the exact unrounded diagnostic totals over the selected dates before comparing rounded display values.
+7. **Workouts:** compare workout start dates, count, and total duration. A workout crossing midnight is assigned by its start date.
+8. **Sleep:** compare each diagnostic night with the Health date on which you woke. Check overlapping third-party or manually entered records if a night differs.
+9. Tap **Copy Report**, paste into Notes, and confirm the Waist, Glucose, Weight, RHR and HRV lines match the screen. Diagnostics must not appear in copied text.
 
 The copied report includes the local date and time at which it was generated, Watch data-day coverage, and each workout type and duration.
 
 Daily Steps totals have been compared successfully with Apple Health on a real iPhone. A one-step difference can still appear in the final displayed average when the two UIs round the same daily inputs differently. Simulator tests validate boundaries, daily-first means, overlap handling, workout totals, duration formatting, and clipboard output but cannot supply representative personal HealthKit data.
 
-Possible legitimate differences include Health data not yet synchronised, limited historical read access, different selected dates, display rounding, workouts crossing a boundary, and Apple's undocumented sleep source precedence. Material discrepancies should be investigated at the daily/nightly diagnostic level rather than hidden by rounding.
+Possible legitimate differences include Health or Lingo data not yet synchronised, limited historical read access, different selected dates, display rounding, workouts crossing a boundary, and Apple's undocumented sleep source precedence. Material discrepancies should be investigated at the daily/nightly diagnostic level rather than hidden by rounding. Glucose sensor values are informational and must not be used by this app to make treatment decisions.
 
 ## Licence
 

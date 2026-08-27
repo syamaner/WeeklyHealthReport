@@ -34,6 +34,8 @@ final class WeeklyReportViewModel: ObservableObject {
     @Published private(set) var state: State = .idle
     @Published private(set) var weightState: WeightState = .idle
     @Published private(set) var bodyFatState: BodyFatState = .idle
+    @Published private(set) var waistState: MetricState<WaistSummary> = .idle
+    @Published private(set) var glucoseState: MetricState<GlucoseSummary> = .idle
     @Published private(set) var restingHeartRateState: MetricState<HeartMetricTrendSummary> = .idle
     @Published private(set) var hrvState: MetricState<HeartMetricTrendSummary> = .idle
     @Published private(set) var watchCoverageState: MetricState<WatchCoverageSummary> = .idle
@@ -68,6 +70,8 @@ final class WeeklyReportViewModel: ObservableObject {
             period: period,
             weight: weightState.value,
             bodyFat: bodyFatState.value,
+            waist: waistState.value,
+            glucose: glucoseState.value,
             steps: {
                 if case .loaded(let summary) = state { return summary }
                 return nil
@@ -112,6 +116,8 @@ final class WeeklyReportViewModel: ObservableObject {
 
         guard !period.completedDays.isEmpty else {
             state = .noCompletedDays
+            waistState = .noDataOrAccess
+            glucoseState = .noDataOrAccess
             restingHeartRateState = .noDataOrAccess
             hrvState = .noDataOrAccess
             watchCoverageState = .noDataOrAccess
@@ -173,6 +179,28 @@ final class WeeklyReportViewModel: ObservableObject {
         } catch {
             guard generation == refreshGeneration else { return }
             state = .failed(error.localizedDescription)
+        }
+        guard generation == refreshGeneration else { return }
+
+        do {
+            let measurements = try await healthData.fetchWaistMeasurements(for: period)
+            guard generation == refreshGeneration else { return }
+            waistState = WaistSummary.calculate(measurements: measurements, period: period)
+                .map(MetricState.available) ?? .noDataOrAccess
+        } catch {
+            guard generation == refreshGeneration else { return }
+            waistState = .failed(error.localizedDescription)
+        }
+        guard generation == refreshGeneration else { return }
+
+        do {
+            let dailyValues = try await healthData.fetchDailyBloodGlucose(for: period)
+            guard generation == refreshGeneration else { return }
+            glucoseState = GlucoseSummary.aggregate(dailyValues)
+                .map(MetricState.available) ?? .noDataOrAccess
+        } catch {
+            guard generation == refreshGeneration else { return }
+            glucoseState = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
@@ -271,6 +299,8 @@ final class WeeklyReportViewModel: ObservableObject {
         state = .loading
         weightState = .loading
         bodyFatState = .loading
+        waistState = .loading
+        glucoseState = .loading
         restingHeartRateState = .loading
         hrvState = .loading
         watchCoverageState = .loading
@@ -284,6 +314,8 @@ final class WeeklyReportViewModel: ObservableObject {
         state = .healthUnavailable
         weightState = .healthUnavailable
         bodyFatState = .healthUnavailable
+        waistState = .healthUnavailable
+        glucoseState = .healthUnavailable
         restingHeartRateState = .healthUnavailable
         hrvState = .healthUnavailable
         watchCoverageState = .healthUnavailable
@@ -297,6 +329,8 @@ final class WeeklyReportViewModel: ObservableObject {
         state = .failed(message)
         weightState = .failed(message)
         bodyFatState = .failed(message)
+        waistState = .failed(message)
+        glucoseState = .failed(message)
         restingHeartRateState = .failed(message)
         hrvState = .failed(message)
         watchCoverageState = .failed(message)

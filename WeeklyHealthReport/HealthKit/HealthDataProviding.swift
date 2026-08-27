@@ -7,6 +7,8 @@ protocol HealthDataProviding {
     func fetchDailySteps(for period: ReportPeriod) async throws -> [DailyStepTotal]
     func fetchWeightMeasurements(asOf date: Date) async throws -> [WeightMeasurement]
     func fetchBodyFatMeasurements(asOf date: Date) async throws -> [BodyFatMeasurement]
+    func fetchWaistMeasurements(for period: ReportPeriod) async throws -> [WaistMeasurement]
+    func fetchDailyBloodGlucose(for period: ReportPeriod) async throws -> [DailyGlucoseValue]
     func fetchDailyRestingHeartRate(for period: ReportPeriod) async throws -> [DailyHeartMetricValue]
     func fetchDailyHRV(for period: ReportPeriod) async throws -> [DailyHeartMetricValue]
     func fetchAppleWatchHeartRateSampleDates(for period: ReportPeriod) async throws -> [Date]

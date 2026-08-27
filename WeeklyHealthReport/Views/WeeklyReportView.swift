@@ -165,6 +165,21 @@ struct WeeklyReportView: View {
                         Text("Body-fat query failed: \(message)")
                             .foregroundStyle(.red)
                     }
+
+                    metricRow(
+                        "Waist Circumference",
+                        state: viewModel.waistState,
+                        format: { HealthReportFormatter.waistCentimetres($0.latest.centimetres) }
+                    )
+                    if case .available(let summary) = viewModel.waistState {
+                        LabeledContent(
+                            "Waist Measured",
+                            value: summary.latest.date.formatted(
+                                date: .abbreviated,
+                                time: .shortened
+                            )
+                        )
+                    }
                 }
 
                 Section("Heart") {
@@ -184,6 +199,29 @@ struct WeeklyReportView: View {
                         "Watch Data Coverage",
                         state: viewModel.watchCoverageState,
                         format: { "\($0.daysWithWatchData) / \($0.reportingDayCount) days" }
+                    )
+                }
+
+                Section("Glucose") {
+                    metricRow(
+                        "Daily Average",
+                        state: viewModel.glucoseState,
+                        format: { HealthReportFormatter.glucose($0.averageMillimolesPerLiter) }
+                    )
+                    metricRow(
+                        "Observed Range",
+                        state: viewModel.glucoseState,
+                        format: {
+                            HealthReportFormatter.glucoseRange(
+                                minimum: $0.minimumMillimolesPerLiter,
+                                maximum: $0.maximumMillimolesPerLiter
+                            )
+                        }
+                    )
+                    metricRow(
+                        "Data Coverage",
+                        state: viewModel.glucoseState,
+                        format: { "\($0.validDayCount) / \($0.reportingDayCount) days" }
                     )
                 }
 

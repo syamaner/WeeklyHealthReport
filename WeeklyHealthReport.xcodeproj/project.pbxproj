@@ -34,6 +34,10 @@
 		A00000000000000000000019 /* WatchCoverageSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000001C /* WatchCoverageSummary.swift */; };
 		A0000000000000000000001A /* WatchCoverageSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000001D /* WatchCoverageSummaryTests.swift */; };
 		A0000000000000000000001B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000001F /* Assets.xcassets */; };
+		A0000000000000000000001C /* WaistMeasurement.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000020 /* WaistMeasurement.swift */; };
+		A0000000000000000000001D /* GlucoseSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000021 /* GlucoseSummary.swift */; };
+		A0000000000000000000001E /* WaistMeasurementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000022 /* WaistMeasurementTests.swift */; };
+		A0000000000000000000001F /* GlucoseSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000023 /* GlucoseSummaryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -78,6 +82,10 @@
 		B0000000000000000000001D /* WatchCoverageSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchCoverageSummaryTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000001E /* Signing.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Signing.xcconfig; path = Config/Signing.xcconfig; sourceTree = "<group>"; };
 		B0000000000000000000001F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B00000000000000000000020 /* WaistMeasurement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaistMeasurement.swift; sourceTree = "<group>"; };
+		B00000000000000000000021 /* GlucoseSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseSummary.swift; sourceTree = "<group>"; };
+		B00000000000000000000022 /* WaistMeasurementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaistMeasurementTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000023 /* GlucoseSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseSummaryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -136,6 +144,8 @@
 				B00000000000000000000015 /* SleepSummary.swift */,
 				B00000000000000000000016 /* WeeklyReportSnapshot.swift */,
 				B0000000000000000000001C /* WatchCoverageSummary.swift */,
+				B00000000000000000000020 /* WaistMeasurement.swift */,
+				B00000000000000000000021 /* GlucoseSummary.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -171,6 +181,8 @@
 				B00000000000000000000019 /* SleepSummaryTests.swift */,
 				B0000000000000000000001A /* HealthReportFormatterTests.swift */,
 				B0000000000000000000001D /* WatchCoverageSummaryTests.swift */,
+				B00000000000000000000022 /* WaistMeasurementTests.swift */,
+				B00000000000000000000023 /* GlucoseSummaryTests.swift */,
 			);
 			path = WeeklyHealthReportTests;
 			sourceTree = "<group>";
@@ -315,6 +327,8 @@
 				A00000000000000000000012 /* SleepSummary.swift in Sources */,
 				A00000000000000000000013 /* WeeklyReportSnapshot.swift in Sources */,
 				A00000000000000000000019 /* WatchCoverageSummary.swift in Sources */,
+				A0000000000000000000001C /* WaistMeasurement.swift in Sources */,
+				A0000000000000000000001D /* GlucoseSummary.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -331,6 +345,8 @@
 				A00000000000000000000016 /* SleepSummaryTests.swift in Sources */,
 				A00000000000000000000017 /* HealthReportFormatterTests.swift in Sources */,
 				A0000000000000000000001A /* WatchCoverageSummaryTests.swift in Sources */,
+				A0000000000000000000001E /* WaistMeasurementTests.swift in Sources */,
+				A0000000000000000000001F /* GlucoseSummaryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

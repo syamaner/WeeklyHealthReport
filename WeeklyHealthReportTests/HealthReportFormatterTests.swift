@@ -8,6 +8,16 @@ final class HealthReportFormatterTests: XCTestCase {
         XCTAssertEqual(HealthReportFormatter.duration(89 * 60), "1h 29m")
     }
 
+    func testWaistAndGlucoseFormatting() {
+        let locale = Locale(identifier: "en_GB")
+        XCTAssertEqual(HealthReportFormatter.waistCentimetres(84.74, locale: locale), "84.7 cm")
+        XCTAssertEqual(HealthReportFormatter.glucose(5.76, locale: locale), "5.8 mmol/L")
+        XCTAssertEqual(
+            HealthReportFormatter.glucoseRange(minimum: 3.94, maximum: 8.66, locale: locale),
+            "3.9–8.7 mmol/L"
+        )
+    }
+
     func testClipboardReportIncludesValuesAndNoDiagnostics() throws {
         let calendar = testCalendar()
         let period = ReportPeriod.make(
@@ -35,6 +45,27 @@ final class HealthReportFormatterTests: XCTestCase {
                 dailyValues: []
             ),
             bodyFat: bodyFat,
+            waist: WaistSummary(
+                latest: WaistMeasurement(
+                    date: date(2026, 8, 24, calendar: calendar),
+                    centimetres: 101.4
+                ),
+                measurements: []
+            ),
+            glucose: GlucoseSummary(
+                dailyValues: period.completedDays.map {
+                    DailyGlucoseValue(
+                        day: $0,
+                        averageMillimolesPerLiter: 5.8,
+                        minimumMillimolesPerLiter: 3.9,
+                        maximumMillimolesPerLiter: 8.7,
+                        sourceNames: ["Fixture Sensor"]
+                    )
+                },
+                averageMillimolesPerLiter: 5.8,
+                minimumMillimolesPerLiter: 3.9,
+                maximumMillimolesPerLiter: 8.7
+            ),
             steps: stepSummary(period: period),
             restingHeartRate: heartSummary(period: period, current: 73, previous: 70),
             hrv: heartSummary(period: period, current: 42, previous: 47),
@@ -69,6 +100,11 @@ final class HealthReportFormatterTests: XCTestCase {
         Body Fat: 26.5%
         Body Fat 28-day Avg: 26.7%
         Body Fat Trend: -0.9 pp vs previous 28d
+        Waist Circumference: 101.4 cm
+        Waist Recorded: 24 Aug 2026 at 09:00
+        Glucose Daily Average: 5.8 mmol/L
+        Glucose Observed Range: 3.9–8.7 mmol/L
+        Glucose Data Coverage: 7 / 7 days
         Average Daily Steps: 2,727
         Resting HR Average: 73 bpm
         Resting HR Trend: +3.0 bpm vs previous 7d
@@ -91,7 +127,7 @@ final class HealthReportFormatterTests: XCTestCase {
             calendar: calendar
         )
         let report = WeeklyReportSnapshot(
-            period: period, weight: nil, bodyFat: nil, steps: nil,
+            period: period, weight: nil, bodyFat: nil, waist: nil, glucose: nil, steps: nil,
             restingHeartRate: nil, hrv: nil, watchCoverage: nil, sleep: nil,
             activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil
         )
@@ -99,6 +135,8 @@ final class HealthReportFormatterTests: XCTestCase {
         XCTAssertTrue(text.contains("HRV Average: No data"))
         XCTAssertTrue(text.contains("Body Fat Trend: Insufficient history"))
         XCTAssertTrue(text.contains("Weight Recorded: No data"))
+        XCTAssertTrue(text.contains("Waist Circumference: No data"))
+        XCTAssertTrue(text.contains("Glucose Daily Average: No data"))
         XCTAssertTrue(text.contains("Watch Data Coverage: No data"))
         XCTAssertTrue(text.contains("Workout Details: No data"))
         XCTAssertFalse(text.contains("HRV Average: 0"))

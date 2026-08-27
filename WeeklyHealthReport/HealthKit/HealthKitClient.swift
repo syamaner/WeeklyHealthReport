@@ -48,6 +48,11 @@ final class HealthKitClient: HealthDataProviding {
         guard let bodyFatType = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) else {
             throw HealthDataError.missingBodyFatType
         }
+        guard let waistType = HKObjectType.quantityType(forIdentifier: .waistCircumference),
+              let glucoseType = HKObjectType.quantityType(forIdentifier: .bloodGlucose)
+        else {
+            throw HealthDataError.missingType("waist or blood-glucose")
+        }
         guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate),
               let restingHeartRateType = HKObjectType.quantityType(forIdentifier: .restingHeartRate),
               let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
@@ -64,7 +69,7 @@ final class HealthKitClient: HealthDataProviding {
         try await store.requestAuthorization(
             toShare: [],
             read: [
-                stepType, bodyMassType, bodyFatType,
+                stepType, bodyMassType, bodyFatType, waistType, glucoseType,
                 heartRateType, restingHeartRateType, hrvType, exerciseType, activeEnergyType,
                 workoutType, sleepType
             ]
@@ -195,6 +200,80 @@ final class HealthKitClient: HealthDataProviding {
                 percentage: BodyFatMeasurement.percentagePoints(
                     fromHealthKitFraction: fraction
                 )
+            )
+        }
+    }
+
+    func fetchWaistMeasurements(for period: ReportPeriod) async throws -> [WaistMeasurement] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let type = HKObjectType.quantityType(forIdentifier: .waistCircumference) else {
+            throw HealthDataError.missingType("waist-circumference")
+        }
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: period.interval.start,
+            end: period.interval.end,
+            options: .strictStartDate
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.quantitySample(type: type, predicate: datePredicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
+        )
+        let samples = try await descriptor.result(for: store)
+        let centimetres = HKUnit.meterUnit(with: .centi)
+        return samples.map {
+            WaistMeasurement(
+                date: $0.startDate,
+                centimetres: $0.quantity.doubleValue(for: centimetres)
+            )
+        }
+    }
+
+    func fetchDailyBloodGlucose(for period: ReportPeriod) async throws -> [DailyGlucoseValue] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let type = HKObjectType.quantityType(forIdentifier: .bloodGlucose) else {
+            throw HealthDataError.missingType("blood-glucose")
+        }
+        guard !period.completedDays.isEmpty else { return [] }
+
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: period.interval.start,
+            end: period.interval.end,
+            options: []
+        )
+        let descriptor = HKStatisticsCollectionQueryDescriptor(
+            predicate: .quantitySample(type: type, predicate: datePredicate),
+            options: [.discreteAverage, .discreteMin, .discreteMax],
+            anchorDate: period.interval.start,
+            intervalComponents: DateComponents(day: 1)
+        )
+        let collection = try await descriptor.result(for: store)
+        var statisticsByStart: [Date: HKStatistics] = [:]
+        collection.enumerateStatistics(from: period.interval.start, to: period.interval.end) {
+            statistics, _ in
+            guard statistics.startDate >= period.interval.start,
+                  statistics.startDate < period.interval.end else { return }
+            statisticsByStart[statistics.startDate] = statistics
+        }
+
+        // HealthKit may store glucose as mg/dL or mmol/L. Converting with the
+        // documented glucose molar mass normalises every source to mmol/L.
+        let millimolesPerLiter = HKUnit
+            .moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose)
+            .unitDivided(by: .liter())
+        return period.completedDays.map { day in
+            let statistics = statisticsByStart[day.start]
+            return DailyGlucoseValue(
+                day: day,
+                averageMillimolesPerLiter: statistics?.averageQuantity()?.doubleValue(
+                    for: millimolesPerLiter
+                ),
+                minimumMillimolesPerLiter: statistics?.minimumQuantity()?.doubleValue(
+                    for: millimolesPerLiter
+                ),
+                maximumMillimolesPerLiter: statistics?.maximumQuantity()?.doubleValue(
+                    for: millimolesPerLiter
+                ),
+                sourceNames: statistics?.sources?.map(\.name).sorted() ?? []
             )
         }
     }
