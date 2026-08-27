@@ -28,7 +28,7 @@ This is calendar-based, not a rolling 168-hour window, and remains seven days ac
 
 ## Clipboard output
 
-**Copy Report** places plain text on the clipboard. The report period covers completed days, while the independently selected latest weight may have been recorded today. The following is a synthetic formatting example:
+**Copy Report** places plain text on the clipboard. The report period covers completed days, while the independently selected latest weight and waist measurements may have been recorded today. The following is a synthetic formatting example:
 
 ```text
 Weekly Health Report
@@ -44,6 +44,7 @@ Body Fat 28-day Avg: 18.7%
 Body Fat Trend: -0.6 pp vs previous 28d
 Waist Circumference: 84.7 cm
 Waist Recorded: 8 Feb 2025 at 08:15
+Waist 4-week Trend: -1.8 cm vs ~4 weeks earlier
 Glucose Daily Average: 5.7 mmol/L
 Glucose Observed Range: 3.9–8.6 mmol/L
 Glucose Data Coverage: 7 / 7 days
@@ -65,7 +66,7 @@ Workout: Yoga — 36m
 
 - **Weight:** the latest visible body-mass sample in the preceding 30 days is shown independently. For trend, multiple readings on a day are averaged first; the mean of sampled days in the latest seven completed days is compared with the preceding seven completed days. Each side requires at least three sampled days. The signed difference is reported in kg.
 - **Body Fat:** HealthKit percent values are fractional (`0.30` means `30.0%`) and are converted to percentage points at the query boundary. Up to 60 days of visible samples are read. Multiple readings on one calendar day are averaged first, then sampled days receive equal weight. Seven-day and current/previous 28-day averages require at least two sampled days. Trend is the current 28-day daily mean minus the previous 28-day daily mean, in percentage points.
-- **Waist Circumference:** the latest visible manual measurement whose start date falls inside the selected completed-day interval is displayed in centimetres with its timestamp. Sparse measurements are not averaged. A measurement entered today is intentionally excluded until that day is complete.
+- **Waist Circumference:** the latest visible manual measurement from an eight-week lookback ending at refresh time is displayed in centimetres with its timestamp, independently of the selected weekly period. Sparse measurements are not averaged. For a four-week trend, the app compares it with the visible sample closest to 28 days earlier, but only when that sample is 21–35 days older; otherwise it reports insufficient history. A measurement entered today can therefore appear immediately.
 - **Blood Glucose:** HealthKit's daily `discreteAverage`, `discreteMin`, and `discreteMax` statistics are calculated for each complete local calendar day. All source values are converted using HealthKit's blood-glucose molar mass and displayed in mmol/L. The weekly average is the arithmetic mean of valid daily averages, so days with more sensor readings do not dominate. The observed range is the minimum and maximum visible statistic across the period, and coverage reports days with data. No target range, time-in-range score, diagnosis, or medical interpretation is applied.
 - **Steps:** one local-calendar-day `HKStatisticsCollectionQueryDescriptor` using `cumulativeSum`. HealthKit resolves contributing sources; raw iPhone and Watch samples are never manually summed. Weekly average is the sum of the daily totals divided by every complete reporting day, normally seven.
 - **Resting Heart Rate:** one HealthKit `discreteAverage` statistic per complete calendar day, followed by the arithmetic mean of valid daily values. Days without a visible value are omitted; days with more samples do not receive extra weight. The selected period is compared with the immediately preceding period containing the same number of complete days. A signed bpm trend requires at least three valid days on each side.
@@ -95,7 +96,7 @@ Use a Debug build and select **Last 7 Completed Days**. Keep the app and Health 
 
 1. **Steps:** compare every daily diagnostic value, then calculate the seven-day average from those displayed values.
 2. **Weight:** compare the current and previous seven-day daily values, confirming that today's partial day is excluded from the averages while the latest measurement can still be today.
-3. **Waist:** compare the latest diagnostic measurement and timestamp with Health's Waist Circumference detail for the same completed-day dates.
+3. **Waist:** compare the latest diagnostic measurement and timestamp with Health's Waist Circumference detail. For trend, confirm Diagnostics selected the closest sample to 28 days earlier and that it is 21–35 days older than the latest sample.
 4. **Blood Glucose:** first confirm Lingo samples appear in Health. Compare each daily diagnostic average and range with Health for the same complete day, then average the valid daily averages. Allow for vendor-to-Health synchronisation delay.
 5. **Resting HR and HRV:** compare each valid day's diagnostic value with Health's daily view for both the selected and immediately preceding equivalent periods, then average only those valid days.
 6. **Active Energy and Exercise:** compare the exact unrounded diagnostic totals over the selected dates before comparing rounded display values.

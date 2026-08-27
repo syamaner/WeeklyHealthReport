@@ -87,10 +87,28 @@ struct DeveloperDiagnosticsView: View {
             if case .available(let summary) = viewModel.waistState {
                 Section("Waist Circumference") {
                     LabeledContent(
-                        "Latest in period",
+                        "Latest in 8-week lookback",
                         value: HealthReportFormatter.waistCentimetres(summary.latest.centimetres)
                     )
                     LabeledContent("Latest timestamp", value: diagnosticDate(summary.latest.date))
+                    if let comparison = summary.comparison,
+                       let change = summary.fourWeekChangeCentimetres {
+                        LabeledContent(
+                            "4-week comparison",
+                            value: "\(HealthReportFormatter.waistCentimetres(comparison.centimetres)) at \(diagnosticDate(comparison.date))"
+                        )
+                        LabeledContent(
+                            "Signed change",
+                            value: HealthReportFormatter.signedChange(
+                                change,
+                                unit: "cm",
+                                comparison: "comparison sample"
+                            )
+                        )
+                    } else {
+                        LabeledContent("4-week comparison", value: "No sample 21–35 days earlier")
+                    }
+                    Text("Visible samples in 8-week lookback").font(.headline)
                     ForEach(Array(summary.measurements.enumerated()), id: \.offset) { _, sample in
                         LabeledContent(
                             diagnosticDate(sample.date),

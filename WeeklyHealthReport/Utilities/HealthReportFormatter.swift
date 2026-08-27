@@ -183,6 +183,7 @@ enum HealthReportFormatter {
             "Body Fat Trend: \(bodyFatTrend)",
             "Waist Circumference: \(report.waist.map { waistCentimetres($0.latest.centimetres, locale: locale) } ?? "No data")",
             "Waist Recorded: \(report.waist.map { dateAndTime($0.latest.date, calendar: calendar, locale: locale) } ?? "No data")",
+            "Waist 4-week Trend: \(report.waist?.fourWeekChangeCentimetres.map { signedChange($0, unit: "cm", comparison: "~4 weeks earlier", locale: locale) } ?? "Insufficient history")",
             "Glucose Daily Average: \(report.glucose.map { glucose($0.averageMillimolesPerLiter, locale: locale) } ?? "No data")",
             "Glucose Observed Range: \(report.glucose.map { glucoseRange(minimum: $0.minimumMillimolesPerLiter, maximum: $0.maximumMillimolesPerLiter, locale: locale) } ?? "No data")",
             "Glucose Data Coverage: \(report.glucose.map { "\($0.validDayCount) / \($0.reportingDayCount) days" } ?? "No data")",

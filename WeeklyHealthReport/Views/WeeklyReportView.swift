@@ -179,6 +179,19 @@ struct WeeklyReportView: View {
                                 time: .shortened
                             )
                         )
+                        if let change = summary.fourWeekChangeCentimetres {
+                            LabeledContent(
+                                "4-week Waist Trend",
+                                value: HealthReportFormatter.signedChange(
+                                    change,
+                                    unit: "cm",
+                                    comparison: "~4 weeks earlier"
+                                )
+                            )
+                        } else {
+                            LabeledContent("4-week Waist Trend", value: "Insufficient history")
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 

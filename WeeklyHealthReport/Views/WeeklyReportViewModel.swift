@@ -116,7 +116,6 @@ final class WeeklyReportViewModel: ObservableObject {
 
         guard !period.completedDays.isEmpty else {
             state = .noCompletedDays
-            waistState = .noDataOrAccess
             glucoseState = .noDataOrAccess
             restingHeartRateState = .noDataOrAccess
             hrvState = .noDataOrAccess
@@ -163,6 +162,21 @@ final class WeeklyReportViewModel: ObservableObject {
             guard generation == refreshGeneration else { return }
             bodyFatState = .failed(error.localizedDescription)
         }
+        guard generation == refreshGeneration else { return }
+
+        do {
+            let measurements = try await healthData.fetchWaistMeasurements(asOf: date)
+            guard generation == refreshGeneration else { return }
+            let summary = WaistSummary.calculate(
+                measurements: measurements,
+                asOf: date,
+                calendar: calendar
+            )
+            waistState = summary.map(MetricState.available) ?? .noDataOrAccess
+        } catch {
+            guard generation == refreshGeneration else { return }
+            waistState = .failed(error.localizedDescription)
+        }
     }
 
     private func loadPeriodMetrics(generation: Int) async {
@@ -179,17 +193,6 @@ final class WeeklyReportViewModel: ObservableObject {
         } catch {
             guard generation == refreshGeneration else { return }
             state = .failed(error.localizedDescription)
-        }
-        guard generation == refreshGeneration else { return }
-
-        do {
-            let measurements = try await healthData.fetchWaistMeasurements(for: period)
-            guard generation == refreshGeneration else { return }
-            waistState = WaistSummary.calculate(measurements: measurements, period: period)
-                .map(MetricState.available) ?? .noDataOrAccess
-        } catch {
-            guard generation == refreshGeneration else { return }
-            waistState = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 

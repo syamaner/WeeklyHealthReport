@@ -50,6 +50,11 @@ final class HealthReportFormatterTests: XCTestCase {
                     date: date(2026, 8, 24, calendar: calendar),
                     centimetres: 101.4
                 ),
+                comparison: WaistMeasurement(
+                    date: date(2026, 7, 27, calendar: calendar),
+                    centimetres: 103.1
+                ),
+                fourWeekChangeCentimetres: -1.7,
                 measurements: []
             ),
             glucose: GlucoseSummary(
@@ -102,6 +107,7 @@ final class HealthReportFormatterTests: XCTestCase {
         Body Fat Trend: -0.9 pp vs previous 28d
         Waist Circumference: 101.4 cm
         Waist Recorded: 24 Aug 2026 at 09:00
+        Waist 4-week Trend: -1.7 cm vs ~4 weeks earlier
         Glucose Daily Average: 5.8 mmol/L
         Glucose Observed Range: 3.9–8.7 mmol/L
         Glucose Data Coverage: 7 / 7 days
@@ -136,6 +142,7 @@ final class HealthReportFormatterTests: XCTestCase {
         XCTAssertTrue(text.contains("Body Fat Trend: Insufficient history"))
         XCTAssertTrue(text.contains("Weight Recorded: No data"))
         XCTAssertTrue(text.contains("Waist Circumference: No data"))
+        XCTAssertTrue(text.contains("Waist 4-week Trend: Insufficient history"))
         XCTAssertTrue(text.contains("Glucose Daily Average: No data"))
         XCTAssertTrue(text.contains("Watch Data Coverage: No data"))
         XCTAssertTrue(text.contains("Workout Details: No data"))

@@ -204,14 +204,21 @@ final class HealthKitClient: HealthDataProviding {
         }
     }
 
-    func fetchWaistMeasurements(for period: ReportPeriod) async throws -> [WaistMeasurement] {
+    func fetchWaistMeasurements(asOf date: Date) async throws -> [WaistMeasurement] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let type = HKObjectType.quantityType(forIdentifier: .waistCircumference) else {
             throw HealthDataError.missingType("waist-circumference")
         }
+        guard let lookbackStart = Calendar.autoupdatingCurrent.date(
+            byAdding: .day,
+            value: -56,
+            to: date
+        ) else {
+            return []
+        }
         let datePredicate = HKQuery.predicateForSamples(
-            withStart: period.interval.start,
-            end: period.interval.end,
+            withStart: lookbackStart,
+            end: date,
             options: .strictStartDate
         )
         let descriptor = HKSampleQueryDescriptor(
