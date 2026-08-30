@@ -16,7 +16,8 @@ concurrency:
 jobs:
   test:
     name: Build and test
-    runs-on: macos-15
+    # Medication dose events require the iOS 26 SDK and Xcode 26 or later.
+    runs-on: macos-26
     timeout-minutes: 20
 
     steps:
