@@ -1,34 +1,14 @@
 import SwiftUI
 import UIKit
 import HealthKit
-import HealthKitUI
 
 struct WeeklyReportView: View {
     @StateObject private var viewModel = WeeklyReportViewModel()
     @State private var copied = false
-    @State private var medicationAuthorizationTrigger = false
+    @State private var isRequestingMedicationAccess = false
 
-    @ViewBuilder
     var body: some View {
-        if #available(iOS 26.0, *) {
-            reportContent
-                .healthDataAccessRequest(
-                    store: HealthStoreProvider.shared,
-                    objectType: .userAnnotatedMedicationType(),
-                    trigger: medicationAuthorizationTrigger
-                ) { result in
-                    Task { @MainActor in
-                        switch result {
-                        case .success:
-                            await viewModel.refreshMedications()
-                        case .failure(let error):
-                            viewModel.setMedicationAuthorizationFailure(error.localizedDescription)
-                        }
-                    }
-                }
-        } else {
-            reportContent
-        }
+        reportContent
     }
 
     private var reportContent: some View {
@@ -333,8 +313,9 @@ struct WeeklyReportView: View {
                         Button(viewModel.medicationState.value == nil
                                ? "Choose Medications"
                                : "Manage Medication Access") {
-                            medicationAuthorizationTrigger.toggle()
+                            Task { await requestMedicationAccess() }
                         }
+                        .disabled(isRequestingMedicationAccess)
                     }
                 }
 
@@ -399,6 +380,27 @@ struct WeeklyReportView: View {
         viewModel.period.completedDays.isEmpty
             ? "No completed days"
             : HealthReportFormatter.period(viewModel.period)
+    }
+
+    @available(iOS 26.0, *)
+    @MainActor
+    private func requestMedicationAccess() async {
+        guard !isRequestingMedicationAccess else { return }
+        isRequestingMedicationAccess = true
+        defer { isRequestingMedicationAccess = false }
+
+        do {
+            // Unlike the SwiftUI trigger wrapper, HealthKit's direct per-object
+            // API is documented to present on every call, including after the
+            // person has already made medication access choices.
+            try await HealthStoreProvider.shared.requestPerObjectReadAuthorization(
+                for: .userAnnotatedMedicationType(),
+                predicate: nil
+            )
+            await viewModel.refreshMedications()
+        } catch {
+            viewModel.setMedicationAuthorizationFailure(error.localizedDescription)
+        }
     }
 
     @ViewBuilder
