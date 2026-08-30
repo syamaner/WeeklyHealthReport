@@ -40,6 +40,7 @@
 		A0000000000000000000001F /* GlucoseSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000023 /* GlucoseSummaryTests.swift */; };
 		A00000000000000000000020 /* MedicationSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000024 /* MedicationSummary.swift */; };
 		A00000000000000000000021 /* MedicationSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000025 /* MedicationSummaryTests.swift */; };
+		A00000000000000000000022 /* HealthKitUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B00000000000000000000026 /* HealthKitUI.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -90,6 +91,7 @@
 		B00000000000000000000023 /* GlucoseSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseSummaryTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000024 /* MedicationSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationSummary.swift; sourceTree = "<group>"; };
 		B00000000000000000000025 /* MedicationSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationSummaryTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000026 /* HealthKitUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKitUI.framework; path = System/Library/Frameworks/HealthKitUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -98,6 +100,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A00000000000000000000008 /* HealthKit.framework in Frameworks */,
+				A00000000000000000000022 /* HealthKitUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -197,6 +200,7 @@
 			isa = PBXGroup;
 			children = (
 				B00000000000000000000008 /* HealthKit.framework */,
+				B00000000000000000000026 /* HealthKitUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";

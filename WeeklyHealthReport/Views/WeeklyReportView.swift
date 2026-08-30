@@ -1,14 +1,42 @@
 import SwiftUI
 import UIKit
 import HealthKit
+import HealthKitUI
 
 struct WeeklyReportView: View {
     @StateObject private var viewModel = WeeklyReportViewModel()
     @State private var copied = false
-    @State private var isRequestingMedicationAccess = false
+    @State private var medicationAuthorizationRequest = 0
+    @State private var showsMedicationAccessHelp = false
+    @AppStorage("hasRequestedMedicationAccess") private var hasRequestedMedicationAccess = false
 
+    @ViewBuilder
     var body: some View {
-        reportContent
+        if #available(iOS 26.0, *) {
+            reportContent
+                .healthDataAccessRequest(
+                    store: HealthStoreProvider.shared,
+                    objectType: .userAnnotatedMedicationType(),
+                    trigger: medicationAuthorizationRequest
+                ) { result in
+                    Task { @MainActor in
+                        switch result {
+                        case .success:
+                            hasRequestedMedicationAccess = true
+                            await viewModel.refreshMedications()
+                        case .failure(let error):
+                            viewModel.setMedicationAuthorizationFailure(
+                                error.localizedDescription
+                            )
+                        }
+                    }
+                }
+                .sheet(isPresented: $showsMedicationAccessHelp) {
+                    medicationAccessHelp
+                }
+        } else {
+            reportContent
+        }
     }
 
     private var reportContent: some View {
@@ -310,12 +338,9 @@ struct WeeklyReportView: View {
                                 .foregroundStyle(.red)
                         }
 
-                        Button(viewModel.medicationState.value == nil
-                               ? "Choose Medications"
-                               : "Manage Medication Access") {
-                            Task { await requestMedicationAccess() }
+                        Button("Medication Access") {
+                            showsMedicationAccessHelp = true
                         }
-                        .disabled(isRequestingMedicationAccess)
                     }
                 }
 
@@ -372,6 +397,9 @@ struct WeeklyReportView: View {
                     return
                 }
                 await viewModel.refresh()
+                if #available(iOS 26.0, *), !hasRequestedMedicationAccess {
+                    medicationAuthorizationRequest += 1
+                }
             }
         }
     }
@@ -383,23 +411,31 @@ struct WeeklyReportView: View {
     }
 
     @available(iOS 26.0, *)
-    @MainActor
-    private func requestMedicationAccess() async {
-        guard !isRequestingMedicationAccess else { return }
-        isRequestingMedicationAccess = true
-        defer { isRequestingMedicationAccess = false }
+    private var medicationAccessHelp: some View {
+        NavigationStack {
+            List {
+                Section("Change Existing Access") {
+                    Text("Open Health, tap your profile picture, then Apps, WeeklyHealthReport, and change which medications the app may read.")
+                }
 
-        do {
-            // Unlike the SwiftUI trigger wrapper, HealthKit's direct per-object
-            // API is documented to present on every call, including after the
-            // person has already made medication access choices.
-            try await HealthStoreProvider.shared.requestPerObjectReadAuthorization(
-                for: .userAnnotatedMedicationType(),
-                predicate: nil
-            )
-            await viewModel.refreshMedications()
-        } catch {
-            viewModel.setMedicationAuthorizationFailure(error.localizedDescription)
+                Section("New Medications") {
+                    Text("When you add a medication in Health, turn on WeeklyHealthReport on the final screen before saving it.")
+                }
+
+                Section {
+                    Text("Apple manages medication access in Health after the initial chooser. Return here and tap Refresh after making a change.")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .navigationTitle("Medication Access")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        showsMedicationAccessHelp = false
+                    }
+                }
+            }
         }
     }
 
