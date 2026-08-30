@@ -8,6 +8,18 @@ final class HealthReportFormatterTests: XCTestCase {
         XCTAssertEqual(HealthReportFormatter.duration(89 * 60), "1h 29m")
     }
 
+    func testMedicationDoseFormattingPluralisesOnlyCountBasedDoses() {
+        let locale = Locale(identifier: "en_GB")
+        XCTAssertEqual(
+            HealthReportFormatter.medicationDose(quantity: 2, unitLabel: "dose", locale: locale),
+            "2 doses"
+        )
+        XCTAssertEqual(
+            HealthReportFormatter.medicationDose(quantity: 2.5, unitLabel: "mL", locale: locale),
+            "2.5 mL"
+        )
+    }
+
     func testWaistAndGlucoseFormatting() {
         let locale = Locale(identifier: "en_GB")
         XCTAssertEqual(HealthReportFormatter.waistCentimetres(84.74, locale: locale), "84.7 cm")
@@ -83,7 +95,8 @@ final class HealthReportFormatterTests: XCTestCase {
             exerciseMinutes: 89,
             workouts: WorkoutSummary(workouts: [
                 WorkoutRecord(id: UUID(), startDate: period.interval.start, duration: 1800, activityName: "Walking")
-            ])
+            ]),
+            medications: nil
         )
 
         let text = HealthReportFormatter.clipboardReport(
@@ -135,7 +148,8 @@ final class HealthReportFormatterTests: XCTestCase {
         let report = WeeklyReportSnapshot(
             period: period, weight: nil, bodyFat: nil, waist: nil, glucose: nil, steps: nil,
             restingHeartRate: nil, hrv: nil, watchCoverage: nil, sleep: nil,
-            activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil
+            activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil,
+            medications: nil
         )
         let text = HealthReportFormatter.clipboardReport(report, calendar: calendar)
         XCTAssertTrue(text.contains("HRV Average: No data"))
@@ -147,6 +161,36 @@ final class HealthReportFormatterTests: XCTestCase {
         XCTAssertTrue(text.contains("Watch Data Coverage: No data"))
         XCTAssertTrue(text.contains("Workout Details: No data"))
         XCTAssertFalse(text.contains("HRV Average: 0"))
+        XCTAssertFalse(text.contains("Medication Taken:"))
+    }
+
+    func testClipboardIncludesOnlyMedicationGroupsWithTakenEvents() throws {
+        let calendar = testCalendar()
+        let eventDate = date(2026, 2, 9, calendar: calendar)
+        let period = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: date(2026, 2, 10, calendar: calendar),
+            calendar: calendar
+        )
+        let medication = MedicationDoseRecord(
+            id: UUID(), medicationKey: "example-20", medicationName: "ExampleMed 20 mg",
+            date: eventDate, quantity: 1, unitLabel: "dose"
+        )
+        let report = WeeklyReportSnapshot(
+            period: period, weight: nil, bodyFat: nil, waist: nil, glucose: nil, steps: nil,
+            restingHeartRate: nil, hrv: nil, watchCoverage: nil, sleep: nil,
+            activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil,
+            medications: MedicationSummary.aggregate([medication])
+        )
+
+        let text = HealthReportFormatter.clipboardReport(
+            report, generatedAt: eventDate, calendar: calendar,
+            locale: Locale(identifier: "en_GB")
+        )
+
+        XCTAssertTrue(text.contains(
+            "Medication Taken: ExampleMed 20 mg — 1 dose at 9 Feb 2026 at 09:00; 1 taken event"
+        ))
     }
 
     private func stepSummary(period: ReportPeriod) -> StepSummary {

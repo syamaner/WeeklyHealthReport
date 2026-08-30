@@ -210,6 +210,24 @@ struct DeveloperDiagnosticsView: View {
                     }
                 }
             }
+
+            if case .available(let summary) = viewModel.medicationState {
+                Section("Medication Taken Events") {
+                    LabeledContent("Event count", value: String(summary.allDoses.count))
+                    ForEach(summary.allDoses) { dose in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(dose.medicationName)
+                            LabeledContent(
+                                diagnosticDate(dose.date),
+                                value: HealthReportFormatter.medicationDose(
+                                    quantity: dose.quantity,
+                                    unitLabel: dose.unitLabel
+                                )
+                            )
+                        }
+                    }
+                }
+            }
         }
         .navigationTitle("Diagnostics")
         .navigationBarTitleDisplayMode(.inline)

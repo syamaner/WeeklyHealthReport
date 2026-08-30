@@ -14,4 +14,5 @@ struct WeeklyReportSnapshot: Equatable {
     let activeEnergyKilocalories: Double?
     let exerciseMinutes: Double?
     let workouts: WorkoutSummary?
+    let medications: MedicationSummary?
 }

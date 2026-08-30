@@ -12,7 +12,7 @@ The simulator screenshot uses an invented fixture created only for documentation
 
 All HealthKit reading and aggregation happens on the device. The app has no accounts, analytics, telemetry, network service, backend, database, cloud storage, background sync, or remote transport. The only export is an explicit copy to the iOS clipboard. The repository contains synthetic health fixtures only, not exported HealthKit data.
 
-The app requests read-only access to Steps, Weight, Body Fat Percentage, Waist Circumference, Blood Glucose, Heart Rate, Resting Heart Rate, Heart Rate Variability (SDNN), Apple Exercise Time, Active Energy, Workouts, and Sleep Analysis. HealthKit intentionally does not reveal whether read permission was denied, so an authorised query with no visible samples is presented as **No data**, never as a misleading zero.
+The app requests read-only access to Steps, Weight, Body Fat Percentage, Waist Circumference, Blood Glucose, Heart Rate, Resting Heart Rate, Heart Rate Variability (SDNN), Apple Exercise Time, Active Energy, Workouts, Sleep Analysis, and, on iOS 26 or later, individually selected Medications. HealthKit intentionally does not reveal whether read permission was denied, so an authorised query with no visible samples is presented as **No data**, never as a misleading zero.
 
 Glucose is read only from HealthKit. The app does not connect to Abbott, Lingo, or any other sensor account and does not upload glucose data. A sensor vendor's app must first write `bloodGlucose` samples into Apple Health.
 
@@ -60,6 +60,7 @@ Exercise: 143 min
 Workouts: 2
 Workout: Cycling — 42m
 Workout: Yoga — 36m
+Medication Taken: ExampleMed 20 mg — 1 dose at 9 Feb 2025 at 08:30; 1 taken event
 ```
 
 ## Aggregation semantics
@@ -76,6 +77,7 @@ Workout: Yoga — 36m
 - **Active Energy:** one HealthKit `cumulativeSum` statistic over the exact report interval, converted to kcal. This is an activity metric, not total energy expenditure.
 - **Workouts:** `HKWorkout` samples whose start date is within the report interval. The app shows count, summed duration, and each workout's HealthKit activity type and duration. Because missing read visibility is indistinguishable from an empty history, an empty result is shown as **No data** rather than a potentially misleading zero.
 - **Sleep:** only `asleepUnspecified`, `asleepCore`, `asleepDeep`, and `asleepREM` samples are included. `awake` and `inBed` are excluded. Included intervals from all sources are clipped and unioned so overlaps are counted once. Each report date is a local noon-to-noon night bucket ending on that wake date; only nights with visible asleep time enter the average.
+- **Medications (iOS 26+):** the person chooses individual medications through Apple's per-medication Health access sheet. The app queries active and archived authorised concepts, then includes only `HKMedicationDoseEvent` samples whose status is `taken` and whose start time falls inside the selected completed-day period. Events are grouped by HealthKit's exact medication concept, so a changed strength appears as a separate row automatically. Each row reports the latest logged quantity and time plus the number of taken events; Diagnostics lists every event. Medications without a visible taken event are omitted from copied text. Missing events are never interpreted as a missed dose or non-adherence.
 
 Sleep source precedence in Apple's Health UI is not fully documented. Interval union is the closest transparent, defensible calculation, and nightly Debug diagnostics are provided for comparison.
 
@@ -87,6 +89,7 @@ Sleep source precedence in Apple's Health UI is not fully documented. Interval u
 4. Select the **WeeklyHealthReport** target, open **Signing & Capabilities**, and confirm the values from the local configuration are shown with the **HealthKit** capability. No background delivery or clinical-health-record access is required.
 5. Connect and trust the iPhone, enable Developer Mode if prompted, select it as the run destination, then Run.
 6. On the new Health permission sheet, enable read access for every listed metric. If the app was installed before new metrics were added, iOS should ask for the additional permissions on the next run.
+7. On iOS 26 or later, tap **Choose Medications** in the report and select the medications the app may read. Use **Manage Medication Access** when adding a medicine or changing to a newly listed strength.
 
 No App Store distribution configuration is required.
 
@@ -102,7 +105,8 @@ Use a Debug build and select **Last 7 Completed Days**. Keep the app and Health 
 6. **Active Energy and Exercise:** compare the exact unrounded diagnostic totals over the selected dates before comparing rounded display values.
 7. **Workouts:** compare workout start dates, count, and total duration. A workout crossing midnight is assigned by its start date.
 8. **Sleep:** compare each diagnostic night with the Health date on which you woke. Check overlapping third-party or manually entered records if a night differs.
-9. Tap **Copy Report**, paste into Notes, and confirm the Waist, Glucose, Weight, RHR and HRV lines match the screen. Diagnostics must not appear in copied text.
+9. **Medications:** compare every taken-event timestamp in Diagnostics with Health. Confirm an unlogged medicine is absent and a changed strength appears as its own row. Today's event enters the default report only after that day is complete.
+10. Tap **Copy Report**, paste into Notes, and confirm the Waist, Glucose, Weight, RHR, HRV and medication lines match the screen. Diagnostics must not appear in copied text.
 
 The copied report includes the local date and time at which it was generated, Watch data-day coverage, and each workout type and duration.
 

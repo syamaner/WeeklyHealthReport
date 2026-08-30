@@ -43,6 +43,7 @@ final class WeeklyReportViewModel: ObservableObject {
     @Published private(set) var activeEnergyState: MetricState<Double> = .idle
     @Published private(set) var workoutState: MetricState<WorkoutSummary> = .idle
     @Published private(set) var sleepState: MetricState<SleepSummary> = .idle
+    @Published private(set) var medicationState: MetricState<MedicationSummary> = .idle
     @Published private(set) var lastRefreshed: Date?
 
     private let healthData: HealthDataProviding
@@ -82,8 +83,15 @@ final class WeeklyReportViewModel: ObservableObject {
             sleep: sleepState.value,
             activeEnergyKilocalories: activeEnergyState.value,
             exerciseMinutes: exerciseState.value,
-            workouts: workoutState.value
+            workouts: workoutState.value,
+            medications: medicationState.value
         )
+    }
+
+    var supportsMedicationData: Bool { healthData.supportsMedicationData }
+
+    func setMedicationAuthorizationFailure(_ message: String) {
+        medicationState = .failed(message)
     }
 
     func refresh() async {
@@ -124,6 +132,7 @@ final class WeeklyReportViewModel: ObservableObject {
             activeEnergyState = .noDataOrAccess
             workoutState = .noDataOrAccess
             sleepState = .noDataOrAccess
+            medicationState = .noDataOrAccess
             lastRefreshed = refreshDate
             return
         }
@@ -296,6 +305,21 @@ final class WeeklyReportViewModel: ObservableObject {
             guard generation == refreshGeneration else { return }
             sleepState = .failed(error.localizedDescription)
         }
+        guard generation == refreshGeneration else { return }
+
+        guard healthData.supportsMedicationData else {
+            medicationState = .noDataOrAccess
+            return
+        }
+        do {
+            let doses = try await healthData.fetchTakenMedicationDoses(for: period)
+            guard generation == refreshGeneration else { return }
+            medicationState = MedicationSummary.aggregate(doses)
+                .map(MetricState.available) ?? .noDataOrAccess
+        } catch {
+            guard generation == refreshGeneration else { return }
+            medicationState = .failed(error.localizedDescription)
+        }
     }
 
     private func setLoading() {
@@ -311,6 +335,7 @@ final class WeeklyReportViewModel: ObservableObject {
         activeEnergyState = .loading
         workoutState = .loading
         sleepState = .loading
+        medicationState = .loading
     }
 
     private func setHealthUnavailable() {
@@ -326,6 +351,7 @@ final class WeeklyReportViewModel: ObservableObject {
         activeEnergyState = .healthUnavailable
         workoutState = .healthUnavailable
         sleepState = .healthUnavailable
+        medicationState = .healthUnavailable
     }
 
     private func setAuthorizationFailure(_ message: String) {
@@ -341,5 +367,6 @@ final class WeeklyReportViewModel: ObservableObject {
         activeEnergyState = .failed(message)
         workoutState = .failed(message)
         sleepState = .failed(message)
+        medicationState = .failed(message)
     }
 }

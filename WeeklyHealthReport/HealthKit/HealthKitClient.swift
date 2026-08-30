@@ -35,6 +35,11 @@ final class HealthKitClient: HealthDataProviding {
         HKHealthStore.isHealthDataAvailable()
     }
 
+    var supportsMedicationData: Bool {
+        if #available(iOS 26.0, *) { return true }
+        return false
+    }
+
     func requestReadAuthorization() async throws {
         guard isHealthDataAvailable else {
             throw HealthDataError.unavailable
@@ -395,6 +400,70 @@ final class HealthKitClient: HealthDataProviding {
             guard Self.sleepStage(for: sample.value).countsAsAsleep else { return nil }
             return AsleepInterval(start: sample.startDate, end: sample.endDate)
         }
+    }
+
+    func fetchTakenMedicationDoses(for period: ReportPeriod) async throws -> [MedicationDoseRecord] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard !period.completedDays.isEmpty else { return [] }
+        guard #available(iOS 26.0, *) else { return [] }
+
+        return try await fetchTakenMedicationDosesOnIOS26(for: period)
+    }
+
+    @available(iOS 26.0, *)
+    private func fetchTakenMedicationDosesOnIOS26(
+        for period: ReportPeriod
+    ) async throws -> [MedicationDoseRecord] {
+        // Medication access is per object. This query returns only the active or
+        // archived medication concepts that the person explicitly authorised.
+        let medications = try await HKUserAnnotatedMedicationQueryDescriptor()
+            .result(for: store)
+        var records: [MedicationDoseRecord] = []
+
+        for (index, annotatedMedication) in medications.enumerated() {
+            let medication = annotatedMedication.medication
+            let medicationPredicate = HKQuery.predicateForMedicationDoseEvent(
+                medicationConceptIdentifier: medication.identifier
+            )
+            let takenPredicate = HKQuery.predicateForMedicationDoseEvent(status: .taken)
+            let datePredicate = HKQuery.predicateForSamples(
+                withStart: period.interval.start,
+                end: period.interval.end,
+                options: .strictStartDate
+            )
+            let predicate = NSCompoundPredicate(
+                type: .and,
+                subpredicates: [medicationPredicate, takenPredicate, datePredicate]
+            )
+            let samplePredicate = HKSamplePredicate.sample(
+                type: .medicationDoseEventType(),
+                predicate: predicate
+            )
+            let descriptor = HKSampleQueryDescriptor(
+                predicates: [samplePredicate],
+                sortDescriptors: [SortDescriptor(\HKSample.startDate, order: .forward)]
+            )
+            let samples = try await descriptor.result(for: store)
+
+            // The key is intentionally local to this fetch. HealthKit's opaque
+            // concept identifier provides exact matching, including strength,
+            // while no identifier or medication data is persisted by the app.
+            let medicationKey = "medication-\(index)"
+            records.append(contentsOf: samples.compactMap { sample in
+                guard let event = sample as? HKMedicationDoseEvent else { return nil }
+                let unit = event.unit.unitString == "count" ? "dose" : event.unit.unitString
+                return MedicationDoseRecord(
+                    id: event.uuid,
+                    medicationKey: medicationKey,
+                    medicationName: medication.displayText,
+                    date: event.startDate,
+                    quantity: event.doseQuantity,
+                    unitLabel: unit
+                )
+            })
+        }
+
+        return records
     }
 
     private func fetchDailyDiscreteAverage(

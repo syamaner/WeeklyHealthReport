@@ -1,11 +1,38 @@
 import SwiftUI
 import UIKit
+import HealthKit
+import HealthKitUI
 
 struct WeeklyReportView: View {
     @StateObject private var viewModel = WeeklyReportViewModel()
     @State private var copied = false
+    @State private var medicationAuthorizationTrigger = false
+    private let medicationHealthStore = HKHealthStore()
 
+    @ViewBuilder
     var body: some View {
+        if #available(iOS 26.0, *) {
+            reportContent
+                .healthDataAccessRequest(
+                    store: medicationHealthStore,
+                    objectType: .userAnnotatedMedicationType(),
+                    trigger: medicationAuthorizationTrigger
+                ) { result in
+                    Task { @MainActor in
+                        switch result {
+                        case .success:
+                            await viewModel.refresh()
+                        case .failure(let error):
+                            viewModel.setMedicationAuthorizationFailure(error.localizedDescription)
+                        }
+                    }
+                }
+        } else {
+            reportContent
+        }
+    }
+
+    private var reportContent: some View {
         NavigationStack {
             Form {
                 Section {
@@ -274,6 +301,42 @@ struct WeeklyReportView: View {
                         state: viewModel.sleepState,
                         format: { HealthReportFormatter.duration($0.averageDuration) }
                     )
+                }
+
+                if #available(iOS 26.0, *) {
+                    Section("Medications Taken") {
+                        switch viewModel.medicationState {
+                        case .idle, .loading:
+                            HStack {
+                                ProgressView()
+                                Text("Reading authorised medication events…")
+                            }
+                        case .available(let summary):
+                            ForEach(summary.groups) { group in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(group.medicationName)
+                                    Text(HealthReportFormatter.medicationGroupDetail(group))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        case .noDataOrAccess:
+                            Text("No taken medication events are visible for this period.")
+                                .foregroundStyle(.secondary)
+                        case .healthUnavailable:
+                            Text("Health data is unavailable on this device.")
+                                .foregroundStyle(.secondary)
+                        case .failed(let message):
+                            Text("Medication query failed: \(message)")
+                                .foregroundStyle(.red)
+                        }
+
+                        Button(viewModel.medicationState.value == nil
+                               ? "Choose Medications"
+                               : "Manage Medication Access") {
+                            medicationAuthorizationTrigger.toggle()
+                        }
+                    }
                 }
 
                 Section {

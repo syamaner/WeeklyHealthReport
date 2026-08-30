@@ -2,6 +2,7 @@ import Foundation
 
 protocol HealthDataProviding {
     var isHealthDataAvailable: Bool { get }
+    var supportsMedicationData: Bool { get }
 
     func requestReadAuthorization() async throws
     func fetchDailySteps(for period: ReportPeriod) async throws -> [DailyStepTotal]
@@ -16,4 +17,5 @@ protocol HealthDataProviding {
     func fetchActiveEnergyKilocalories(for period: ReportPeriod) async throws -> Double?
     func fetchWorkouts(for period: ReportPeriod) async throws -> [WorkoutRecord]
     func fetchAsleepIntervals(for period: ReportPeriod, calendar: Calendar) async throws -> [AsleepInterval]
+    func fetchTakenMedicationDoses(for period: ReportPeriod) async throws -> [MedicationDoseRecord]
 }

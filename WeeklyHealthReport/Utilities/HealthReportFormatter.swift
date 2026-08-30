@@ -122,6 +122,40 @@ enum HealthReportFormatter {
         return "\(hours)h \(minutes)m"
     }
 
+    static func medicationDose(
+        quantity: Double?,
+        unitLabel: String,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        guard let quantity else { return "Dose logged" }
+        let value = quantity.formatted(
+            .number.locale(locale).precision(.fractionLength(0...2))
+        )
+        let displayedUnit: String
+        if unitLabel == "dose" {
+            displayedUnit = quantity == 1 ? "dose" : "doses"
+        } else {
+            // HealthKit symbols such as mg and mL are not pluralised.
+            displayedUnit = unitLabel
+        }
+        return "\(value) \(displayedUnit)"
+    }
+
+    static func medicationGroupDetail(
+        _ group: MedicationDoseGroup,
+        calendar: Calendar = .autoupdatingCurrent,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let latest = group.latestDose
+        let dose = medicationDose(
+            quantity: latest.quantity,
+            unitLabel: latest.unitLabel,
+            locale: locale
+        )
+        let countLabel = group.count == 1 ? "1 taken event" : "\(group.count) taken events"
+        return "\(dose) at \(dateAndTime(latest.date, calendar: calendar, locale: locale)); \(countLabel)"
+    }
+
     static func period(
         _ period: ReportPeriod,
         calendar suppliedCalendar: Calendar = .autoupdatingCurrent,
@@ -201,7 +235,10 @@ enum HealthReportFormatter {
         let workoutLines = report.workouts?.workouts.map {
             "Workout: \($0.activityName) — \(duration($0.duration))"
         } ?? ["Workout Details: No data"]
-        return (lines + workoutLines).joined(separator: "\n")
+        let medicationLines = report.medications?.groups.map {
+            "Medication Taken: \($0.medicationName) — \(medicationGroupDetail($0, calendar: calendar, locale: locale))"
+        } ?? []
+        return (lines + workoutLines + medicationLines).joined(separator: "\n")
     }
 
     static func dateAndTime(

@@ -38,6 +38,9 @@
 		A0000000000000000000001D /* GlucoseSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000021 /* GlucoseSummary.swift */; };
 		A0000000000000000000001E /* WaistMeasurementTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000022 /* WaistMeasurementTests.swift */; };
 		A0000000000000000000001F /* GlucoseSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000023 /* GlucoseSummaryTests.swift */; };
+		A00000000000000000000020 /* MedicationSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000024 /* MedicationSummary.swift */; };
+		A00000000000000000000021 /* MedicationSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000025 /* MedicationSummaryTests.swift */; };
+		A00000000000000000000022 /* HealthKitUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B00000000000000000000026 /* HealthKitUI.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -86,6 +89,9 @@
 		B00000000000000000000021 /* GlucoseSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseSummary.swift; sourceTree = "<group>"; };
 		B00000000000000000000022 /* WaistMeasurementTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaistMeasurementTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000023 /* GlucoseSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GlucoseSummaryTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000024 /* MedicationSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationSummary.swift; sourceTree = "<group>"; };
+		B00000000000000000000025 /* MedicationSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationSummaryTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000026 /* HealthKitUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKitUI.framework; path = System/Library/Frameworks/HealthKitUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -94,6 +100,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A00000000000000000000008 /* HealthKit.framework in Frameworks */,
+				A00000000000000000000022 /* HealthKitUI.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -146,6 +153,7 @@
 				B0000000000000000000001C /* WatchCoverageSummary.swift */,
 				B00000000000000000000020 /* WaistMeasurement.swift */,
 				B00000000000000000000021 /* GlucoseSummary.swift */,
+				B00000000000000000000024 /* MedicationSummary.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -183,6 +191,7 @@
 				B0000000000000000000001D /* WatchCoverageSummaryTests.swift */,
 				B00000000000000000000022 /* WaistMeasurementTests.swift */,
 				B00000000000000000000023 /* GlucoseSummaryTests.swift */,
+				B00000000000000000000025 /* MedicationSummaryTests.swift */,
 			);
 			path = WeeklyHealthReportTests;
 			sourceTree = "<group>";
@@ -191,6 +200,7 @@
 			isa = PBXGroup;
 			children = (
 				B00000000000000000000008 /* HealthKit.framework */,
+				B00000000000000000000026 /* HealthKitUI.framework */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -329,6 +339,7 @@
 				A00000000000000000000019 /* WatchCoverageSummary.swift in Sources */,
 				A0000000000000000000001C /* WaistMeasurement.swift in Sources */,
 				A0000000000000000000001D /* GlucoseSummary.swift in Sources */,
+				A00000000000000000000020 /* MedicationSummary.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -347,6 +358,7 @@
 				A0000000000000000000001A /* WatchCoverageSummaryTests.swift in Sources */,
 				A0000000000000000000001E /* WaistMeasurementTests.swift in Sources */,
 				A0000000000000000000001F /* GlucoseSummaryTests.swift in Sources */,
+				A00000000000000000000021 /* MedicationSummaryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
