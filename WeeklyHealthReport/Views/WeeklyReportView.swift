@@ -7,21 +7,20 @@ struct WeeklyReportView: View {
     @StateObject private var viewModel = WeeklyReportViewModel()
     @State private var copied = false
     @State private var medicationAuthorizationTrigger = false
-    private let medicationHealthStore = HKHealthStore()
 
     @ViewBuilder
     var body: some View {
         if #available(iOS 26.0, *) {
             reportContent
                 .healthDataAccessRequest(
-                    store: medicationHealthStore,
+                    store: HealthStoreProvider.shared,
                     objectType: .userAnnotatedMedicationType(),
                     trigger: medicationAuthorizationTrigger
                 ) { result in
                     Task { @MainActor in
                         switch result {
                         case .success:
-                            await viewModel.refresh()
+                            await viewModel.refreshMedications()
                         case .failure(let error):
                             viewModel.setMedicationAuthorizationFailure(error.localizedDescription)
                         }

@@ -94,6 +94,29 @@ final class WeeklyReportViewModel: ObservableObject {
         medicationState = .failed(message)
     }
 
+    func refreshMedications() async {
+        guard healthData.isHealthDataAvailable else {
+            medicationState = .healthUnavailable
+            return
+        }
+        guard healthData.supportsMedicationData, !period.completedDays.isEmpty else {
+            medicationState = .noDataOrAccess
+            return
+        }
+
+        let queriedPeriod = period
+        medicationState = .loading
+        do {
+            let doses = try await healthData.fetchTakenMedicationDoses(for: queriedPeriod)
+            guard queriedPeriod == period else { return }
+            medicationState = MedicationSummary.aggregate(doses)
+                .map(MetricState.available) ?? .noDataOrAccess
+        } catch {
+            guard queriedPeriod == period else { return }
+            medicationState = .failed(error.localizedDescription)
+        }
+    }
+
     func refresh() async {
         refreshGeneration += 1
         let generation = refreshGeneration

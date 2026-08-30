@@ -1,6 +1,12 @@
 import Foundation
 import HealthKit
 
+enum HealthStoreProvider {
+    // HealthKit authorization UI and queries share one long-lived store. Keeping
+    // its identity stable also lets the per-object medication sheet reopen.
+    static let shared = HKHealthStore()
+}
+
 enum HealthDataError: LocalizedError, Equatable {
     case unavailable
     case missingStepType
@@ -27,7 +33,7 @@ enum HealthDataError: LocalizedError, Equatable {
 final class HealthKitClient: HealthDataProviding {
     private let store: HKHealthStore
 
-    init(store: HKHealthStore = HKHealthStore()) {
+    init(store: HKHealthStore = HealthStoreProvider.shared) {
         self.store = store
     }
 
