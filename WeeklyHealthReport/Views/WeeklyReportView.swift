@@ -249,6 +249,79 @@ struct WeeklyReportView: View {
                     )
                 }
 
+                Section("Cardiorespiratory") {
+                    metricRow(
+                        "Latest VO₂ Max",
+                        state: viewModel.vo2MaxState,
+                        format: {
+                            HealthReportFormatter.vo2Max(
+                                $0.latest.millilitresPerKilogramMinute
+                            )
+                        }
+                    )
+                    if case .available(let summary) = viewModel.vo2MaxState {
+                        LabeledContent(
+                            "VO₂ Max Measured",
+                            value: summary.latest.date.formatted(
+                                date: .abbreviated,
+                                time: .shortened
+                            )
+                        )
+                        LabeledContent(
+                            "4-Week Average",
+                            value: HealthReportFormatter.vo2MaxWindow(summary.fourWeek)
+                        )
+                        LabeledContent(
+                            "3-Month Average",
+                            value: HealthReportFormatter.vo2MaxWindow(summary.threeMonth)
+                        )
+                        LabeledContent(
+                            "6-Month Average",
+                            value: HealthReportFormatter.vo2MaxWindow(summary.sixMonth)
+                        )
+                    }
+
+                    metricRow(
+                        "Latest Blood Oxygen",
+                        state: viewModel.bloodOxygenState,
+                        format: { HealthReportFormatter.bloodOxygen($0.latest.percentage) }
+                    )
+                    if case .available(let summary) = viewModel.bloodOxygenState {
+                        LabeledContent(
+                            "Blood Oxygen Measured",
+                            value: summary.latest.date.formatted(
+                                date: .abbreviated,
+                                time: .shortened
+                            )
+                        )
+                        LabeledContent(
+                            "Period Typical",
+                            value: summary.typicalPercentage.map {
+                                HealthReportFormatter.bloodOxygen($0)
+                            } ?? "No data"
+                        )
+                        LabeledContent(
+                            "Daily Median Range",
+                            value: summary.minimumDailyMedian.flatMap { minimum in
+                                summary.maximumDailyMedian.map { maximum in
+                                    HealthReportFormatter.bloodOxygenRange(
+                                        minimum: minimum,
+                                        maximum: maximum
+                                    )
+                                }
+                            } ?? "No data"
+                        )
+                        LabeledContent(
+                            "Blood Oxygen Coverage",
+                            value: "\(summary.validDayCount) / \(summary.reportingDayCount) days"
+                        )
+                    }
+
+                    Text("Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section("Glucose") {
                     metricRow(
                         "Daily Average",

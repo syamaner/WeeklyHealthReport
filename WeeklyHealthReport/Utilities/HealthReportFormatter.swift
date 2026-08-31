@@ -66,6 +66,51 @@ enum HealthReportFormatter {
         return "\(lower)–\(upper) mmol/L"
     }
 
+    static func vo2Max(
+        _ millilitresPerKilogramMinute: Double,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let value = millilitresPerKilogramMinute.formatted(
+            .number.locale(locale).precision(.fractionLength(1))
+        )
+        return "\(value) mL/kg/min"
+    }
+
+    static func vo2MaxWindow(
+        _ window: VO2MaxWindowSummary,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let days = "\(window.sampledDayCount) day\(window.sampledDayCount == 1 ? "" : "s")"
+        guard let average = window.average else {
+            return "Insufficient data (\(days))"
+        }
+        return "\(vo2Max(average, locale: locale)) (\(days))"
+    }
+
+    static func bloodOxygen(
+        _ percentage: Double,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let value = percentage.formatted(
+            .number.locale(locale).precision(.fractionLength(0))
+        )
+        return "\(value)%"
+    }
+
+    static func bloodOxygenRange(
+        minimum: Double,
+        maximum: Double,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let lower = minimum.formatted(
+            .number.locale(locale).precision(.fractionLength(0))
+        )
+        let upper = maximum.formatted(
+            .number.locale(locale).precision(.fractionLength(0))
+        )
+        return "\(lower)–\(upper)%"
+    }
+
     static func percentagePointTrend(
         _ value: Double,
         locale: Locale = .autoupdatingCurrent
@@ -221,6 +266,14 @@ enum HealthReportFormatter {
             "Glucose Daily Average: \(report.glucose.map { glucose($0.averageMillimolesPerLiter, locale: locale) } ?? "No data")",
             "Glucose Observed Range: \(report.glucose.map { glucoseRange(minimum: $0.minimumMillimolesPerLiter, maximum: $0.maximumMillimolesPerLiter, locale: locale) } ?? "No data")",
             "Glucose Data Coverage: \(report.glucose.map { "\($0.validDayCount) / \($0.reportingDayCount) days" } ?? "No data")",
+            "Latest VO₂ Max: \(report.vo2Max.map { "\(vo2Max($0.latest.millilitresPerKilogramMinute, locale: locale)) (\(dateAndTime($0.latest.date, calendar: calendar, locale: locale)))" } ?? "No data")",
+            "VO₂ Max — 4 Weeks: \(report.vo2Max.map { vo2MaxWindow($0.fourWeek, locale: locale) } ?? "No data")",
+            "VO₂ Max — 3 Months: \(report.vo2Max.map { vo2MaxWindow($0.threeMonth, locale: locale) } ?? "No data")",
+            "VO₂ Max — 6 Months: \(report.vo2Max.map { vo2MaxWindow($0.sixMonth, locale: locale) } ?? "No data")",
+            "Latest Blood Oxygen: \(report.bloodOxygen.map { "\(bloodOxygen($0.latest.percentage, locale: locale)) (\(dateAndTime($0.latest.date, calendar: calendar, locale: locale)))" } ?? "No data")",
+            "Typical Blood Oxygen: \(report.bloodOxygen?.typicalPercentage.map { bloodOxygen($0, locale: locale) } ?? "No data")",
+            "Blood Oxygen Daily Range: \(report.bloodOxygen.flatMap { summary in summary.minimumDailyMedian.flatMap { minimum in summary.maximumDailyMedian.map { maximum in bloodOxygenRange(minimum: minimum, maximum: maximum, locale: locale) } } } ?? "No data")",
+            "Blood Oxygen Data Coverage: \(report.bloodOxygen.map { "\($0.validDayCount) / \($0.reportingDayCount) days" } ?? "No data")",
             "Average Daily Steps: \(report.steps.map { integer($0.averageDailySteps, locale: locale) } ?? "No data")",
             "Resting HR Average: \(report.restingHeartRate.map { heartRate($0.current.average, locale: locale) } ?? "No data")",
             "Resting HR Trend: \(report.restingHeartRate?.trend.map { signedChange($0, unit: "bpm", comparison: comparison, locale: locale) } ?? "Insufficient history")",

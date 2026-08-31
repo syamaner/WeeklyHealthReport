@@ -161,6 +161,97 @@ struct DeveloperDiagnosticsView: View {
                 }
             }
 
+            if case .available(let summary) = viewModel.vo2MaxState {
+                Section("VO₂ Max") {
+                    LabeledContent(
+                        "Latest",
+                        value: "\(diagnosticVO2Max(summary.latest.millilitresPerKilogramMinute)) at \(diagnosticDate(summary.latest.date))"
+                    )
+                    vo2Window("4-week daily-first mean", summary.fourWeek)
+                    vo2Window("3-month daily-first mean", summary.threeMonth)
+                    vo2Window("6-month daily-first mean", summary.sixMonth)
+
+                    Text("Daily values").font(.headline)
+                    ForEach(summary.dailyValues) { daily in
+                        LabeledContent(
+                            daily.day.formatted(.dateTime.day().month(.abbreviated).year()),
+                            value: "\(diagnosticVO2Max(daily.average)) (\(daily.sampleCount) sample\(daily.sampleCount == 1 ? "" : "s"))"
+                        )
+                    }
+
+                    Text("Raw samples").font(.headline)
+                    ForEach(Array(summary.measurements.enumerated()), id: \.offset) { _, sample in
+                        VStack(alignment: .leading, spacing: 4) {
+                            LabeledContent(
+                                diagnosticDate(sample.date),
+                                value: diagnosticVO2Max(sample.millilitresPerKilogramMinute)
+                            )
+                            Text(sample.sourceName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
+            if case .available(let summary) = viewModel.bloodOxygenState {
+                Section("Blood Oxygen") {
+                    LabeledContent(
+                        "Latest",
+                        value: "\(diagnosticPercentage(summary.latest.percentage)) at \(diagnosticDate(summary.latest.date))"
+                    )
+                    LabeledContent(
+                        "Median of daily medians",
+                        value: summary.typicalPercentage.map(diagnosticPercentage) ?? "No visible period data"
+                    )
+                    if let minimum = summary.minimumDailyMedian,
+                       let maximum = summary.maximumDailyMedian {
+                        LabeledContent(
+                            "Daily-median range",
+                            value: "\(diagnosticPercentage(minimum))–\(diagnosticPercentage(maximum))"
+                        )
+                    }
+                    LabeledContent(
+                        "Valid days",
+                        value: "\(summary.validDayCount) / \(summary.reportingDayCount)"
+                    )
+
+                    Text("Completed-day medians").font(.headline)
+                    ForEach(summary.dailyValues) { daily in
+                        VStack(alignment: .leading, spacing: 4) {
+                            LabeledContent(
+                                daily.day.start.formatted(
+                                    .dateTime.weekday(.abbreviated).day().month(.abbreviated)
+                                ),
+                                value: daily.medianPercentage.map(diagnosticPercentage)
+                                    ?? "No visible data"
+                            )
+                            Text("\(daily.sampleCount) sample\(daily.sampleCount == 1 ? "" : "s")")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if !daily.sourceNames.isEmpty {
+                                Text(daily.sourceNames.joined(separator: ", "))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    Text("Visible samples in query lookback").font(.headline)
+                    ForEach(Array(summary.measurements.enumerated()), id: \.offset) { _, sample in
+                        VStack(alignment: .leading, spacing: 4) {
+                            LabeledContent(
+                                diagnosticDate(sample.date),
+                                value: diagnosticPercentage(sample.percentage)
+                            )
+                            Text(sample.sourceName)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
             if case .available(let summary) = viewModel.restingHeartRateState {
                 heartSection(title: "Resting Heart Rate", summary: summary, unit: "bpm")
             }
@@ -294,5 +385,18 @@ struct DeveloperDiagnosticsView: View {
 
     private func diagnosticWeight(_ value: Double) -> String {
         "\(value.formatted(.number.precision(.fractionLength(3)))) kg"
+    }
+
+    @ViewBuilder
+    private func vo2Window(_ label: String, _ window: VO2MaxWindowSummary) -> some View {
+        LabeledContent(
+            label,
+            value: window.average.map(diagnosticVO2Max)
+                ?? "Insufficient data (\(window.sampledDayCount) sampled days)"
+        )
+    }
+
+    private func diagnosticVO2Max(_ value: Double) -> String {
+        "\(value.formatted(.number.precision(.fractionLength(3)))) mL/kg/min"
     }
 }

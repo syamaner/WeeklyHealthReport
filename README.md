@@ -12,7 +12,7 @@ The simulator screenshot uses an invented fixture created only for documentation
 
 All HealthKit reading and aggregation happens on the device. The app has no accounts, analytics, telemetry, network service, backend, database, cloud storage, background sync, or remote transport. The only export is an explicit copy to the iOS clipboard. The repository contains synthetic health fixtures only, not exported HealthKit data.
 
-The app requests read-only access to Steps, Weight, Body Fat Percentage, Waist Circumference, Blood Glucose, Heart Rate, Resting Heart Rate, Heart Rate Variability (SDNN), Apple Exercise Time, Active Energy, Workouts, Sleep Analysis, and, on iOS 26 or later, individually selected Medications. HealthKit intentionally does not reveal whether read permission was denied, so an authorised query with no visible samples is presented as **No data**, never as a misleading zero.
+The app requests read-only access to Steps, Weight, Body Fat Percentage, Waist Circumference, Blood Glucose, VO₂ Max, Oxygen Saturation, Heart Rate, Resting Heart Rate, Heart Rate Variability (SDNN), Apple Exercise Time, Active Energy, Workouts, Sleep Analysis, and, on iOS 26 or later, individually selected Medications. HealthKit intentionally does not reveal whether read permission was denied, so an authorised query with no visible samples is presented as **No data**, never as a misleading zero.
 
 Glucose is read only from HealthKit. The app does not connect to Abbott, Lingo, or any other sensor account and does not upload glucose data. A sensor vendor's app must first write `bloodGlucose` samples into Apple Health.
 
@@ -48,6 +48,14 @@ Waist 4-week Trend: -1.8 cm vs ~4 weeks earlier
 Glucose Daily Average: 5.7 mmol/L
 Glucose Observed Range: 3.9–8.6 mmol/L
 Glucose Data Coverage: 7 / 7 days
+Latest VO₂ Max: 32.1 mL/kg/min (9 Feb 2025 at 08:42)
+VO₂ Max — 4 Weeks: 31.8 mL/kg/min (8 days)
+VO₂ Max — 3 Months: 30.9 mL/kg/min (24 days)
+VO₂ Max — 6 Months: 29.7 mL/kg/min (51 days)
+Latest Blood Oxygen: 97% (10 Feb 2025 at 07:21)
+Typical Blood Oxygen: 97%
+Blood Oxygen Daily Range: 96–98%
+Blood Oxygen Data Coverage: 7 / 7 days
 Average Daily Steps: 8,432
 Resting HR Average: 61 bpm
 Resting HR Trend: -2.0 bpm vs previous 7d
@@ -69,6 +77,8 @@ Medication Taken: ExampleMed 20 mg — 1 dose at 9 Feb 2025 at 08:30; 1 taken ev
 - **Body Fat:** HealthKit percent values are fractional (`0.30` means `30.0%`) and are converted to percentage points at the query boundary. Up to 60 days of visible samples are read. Multiple readings on one calendar day are averaged first, then sampled days receive equal weight. Seven-day and current/previous 28-day averages require at least two sampled days. Trend is the current 28-day daily mean minus the previous 28-day daily mean, in percentage points.
 - **Waist Circumference:** the latest visible manual measurement from an eight-week lookback ending at refresh time is displayed in centimetres with its timestamp, independently of the selected weekly period. Sparse measurements are not averaged. For a four-week trend, the app compares it with the visible sample closest to 28 days earlier, but only when that sample is 21–35 days older; otherwise it reports insufficient history. A measurement entered today can therefore appear immediately.
 - **Blood Glucose:** HealthKit's daily `discreteAverage`, `discreteMin`, and `discreteMax` statistics are calculated for each complete local calendar day. All source values are converted using HealthKit's blood-glucose molar mass and displayed in mmol/L. The weekly average is the arithmetic mean of valid daily averages, so days with more sensor readings do not dominate. The observed range is the minimum and maximum visible statistic across the period, and coverage reports days with data. No target range, time-in-range score, diagnosis, or medical interpretation is applied.
+- **VO₂ Max:** the latest visible estimate and timestamp from the preceding six calendar months are displayed. Multiple estimates on one local calendar day are averaged first, then sampled days receive equal weight in rolling four-week, three-month, and six-month averages ending at refresh time. Each average requires at least three sampled days and reports its sampled-day count. VO₂ max is a discrete Watch estimate, not a clinical exercise test, and no fitness classification or medical interpretation is applied.
+- **Blood Oxygen:** the latest visible oxygen-saturation sample from a 30-day lookback is displayed with its timestamp. For the selected completed-day period, all visible discrete samples are converted from HealthKit fractions to percentage points. The median is calculated within each complete day, followed by the median and range of valid daily medians, so days with more background measurements do not dominate and isolated outliers have less influence. Coverage reports valid days. Apple Watch blood-oxygen values are general wellness estimates, not medical measurements.
 - **Steps:** one local-calendar-day `HKStatisticsCollectionQueryDescriptor` using `cumulativeSum`. HealthKit resolves contributing sources; raw iPhone and Watch samples are never manually summed. Weekly average is the sum of the daily totals divided by every complete reporting day, normally seven.
 - **Resting Heart Rate:** one HealthKit `discreteAverage` statistic per complete calendar day, followed by the arithmetic mean of valid daily values. Days without a visible value are omitted; days with more samples do not receive extra weight. The selected period is compared with the immediately preceding period containing the same number of complete days. A signed bpm trend requires at least three valid days on each side.
 - **HRV:** the same daily-first and equivalent-period comparison using `heartRateVariabilitySDNN`, converted to milliseconds. A signed trend requires at least three valid days on each side. It is not a readiness score or medical interpretation.
@@ -101,12 +111,14 @@ Use a Debug build and select **Last 7 Completed Days**. Keep the app and Health 
 2. **Weight:** compare the current and previous seven-day daily values, confirming that today's partial day is excluded from the averages while the latest measurement can still be today.
 3. **Waist:** compare the latest diagnostic measurement and timestamp with Health's Waist Circumference detail. For trend, confirm Diagnostics selected the closest sample to 28 days earlier and that it is 21–35 days older than the latest sample.
 4. **Blood Glucose:** first confirm Lingo samples appear in Health. Compare each daily diagnostic average and range with Health for the same complete day, then average the valid daily averages. Allow for vendor-to-Health synchronisation delay.
-5. **Resting HR and HRV:** compare each valid day's diagnostic value with Health's daily view for both the selected and immediately preceding equivalent periods, then average only those valid days.
-6. **Active Energy and Exercise:** compare the exact unrounded diagnostic totals over the selected dates before comparing rounded display values.
-7. **Workouts:** compare workout start dates, count, and total duration. A workout crossing midnight is assigned by its start date.
-8. **Sleep:** compare each diagnostic night with the Health date on which you woke. Check overlapping third-party or manually entered records if a night differs.
-9. **Medications:** compare every taken-event timestamp in Diagnostics with Health. Confirm an unlogged medicine is absent and a changed strength appears as its own row. Today's event enters the default report only after that day is complete.
-10. Tap **Copy Report**, paste into Notes, and confirm the Waist, Glucose, Weight, RHR, HRV and medication lines match the screen. Diagnostics must not appear in copied text.
+5. **VO₂ Max:** compare every raw diagnostic estimate and timestamp with Health's Cardio Fitness data. Recalculate the daily means, then compare the four-week, three-month, and six-month windows. Confirm each displayed sampled-day count before comparing rounded averages.
+6. **Blood Oxygen:** compare each raw diagnostic value with Health, then independently calculate each completed day's median. Compare the median and range of those daily medians, not Health's raw-sample average or range. The latest value can be from today even though the period summary excludes today.
+7. **Resting HR and HRV:** compare each valid day's diagnostic value with Health's daily view for both the selected and immediately preceding equivalent periods, then average only those valid days.
+8. **Active Energy and Exercise:** compare the exact unrounded diagnostic totals over the selected dates before comparing rounded display values.
+9. **Workouts:** compare workout start dates, count, and total duration. A workout crossing midnight is assigned by its start date.
+10. **Sleep:** compare each diagnostic night with the Health date on which you woke. Check overlapping third-party or manually entered records if a night differs.
+11. **Medications:** compare every taken-event timestamp in Diagnostics with Health. Confirm an unlogged medicine is absent and a changed strength appears as its own row. Today's event enters the default report only after that day is complete.
+12. Tap **Copy Report**, paste into Notes, and confirm the Waist, Glucose, VO₂ Max, Blood Oxygen, Weight, RHR, HRV and medication lines match the screen. Diagnostics must not appear in copied text.
 
 The copied report includes the local date and time at which it was generated, Watch data-day coverage, and each workout type and duration.
 

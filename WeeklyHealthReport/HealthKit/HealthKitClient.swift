@@ -67,6 +67,8 @@ final class HealthKitClient: HealthDataProviding {
         guard let heartRateType = HKObjectType.quantityType(forIdentifier: .heartRate),
               let restingHeartRateType = HKObjectType.quantityType(forIdentifier: .restingHeartRate),
               let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
+              let vo2MaxType = HKObjectType.quantityType(forIdentifier: .vo2Max),
+              let oxygenSaturationType = HKObjectType.quantityType(forIdentifier: .oxygenSaturation),
               let exerciseType = HKObjectType.quantityType(forIdentifier: .appleExerciseTime),
               let activeEnergyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned),
               let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
@@ -81,8 +83,8 @@ final class HealthKitClient: HealthDataProviding {
             toShare: [],
             read: [
                 stepType, bodyMassType, bodyFatType, waistType, glucoseType,
-                heartRateType, restingHeartRateType, hrvType, exerciseType, activeEnergyType,
-                workoutType, sleepType
+                heartRateType, restingHeartRateType, hrvType, vo2MaxType,
+                oxygenSaturationType, exerciseType, activeEnergyType, workoutType, sleepType
             ]
         )
     }
@@ -242,6 +244,74 @@ final class HealthKitClient: HealthDataProviding {
             WaistMeasurement(
                 date: $0.startDate,
                 centimetres: $0.quantity.doubleValue(for: centimetres)
+            )
+        }
+    }
+
+    func fetchVO2MaxMeasurements(asOf date: Date) async throws -> [VO2MaxMeasurement] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let type = HKObjectType.quantityType(forIdentifier: .vo2Max) else {
+            throw HealthDataError.missingType("VO2-max")
+        }
+        let calendar = Calendar.autoupdatingCurrent
+        let today = calendar.startOfDay(for: date)
+        guard let lookbackStart = calendar.date(byAdding: .month, value: -6, to: today) else {
+            return []
+        }
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: lookbackStart,
+            end: date,
+            options: .strictStartDate
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.quantitySample(type: type, predicate: datePredicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
+        )
+        let samples = try await descriptor.result(for: store)
+        let unit = HKUnit.literUnit(with: .milli)
+            .unitDivided(by: .gramUnit(with: .kilo))
+            .unitDivided(by: .minute())
+        return samples.map {
+            VO2MaxMeasurement(
+                date: $0.startDate,
+                millilitresPerKilogramMinute: $0.quantity.doubleValue(for: unit),
+                sourceName: $0.sourceRevision.source.name
+            )
+        }
+    }
+
+    func fetchOxygenSaturationMeasurements(
+        for period: ReportPeriod,
+        asOf date: Date
+    ) async throws -> [OxygenSaturationMeasurement] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let type = HKObjectType.quantityType(forIdentifier: .oxygenSaturation) else {
+            throw HealthDataError.missingType("oxygen-saturation")
+        }
+        let calendar = Calendar.autoupdatingCurrent
+        guard let latestLookbackStart = calendar.date(
+            byAdding: .day,
+            value: -30,
+            to: calendar.startOfDay(for: date)
+        ) else { return [] }
+        let queryStart = min(period.interval.start, latestLookbackStart)
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: queryStart,
+            end: date,
+            options: .strictStartDate
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.quantitySample(type: type, predicate: datePredicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
+        )
+        let samples = try await descriptor.result(for: store)
+        return samples.map {
+            OxygenSaturationMeasurement(
+                date: $0.startDate,
+                percentage: OxygenSaturationMeasurement.percentagePoints(
+                    fromHealthKitFraction: $0.quantity.doubleValue(for: .percent())
+                ),
+                sourceName: $0.sourceRevision.source.name
             )
         }
     }

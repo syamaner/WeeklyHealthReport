@@ -36,6 +36,8 @@ final class WeeklyReportViewModel: ObservableObject {
     @Published private(set) var bodyFatState: BodyFatState = .idle
     @Published private(set) var waistState: MetricState<WaistSummary> = .idle
     @Published private(set) var glucoseState: MetricState<GlucoseSummary> = .idle
+    @Published private(set) var vo2MaxState: MetricState<VO2MaxSummary> = .idle
+    @Published private(set) var bloodOxygenState: MetricState<BloodOxygenSummary> = .idle
     @Published private(set) var restingHeartRateState: MetricState<HeartMetricTrendSummary> = .idle
     @Published private(set) var hrvState: MetricState<HeartMetricTrendSummary> = .idle
     @Published private(set) var watchCoverageState: MetricState<WatchCoverageSummary> = .idle
@@ -73,6 +75,8 @@ final class WeeklyReportViewModel: ObservableObject {
             bodyFat: bodyFatState.value,
             waist: waistState.value,
             glucose: glucoseState.value,
+            vo2Max: vo2MaxState.value,
+            bloodOxygen: bloodOxygenState.value,
             steps: {
                 if case .loaded(let summary) = state { return summary }
                 return nil
@@ -148,6 +152,7 @@ final class WeeklyReportViewModel: ObservableObject {
         guard !period.completedDays.isEmpty else {
             state = .noCompletedDays
             glucoseState = .noDataOrAccess
+            bloodOxygenState = .noDataOrAccess
             restingHeartRateState = .noDataOrAccess
             hrvState = .noDataOrAccess
             watchCoverageState = .noDataOrAccess
@@ -160,7 +165,7 @@ final class WeeklyReportViewModel: ObservableObject {
             return
         }
 
-        await loadPeriodMetrics(generation: generation)
+        await loadPeriodMetrics(asOf: refreshDate, generation: generation)
         guard generation == refreshGeneration else { return }
         lastRefreshed = refreshDate
     }
@@ -209,9 +214,23 @@ final class WeeklyReportViewModel: ObservableObject {
             guard generation == refreshGeneration else { return }
             waistState = .failed(error.localizedDescription)
         }
+        guard generation == refreshGeneration else { return }
+
+        do {
+            let measurements = try await healthData.fetchVO2MaxMeasurements(asOf: date)
+            guard generation == refreshGeneration else { return }
+            vo2MaxState = VO2MaxSummary.calculate(
+                measurements: measurements,
+                asOf: date,
+                calendar: calendar
+            ).map(MetricState.available) ?? .noDataOrAccess
+        } catch {
+            guard generation == refreshGeneration else { return }
+            vo2MaxState = .failed(error.localizedDescription)
+        }
     }
 
-    private func loadPeriodMetrics(generation: Int) async {
+    private func loadPeriodMetrics(asOf date: Date, generation: Int) async {
         guard let previousPeriod = period.precedingEquivalent(calendar: calendar) else {
             restingHeartRateState = .noDataOrAccess
             hrvState = .noDataOrAccess
@@ -236,6 +255,24 @@ final class WeeklyReportViewModel: ObservableObject {
         } catch {
             guard generation == refreshGeneration else { return }
             glucoseState = .failed(error.localizedDescription)
+        }
+        guard generation == refreshGeneration else { return }
+
+        do {
+            let measurements = try await healthData.fetchOxygenSaturationMeasurements(
+                for: period,
+                asOf: date
+            )
+            guard generation == refreshGeneration else { return }
+            bloodOxygenState = BloodOxygenSummary.calculate(
+                measurements: measurements,
+                period: period,
+                asOf: date,
+                calendar: calendar
+            ).map(MetricState.available) ?? .noDataOrAccess
+        } catch {
+            guard generation == refreshGeneration else { return }
+            bloodOxygenState = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
@@ -351,6 +388,8 @@ final class WeeklyReportViewModel: ObservableObject {
         bodyFatState = .loading
         waistState = .loading
         glucoseState = .loading
+        vo2MaxState = .loading
+        bloodOxygenState = .loading
         restingHeartRateState = .loading
         hrvState = .loading
         watchCoverageState = .loading
@@ -367,6 +406,8 @@ final class WeeklyReportViewModel: ObservableObject {
         bodyFatState = .healthUnavailable
         waistState = .healthUnavailable
         glucoseState = .healthUnavailable
+        vo2MaxState = .healthUnavailable
+        bloodOxygenState = .healthUnavailable
         restingHeartRateState = .healthUnavailable
         hrvState = .healthUnavailable
         watchCoverageState = .healthUnavailable
@@ -383,6 +424,8 @@ final class WeeklyReportViewModel: ObservableObject {
         bodyFatState = .failed(message)
         waistState = .failed(message)
         glucoseState = .failed(message)
+        vo2MaxState = .failed(message)
+        bloodOxygenState = .failed(message)
         restingHeartRateState = .failed(message)
         hrvState = .failed(message)
         watchCoverageState = .failed(message)

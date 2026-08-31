@@ -41,6 +41,8 @@
 		A00000000000000000000020 /* MedicationSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000024 /* MedicationSummary.swift */; };
 		A00000000000000000000021 /* MedicationSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000025 /* MedicationSummaryTests.swift */; };
 		A00000000000000000000022 /* HealthKitUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B00000000000000000000026 /* HealthKitUI.framework */; };
+		A00000000000000000000023 /* CardiorespiratorySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000027 /* CardiorespiratorySummary.swift */; };
+		A00000000000000000000024 /* CardiorespiratorySummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000028 /* CardiorespiratorySummaryTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -92,6 +94,8 @@
 		B00000000000000000000024 /* MedicationSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationSummary.swift; sourceTree = "<group>"; };
 		B00000000000000000000025 /* MedicationSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationSummaryTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000026 /* HealthKitUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKitUI.framework; path = System/Library/Frameworks/HealthKitUI.framework; sourceTree = SDKROOT; };
+		B00000000000000000000027 /* CardiorespiratorySummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardiorespiratorySummary.swift; sourceTree = "<group>"; };
+		B00000000000000000000028 /* CardiorespiratorySummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardiorespiratorySummaryTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -154,6 +158,7 @@
 				B00000000000000000000020 /* WaistMeasurement.swift */,
 				B00000000000000000000021 /* GlucoseSummary.swift */,
 				B00000000000000000000024 /* MedicationSummary.swift */,
+				B00000000000000000000027 /* CardiorespiratorySummary.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -192,6 +197,7 @@
 				B00000000000000000000022 /* WaistMeasurementTests.swift */,
 				B00000000000000000000023 /* GlucoseSummaryTests.swift */,
 				B00000000000000000000025 /* MedicationSummaryTests.swift */,
+				B00000000000000000000028 /* CardiorespiratorySummaryTests.swift */,
 			);
 			path = WeeklyHealthReportTests;
 			sourceTree = "<group>";
@@ -340,6 +346,7 @@
 				A0000000000000000000001C /* WaistMeasurement.swift in Sources */,
 				A0000000000000000000001D /* GlucoseSummary.swift in Sources */,
 				A00000000000000000000020 /* MedicationSummary.swift in Sources */,
+				A00000000000000000000023 /* CardiorespiratorySummary.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -359,6 +366,7 @@
 				A0000000000000000000001E /* WaistMeasurementTests.swift in Sources */,
 				A0000000000000000000001F /* GlucoseSummaryTests.swift in Sources */,
 				A00000000000000000000021 /* MedicationSummaryTests.swift in Sources */,
+				A00000000000000000000024 /* CardiorespiratorySummaryTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

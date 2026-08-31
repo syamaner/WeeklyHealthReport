@@ -30,6 +30,30 @@ final class HealthReportFormatterTests: XCTestCase {
         )
     }
 
+    func testCardiorespiratoryFormatting() {
+        let locale = Locale(identifier: "en_GB")
+        XCTAssertEqual(HealthReportFormatter.vo2Max(31.84, locale: locale), "31.8 mL/kg/min")
+        XCTAssertEqual(
+            HealthReportFormatter.vo2MaxWindow(
+                VO2MaxWindowSummary(average: 31.84, sampledDayCount: 8),
+                locale: locale
+            ),
+            "31.8 mL/kg/min (8 days)"
+        )
+        XCTAssertEqual(
+            HealthReportFormatter.vo2MaxWindow(
+                VO2MaxWindowSummary(average: nil, sampledDayCount: 2),
+                locale: locale
+            ),
+            "Insufficient data (2 days)"
+        )
+        XCTAssertEqual(HealthReportFormatter.bloodOxygen(96.7, locale: locale), "97%")
+        XCTAssertEqual(
+            HealthReportFormatter.bloodOxygenRange(minimum: 95.6, maximum: 98.2, locale: locale),
+            "96–98%"
+        )
+    }
+
     func testClipboardReportIncludesValuesAndNoDiagnostics() throws {
         let calendar = testCalendar()
         let period = ReportPeriod.make(
@@ -83,6 +107,37 @@ final class HealthReportFormatterTests: XCTestCase {
                 minimumMillimolesPerLiter: 3.9,
                 maximumMillimolesPerLiter: 8.7
             ),
+            vo2Max: VO2MaxSummary(
+                latest: VO2MaxMeasurement(
+                    date: date(2026, 8, 24, calendar: calendar),
+                    millilitresPerKilogramMinute: 32.1,
+                    sourceName: "Fixture Watch"
+                ),
+                fourWeek: VO2MaxWindowSummary(average: 31.8, sampledDayCount: 8),
+                threeMonth: VO2MaxWindowSummary(average: 30.9, sampledDayCount: 24),
+                sixMonth: VO2MaxWindowSummary(average: 29.7, sampledDayCount: 51),
+                dailyValues: [],
+                measurements: []
+            ),
+            bloodOxygen: BloodOxygenSummary(
+                latest: OxygenSaturationMeasurement(
+                    date: date(2026, 8, 24, calendar: calendar),
+                    percentage: 97,
+                    sourceName: "Fixture Watch"
+                ),
+                dailyValues: period.completedDays.map {
+                    DailyOxygenSaturationValue(
+                        day: $0,
+                        medianPercentage: 97,
+                        sampleCount: 4,
+                        sourceNames: ["Fixture Watch"]
+                    )
+                },
+                typicalPercentage: 97,
+                minimumDailyMedian: 96,
+                maximumDailyMedian: 98,
+                measurements: []
+            ),
             steps: stepSummary(period: period),
             restingHeartRate: heartSummary(period: period, current: 73, previous: 70),
             hrv: heartSummary(period: period, current: 42, previous: 47),
@@ -124,6 +179,14 @@ final class HealthReportFormatterTests: XCTestCase {
         Glucose Daily Average: 5.8 mmol/L
         Glucose Observed Range: 3.9–8.7 mmol/L
         Glucose Data Coverage: 7 / 7 days
+        Latest VO₂ Max: 32.1 mL/kg/min (24 Aug 2026 at 09:00)
+        VO₂ Max — 4 Weeks: 31.8 mL/kg/min (8 days)
+        VO₂ Max — 3 Months: 30.9 mL/kg/min (24 days)
+        VO₂ Max — 6 Months: 29.7 mL/kg/min (51 days)
+        Latest Blood Oxygen: 97% (24 Aug 2026 at 09:00)
+        Typical Blood Oxygen: 97%
+        Blood Oxygen Daily Range: 96–98%
+        Blood Oxygen Data Coverage: 7 / 7 days
         Average Daily Steps: 2,727
         Resting HR Average: 73 bpm
         Resting HR Trend: +3.0 bpm vs previous 7d
@@ -146,7 +209,8 @@ final class HealthReportFormatterTests: XCTestCase {
             calendar: calendar
         )
         let report = WeeklyReportSnapshot(
-            period: period, weight: nil, bodyFat: nil, waist: nil, glucose: nil, steps: nil,
+            period: period, weight: nil, bodyFat: nil, waist: nil, glucose: nil,
+            vo2Max: nil, bloodOxygen: nil, steps: nil,
             restingHeartRate: nil, hrv: nil, watchCoverage: nil, sleep: nil,
             activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil,
             medications: nil
@@ -158,6 +222,8 @@ final class HealthReportFormatterTests: XCTestCase {
         XCTAssertTrue(text.contains("Waist Circumference: No data"))
         XCTAssertTrue(text.contains("Waist 4-week Trend: Insufficient history"))
         XCTAssertTrue(text.contains("Glucose Daily Average: No data"))
+        XCTAssertTrue(text.contains("Latest VO₂ Max: No data"))
+        XCTAssertTrue(text.contains("Latest Blood Oxygen: No data"))
         XCTAssertTrue(text.contains("Watch Data Coverage: No data"))
         XCTAssertTrue(text.contains("Workout Details: No data"))
         XCTAssertFalse(text.contains("HRV Average: 0"))
@@ -177,7 +243,8 @@ final class HealthReportFormatterTests: XCTestCase {
             date: eventDate, quantity: 1, unitLabel: "dose"
         )
         let report = WeeklyReportSnapshot(
-            period: period, weight: nil, bodyFat: nil, waist: nil, glucose: nil, steps: nil,
+            period: period, weight: nil, bodyFat: nil, waist: nil, glucose: nil,
+            vo2Max: nil, bloodOxygen: nil, steps: nil,
             restingHeartRate: nil, hrv: nil, watchCoverage: nil, sleep: nil,
             activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil,
             medications: MedicationSummary.aggregate([medication])

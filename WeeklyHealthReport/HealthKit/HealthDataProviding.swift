@@ -9,6 +9,11 @@ protocol HealthDataProviding {
     func fetchWeightMeasurements(asOf date: Date) async throws -> [WeightMeasurement]
     func fetchBodyFatMeasurements(asOf date: Date) async throws -> [BodyFatMeasurement]
     func fetchWaistMeasurements(asOf date: Date) async throws -> [WaistMeasurement]
+    func fetchVO2MaxMeasurements(asOf date: Date) async throws -> [VO2MaxMeasurement]
+    func fetchOxygenSaturationMeasurements(
+        for period: ReportPeriod,
+        asOf date: Date
+    ) async throws -> [OxygenSaturationMeasurement]
     func fetchDailyBloodGlucose(for period: ReportPeriod) async throws -> [DailyGlucoseValue]
     func fetchDailyRestingHeartRate(for period: ReportPeriod) async throws -> [DailyHeartMetricValue]
     func fetchDailyHRV(for period: ReportPeriod) async throws -> [DailyHeartMetricValue]
