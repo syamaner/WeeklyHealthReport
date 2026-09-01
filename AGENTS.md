@@ -43,6 +43,13 @@ This file applies to the whole repository. Keep it concise; exact metric semanti
 - Parallelise independent read-only checks when useful, but avoid delegation or extra review loops for small, tightly coupled changes.
 - Review `git diff --check`, the final diff and repository status before handoff.
 
+## Repository skills
+
+- Canonical cross-agent skills live in `.agents/skills/`.
+- `.claude/skills/` contains relative symlinks to the canonical skills so Claude Code and Codex use one maintained copy.
+- Keep skill entrypoints compatible with the Agent Skills `SKILL.md` format. Tool-specific metadata may be ignored by the other agent.
+- Validate both the canonical path and the Claude Code symlink after changing a skill.
+
 ## Validation and delivery
 
 - The simulator proves pure logic and UI compilation, not representative personal HealthKit behaviour.
