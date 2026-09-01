@@ -111,6 +111,37 @@ enum HealthReportFormatter {
         return "\(lower)–\(upper)%"
     }
 
+    static func bloodPressure(
+        systolic: Double,
+        diastolic: Double,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let format = FloatingPointFormatStyle<Double>.number
+            .locale(locale)
+            .precision(.fractionLength(0...1))
+        return "\(systolic.formatted(format))/\(diastolic.formatted(format)) mmHg"
+    }
+
+    static func bloodPressureBatch(
+        _ batch: BloodPressureBatchSummary,
+        calendar: Calendar = .autoupdatingCurrent,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let count = batch.readingCount == 1
+            ? "1 reading"
+            : "\(batch.readingCount) readings"
+        return "\(bloodPressure(systolic: batch.averageSystolic, diastolic: batch.averageDiastolic, locale: locale)) (\(count), \(dateAndTime(batch.latestReadingDate, calendar: calendar, locale: locale)))"
+    }
+
+    static func bloodPressureCoverage(
+        _ summary: BloodPressurePeriodSlotSummary
+    ) -> String {
+        let readings = summary.readingCount == 1
+            ? "1 paired reading"
+            : "\(summary.readingCount) paired readings"
+        return "\(summary.sampledDayCount) / \(summary.reportingDayCount) days; \(readings)"
+    }
+
     static func percentagePointTrend(
         _ value: Double,
         locale: Locale = .autoupdatingCurrent
@@ -274,6 +305,13 @@ enum HealthReportFormatter {
             "Typical Blood Oxygen: \(report.bloodOxygen?.typicalPercentage.map { bloodOxygen($0, locale: locale) } ?? "No data")",
             "Blood Oxygen Daily Range: \(report.bloodOxygen.flatMap { summary in summary.minimumDailyMedian.flatMap { minimum in summary.maximumDailyMedian.map { maximum in bloodOxygenRange(minimum: minimum, maximum: maximum, locale: locale) } } } ?? "No data")",
             "Blood Oxygen Data Coverage: \(report.bloodOxygen.map { "\($0.validDayCount) / \($0.reportingDayCount) days" } ?? "No data")",
+            "Latest Blood Pressure: \(report.bloodPressure.map { "\(bloodPressure(systolic: $0.latest.systolicMillimetresOfMercury, diastolic: $0.latest.diastolicMillimetresOfMercury, locale: locale)) (\(dateAndTime($0.latest.date, calendar: calendar, locale: locale)))" } ?? "No data")",
+            "Morning Blood Pressure Average: \(report.bloodPressure?.morning.map { bloodPressure(systolic: $0.averageSystolic, diastolic: $0.averageDiastolic, locale: locale) } ?? "No data")",
+            "Latest Morning Batch: \(report.bloodPressure?.latestMorningBatch.map { bloodPressureBatch($0, calendar: calendar, locale: locale) } ?? "No data")",
+            "Morning Blood Pressure Coverage: \(report.bloodPressure?.morning.map(bloodPressureCoverage) ?? "No data")",
+            "Evening Blood Pressure Average: \(report.bloodPressure?.evening.map { bloodPressure(systolic: $0.averageSystolic, diastolic: $0.averageDiastolic, locale: locale) } ?? "No data")",
+            "Latest Evening Batch: \(report.bloodPressure?.latestEveningBatch.map { bloodPressureBatch($0, calendar: calendar, locale: locale) } ?? "No data")",
+            "Evening Blood Pressure Coverage: \(report.bloodPressure?.evening.map(bloodPressureCoverage) ?? "No data")",
             "Average Daily Steps: \(report.steps.map { integer($0.averageDailySteps, locale: locale) } ?? "No data")",
             "Resting HR Average: \(report.restingHeartRate.map { heartRate($0.current.average, locale: locale) } ?? "No data")",
             "Resting HR Trend: \(report.restingHeartRate?.trend.map { signedChange($0, unit: "bpm", comparison: comparison, locale: locale) } ?? "Insufficient history")",
@@ -302,9 +340,8 @@ enum HealthReportFormatter {
         let formatter = DateFormatter()
         formatter.calendar = calendar
         formatter.timeZone = calendar.timeZone
-        formatter.locale = locale
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "dd/MM/yy - HH:mm"
         return formatter.string(from: date)
     }
 
@@ -312,11 +349,6 @@ enum HealthReportFormatter {
         _ date: Date,
         calendar: Calendar = .autoupdatingCurrent
     ) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "dd/MM/yyyy - HH:mm"
-        return formatter.string(from: date)
+        dateAndTime(date, calendar: calendar)
     }
 }

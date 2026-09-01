@@ -14,6 +14,10 @@ protocol HealthDataProviding {
         for period: ReportPeriod,
         asOf date: Date
     ) async throws -> [OxygenSaturationMeasurement]
+    func fetchBloodPressureReadings(
+        for period: ReportPeriod,
+        asOf date: Date
+    ) async throws -> [BloodPressureReading]
     func fetchDailyBloodGlucose(for period: ReportPeriod) async throws -> [DailyGlucoseValue]
     func fetchDailyRestingHeartRate(for period: ReportPeriod) async throws -> [DailyHeartMetricValue]
     func fetchDailyHRV(for period: ReportPeriod) async throws -> [DailyHeartMetricValue]

@@ -8,6 +8,8 @@ struct WeeklyReportView: View {
     @State private var copied = false
     @State private var medicationAuthorizationRequest = 0
     @State private var showsMedicationAccessHelp = false
+    @State private var showsMorningBloodPressureDetails = true
+    @State private var showsEveningBloodPressureDetails = false
     @AppStorage("hasRequestedMedicationAccess") private var hasRequestedMedicationAccess = false
 
     @ViewBuilder
@@ -110,7 +112,7 @@ struct WeeklyReportView: View {
                         )
                         LabeledContent(
                             "Measured",
-                            value: summary.latest.date.formatted(date: .abbreviated, time: .shortened)
+                            value: HealthReportFormatter.dateAndTime(summary.latest.date)
                         )
                         if let average = summary.currentSevenDayAverage {
                             LabeledContent(
@@ -208,10 +210,7 @@ struct WeeklyReportView: View {
                     if case .available(let summary) = viewModel.waistState {
                         LabeledContent(
                             "Waist Measured",
-                            value: summary.latest.date.formatted(
-                                date: .abbreviated,
-                                time: .shortened
-                            )
+                            value: HealthReportFormatter.dateAndTime(summary.latest.date)
                         )
                         if let change = summary.fourWeekChangeCentimetres {
                             LabeledContent(
@@ -249,6 +248,56 @@ struct WeeklyReportView: View {
                     )
                 }
 
+                Section {
+                    switch viewModel.bloodPressureState {
+                    case .idle, .loading:
+                        HStack {
+                            ProgressView()
+                            Text("Reading blood pressure…")
+                        }
+                    case .available(let summary):
+                        VStack(alignment: .leading, spacing: 5) {
+                            responsiveBloodPressureLabel(
+                                "Latest reading",
+                                value: HealthReportFormatter.bloodPressure(
+                                    systolic: summary.latest.systolicMillimetresOfMercury,
+                                    diastolic: summary.latest.diastolicMillimetresOfMercury
+                                )
+                            )
+                            Text(HealthReportFormatter.dateAndTime(summary.latest.date))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                        }
+
+                        bloodPressureDisclosure(
+                            title: "Morning average",
+                            periodSummary: summary.morning,
+                            latestBatch: summary.latestMorningBatch,
+                            isExpanded: $showsMorningBloodPressureDetails
+                        )
+                        bloodPressureDisclosure(
+                            title: "Evening average",
+                            periodSummary: summary.evening,
+                            latestBatch: summary.latestEveningBatch,
+                            isExpanded: $showsEveningBloodPressureDetails
+                        )
+                    case .noDataOrAccess:
+                        Text("No complete blood-pressure readings are visible, or Health access was not granted.")
+                            .foregroundStyle(.secondary)
+                    case .healthUnavailable:
+                        Text("Health data is unavailable on this device.")
+                            .foregroundStyle(.secondary)
+                    case .failed(let message):
+                        Text("Blood-pressure query failed: \(message)")
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Text("Blood Pressure")
+                } footer: {
+                    Text("Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings remain visible in Diagnostics.")
+                }
+
                 Section("Cardiorespiratory") {
                     metricRow(
                         "Latest VO₂ Max",
@@ -262,10 +311,7 @@ struct WeeklyReportView: View {
                     if case .available(let summary) = viewModel.vo2MaxState {
                         LabeledContent(
                             "VO₂ Max Measured",
-                            value: summary.latest.date.formatted(
-                                date: .abbreviated,
-                                time: .shortened
-                            )
+                            value: HealthReportFormatter.dateAndTime(summary.latest.date)
                         )
                         LabeledContent(
                             "4-Week Average",
@@ -289,10 +335,7 @@ struct WeeklyReportView: View {
                     if case .available(let summary) = viewModel.bloodOxygenState {
                         LabeledContent(
                             "Blood Oxygen Measured",
-                            value: summary.latest.date.formatted(
-                                date: .abbreviated,
-                                time: .shortened
-                            )
+                            value: HealthReportFormatter.dateAndTime(summary.latest.date)
                         )
                         LabeledContent(
                             "Period Typical",
@@ -446,7 +489,7 @@ struct WeeklyReportView: View {
                     if let refreshed = viewModel.lastRefreshed {
                         LabeledContent(
                             "Last refreshed",
-                            value: refreshed.formatted(date: .abbreviated, time: .shortened)
+                            value: HealthReportFormatter.dateAndTime(refreshed)
                         )
                         .foregroundStyle(.secondary)
                     }
@@ -509,6 +552,71 @@ struct WeeklyReportView: View {
                     }
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func responsiveBloodPressureLabel(_ label: String, value: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(label)
+                Spacer(minLength: 8)
+                Text(value)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text(label)
+                Text(value)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func bloodPressureDisclosure(
+        title: String,
+        periodSummary: BloodPressurePeriodSlotSummary?,
+        latestBatch: BloodPressureBatchSummary?,
+        isExpanded: Binding<Bool>
+    ) -> some View {
+        DisclosureGroup(isExpanded: isExpanded) {
+            responsiveBloodPressureLabel(
+                "Latest batch",
+                value: latestBatch.map {
+                    HealthReportFormatter.bloodPressure(
+                        systolic: $0.averageSystolic,
+                        diastolic: $0.averageDiastolic
+                    )
+                } ?? "No data"
+            )
+            responsiveBloodPressureLabel(
+                "Recorded",
+                value: latestBatch.map {
+                    let count = $0.readingCount == 1
+                        ? "1 reading"
+                        : "\($0.readingCount) readings"
+                    return "\(HealthReportFormatter.dateAndTime($0.latestReadingDate)) · \(count)"
+                } ?? "No data"
+            )
+            responsiveBloodPressureLabel(
+                "Coverage",
+                value: periodSummary.map {
+                    "\($0.sampledDayCount)/\($0.reportingDayCount) days · \($0.readingCount) readings"
+                }
+                    ?? "No period data"
+            )
+        } label: {
+            responsiveBloodPressureLabel(
+                title,
+                value: periodSummary.map {
+                    HealthReportFormatter.bloodPressure(
+                        systolic: $0.averageSystolic,
+                        diastolic: $0.averageDiastolic
+                    )
+                } ?? "No data"
+            )
         }
     }
 

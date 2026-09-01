@@ -252,6 +252,57 @@ struct DeveloperDiagnosticsView: View {
                 }
             }
 
+            if case .available(let summary) = viewModel.bloodPressureState {
+                Section("Blood Pressure") {
+                    LabeledContent(
+                        "Latest complete pair",
+                        value: "\(diagnosticBloodPressure(summary.latest.systolicMillimetresOfMercury, summary.latest.diastolicMillimetresOfMercury)) at \(diagnosticDate(summary.latest.date))"
+                    )
+                    bloodPressurePeriodDiagnostic("Morning daily-first mean", summary.morning)
+                    bloodPressurePeriodDiagnostic("Evening daily-first mean", summary.evening)
+                    bloodPressureBatchDiagnostic("Latest morning batch", summary.latestMorningBatch)
+                    bloodPressureBatchDiagnostic("Latest evening batch", summary.latestEveningBatch)
+
+                    Text("Completed-day batches").font(.headline)
+                    ForEach(summary.dailyValues) { daily in
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(daily.day.start.formatted(
+                                .dateTime.weekday(.abbreviated).day().month(.abbreviated)
+                            ))
+                            LabeledContent(
+                                "Morning",
+                                value: daily.morning.map {
+                                    "\(diagnosticBloodPressure($0.averageSystolic, $0.averageDiastolic)) (\($0.readingCount))"
+                                } ?? "No visible data"
+                            )
+                            LabeledContent(
+                                "Evening",
+                                value: daily.evening.map {
+                                    "\(diagnosticBloodPressure($0.averageSystolic, $0.averageDiastolic)) (\($0.readingCount))"
+                                } ?? "No visible data"
+                            )
+                        }
+                    }
+
+                    Text("Complete paired readings in 30-day lookback").font(.headline)
+                    ForEach(summary.readings) { reading in
+                        VStack(alignment: .leading, spacing: 4) {
+                            LabeledContent(
+                                diagnosticDate(reading.date),
+                                value: diagnosticBloodPressure(
+                                    reading.systolicMillimetresOfMercury,
+                                    reading.diastolicMillimetresOfMercury
+                                )
+                            )
+                            let slot = BloodPressureTimeSlot.classify(reading.date)
+                            Text("\(slot?.rawValue.capitalized ?? "Mid-afternoon (not in slot summaries)") · \(reading.sourceName)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+
             if case .available(let summary) = viewModel.restingHeartRateState {
                 heartSection(title: "Resting Heart Rate", summary: summary, unit: "bpm")
             }
@@ -371,12 +422,43 @@ struct DeveloperDiagnosticsView: View {
     }
 
     private func diagnosticDate(_ date: Date) -> String {
-        date.formatted(
-            .iso8601
-                .year().month().day()
-                .dateSeparator(.dash)
-                .time(includingFractionalSeconds: false)
-        )
+        HealthReportFormatter.dateAndTime(date)
+    }
+
+    private func diagnosticBloodPressure(_ systolic: Double, _ diastolic: Double) -> String {
+        let format = FloatingPointFormatStyle<Double>.number
+            .precision(.fractionLength(3))
+        return "\(systolic.formatted(format))/\(diastolic.formatted(format)) mmHg"
+    }
+
+    @ViewBuilder
+    private func bloodPressurePeriodDiagnostic(
+        _ label: String,
+        _ summary: BloodPressurePeriodSlotSummary?
+    ) -> some View {
+        if let summary {
+            LabeledContent(
+                label,
+                value: "\(diagnosticBloodPressure(summary.averageSystolic, summary.averageDiastolic)); \(summary.sampledDayCount)/\(summary.reportingDayCount) days; \(summary.readingCount) readings"
+            )
+        } else {
+            LabeledContent(label, value: "No visible period data")
+        }
+    }
+
+    @ViewBuilder
+    private func bloodPressureBatchDiagnostic(
+        _ label: String,
+        _ batch: BloodPressureBatchSummary?
+    ) -> some View {
+        if let batch {
+            LabeledContent(
+                label,
+                value: "\(diagnosticBloodPressure(batch.averageSystolic, batch.averageDiastolic)); \(batch.readingCount) readings; \(diagnosticDate(batch.latestReadingDate))"
+            )
+        } else {
+            LabeledContent(label, value: "No visible data")
+        }
     }
 
     private func diagnosticPercentage(_ value: Double) -> String {

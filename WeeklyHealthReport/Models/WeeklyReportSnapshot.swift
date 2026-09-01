@@ -8,6 +8,7 @@ struct WeeklyReportSnapshot: Equatable {
     let glucose: GlucoseSummary?
     let vo2Max: VO2MaxSummary?
     let bloodOxygen: BloodOxygenSummary?
+    let bloodPressure: BloodPressureSummary?
     let steps: StepSummary?
     let restingHeartRate: HeartMetricTrendSummary?
     let hrv: HeartMetricTrendSummary?

@@ -52,6 +52,33 @@ final class HealthReportFormatterTests: XCTestCase {
             HealthReportFormatter.bloodOxygenRange(minimum: 95.6, maximum: 98.2, locale: locale),
             "96–98%"
         )
+        XCTAssertEqual(
+            HealthReportFormatter.bloodPressure(
+                systolic: 124.1,
+                diastolic: 79.2,
+                locale: locale
+            ),
+            "124.1/79.2 mmHg"
+        )
+        XCTAssertEqual(
+            HealthReportFormatter.bloodPressure(
+                systolic: 123,
+                diastolic: 78,
+                locale: locale
+            ),
+            "123/78 mmHg"
+        )
+    }
+
+    func testReusableDateAndTimeFormatIsCompactAndExact() {
+        let calendar = testCalendar()
+        XCTAssertEqual(
+            HealthReportFormatter.dateAndTime(
+                date(2026, 9, 1, hour: 20, minute: 14, calendar: calendar),
+                calendar: calendar
+            ),
+            "01/09/26 - 20:14"
+        )
     }
 
     func testClipboardReportIncludesValuesAndNoDiagnostics() throws {
@@ -138,6 +165,47 @@ final class HealthReportFormatterTests: XCTestCase {
                 maximumDailyMedian: 98,
                 measurements: []
             ),
+            bloodPressure: BloodPressureSummary(
+                latest: BloodPressureReading(
+                    id: UUID(),
+                    date: date(2026, 8, 24, hour: 20, minute: 14, calendar: calendar),
+                    systolicMillimetresOfMercury: 123,
+                    diastolicMillimetresOfMercury: 78,
+                    sourceName: "Fixture Monitor"
+                ),
+                latestMorningBatch: BloodPressureBatchSummary(
+                    averageSystolic: 125.3,
+                    averageDiastolic: 79.7,
+                    readingCount: 3,
+                    firstReadingDate: date(2026, 8, 24, hour: 8, minute: 5, calendar: calendar),
+                    latestReadingDate: date(2026, 8, 24, hour: 8, minute: 11, calendar: calendar),
+                    sourceNames: ["Fixture Monitor"]
+                ),
+                latestEveningBatch: BloodPressureBatchSummary(
+                    averageSystolic: 122.7,
+                    averageDiastolic: 77.3,
+                    readingCount: 3,
+                    firstReadingDate: date(2026, 8, 24, hour: 20, minute: 9, calendar: calendar),
+                    latestReadingDate: date(2026, 8, 24, hour: 20, minute: 14, calendar: calendar),
+                    sourceNames: ["Fixture Monitor"]
+                ),
+                morning: BloodPressurePeriodSlotSummary(
+                    averageSystolic: 124.1,
+                    averageDiastolic: 79.2,
+                    sampledDayCount: 5,
+                    reportingDayCount: 7,
+                    readingCount: 15
+                ),
+                evening: BloodPressurePeriodSlotSummary(
+                    averageSystolic: 122.8,
+                    averageDiastolic: 77.6,
+                    sampledDayCount: 4,
+                    reportingDayCount: 7,
+                    readingCount: 12
+                ),
+                dailyValues: [],
+                readings: []
+            ),
             steps: stepSummary(period: period),
             restingHeartRate: heartSummary(period: period, current: 73, previous: 70),
             hrv: heartSummary(period: period, current: 42, previous: 47),
@@ -164,29 +232,36 @@ final class HealthReportFormatterTests: XCTestCase {
         XCTAssertEqual(text, """
         Weekly Health Report
         18–24 Aug 2026
-        Generated: 26 Aug 2026 at 09:00
+        Generated: 26/08/26 - 09:00
 
         Latest Weight: 100.6 kg
-        Weight Recorded: 25 Aug 2026 at 00:00
+        Weight Recorded: 25/08/26 - 00:00
         Weight 7-day Avg: 100.8 kg
         Weight Trend: -0.4 kg vs previous 7d
         Body Fat: 26.5%
         Body Fat 28-day Avg: 26.7%
         Body Fat Trend: -0.9 pp vs previous 28d
         Waist Circumference: 101.4 cm
-        Waist Recorded: 24 Aug 2026 at 09:00
+        Waist Recorded: 24/08/26 - 09:00
         Waist 4-week Trend: -1.7 cm vs ~4 weeks earlier
         Glucose Daily Average: 5.8 mmol/L
         Glucose Observed Range: 3.9–8.7 mmol/L
         Glucose Data Coverage: 7 / 7 days
-        Latest VO₂ Max: 32.1 mL/kg/min (24 Aug 2026 at 09:00)
+        Latest VO₂ Max: 32.1 mL/kg/min (24/08/26 - 09:00)
         VO₂ Max — 4 Weeks: 31.8 mL/kg/min (8 days)
         VO₂ Max — 3 Months: 30.9 mL/kg/min (24 days)
         VO₂ Max — 6 Months: 29.7 mL/kg/min (51 days)
-        Latest Blood Oxygen: 97% (24 Aug 2026 at 09:00)
+        Latest Blood Oxygen: 97% (24/08/26 - 09:00)
         Typical Blood Oxygen: 97%
         Blood Oxygen Daily Range: 96–98%
         Blood Oxygen Data Coverage: 7 / 7 days
+        Latest Blood Pressure: 123/78 mmHg (24/08/26 - 20:14)
+        Morning Blood Pressure Average: 124.1/79.2 mmHg
+        Latest Morning Batch: 125.3/79.7 mmHg (3 readings, 24/08/26 - 08:11)
+        Morning Blood Pressure Coverage: 5 / 7 days; 15 paired readings
+        Evening Blood Pressure Average: 122.8/77.6 mmHg
+        Latest Evening Batch: 122.7/77.3 mmHg (3 readings, 24/08/26 - 20:14)
+        Evening Blood Pressure Coverage: 4 / 7 days; 12 paired readings
         Average Daily Steps: 2,727
         Resting HR Average: 73 bpm
         Resting HR Trend: +3.0 bpm vs previous 7d
@@ -197,7 +272,7 @@ final class HealthReportFormatterTests: XCTestCase {
         Active Energy: 1,974 kcal
         Exercise: 89 min
         Workouts: 1
-        Workout: Walking — 30m — 18/08/2026 - 00:00
+        Workout: Walking — 30m — 18/08/26 - 00:00
         """)
     }
 
@@ -210,7 +285,7 @@ final class HealthReportFormatterTests: XCTestCase {
         )
         let report = WeeklyReportSnapshot(
             period: period, weight: nil, bodyFat: nil, waist: nil, glucose: nil,
-            vo2Max: nil, bloodOxygen: nil, steps: nil,
+            vo2Max: nil, bloodOxygen: nil, bloodPressure: nil, steps: nil,
             restingHeartRate: nil, hrv: nil, watchCoverage: nil, sleep: nil,
             activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil,
             medications: nil
@@ -224,6 +299,9 @@ final class HealthReportFormatterTests: XCTestCase {
         XCTAssertTrue(text.contains("Glucose Daily Average: No data"))
         XCTAssertTrue(text.contains("Latest VO₂ Max: No data"))
         XCTAssertTrue(text.contains("Latest Blood Oxygen: No data"))
+        XCTAssertTrue(text.contains("Latest Blood Pressure: No data"))
+        XCTAssertTrue(text.contains("Morning Blood Pressure Average: No data"))
+        XCTAssertTrue(text.contains("Evening Blood Pressure Average: No data"))
         XCTAssertTrue(text.contains("Watch Data Coverage: No data"))
         XCTAssertTrue(text.contains("Workout Details: No data"))
         XCTAssertFalse(text.contains("HRV Average: 0"))
@@ -244,7 +322,7 @@ final class HealthReportFormatterTests: XCTestCase {
         )
         let report = WeeklyReportSnapshot(
             period: period, weight: nil, bodyFat: nil, waist: nil, glucose: nil,
-            vo2Max: nil, bloodOxygen: nil, steps: nil,
+            vo2Max: nil, bloodOxygen: nil, bloodPressure: nil, steps: nil,
             restingHeartRate: nil, hrv: nil, watchCoverage: nil, sleep: nil,
             activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil,
             medications: MedicationSummary.aggregate([medication])
@@ -256,7 +334,7 @@ final class HealthReportFormatterTests: XCTestCase {
         )
 
         XCTAssertTrue(text.contains(
-            "Medication Taken: ExampleMed 20 mg — 1 dose at 9 Feb 2026 at 09:00; 1 taken event"
+            "Medication Taken: ExampleMed 20 mg — 1 dose at 09/02/26 - 09:00; 1 taken event"
         ))
     }
 
@@ -297,7 +375,20 @@ final class HealthReportFormatterTests: XCTestCase {
         return calendar
     }
 
-    private func date(_ year: Int, _ month: Int, _ day: Int, calendar: Calendar) -> Date {
-        calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 9))!
+    private func date(
+        _ year: Int,
+        _ month: Int,
+        _ day: Int,
+        hour: Int = 9,
+        minute: Int = 0,
+        calendar: Calendar
+    ) -> Date {
+        calendar.date(from: DateComponents(
+            year: year,
+            month: month,
+            day: day,
+            hour: hour,
+            minute: minute
+        ))!
     }
 }

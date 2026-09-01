@@ -69,6 +69,12 @@ final class HealthKitClient: HealthDataProviding {
               let hrvType = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN),
               let vo2MaxType = HKObjectType.quantityType(forIdentifier: .vo2Max),
               let oxygenSaturationType = HKObjectType.quantityType(forIdentifier: .oxygenSaturation),
+              let bloodPressureSystolicType = HKObjectType.quantityType(
+                forIdentifier: .bloodPressureSystolic
+              ),
+              let bloodPressureDiastolicType = HKObjectType.quantityType(
+                forIdentifier: .bloodPressureDiastolic
+              ),
               let exerciseType = HKObjectType.quantityType(forIdentifier: .appleExerciseTime),
               let activeEnergyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned),
               let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
@@ -84,7 +90,9 @@ final class HealthKitClient: HealthDataProviding {
             read: [
                 stepType, bodyMassType, bodyFatType, waistType, glucoseType,
                 heartRateType, restingHeartRateType, hrvType, vo2MaxType,
-                oxygenSaturationType, exerciseType, activeEnergyType, workoutType, sleepType
+                oxygenSaturationType, bloodPressureSystolicType,
+                bloodPressureDiastolicType, exerciseType, activeEnergyType,
+                workoutType, sleepType
             ]
         )
     }
@@ -312,6 +320,64 @@ final class HealthKitClient: HealthDataProviding {
                     fromHealthKitFraction: $0.quantity.doubleValue(for: .percent())
                 ),
                 sourceName: $0.sourceRevision.source.name
+            )
+        }
+    }
+
+    func fetchBloodPressureReadings(
+        for period: ReportPeriod,
+        asOf date: Date
+    ) async throws -> [BloodPressureReading] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let correlationType = HKObjectType.correlationType(forIdentifier: .bloodPressure),
+              let systolicType = HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic),
+              let diastolicType = HKObjectType.quantityType(forIdentifier: .bloodPressureDiastolic)
+        else {
+            throw HealthDataError.missingType("blood-pressure")
+        }
+        let calendar = Calendar.autoupdatingCurrent
+        guard let latestLookbackStart = calendar.date(
+            byAdding: .day,
+            value: -30,
+            to: calendar.startOfDay(for: date)
+        ) else { return [] }
+        let queryStart = min(period.interval.start, latestLookbackStart)
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: queryStart,
+            end: date,
+            options: .strictStartDate
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.correlation(type: correlationType, predicate: datePredicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
+        )
+        let correlations = try await descriptor.result(for: store)
+        let millimetresOfMercury = HKUnit.millimeterOfMercury()
+
+        return correlations.compactMap { correlation in
+            let systolicSamples = correlation.objects(for: systolicType)
+                .compactMap { $0 as? HKQuantitySample }
+            let diastolicSamples = correlation.objects(for: diastolicType)
+                .compactMap { $0 as? HKQuantitySample }
+
+            // HealthKit can hide one component when only one quantity type is
+            // readable. Never combine that partial correlation with a sample
+            // from another reading.
+            guard systolicSamples.count == 1, diastolicSamples.count == 1,
+                  let systolic = systolicSamples.first,
+                  let diastolic = diastolicSamples.first
+            else { return nil }
+
+            return BloodPressureReading(
+                id: correlation.uuid,
+                date: correlation.startDate,
+                systolicMillimetresOfMercury: systolic.quantity.doubleValue(
+                    for: millimetresOfMercury
+                ),
+                diastolicMillimetresOfMercury: diastolic.quantity.doubleValue(
+                    for: millimetresOfMercury
+                ),
+                sourceName: correlation.sourceRevision.source.name
             )
         }
     }
