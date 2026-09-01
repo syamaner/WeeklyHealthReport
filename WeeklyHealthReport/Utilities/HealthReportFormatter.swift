@@ -286,7 +286,7 @@ enum HealthReportFormatter {
             "Workouts: \(report.workouts.map { String($0.count) } ?? "No data")"
         ]
         let workoutLines = report.workouts?.workouts.map {
-            "Workout: \($0.activityName) — \(duration($0.duration)) — \(dateAndTime($0.startDate, calendar: calendar, locale: locale))"
+            "Workout: \($0.activityName) — \(duration($0.duration)) — \(workoutDateAndTime($0.startDate, calendar: calendar))"
         } ?? ["Workout Details: No data"]
         let medicationLines = report.medications?.groups.map {
             "Medication Taken: \($0.medicationName) — \(medicationGroupDetail($0, calendar: calendar, locale: locale))"
@@ -305,6 +305,18 @@ enum HealthReportFormatter {
         formatter.locale = locale
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    static func workoutDateAndTime(
+        _ date: Date,
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "dd/MM/yyyy - HH:mm"
         return formatter.string(from: date)
     }
 }

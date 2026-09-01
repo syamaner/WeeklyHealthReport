@@ -197,7 +197,7 @@ final class HealthReportFormatterTests: XCTestCase {
         Active Energy: 1,974 kcal
         Exercise: 89 min
         Workouts: 1
-        Workout: Walking — 30m — 18 Aug 2026 at 00:00
+        Workout: Walking — 30m — 18/08/2026 - 00:00
         """)
     }
 
