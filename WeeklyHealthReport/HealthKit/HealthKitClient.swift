@@ -602,7 +602,7 @@ final class HealthKitClient: HealthDataProviding {
         case .walking: "Walking"
         case .running: "Running"
         case .cycling: "Cycling"
-        case .functionalStrengthTraining: "Functional Strength Training"
+        case .functionalStrengthTraining: "FST"
         case .traditionalStrengthTraining: "Traditional Strength Training"
         case .hiking: "Hiking"
         case .yoga: "Yoga"
