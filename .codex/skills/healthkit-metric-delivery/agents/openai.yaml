@@ -1,0 +1,4 @@
+interface:
+  display_name: "HealthKit Metric Delivery"
+  short_description: "Research and deliver HealthKit report metrics"
+  default_prompt: "Use $healthkit-metric-delivery to research and implement a HealthKit reporting metric safely."

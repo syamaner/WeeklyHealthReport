@@ -1,0 +1,4 @@
+interface:
+  display_name: "Codex Phase Accounting"
+  short_description: "Measure bounded token usage and cost"
+  default_prompt: "Use $codex-phase-accounting to measure this implementation phase and update the project ledger."
