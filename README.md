@@ -66,8 +66,8 @@ Average Sleep: 7h 32m
 Active Energy: 3,456 kcal
 Exercise: 143 min
 Workouts: 2
-Workout: Cycling — 42m
-Workout: Yoga — 36m
+Workout: Cycling — 42m — 5 Feb 2025 at 18:12
+Workout: Yoga — 36m — 8 Feb 2025 at 09:05
 Medication Taken: ExampleMed 20 mg — 1 dose at 9 Feb 2025 at 08:30; 1 taken event
 ```
 
@@ -85,7 +85,7 @@ Medication Taken: ExampleMed 20 mg — 1 dose at 9 Feb 2025 at 08:30; 1 taken ev
 - **Apple Watch coverage:** the number of complete reporting days containing at least one heart-rate sample whose HealthKit device metadata identifies an Apple Watch. This is evidence of Watch data on a day, not continuous wear time. An empty query is shown as **No data** because it may also mean heart-rate read access was denied.
 - **Apple Exercise Time:** one HealthKit `cumulativeSum` statistic over the exact report interval, converted to minutes. Raw samples are not summed manually.
 - **Active Energy:** one HealthKit `cumulativeSum` statistic over the exact report interval, converted to kcal. This is an activity metric, not total energy expenditure.
-- **Workouts:** `HKWorkout` samples whose start date is within the report interval. The app shows count, summed duration, and each workout's HealthKit activity type and duration. Because missing read visibility is indistinguishable from an empty history, an empty result is shown as **No data** rather than a potentially misleading zero.
+- **Workouts:** `HKWorkout` samples whose start date is within the report interval. The app shows count, summed duration, and each workout's HealthKit activity type, duration, and local start date/time. Because missing read visibility is indistinguishable from an empty history, an empty result is shown as **No data** rather than a potentially misleading zero.
 - **Sleep:** only `asleepUnspecified`, `asleepCore`, `asleepDeep`, and `asleepREM` samples are included. `awake` and `inBed` are excluded. Included intervals from all sources are clipped and unioned so overlaps are counted once. Each report date is a local noon-to-noon night bucket ending on that wake date; only nights with visible asleep time enter the average.
 - **Medications (iOS 26+):** the person chooses individual medications through Apple's per-medication Health access sheet on first use. Existing access is subsequently managed in Health under profile > Apps > WeeklyHealthReport. When a new medication is added, Health offers a WeeklyHealthReport sharing switch on the final add screen. The app queries active and archived authorised concepts, then includes only `HKMedicationDoseEvent` samples whose status is `taken` and whose start time falls inside the selected completed-day period. Events are grouped by HealthKit's exact medication concept, so a changed strength appears as a separate row automatically. Each row reports the latest logged quantity and time plus the number of taken events; Diagnostics lists every event. Medications without a visible taken event are omitted from copied text. Missing events are never interpreted as a missed dose or non-adherence.
 
@@ -120,7 +120,7 @@ Use a Debug build and select **Last 7 Completed Days**. Keep the app and Health 
 11. **Medications:** compare every taken-event timestamp in Diagnostics with Health. Confirm an unlogged medicine is absent and a changed strength appears as its own row. Today's event enters the default report only after that day is complete.
 12. Tap **Copy Report**, paste into Notes, and confirm the Waist, Glucose, VO₂ Max, Blood Oxygen, Weight, RHR, HRV and medication lines match the screen. Diagnostics must not appear in copied text.
 
-The copied report includes the local date and time at which it was generated, Watch data-day coverage, and each workout type and duration.
+The copied report includes the local date and time at which it was generated, Watch data-day coverage, and each workout type, duration, and local start date/time.
 
 Daily Steps totals have been compared successfully with Apple Health on a real iPhone. A one-step difference can still appear in the final displayed average when the two UIs round the same daily inputs differently. Simulator tests validate boundaries, daily-first means, overlap handling, workout totals, duration formatting, and clipboard output but cannot supply representative personal HealthKit data.
 

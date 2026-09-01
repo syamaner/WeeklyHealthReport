@@ -369,7 +369,7 @@ struct WeeklyReportView: View {
                         ForEach(summary.workouts) { workout in
                             LabeledContent(
                                 workout.activityName,
-                                value: HealthReportFormatter.duration(workout.duration)
+                                value: "\(HealthReportFormatter.duration(workout.duration)) — \(HealthReportFormatter.dateAndTime(workout.startDate))"
                             )
                         }
                     }

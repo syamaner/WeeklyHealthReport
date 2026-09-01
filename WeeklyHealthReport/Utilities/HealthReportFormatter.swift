@@ -286,7 +286,7 @@ enum HealthReportFormatter {
             "Workouts: \(report.workouts.map { String($0.count) } ?? "No data")"
         ]
         let workoutLines = report.workouts?.workouts.map {
-            "Workout: \($0.activityName) — \(duration($0.duration))"
+            "Workout: \($0.activityName) — \(duration($0.duration)) — \(dateAndTime($0.startDate, calendar: calendar, locale: locale))"
         } ?? ["Workout Details: No data"]
         let medicationLines = report.medications?.groups.map {
             "Medication Taken: \($0.medicationName) — \(medicationGroupDetail($0, calendar: calendar, locale: locale))"
