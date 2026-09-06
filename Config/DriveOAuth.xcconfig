@@ -1,0 +1,7 @@
+// Public, deliberately non-working defaults. The production app requires its own
+// iOS OAuth client for WEEKLY_HEALTH_REPORT_BUNDLE_IDENTIFIER. Never reuse the
+// synthetic harness client or add a client secret/API key.
+GOOGLE_OAUTH_CLIENT_ID = MISSING
+GOOGLE_OAUTH_REDIRECT_SCHEME = MISSING
+
+#include? "DriveOAuth.local.xcconfig"

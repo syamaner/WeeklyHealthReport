@@ -8,6 +8,11 @@ Drive pass plus build-6 adverse device/provider evidence. Slice B is accepted wi
 its synthetic-only boundary, with evidence-source limits recorded below. The
 privacy-safe reproduction and tester-onboarding procedure is in
 [`google-drive-cloud-setup.md`](google-drive-cloud-setup.md).
+Slice C is locally accepted. Slice D's manual product integration is implemented and
+locally testable with fail-closed OAuth placeholders; distinct-product-client,
+physical-device HealthKit and Google acceptance remain outstanding. Product setup is
+documented separately in
+[`google-drive-product-setup.md`](google-drive-product-setup.md).
 
 GitHub tracking: [issue #6 — secure daily JSON export](https://github.com/syamaner/WeeklyHealthReport/issues/6).
 
@@ -295,6 +300,33 @@ HealthKit `toShare: []`. Run focused tests then the full simulator suite once st
 static analysis and diff review. Device Health comparisons and separate-client Drive
 checks are required before declaring production completion. No personal export during
 synthetic slices; it needs explicit device/user authority when reached.
+
+### Local slice-D integration, 6 September 2026
+
+The production app now exposes a separate manual flow for Connect/Restore,
+create/select destination, fresh HealthKit preview, exact JSON review, Export,
+Cancel, explicit file recovery, local sign-out and remote revocation. Opening the
+export screen does not automatically restore its session, refresh its daily snapshot
+or contact Drive; the existing weekly report's HealthKit refresh remains unchanged.
+The first release supports one
+active exporting installation, partitions destination state by account, persists
+canonical Drive file IDs before create, updates by stored ID, verifies metadata and
+bytes, serialises writes, refreshes rejected tokens once, reconciles uncertain
+submissions and never queues offline work.
+
+AppAuth-iOS remains pinned at 2.1.0. Product OAuth values are deliberately invalid in
+source and may be supplied only through an ignored local file for a distinct native
+iOS client. No client ID, redirect, token, account or Drive ID is published. No
+client secret, API key, hosted page, backend, broad Drive scope or folder enumeration
+was added.
+
+Invented mock coverage exercises same-ID creation/update, uncertain-create retry,
+lost-response reconciliation, cancellation on both sides of submission, relaunch,
+explicit recovery, expired/denied/revoked credentials, account/destination isolation,
+stale completion, remote mismatch/move/trash and no background queue. These remain
+local/simulator facts. Product OAuth consent, representative physical-device
+HealthKit comparison and independent Google replacement evidence are still required
+before production completion.
 
 ## Sources checked 6 September 2026
 

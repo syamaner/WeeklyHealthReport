@@ -1,0 +1,4 @@
+// Copy to DriveOAuth.local.xcconfig and keep the resulting file private.
+// Create a native iOS OAuth client for the exact app bundle identifier first.
+GOOGLE_OAUTH_CLIENT_ID = YOUR_IOS_CLIENT_ID.apps.googleusercontent.com
+GOOGLE_OAUTH_REDIRECT_SCHEME = com.googleusercontent.apps.YOUR_IOS_CLIENT_ID

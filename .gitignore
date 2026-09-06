@@ -5,4 +5,5 @@ xcuserdata/
 .DS_Store
 .vscode/
 Config/Signing.local.xcconfig
+Config/DriveOAuth.local.xcconfig
 Tools/SyntheticDriveExport/Config/OAuth.local.xcconfig

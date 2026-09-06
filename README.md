@@ -2,7 +2,7 @@
 
 [![iOS CI](https://github.com/syamaner/WeeklyHealthReport/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/syamaner/WeeklyHealthReport/actions/workflows/ios-ci.yml)
 
-Weekly Health Report is a small iPhone app that turns selected Apple Health data into a readable weekly summary. Pick a reporting period, refresh the data, then copy the plain-text report wherever you need it.
+Weekly Health Report is a small iPhone app that turns selected Apple Health data into a readable weekly summary and an explicitly reviewed daily JSON snapshot. Pick a reporting period, refresh the data, then copy the plain-text report or manually export the daily JSON to a Google Drive destination you selected.
 
 It is a personal informational utility, not medical software.
 
@@ -21,25 +21,30 @@ The screenshot uses invented data. The repository does not contain exported or p
 | Glucose | A weekly average calculated from daily values, observed range and days with data |
 | Medications | Taken medication events, dose and time on iOS 26 or later |
 
-The app has one main screen and a separate Developer Diagnostics screen for checking daily values against Apple Health. **Copy Report** puts a human-readable version on the iOS clipboard.
+The app has one main screen, a manual **Daily JSON Export** screen and a separate Developer Diagnostics screen for checking daily values against Apple Health. **Copy Report** puts a human-readable version on the iOS clipboard.
 
 ## Privacy
 
-All HealthKit reading and calculation happens on the iPhone. The app has:
+All HealthKit reading and calculation happens on the iPhone. Nothing leaves the
+device unless you copy the text report yourself or explicitly open **Daily JSON
+Export**, refresh and review a preview, and choose **Export reviewed preview**.
 
-- no accounts or authentication
-- no analytics or telemetry
-- no backend, database or cloud storage
-- no background sync
-- no network service or remote transport
+The optional Drive feature:
 
-Nothing leaves the device unless you tap **Copy Report** and paste it somewhere yourself.
+- requests only Google's `drive.file` permission, never a whole-Drive scope;
+- sends the exact reviewed health JSON directly from the app to Google Drive;
+- stores OAuth credentials and minimal account, destination and canonical-file
+  identity in this-device-only Keychain items;
+- has no analytics, telemetry, backend, database, hosted component, automatic
+  export, background sync or offline queue;
+- never enumerates destination contents or treats limited Drive visibility as proof
+  that a folder is empty; and
+- supports one active exporting installation and blocks ambiguous identity recovery.
 
-Secure, user-initiated Google Drive JSON export is planned but is not part of the
-production app yet. The proposed narrow-scope consent, destination and validation
-gates are documented in [the implementation plan](docs/google-drive-export-plan.md).
-The separate synthetic harness is a development experiment, not the app's current
-HealthKit export behaviour.
+Google receives the selected JSON and applies its own storage/account terms. A
+successful app status means Drive metadata and content bytes were read back and
+matched; it does not prove that another consumer fetched the file. The separate
+synthetic harness remains development evidence and uses a different OAuth client.
 
 The app asks only for read access to the HealthKit types it uses. HealthKit does not tell an app whether read access was denied, so a successful query with no visible samples is shown as **No data**, not zero.
 
@@ -69,6 +74,16 @@ You need a Mac with the current stable Xcode, an iPhone and an Apple development
 7. Approve the Health read permissions you want the app to use.
 
 `Config/Signing.local.xcconfig` is ignored by Git, so your personal signing values stay local. No App Store setup is required.
+
+### Optional Google Drive export setup
+
+The checked-in build fails closed with Drive controls disabled. To enable them,
+create a separate native iOS OAuth client for the product app's exact bundle
+identifier, then copy `Config/DriveOAuth.local.xcconfig.example` to the ignored
+`Config/DriveOAuth.local.xcconfig` and set the client ID and reversed redirect
+scheme. Do not reuse the synthetic-harness client and do not add a client secret,
+API key, web client, hosted origin or backend. See
+[the product setup notes](docs/google-drive-product-setup.md).
 
 On iOS 26 or later, Health presents a separate medication chooser. To change access later, open Health, tap your profile picture, then go to **Apps > WeeklyHealthReport**. When you add a new medication in Health, enable WeeklyHealthReport on the final screen if you want the app to read it.
 
