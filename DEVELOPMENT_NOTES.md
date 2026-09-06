@@ -314,3 +314,51 @@ through this boundary. No subagents, reused tasks or hosted reviews were used.
 Excludes this accounting edit/check, the final response, future work and separate
 service usage. Every earlier row remains frozen. Tracked total becomes
 **136,901,333 tokens / $99.45**, summing recorded rounded comparison amounts.
+
+
+## Slice-B canonical Drive transport, 6 September 2026
+
+The user ratified the one-active-installation and fail-closed ambiguity constraint.
+Build 5 implements the synthetic canonical Drive transport with persisted pre-generated
+IDs, same-ID uncertain retry, stored-ID updates, remote metadata/content verification,
+serial operation state, token refresh, cancellation/reconciliation, relaunch/recovery,
+credential/destination isolation, stale-completion rejection and no offline queue.
+Only the fixed invented morning/evening/bedtime fixtures are admitted.
+
+Focused deterministic and mocked-HTTP checks pass. Static analysis passes, and the
+production simulator suite ran once with all 54 tests passing. Under separately
+granted action-by-action authority, build 5 also passed the bounded online canonical
+path on SiPhone: one morning create, same-ID evening/bedtime updates, app readback,
+independent one-file/identity/content checks, relaunch and unchanged reverify. Real
+fault-injection, cancellation, credential, ambiguity and offline cases remain
+explicitly unaccepted rather than promoted from local evidence. No HealthKit query,
+personal data, production JSON, slice C, broader scope, hosting/backend/key/secret,
+folder enumeration, commit, push, PR or issue mutation ran.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 6 Sep | Synthetic canonical Drive transport and bounded device/Google validation — GPT-5.6 Sol | Uncommitted implementation/evidence/accounting notes | 16,830,524 (16,527,104) | 107,114 | 16,937,638 | $9.97 |
+
+Model confirmed from every recorded turn context through the frozen boundary:
+`gpt-5.6-sol`. At the ledger's historical Sol comparison assumptions ($4/M
+uncached input, $0.40/M cached input and $20/M output), 303,420 × $4/M +
+16,527,104 × $0.40/M + 107,114 × $20/M = **$9.9668016**, rounded **$9.97**
+API-equivalent, not an actual subscription charge or a model benchmark. Separate
+Google/tool charges are not measured or estimated.
+
+Session `01a077b5-dff5-7592-a47b-4eff2c9fba9c`, rollout
+`rollout-2026-09-06T18-13-23-01a077b5-dff5-7592-a47b-4eff2c9fba9c.jsonl`.
+Baseline line 121, **2026-09-06 17:15:08.176 UTC**: **734,232 input / 665,600
+cached input / 3,550 output**. Frozen end line 1345, **2026-09-06 18:27:41.970
+UTC**: **17,564,756 input / 17,192,704 cached input / 110,664 output**.
+Reproduce from that prefix with `--baseline 734232 665600 3550
+--uncached-input-rate 4 --cached-input-rate 0.40 --output-rate 20`.
+
+Includes top-level ratification, repository preflight, official Drive documentation
+research, implementation, focused tests, the one full simulator suite, static
+analysis, signed device build/install/launch, action-by-action authority coordination,
+bounded Google create/update/readback evidence and final diff review through the
+frozen boundary. No subagents, reused tasks or hosted reviews were used. Excludes
+this accounting edit/check, the final response, future adverse provider/device work
+and separate service usage. Every earlier row remains frozen. Tracked total becomes
+**153,838,971 tokens / $109.42**, summing recorded rounded comparison amounts.

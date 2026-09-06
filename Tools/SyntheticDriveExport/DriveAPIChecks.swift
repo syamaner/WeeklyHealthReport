@@ -41,6 +41,16 @@ enum DriveAPIChecks {
         precondition(account.id == "account-a")
 
         MockURLProtocol.handler = { request in
+            precondition(request.httpMethod == "GET")
+            precondition(request.url?.path == "/drive/v3/files/generateIds")
+            precondition(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?.contains(URLQueryItem(name: "count", value: "1")) == true)
+            return (200, Data(#"{"ids":["file-1"],"space":"drive","kind":"drive#generatedIds"}"#.utf8))
+        }
+        let generatedID = try await api.generateFileID(accessToken: "private-token")
+        precondition(generatedID == "file-1")
+
+        MockURLProtocol.handler = { request in
             precondition(request.httpMethod == "POST")
             precondition(request.url?.path == "/drive/v3/files")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "Bearer private-token")
@@ -61,6 +71,69 @@ enum DriveAPIChecks {
         let selected = try await api.folder(id: "folder-1", accessToken: "private-token", accountID: account.id)
         try DriveConsentPolicy.validate(folder: selected, expectedAccountID: account.id)
 
+        let fixture = try SyntheticPayload.data(1)
+        let descriptor = DriveUploadDescriptor(
+            id: generatedID,
+            name: SyntheticPayload.filename,
+            parentID: "folder-1",
+            appProperties: [CanonicalMetadataKeys.owner: CanonicalMetadataKeys.ownerValue]
+        )
+        MockURLProtocol.handler = { request in
+            precondition(request.httpMethod == "POST")
+            precondition(request.url?.path == "/upload/drive/v3/files")
+            precondition(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?.contains(URLQueryItem(name: "uploadType", value: "multipart")) == true)
+            let body = try requestBody(request)
+            let bodyText = String(decoding: body, as: UTF8.self)
+            precondition(bodyText.contains(#""id":"file-1""#))
+            precondition(bodyText.contains(#""parents":["folder-1"]"#))
+            precondition(body.range(of: fixture) != nil)
+            return (200, fileResponse)
+        }
+        try await api.createFile(descriptor, content: fixture, accessToken: "private-token")
+
+        let evening = try SyntheticPayload.data(2)
+        MockURLProtocol.handler = { request in
+            precondition(request.httpMethod == "PATCH")
+            precondition(request.url?.path == "/upload/drive/v3/files/file-1")
+            let body = try requestBody(request)
+            let bodyText = String(decoding: body, as: UTF8.self)
+            precondition(!bodyText.contains(#""parents""#), "Update must not move the file")
+            precondition(body.range(of: evening) != nil)
+            return (200, fileResponse)
+        }
+        try await api.updateFile(descriptor, content: evening, accessToken: "private-token")
+
+        MockURLProtocol.handler = { request in
+            precondition(request.httpMethod == "GET")
+            precondition(request.url?.path == "/drive/v3/files/file-1")
+            precondition(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?.contains(where: { $0.name == "fields" }) == true)
+            return (200, fileResponse)
+        }
+        let metadata = try await api.fileMetadata(id: generatedID, accessToken: "private-token")
+        precondition(metadata.id == generatedID)
+        precondition(metadata.parents == ["folder-1"])
+        precondition(metadata.canEdit)
+
+        MockURLProtocol.handler = { request in
+            precondition(request.httpMethod == "GET")
+            precondition(request.url?.path == "/drive/v3/files/file-1")
+            precondition(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?
+                .queryItems?.contains(URLQueryItem(name: "alt", value: "media")) == true)
+            return (200, evening)
+        }
+        let downloaded = try await api.fileContent(id: generatedID, accessToken: "private-token")
+        precondition(downloaded == evening)
+
+        MockURLProtocol.handler = { _ in
+            (403, Data(#"{"error":{"errors":[{"reason":"storageQuotaExceeded"}]}}"#.utf8))
+        }
+        do {
+            _ = try await api.fileContent(id: generatedID, accessToken: "private-token")
+            preconditionFailure("Structured Drive errors must be retained without logging response bodies")
+        } catch DriveAPI.Failure.httpStatus(403, "storageQuotaExceeded") {}
+
         MockURLProtocol.handler = { _ in (404, Data()) }
         try await api.confirmUnrelatedFileDenied(id: "unrelated", accessToken: "private-token")
         MockURLProtocol.handler = { _ in (200, Data(#"{"id":"unrelated"}"#.utf8)) }
@@ -78,10 +151,11 @@ enum DriveAPIChecks {
         }
         let revokeStatus = try await api.revoke(token: "private-token")
         precondition(revokeStatus == 200)
-        print("PASS: account/folder decoding, authenticated create/get, unrelated denial and revocation request")
+        print("PASS: account/folder decoding, generated ID, multipart create/update, remote readback, structured errors, unrelated denial and revocation")
     }
 
     private static let folderResponse = Data(#"{"id":"folder-1","name":"WeeklyHealthReport Exports","mimeType":"application/vnd.google-apps.folder","trashed":false,"isAppAuthorized":true,"capabilities":{"canAddChildren":true}}"#.utf8)
+    private static let fileResponse = Data(#"{"id":"file-1","name":"health-daily-2026-09-06.json","mimeType":"application/json","parents":["folder-1"],"trashed":false,"isAppAuthorized":true,"capabilities":{"canEdit":true},"appProperties":{"whrSyntheticCanonical":"v1"}}"#.utf8)
 
     private static func requestBody(_ request: URLRequest) throws -> Data {
         if let body = request.httpBody { return body }

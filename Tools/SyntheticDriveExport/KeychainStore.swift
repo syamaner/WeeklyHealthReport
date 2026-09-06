@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-struct KeychainStore {
+struct KeychainStore: Sendable {
     enum Failure: Error { case unexpectedStatus(OSStatus), invalidData }
 
     private let service: String
@@ -12,7 +12,14 @@ struct KeychainStore {
 
     func save(_ data: Data, account: String) throws {
         let query = baseQuery(account: account)
-        SecItemDelete(query as CFDictionary)
+        let updateStatus = SecItemUpdate(
+            query as CFDictionary,
+            [kSecValueData as String: data] as CFDictionary
+        )
+        if updateStatus == errSecSuccess { return }
+        guard updateStatus == errSecItemNotFound else {
+            throw Failure.unexpectedStatus(updateStatus)
+        }
         var addition = query
         addition[kSecValueData as String] = data
         addition[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly

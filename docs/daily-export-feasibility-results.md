@@ -277,14 +277,76 @@ including two-account switching, passed. The Picker's unreliable scroll/tap
 interaction and the generic revoked-access error remain recorded limitations, not
 grounds for broader Drive permission or hosting.
 
-User-selected directory access is now established. Coordinated replacement of one
-existing file, identical-save behaviour, failure/relaunch ordering and independent
-Drive readback belong to the later synthetic transport slice and have not begun.
-Preserve the dedicated fixtures and reject ambiguous existing same-name entries;
-no deletion-before-save.
+## Slice B local implementation evidence, 6 September 2026
 
-This is a candidate, not a proven viable alternative. If Drive directory access
-or preservation/ordering cannot satisfy the contract, stop and propose a separate
-identity-preserving transport scope; do not add Google OAuth in this slice.
-No metric queries or production export UI were implemented. One-file-per-day
-remains mandatory. No commits, pushes or remote issues were created.
+Evidence remains separated by source. No personal data or production daily JSON was
+created, and no HealthKit code was read or changed for this implementation.
+
+### Local evidence
+
+- Build 5 adds pre-generated Drive ID reservation, persisted-before-create identity,
+  same-ID uncertain-create retry, stored-ID multipart updates and remote metadata/
+  byte readback to the separate synthetic harness.
+- Minimal identity and operation state is account/folder/date partitioned in this-
+  device-only Keychain items. A separate installation marker makes missing state
+  fail closed. Explicit selected-file recovery validates app metadata and exact
+  content without listing a folder or searching by filename.
+- One actor serialises token refresh, submission, one bounded same-byte retry and
+  reconciliation. Unresolved submissions block newer generations. Cancellation is
+  distinguished before and after submission. No reachability trigger or automatic
+  offline queue exists.
+- Only the fixed invented morning/evening/bedtime bytes are admitted. Tests cover
+  revoked/expired/denied credentials, account/destination isolation, relaunch,
+  missing-state recovery, rejected-write preservation, moved/trashed files, remote
+  byte mismatch and stale-completion rejection while retaining the last verified
+  record.
+- Deterministic coordinator checks pass. Mocked HTTP checks pass for `generateIds`,
+  multipart create/update, metadata/content get, structured errors and the retained
+  slice-A requests. Static analysis and the unsigned generic iOS Simulator build
+  succeed with AppAuth still pinned at 2.1.0. The production simulator suite ran once
+  after implementation: all 54 tests passed with no failures, skips or expected
+  failures.
+
+### Device evidence
+
+- Under separately granted action-by-action authority, build 5 was signed, installed
+  over build 4 and launched on SiPhone (iPhone 17 Pro Max). The existing ignored
+  OAuth configuration and bundle identifier were reused; no new credential, scope,
+  key, secret, hosted component or backend was added.
+- Launch restored and revalidated the existing session, account and destination and
+  explicitly reported that no Drive write ran. After the online fixture sequence,
+  the app was terminated/relaunched and restored the same binding again.
+- A post-relaunch repeat of bedtime reported that unchanged revision 3 was remotely
+  reverified and no write ran. This establishes device Keychain persistence for the
+  exercised identity, not the unrun missing/corrupt-state recovery cases.
+- No HealthKit permission or query ran. Temporary Mirroring screenshots used only to
+  read the visible status were deleted because they contained the account label.
+
+### Google evidence
+
+- The operator temporarily approved the existing dedicated slice-A folder as the
+  bounded slice-B synthetic destination. The app did not enumerate it or infer that
+  limited `drive.file` visibility meant it was empty.
+- Under fresh authority for each mutation, build 5 created the fixed morning fixture,
+  then updated it to evening and bedtime. After each accepted step the app reported
+  remote metadata/content verification. Repeating bedtime reported a read-only
+  reverify with no write.
+- Independent Drive-web checks found exactly one canonical JSON file. The privately
+  compared Drive file link/ID was identical across evening and bedtime, and remained
+  so after relaunch/no-op. Downloaded files semantically matched the fixed invented
+  revision 1/2/3 fixtures (1234/2468/3702 steps). Chat paste formatting means those
+  independent copies are semantic evidence; the app's downloaded comparison is the
+  byte-for-byte evidence.
+- No delete, folder listing, broader permission, recovery selection, credential
+  revocation, account switch or connectivity change ran in build 5. Controlled
+  uncertain-create, cancellation, denied/expired/revoked credentials, missing-state
+  recovery, stale completion and offline/unresolved behaviour remain deterministic
+  local evidence, not Google/device evidence.
+
+Slice B is therefore **locally implemented with its bounded canonical online Drive
+path accepted**, while the adverse-provider/device protocol remains explicitly
+unaccepted. Do not use that narrower result to start slice C or claim production
+readiness. Stop rather than broaden `drive.file`, add hosting/backend/API keys/client
+secrets, enumerate a folder, or infer that limited visibility proves emptiness. No
+metric queries or production export UI were implemented. One-file-per-day remains
+mandatory. No commits, pushes or remote issues were created.
