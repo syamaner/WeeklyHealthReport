@@ -3,7 +3,8 @@
 Product authority: `daily-export-contract.md`. Evidence:
 `daily-export-feasibility-results.md`. Slice A's synthetic harness, private Google
 configuration and real-device/provider acceptance are complete. Slice B has not
-started.
+started. The privacy-safe reproduction and tester-onboarding procedure is in
+[`google-drive-cloud-setup.md`](google-drive-cloud-setup.md).
 
 GitHub tracking: [issue #6 — secure daily JSON export](https://github.com/syamaner/WeeklyHealthReport/issues/6).
 
