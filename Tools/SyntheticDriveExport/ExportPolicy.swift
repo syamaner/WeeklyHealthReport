@@ -15,28 +15,37 @@ struct ExportPolicy {
 }
 
 enum SyntheticPayload {
-    static let filename = "health-daily-2026-09-06.json"
-    static func data(_ revision: Int) throws -> Data {
+    static let acceptedReportDate = "2026-09-06"
+    static let adverseReportDate = "2026-09-07"
+    static let allowedReportDates = [acceptedReportDate, adverseReportDate]
+    static let filename = filename(for: acceptedReportDate)
+
+    static func filename(for reportDate: String) -> String {
+        "health-daily-\(reportDate).json"
+    }
+
+    static func data(_ revision: Int, reportDate: String = acceptedReportDate) throws -> Data {
         let labels = [1: "morning", 2: "evening", 3: "bedtime"]
         let hours = [1: "08", 2: "18", 3: "23"]
-        guard let label = labels[revision], let hour = hours[revision] else {
+        guard allowedReportDates.contains(reportDate),
+              let label = labels[revision], let hour = hours[revision] else {
             throw CocoaError(.coderInvalidValue)
         }
         // Fixed bytes for repeat-save tests. This is not the production health schema.
         return try JSONSerialization.data(withJSONObject: [
             "synthetic_only": true,
             "fixture_version": 1,
-            "report_date": "2026-09-06",
+            "report_date": reportDate,
             "time_zone": "Europe/London",
-            "data_as_of": "2026-09-06T\(hour):00:00+01:00",
+            "data_as_of": "\(reportDate)T\(hour):00:00+01:00",
             "revision": revision,
             "marker": label,
             "invented_steps": revision * 1234
         ], options: [.prettyPrinted, .sortedKeys])
     }
 
-    static func revision(in candidate: Data) throws -> Int {
-        for revision in 1...3 where candidate == (try data(revision)) {
+    static func revision(in candidate: Data, reportDate: String = acceptedReportDate) throws -> Int {
+        for revision in 1...3 where candidate == (try data(revision, reportDate: reportDate)) {
             return revision
         }
         throw CocoaError(.coderInvalidValue)

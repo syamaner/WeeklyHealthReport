@@ -38,7 +38,8 @@ actor CanonicalExportCoordinator {
         tokenProvider: @escaping TokenProvider
     ) async throws -> CanonicalExportResult {
         guard activeOperationID == nil else { throw CanonicalExportFailure.busy }
-        guard (try? SyntheticPayload.revision(in: payload)) == generation else {
+        guard SyntheticPayload.allowedReportDates.contains(reportDate),
+              (try? SyntheticPayload.revision(in: payload, reportDate: reportDate)) == generation else {
             throw CanonicalExportFailure.invalidSyntheticPayload
         }
 
@@ -291,7 +292,7 @@ actor CanonicalExportCoordinator {
         try ensureActive(operationID)
 
         guard metadata.id == selectedFileID,
-              metadata.name == SyntheticPayload.filename,
+              metadata.name == SyntheticPayload.filename(for: reportDate),
               metadata.mimeType == "application/json",
               metadata.parents == [folderID],
               !metadata.trashed,
@@ -305,7 +306,7 @@ actor CanonicalExportCoordinator {
               let generation = Int(generationText),
               let expectedHash = metadata.appProperties[CanonicalMetadataKeys.payloadSHA256],
               expectedHash == Self.sha256(content),
-              try SyntheticPayload.revision(in: content) == generation else {
+              try SyntheticPayload.revision(in: content, reportDate: reportDate) == generation else {
             throw CanonicalExportFailure.identityRecoveryAmbiguous
         }
 
@@ -458,7 +459,7 @@ actor CanonicalExportCoordinator {
         if metadata.trashed { throw CanonicalExportFailure.remoteTrashed }
         if metadata.parents != [identity.folderID] { throw CanonicalExportFailure.remoteMoved }
         guard metadata.id == identity.fileID,
-              metadata.name == SyntheticPayload.filename,
+              metadata.name == SyntheticPayload.filename(for: identity.reportDate),
               metadata.mimeType == "application/json",
               metadata.driveID == nil,
               metadata.isAppAuthorized,
@@ -474,7 +475,7 @@ actor CanonicalExportCoordinator {
                hash: pending.payloadSHA256
            ), content == expectedPayload,
            Self.sha256(content) == pending.payloadSHA256,
-           (try? SyntheticPayload.revision(in: content)) == pending.generation {
+           (try? SyntheticPayload.revision(in: content, reportDate: identity.reportDate)) == pending.generation {
             return .expected
         }
 
@@ -485,7 +486,7 @@ actor CanonicalExportCoordinator {
                generation: verified.generation,
                hash: verified.payloadSHA256
            ), Self.sha256(content) == verified.payloadSHA256,
-           (try? SyntheticPayload.revision(in: content)) == verified.generation {
+           (try? SyntheticPayload.revision(in: content, reportDate: identity.reportDate)) == verified.generation {
             return .previous
         }
         return .mismatch
@@ -524,7 +525,7 @@ actor CanonicalExportCoordinator {
     ) -> DriveUploadDescriptor {
         DriveUploadDescriptor(
             id: identity.fileID,
-            name: SyntheticPayload.filename,
+            name: SyntheticPayload.filename(for: identity.reportDate),
             parentID: identity.folderID,
             appProperties: properties(
                 installationID: identity.installationID,

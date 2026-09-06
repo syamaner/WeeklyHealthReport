@@ -52,6 +52,12 @@ struct ConsentDestinationView: View {
                 }
 
                 Section("Canonical synthetic transport") {
+                    Picker("Fixture set", selection: $session.fixtureSet) {
+                        ForEach(DriveSessionController.FixtureSet.allCases) { fixtureSet in
+                            Text(fixtureSet.rawValue).tag(fixtureSet)
+                        }
+                    }
+                    .disabled(session.busy)
                     Button("Upload morning fixture (1)") {
                         Task { await session.exportSynthetic(revision: 1) }
                     }
@@ -76,6 +82,51 @@ struct ConsentDestinationView: View {
                         .font(.caption)
                 }
 
+                Section("Build 6 adverse probes") {
+                    Button("Retry adverse morning create with reserved ID") {
+                        Task { await session.retryAdverseCreateWithReservedID() }
+                    }
+                    .disabled(session.busy)
+                    Button("Cancel adverse evening before submission") {
+                        Task { await session.cancelAdverseEveningBeforeSubmission() }
+                    }
+                    .disabled(session.busy)
+                    Button("Leave adverse evening unresolved") {
+                        Task { await session.leaveAdverseEveningUnresolved() }
+                    }
+                    .disabled(session.busy)
+                    Button("Retry adverse evening after lost response") {
+                        Task { await session.reconcileAdverseEveningAfterLostResponse() }
+                    }
+                    .disabled(session.busy)
+                    Button("Cancel adverse bedtime after submission") {
+                        Task { await session.cancelAdverseBedtimeAfterSubmission() }
+                    }
+                    .disabled(session.busy)
+                    Button("Force token refresh and reverify bedtime") {
+                        Task { await session.forceRefreshAndReverifyBedtime() }
+                    }
+                    .disabled(session.busy)
+                    Button("Simulate expired credential") {
+                        Task { await session.simulateCredentialFailure(.expired) }
+                    }
+                    .disabled(session.busy)
+                    Button("Simulate denied credential") {
+                        Task { await session.simulateCredentialFailure(.denied) }
+                    }
+                    .disabled(session.busy)
+                    Button("Simulate revoked credential") {
+                        Task { await session.simulateCredentialFailure(.revoked) }
+                    }
+                    .disabled(session.busy)
+                    Button("Lose canonical registry but keep marker", role: .destructive) {
+                        session.simulateMissingCanonicalIdentity()
+                    }
+                    .disabled(session.busy)
+                    Text("Use only the Adverse 7 Sep fixture set for the ordered create/cancellation/lost-response probes. They suppress or discard bounded client requests without changing IDs or payloads. The identity-loss probe is local-only and deliberately requires explicit Picker recovery.")
+                        .font(.caption)
+                }
+
                 Section("Least-privilege check") {
                     TextField("Unrelated synthetic Drive file ID", text: $session.unrelatedSyntheticFileID)
                         .textInputAutocapitalization(.never)
@@ -90,7 +141,11 @@ struct ConsentDestinationView: View {
                 }
             }
             .navigationTitle("Drive Consent Test")
-            .task { await session.restore() }
+            .task {
+                if await session.runLocalOnlyLaunchProbeIfRequested() { return }
+                await session.restore()
+                await session.runLaunchProbeIfRequested()
+            }
         }
     }
 }

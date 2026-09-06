@@ -211,6 +211,8 @@ enum CanonicalTransportChecks {
         try await verificationAndStaleCompletionRejection()
         print("CHECK: payload and remote state rejection")
         try await invalidPayloadAndRemoteStateRejection()
+        print("CHECK: build-6 bounded device probe controls")
+        try await boundedDeviceProbeControls()
         print("PASS: canonical Drive transport state, retry, update, verification, cancellation, recovery and fail-closed checks")
     }
 
@@ -229,6 +231,91 @@ enum CanonicalTransportChecks {
             folderID: folder,
             tokenProvider: tokenProvider
         )
+    }
+
+    static func exportAdverse(
+        _ revision: Int,
+        coordinator: CanonicalExportCoordinator
+    ) async throws -> CanonicalExportResult {
+        try await coordinator.export(
+            payload: SyntheticPayload.data(revision, reportDate: SyntheticPayload.adverseReportDate),
+            generation: revision,
+            reportDate: SyntheticPayload.adverseReportDate,
+            accountID: accountID,
+            folderID: folderID,
+            tokenProvider: token
+        )
+    }
+
+    static func boundedDeviceProbeControls() async throws {
+        precondition(SyntheticPayload.filename == "health-daily-2026-09-06.json")
+        precondition(SyntheticPayload.filename(for: SyntheticPayload.adverseReportDate) == "health-daily-2026-09-07.json")
+        let adverseMorning = try SyntheticPayload.data(1, reportDate: SyntheticPayload.adverseReportDate)
+        let adverseMorningRevision = try SyntheticPayload.revision(
+            in: adverseMorning,
+            reportDate: SyntheticPayload.adverseReportDate
+        )
+        precondition(adverseMorningRevision == 1)
+        do {
+            _ = try SyntheticPayload.revision(in: adverseMorning)
+            preconditionFailure("Adverse bytes must not be admitted as the accepted fixture date")
+        } catch {}
+
+        let server = TestDriveServer()
+        let probe = AdverseProbeDriveTransport(base: server)
+        let coordinator = CanonicalExportCoordinator(transport: probe, store: TestIdentityStore())
+
+        let acceptedResult = try await export(3, coordinator: coordinator)
+        precondition(acceptedResult == .verified(generation: 3, created: true))
+
+        try await probe.arm(.retryNextCreateAfterLostResponse)
+        let createResult = try await exportAdverse(1, coordinator: coordinator)
+        let createObservation = await probe.takeObservation()
+        let countAfterCreate = await server.fileCount()
+        precondition(createResult == .verified(generation: 1, created: true))
+        precondition(createObservation == .createRetriedAfterLostResponseWithSameReservedID)
+        precondition(countAfterCreate == 2)
+        let createIDs = await server.createIDs
+        precondition(createIDs.count == 3 && createIDs[1] == createIDs[2])
+        precondition(createIDs[0] != createIDs[1])
+
+        try await probe.arm(
+            .cancelBeforeSubmission,
+            cancellationHandler: { await coordinator.requestCancellation() }
+        )
+        let preCancellationResult = try await exportAdverse(2, coordinator: coordinator)
+        let preCancellationObservation = await probe.takeObservation()
+        let updatesAfterPreCancellation = await server.updateIDs
+        precondition(preCancellationResult == .cancelledBeforeSubmission)
+        precondition(preCancellationObservation == .cancellationInjectedBeforeSubmission)
+        precondition(updatesAfterPreCancellation.isEmpty)
+
+        try await probe.arm(.loseNextTwoSubmissionsBeforeCommit)
+        do {
+            _ = try await exportAdverse(2, coordinator: coordinator)
+            preconditionFailure("Two dropped submissions must remain unresolved")
+        } catch CanonicalExportFailure.unresolvedRequest {}
+        let unresolvedObservation = await probe.takeObservation()
+        let updatesAfterLosses = await server.updateIDs
+        precondition(unresolvedObservation == .twoSubmissionsDroppedWithSameStoredID)
+        precondition(updatesAfterLosses.isEmpty)
+
+        try await probe.arm(.loseNextResponseAfterCommit)
+        let lostResponseResult = try await exportAdverse(2, coordinator: coordinator)
+        let lostResponseObservation = await probe.takeObservation()
+        precondition(lostResponseResult == .verified(generation: 2, created: false))
+        precondition(lostResponseObservation == .responseLostAfterCommit)
+
+        try await probe.arm(
+            .cancelAfterSubmission,
+            cancellationHandler: { await coordinator.requestCancellation() }
+        )
+        let postCancellationResult = try await exportAdverse(3, coordinator: coordinator)
+        let postCancellationObservation = await probe.takeObservation()
+        let finalCount = await server.fileCount()
+        precondition(postCancellationResult == .cancelledAfterSubmissionVerified(generation: 3, created: false))
+        precondition(postCancellationObservation == .cancellationInjectedAfterSubmission)
+        precondition(finalCount == 2)
     }
 
     static func initialCreateAndReplacement() async throws {

@@ -4,9 +4,9 @@ Product authority: `daily-export-contract.md`. Evidence:
 `daily-export-feasibility-results.md`. Slice A's synthetic harness, private Google
 configuration and real-device/provider acceptance are complete. Slice B now has a
 local synthetic implementation, deterministic checks and a bounded build-5 online
-Drive pass for create, same-ID update, readback, relaunch and unchanged reverify.
-Adverse provider/device cases remain unaccepted. The privacy-safe reproduction and
-tester-onboarding procedure is in
+Drive pass plus build-6 adverse device/provider evidence. Slice B is accepted within
+its synthetic-only boundary, with evidence-source limits recorded below. The
+privacy-safe reproduction and tester-onboarding procedure is in
 [`google-drive-cloud-setup.md`](google-drive-cloud-setup.md).
 
 GitHub tracking: [issue #6 — secure daily JSON export](https://github.com/syamaner/WeeklyHealthReport/issues/6).
@@ -183,6 +183,58 @@ app metadata/content readback, independent one-file and file-ID/content checks,
 relaunch persistence and an unchanged read-only reverify. It does not establish the
 unrun real fault-injection, cancellation, credential, ambiguity or offline cases;
 those remain local deterministic evidence and must not be promoted to provider fact.
+
+Build 6 adds a test-only transport interposer and a second fixed invented report date
+to exercise the remaining protocol without racing the UI or overwriting the accepted
+date. Its bounded modes suppress requests before Drive, discard a successful response,
+or inject cancellation immediately before or after submission. They do not change
+request bytes, IDs, scope or destination, and they add no queue. A local identity-loss
+control preserves the installation marker and therefore forces explicit recovery.
+Focused coordinator/API/policy checks and a generic simulator compile/static analysis
+pass locally. Under separately bounded authority, build 6 was then installed on the
+existing device and its morning uncertain-create probe reported exact metadata/byte
+verification after a same-reserved-ID conflict retry. That is device/app evidence;
+the operator independently confirmed one new adverse-date file with the invented
+morning content and preservation of the accepted-date file, but did not supply its
+file ID/link. A separately authorised pre-submission cancellation then reported that
+no file submission ran and remote state was preserved; independent Drive-web
+confirmation found the single adverse-date morning file unchanged. A subsequent
+separately authorised unresolved-evening probe reported that both bounded submissions
+were suppressed before commit, newer writes were blocked and no retry was queued.
+Independent Drive-web confirmation found the adverse-date morning file unchanged.
+An inert terminate/relaunch then restored and revalidated the binding and reported no
+Drive write, establishing that no automatic retry ran after relaunch. A separately
+authorised retry resumed the persisted evening operation by stored ID, discarded the
+successful response and reported exact metadata/byte verification after readback.
+Independent Drive-web confirmation found one adverse-date file with the exact
+invented evening fields and preservation of the accepted-date file, although its
+file ID/link was not supplied. A separately authorised same-ID bedtime update then
+injected cancellation after submission and reported exact reconciliation of invented
+revision 3. Independent confirmation found one adverse-date file with the expected
+bedtime content and preservation of the accepted-date file. A separately authorised
+AppAuth forced-refresh pass then reverified that unchanged bedtime file by stored ID
+and explicitly reported no Drive write; independent confirmation found the file state
+unchanged. Three subsequent device-only expired/denied/revoked injections failed at
+the token-provider boundary before any Google request and did not change the real
+credential. Those are device/app evidence, not Google credential-state evidence. A
+subsequent local identity-loss probe removed the registry, preserved the installation
+marker and failed closed as ambiguous before token acquisition. Explicit Picker
+recovery then ran under fresh authority: Google showed only its per-file `drive.file`
+grant, the operator selected one JSON, and the harness restored invented revision 3
+only after strict metadata/content and identity validation. No Drive write ran.
+Independent confirmation found remote state unchanged. A subsequent reinstall/relaunch
+loaded the recovered persisted identity, reverified unchanged invented revision 3 by
+stored ID and explicitly reported no Drive write. Final independent confirmation found
+the one adverse-date bedtime file and accepted-date file unchanged.
+
+This closes slice B's bounded synthetic acceptance. The same-ID create/update,
+uncertain-response reconciliation, cancellation, unresolved/no-queue, forced-refresh
+and explicit-recovery paths have device/API evidence with independent Drive checks at
+the recorded boundaries. Expired/denied/revoked injection is device-local; actual
+revocation and two-account isolation were established in slice A. Account/destination
+change rejection, stale-completion rejection and last-verified preservation remain
+deterministic local evidence and are not promoted to new provider facts. No HealthKit
+query, personal data or production JSON was involved.
 
 ## C. Daily query/model/JSON slice — only after transport acceptance
 

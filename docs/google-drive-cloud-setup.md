@@ -6,9 +6,10 @@ or tokens. It applies only to `Tools/SyntheticDriveExport`, build 4, with bundle
 `com.syamaner.WHRSyntheticDriveExport`. It does not authorise slice B, HealthKit
 access or JSON export.
 
-Build 5 reuses this exact client, scope and private configuration for the synthetic
-slice-B transport. It adds no API, scope, hosted component, key or secret. This
-runbook still does not authorise installing build 5 or making any slice-B Google
+Build 5 and the test-only build 6 adverse controls reuse this exact client, scope and
+private configuration for the synthetic slice-B transport. They add no API, scope,
+hosted component, key or secret. This runbook still does not authorise installing
+either build or making any slice-B Google
 request or mutation; use the separately bounded protocol in the harness README.
 
 The native iOS app is a public OAuth client. **Do not request, download, create,
