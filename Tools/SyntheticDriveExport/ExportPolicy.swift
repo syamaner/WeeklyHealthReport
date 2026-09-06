@@ -34,6 +34,13 @@ enum SyntheticPayload {
             "invented_steps": revision * 1234
         ], options: [.prettyPrinted, .sortedKeys])
     }
+
+    static func revision(in candidate: Data) throws -> Int {
+        for revision in 1...3 where candidate == (try data(revision)) {
+            return revision
+        }
+        throw CocoaError(.coderInvalidValue)
+    }
 }
 
 // Disposable directory-route probe, not a production storage abstraction.

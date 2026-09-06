@@ -4,10 +4,11 @@ import UIKit
 
 @MainActor
 final class DriveSessionController: NSObject, ObservableObject {
-    enum AuthorizationPurpose { case createFolder, chooseFolder }
+    enum AuthorizationPurpose { case createFolder, chooseFolder, recoverFile }
     enum Failure: Error { case missingConfiguration, invalidConfiguration, noPresenter, noToken, noRefreshToken }
 
     @Published private(set) var busy = false
+    @Published private(set) var exporting = false
     @Published private(set) var accountLabel = "Not connected"
     @Published private(set) var destinationLabel = "No destination"
     @Published private(set) var status = "No Google request has run."
@@ -15,6 +16,10 @@ final class DriveSessionController: NSObject, ObservableObject {
 
     private let keychain = KeychainStore()
     private let drive = DriveAPI()
+    private lazy var exportCoordinator = CanonicalExportCoordinator(
+        transport: drive,
+        store: KeychainCanonicalExportIdentityStore(keychain: keychain)
+    )
     private var authState: OIDAuthState?
     private var authorizationFlow: OIDExternalUserAgentSession?
     private var account: DriveAccount?
@@ -87,7 +92,7 @@ final class DriveSessionController: NSObject, ObservableObject {
     func chooseDestination() async {
         await run("Opening Google consent and folder Picker…") {
             let result = try await self.authorize(.chooseFolder)
-            guard let pickedID = result.pickedFolderID else { throw DriveConsentPolicy.Failure.invalidPickerSelection }
+            guard let pickedID = result.pickedItemID else { throw DriveConsentPolicy.Failure.invalidPickerSelection }
             let folder = try await self.drive.folder(id: pickedID, accessToken: result.token, accountID: result.account.id)
             try DriveConsentPolicy.validate(folder: folder, expectedAccountID: result.account.id)
             try self.accept(folder: folder, origin: .picker, account: result.account)
@@ -128,7 +133,7 @@ final class DriveSessionController: NSObject, ObservableObject {
                 self.destinationLabel = "No active destination"
                 self.status = "Access revoked and local credentials cleared. Drive exports were not deleted."
             case .keepCredentialsAndReportFailure:
-                throw DriveAPI.Failure.httpStatus(code)
+                throw DriveAPI.Failure.httpStatus(code, nil)
             }
         }
     }
@@ -147,10 +152,59 @@ final class DriveSessionController: NSObject, ObservableObject {
         }
     }
 
+    func exportSynthetic(revision: Int) async {
+        guard let account,
+              let destination = partitions.destination(for: account.id) else {
+            status = "Connect and validate a destination before synthetic export."
+            return
+        }
+        await run("Preparing invented revision \(revision)…") {
+            self.exporting = true
+            defer { self.exporting = false }
+            let result = try await self.exportCoordinator.export(
+                payload: SyntheticPayload.data(revision),
+                generation: revision,
+                reportDate: "2026-09-06",
+                accountID: account.id,
+                folderID: destination.folderID,
+                tokenProvider: { forceRefresh in
+                    try await self.freshAccessToken(forceRefresh: forceRefresh)
+                }
+            )
+            self.status = result.userFacingLabel
+        }
+    }
+
+    func cancelSyntheticExport() {
+        guard exporting else { return }
+        status = "Cancellation requested. If submission already began, remote reconciliation must finish."
+        Task { await exportCoordinator.requestCancellation() }
+    }
+
+    func recoverSyntheticFile() async {
+        await run("Opening Google consent and explicit JSON Picker…") {
+            let result = try await self.authorize(.recoverFile)
+            guard let selectedFileID = result.pickedItemID,
+                  let destination = self.partitions.destination(for: result.account.id) else {
+                throw CanonicalExportFailure.identityRecoveryAmbiguous
+            }
+            let recovery = try await self.exportCoordinator.recover(
+                selectedFileID: selectedFileID,
+                reportDate: "2026-09-06",
+                accountID: result.account.id,
+                folderID: destination.folderID,
+                tokenProvider: { forceRefresh in
+                    try await self.freshAccessToken(forceRefresh: forceRefresh)
+                }
+            )
+            self.status = recovery.userFacingLabel
+        }
+    }
+
     private struct AuthorizationResult {
         let token: String
         let account: DriveAccount
-        let pickedFolderID: String?
+        let pickedItemID: String?
     }
 
     private func authorize(_ purpose: AuthorizationPurpose) async throws -> AuthorizationResult {
@@ -165,11 +219,16 @@ final class DriveSessionController: NSObject, ObservableObject {
             "prompt": "consent select_account",
             "include_granted_scopes": "false"
         ]
-        if purpose == .chooseFolder {
+        if purpose == .chooseFolder || purpose == .recoverFile {
             parameters["trigger_onepick"] = "true"
-            parameters["allow_folder_selection"] = "true"
             parameters["allow_multiple"] = "false"
-            parameters["mimetypes"] = DriveConsentPolicy.folderMIMEType
+            if purpose == .chooseFolder {
+                parameters["allow_folder_selection"] = "true"
+                parameters["mimetypes"] = DriveConsentPolicy.folderMIMEType
+            } else {
+                parameters["allow_folder_selection"] = "false"
+                parameters["mimetypes"] = "application/json"
+            }
         }
         let request = OIDAuthorizationRequest(
             configuration: service,
@@ -189,7 +248,7 @@ final class DriveSessionController: NSObject, ObservableObject {
         }
         try DriveConsentPolicy.validateGrantedScopes(newState.scope)
         let pickedID: String?
-        if purpose == .chooseFolder {
+        if purpose == .chooseFolder || purpose == .recoverFile {
             pickedID = try DriveConsentPolicy.selectedFolderID(
                 from: newState.lastAuthorizationResponse.additionalParameters?["picked_file_ids"]
             )
@@ -201,7 +260,7 @@ final class DriveSessionController: NSObject, ObservableObject {
         authState = newState
         attachDelegates()
         try saveAuthState()
-        return AuthorizationResult(token: token, account: account, pickedFolderID: pickedID)
+        return AuthorizationResult(token: token, account: account, pickedItemID: pickedID)
     }
 
     private func oauthConfiguration() throws -> (clientID: String, redirectURL: URL) {
@@ -218,8 +277,9 @@ final class DriveSessionController: NSObject, ObservableObject {
         return (clientID, redirectURL)
     }
 
-    private func freshAccessToken() async throws -> String {
+    private func freshAccessToken(forceRefresh: Bool = false) async throws -> String {
         guard let authState else { throw Failure.noToken }
+        if forceRefresh { authState.setNeedsTokenRefresh() }
         return try await withCheckedThrowingContinuation { continuation in
             authState.performAction { accessToken, _, error in
                 if let accessToken { continuation.resume(returning: accessToken) }
@@ -272,6 +332,8 @@ final class DriveSessionController: NSObject, ObservableObject {
             try await operation()
         } catch let failure as DriveConsentPolicy.Failure {
             status = "Rejected by consent/destination policy: \(failure.userFacingLabel)."
+        } catch let failure as CanonicalExportFailure {
+            status = failure.userFacingLabel
         } catch let error as NSError where error.domain == OIDGeneralErrorDomain && error.code == -3 {
             // OIDErrorCodeUserCanceledAuthorizationFlow. Do not replace the prior Keychain state.
             status = "Consent or Picker was cancelled. Existing credentials and destination were preserved."
@@ -306,6 +368,59 @@ private extension DriveConsentPolicy.Failure {
         case .trashed: return "folder is trashed"
         case .sharedDriveUnsupported: return "Shared Drives are outside this slice"
         case .notWritable: return "folder cannot accept children"
+        }
+    }
+}
+
+private extension CanonicalExportResult {
+    var userFacingLabel: String {
+        switch self {
+        case .verified(let generation, _):
+            return "Upload verified remotely byte-for-byte for invented revision \(generation)."
+        case .unchangedVerified(let generation):
+            return "Unchanged invented revision \(generation) was reverified remotely; no write ran."
+        case .cancelledBeforeSubmission:
+            return "Cancelled before file submission. Remote file state was preserved."
+        case .cancelledAfterSubmissionVerified(let generation, _):
+            return "Cancellation arrived after submission; reconciliation verified invented revision \(generation)."
+        }
+    }
+}
+
+private extension CanonicalRecoveryResult {
+    var userFacingLabel: String {
+        switch self {
+        case .recovered(let generation):
+            return "Explicit file recovery verified and restored invented revision \(generation)."
+        case .alreadyTracked(let generation):
+            return "The selected file was already tracked and revision \(generation) was reverified."
+        }
+    }
+}
+
+private extension CanonicalExportFailure {
+    var userFacingLabel: String {
+        switch self {
+        case .busy: return "Another export or reconciliation is still active."
+        case .invalidSyntheticPayload: return "Rejected: only the fixed morning, evening and bedtime fixtures are allowed."
+        case .staleGeneration: return "Rejected stale synthetic completion; the last verified file is unchanged."
+        case .destinationChangeRequiresMigration: return "Export blocked: account or destination changed and no migration policy is authorised."
+        case .accountMismatch: return "Export blocked by Google account mismatch."
+        case .identityRecoveryAmbiguous: return "Export blocked: canonical destination identity recovery is ambiguous."
+        case .staleCompletion: return "A stale completion was rejected; the last verified identity was preserved."
+        case .credentials(let reason): return "Google credentials are \(reason.rawValue). Reconnect before exporting."
+        case .credentialsRejected: return "Google credentials were expired, denied or revoked. Reconnect before exporting."
+        case .permissionDenied: return "Google denied the file operation. No broader scope will be requested."
+        case .quotaExceeded: return "Google Drive quota is exhausted. No retry was queued."
+        case .rateLimited: return "Google Drive rate-limited the request. No background retry was queued."
+        case .remoteMissing: return "The stored Drive file ID is missing or inaccessible; no replacement was created."
+        case .remoteMoved: return "The stored Drive file moved outside the validated destination; export is blocked."
+        case .remoteTrashed: return "The stored Drive file is trashed; export is blocked."
+        case .remoteMetadataMismatch: return "Remote file metadata did not match the canonical identity. Upload is unverified."
+        case .remoteContentMismatch: return "Remote bytes did not match the submitted fixture. Upload is unverified."
+        case .unresolvedRequest: return "The submitted request remains unresolved. Newer writes are blocked; no retry is queued."
+        case .persistenceFailure: return "Secure export identity state could not be persisted. No new file will be created."
+        case .transportFailure: return "The Drive request failed. Upload is unverified and no background retry was queued."
         }
     }
 }

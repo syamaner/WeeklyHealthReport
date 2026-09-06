@@ -1,9 +1,39 @@
-# Secure Google consent and destination harness — build 4
+# Secure synthetic Google Drive harness — build 5
 
-This separate app implements only slice A of `docs/google-drive-export-plan.md`.
-It uses invented labels only and does not query HealthKit or upload a daily JSON
-file. The rejected Files experiments below are retained as historical evidence;
-do not resume them.
+This separate app retains the accepted slice-A consent/destination work and adds
+the local implementation of slice B from `docs/google-drive-export-plan.md`. It
+uses only fixed invented morning, evening and bedtime JSON bytes and never queries
+HealthKit. The rejected Files experiments below are historical evidence; do not
+resume them. Local checks and a simulator build do not prove Google Drive behaviour.
+
+## Slice-B transport boundary
+
+- Generate one Drive file ID before initial creation and persist it, the account,
+  folder, report date, installation ID, generation, payload SHA-256 and operation
+  state in this-device-only Keychain state before the create request.
+- Retry an uncertain create with that same ID. Update only by the stored ID, with
+  no filename search, folder listing, delete-first operation or duplicate create.
+- Verify account, exact parent/file identity, app properties and byte-for-byte
+  downloaded content before reporting an upload as verified. A local hash is
+  integrity metadata and is never logged or treated as encryption.
+- Serialise token refresh, upload, retry and reconciliation. One bounded retry of
+  the same bytes is allowed after a transient uncertain submission. A still-
+  unresolved request blocks newer generations; no reachability-driven or offline
+  background queue exists.
+- Cancellation before file submission preserves remote state. Cancellation after
+  submission waits for reconciliation and never claims rollback.
+- A separate installation marker makes lost/corrupt identity state fail closed.
+  Recovery requires explicit selection of the exact app-owned JSON and validates
+  its remote metadata/content. Folder contents are never enumerated.
+- The ratified first release supports one active exporting installation. Account
+  or destination changes for an already-exported date require a future explicit
+  migration policy; state is never reused across accounts or destinations.
+
+The canonical online path now has bounded build-5 device/Google evidence for create,
+same-ID updates, readback, relaunch and unchanged reverify. The adverse cases in the
+protocol remain external unknowns even though their deterministic checks pass. No
+production daily JSON, HealthKit integration, backend, hosting, API key or client
+secret is part of this harness.
 
 ## Compatibility decision
 
@@ -49,7 +79,7 @@ ignored. AppAuth credentials and account-partitioned folder IDs are archived onl
 in this app's non-synchronising, when-unlocked, this-device-only Keychain items.
 Tokens are not placed in `UserDefaults`, logs, URLs to an app-hosted page or source.
 
-## Authorised real-device protocol
+## Slice-A real-device protocol (completed for build 4)
 
 Installation, Google consent and folder creation are external state changes. Run
 these only after the operator confirms the device, configured project/client and
@@ -96,11 +126,25 @@ xcrun swiftc -module-cache-path /tmp/whr-consent-swift-module-cache \
 /tmp/whr-consent-policy-checks
 
 xcrun swiftc -module-cache-path /tmp/whr-consent-swift-module-cache \
+  Tools/SyntheticDriveExport/ExportPolicy.swift \
   Tools/SyntheticDriveExport/ConsentPolicy.swift \
+  Tools/SyntheticDriveExport/KeychainStore.swift \
+  Tools/SyntheticDriveExport/CanonicalTransport.swift \
   Tools/SyntheticDriveExport/DriveAPI.swift \
   Tools/SyntheticDriveExport/DriveAPIChecks.swift \
   -o /tmp/whr-drive-api-checks
 /tmp/whr-drive-api-checks
+
+xcrun swiftc -module-cache-path /tmp/whr-consent-swift-module-cache \
+  Tools/SyntheticDriveExport/ExportPolicy.swift \
+  Tools/SyntheticDriveExport/ConsentPolicy.swift \
+  Tools/SyntheticDriveExport/KeychainStore.swift \
+  Tools/SyntheticDriveExport/CanonicalTransport.swift \
+  Tools/SyntheticDriveExport/DriveAPI.swift \
+  Tools/SyntheticDriveExport/CanonicalExportCoordinator.swift \
+  Tools/SyntheticDriveExport/CanonicalTransportChecks.swift \
+  -o /tmp/whr-canonical-transport-checks
+/tmp/whr-canonical-transport-checks
 
 xcodebuild -project Tools/SyntheticDriveExport/SyntheticDriveExport.xcodeproj \
   -scheme SyntheticDriveExport -sdk iphonesimulator \
@@ -109,15 +153,66 @@ xcodebuild -project Tools/SyntheticDriveExport/SyntheticDriveExport.xcodeproj \
   CODE_SIGNING_ALLOWED=NO build analyze
 ```
 
-The checks exercise exact-scope admission, one-folder Picker response handling,
-folder/account/write validation, account partitioning and sign-out/revocation
-state policy. They do not prove Google consent, Keychain restoration, remote
-revocation, either destination flow or least-privilege denial.
+The slice-B checks use a deterministic in-memory Drive server. They cover persisted
+pre-generated IDs, same-ID uncertain-create retry, stored-ID updates, exact remote
+metadata/content verification, serial admission, forced token refresh, cancellation
+on both sides of submission, unresolved blocking, relaunch, explicit recovery,
+expired/denied/revoked credentials, account/destination isolation, stale completion,
+last-verified preservation and no offline queue. Mocked HTTP checks cover the exact
+generate/create/update/get request shapes and structured errors. None proves Google,
+Keychain runtime or device behaviour.
 
-The separately recorded real-device run proved those external behaviours, including
-both destination flows, unrelated-file denial and two-account isolation. See
-`docs/daily-export-feasibility-results.md`. This harness remains synthetic-only;
-slice B transport and all HealthKit work are outside build 4.
+The recorded build-4 run proved slice A, including both destination flows,
+unrelated-file denial and two-account isolation. The separately authorised build-5
+run proved only the canonical online create/update/readback/relaunch path described
+below. See `docs/daily-export-feasibility-results.md`. This harness remains
+synthetic-only; local failure checks are not Google evidence.
+
+## Slice-B device and Google acceptance protocol (partially run)
+
+Every numbered mutation needs fresh operator authority naming the device, account,
+dedicated destination and permitted invented file effects. Do not install or launch
+build 5, request consent, create/update/recover a Drive file, revoke access or change
+connectivity merely from this document.
+
+On 6 September 2026, separately granted authority covered build-5 installation and
+launch on SiPhone, restoration of the existing exact grant/destination, morning
+create, evening/bedtime same-ID updates, independent Drive-web checks, relaunch and
+one unchanged bedtime reverify. Those steps passed with one canonical file and the
+expected invented content. Account, folder and file identifiers remain private.
+Steps 4, 6, the missing-state/recovery portion of 7, 8 and 9 were not run; their local
+mock results must not be described as device or Google evidence.
+
+1. Preserve the completed slice-A folders and Files-probe evidence. Select one
+   operator-confirmed dedicated slice-B folder under the already accepted account;
+   do not enumerate it or infer emptiness from `drive.file` visibility.
+2. Install/launch build 5 only on the explicitly named device. Confirm the existing
+   exact `drive.file` grant/account/destination restore. No new scope is allowed.
+3. Upload morning. Independently verify in Drive web the exact file ID, one file in
+   the dedicated destination and downloaded morning bytes. The app must report
+   verified only after its own remote metadata/content reads.
+4. Exercise one controlled lost-response create before any accepted file exists.
+   Confirm the retry reuses the reserved ID and never creates a second file.
+5. Upload evening then bedtime. Independently confirm the same Drive file ID and
+   exact downloaded bytes after each update. Repeat bedtime and confirm no write but
+   a fresh remote verification.
+6. Cancel once before submission, then once after a submitted controlled request.
+   Confirm the first has no remote effect and the second reports only the result of
+   reconciliation. Exercise one rejected write and confirm the last verified file.
+7. Relaunch and update using persisted identity. Separately simulate missing local
+   identity while retaining the installation marker: export must block. Explicitly
+   select the exact canonical JSON and confirm recovery; cancel/choose another file
+   to confirm fail-closed ambiguity.
+8. Exercise expired, remotely revoked and denied credentials, then reconnect. Switch
+   accounts and destinations only to confirm no state reuse and that migration is
+   blocked; do not create another same-date canonical file.
+9. Exercise a bounded mid-request connection loss. Confirm there is no automatic
+   offline queue, newer content is blocked while unresolved, and the final state is
+   established from Drive API plus independent Drive-web ID/content evidence.
+
+Stop on a broader permission prompt, missing/moved/trashed identity, duplicate,
+metadata/content mismatch, unresolved stale write, need for hosting/backend/API key/
+client secret, or ambiguous recovery. These steps use invented fixtures only.
 
 ---
 

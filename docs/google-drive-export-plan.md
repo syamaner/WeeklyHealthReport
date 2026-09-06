@@ -2,8 +2,11 @@
 
 Product authority: `daily-export-contract.md`. Evidence:
 `daily-export-feasibility-results.md`. Slice A's synthetic harness, private Google
-configuration and real-device/provider acceptance are complete. Slice B has not
-started. The privacy-safe reproduction and tester-onboarding procedure is in
+configuration and real-device/provider acceptance are complete. Slice B now has a
+local synthetic implementation, deterministic checks and a bounded build-5 online
+Drive pass for create, same-ID update, readback, relaunch and unchanged reverify.
+Adverse provider/device cases remain unaccepted. The privacy-safe reproduction and
+tester-onboarding procedure is in
 [`google-drive-cloud-setup.md`](google-drive-cloud-setup.md).
 
 GitHub tracking: [issue #6 — secure daily JSON export](https://github.com/syamaner/WeeklyHealthReport/issues/6).
@@ -153,6 +156,33 @@ relaunch/reconciliation, account changes, token expiry/revocation and stale comp
 The user skipped prolonged Files offline testing: keep no automatic offline queue,
 but test timeouts/network loss mid-request deterministically and with a bounded real
 API test. Untested failures are not passes. Preserve the last good file on failure.
+
+### Local slice-B implementation, 6 September 2026
+
+Build 5 adds a Foundation Drive transport and one actor-isolated export coordinator
+to the synthetic harness. It reserves one Drive ID, persists that ID before create,
+uses multipart create/update by ID, stores only minimal account/folder/date/file/
+installation/generation/hash/operation metadata in this-device-only Keychain state,
+and remotely reads metadata plus bytes before reporting verified. Keychain updates
+no longer delete the old item before replacement.
+
+The coordinator admits only the fixed invented morning/evening/bedtime fixtures.
+It serialises token refresh, submission, bounded same-byte retry and reconciliation;
+an unresolved submission blocks newer content and creates no offline queue. Pre-
+submission cancellation runs no create/update. Post-submission cancellation reports
+only verified reconciliation or remains unresolved. Account/destination changes,
+missing identity with an existing installation marker, moved/trashed files, metadata
+mismatch and stale completions fail closed while retaining the last verified record.
+Explicit recovery requires selecting the exact app-owned JSON and validating its
+metadata and downloaded bytes; no folder listing or filename search is used.
+
+Deterministic fake-server checks and mocked HTTP request checks pass locally, and the
+unsigned generic simulator build compiles. Separately authorised build-5 device and
+Google evidence now covers one pre-generated create, same-ID evening/bedtime updates,
+app metadata/content readback, independent one-file and file-ID/content checks,
+relaunch persistence and an unchanged read-only reverify. It does not establish the
+unrun real fault-injection, cancellation, credential, ambiguity or offline cases;
+those remain local deterministic evidence and must not be promoted to provider fact.
 
 ## C. Daily query/model/JSON slice — only after transport acceptance
 

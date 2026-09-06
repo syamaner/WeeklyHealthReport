@@ -2,8 +2,10 @@
 
 Status: revised contract, 6 September 2026. Synthetic Files probes ran; no Files
 route was accepted. User approved moving to secure Google Drive consent/API
-integration. An uncommitted synthetic slice-A harness now exists, but no production
-export or accepted Google integration exists. See `daily-export-feasibility-results.md`
+integration. The uncommitted synthetic harness now includes accepted slice A, a
+locally checked slice-B implementation and a bounded canonical build-5 Drive pass.
+Adverse build-5 device/provider cases and all production export work remain incomplete.
+See `daily-export-feasibility-results.md`
 for evidence and `google-drive-export-plan.md` for implementation gates.
 
 ## Agreed outcome
@@ -124,4 +126,4 @@ Acceptance: focused tests during development, complete simulator suite once stab
 
 ## Paste-ready next-task prompt
 
-Implement only slice A (secure consent and destination selection) of docs/google-drive-export-plan.md, using the revised daily-export-contract.md. Preserve all uncommitted work and frozen accounting rows. First establish the user-owned Google Cloud project, iOS client/redirect configuration, dependency version and compatible narrow-scope Picker flow. Use invented data only; no production HealthKit integration. Request only drive.file for Drive access, keep credentials in secure SDK/Keychain storage, and never put tokens in logs or hosted picker URLs. Prove create-folder and choose-existing-folder without broad scopes; validate account, MIME type and write capability. If iOS Picker compatibility requires a new hosted component, stop that part with concrete evidence rather than broadening permissions. Record checks and unresolved boundaries. Do not commit/push or export personal data.
+Validate only build 5's synthetic slice-B Google Drive transport under the separately bounded protocol in `Tools/SyntheticDriveExport/README.md`. Preserve all uncommitted work, ignored private OAuth configuration, completed slice-A evidence and frozen accounting rows. Before each device action or Google mutation, state the exact authority already granted and obtain fresh authority if missing. Use only the dedicated synthetic destination and invented morning/evening/bedtime bytes. Independently verify Drive web file count, file ID and downloaded contents; keep local, device and Google evidence separate. Stop on duplicates, broader permission, ambiguous recovery, unresolved stale writes or any need for hosting, a backend, API keys or client secrets. Do not query HealthKit, start slice C, commit/push, or edit/close issue #6.
