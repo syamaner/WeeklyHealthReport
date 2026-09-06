@@ -4,8 +4,10 @@ Status: revised contract, 6 September 2026. Synthetic Files probes ran; no Files
 route was accepted. User approved moving to secure Google Drive consent/API
 integration. The merged synthetic harness includes accepted slice A. Slice B is now
 accepted within its synthetic-only boundary through local checks and bounded build-5/
-build-6 device and Drive evidence. All production query, JSON and export UI work
-remains incomplete and separately gated.
+build-6 device and Drive evidence. Slice C's product policies are ratified and its
+daily query/model/JSON path is accepted locally through invented fixtures, the complete
+62-test simulator suite and static analysis. No production export UI, personal-data
+export, real-device HealthKit validation or new Google mutation exists.
 See `daily-export-feasibility-results.md`
 for evidence and `google-drive-export-plan.md` for implementation gates.
 
@@ -27,7 +29,7 @@ Use manual, user-initiated Google Drive API export after consent. Offer Create �
 - Freeze the snapshot before upload or destination selection. Crossing midnight while consent or a picker is open must not rename yesterday's snapshot as today.
 - A later automation retry must retain its original reporting date. Backfill/date selection and time-zone changes during travel need an explicit policy before automation.
 
-## Proposed JSON envelope
+## JSON envelope
 
 Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `exported_at`, `day_window`, `today`, `app_context`.
 
@@ -35,7 +37,7 @@ Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `e
 
 Use JSON numbers rather than formatted display strings, explicit units and ISO 8601 timestamps with offsets. Date-only identifiers use ISO calendar dates. Record actual window boundaries, including DST changes. Arrays have deterministic chronological ordering. Never emit NaN or infinity.
 
-Metric state is explicit: `available`, `no_data_or_access`, `unsupported`, or `insufficient_data` for derived calculations. Null is not zero. Loading and query failures are export-blocking states in the proposed first version. Unsupported medication APIs and legitimate empty reads must not block an otherwise valid export. Avoid exporting raw error messages or identifiers unrelated to interpreting the data.
+Metric state is explicit through an `availability` field: `available`, `no_data_or_access`, `unsupported`, or `insufficient_data` for derived calculations. `available` requires a `data` object; other states omit `data`. Null is not zero. Loading and query failures are export-blocking states in the first version. Unsupported medication APIs and legitimate empty reads must not block an otherwise valid export. Avoid exporting raw error messages or identifiers unrelated to interpreting the data.
 
 ## Metric contract
 
@@ -57,7 +59,7 @@ Metric state is explicit: `available`, `no_data_or_access`, `unsupported`, or `i
 
 Latest-known context must never be labelled as a measurement taken today. Record retained context measurements' actual dates.
 
-Proposed multiple-weight fallback: if HealthKit unexpectedly exposes multiple weights today, select the latest timestamp deterministically; do not silently average them into today's single weight. This fallback is a design choice to confirm before implementation.
+Ratified multiple-weight fallback: if HealthKit unexpectedly exposes multiple weights today, select the latest end timestamp deterministically; when timestamps tie, select the lexicographically smallest HealthKit object UUID. The UUID is an internal, value-neutral tie-break and is not exported. Do not silently average multiple weights into today's single weight.
 
 Glucose hourly bins require query work: current code obtains daily statistics. Derive hourly values using HealthKit statistics, not manual summation/merging of overlapping sensor sources. Keep daily statistics independently queried: averaging hourly means would change the existing daily semantics. Clip the last bin to the refresh cutoff and identify repeated/skipped local hours by timestamp offsets.
 
@@ -65,9 +67,9 @@ Preserve BP pairs, including readings outside the morning/evening slots. Do not 
 
 Sleep remains the existing noon-to-noon bucket ending on the waking date, clipped to available data at refresh. A Sunday bedtime export cannot contain Sunday-night sleep ending Monday; Cowork must use another source or later refresh if that is required.
 
-## Context window decision before coding
+## Context window decision
 
-Weight, body fat, waist and VO₂ max already have metric-specific windows. RHR, HRV and other period summaries depend on the screen's selected period. Proposed export policy: fix period-dependent context to Last 7 Completed Days, independent of the UI selection, and use existing pure calculations. This makes repeated daily exports comparable. Confirm this choice before implementation; do not quietly inherit whichever screen selection happens to be active.
+Weight, body fat, waist and VO₂ max already have metric-specific windows. RHR, HRV and other period summaries depend on the screen's selected period. Ratified export policy: fix period-dependent context to Last 7 Completed Days, independent of the UI selection, and use existing pure calculations. This makes repeated daily exports comparable. The export never quietly inherits whichever screen selection happens to be active.
 
 The earlier conversation's blanket claim that all trends use completed-day windows was incorrect. Preserve actual per-metric behaviour; do not change body-fat or VO₂ max calculations as part of export.
 
@@ -101,7 +103,7 @@ covered by the separated local/device/Google evidence. No background offline que
 
 ### 2. Daily model, query and JSON
 
-Confirm the two proposed policies above and consumer field shape. Add a distinct daily query window rather than mislabelling today as a completed day. Reuse pure app calculations for context, preserve explicit states in the export snapshot and add glucose hourly queries. Keep calculations in models, HealthKit access in the client and serialization outside the SwiftUI view.
+The two policies above and the consumer field shape are confirmed. Add a distinct daily query window rather than mislabelling today as a completed day. Reuse pure app calculations for context, preserve explicit states in the export snapshot and add glucose hourly queries. Keep calculations in models, HealthKit access in the client and serialization outside the SwiftUI view.
 
 Acceptance: synthetic fixtures cover morning/evening/bedtime replacement snapshots, one daily weight, BP pairing/slots, glucose missing hours, DST, midnight capture, today-versus-context dates, source-resolved cumulative values, insufficient history, unsupported APIs and failed refreshes. JSON preserves the same deterministic values as existing model calculations.
 
@@ -123,15 +125,16 @@ Acceptance: focused tests during development, complete simulator suite once stab
 - Apple directory access: https://developer.apple.com/documentation/uikit/providing-access-to-directories
 - Google file resource: https://developers.google.com/workspace/drive/api/reference/rest/v3/files — filenames are not necessarily unique within a folder.
 - Apple statistics: https://developer.apple.com/documentation/healthkit/hkstatisticsquery
+- HealthKit object identity: https://developer.apple.com/documentation/healthkit/hkobject/uuid
 - Existing README, HealthDataProviding, HealthKitClient and pure metric models inspected during planning. Synthetic device evidence is recorded separately; no personal HealthKit export has run.
 - Google API/OAuth sources and retry/permission constraints: see `google-drive-export-plan.md`.
 
 ## Paste-ready next-task prompt
 
-Review the accepted synthetic slice-B evidence, then ratify slice C's three remaining
-product decisions before implementation: deterministic same-timestamp weight tie-
-break, fixed Last 7 Completed Days context, and the consumer envelope/availability
-shape. Preserve the ignored OAuth configuration, synthetic evidence and frozen
-accounting rows. Do not query personal HealthKit data, create a production export,
-broaden `drive.file`, add hosting/backend/keys/secrets, start slice D, or edit/close
-issue #6 without separately bounded authority.
+Review the accepted synthetic slice-B evidence and locally accepted slice-C daily
+query/model/JSON implementation. Preserve the ignored OAuth configuration, synthetic
+evidence and frozen accounting rows. Before slice D, separately ratify its manual UI
+and integration boundary and obtain fresh authority for every real-device HealthKit
+or Google action. Do not use personal HealthKit data, create or upload a production
+export, broaden `drive.file`, add hosting/backend/keys/secrets, start automation, or
+edit/close issue #6 without separately bounded authority.

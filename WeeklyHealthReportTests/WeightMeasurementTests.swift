@@ -20,6 +20,23 @@ final class WeightMeasurementTests: XCTestCase {
         XCTAssertEqual(WeightMeasurement.latest(in: [middle, oldest, latest]), latest)
     }
 
+    func testLatestUsesLowestUUIDWhenTimestampsTie() throws {
+        let date = Date(timeIntervalSinceReferenceDate: 300)
+        let lower = WeightMeasurement(
+            id: try XCTUnwrap(UUID(uuidString: "00000000-0000-0000-0000-000000000001")),
+            date: date,
+            kilograms: 70
+        )
+        let higher = WeightMeasurement(
+            id: try XCTUnwrap(UUID(uuidString: "FFFFFFFF-FFFF-FFFF-FFFF-FFFFFFFFFFFF")),
+            date: date,
+            kilograms: 80
+        )
+
+        XCTAssertEqual(WeightMeasurement.latest(in: [higher, lower]), lower)
+        XCTAssertEqual(WeightMeasurement.latest(in: [lower, higher]), lower)
+    }
+
     func testLatestReturnsNilForNoMeasurements() {
         XCTAssertNil(WeightMeasurement.latest(in: []))
     }
