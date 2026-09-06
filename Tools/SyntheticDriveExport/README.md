@@ -26,6 +26,10 @@ not permission to broaden scope or add hosting.
 
 ## Private configuration required before device testing
 
+Follow the privacy-safe, click-by-click setup and tester onboarding runbook in
+[`../../docs/google-drive-cloud-setup.md`](../../docs/google-drive-cloud-setup.md).
+The summary below is retained as the harness-local checklist.
+
 1. In a user-owned Google Cloud project, configure the OAuth audience as External
    / Testing and add the intended Google account(s) as test users. A second test
    account is required to complete the account-switch test.
