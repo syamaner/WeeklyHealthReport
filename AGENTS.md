@@ -19,7 +19,7 @@ This file applies to the whole repository. Keep it concise; exact metric semanti
 ## HealthKit and reporting invariants
 
 - Request read access only. Keep HealthKit authorization `toShare` empty.
-- Do not add accounts, analytics, persistence, networking, background delivery or remote transport.
+- Do not add analytics, background delivery, backends or unrelated accounts/persistence/networking. The user-approved exception is manual Google Drive export under `docs/daily-export-contract.md` and `docs/google-drive-export-plan.md`: narrow `drive.file` consent, secure credentials, minimal export-identity metadata and direct user-initiated transport. Prove synthetic transport before HealthKit integration; no personal-data export without explicit authority.
 - Use HealthKit statistics for cumulative or source-resolved values; do not manually sum overlapping sources.
 - Preserve correlated records, such as systolic and diastolic blood pressure, as intact pairs. Never join unrelated samples.
 - Convert HealthKit units at the query boundary and pass plain values into pure models.

@@ -35,6 +35,12 @@ All HealthKit reading and calculation happens on the iPhone. The app has:
 
 Nothing leaves the device unless you tap **Copy Report** and paste it somewhere yourself.
 
+Secure, user-initiated Google Drive JSON export is planned but is not part of the
+production app yet. The proposed narrow-scope consent, destination and validation
+gates are documented in [the implementation plan](docs/google-drive-export-plan.md).
+The separate synthetic harness is a development experiment, not the app's current
+HealthKit export behaviour.
+
 The app asks only for read access to the HealthKit types it uses. HealthKit does not tell an app whether read access was denied, so a successful query with no visible samples is shown as **No data**, not zero.
 
 <details>
