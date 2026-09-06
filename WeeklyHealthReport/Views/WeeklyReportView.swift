@@ -4,6 +4,7 @@ import HealthKit
 import HealthKitUI
 
 struct WeeklyReportView: View {
+    @ObservedObject var dailyExport: DailyDriveSessionController
     @StateObject private var viewModel = WeeklyReportViewModel()
     @State private var copied = false
     @State private var medicationAuthorizationRequest = 0
@@ -44,6 +45,15 @@ struct WeeklyReportView: View {
     private var reportContent: some View {
         NavigationStack {
             Form {
+                Section("Export") {
+                    NavigationLink("Daily JSON Export") {
+                        DailyExportView(session: dailyExport)
+                    }
+                    Text("Refresh, review and export are separate manual actions.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
                 Section {
                     Picker("Reporting period", selection: $viewModel.selection) {
                         ForEach(ReportPeriodSelection.allCases) { selection in

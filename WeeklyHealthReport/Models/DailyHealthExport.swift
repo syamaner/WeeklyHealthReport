@@ -216,6 +216,13 @@ struct DailyWorkoutData: Codable, Equatable {
     let activity: String
     let startedAt: String
     let durationSeconds: Double
+
+    private enum CodingKeys: String, CodingKey {
+        case recordID = "recordId"
+        case activity
+        case startedAt
+        case durationSeconds
+    }
 }
 
 struct DailyMedicationData: Codable, Equatable {
@@ -365,6 +372,27 @@ struct DailyAppContext: Codable, Equatable {
     let exercise: ExportMetric<ExportScalar>
     let workouts: ExportMetric<ExportWorkoutContext>
     let medications: ExportMetric<ExportMedicationContext>
+
+    private enum CodingKeys: String, CodingKey {
+        case policyID = "policyId"
+        case window
+        case weight
+        case bodyFat
+        case waist
+        case glucose
+        case vo2Max
+        case bloodOxygen
+        case bloodPressure
+        case steps
+        case restingHeartRate
+        case hrv
+        case watchCoverage
+        case sleep
+        case activeEnergy
+        case exercise
+        case workouts
+        case medications
+    }
 }
 
 struct DailyHealthExportEnvelope: Codable, Equatable {

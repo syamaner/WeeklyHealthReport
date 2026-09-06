@@ -6,8 +6,9 @@ integration. The merged synthetic harness includes accepted slice A. Slice B is 
 accepted within its synthetic-only boundary through local checks and bounded build-5/
 build-6 device and Drive evidence. Slice C's product policies are ratified and its
 daily query/model/JSON path is accepted locally through invented fixtures, the complete
-62-test simulator suite and static analysis. No production export UI, personal-data
-export, real-device HealthKit validation or new Google mutation exists.
+62-test simulator suite and static analysis. Slice D now has a locally integrated,
+manual production UI and fail-closed transport path, but no production OAuth client,
+personal-data export, real-device HealthKit validation or new Google mutation exists.
 See `daily-export-feasibility-results.md`
 for evidence and `google-drive-export-plan.md` for implementation gates.
 
@@ -113,6 +114,13 @@ Refresh daily data, preview the report date/cutoff and content, then save/replac
 
 Acceptance: focused tests during development, complete simulator suite once stable, static analysis, diff review, then real-device Apple Health comparisons and Drive replacement checks. Synthetic/simulator success is not personal HealthKit or remote-sync validation.
 
+Local integration provides separate Connect/Restore, destination, Refresh Preview,
+review, Export, Cancel, explicit Recovery, sign-out and revoke actions. Opening the
+export screen performs no automatic daily-snapshot refresh, Google request or queued
+write; the existing weekly-report refresh remains unchanged. The checked-in OAuth
+values are non-working placeholders and a distinct
+product iOS client remains an external acceptance gate.
+
 ### Deferred work
 
 - Treadmill intervals: duration/speed/incline, recording-source investigation and planned-versus-observed semantics. Do not infer these from existing workout type/duration.
@@ -131,10 +139,10 @@ Acceptance: focused tests during development, complete simulator suite once stab
 
 ## Paste-ready next-task prompt
 
-Review the accepted synthetic slice-B evidence and locally accepted slice-C daily
-query/model/JSON implementation. Preserve the ignored OAuth configuration, synthetic
-evidence and frozen accounting rows. Before slice D, separately ratify its manual UI
-and integration boundary and obtain fresh authority for every real-device HealthKit
-or Google action. Do not use personal HealthKit data, create or upload a production
-export, broaden `drive.file`, add hosting/backend/keys/secrets, start automation, or
-edit/close issue #6 without separately bounded authority.
+Validate the locally integrated slice-D product flow with a distinct production iOS
+OAuth client. Preserve ignored configuration, synthetic evidence and frozen
+accounting rows. Obtain fresh authority for every physical-device HealthKit or Google
+action. Compare a reviewed product snapshot with Apple Health and independently
+confirm same-ID Drive replacement. Do not broaden `drive.file`, add hosting, a
+backend, API keys or client secrets, start automation, or close issue #6 until those
+separate device and Google gates pass.

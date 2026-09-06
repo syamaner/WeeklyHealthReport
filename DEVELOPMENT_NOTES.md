@@ -446,3 +446,42 @@ tasks or hosted reviews were used. Excludes this accounting edit/check, subseque
 delivery actions, the final handoff and separate service usage. Every earlier row
 remains frozen. Tracked total becomes **224,959,502 tokens / $145.27**, summing
 recorded rounded comparison amounts.
+
+
+## Slice-D manual product integration, 6 September 2026
+
+The product app now has a deliberately manual, fail-closed daily Drive export flow
+with distinct product OAuth placeholders, one selected destination, persisted
+canonical file identity, same-ID update and readback verification. Invented transport
+tests cover uncertain submission, token refresh, cancellation, relaunch, explicit
+recovery, credential failures, account/destination isolation and stale completion.
+The complete 69-test simulator suite and Xcode static analysis passed. This is local
+and simulator evidence only: no physical iPhone, personal HealthKit data, production
+OAuth client or new Google request/mutation was used for this slice.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 6 Sep | `codex-phase-accounting` — slice-D manual product integration — GPT-5.6 Sol | Uncommitted implementation/tests/review/accounting notes | 24,516,805 (24,073,600) | 86,392 | 24,603,197 | $13.13 |
+
+Model confirmed from the recorded turn contexts through the frozen boundary:
+`gpt-5.6-sol`. At the ledger's historical Sol comparison assumptions ($4/M
+uncached input, $0.40/M cached input and $20/M output), 443,205 × $4/M +
+24,073,600 × $0.40/M + 86,392 × $20/M = **$13.130100**, rounded **$13.13**
+API-equivalent, not an actual subscription charge or a model benchmark. Separate
+Apple/Google/tool charges are not measured or estimated.
+
+Same session and rollout as the preceding slice-B and slice-C rows. Baseline is the
+slice-C frozen end, line 5407, **2026-09-06 21:20:45.521 UTC**: **88,461,492
+input / 87,252,992 cached input / 334,459 output**. Frozen end line 6648,
+**2026-09-06 22:13:22.442 UTC**: **112,978,297 input / 111,326,592 cached
+input / 420,851 output**. Reproduce from that prefix with `--baseline 88461492
+87252992 334459 --uncached-input-rate 4 --cached-input-rate 0.40
+--output-rate 20`.
+
+Includes top-level implementation and review, focused tests, the one complete
+69-test simulator suite, static analysis and simulator UI smoke through this
+boundary. No subagents, reused tasks or hosted reviews were used. Excludes this
+accounting edit/check, subsequent commit/push/PR/merge and issue-update activity,
+the final handoff and separate service usage. Every earlier row remains frozen.
+Tracked total becomes **249,562,699 tokens / $158.40**, summing recorded rounded
+comparison amounts.
