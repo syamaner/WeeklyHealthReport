@@ -1,0 +1,290 @@
+# Synthetic Files → Drive feasibility, 6 September 2026
+
+Status: **copy-export route rejected: same-name duplicates observed in Drive web**.
+Directory route unavailable: operator reported Drive greyed out in the picker.
+Existing-file route not accepted: limited operator-confirmed success ended in an
+unresolved provider-local bedtime / Drive-web evening mismatch. User approved a
+secure consent/Drive API approach; implementation is planned separately.
+Copy-export testing stopped at the uniqueness failure. No personal HealthKit data was used.
+The existing daily-export contract remains unchanged.
+
+Authority: the user's subsequent **“proceed”** authorises the explicitly proposed
+local signing and installation of Synthetic Files Test on SiPhone, and creation
+and replacement of the invented JSON only in `WHR-Synthetic-2026-09-06` on Drive.
+The user operates Files and the separate Drive client. No personal-data export
+or broader Drive mutation is authorised by this experiment.
+
+## Setup observed
+
+- Xcode 26.6 (17F113).
+- Read-only CoreDevice discovery: SiPhone, iPhone 17 Pro Max, paired/connected,
+  iOS 26.6.1 (23G83), Developer Mode enabled.
+- User confirmed they can operate the iPhone and a separate Drive client.
+- User reported successfully accessing Google Drive in Files. A corrected query
+  including non-development apps confirms Drive version **4.2635.41602**. The
+  initial inventory used the default developer-only filter and was inconclusive.
+- No simulator was booted during preflight. Generic simulator compilation is not
+  a simulator UI run or a Drive-provider test.
+
+## Harness and local validation
+
+`Tools/SyntheticDriveExport/` contains a separate Xcode app, fixed synthetic JSON
+generator, local admission policy, executable pure checks and the device protocol.
+It uses a copy-export document picker and one fixed filename for three revisions.
+There is no HealthKit access, production app change, Google OAuth or app networking.
+
+- Pure checks passed: only one active attempt, rejection of older revisions,
+  equal-revision retries, restored watermark semantics and deterministic JSON.
+- Generic iOS simulator build passed; Xcode static analysis passed.
+- Generic unsigned iPhone build passed. Subsequent authorised signing passed
+  after Xcode obtained a development provisioning profile for the separate app.
+- Installation was attempted and rejected by iOS: CoreDevice error 3002,
+  underlying MIInstallerErrorDomain error 13, explicitly reporting the maximum
+  number of installed apps using a free developer profile. The listed apps were
+  WeeklyHealthReport, PacePrompt and PacePromptEvaluation. No existing app was
+  removed or replaced at that point. The harness had not yet been installed or
+  launched, and no synthetic Drive write had run.
+- The user subsequently explicitly authorised removal of PacePromptEvaluation.
+  CoreDevice confirmed its uninstallation, followed by successful installation
+  and launch of Synthetic Files Test. WeeklyHealthReport and PacePrompt were not
+  removed or replaced. Subsequent saves and independent-client observations are
+  recorded below.
+- Simulator-service sandbox diagnostics appeared during compilation; no simulator
+  runtime behaviour is inferred from these builds.
+- The injected pre-write failure button performs no destination operation; it
+  cannot establish preservation following an actual provider write failure.
+- A persisted local watermark cannot establish remote ordering after reconnection.
+
+## Acceptance observations
+
+The following table records the original **copy-export route** only. Later
+existing-file observations are recorded after the build-3 notes below.
+
+| Requirement | Result | Evidence still required |
+| --- | --- | --- |
+| Morning → evening → bedtime leaves one latest file | **FAIL at evening save** | Operator reported two files; Drive web screenshot shows two identical filenames. Bedtime not attempted |
+| Identical bedtime save creates no duplicate | Untested | Independent count and identical downloaded content |
+| Cancellation preserves previous valid file | **PASS, operator-reported** | One file in Drive web screenshot; operator confirmed revision 1 / morning after cancellation |
+| Failed provider write preserves previous valid file | Untested | Real safe provider failure and independent read; injected local failure is insufficient |
+| Relaunch | Local policy check only | Force-quit/relaunch and device persistence behaviour |
+| Offline/reconnect | Untested | Queue/failure observations and independent content during/after sync |
+| Older attempt cannot overwrite newer content | Local admission check only | Device rejection plus queued-provider ordering evidence |
+| Final content visible from separate Drive client | Untested | Client/version, file count and downloaded revision 3 |
+
+### Observed sequence and limits
+
+1. Operator supplied morning JSON: revision 1, marker `morning`, invented_steps
+   1234, data_as_of `2026-09-06T08:00:00+01:00`.
+2. Initial destination screenshot showed `Health Coach / Daily health`. The
+   operator was asked to move only the synthetic file into the dedicated test
+   folder and confirmed doing so. A later Drive web screenshot showed one
+   `health-daily-2026-09-06.json` in the synthetic folder.
+3. Operator cancelled the evening picker as instructed and confirmed the remaining
+   file still contained morning revision 1. The later repeated morning JSON was
+   still from this cancellation step, **not an attempted evening replacement**;
+   the operator explicitly corrected this sequencing misunderstanding.
+4. After actually saving evening, the operator reported “Now I saved and got 2
+   files”. Attached screenshot `codex-clipboard-3a5e69d6-c555-4f8d-8bb5-4080d5b65e3c.png`
+   shows Drive web with two rows named `health-daily-2026-09-06.json`, both 235 bytes,
+   displayed modified times 14:46 and 14:42. Screenshot times are reproduced as
+   displayed, without inferring a time zone. Each duplicate's downloaded content,
+   the exact Files prompts and harness callbacks were not supplied.
+5. Operator later reported a third file after another copy save and inability to
+   select an existing file. No third-file screenshot was supplied. No further
+   copy-export actions are requested.
+
+The screenshot directly establishes duplicate names in the separate Drive web
+client; the operator supplies the action sequence. This is sufficient to reject
+`UIDocumentPickerViewController(forExporting:asCopy: true)` as used by this harness
+for the mandatory one-file-per-day contract. It does not establish that every
+possible Files storage route fails. Preserve both duplicates as evidence; do not
+continue bedtime/repeat/offline writes on this failed route. Morning visibility
+was independently observed; final bedtime content remains untested. Remaining
+acceptance checks are untested or local-only as indicated above.
+
+## Next bounded work
+
+Following explicit approval, build 2 replaces the copy-export UI with a `.folder`
+open picker (`asCopy: false`) and coordinated directory writes. A fresh folder
+`WHR-Directory-2026-09-06` is required; the original duplicate folder is preserved.
+The harness validates existing bytes as known synthetic fixtures, rejects extra
+entries and stale revisions, and skips identical writes. It uses security-scoped
+access and `NSFileCoordinator` off the UI thread, followed by local count/readback.
+No bookmark is saved: the same folder must be reselected after relaunch. A separate
+persisted directory-route watermark avoids reusing the copy-route revision state.
+
+Local filesystem integration checks passed for creation/replacement, identical
+no-op, stale rejection, injected pre-write failure preservation and refusal of
+unexpected contents. A sandboxed macOS coordination attempt failed (Cocoa 512);
+the same checks passed with access to the coordination service. Generic simulator
+build and Xcode static analysis passed. Signed device build passed. No production
+app code changed; no production simulator suite was rerun for this isolated probe.
+CoreDevice confirmed installation of build 2. Automatic launch failed because
+SiPhone was locked (CoreDevice 10002, underlying FBSOpenApplicationErrorDomain 7).
+The operator was asked to unlock/open the harness and test folder selection only.
+No directory-route provider write has run.
+The operator initially answered that selection worked, then corrected this:
+Google Drive was **greyed out** in the directory picker. The initial answer is
+superseded; no successful Drive directory selection is recorded.
+
+### Existing-file probe (build 3)
+
+User authorised the next test. Build 3 opens `.json` with `asCopy: false`, declares
+support for opening documents in place, and replaces the directory UI with
+**Choose existing JSON**. The selected known synthetic file is coordinated for
+replacement and written atomically; no parent enumeration, destination creation,
+delete-first or truncate fallback is used. Local admission/log keys are separate
+from prior builds. The operator must seed one morning file in a fresh
+`WHR-ExistingFile-2026-09-06` folder, preserving the old three duplicates.
+
+Local existing-file checks passed: replacement/readback, identical no-op, stale
+rejection, injected failure preservation and unknown-content refusal. Signed
+device build passed. Provider access and updates are not yet established. Even
+success here would leave initial daily canonical-file creation unresolved.
+Build 3 installed and launched successfully. The first simulator build stalled
+in SDK stat-cache generation; a fresh derived-data build with the cache disabled
+passed compilation and analysis, and the stalled task processes were stopped.
+The operator was asked to test selection only before any existing-file update.
+
+### Subsequent build-3 observations (operator evidence)
+
+- Initial selection was one of three duplicates; an evening payload from that
+  selection did not establish a new update. The operator then copied a fixture to
+  the fresh folder and confirmed a single file, selection and an evening payload.
+  These exchanges support limited single-file update observations, but no paired
+  Drive IDs or complete before/after downloads were captured.
+- Operator confirmed repeat evening retained one evening file, stale morning was
+  rejected after relaunch, and injected pre-write failure preserved evening.
+  Exact events for these confirmations were not supplied.
+- Offline bedtime attempt returned: `2026-09-06T14:28:02Z Revision 3: Identical
+  selected payload; no write. Remote upload UNVERIFIED`. This established that
+  the provider-local file was already bedtime, not an offline write or upload.
+  The action that first produced that local content remains uncertain.
+- User elected to skip further offline testing and ensure connectivity manually.
+  Offline/reconnect ordering therefore remains untested, not passed.
+- Subsequent Drive-web payload supplied by the operator was still evening revision
+  2. After instruction to reconnect/relaunch/reselect/retry, the operator reported
+  the same local no-write result. File identity was not independently correlated;
+  provider caching/sync versus selecting different documents remains unresolved.
+  This mismatch is sufficient to withhold acceptance, not to diagnose its cause.
+- No actual provider-failure preservation or initial canonical creation guarantee
+  was established. Production health-data export has not run.
+
+## Revised direction
+
+User approved secure Google Drive consent/API integration and create/select folder
+without broad Drive access. See `google-drive-export-plan.md` and the revised daily
+contract. No more Files probes are planned. Initial creation, ID-based replacement,
+remote verification and retry/recovery semantics are the next synthetic scope.
+The original no-OAuth rule is superseded narrowly; one-file-per-day is unchanged.
+These checks do not establish Drive folder support, file identity or remote sync.
+
+## Slice A local implementation evidence, 6 September 2026
+
+Build 4 replaces the rejected Files UI with a separate synthetic Google consent
+and destination harness. It pins AppAuth-iOS 2.1.0 and requests exactly
+`drive.file`. The two flows are **Create WeeklyHealthReport Exports** and
+**Choose existing folder** through Google's special system-browser Picker flow.
+There is no hosted page, backend, HealthKit query or daily JSON transport.
+
+The app validates the returned grant, account identity, one returned folder ID,
+folder MIME type, app authorisation, trashed/Shared Drive state and
+`canAddChildren`. AppAuth state and account-partitioned destination bindings use
+this-device-only Keychain storage. Local sign-out and remote revocation are
+separate; neither deletes exports. A disposable unrelated-file denial check is
+available without retaining or logging its ID.
+
+Local policy checks passed for exact-scope rejection, single-ID Picker admission,
+folder/account/write validation, account partitioning and revocation transitions,
+alongside the preserved historical Files policy checks. Mocked HTTP checks passed
+for account/folder decoding, authenticated folder create/get requests, unrelated
+file denial and revocation request construction. The unsigned generic iOS Simulator
+build and Xcode static analysis passed with AppAuth resolved at 2.1.0.
+
+This is not Google or device acceptance. No Google Cloud configuration was found
+locally (`gcloud` is not installed), no OAuth client values exist in the repository,
+and no Google grant or folder mutation ran. SiPhone was visible as connected, but
+installation was intentionally not attempted without the configuration and fresh
+device/external-write authority. Consent cancellation/restoration, sign-out versus
+revocation, expiry/denial, account switching, both destination flows and unrelated
+file denial all remain real-device/manual checks. Slice A is therefore incomplete.
+
+## Slice A external and SiPhone evidence, 6 September 2026
+
+Evidence is separated by source so a local assertion is not mistaken for a Google
+or device result.
+
+### Local evidence
+
+- Build 4 signed for and installed on the authorised SiPhone with bundle ID
+  `com.syamaner.WHRSyntheticDriveExport`. AppAuth resolved at 2.1.0.
+- Mocked Drive checks passed for account/folder decoding, authenticated create/get,
+  the unrelated-file denial response and revocation request construction.
+- The OAuth client ID and reversed scheme exist only in the ignored local
+  `Config/OAuth.local.xcconfig`. No client secret was requested, downloaded or
+  stored. Account identifiers, client values and signing identity remain private.
+- No HealthKit query, daily JSON creation, slice-B work, commit or push ran.
+
+### Google evidence
+
+- The intended user-owned Cloud project was verified privately. Only the Google
+  Drive API and Google Picker API were enabled for this work.
+- Google Auth Platform is External/Testing. The iOS client uses the exact synthetic
+  bundle ID and the configured data-access scope is exactly `drive.file`; no broader,
+  sensitive or restricted scope was added.
+- The app-created `WeeklyHealthReport Exports` folder persisted after revocation.
+  The operator's Drive-web observation was "no files inside"; this is recorded only
+  as that direct observation, not as proof of emptiness and not as an inference from
+  limited `drive.file` visibility.
+- A separate empty existing-folder fixture and one unrelated disposable synthetic
+  Google document were created. The unrelated document was not moved into either
+  destination and its private ID was not published. The app's denial probe rejected
+  access to it under the granted `drive.file` scope.
+
+### SiPhone/operator evidence
+
+- Exact `drive.file` consent and **Create WeeklyHealthReport Exports** succeeded.
+  The app reported the expected account and destination only after its account,
+  folder-metadata and write-capability validation.
+- Relaunch restored and revalidated the secure state. Local sign-out then left
+  Google access and exports intact; after relaunch the app showed `Not connected`
+  and `No destination`.
+- Cancelling consent and cancelling the existing-folder flow both reported that the
+  operation was cancelled and preserved prior credentials/destination state.
+- Reconnection selected the expected account/destination. In-app remote revocation
+  then cleared the selection without deleting the Drive folder.
+- **Choose existing folder passed after an operator-discovered workaround.** The
+  Picker initially made an empty folder appear unselectable. Changing its filter to
+  **Folder** exposed folder selection, and the app accepted and validated the exact
+  dedicated existing folder. No hosted page, browser key or broader scope was
+  required. Picker scrolling remained unreliable: taps made while trying to scroll
+  could select the item under the finger, so the operator needed several attempts.
+- After access was removed in Google Account settings while build 4 retained its
+  local state, relaunch failed closed: `Operation cancelled or failed. No export
+  file was written.`, `Not connected`, `No destination`. The security outcome
+  passed, although the message does not distinguish remote denial/revocation from
+  cancellation or another failure.
+- The unrelated disposable synthetic file was denied, as required.
+- One proposed institutional address was ineligible for test-user designation, but
+  the operator subsequently added an eligible second Google account. Build 4 created
+  and validated that account's separate synthetic destination. After local sign-out,
+  reconnecting the original account restored only its original destination; signing
+  out and reconnecting the second account restored only the second destination.
+  No cross-account folder binding was observed.
+
+Slice A is **complete**. Both destination flows and every required security check,
+including two-account switching, passed. The Picker's unreliable scroll/tap
+interaction and the generic revoked-access error remain recorded limitations, not
+grounds for broader Drive permission or hosting.
+
+User-selected directory access is now established. Coordinated replacement of one
+existing file, identical-save behaviour, failure/relaunch ordering and independent
+Drive readback belong to the later synthetic transport slice and have not begun.
+Preserve the dedicated fixtures and reject ambiguous existing same-name entries;
+no deletion-before-save.
+
+This is a candidate, not a proven viable alternative. If Drive directory access
+or preservation/ordering cannot satisfy the contract, stop and propose a separate
+identity-preserving transport scope; do not add Google OAuth in this slice.
+No metric queries or production export UI were implemented. One-file-per-day
+remains mandatory. No commits, pushes or remote issues were created.

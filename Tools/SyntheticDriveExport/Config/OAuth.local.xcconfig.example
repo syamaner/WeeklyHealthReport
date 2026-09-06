@@ -1,0 +1,4 @@
+// Never add a client secret. Native iOS OAuth clients cannot keep one.
+GOOGLE_OAUTH_CLIENT_ID = 000000000000-example.apps.googleusercontent.com
+GOOGLE_OAUTH_REDIRECT_SCHEME = com.googleusercontent.apps.000000000000-example
+SYNTHETIC_DRIVE_BUNDLE_IDENTIFIER = com.yourname.WHRSyntheticDriveExport

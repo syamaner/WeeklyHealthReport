@@ -1,0 +1,9 @@
+// Public, non-working defaults. Copy OAuth.local.xcconfig.example to the ignored
+// OAuth.local.xcconfig and fill in the iOS client values from the user-owned
+// Google Cloud project. An iOS OAuth client ID is public app configuration, not
+// a client secret, but account-specific configuration stays local.
+GOOGLE_OAUTH_CLIENT_ID = MISSING
+GOOGLE_OAUTH_REDIRECT_SCHEME = MISSING
+SYNTHETIC_DRIVE_BUNDLE_IDENTIFIER = com.example.WHRSyntheticDriveExport
+
+#include? "OAuth.local.xcconfig"
