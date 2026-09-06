@@ -30,7 +30,7 @@ enum HealthDataError: LocalizedError, Equatable {
     }
 }
 
-final class HealthKitClient: HealthDataProviding {
+final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding {
     private let store: HKHealthStore
 
     init(store: HKHealthStore = HealthStoreProvider.shared) {
@@ -145,13 +145,23 @@ final class HealthKitClient: HealthDataProviding {
     }
 
     func fetchWeightMeasurements(asOf date: Date) async throws -> [WeightMeasurement] {
+        try await fetchWeightMeasurements(
+            asOf: date,
+            calendar: .autoupdatingCurrent
+        )
+    }
+
+    private func fetchWeightMeasurements(
+        asOf date: Date,
+        calendar: Calendar
+    ) async throws -> [WeightMeasurement] {
         guard isHealthDataAvailable else {
             throw HealthDataError.unavailable
         }
         guard let bodyMassType = HKObjectType.quantityType(forIdentifier: .bodyMass) else {
             throw HealthDataError.missingBodyMassType
         }
-        guard let lookbackStart = Calendar.autoupdatingCurrent.date(
+        guard let lookbackStart = calendar.date(
             byAdding: .day,
             value: -30,
             to: date
@@ -177,6 +187,7 @@ final class HealthKitClient: HealthDataProviding {
         let kilograms = HKUnit.gramUnit(with: .kilo)
         let measurements = samples.map { sample in
             WeightMeasurement(
+                id: sample.uuid,
                 date: sample.endDate,
                 kilograms: sample.quantity.doubleValue(for: kilograms)
             )
@@ -185,13 +196,23 @@ final class HealthKitClient: HealthDataProviding {
     }
 
     func fetchBodyFatMeasurements(asOf date: Date) async throws -> [BodyFatMeasurement] {
+        try await fetchBodyFatMeasurements(
+            asOf: date,
+            calendar: .autoupdatingCurrent
+        )
+    }
+
+    private func fetchBodyFatMeasurements(
+        asOf date: Date,
+        calendar: Calendar
+    ) async throws -> [BodyFatMeasurement] {
         guard isHealthDataAvailable else {
             throw HealthDataError.unavailable
         }
         guard let bodyFatType = HKObjectType.quantityType(forIdentifier: .bodyFatPercentage) else {
             throw HealthDataError.missingBodyFatType
         }
-        guard let lookbackStart = Calendar.autoupdatingCurrent.date(
+        guard let lookbackStart = calendar.date(
             byAdding: .day,
             value: -60,
             to: date
@@ -226,11 +247,21 @@ final class HealthKitClient: HealthDataProviding {
     }
 
     func fetchWaistMeasurements(asOf date: Date) async throws -> [WaistMeasurement] {
+        try await fetchWaistMeasurements(
+            asOf: date,
+            calendar: .autoupdatingCurrent
+        )
+    }
+
+    private func fetchWaistMeasurements(
+        asOf date: Date,
+        calendar: Calendar
+    ) async throws -> [WaistMeasurement] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let type = HKObjectType.quantityType(forIdentifier: .waistCircumference) else {
             throw HealthDataError.missingType("waist-circumference")
         }
-        guard let lookbackStart = Calendar.autoupdatingCurrent.date(
+        guard let lookbackStart = calendar.date(
             byAdding: .day,
             value: -56,
             to: date
@@ -257,11 +288,20 @@ final class HealthKitClient: HealthDataProviding {
     }
 
     func fetchVO2MaxMeasurements(asOf date: Date) async throws -> [VO2MaxMeasurement] {
+        try await fetchVO2MaxMeasurements(
+            asOf: date,
+            calendar: .autoupdatingCurrent
+        )
+    }
+
+    private func fetchVO2MaxMeasurements(
+        asOf date: Date,
+        calendar: Calendar
+    ) async throws -> [VO2MaxMeasurement] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let type = HKObjectType.quantityType(forIdentifier: .vo2Max) else {
             throw HealthDataError.missingType("VO2-max")
         }
-        let calendar = Calendar.autoupdatingCurrent
         let today = calendar.startOfDay(for: date)
         guard let lookbackStart = calendar.date(byAdding: .month, value: -6, to: today) else {
             return []
@@ -292,11 +332,22 @@ final class HealthKitClient: HealthDataProviding {
         for period: ReportPeriod,
         asOf date: Date
     ) async throws -> [OxygenSaturationMeasurement] {
+        try await fetchOxygenSaturationMeasurements(
+            for: period,
+            asOf: date,
+            calendar: .autoupdatingCurrent
+        )
+    }
+
+    private func fetchOxygenSaturationMeasurements(
+        for period: ReportPeriod,
+        asOf date: Date,
+        calendar: Calendar
+    ) async throws -> [OxygenSaturationMeasurement] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let type = HKObjectType.quantityType(forIdentifier: .oxygenSaturation) else {
             throw HealthDataError.missingType("oxygen-saturation")
         }
-        let calendar = Calendar.autoupdatingCurrent
         guard let latestLookbackStart = calendar.date(
             byAdding: .day,
             value: -30,
@@ -328,6 +379,18 @@ final class HealthKitClient: HealthDataProviding {
         for period: ReportPeriod,
         asOf date: Date
     ) async throws -> [BloodPressureReading] {
+        try await fetchBloodPressureReadings(
+            for: period,
+            asOf: date,
+            calendar: .autoupdatingCurrent
+        )
+    }
+
+    private func fetchBloodPressureReadings(
+        for period: ReportPeriod,
+        asOf date: Date,
+        calendar: Calendar
+    ) async throws -> [BloodPressureReading] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let correlationType = HKObjectType.correlationType(forIdentifier: .bloodPressure),
               let systolicType = HKObjectType.quantityType(forIdentifier: .bloodPressureSystolic),
@@ -335,7 +398,6 @@ final class HealthKitClient: HealthDataProviding {
         else {
             throw HealthDataError.missingType("blood-pressure")
         }
-        let calendar = Calendar.autoupdatingCurrent
         guard let latestLookbackStart = calendar.date(
             byAdding: .day,
             value: -30,
@@ -452,13 +514,19 @@ final class HealthKitClient: HealthDataProviding {
     }
 
     func fetchAppleWatchHeartRateSampleDates(for period: ReportPeriod) async throws -> [Date] {
+        try await fetchAppleWatchHeartRateSampleDates(in: period.interval)
+    }
+
+    private func fetchAppleWatchHeartRateSampleDates(
+        in interval: DateInterval
+    ) async throws -> [Date] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let type = HKObjectType.quantityType(forIdentifier: .heartRate) else {
             throw HealthDataError.missingType("heart-rate")
         }
         let datePredicate = HKQuery.predicateForSamples(
-            withStart: period.interval.start,
-            end: period.interval.end,
+            withStart: interval.start,
+            end: interval.end,
             options: []
         )
         let descriptor = HKSampleQueryDescriptor(
@@ -480,24 +548,40 @@ final class HealthKitClient: HealthDataProviding {
     }
 
     func fetchExerciseMinutes(for period: ReportPeriod) async throws -> Double? {
+        try await fetchExerciseMinutes(in: period.interval)
+    }
+
+    private func fetchExerciseMinutes(in interval: DateInterval) async throws -> Double? {
         guard let type = HKObjectType.quantityType(forIdentifier: .appleExerciseTime) else {
             throw HealthDataError.missingType("Apple Exercise Time")
         }
-        return try await fetchCumulativeTotal(type: type, unit: .minute(), period: period)
+        return try await fetchCumulativeTotal(type: type, unit: .minute(), interval: interval)
     }
 
     func fetchActiveEnergyKilocalories(for period: ReportPeriod) async throws -> Double? {
+        try await fetchActiveEnergyKilocalories(in: period.interval)
+    }
+
+    private func fetchActiveEnergyKilocalories(in interval: DateInterval) async throws -> Double? {
         guard let type = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned) else {
             throw HealthDataError.missingType("active-energy")
         }
-        return try await fetchCumulativeTotal(type: type, unit: .kilocalorie(), period: period)
+        return try await fetchCumulativeTotal(
+            type: type,
+            unit: .kilocalorie(),
+            interval: interval
+        )
     }
 
     func fetchWorkouts(for period: ReportPeriod) async throws -> [WorkoutRecord] {
+        try await fetchWorkouts(in: period.interval)
+    }
+
+    private func fetchWorkouts(in interval: DateInterval) async throws -> [WorkoutRecord] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         let datePredicate = HKQuery.predicateForSamples(
-            withStart: period.interval.start,
-            end: period.interval.end,
+            withStart: interval.start,
+            end: interval.end,
             options: .strictStartDate
         )
         let descriptor = HKSampleQueryDescriptor(
@@ -547,14 +631,155 @@ final class HealthKitClient: HealthDataProviding {
     func fetchTakenMedicationDoses(for period: ReportPeriod) async throws -> [MedicationDoseRecord] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard !period.completedDays.isEmpty else { return [] }
-        guard #available(iOS 26.0, *) else { return [] }
+        return try await fetchTakenMedicationDoses(in: period.interval)
+    }
 
-        return try await fetchTakenMedicationDosesOnIOS26(for: period)
+    func fetchDailyHealthExportInputs(
+        for window: DailyExportWindow
+    ) async throws -> DailyHealthExportInputs {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let previous = window.context.precedingEquivalent(
+            calendar: window.calendar
+        ) else {
+            throw DailyHealthExportError.invalidWindow
+        }
+
+        let weight = try await fetchWeightMeasurements(
+            asOf: window.cutoff,
+            calendar: window.calendar
+        )
+        let bodyFat = try await fetchBodyFatMeasurements(
+            asOf: window.cutoff,
+            calendar: window.calendar
+        )
+        let waist = try await fetchWaistMeasurements(
+            asOf: window.cutoff,
+            calendar: window.calendar
+        )
+        let vo2Max = try await fetchVO2MaxMeasurements(
+            asOf: window.cutoff,
+            calendar: window.calendar
+        )
+        let bloodOxygen = try await fetchOxygenSaturationMeasurements(
+            for: window.context,
+            asOf: window.cutoff,
+            calendar: window.calendar
+        )
+        let bloodPressure = try await fetchBloodPressureReadings(
+            for: window.context,
+            asOf: window.cutoff,
+            calendar: window.calendar
+        )
+
+        var todaySteps = DailyStepTotal(day: window.day, steps: nil, sourceNames: [])
+        var todayGlucose = DailyGlucoseValue(
+            day: window.day,
+            averageMillimolesPerLiter: nil,
+            minimumMillimolesPerLiter: nil,
+            maximumMillimolesPerLiter: nil,
+            sourceNames: []
+        )
+        var hourlyGlucose: [DailyGlucoseValue] = []
+        var todayRestingHeartRate = DailyHeartMetricValue(
+            day: window.day,
+            value: nil,
+            sourceNames: []
+        )
+        var todayHRV = DailyHeartMetricValue(day: window.day, value: nil, sourceNames: [])
+        var todayWatchSamples: [Date] = []
+        var todayActiveEnergy: Double?
+        var todayExercise: Double?
+        var todayWorkouts: [WorkoutRecord] = []
+        if window.day.duration > 0 {
+            todaySteps = try await fetchStepTotal(in: window.day)
+            todayGlucose = try await fetchGlucoseStatistics(in: [window.day]).first
+                ?? todayGlucose
+            hourlyGlucose = try await fetchGlucoseStatistics(in: window.glucoseHours)
+            todayRestingHeartRate = try await fetchDiscreteAverage(
+                identifier: .restingHeartRate,
+                name: "resting-heart-rate",
+                unit: HKUnit.count().unitDivided(by: .minute()),
+                interval: window.day
+            )
+            todayHRV = try await fetchDiscreteAverage(
+                identifier: .heartRateVariabilitySDNN,
+                name: "HRV",
+                unit: .secondUnit(with: .milli),
+                interval: window.day
+            )
+            todayWatchSamples = try await fetchAppleWatchHeartRateSampleDates(in: window.day)
+            todayActiveEnergy = try await fetchActiveEnergyKilocalories(in: window.day)
+            todayExercise = try await fetchExerciseMinutes(in: window.day)
+            todayWorkouts = try await fetchWorkouts(in: window.day)
+        }
+        let todaySleep = try await fetchAsleepIntervals(in: window.sleep)
+        let todayMedications = supportsMedicationData && window.day.duration > 0
+            ? try await fetchTakenMedicationDoses(in: window.day)
+            : []
+
+        let contextSteps = try await fetchDailySteps(for: window.context)
+        let contextGlucose = try await fetchDailyBloodGlucose(for: window.context)
+        let contextRHR = try await fetchDailyRestingHeartRate(for: window.context)
+        let previousRHR = try await fetchDailyRestingHeartRate(for: previous)
+        let contextHRV = try await fetchDailyHRV(for: window.context)
+        let previousHRV = try await fetchDailyHRV(for: previous)
+        let contextWatch = try await fetchAppleWatchHeartRateSampleDates(for: window.context)
+        let contextActiveEnergy = try await fetchActiveEnergyKilocalories(for: window.context)
+        let contextExercise = try await fetchExerciseMinutes(for: window.context)
+        let contextWorkouts = try await fetchWorkouts(for: window.context)
+        let contextSleep = try await fetchAsleepIntervals(
+            for: window.context,
+            calendar: window.calendar
+        )
+        let contextMedications = supportsMedicationData
+            ? try await fetchTakenMedicationDoses(for: window.context)
+            : []
+
+        return DailyHealthExportInputs(
+            weight: weight,
+            bodyFat: bodyFat,
+            waist: waist,
+            vo2Max: vo2Max,
+            bloodOxygen: bloodOxygen,
+            bloodPressure: bloodPressure,
+            todaySteps: todaySteps,
+            todayGlucose: todayGlucose,
+            hourlyGlucose: hourlyGlucose,
+            todayRestingHeartRate: todayRestingHeartRate,
+            todayHRV: todayHRV,
+            todayWatchSampleDates: todayWatchSamples,
+            todayActiveEnergyKilocalories: todayActiveEnergy,
+            todayExerciseMinutes: todayExercise,
+            todayWorkouts: todayWorkouts,
+            todayAsleepIntervals: todaySleep,
+            todayMedicationDoses: todayMedications,
+            supportsMedicationData: supportsMedicationData,
+            contextSteps: contextSteps,
+            contextGlucose: contextGlucose,
+            contextRestingHeartRate: contextRHR,
+            previousRestingHeartRate: previousRHR,
+            contextHRV: contextHRV,
+            previousHRV: previousHRV,
+            contextWatchSampleDates: contextWatch,
+            contextActiveEnergyKilocalories: contextActiveEnergy,
+            contextExerciseMinutes: contextExercise,
+            contextWorkouts: contextWorkouts,
+            contextAsleepIntervals: contextSleep,
+            contextMedicationDoses: contextMedications
+        )
+    }
+
+    private func fetchTakenMedicationDoses(
+        in interval: DateInterval
+    ) async throws -> [MedicationDoseRecord] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard #available(iOS 26.0, *) else { return [] }
+        return try await fetchTakenMedicationDosesOnIOS26(in: interval)
     }
 
     @available(iOS 26.0, *)
     private func fetchTakenMedicationDosesOnIOS26(
-        for period: ReportPeriod
+        in interval: DateInterval
     ) async throws -> [MedicationDoseRecord] {
         // Medication access is per object. This query returns only the active or
         // archived medication concepts that the person explicitly authorised.
@@ -569,8 +794,8 @@ final class HealthKitClient: HealthDataProviding {
             )
             let takenPredicate = HKQuery.predicateForMedicationDoseEvent(status: .taken)
             let datePredicate = HKQuery.predicateForSamples(
-                withStart: period.interval.start,
-                end: period.interval.end,
+                withStart: interval.start,
+                end: interval.end,
                 options: .strictStartDate
             )
             let predicate = NSCompoundPredicate(
@@ -644,15 +869,118 @@ final class HealthKitClient: HealthDataProviding {
         }
     }
 
+    private func fetchStepTotal(in interval: DateInterval) async throws -> DailyStepTotal {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let type = HKObjectType.quantityType(forIdentifier: .stepCount) else {
+            throw HealthDataError.missingStepType
+        }
+        let predicate = HKQuery.predicateForSamples(
+            withStart: interval.start,
+            end: interval.end,
+            options: []
+        )
+        let descriptor = HKStatisticsQueryDescriptor(
+            predicate: .quantitySample(type: type, predicate: predicate),
+            options: .cumulativeSum
+        )
+        let statistics = try await descriptor.result(for: store)
+        return DailyStepTotal(
+            day: interval,
+            steps: statistics?.sumQuantity()?.doubleValue(for: .count()),
+            sourceNames: statistics?.sources?.map(\.name).sorted() ?? []
+        )
+    }
+
+    private func fetchDiscreteAverage(
+        identifier: HKQuantityTypeIdentifier,
+        name: String,
+        unit: HKUnit,
+        interval: DateInterval
+    ) async throws -> DailyHeartMetricValue {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let type = HKObjectType.quantityType(forIdentifier: identifier) else {
+            throw HealthDataError.missingType(name)
+        }
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: interval.start,
+            end: interval.end,
+            options: []
+        )
+        let descriptor = HKStatisticsQueryDescriptor(
+            predicate: .quantitySample(type: type, predicate: datePredicate),
+            options: .discreteAverage
+        )
+        let statistics = try await descriptor.result(for: store)
+        return DailyHeartMetricValue(
+            day: interval,
+            value: statistics?.averageQuantity()?.doubleValue(for: unit),
+            sourceNames: statistics?.sources?.map(\.name).sorted() ?? []
+        )
+    }
+
+    private func fetchGlucoseStatistics(
+        in intervals: [DateInterval]
+    ) async throws -> [DailyGlucoseValue] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let type = HKObjectType.quantityType(forIdentifier: .bloodGlucose) else {
+            throw HealthDataError.missingType("blood-glucose")
+        }
+        let unit = HKUnit
+            .moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose)
+            .unitDivided(by: .liter())
+
+        var values: [DailyGlucoseValue] = []
+        for interval in intervals {
+            let predicate = HKQuery.predicateForSamples(
+                withStart: interval.start,
+                end: interval.end,
+                options: []
+            )
+            let descriptor = HKStatisticsQueryDescriptor(
+                predicate: .quantitySample(type: type, predicate: predicate),
+                options: [.discreteAverage, .discreteMin, .discreteMax]
+            )
+            let statistics = try await descriptor.result(for: store)
+            values.append(DailyGlucoseValue(
+                day: interval,
+                averageMillimolesPerLiter: statistics?.averageQuantity()?.doubleValue(for: unit),
+                minimumMillimolesPerLiter: statistics?.minimumQuantity()?.doubleValue(for: unit),
+                maximumMillimolesPerLiter: statistics?.maximumQuantity()?.doubleValue(for: unit),
+                sourceNames: statistics?.sources?.map(\.name).sorted() ?? []
+            ))
+        }
+        return values
+    }
+
+    private func fetchAsleepIntervals(in interval: DateInterval) async throws -> [AsleepInterval] {
+        guard isHealthDataAvailable else { throw HealthDataError.unavailable }
+        guard let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis) else {
+            throw HealthDataError.missingType("sleep-analysis")
+        }
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: interval.start,
+            end: interval.end,
+            options: []
+        )
+        let descriptor = HKSampleQueryDescriptor(
+            predicates: [.categorySample(type: sleepType, predicate: datePredicate)],
+            sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
+        )
+        return try await descriptor.result(for: store).compactMap { sample in
+            guard Self.sleepStage(for: sample.value).countsAsAsleep else { return nil }
+            return AsleepInterval(start: sample.startDate, end: sample.endDate)
+        }
+    }
+
     private func fetchCumulativeTotal(
         type: HKQuantityType,
         unit: HKUnit,
-        period: ReportPeriod
+        interval: DateInterval
     ) async throws -> Double? {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         let datePredicate = HKQuery.predicateForSamples(
-            withStart: period.interval.start,
-            end: period.interval.end,
+            withStart: interval.start,
+            end: interval.end,
             options: []
         )
         let descriptor = HKStatisticsQueryDescriptor(

@@ -1,11 +1,21 @@
 import Foundation
 
 struct WeightMeasurement: Equatable {
+    let id: UUID
     let date: Date
     let kilograms: Double
 
+    init(id: UUID = UUID(), date: Date, kilograms: Double) {
+        self.id = id
+        self.date = date
+        self.kilograms = kilograms
+    }
+
     static func latest(in measurements: [WeightMeasurement]) -> WeightMeasurement? {
-        measurements.max { lhs, rhs in lhs.date < rhs.date }
+        measurements.min { lhs, rhs in
+            if lhs.date != rhs.date { return lhs.date > rhs.date }
+            return lhs.id.uuidString < rhs.id.uuidString
+        }
     }
 }
 

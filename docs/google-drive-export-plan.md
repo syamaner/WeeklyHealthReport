@@ -236,16 +236,16 @@ change rejection, stale-completion rejection and last-verified preservation rema
 deterministic local evidence and are not promoted to new provider facts. No HealthKit
 query, personal data or production JSON was involved.
 
-## C. Daily query/model/JSON slice — only after transport acceptance
+## C. Daily query/model/JSON slice — locally accepted after transport acceptance
 
-Before coding, ratify the still-proposed multiple-weight rule (latest timestamp,
-including a tie-break policy), fixed Last 7 Completed Days period-dependent context,
-and consumer envelope/availability fields. Those were not approved by the transport
-change. Read current Apple semantics and existing models, queries and tests first.
+The user ratified the multiple-weight rule (latest end timestamp, then
+lexicographically smallest HealthKit object UUID), fixed Last 7 Completed Days
+period-dependent context, and the envelope/availability shape before implementation.
+The UUID tie-break remains internal and is not exported.
 
 Add a separate today window through a frozen cutoff, without changing `ReportPeriod`'s
-completed-day meaning. Extend `HealthDataProviding` narrowly for daily/hourly queries;
-reuse pure per-metric models. Keep JSON serialization outside `HealthReportFormatter`'s
+completed-day meaning. Add a narrowly scoped daily provider boundary for daily/hourly
+queries; reuse pure per-metric models. Keep JSON serialization outside `HealthReportFormatter`'s
 human display formatting and outside SwiftUI. Keep a separate export orchestration
 path so changing the screen period cannot affect export context unexpectedly.
 
@@ -255,6 +255,32 @@ wake-date buckets and explicit missing/unsupported states. Query failures block 
 Use synthetic fixtures for DST, midnight, empty reads, partial-day cutoffs, corrections,
 weight ties, pair integrity and all retained summary values. No storage/provider code
 inside HealthKit queries.
+
+### Local slice-C implementation, 6 September 2026
+
+The app now has a separate, currently unconnected daily refresh service. It freezes
+the local calendar, time zone, report date and cutoff before any query; queries a
+partial today window without changing `ReportPeriod`'s completed-day meaning; fixes
+period-dependent context to Last 7 Completed Days; and preserves the existing
+metric-specific body-composition and cardiorespiratory windows. The HealthKit adapter
+uses statistics for cumulative totals, daily/hourly glucose and daily heart metrics,
+keeps blood-pressure correlations paired, and never writes HealthKit data.
+
+The pure export builder emits schema version 1 with exact offset timestamps,
+deterministic chronological arrays, stable workout identities, explicit units and
+the ratified availability wrapper. Non-available states omit `data`; query failures
+produce no envelope or bytes; JSON encoding rejects non-finite values and sorts keys.
+No file is written or uploaded, and the service is not connected to SwiftUI or Drive.
+
+Invented focused checks pass outside the occupied simulator, and all app and test
+sources type-check against the iOS SDK. Focused simulator tests passed on a separate
+authorised iPhone 17e destination, then the complete simulator suite ran once with
+all 62 tests passing and Xcode static analysis succeeded. Those checks cover morning/evening/bedtime
+snapshots, equal-timestamp weight selection, fixed context, BP slots, missing glucose
+hours, DST, midnight, later corrections, existing-summary value reuse, unsupported
+medication APIs and query failure. This is local synthetic evidence only: simulator,
+type-checking and synthetic bytes do not prove representative personal HealthKit
+behaviour, real-device correctness or any Google/Drive result.
 
 ## D. Manual product integration and validation
 

@@ -45,6 +45,9 @@
 		A00000000000000000000024 /* CardiorespiratorySummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000028 /* CardiorespiratorySummaryTests.swift */; };
 		A00000000000000000000025 /* BloodPressureSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000029 /* BloodPressureSummary.swift */; };
 		A00000000000000000000026 /* BloodPressureSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000002A /* BloodPressureSummaryTests.swift */; };
+		A00000000000000000000027 /* DailyHealthExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000002B /* DailyHealthExport.swift */; };
+		A00000000000000000000028 /* DailyHealthExportService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000002C /* DailyHealthExportService.swift */; };
+		A00000000000000000000029 /* DailyHealthExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000002D /* DailyHealthExportTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -100,6 +103,9 @@
 		B00000000000000000000028 /* CardiorespiratorySummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CardiorespiratorySummaryTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000029 /* BloodPressureSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodPressureSummary.swift; sourceTree = "<group>"; };
 		B0000000000000000000002A /* BloodPressureSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BloodPressureSummaryTests.swift; sourceTree = "<group>"; };
+		B0000000000000000000002B /* DailyHealthExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyHealthExport.swift; sourceTree = "<group>"; };
+		B0000000000000000000002C /* DailyHealthExportService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyHealthExportService.swift; sourceTree = "<group>"; };
+		B0000000000000000000002D /* DailyHealthExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyHealthExportTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -164,6 +170,7 @@
 				B00000000000000000000024 /* MedicationSummary.swift */,
 				B00000000000000000000027 /* CardiorespiratorySummary.swift */,
 				B00000000000000000000029 /* BloodPressureSummary.swift */,
+				B0000000000000000000002B /* DailyHealthExport.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -173,6 +180,7 @@
 			children = (
 				B00000000000000000000004 /* HealthDataProviding.swift */,
 				B00000000000000000000005 /* HealthKitClient.swift */,
+				B0000000000000000000002C /* DailyHealthExportService.swift */,
 			);
 			path = HealthKit;
 			sourceTree = "<group>";
@@ -204,6 +212,7 @@
 				B00000000000000000000025 /* MedicationSummaryTests.swift */,
 				B00000000000000000000028 /* CardiorespiratorySummaryTests.swift */,
 				B0000000000000000000002A /* BloodPressureSummaryTests.swift */,
+				B0000000000000000000002D /* DailyHealthExportTests.swift */,
 			);
 			path = WeeklyHealthReportTests;
 			sourceTree = "<group>";
@@ -354,6 +363,8 @@
 				A00000000000000000000020 /* MedicationSummary.swift in Sources */,
 				A00000000000000000000023 /* CardiorespiratorySummary.swift in Sources */,
 				A00000000000000000000025 /* BloodPressureSummary.swift in Sources */,
+				A00000000000000000000027 /* DailyHealthExport.swift in Sources */,
+				A00000000000000000000028 /* DailyHealthExportService.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -375,6 +386,7 @@
 				A00000000000000000000021 /* MedicationSummaryTests.swift in Sources */,
 				A00000000000000000000024 /* CardiorespiratorySummaryTests.swift in Sources */,
 				A00000000000000000000026 /* BloodPressureSummaryTests.swift in Sources */,
+				A00000000000000000000029 /* DailyHealthExportTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

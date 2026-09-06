@@ -403,3 +403,46 @@ hosted reviews were used. Excludes this accounting edit/check, the final handoff
 subsequent commit/push/PR/merge activity and separate service usage. Every earlier row
 remains frozen. Tracked total becomes **196,368,023 tokens / $131.03**, summing
 recorded rounded comparison amounts.
+
+
+## Slice-C daily query, model and canonical JSON, 6 September 2026
+
+The three product policies were ratified before implementation: latest end timestamp
+then lexicographically smallest HealthKit object UUID for tied daily weights, fixed
+Last 7 Completed Days period-dependent context, and the explicit envelope/availability
+shape. The new unconnected service freezes the calendar, time zone, report date and
+cutoff before read-only queries; the pure builder reuses existing summary semantics
+and emits deterministic schema-version-1 JSON. Only invented fixtures were exercised.
+
+Focused deterministic checks and 13 focused simulator tests passed. The complete
+simulator suite then ran once with all 62 tests passing, followed by successful Xcode
+static analysis. This is local/simulator evidence only: no physical device, personal
+HealthKit data, production JSON file, Drive mutation, UI integration, slice D,
+broader permission, hosting, backend, API key, client secret or issue #6 mutation was
+used or started.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 6 Sep | `codex-phase-accounting` — slice-C daily query/model/canonical JSON — GPT-5.6 Sol | Uncommitted implementation/tests/evidence/accounting notes | 28,511,575 (28,169,216) | 79,904 | 28,591,479 | $14.24 |
+
+Model confirmed from the recorded turn contexts through the frozen boundary:
+`gpt-5.6-sol`. At the ledger's historical Sol comparison assumptions ($4/M
+uncached input, $0.40/M cached input and $20/M output), 342,359 × $4/M +
+28,169,216 × $0.40/M + 79,904 × $20/M = **$14.2352024**, rounded **$14.24**
+API-equivalent, not an actual subscription charge or a model benchmark. Separate
+Apple/Google/tool charges are not measured or estimated.
+
+Same session and rollout as the preceding slice-B rows. Baseline is the adverse-row
+frozen end, line 4127, **2026-09-06 20:24:49.060 UTC**: **59,949,917 input /
+59,083,776 cached input / 254,555 output**. Frozen end line 5407,
+**2026-09-06 21:20:45.521 UTC**: **88,461,492 input / 87,252,992 cached input /
+334,459 output**. Reproduce from that prefix with `--baseline 59949917 59083776
+254555 --uncached-input-rate 4 --cached-input-rate 0.40 --output-rate 20`.
+
+Includes top-level policy ratification, official Apple documentation review,
+implementation, focused checks, the one complete 62-test simulator suite, static
+analysis and pre-ledger review through the frozen boundary. No subagents, reused
+tasks or hosted reviews were used. Excludes this accounting edit/check, subsequent
+delivery actions, the final handoff and separate service usage. Every earlier row
+remains frozen. Tracked total becomes **224,959,502 tokens / $145.27**, summing
+recorded rounded comparison amounts.
