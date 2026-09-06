@@ -7,23 +7,40 @@ final class DriveSessionController: NSObject, ObservableObject {
     enum AuthorizationPurpose { case createFolder, chooseFolder, recoverFile }
     enum Failure: Error { case missingConfiguration, invalidConfiguration, noPresenter, noToken, noRefreshToken }
 
+    enum FixtureSet: String, CaseIterable, Identifiable {
+        case accepted = "Accepted 6 Sep"
+        case adverse = "Adverse 7 Sep"
+
+        var id: String { rawValue }
+        var reportDate: String {
+            switch self {
+            case .accepted: return SyntheticPayload.acceptedReportDate
+            case .adverse: return SyntheticPayload.adverseReportDate
+            }
+        }
+    }
+
     @Published private(set) var busy = false
     @Published private(set) var exporting = false
     @Published private(set) var accountLabel = "Not connected"
     @Published private(set) var destinationLabel = "No destination"
     @Published private(set) var status = "No Google request has run."
     @Published var unrelatedSyntheticFileID = ""
+    @Published var fixtureSet = FixtureSet.accepted
 
     private let keychain = KeychainStore()
     private let drive = DriveAPI()
+    private lazy var probeDrive = AdverseProbeDriveTransport(base: drive)
+    private lazy var identityStore = KeychainCanonicalExportIdentityStore(keychain: keychain)
     private lazy var exportCoordinator = CanonicalExportCoordinator(
-        transport: drive,
-        store: KeychainCanonicalExportIdentityStore(keychain: keychain)
+        transport: probeDrive,
+        store: identityStore
     )
     private var authState: OIDAuthState?
     private var authorizationFlow: OIDExternalUserAgentSession?
     private var account: DriveAccount?
     private var partitions = DestinationPartitions()
+    private var launchProbeRan = false
 
     private static let authKey = "google.oauth.appauth-state"
     private static let destinationsKey = "google.drive.destination-partitions"
@@ -153,6 +170,203 @@ final class DriveSessionController: NSObject, ObservableObject {
     }
 
     func exportSynthetic(revision: Int) async {
+        await performSyntheticExport(revision: revision)
+    }
+
+    func retryAdverseCreateWithReservedID() async {
+        guard fixtureSet == .adverse else {
+            status = "Select the Adverse 7 Sep fixture set before running an adverse probe."
+            return
+        }
+        await performSyntheticExport(revision: 1, probeMode: .retryNextCreateAfterLostResponse)
+    }
+
+    func runLaunchProbeIfRequested() async {
+#if DEBUG
+        guard !launchProbeRan else { return }
+        let supportedArguments = [
+            "--whr-adverse-retry-create",
+            "--whr-adverse-cancel-before-submission",
+            "--whr-adverse-leave-unresolved",
+            "--whr-adverse-retry-lost-response",
+            "--whr-adverse-cancel-after-submission",
+            "--whr-adverse-force-refresh",
+            "--whr-adverse-reverify",
+            "--whr-adverse-recover"
+        ]
+        let requestedArguments = ProcessInfo.processInfo.arguments.filter {
+            supportedArguments.contains($0)
+        }
+        guard !requestedArguments.isEmpty else { return }
+        launchProbeRan = true
+        guard requestedArguments.count == 1 else {
+            status = "Rejected ambiguous adverse launch request. No Google request ran."
+            return
+        }
+        fixtureSet = .adverse
+        switch requestedArguments[0] {
+        case "--whr-adverse-retry-create":
+            await retryAdverseCreateWithReservedID()
+        case "--whr-adverse-cancel-before-submission":
+            await cancelAdverseEveningBeforeSubmission()
+        case "--whr-adverse-leave-unresolved":
+            await leaveAdverseEveningUnresolved()
+        case "--whr-adverse-retry-lost-response":
+            await reconcileAdverseEveningAfterLostResponse()
+        case "--whr-adverse-cancel-after-submission":
+            await cancelAdverseBedtimeAfterSubmission()
+        case "--whr-adverse-force-refresh":
+            await forceRefreshAndReverifyBedtime()
+        case "--whr-adverse-reverify":
+            await exportSynthetic(revision: 3)
+        case "--whr-adverse-recover":
+            await recoverSyntheticFile()
+        default:
+            status = "Rejected unsupported adverse launch request. No Google request ran."
+        }
+#endif
+    }
+
+    func runLocalOnlyLaunchProbeIfRequested() async -> Bool {
+#if DEBUG
+        guard !launchProbeRan else { return false }
+        let credentialRequests: [(String, SyntheticCredentialFailure)] = [
+            ("--whr-adverse-credential-expired", .expired),
+            ("--whr-adverse-credential-denied", .denied),
+            ("--whr-adverse-credential-revoked", .revoked)
+        ].filter { ProcessInfo.processInfo.arguments.contains($0.0) }
+        let identityLossRequested = ProcessInfo.processInfo.arguments.contains(
+            "--whr-adverse-lose-identity-and-prove-fail-closed"
+        )
+        let normalRequestArguments = [
+            "--whr-adverse-retry-create",
+            "--whr-adverse-cancel-before-submission",
+            "--whr-adverse-leave-unresolved",
+            "--whr-adverse-retry-lost-response",
+            "--whr-adverse-cancel-after-submission",
+            "--whr-adverse-force-refresh",
+            "--whr-adverse-reverify",
+            "--whr-adverse-recover"
+        ].filter { ProcessInfo.processInfo.arguments.contains($0) }
+        let localRequestCount = credentialRequests.count + (identityLossRequested ? 1 : 0)
+        guard localRequestCount > 0 else { return false }
+        launchProbeRan = true
+        guard localRequestCount + normalRequestArguments.count == 1 else {
+            status = "Rejected ambiguous local adverse probe. No Google request ran."
+            return true
+        }
+        fixtureSet = .adverse
+        if identityLossRequested {
+            await performIdentityLossFailClosedProbe()
+        } else if let request = credentialRequests.first {
+            await performPersistedCredentialFailure(request.1)
+        }
+        return true
+#else
+        return false
+#endif
+    }
+
+    func cancelAdverseEveningBeforeSubmission() async {
+        guard fixtureSet == .adverse else {
+            status = "Select the Adverse 7 Sep fixture set before running an adverse probe."
+            return
+        }
+        await performSyntheticExport(revision: 2, probeMode: .cancelBeforeSubmission)
+    }
+
+    func leaveAdverseEveningUnresolved() async {
+        guard fixtureSet == .adverse else {
+            status = "Select the Adverse 7 Sep fixture set before running an adverse probe."
+            return
+        }
+        await performSyntheticExport(revision: 2, probeMode: .loseNextTwoSubmissionsBeforeCommit)
+    }
+
+    func reconcileAdverseEveningAfterLostResponse() async {
+        guard fixtureSet == .adverse else {
+            status = "Select the Adverse 7 Sep fixture set before running an adverse probe."
+            return
+        }
+        await performSyntheticExport(revision: 2, probeMode: .loseNextResponseAfterCommit)
+    }
+
+    func cancelAdverseBedtimeAfterSubmission() async {
+        guard fixtureSet == .adverse else {
+            status = "Select the Adverse 7 Sep fixture set before running an adverse probe."
+            return
+        }
+        await performSyntheticExport(revision: 3, probeMode: .cancelAfterSubmission)
+    }
+
+    func forceRefreshAndReverifyBedtime() async {
+        await performSyntheticExport(revision: 3, forceInitialTokenRefresh: true)
+    }
+
+    func simulateCredentialFailure(_ failure: SyntheticCredentialFailure) async {
+        await performSyntheticExport(revision: 3, credentialFailure: failure)
+    }
+
+    private func performPersistedCredentialFailure(_ failure: SyntheticCredentialFailure) async {
+        await run("Injecting local \(failure.rawValue) credential failure…") {
+            guard let registry = try self.identityStore.load(),
+                  let identity = registry.identities.first(where: {
+                      $0.reportDate == SyntheticPayload.adverseReportDate
+                  }) else {
+                throw CanonicalExportFailure.identityRecoveryAmbiguous
+            }
+            _ = try await self.exportCoordinator.export(
+                payload: SyntheticPayload.data(3, reportDate: SyntheticPayload.adverseReportDate),
+                generation: 3,
+                reportDate: SyntheticPayload.adverseReportDate,
+                accountID: identity.accountID,
+                folderID: identity.folderID,
+                tokenProvider: { _ in throw failure }
+            )
+        }
+    }
+
+    private func performIdentityLossFailClosedProbe() async {
+        await run("Removing canonical identity and proving fail-closed recovery…") {
+            guard let registry = try self.identityStore.load(),
+                  let identity = registry.identities.first(where: {
+                      $0.reportDate == SyntheticPayload.adverseReportDate
+                  }) else {
+                throw CanonicalExportFailure.identityRecoveryAmbiguous
+            }
+            try self.identityStore.removeRegistryPreservingInstallationMarkerForProbe()
+            do {
+                _ = try await self.exportCoordinator.export(
+                    payload: SyntheticPayload.data(3, reportDate: SyntheticPayload.adverseReportDate),
+                    generation: 3,
+                    reportDate: SyntheticPayload.adverseReportDate,
+                    accountID: identity.accountID,
+                    folderID: identity.folderID,
+                    tokenProvider: { _ in throw Failure.noToken }
+                )
+                throw CanonicalExportFailure.staleCompletion
+            } catch CanonicalExportFailure.identityRecoveryAmbiguous {
+                self.status = "Export blocked: canonical identity recovery is ambiguous. Probe removed the registry, preserved the installation marker and failed closed before token acquisition."
+            }
+        }
+    }
+
+    func simulateMissingCanonicalIdentity() {
+        guard !busy else { return }
+        do {
+            try identityStore.removeRegistryPreservingInstallationMarkerForProbe()
+            status = "Simulated missing canonical identity while preserving the installation marker. Export must now fail closed until explicit recovery."
+        } catch {
+            status = "Could not simulate missing identity; secure state was left unchanged."
+        }
+    }
+
+    private func performSyntheticExport(
+        revision: Int,
+        probeMode: AdverseProbeDriveTransport.Mode? = nil,
+        forceInitialTokenRefresh: Bool = false,
+        credentialFailure: SyntheticCredentialFailure? = nil
+    ) async {
         guard let account,
               let destination = partitions.destination(for: account.id) else {
             status = "Connect and validate a destination before synthetic export."
@@ -161,17 +375,46 @@ final class DriveSessionController: NSObject, ObservableObject {
         await run("Preparing invented revision \(revision)…") {
             self.exporting = true
             defer { self.exporting = false }
-            let result = try await self.exportCoordinator.export(
-                payload: SyntheticPayload.data(revision),
-                generation: revision,
-                reportDate: "2026-09-06",
-                accountID: account.id,
-                folderID: destination.folderID,
-                tokenProvider: { forceRefresh in
-                    try await self.freshAccessToken(forceRefresh: forceRefresh)
+            if let probeMode {
+                let coordinator = self.exportCoordinator
+                try await self.probeDrive.arm(
+                    probeMode,
+                    cancellationHandler: {
+                        await coordinator.requestCancellation()
+                    }
+                )
+            }
+            do {
+                let reportDate = self.fixtureSet.reportDate
+                let result = try await self.exportCoordinator.export(
+                    payload: SyntheticPayload.data(revision, reportDate: reportDate),
+                    generation: revision,
+                    reportDate: reportDate,
+                    accountID: account.id,
+                    folderID: destination.folderID,
+                    tokenProvider: { forceRefresh in
+                        if let credentialFailure { throw credentialFailure }
+                        return try await self.freshAccessToken(
+                            forceRefresh: forceRefresh || forceInitialTokenRefresh
+                        )
+                    }
+                )
+                let observation = await self.probeDrive.takeObservation()
+                await self.probeDrive.clear()
+                self.status = [result.userFacingLabel, observation?.userFacingLabel]
+                    .compactMap { $0 }
+                    .joined(separator: " ")
+            } catch {
+                let observation = await self.probeDrive.takeObservation()
+                await self.probeDrive.clear()
+                if let failure = error as? CanonicalExportFailure {
+                    self.status = [failure.userFacingLabel, observation?.userFacingLabel]
+                        .compactMap { $0 }
+                        .joined(separator: " ")
+                    return
                 }
-            )
-            self.status = result.userFacingLabel
+                throw error
+            }
         }
     }
 
@@ -190,7 +433,7 @@ final class DriveSessionController: NSObject, ObservableObject {
             }
             let recovery = try await self.exportCoordinator.recover(
                 selectedFileID: selectedFileID,
-                reportDate: "2026-09-06",
+                reportDate: self.fixtureSet.reportDate,
                 accountID: result.account.id,
                 folderID: destination.folderID,
                 tokenProvider: { forceRefresh in

@@ -362,3 +362,44 @@ frozen boundary. No subagents, reused tasks or hosted reviews were used. Exclude
 this accounting edit/check, the final response, future adverse provider/device work
 and separate service usage. Every earlier row remains frozen. Tracked total becomes
 **153,838,971 tokens / $109.42**, summing recorded rounded comparison amounts.
+
+
+## Slice-B adverse transport acceptance, 6 September 2026
+
+Build 6 adds bounded synthetic fault injection without changing Drive request bytes,
+IDs, account, destination or scope. The accepted device/API sequence covered a
+same-reserved-ID uncertain create, pre-submission cancellation, an unresolved update
+with no automatic queue, persisted-state relaunch, a same-ID lost-response update,
+post-submission cancellation, forced token refresh, device-local credential failures,
+fail-closed identity loss, explicit Picker recovery and recovered-identity relaunch.
+Independent Drive checks found one file per exercised date with the expected invented
+content at each accepted boundary. No HealthKit query, personal data, production JSON,
+broader permission, folder enumeration, hosting, backend, API key or client secret was
+introduced.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 6 Sep | `codex-phase-accounting` — synthetic adverse Drive transport acceptance — GPT-5.6 Sol | Uncommitted implementation/evidence/accounting notes | 42,385,161 (41,891,072) | 143,891 | 42,529,052 | $21.61 |
+
+Model confirmed from the recorded turn contexts through the frozen boundary:
+`gpt-5.6-sol`. At the ledger's historical Sol comparison assumptions ($4/M
+uncached input, $0.40/M cached input and $20/M output), 494,089 × $4/M +
+41,891,072 × $0.40/M + 143,891 × $20/M = **$21.6106048**, rounded **$21.61**
+API-equivalent, not an actual subscription charge or a model benchmark. Separate
+Google/tool charges are not measured or estimated.
+
+Same session and rollout as the preceding slice-B row. Baseline is that row's frozen
+end, line 1345, **2026-09-06 18:27:41.970 UTC**: **17,564,756 input /
+17,192,704 cached input / 110,664 output**. Frozen end line 4127,
+**2026-09-06 20:24:49.060 UTC**: **59,949,917 input / 59,083,776 cached input /
+254,555 output**. Reproduce from that prefix with `--baseline 17564756 17192704
+110664 --uncached-input-rate 4 --cached-input-rate 0.40 --output-rate 20`.
+
+Includes top-level implementation and review after the preceding frozen boundary,
+focused checks, the one full 54-test simulator suite, final static analysis, signed
+build/install iterations, action-by-action device and Google validation, operator
+coordination and evidence updates through this boundary. No subagents, reused tasks or
+hosted reviews were used. Excludes this accounting edit/check, the final handoff,
+subsequent commit/push/PR/merge activity and separate service usage. Every earlier row
+remains frozen. Tracked total becomes **196,368,023 tokens / $131.03**, summing
+recorded rounded comparison amounts.

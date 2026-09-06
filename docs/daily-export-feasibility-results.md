@@ -343,10 +343,110 @@ created, and no HealthKit code was read or changed for this implementation.
   recovery, stale completion and offline/unresolved behaviour remain deterministic
   local evidence, not Google/device evidence.
 
-Slice B is therefore **locally implemented with its bounded canonical online Drive
-path accepted**, while the adverse-provider/device protocol remains explicitly
-unaccepted. Do not use that narrower result to start slice C or claim production
-readiness. Stop rather than broaden `drive.file`, add hosting/backend/API keys/client
-secrets, enumerate a folder, or infer that limited visibility proves emptiness. No
+At the build-5 boundary, slice B was **locally implemented with its bounded canonical
+online Drive path accepted**, while the adverse-provider/device protocol remained
+explicitly unaccepted. The build-6 section below supersedes that interim status. No
 metric queries or production export UI were implemented. One-file-per-day remains
-mandatory. No commits, pushes or remote issues were created.
+mandatory. No commits, pushes or remote issues had been created at that boundary.
+
+## Slice-B build-6 adverse-control preparation, 6 September 2026
+
+Build 6 adds a second fixed invented reporting date and a test-only transport
+interposer for the still-unrun adverse protocol. It can discard a committed create
+response and verify its conflict retry retains the reserved ID, cancel at deterministic pre/post-submission
+boundaries, leave an update unresolved after two bounded pre-commit losses, and
+discard a successful response before readback reconciliation. It also exposes forced
+token refresh, device-only expired/denied/revoked credential failures and local
+identity loss that preserves the installation marker. None changes request bytes,
+IDs, scope or destination; no folder listing or automatic queue was added.
+
+Focused coordinator, mocked-HTTP and policy checks pass, including the new ordered
+adverse sequence. The unsigned generic simulator build and static analysis pass.
+These remain local results only.
+
+### Build-6 device/app evidence
+
+- Under separately bounded authority, build 6 was signed with the existing local
+  development identity/profile, installed over build 5 and launched on SiPhone. The
+  restored account and existing destination were reused. No new credential, scope,
+  key, secret, hosted component, backend, Picker flow or HealthKit access was added.
+- A debug-only exact launch argument selected the fixed `2026-09-07` adverse fixture
+  and invoked only the morning uncertain-create probe. The app reported that invented
+  revision 1 was remotely verified byte-for-byte, that it discarded the committed
+  create response, and that the conflict retry used the same reserved Drive file ID.
+- A separately authorised evening probe then injected cancellation after account
+  validation and before file submission. The app reported that cancellation occurred
+  before file submission and that remote file state was preserved.
+- After independent confirmation that state was unchanged, a separately authorised
+  unresolved-evening probe suppressed both bounded submissions before commit. The app
+  reported that the submitted request remained unresolved, newer writes were blocked,
+  no retry was queued and both submissions retained the stored file ID.
+- After the operator independently confirmed that the unresolved probe left the
+  morning file unchanged, an authorised inert terminate/relaunch restored and
+  revalidated the session, account and destination and explicitly reported that no
+  Drive write ran. The unresolved request did not retry automatically after relaunch.
+- A separately authorised retry then resumed the persisted evening operation, updated
+  by its stored file ID and deliberately discarded the successful submission response.
+  The app accepted the outcome only after Drive metadata and exact-byte readback
+  verified invented revision 2.
+- After independent one-file/evening-content confirmation, a separately authorised
+  bedtime update committed by the same stored ID and then injected cancellation. The
+  app reported only after reconciliation verified invented revision 3, explicitly
+  distinguishing post-submission cancellation from rollback.
+- After independent one-file/bedtime-content confirmation, a separately authorised
+  AppAuth forced-refresh pass reverified unchanged invented revision 3 by the stored
+  file ID and explicitly reported that no Drive write ran.
+- After the operator confirmed the forced-refresh pass left Drive unchanged, three
+  authorised device-only runs injected expired, denied and revoked failures at the
+  coordinator token-provider boundary. Each was rejected with its distinct reason.
+  Session restoration was bypassed for these exact debug arguments, so they acquired
+  no token, made no Google request and did not alter the real AppAuth credential.
+- After the operator confirmed Drive remained unchanged, an authorised local identity-
+  loss probe captured the adverse-date binding, removed only the canonical registry,
+  preserved the installation marker and attempted bedtime export. It failed closed as
+  ambiguous before token acquisition. Explicit Picker recovery was then required.
+- Under fresh authority, the existing account/destination were restored and Google's
+  consent UI showed only the per-file `drive.file` grant. The operator selected one
+  JSON in the explicit Picker; the harness accepted it only after account, parent,
+  app-ownership, report-date, installation-marker, generation, hash, metadata and
+  downloaded-byte checks passed, then restored invented revision 3 locally. No Drive
+  write ran.
+- After independent confirmation that recovery left Drive unchanged, the rebuilt app
+  was installed over the existing copy and relaunched. It loaded the recovered
+  persisted identity, reverified unchanged invented revision 3 by its stored file ID
+  and explicitly reported that no Drive write ran.
+- The app did not enumerate the destination or touch the accepted `2026-09-06`
+  canonical identity. Temporary Mirroring screenshots used to read the visible result
+  were deleted because they contained the account label.
+
+### Build-6 Google evidence
+
+After the morning probe, the operator independently confirmed exactly one
+`2026-09-07` file, its fixed invented morning content and preservation of the
+accepted `2026-09-06` file. The file ID/link itself was not supplied, so identity
+continuity beyond the no-duplicate observation remains unconfirmed independently.
+The operator independently confirmed that both the pre-submission cancellation and
+unresolved-evening probe left the single adverse-date morning file unchanged. After
+the lost-response retry, the operator independently confirmed one adverse-date file
+with the exact invented evening fields and preservation of the accepted-date file;
+the adverse file ID/link itself was not supplied. Independent confirmation of the
+post-submission-cancellation state found exactly one adverse-date file with the
+expected bedtime content and preservation of the accepted-date file. Independent
+confirmation found the subsequent forced-refresh reverify left this unchanged. The
+expired/denied/revoked injections were deliberately local-only and are not Google
+credential-state evidence. The device/app results above must not be substituted for
+provider-independent checks. The identity-loss probe made no Google request; explicit
+recovery subsequently passed the strict readback checks above. Independent confirmation
+found that recovery left the one-file bedtime state and accepted-date file unchanged.
+Final independent confirmation after the persisted-identity reverify again found the
+same one-file bedtime state and accepted-date file unchanged.
+
+Slice B is therefore **accepted within its synthetic-only boundary**. Device/API plus
+independent Drive evidence covers pre-generated same-ID creation, updates, bounded
+uncertain outcomes, both cancellation boundaries, unresolved/no-queue behavior,
+forced refresh, explicit recovery and persistence. Expired/denied/revoked handling is
+device-local injection; actual revocation and two-account isolation remain the prior
+slice-A evidence. Account/destination change rejection, stale-completion rejection and
+last-verified preservation remain deterministic local evidence, not new Google facts.
+No HealthKit query, personal data, production JSON, folder enumeration, broader scope,
+hosting, backend, API key or client secret was introduced.

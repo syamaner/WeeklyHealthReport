@@ -1,8 +1,9 @@
-# Secure synthetic Google Drive harness — build 5
+# Secure synthetic Google Drive harness — build 6
 
-This separate app retains the accepted slice-A consent/destination work and adds
-the local implementation of slice B from `docs/google-drive-export-plan.md`. It
-uses only fixed invented morning, evening and bedtime JSON bytes and never queries
+This separate app retains the accepted slice-A consent/destination work and the
+slice-B transport from `docs/google-drive-export-plan.md`. Build 6 adds bounded,
+test-only controls for the remaining adverse device/API protocol. It uses only two
+fixed dates of invented morning, evening and bedtime JSON bytes and never queries
 HealthKit. The rejected Files experiments below are historical evidence; do not
 resume them. Local checks and a simulator build do not prove Google Drive behaviour.
 
@@ -29,11 +30,61 @@ resume them. Local checks and a simulator build do not prove Google Drive behavi
   or destination changes for an already-exported date require a future explicit
   migration policy; state is never reused across accounts or destinations.
 
-The canonical online path now has bounded build-5 device/Google evidence for create,
-same-ID updates, readback, relaunch and unchanged reverify. The adverse cases in the
-protocol remain external unknowns even though their deterministic checks pass. No
-production daily JSON, HealthKit integration, backend, hosting, API key or client
-secret is part of this harness.
+The canonical online path has bounded build-5/build-6 device and Google evidence for
+pre-generated create, same-ID updates, uncertain-response reconciliation,
+cancellation, unresolved/no-queue behavior, forced refresh, explicit recovery,
+relaunch and unchanged reverify. Credential failure injection is device-local, while
+account/destination isolation and stale-completion preservation retain deterministic
+local coverage. No production daily JSON, HealthKit integration, backend, hosting,
+API key or client secret is part of this harness.
+
+## Build-6 bounded adverse controls
+
+The accepted `2026-09-06` fixture and file remain available unchanged. A second
+fixed `2026-09-07` fixture set exists only so adverse create/update tests cannot
+overwrite the accepted date. Both sets contain only invented morning, evening and
+bedtime payloads. The app still permits one identity per account/folder/report date.
+
+The ordered adverse controls interpose around the unchanged Drive transport:
+
+1. The morning create commits once, discards that response and one immediate
+   metadata result, then verifies that the bounded retry reaches Drive with the same
+   reserved ID. The expected ID conflict is resolved by exact metadata/byte readback.
+2. The first evening control injects cancellation after account validation but
+   before file submission.
+3. The unresolved evening control suppresses both allowed submissions before they
+   reach Drive. The coordinator must retain an uncertain operation, block newer
+   content and perform no automatic retry.
+4. The evening recovery control retries that retained operation, lets Drive commit,
+   discards the successful response and accepts the outcome only after metadata and
+   byte readback by the stored ID.
+5. The bedtime control lets Drive commit, injects cancellation before the response
+   reaches the coordinator and requires verified reconciliation.
+
+The interposer never changes a request body, account, destination, scope or file ID,
+and it never lists a folder. The identity-loss button deletes only the local canonical
+registry while preserving the installation marker, so export must fail closed until
+the exact app-owned JSON is selected and remotely verified. Credential buttons are
+device-side deterministic rejections; they make no Google request and are not Google
+evidence. Forced refresh uses AppAuth's normal refresh path. Real revocation, account
+or destination changes, Picker recovery and every Google mutation still require
+fresh, explicitly bounded operator authority.
+
+Debug builds also accept one exact adverse launch argument at a time. After normal
+session/destination restoration the argument selects the adverse fixture set and
+invokes only its corresponding bounded control. No argument leaves the launch inert;
+multiple recognised arguments fail closed before a Google request. This exists to
+avoid imprecise mirrored-screen input and is not compiled into Release builds.
+The three exact credential-failure arguments are handled before session restoration:
+they load only the persisted canonical identity and inject expired, denied or revoked
+at the coordinator's token-provider boundary. They cannot acquire a token, call
+Google or change the real AppAuth credential.
+The exact identity-loss argument is also handled before restoration. It captures the
+existing adverse-date account/folder binding, deletes only the canonical registry,
+preserves the installation marker and attempts the bedtime export with a token
+provider that cannot return a token. Acceptance requires the coordinator to reject
+ambiguous recovery before invoking that provider; explicit Picker recovery is then
+mandatory.
 
 ## Compatibility decision
 
@@ -168,20 +219,24 @@ run proved only the canonical online create/update/readback/relaunch path descri
 below. See `docs/daily-export-feasibility-results.md`. This harness remains
 synthetic-only; local failure checks are not Google evidence.
 
-## Slice-B device and Google acceptance protocol (partially run)
+## Slice-B device and Google acceptance protocol (bounded matrix complete)
 
 Every numbered mutation needs fresh operator authority naming the device, account,
 dedicated destination and permitted invented file effects. Do not install or launch
 build 5, request consent, create/update/recover a Drive file, revoke access or change
 connectivity merely from this document.
 
-On 6 September 2026, separately granted authority covered build-5 installation and
-launch on SiPhone, restoration of the existing exact grant/destination, morning
-create, evening/bedtime same-ID updates, independent Drive-web checks, relaunch and
-one unchanged bedtime reverify. Those steps passed with one canonical file and the
-expected invented content. Account, folder and file identifiers remain private.
-Steps 4, 6, the missing-state/recovery portion of 7, 8 and 9 were not run; their local
-mock results must not be described as device or Google evidence.
+On 6 September 2026, separately granted action-by-action authority covered build-5
+and build-6 installation/launch on SiPhone, the existing exact grant/destination,
+canonical and adverse-date create/update/readback, bounded fault injection,
+cancellation, unresolved/no-queue state, forced refresh, identity loss, explicit
+Picker recovery and persisted-identity reverify. Independent Drive-web checks found
+one file per exercised date with expected invented content at each accepted boundary.
+The adverse-date file ID was not supplied, so its continuity is app-readback evidence
+plus independent no-duplicate/content evidence, not an independent ID comparison.
+Credential failures were device-local injections; account/destination changes and
+stale completions retain deterministic local coverage. Account, folder and file
+identifiers remain private.
 
 1. Preserve the completed slice-A folders and Files-probe evidence. Select one
    operator-confirmed dedicated slice-B folder under the already accepted account;
