@@ -54,6 +54,7 @@
 		A0000000000000000000002D /* DailyExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000031 /* DailyExportView.swift */; };
 		A0000000000000000000002E /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000002 /* AppAuth */; };
 		A0000000000000000000002F /* DailyDriveExportCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000035 /* DailyDriveExportCoordinatorTests.swift */; };
+		A00000000000000000000030 /* WeeklyReportViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000036 /* WeeklyReportViewModelTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -120,6 +121,7 @@
 		B00000000000000000000033 /* DriveOAuth.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = DriveOAuth.xcconfig; path = Config/DriveOAuth.xcconfig; sourceTree = "<group>"; };
 		B00000000000000000000034 /* DriveOAuth.local.xcconfig.example */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = DriveOAuth.local.xcconfig.example; path = Config/DriveOAuth.local.xcconfig.example; sourceTree = "<group>"; };
 		B00000000000000000000035 /* DailyDriveExportCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyDriveExportCoordinatorTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000036 /* WeeklyReportViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportViewModelTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -234,6 +236,7 @@
 				B0000000000000000000002A /* BloodPressureSummaryTests.swift */,
 				B0000000000000000000002D /* DailyHealthExportTests.swift */,
 				B00000000000000000000035 /* DailyDriveExportCoordinatorTests.swift */,
+				B00000000000000000000036 /* WeeklyReportViewModelTests.swift */,
 			);
 			path = WeeklyHealthReportTests;
 			sourceTree = "<group>";
@@ -429,6 +432,7 @@
 				A00000000000000000000026 /* BloodPressureSummaryTests.swift in Sources */,
 				A00000000000000000000029 /* DailyHealthExportTests.swift in Sources */,
 				A0000000000000000000002F /* DailyDriveExportCoordinatorTests.swift in Sources */,
+				A00000000000000000000030 /* WeeklyReportViewModelTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

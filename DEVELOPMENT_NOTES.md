@@ -538,3 +538,46 @@ invoked in these measured spans. Excludes this accounting investigation/edit/che
 the final response, every other session and separate service usage. Every earlier row
 remains frozen. Tracked total becomes **281,185,719 tokens / $174.20**, summing
 recorded rounded comparison amounts.
+
+
+## Issue #1 deterministic view-model orchestration tests, 7 September 2026
+
+Added a synthetic `HealthDataProviding` fake with a fixed clock and a controlled
+suspension gate. The six new tests cover a successful full refresh, Health
+unavailability, authorisation failure, an isolated glucose-query failure,
+overlapping refreshes with stale-completion rejection, no completed reporting days,
+and agreement between `reportSnapshot` and all 16 report-bearing published values.
+No production source or reporting semantics changed.
+
+The six focused tests passed. The complete simulator suite then ran exactly once
+with all 75 tests passing, followed by successful Xcode static analysis. This is
+local/simulator evidence only: no physical device, HealthKit store, personal health
+data, Google Drive, OAuth flow or provider operation was exercised.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 7 Sep | `codex-phase-accounting` — issue #1 deterministic view-model orchestration tests — GPT-5.6 Sol | Uncommitted tests and accounting note | 4,001,964 (3,850,624) | 20,683 | 4,022,647 | $2.56 |
+
+Model confirmed from the session metadata and current turn context:
+`gpt-5.6-sol`. At the ledger's historical Sol comparison assumptions ($4/M
+uncached input, $0.40/M cached input and $20/M output), 151,340 × $4/M +
+3,850,624 × $0.40/M + 20,683 × $20/M = **$2.5592696**, rounded **$2.56**
+API-equivalent, not an actual ChatGPT subscription charge or a model benchmark.
+Separate tool/service charges are not measured or estimated.
+
+Session `01a07d79-670e-7490-bcfc-7c056dbd2489`, rollout
+`rollout-2026-09-07T21-05-03-01a07d79-670e-7490-bcfc-7c056dbd2489.jsonl`.
+Baseline line 84, **2026-09-07 20:06:35.274 UTC**: **367,243 input / 330,624
+cached input / 2,137 output**. Frozen end line 338, **2026-09-07 20:20:39.435
+UTC**: **4,369,207 input / 4,181,248 cached input / 22,820 output**. Reproduce
+from that rollout prefix with `--baseline 367243 330624 2137
+--uncached-input-rate 4 --cached-input-rate 0.40 --output-rate 20`.
+
+Includes top-level live-authority and source/test inspection after the baseline,
+implementation, focused tests, the one complete simulator suite, static analysis
+and pre-ledger diff review through the frozen boundary. No subagents, reused tasks
+or hosted reviews were used. Excludes initial memory/authority inspection before
+the captured baseline, this accounting edit/check, the final handoff, every other
+session and separate service usage. Every earlier row remains frozen. Tracked total
+becomes **285,208,366 tokens / $176.76**, summing recorded rounded comparison
+amounts.
