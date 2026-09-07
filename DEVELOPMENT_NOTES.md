@@ -627,3 +627,47 @@ metadata retrieval/edit/check, subsequent commit/push/PR/CI/issue-update activit
 the final handoff, every other session and separate service usage. Every earlier
 row remains frozen. Tracked total becomes **288,316,889 tokens / $178.77**,
 summing recorded rounded comparison amounts.
+
+
+## Issue #3 reporting-policy consolidation, 7 September 2026
+
+Centralised the existing blood-pressure slot boundaries and 30-day latest-value
+lookback, blood-oxygen 30-day latest-value lookback, and VO2-max four-week,
+three-month and six-month window starts. HealthKit query breadth, in-memory
+aggregation and daily-export window metadata now reuse the same named policy
+values without changing report output or user-facing wording.
+
+Added exact boundary coverage for 13:59, 14:00, 16:59 and 17:00, inclusive
+lookback starts, and agreement between query and aggregation windows. Focused
+tests passed, Xcode static analysis succeeded, and the complete simulator suite
+ran exactly once with all 82 tests passing. This is local/simulator evidence only:
+no physical device, HealthKit store, personal health data, Google Drive, OAuth
+flow or provider operation was exercised.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 7 Sep | `codex-phase-accounting` — issue #3 reporting-policy consolidation — GPT-5.6 Sol | Uncommitted implementation, tests and accounting note | 4,771,914 (4,652,928) | 12,432 | 4,784,346 | $2.59 |
+
+Model confirmed from the session metadata and current turn context:
+`gpt-5.6-sol`. At the ledger's historical Sol comparison assumptions ($4/M
+uncached input, $0.40/M cached input and $20/M output), 118,986 × $4/M +
+4,652,928 × $0.40/M + 12,432 × $20/M = **$2.5857552**, rounded **$2.59**
+API-equivalent, not an actual ChatGPT subscription charge or a model benchmark.
+Separate tool/service charges are not measured or estimated.
+
+Session `01a07de9-019c-7cc0-837e-f01b76d40cc5`, rollout
+`rollout-2026-09-07T23-06-57-01a07de9-019c-7cc0-837e-f01b76d40cc5.jsonl`.
+Baseline line 348, **2026-09-07 22:19:53.705 UTC**: **4,230,859 input /
+4,092,416 cached input / 12,963 output**. Frozen end line 571,
+**2026-09-07 22:30:24.758 UTC**: **9,002,773 input / 8,745,344 cached input /
+25,395 output**. Reproduce from that rollout prefix with `--baseline 4230859
+4092416 12963 --uncached-input-rate 4 --cached-input-rate 0.40 --output-rate 20`.
+
+Includes live issue and dependency inspection, isolated-worktree implementation,
+focused tests, the one complete 82-test simulator suite, static analysis, and
+pre-ledger diff/status review through the frozen boundary. No subagents, reused
+tasks or hosted reviews were used. Excludes this accounting edit/check,
+subsequent commit/push/PR/CI/merge activity, issue #16 work, the final handoff,
+every other session and separate service usage. Every earlier row remains frozen.
+Tracked total becomes **293,101,235 tokens / $181.36**, summing recorded rounded
+comparison amounts.

@@ -8,6 +8,77 @@ enum ReportPeriodSelection: String, CaseIterable, Identifiable {
     var id: Self { self }
 }
 
+struct VO2MaxReportingWindowStarts: Equatable {
+    let fourWeek: Date
+    let threeMonth: Date
+    let sixMonth: Date
+}
+
+enum HealthReportingPolicy {
+    static let bloodPressureLatestLookbackDays = 30
+    static let bloodPressureMorningEndHour = 14
+    static let bloodPressureEveningStartHour = 17
+    static let oxygenSaturationLatestLookbackDays = 30
+
+    static func bloodPressureLatestLookbackStart(
+        asOf date: Date,
+        calendar: Calendar
+    ) -> Date? {
+        calendar.date(
+            byAdding: .day,
+            value: -bloodPressureLatestLookbackDays,
+            to: calendar.startOfDay(for: date)
+        )
+    }
+
+    static func bloodPressureQueryStart(
+        for period: ReportPeriod,
+        asOf date: Date,
+        calendar: Calendar
+    ) -> Date? {
+        bloodPressureLatestLookbackStart(asOf: date, calendar: calendar).map {
+            min(period.interval.start, $0)
+        }
+    }
+
+    static func oxygenSaturationLatestLookbackStart(
+        asOf date: Date,
+        calendar: Calendar
+    ) -> Date? {
+        calendar.date(
+            byAdding: .day,
+            value: -oxygenSaturationLatestLookbackDays,
+            to: calendar.startOfDay(for: date)
+        )
+    }
+
+    static func oxygenSaturationQueryStart(
+        for period: ReportPeriod,
+        asOf date: Date,
+        calendar: Calendar
+    ) -> Date? {
+        oxygenSaturationLatestLookbackStart(asOf: date, calendar: calendar).map {
+            min(period.interval.start, $0)
+        }
+    }
+
+    static func vo2MaxWindowStarts(
+        asOf date: Date,
+        calendar: Calendar
+    ) -> VO2MaxReportingWindowStarts? {
+        let today = calendar.startOfDay(for: date)
+        guard let fourWeek = calendar.date(byAdding: .day, value: -27, to: today),
+              let threeMonth = calendar.date(byAdding: .month, value: -3, to: today),
+              let sixMonth = calendar.date(byAdding: .month, value: -6, to: today)
+        else { return nil }
+        return VO2MaxReportingWindowStarts(
+            fourWeek: fourWeek,
+            threeMonth: threeMonth,
+            sixMonth: sixMonth
+        )
+    }
+}
+
 struct ReportPeriod: Equatable {
     let selection: ReportPeriodSelection
     let interval: DateInterval

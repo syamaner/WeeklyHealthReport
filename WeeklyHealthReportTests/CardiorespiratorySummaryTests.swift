@@ -110,6 +110,64 @@ final class CardiorespiratorySummaryTests: XCTestCase {
         ))
     }
 
+    func testCardiorespiratoryLookbacksUseSharedPolicyBoundaries() throws {
+        let calendar = testCalendar()
+        let asOf = date(2026, 8, 31, hour: 18, calendar: calendar)
+        let period = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: asOf,
+            calendar: calendar
+        )
+        let oxygenBoundary = try XCTUnwrap(
+            HealthReportingPolicy.oxygenSaturationLatestLookbackStart(
+                asOf: asOf,
+                calendar: calendar
+            )
+        )
+        let oxygenSummary = try XCTUnwrap(BloodOxygenSummary.calculate(
+            measurements: [
+                OxygenSaturationMeasurement(
+                    date: oxygenBoundary.addingTimeInterval(-1),
+                    percentage: 88,
+                    sourceName: "Fixture Watch"
+                ),
+                OxygenSaturationMeasurement(
+                    date: oxygenBoundary,
+                    percentage: 97,
+                    sourceName: "Fixture Watch"
+                )
+            ],
+            period: period,
+            asOf: asOf,
+            calendar: calendar
+        ))
+        XCTAssertEqual(oxygenSummary.measurements.map(\.date), [oxygenBoundary])
+
+        let vo2Boundary = try XCTUnwrap(
+            HealthReportingPolicy.vo2MaxWindowStarts(
+                asOf: asOf,
+                calendar: calendar
+            )
+        ).sixMonth
+        let vo2Summary = try XCTUnwrap(VO2MaxSummary.calculate(
+            measurements: [
+                VO2MaxMeasurement(
+                    date: vo2Boundary.addingTimeInterval(-1),
+                    millilitresPerKilogramMinute: 99,
+                    sourceName: "Fixture Watch"
+                ),
+                VO2MaxMeasurement(
+                    date: vo2Boundary,
+                    millilitresPerKilogramMinute: 33,
+                    sourceName: "Fixture Watch"
+                )
+            ],
+            asOf: asOf,
+            calendar: calendar
+        ))
+        XCTAssertEqual(vo2Summary.measurements.map(\.date), [vo2Boundary])
+    }
+
     private func vo2(
         _ year: Int, _ month: Int, _ day: Int, _ value: Double, _ calendar: Calendar
     ) -> VO2MaxMeasurement {

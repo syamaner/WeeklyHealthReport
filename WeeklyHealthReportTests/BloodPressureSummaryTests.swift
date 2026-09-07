@@ -49,12 +49,14 @@ final class BloodPressureSummaryTests: XCTestCase {
         )
         let beforeBoundary = date(2026, 8, 31, hour: 13, minute: 59, calendar: calendar)
         let excludedStart = date(2026, 8, 31, hour: 14, calendar: calendar)
+        let excludedEnd = date(2026, 8, 31, hour: 16, minute: 59, calendar: calendar)
         let eveningStart = date(2026, 8, 31, hour: 17, calendar: calendar)
         XCTAssertEqual(
             BloodPressureTimeSlot.classify(beforeBoundary, calendar: calendar),
             .morning
         )
         XCTAssertNil(BloodPressureTimeSlot.classify(excludedStart, calendar: calendar))
+        XCTAssertNil(BloodPressureTimeSlot.classify(excludedEnd, calendar: calendar))
         XCTAssertEqual(
             BloodPressureTimeSlot.classify(eveningStart, calendar: calendar),
             .evening
@@ -124,6 +126,37 @@ final class BloodPressureSummaryTests: XCTestCase {
             asOf: asOf,
             calendar: calendar
         ))
+    }
+
+    func testLatestLookbackUsesSharedPolicyBoundary() throws {
+        let calendar = testCalendar()
+        let asOf = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let period = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: asOf,
+            calendar: calendar
+        )
+        let boundary = try XCTUnwrap(
+            HealthReportingPolicy.bloodPressureLatestLookbackStart(
+                asOf: asOf,
+                calendar: calendar
+            )
+        )
+        let summary = try XCTUnwrap(BloodPressureSummary.calculate(
+            readings: [
+                reading(
+                    at: boundary.addingTimeInterval(-1),
+                    systolic: 199,
+                    diastolic: 99
+                ),
+                reading(at: boundary, systolic: 121, diastolic: 79)
+            ],
+            period: period,
+            asOf: asOf,
+            calendar: calendar
+        ))
+
+        XCTAssertEqual(summary.readings.map(\.date), [boundary])
     }
 
     private func reading(

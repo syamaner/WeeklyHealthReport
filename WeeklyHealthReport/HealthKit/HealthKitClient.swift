@@ -302,8 +302,10 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         guard let type = HKObjectType.quantityType(forIdentifier: .vo2Max) else {
             throw HealthDataError.missingType("VO2-max")
         }
-        let today = calendar.startOfDay(for: date)
-        guard let lookbackStart = calendar.date(byAdding: .month, value: -6, to: today) else {
+        guard let lookbackStart = HealthReportingPolicy.vo2MaxWindowStarts(
+            asOf: date,
+            calendar: calendar
+        )?.sixMonth else {
             return []
         }
         let datePredicate = HKQuery.predicateForSamples(
@@ -348,12 +350,11 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         guard let type = HKObjectType.quantityType(forIdentifier: .oxygenSaturation) else {
             throw HealthDataError.missingType("oxygen-saturation")
         }
-        guard let latestLookbackStart = calendar.date(
-            byAdding: .day,
-            value: -30,
-            to: calendar.startOfDay(for: date)
+        guard let queryStart = HealthReportingPolicy.oxygenSaturationQueryStart(
+            for: period,
+            asOf: date,
+            calendar: calendar
         ) else { return [] }
-        let queryStart = min(period.interval.start, latestLookbackStart)
         let datePredicate = HKQuery.predicateForSamples(
             withStart: queryStart,
             end: date,
@@ -398,12 +399,11 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         else {
             throw HealthDataError.missingType("blood-pressure")
         }
-        guard let latestLookbackStart = calendar.date(
-            byAdding: .day,
-            value: -30,
-            to: calendar.startOfDay(for: date)
+        guard let queryStart = HealthReportingPolicy.bloodPressureQueryStart(
+            for: period,
+            asOf: date,
+            calendar: calendar
         ) else { return [] }
-        let queryStart = min(period.interval.start, latestLookbackStart)
         let datePredicate = HKQuery.predicateForSamples(
             withStart: queryStart,
             end: date,
