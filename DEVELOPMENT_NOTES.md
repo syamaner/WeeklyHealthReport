@@ -485,3 +485,56 @@ accounting edit/check, subsequent commit/push/PR/merge and issue-update activity
 the final handoff and separate service usage. Every earlier row remains frozen.
 Tracked total becomes **249,562,699 tokens / $158.40**, summing recorded rounded
 comparison amounts.
+
+
+## Post-merge delivery and product acceptance, 7 September 2026
+
+PR #12 was committed, reviewed, passed exact-head CI and merged as `5d99b43`.
+Subsequent physical-iPhone acceptance configured the distinct product OAuth client
+privately with exact `drive.file`, compared representative read-only Apple Health
+fields, completed two explicitly authorised same-date exports, observed app-side
+remote metadata/byte verification and independently confirmed same-ID replacement
+and canonical content in Drive. Explicit relaunch recovery restored the account,
+destination and last-verified identity without an automatic Health or Google request.
+Issue #6 was updated with privacy-safe local/device/Google evidence and closed. No
+personal values, account addresses, OAuth identifiers, Drive identifiers or
+credentials are recorded here.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 7 Sep | `codex-phase-accounting` — post-merge delivery and product acceptance — GPT-5.6 Sol | PR #12 merge, physical acceptance and issue #6 closure | 31,560,959 (31,023,488) | 62,061 | 31,623,020 | $15.80 |
+
+Model was confirmed as `gpt-5.6-sol` from every recorded turn context in both
+measured counter epochs. At the ledger's historical Sol comparison assumptions
+($4/M uncached input, $0.40/M cached input and $20/M output), 537,471 × $4/M +
+31,023,488 × $0.40/M + 62,061 × $20/M = **$15.8004992**, rounded **$15.80**
+API-equivalent, not an actual subscription charge or a model benchmark. Separate
+Apple, Google and tool charges are not measured or estimated.
+
+Session `01a077b5-dff5-7592-a47b-4eff2c9fba9c`, rollout
+`rollout-2026-09-06T18-13-23-01a077b5-dff5-7592-a47b-4eff2c9fba9c.jsonl`.
+The rollout contains one explicit cumulative-counter reset, so the row combines two
+independently reproducible spans instead of subtracting across that reset:
+
+- Pre-reset baseline line 6648, **2026-09-06 22:13:22.442 UTC**:
+  **112,978,297 input / 111,326,592 cached input / 420,851 output**. Frozen end
+  line 6954, **2026-09-07 05:16:29.734 UTC**: **116,510,600 input /
+  114,696,192 cached input / 434,684 output**. The measured delta is **3,532,303
+  input / 3,369,600 cached input / 13,833 output**.
+- The post-reset epoch begins at line 6971 and is measured as a whole counter epoch.
+  Frozen end line 8915, **2026-09-07 19:40:07.946 UTC**: **28,028,656 input /
+  27,653,888 cached input / 48,228 output**.
+
+Reproduce the first span from a rollout prefix through line 6954 with baseline
+`112978297 111326592 420851`; reproduce the second from lines 6971–8915 with no
+baseline. Apply `--uncached-input-rate 4 --cached-input-rate 0.40
+--output-rate 20` to each, then sum their token fields and exact costs.
+
+Includes this top-level session's post-slice-D commit/push/PR/CI/merge work,
+physical-product preparation and acceptance, action-by-action authority discussion,
+OAuth and Drive validation, relaunch recovery, issue evidence/closure and wrap-up
+status through the frozen boundary. No subagents, reused tasks or hosted reviews were
+invoked in these measured spans. Excludes this accounting investigation/edit/check,
+the final response, every other session and separate service usage. Every earlier row
+remains frozen. Tracked total becomes **281,185,719 tokens / $174.20**, summing
+recorded rounded comparison amounts.
