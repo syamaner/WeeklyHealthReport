@@ -71,6 +71,56 @@ final class ReportPeriodTests: XCTestCase {
         XCTAssertEqual(previous.completedDays.count, current.completedDays.count)
     }
 
+    func testHealthMetricQueryAndAggregationWindowPoliciesAgree() throws {
+        let asOf = date(2026, 8, 25, 14)
+        let period = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: asOf,
+            calendar: calendar
+        )
+        let bloodPressureStart = try XCTUnwrap(
+            HealthReportingPolicy.bloodPressureLatestLookbackStart(
+                asOf: asOf,
+                calendar: calendar
+            )
+        )
+        XCTAssertEqual(bloodPressureStart, date(2026, 7, 26))
+        XCTAssertEqual(
+            HealthReportingPolicy.bloodPressureQueryStart(
+                for: period,
+                asOf: asOf,
+                calendar: calendar
+            ),
+            min(period.interval.start, bloodPressureStart)
+        )
+
+        let oxygenStart = try XCTUnwrap(
+            HealthReportingPolicy.oxygenSaturationLatestLookbackStart(
+                asOf: asOf,
+                calendar: calendar
+            )
+        )
+        XCTAssertEqual(oxygenStart, date(2026, 7, 26))
+        XCTAssertEqual(
+            HealthReportingPolicy.oxygenSaturationQueryStart(
+                for: period,
+                asOf: asOf,
+                calendar: calendar
+            ),
+            min(period.interval.start, oxygenStart)
+        )
+
+        let vo2Starts = try XCTUnwrap(
+            HealthReportingPolicy.vo2MaxWindowStarts(
+                asOf: asOf,
+                calendar: calendar
+            )
+        )
+        XCTAssertEqual(vo2Starts.fourWeek, date(2026, 7, 29))
+        XCTAssertEqual(vo2Starts.threeMonth, date(2026, 5, 25))
+        XCTAssertEqual(vo2Starts.sixMonth, date(2026, 2, 25))
+    }
+
     private func date(_ year: Int, _ month: Int, _ day: Int, _ hour: Int = 0) -> Date {
         calendar.date(from: DateComponents(year: year, month: month, day: day, hour: hour))!
     }

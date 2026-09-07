@@ -17,8 +17,12 @@ enum BloodPressureTimeSlot: String, Equatable {
         calendar: Calendar = .autoupdatingCurrent
     ) -> BloodPressureTimeSlot? {
         let hour = calendar.component(.hour, from: date)
-        if hour < 14 { return .morning }
-        if hour >= 17 { return .evening }
+        if hour < HealthReportingPolicy.bloodPressureMorningEndHour {
+            return .morning
+        }
+        if hour >= HealthReportingPolicy.bloodPressureEveningStartHour {
+            return .evening
+        }
         return nil
     }
 }
@@ -65,11 +69,9 @@ struct BloodPressureSummary: Equatable {
     ) -> BloodPressureSummary? {
         var calendar = suppliedCalendar
         calendar.timeZone = suppliedCalendar.timeZone
-        guard let latestLookbackStart = calendar.date(
-            byAdding: .day,
-            value: -30,
-            to: calendar.startOfDay(for: asOf)
-        ) else { return nil }
+        guard let latestLookbackStart = HealthReportingPolicy
+            .bloodPressureLatestLookbackStart(asOf: asOf, calendar: calendar)
+        else { return nil }
 
         let visibleReadings = readings.filter {
             $0.date >= latestLookbackStart

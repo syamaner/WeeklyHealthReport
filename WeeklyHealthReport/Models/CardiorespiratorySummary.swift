@@ -35,14 +35,13 @@ struct VO2MaxSummary: Equatable {
     ) -> VO2MaxSummary? {
         var calendar = suppliedCalendar
         calendar.timeZone = suppliedCalendar.timeZone
-        let today = calendar.startOfDay(for: asOf)
-        guard let fourWeekStart = calendar.date(byAdding: .day, value: -27, to: today),
-              let threeMonthStart = calendar.date(byAdding: .month, value: -3, to: today),
-              let sixMonthStart = calendar.date(byAdding: .month, value: -6, to: today)
-        else { return nil }
+        guard let windowStarts = HealthReportingPolicy.vo2MaxWindowStarts(
+            asOf: asOf,
+            calendar: calendar
+        ) else { return nil }
 
         let visibleMeasurements = measurements.filter {
-            $0.date >= sixMonthStart
+            $0.date >= windowStarts.sixMonth
                 && $0.date <= asOf
                 && $0.millilitresPerKilogramMinute.isFinite
                 && $0.millilitresPerKilogramMinute > 0
@@ -79,9 +78,9 @@ struct VO2MaxSummary: Equatable {
 
         return VO2MaxSummary(
             latest: latest,
-            fourWeek: window(start: fourWeekStart),
-            threeMonth: window(start: threeMonthStart),
-            sixMonth: window(start: sixMonthStart),
+            fourWeek: window(start: windowStarts.fourWeek),
+            threeMonth: window(start: windowStarts.threeMonth),
+            sixMonth: window(start: windowStarts.sixMonth),
             dailyValues: dailyValues,
             measurements: visibleMeasurements.sorted { $0.date < $1.date }
         )
@@ -126,11 +125,9 @@ struct BloodOxygenSummary: Equatable {
     ) -> BloodOxygenSummary? {
         var calendar = suppliedCalendar
         calendar.timeZone = suppliedCalendar.timeZone
-        guard let latestLookbackStart = calendar.date(
-            byAdding: .day,
-            value: -30,
-            to: calendar.startOfDay(for: asOf)
-        ) else { return nil }
+        guard let latestLookbackStart = HealthReportingPolicy
+            .oxygenSaturationLatestLookbackStart(asOf: asOf, calendar: calendar)
+        else { return nil }
         let validMeasurements = measurements.filter {
             $0.date >= latestLookbackStart
                 && $0.date <= asOf

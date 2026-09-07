@@ -731,6 +731,12 @@ enum DailyHealthExportBuilder {
         let contextPeriod = window.context
         let previousPeriod = contextPeriod.precedingEquivalent(calendar: calendar)
         let today = calendar.startOfDay(for: window.cutoff)
+        guard let vo2WindowStarts = HealthReportingPolicy.vo2MaxWindowStarts(
+            asOf: window.cutoff,
+            calendar: calendar
+        ) else {
+            throw DailyHealthExportError.invalidWindow
+        }
         guard let bodyFatSevenStart = calendar.date(
             byAdding: .day,
             value: -6,
@@ -743,18 +749,6 @@ enum DailyHealthExportBuilder {
             byAdding: .day,
             value: -28,
             to: bodyFatCurrent28Start
-        ), let vo2FourWeekStart = calendar.date(
-            byAdding: .day,
-            value: -27,
-            to: today
-        ), let vo2ThreeMonthStart = calendar.date(
-            byAdding: .month,
-            value: -3,
-            to: today
-        ), let vo2SixMonthStart = calendar.date(
-            byAdding: .month,
-            value: -6,
-            to: today
         ) else {
             throw DailyHealthExportError.invalidWindow
         }
@@ -919,15 +913,15 @@ enum DailyHealthExportBuilder {
                 ),
                 fourWeek: result(
                     summary.fourWeek,
-                    start: vo2FourWeekStart
+                    start: vo2WindowStarts.fourWeek
                 ),
                 threeMonth: result(
                     summary.threeMonth,
-                    start: vo2ThreeMonthStart
+                    start: vo2WindowStarts.threeMonth
                 ),
                 sixMonth: result(
                     summary.sixMonth,
-                    start: vo2SixMonthStart
+                    start: vo2WindowStarts.sixMonth
                 )
             ))
         } ?? .noDataOrAccess
