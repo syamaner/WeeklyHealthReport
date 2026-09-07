@@ -5,6 +5,7 @@ import UIKit
 @MainActor
 final class DailyDriveSessionController: NSObject, ObservableObject {
     enum AuthorizationPurpose { case connect, chooseFolder, recoverFile }
+    enum FileReplacementReason { case trashed, missingOrInaccessible }
     enum Failure: Error {
         case missingConfiguration
         case invalidConfiguration
@@ -23,6 +24,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
     @Published private(set) var status = "No Health or Google request has run."
     @Published private(set) var preview: DailyHealthExportResult?
     @Published private(set) var lastVerifiedLabel = "No verified Drive upload in this session"
+    @Published private(set) var canForgetTrashedDestination = false
+    @Published private(set) var fileReplacementReason: FileReplacementReason?
 
     var isConfigured: Bool { (try? oauthConfiguration()) != nil }
     var canExport: Bool {
@@ -41,9 +44,17 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
     private var authorizationFlow: OIDExternalUserAgentSession?
     private var account: DailyDriveAccount?
     private var partitions = DailyDestinationPartitions()
+    private var trashedDestinationCandidate: DailyDestinationBinding?
+    private var fileReplacementCandidate: FileReplacementCandidate?
 
     private static let authKey = "google.oauth.daily-export.appauth-state.v1"
     private static let destinationsKey = "google.drive.daily-export-destinations.v1"
+
+    private struct FileReplacementCandidate: Equatable {
+        let accountID: String
+        let folderID: String
+        let reportDate: String
+    }
 
     private var activeDestination: DailyDestinationBinding? {
         guard let account else { return nil }
@@ -104,7 +115,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
                     accessToken: token,
                     accountID: account.id
                 )
-                try DailyDriveConsentPolicy.validate(folder: folder, expectedAccountID: account.id)
+                try self.validateStoredDestination(
+                    folder,
+                    binding: binding,
+                    accountID: account.id
+                )
                 try self.accept(folder: folder, origin: binding.origin, account: account)
                 self.status = "Session, account and destination revalidated. No export ran."
             } else {
@@ -123,9 +138,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
                     accessToken: context.token,
                     accountID: context.account.id
                 )
-                try DailyDriveConsentPolicy.validate(
-                    folder: folder,
-                    expectedAccountID: context.account.id
+                try self.validateStoredDestination(
+                    folder,
+                    binding: existing,
+                    accountID: context.account.id
                 )
                 try self.accept(folder: folder, origin: existing.origin, account: context.account)
                 self.status = "Revalidated the existing destination. No duplicate folder or export was created."
@@ -138,6 +154,38 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
             try DailyDriveConsentPolicy.validate(folder: folder, expectedAccountID: context.account.id)
             try self.accept(folder: folder, origin: .created, account: context.account)
             self.status = "Created and validated the destination. No health JSON was exported."
+        }
+    }
+
+    func forgetTrashedDestination() async {
+        await run("Forgetting the confirmed trashed destination…") {
+            let context = try await self.currentContext()
+            guard let candidate = self.trashedDestinationCandidate,
+                  candidate.accountID == context.account.id,
+                  self.activeDestination == candidate else {
+                throw Failure.noDestination
+            }
+
+            try await self.exportCoordinator.abandonDestination(
+                accountID: candidate.accountID,
+                folderID: candidate.folderID
+            )
+            var updatedPartitions = self.partitions
+            guard updatedPartitions.unbind(
+                accountID: candidate.accountID,
+                folderID: candidate.folderID
+            ) else {
+                throw Failure.noDestination
+            }
+            try self.keychain.save(
+                try JSONEncoder().encode(updatedPartitions),
+                account: Self.destinationsKey
+            )
+            self.partitions = updatedPartitions
+            self.clearTrashedDestinationCandidate()
+            self.clearFileReplacementCandidate()
+            self.accept(account: context.account)
+            self.status = "Forgot the trashed destination and its local file identities. You can now create or choose a fresh folder; no Drive item was changed."
         }
     }
 
@@ -161,6 +209,9 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
     func refreshPreview() async {
         await run("Reading a fresh on-device daily snapshot…") {
             let result = try await self.exportService.refresh()
+            if self.fileReplacementCandidate?.reportDate != result.envelope.reportDate {
+                self.clearFileReplacementCandidate()
+            }
             self.preview = result
             self.status = "Fresh preview created in memory. Review it before choosing Export."
         }
@@ -174,17 +225,67 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         await run("Submitting the reviewed preview and verifying Drive…") {
             self.exporting = true
             defer { self.exporting = false }
-            let result = try await self.exportCoordinator.export(
-                payload: preview.bytes,
-                reportDate: preview.envelope.reportDate,
+            let result: DailyDriveExportResult
+            do {
+                result = try await self.exportCoordinator.export(
+                    payload: preview.bytes,
+                    reportDate: preview.envelope.reportDate,
+                    accountID: account.id,
+                    folderID: destination.folderID,
+                    tokenProvider: { forceRefresh in
+                        try await self.freshAccessToken(forceRefresh: forceRefresh)
+                    }
+                )
+            } catch DailyDriveExportFailure.remoteTrashed {
+                self.markFileForReplacement(
+                    accountID: account.id,
+                    folderID: destination.folderID,
+                    reportDate: preview.envelope.reportDate,
+                    reason: .trashed
+                )
+                throw DailyDriveExportFailure.remoteTrashed
+            } catch DailyDriveExportFailure.remoteMissing {
+                self.markFileForReplacement(
+                    accountID: account.id,
+                    folderID: destination.folderID,
+                    reportDate: preview.envelope.reportDate,
+                    reason: .missingOrInaccessible
+                )
+                throw DailyDriveExportFailure.remoteMissing
+            }
+            self.clearFileReplacementCandidate(
                 accountID: account.id,
                 folderID: destination.folderID,
-                tokenProvider: { forceRefresh in
-                    try await self.freshAccessToken(forceRefresh: forceRefresh)
-                }
+                reportDate: preview.envelope.reportDate
             )
             self.lastVerifiedLabel = result.verifiedLabel
             self.status = result.userFacingLabel
+        }
+    }
+
+    func confirmFileReplacementOverride() async {
+        await run("Forgetting the unavailable file identity…") {
+            let context = try await self.currentContext()
+            guard let candidate = self.fileReplacementCandidate,
+                  let reason = self.fileReplacementReason,
+                  candidate.accountID == context.account.id,
+                  self.activeDestination?.folderID == candidate.folderID else {
+                throw Failure.noDestination
+            }
+
+            try await self.exportCoordinator.abandonFileIdentity(
+                accountID: candidate.accountID,
+                folderID: candidate.folderID,
+                reportDate: candidate.reportDate
+            )
+            self.clearFileReplacementCandidate()
+            self.restoreLastVerifiedLabel(for: context.account.id)
+            switch reason {
+            case .trashed:
+                self.status = "Forgot the trashed daily file identity. Export the matching date again to create a fresh canonical file; no Drive item was changed."
+            case .missingOrInaccessible:
+                self.status = "Explicit override accepted for the missing or inaccessible daily file. Export the matching date again to create a new canonical file ID; no Drive item was changed."
+            }
         }
     }
 
@@ -214,6 +315,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
                     try await self.freshAccessToken(forceRefresh: forceRefresh)
                 }
             )
+            self.clearFileReplacementCandidate(
+                accountID: result.account.id,
+                folderID: destination.folderID,
+                reportDate: preview.envelope.reportDate
+            )
             self.lastVerifiedLabel = recovery.verifiedLabel
             self.status = recovery.userFacingLabel
         }
@@ -225,6 +331,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
             try keychain.delete(account: Self.authKey)
             authState = nil
             account = nil
+            clearTrashedDestinationCandidate()
+            clearFileReplacementCandidate()
             accountLabel = "Not connected"
             destinationLabel = "No active destination"
             status = "Signed out locally. Drive access was not revoked and exports were not deleted."
@@ -249,6 +357,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
                 try self.keychain.delete(account: Self.authKey)
                 self.authState = nil
                 self.account = nil
+                self.clearTrashedDestinationCandidate()
+                self.clearFileReplacementCandidate()
                 self.accountLabel = "Not connected"
                 self.destinationLabel = "No active destination"
                 self.status = "Access revoked and local credentials cleared. Drive files were not deleted."
@@ -372,6 +482,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         origin: DailyDestinationBinding.Origin,
         account: DailyDriveAccount
     ) throws {
+        clearTrashedDestinationCandidate()
+        if fileReplacementCandidate?.accountID != account.id
+            || fileReplacementCandidate?.folderID != folder.id {
+            clearFileReplacementCandidate()
+        }
         partitions.bind(DailyDestinationBinding(
             accountID: account.id,
             folderID: folder.id,
@@ -383,11 +498,72 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
     }
 
     private func accept(account: DailyDriveAccount) {
+        if trashedDestinationCandidate?.accountID != account.id {
+            clearTrashedDestinationCandidate()
+        }
+        if fileReplacementCandidate?.accountID != account.id {
+            clearFileReplacementCandidate()
+        }
         self.account = account
         accountLabel = "\(account.displayName) — \(account.emailAddress)"
         destinationLabel = partitions.destination(for: account.id)?.folderName
             ?? "Choose or create a destination"
         restoreLastVerifiedLabel(for: account.id)
+    }
+
+    private func validateStoredDestination(
+        _ folder: DailyDriveFolder,
+        binding: DailyDestinationBinding,
+        accountID: String
+    ) throws {
+        do {
+            try DailyDriveConsentPolicy.validate(
+                folder: folder,
+                expectedAccountID: accountID
+            )
+            clearTrashedDestinationCandidate()
+        } catch DailyDriveConsentPolicy.Failure.trashed {
+            trashedDestinationCandidate = binding
+            canForgetTrashedDestination = true
+            throw DailyDriveConsentPolicy.Failure.trashed
+        }
+    }
+
+    private func clearTrashedDestinationCandidate() {
+        trashedDestinationCandidate = nil
+        canForgetTrashedDestination = false
+    }
+
+    private func markFileForReplacement(
+        accountID: String,
+        folderID: String,
+        reportDate: String,
+        reason: FileReplacementReason
+    ) {
+        fileReplacementCandidate = FileReplacementCandidate(
+            accountID: accountID,
+            folderID: folderID,
+            reportDate: reportDate
+        )
+        fileReplacementReason = reason
+    }
+
+    private func clearFileReplacementCandidate(
+        accountID: String? = nil,
+        folderID: String? = nil,
+        reportDate: String? = nil
+    ) {
+        if let candidate = fileReplacementCandidate,
+           let accountID, let folderID, let reportDate,
+           candidate != FileReplacementCandidate(
+               accountID: accountID,
+               folderID: folderID,
+               reportDate: reportDate
+           ) {
+            return
+        }
+        fileReplacementCandidate = nil
+        fileReplacementReason = nil
     }
 
     private func restoreLocalStateWithoutNetwork() {
@@ -549,9 +725,9 @@ private extension DailyDriveExportFailure {
         case .permissionDenied: "Google denied the operation. No broader permission will be requested."
         case .quotaExceeded: "Drive quota is exhausted. No retry was queued."
         case .rateLimited: "Drive rate-limited the request. No background retry was queued."
-        case .remoteMissing: "The stored Drive file ID is missing or inaccessible; no replacement was created."
+        case .remoteMissing: "The stored Drive file is missing or inaccessible. Confirm an explicit override before creating a replacement."
         case .remoteMoved: "The stored file moved outside the validated destination; export is blocked."
-        case .remoteTrashed: "The stored file is trashed; export is blocked."
+        case .remoteTrashed: "The stored file is trashed. Confirm replacement before creating a new file ID."
         case .remoteMetadataMismatch: "Remote metadata did not match the canonical identity."
         case .remoteContentMismatch: "Remote bytes did not match the reviewed preview."
         case .unresolvedRequest: "The submitted request is unresolved. New writes are blocked; no retry is queued."

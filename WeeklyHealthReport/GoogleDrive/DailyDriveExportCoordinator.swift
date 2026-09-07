@@ -192,6 +192,42 @@ actor DailyDriveExportCoordinator {
         cancellationRequested = true
     }
 
+    func abandonDestination(accountID: String, folderID: String) throws {
+        try abandonIdentities {
+            $0.accountID == accountID && $0.folderID == folderID
+        }
+    }
+
+    func abandonFileIdentity(accountID: String, folderID: String, reportDate: String) throws {
+        try abandonIdentities {
+            $0.accountID == accountID
+                && $0.folderID == folderID
+                && $0.reportDate == reportDate
+        }
+    }
+
+    private func abandonIdentities(
+        matching predicate: (DailyDriveExportIdentity) -> Bool
+    ) throws {
+        guard activeOperationID == nil else { throw DailyDriveExportFailure.busy }
+        do {
+            guard var registry = try store.load() else {
+                guard try store.installationMarker() == nil else {
+                    throw DailyDriveExportFailure.identityRecoveryAmbiguous
+                }
+                return
+            }
+            registry.identities.removeAll(where: predicate)
+            try persist(registry)
+        } catch let failure as DailyDriveExportFailure {
+            throw failure
+        } catch is DecodingError {
+            throw DailyDriveExportFailure.identityRecoveryAmbiguous
+        } catch {
+            throw DailyDriveExportFailure.persistenceFailure
+        }
+    }
+
     func export(
         payload: Data,
         reportDate: String,

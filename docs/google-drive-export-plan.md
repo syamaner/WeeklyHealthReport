@@ -49,6 +49,20 @@ Synthetic API feasibility must pass before production HealthKit wiring.
 - Changing account/folder must not silently create a second canonical export for a
   date already exported elsewhere. Block that date until an explicit migration or
   destination policy is agreed. Never silently re-create a missing/inaccessible file.
+- If the app remotely verifies that its stored folder is trashed, it may offer a
+  destructive confirmation to forget only that exact account/folder binding and its
+  local canonical file identities. Cancellation preserves state. Confirmation makes
+  a later user-initiated create/select possible but must not untrash, delete, enumerate
+  or otherwise change Drive. A generic missing/inaccessible folder response is not
+  enough to offer this destination-wide transition.
+- Apply the same confirmed recovery boundary to an exact canonical file that remote
+  metadata reports as trashed: explicit confirmation may forget only that date's local
+  file identity so a later export can create a fresh canonical file in the still-valid
+  folder. For a missing/inaccessible canonical file, the user may explicitly override
+  the ambiguity after a warning that lost access could leave the original in place and
+  cause a duplicate. The override forgets only that exact date's local file identity;
+  it never treats the response itself as proof of deletion or changes Drive before the
+  user initiates another export.
 
 ## A. Consent and destination feasibility — first implementation slice
 
