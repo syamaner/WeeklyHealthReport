@@ -116,6 +116,13 @@ struct DailyDestinationPartitions: Codable, Equatable, Sendable {
     func destination(for accountID: String) -> DailyDestinationBinding? {
         values[accountID]
     }
+
+    @discardableResult
+    mutating func unbind(accountID: String, folderID: String) -> Bool {
+        guard values[accountID]?.folderID == folderID else { return false }
+        values.removeValue(forKey: accountID)
+        return true
+    }
 }
 
 enum DailyDisconnectTransition: Equatable {

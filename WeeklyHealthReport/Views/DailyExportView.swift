@@ -3,6 +3,8 @@ import SwiftUI
 struct DailyExportView: View {
     @ObservedObject var session: DailyDriveSessionController
     @State private var showingPreview = false
+    @State private var showingTrashedDestinationConfirmation = false
+    @State private var showingTrashedFileConfirmation = false
 
     var body: some View {
         Form {
@@ -43,6 +45,12 @@ struct DailyExportView: View {
                     Task { await session.chooseDestination() }
                 }
                 .disabled(session.busy || !session.isConfigured)
+                if session.canForgetTrashedDestination {
+                    Button("Forget trashed destination", role: .destructive) {
+                        showingTrashedDestinationConfirmation = true
+                    }
+                    .disabled(session.busy)
+                }
                 Text("The app binds one account and folder ID. drive.file is per-file access, not a folder sandbox; folder contents are never enumerated.")
                     .font(.caption)
             }
@@ -82,12 +90,65 @@ struct DailyExportView: View {
                     Task { await session.recoverSelectedFile() }
                 }
                 .disabled(session.busy || session.preview == nil || !session.isConfigured)
+                if let reason = session.fileReplacementReason {
+                    Button(reason.buttonTitle, role: .destructive) {
+                        showingTrashedFileConfirmation = true
+                    }
+                    .disabled(session.busy)
+                }
                 LabeledContent("Last verified", value: session.lastVerifiedLabel)
                 Text("The first release supports one active exporting installation. Ambiguous recovery fails closed. There is no automatic or offline queue.")
                     .font(.caption)
             }
         }
+        .alert(
+            "Forget trashed destination?",
+            isPresented: $showingTrashedDestinationConfirmation
+        ) {
+            Button("Cancel", role: .cancel) {}
+            Button("Forget local identity", role: .destructive) {
+                Task { await session.forgetTrashedDestination() }
+            }
+        } message: {
+            Text("This forgets the selected folder and every daily file identity tracked inside it on this installation. It does not change or delete anything in Google Drive. You can then create or choose a fresh destination.")
+        }
+        .alert(
+            session.fileReplacementReason?.confirmationTitle ?? "Replace daily file?",
+            isPresented: $showingTrashedFileConfirmation
+        ) {
+            Button("Cancel", role: .cancel) {}
+            Button("Forget and allow replacement", role: .destructive) {
+                Task { await session.confirmFileReplacementOverride() }
+            }
+        } message: {
+            Text(session.fileReplacementReason?.confirmationMessage ?? "")
+        }
         .navigationTitle("Daily JSON Export")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private extension DailyDriveSessionController.FileReplacementReason {
+    var buttonTitle: String {
+        switch self {
+        case .trashed: "Replace trashed daily file"
+        case .missingOrInaccessible: "Override missing daily file"
+        }
+    }
+
+    var confirmationTitle: String {
+        switch self {
+        case .trashed: "Replace trashed daily file?"
+        case .missingOrInaccessible: "Override missing or inaccessible file?"
+        }
+    }
+
+    var confirmationMessage: String {
+        switch self {
+        case .trashed:
+            "This forgets only the confirmed trashed file identity on this installation. It does not change or delete anything in Google Drive. Export that report date again to create a fresh canonical file."
+        case .missingOrInaccessible:
+            "Drive cannot distinguish permanent deletion from lost access here. Continuing forgets only this installation’s identity and may create a duplicate if the original still exists but is inaccessible. No Drive item is changed until you export again."
+        }
     }
 }

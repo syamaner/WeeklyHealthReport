@@ -223,6 +223,99 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         } catch DailyDriveExportFailure.accountMismatch {}
     }
 
+    func testAbandonmentRemovesOnlyExactIdentitiesAndPreservesInstallation() async throws {
+        let store = MemoryDailyIdentityStore()
+        let installationID = "installation-a"
+        try store.save(DailyDriveExportRegistry(
+            installationID: installationID,
+            identities: [
+                identity(
+                    accountID: "account-a", folderID: "folder-a",
+                    reportDate: "2026-09-06", installationID: installationID
+                ),
+                identity(
+                    accountID: "account-a", folderID: "folder-b",
+                    reportDate: "2026-09-07", installationID: installationID
+                ),
+                identity(
+                    accountID: "account-b", folderID: "folder-a",
+                    reportDate: "2026-09-08", installationID: installationID
+                )
+            ]
+        ))
+        let coordinator = DailyDriveExportCoordinator(
+            transport: MockDailyDriveServer(),
+            store: store
+        )
+
+        try await coordinator.abandonFileIdentity(
+            accountID: "account-a",
+            folderID: "folder-b",
+            reportDate: "2026-09-07"
+        )
+
+        XCTAssertEqual(
+            store.snapshot()?.identities.map { [$0.accountID, $0.folderID, $0.reportDate] },
+            [
+                ["account-a", "folder-a", "2026-09-06"],
+                ["account-b", "folder-a", "2026-09-08"]
+            ]
+        )
+
+        try await coordinator.abandonDestination(accountID: "account-a", folderID: "folder-a")
+
+        XCTAssertEqual(store.snapshot()?.installationID, installationID)
+        XCTAssertEqual(try store.installationMarker(), installationID)
+        XCTAssertEqual(
+            store.snapshot()?.identities.map { [$0.accountID, $0.folderID, $0.reportDate] },
+            [
+                ["account-b", "folder-a", "2026-09-08"]
+            ]
+        )
+
+        store.removeRegistryPreservingMarker()
+        do {
+            try await coordinator.abandonDestination(
+                accountID: "account-b",
+                folderID: "folder-a"
+            )
+            XCTFail("A marker without its registry must block identity abandonment")
+        } catch DailyDriveExportFailure.identityRecoveryAmbiguous {}
+    }
+
+    func testExplicitMissingFileOverrideAllowsFreshCanonicalID() async throws {
+        let store = MemoryDailyIdentityStore()
+        let server = MockDailyDriveServer()
+        let coordinator = DailyDriveExportCoordinator(transport: server, store: store)
+        _ = try await export(8, coordinator: coordinator)
+        let originalID = try XCTUnwrap(store.snapshot()?.identities.first?.fileID)
+        await server.removeFile(id: originalID)
+
+        do {
+            _ = try await export(18, coordinator: coordinator)
+            XCTFail("A missing tracked file must fail closed before explicit override")
+        } catch DailyDriveExportFailure.remoteMissing {}
+        XCTAssertEqual(store.snapshot()?.identities.first?.fileID, originalID)
+
+        try await coordinator.abandonFileIdentity(
+            accountID: accountID,
+            folderID: folderID,
+            reportDate: reportDate
+        )
+        let replacement = try await export(18, coordinator: coordinator)
+        let replacementID = try XCTUnwrap(store.snapshot()?.identities.first?.fileID)
+        let fileCount = await server.fileCount()
+        let generatedIDs = await server.generatedIDs
+
+        XCTAssertEqual(replacement, .verified(
+            dataAsOf: "2026-09-06T18:00:00+01:00",
+            created: true
+        ))
+        XCTAssertNotEqual(replacementID, originalID)
+        XCTAssertEqual(fileCount, 1)
+        XCTAssertEqual(generatedIDs, [originalID, replacementID])
+    }
+
     func testByteMetadataRemoteStateAndStaleCompletionAreRejected() async throws {
         let mismatchStore = MemoryDailyIdentityStore()
         let mismatchServer = MockDailyDriveServer()
@@ -372,6 +465,23 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         return bytes
     }
 
+    private func identity(
+        accountID: String,
+        folderID: String,
+        reportDate: String,
+        installationID: String
+    ) -> DailyDriveExportIdentity {
+        DailyDriveExportIdentity(
+            accountID: accountID,
+            folderID: folderID,
+            reportDate: reportDate,
+            fileID: "file-\(accountID)-\(folderID)-\(reportDate)",
+            installationID: installationID,
+            lastVerified: nil,
+            pending: nil
+        )
+    }
+
     private func waitUntil(_ predicate: @escaping () async -> Bool) async {
         for _ in 0..<5_000 {
             if await predicate() { return }
@@ -462,6 +572,7 @@ private actor MockDailyDriveServer: DailyDriveTransporting {
     func resumeUpdate() { updateContinuation?.resume(); updateContinuation = nil }
     func fileCount() -> Int { files.count }
     func storedContent(id: String) -> Data? { files[id]?.content }
+    func removeFile(id: String) { files.removeValue(forKey: id) }
 
     func account(accessToken: String) async throws -> DailyDriveAccount {
         DailyDriveAccount(
@@ -584,5 +695,17 @@ final class DailyDrivePolicyTests: XCTestCase {
             DailyDisconnectTransition.afterRevocation(statusCode: 500),
             .keepCredentialsAndReportFailure
         )
+
+        var partitions = DailyDestinationPartitions()
+        partitions.bind(DailyDestinationBinding(
+            accountID: "account-a",
+            folderID: "folder-a",
+            folderName: "Invented",
+            origin: .created
+        ))
+        XCTAssertFalse(partitions.unbind(accountID: "account-a", folderID: "folder-b"))
+        XCTAssertNotNil(partitions.destination(for: "account-a"))
+        XCTAssertTrue(partitions.unbind(accountID: "account-a", folderID: "folder-a"))
+        XCTAssertNil(partitions.destination(for: "account-a"))
     }
 }
