@@ -6,7 +6,9 @@ integration. The merged synthetic harness includes accepted slice A. Slice B is 
 accepted within its synthetic-only boundary through local checks and bounded build-5/
 build-6 device and Drive evidence. Slice C's product policies are ratified and its
 daily query/model/JSON path is accepted locally through invented fixtures, the complete
-62-test simulator suite and static analysis. Slice D now has a locally integrated,
+62-test simulator suite and static analysis. The additive nutrition contract uses schema
+version 2, a selected visible HealthKit source and fixed seven-completed-day windows.
+Slice D now has a locally integrated,
 manual production UI and fail-closed transport path, but no production OAuth client,
 personal-data export, real-device HealthKit validation or new Google mutation exists.
 See `daily-export-feasibility-results.md`
@@ -32,7 +34,7 @@ Use manual, user-initiated Google Drive API export after consent. Offer Create â
 
 ## JSON envelope
 
-Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `exported_at`, `day_window`, `today`, `app_context`.
+Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `exported_at`, `day_window`, `today`, `app_context`. The current envelope is schema version 2. Schema version 1 remains valid only for verifying and safely replacing an existing canonical same-date Drive file.
 
 `today` contains daily metric summaries and agreed detail. `app_context` contains existing app-derived summaries/trends with their own windows, coverage, calculation policy identifier and availability. Do not add a blanket previous-seven-days raw-data bundle or ask Cowork to reconstruct established app calculations.
 
@@ -57,6 +59,7 @@ Metric state is explicit through an `availability` field: `available`, `no_data_
 | Workouts | Individual type, start time and duration; stable record identity for matching | Existing period count and duration summary |
 | Watch coverage | Presence of qualifying Watch heart-rate data today, not wear duration | Existing sampled-day coverage |
 | Medications | Visible taken events with medication, logged quantity/unit and timestamp | Existing period event summaries, explicitly tied to their reporting window |
+| Nutrition | One source-filtered cumulative total per catalogue nutrient from local midnight through the captured cutoff | Exactly seven completed-day states, sampled-day current and previous averages, exact windows and a signed trend only when both windows have 7/7 visible days |
 
 Latest-known context must never be labelled as a measurement taken today. Record retained context measurements' actual dates.
 
@@ -65,6 +68,10 @@ Ratified multiple-weight fallback: if HealthKit unexpectedly exposes multiple we
 Glucose hourly bins require query work: current code obtains daily statistics. Derive hourly values using HealthKit statistics, not manual summation/merging of overlapping sensor sources. Keep daily statistics independently queried: averaging hourly means would change the existing daily semantics. Clip the last bin to the refresh cutoff and identify repeated/skipped local hours by timestamp offsets.
 
 Preserve BP pairs, including readings outside the morning/evening slots. Do not join independent systolic and diastolic samples. Preserve existing slot boundaries and equal-day weighting in context summaries.
+
+Nutrition uses one ordered catalogue of all 39 current HealthKit dietary quantity identifiers. The catalogue owns each stable JSON key, display label, category and export unit and is reused for read-only authorisation, source discovery, daily statistics queries and serialization. The person selects a visible HealthKit source by bundle identifier; its name is display-only. Every nutrition query combines the selected source predicate with the exact date predicate and uses `cumulativeSum`. There is no provider-specific identifier and no unfiltered fallback. A missing statistic is `no_data_or_access`; it is not zero or proof of denied access.
+
+The nutrition context policy is `nutrition_last_7_completed_days_v1`. It reuses the export's fixed Last 7 Completed Days period and its immediately preceding equivalent period, independent of the weekly screen selection. Each nutrient query spans those 14 completed local-calendar days plus today through the cutoff, normally as one daily statistics collection. Available daily totals alone enter sampled-day averages, whose payload records both sampled and reporting days. Trend is the signed current average minus previous average only when both periods expose all seven daily totals; otherwise it is `insufficient_data`. No foods, meals, targets, percentage changes, tolerances, scores or interpretation are exported.
 
 Sleep remains the existing noon-to-noon bucket ending on the waking date, clipped to available data at refresh. A Sunday bedtime export cannot contain Sunday-night sleep ending Monday; Cowork must use another source or later refresh if that is required.
 
@@ -79,6 +86,7 @@ The earlier conversation's blanket claim that all trends use completed-day windo
 - Requery and build a full daily snapshot on every export; replace rather than append. This permits later HealthKit corrections/deletions to appear.
 - One export operation at a time; an older attempt cannot overwrite a newer snapshot.
 - Repeating a save of the same snapshot must leave one canonical daily artifact.
+- A newer schema-v2 snapshot for the same reporting date replaces a verified schema-v1 canonical file under the same persisted Drive file ID. Version evolution does not relax stale-cutoff rejection, exact-byte readback or one-file-per-day identity.
 - A failed refresh, cancellation or failed write must preserve the prior good file. Never delete the prior file first to simulate replacement.
 - Validate the complete JSON before handing it to storage. Keep temporary data only as long as needed and clean it up after completion/cancellation where possible.
 - Treat HTTP upload response separately from verified remote content. Verify the expected account/folder/file ID and JSON bytes through the Drive API before reporting verified upload. Independent Drive web verification remains an acceptance check; this does not prove Cowork fetched the file.

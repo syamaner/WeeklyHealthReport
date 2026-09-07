@@ -845,13 +845,25 @@ actor DailyDriveExportCoordinator {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         guard let envelope = try? decoder.decode(DailyHealthExportEnvelope.self, from: payload),
-              envelope.schemaVersion == 1,
+              envelope.schemaVersion == 1 || envelope.schemaVersion == 2,
               envelope.reportDate == reportDate,
               try DailyHealthExportSerializer.encode(envelope) == payload,
               let dataAsOf = try? timestamp(envelope.dataAsOf),
               let exportedAt = try? timestamp(envelope.exportedAt),
               exportedAt >= dataAsOf else {
             throw DailyDriveExportFailure.invalidPayload
+        }
+        if envelope.schemaVersion == 1 {
+            guard envelope.today.nutrition == nil,
+                  envelope.appContext.nutrition == nil else {
+                throw DailyDriveExportFailure.invalidPayload
+            }
+        } else {
+            let expectedKeys = NutritionCatalogue.all.map(\.key)
+            guard envelope.today.nutrition?.nutrients.map(\.key) == expectedKeys,
+                  envelope.appContext.nutrition?.nutrients.map(\.key) == expectedKeys else {
+                throw DailyDriveExportFailure.invalidPayload
+            }
         }
         return PayloadIdentity(
             envelope: envelope,

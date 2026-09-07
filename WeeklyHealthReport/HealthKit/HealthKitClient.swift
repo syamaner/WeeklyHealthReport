@@ -32,6 +32,7 @@ enum HealthDataError: LocalizedError, Equatable {
 
 final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding {
     private let store: HKHealthStore
+    private var visibleNutritionSourcesByBundleIdentifier: [String: Set<HKSource>] = [:]
 
     init(store: HKHealthStore = HealthStoreProvider.shared) {
         self.store = store
@@ -95,6 +96,35 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
                 workoutType, sleepType
             ]
         )
+    }
+
+    func requestNutritionReadAuthorization() async throws {
+        guard isHealthDataAvailable else {
+            throw HealthDataError.unavailable
+        }
+        let types = try nutritionQuantityTypes().map(\.type)
+        try await store.requestAuthorization(toShare: [], read: Set(types))
+    }
+
+    func fetchVisibleNutritionSources() async throws -> [NutritionSource] {
+        guard isHealthDataAvailable else {
+            throw HealthDataError.unavailable
+        }
+        var discovered: [String: Set<HKSource>] = [:]
+        for (_, type) in try nutritionQuantityTypes() {
+            let descriptor = HKSourceQueryDescriptor(
+                predicate: HKSamplePredicate.quantitySample(type: type)
+            )
+            for source in try await descriptor.result(for: store) {
+                discovered[source.bundleIdentifier, default: []].insert(source)
+            }
+        }
+        visibleNutritionSourcesByBundleIdentifier = discovered
+        return NutritionSource.orderedUnique(discovered.compactMap { bundleIdentifier, sources in
+            sources.map(\.name).min().map {
+                NutritionSource(bundleIdentifier: bundleIdentifier, name: $0)
+            }
+        })
     }
 
     func fetchDailySteps(for period: ReportPeriod) async throws -> [DailyStepTotal] {
@@ -635,7 +665,8 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
     }
 
     func fetchDailyHealthExportInputs(
-        for window: DailyExportWindow
+        for window: DailyExportWindow,
+        nutritionSourceBundleIdentifier: String
     ) async throws -> DailyHealthExportInputs {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let previous = window.context.precedingEquivalent(
@@ -734,6 +765,10 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         let contextMedications = supportsMedicationData
             ? try await fetchTakenMedicationDoses(for: window.context)
             : []
+        let nutrition = try await fetchNutrition(
+            for: window,
+            sourceBundleIdentifier: nutritionSourceBundleIdentifier
+        )
 
         return DailyHealthExportInputs(
             weight: weight,
@@ -765,7 +800,90 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
             contextExerciseMinutes: contextExercise,
             contextWorkouts: contextWorkouts,
             contextAsleepIntervals: contextSleep,
-            contextMedicationDoses: contextMedications
+            contextMedicationDoses: contextMedications,
+            nutrition: nutrition
+        )
+    }
+
+    private func nutritionQuantityTypes() throws -> [(
+        definition: NutritionMetricDefinition,
+        type: HKQuantityType
+    )] {
+        try NutritionCatalogue.all.map { definition in
+            guard let type = HKObjectType.quantityType(forIdentifier: definition.identifier) else {
+                throw HealthDataError.missingType("nutrition")
+            }
+            return (definition, type)
+        }
+    }
+
+    private func fetchNutrition(
+        for window: DailyExportWindow,
+        sourceBundleIdentifier: String
+    ) async throws -> NutritionExportInput {
+        guard let sources = visibleNutritionSourcesByBundleIdentifier[
+            sourceBundleIdentifier
+        ], !sources.isEmpty else {
+            throw DailyHealthExportError.nutritionSourceUnavailable
+        }
+        guard let previous = window.context.precedingEquivalent(
+            calendar: window.calendar
+        ) else {
+            throw DailyHealthExportError.invalidWindow
+        }
+        let queryInterval = DateInterval(
+            start: previous.interval.start,
+            end: window.cutoff
+        )
+        let sourcePredicate = HKQuery.predicateForObjects(from: sources)
+        let datePredicate = HKQuery.predicateForSamples(
+            withStart: queryInterval.start,
+            end: queryInterval.end,
+            options: .strictStartDate
+        )
+        let predicate = NSCompoundPredicate(
+            andPredicateWithSubpredicates: [datePredicate, sourcePredicate]
+        )
+
+        var nutrientValues: [NutritionNutrientTotals] = []
+        for (definition, type) in try nutritionQuantityTypes() {
+            let descriptor = HKStatisticsCollectionQueryDescriptor(
+                predicate: .quantitySample(type: type, predicate: predicate),
+                options: .cumulativeSum,
+                anchorDate: queryInterval.start,
+                intervalComponents: DateComponents(day: 1)
+            )
+            let collection = try await descriptor.result(for: store)
+            var valuesByDay: [Date: Double] = [:]
+            collection.enumerateStatistics(
+                from: queryInterval.start,
+                to: queryInterval.end
+            ) { statistics, _ in
+                let day = window.calendar.startOfDay(for: statistics.startDate)
+                if let value = statistics.sumQuantity()?.doubleValue(
+                    for: definition.unit.healthKitUnit
+                ) {
+                    valuesByDay[day] = value
+                }
+            }
+            nutrientValues.append(NutritionNutrientTotals(
+                key: definition.key,
+                today: valuesByDay[window.day.start],
+                currentDays: window.context.completedDays.map {
+                    NutritionDailyTotal(day: $0.start, value: valuesByDay[$0.start])
+                },
+                previousDays: previous.completedDays.map {
+                    NutritionDailyTotal(day: $0.start, value: valuesByDay[$0.start])
+                }
+            ))
+        }
+
+        return NutritionExportInput(
+            source: NutritionSource(
+                bundleIdentifier: sourceBundleIdentifier,
+                name: sources.map(\.name).min() ?? sourceBundleIdentifier
+            ),
+            nutrients: nutrientValues
         )
     }
 

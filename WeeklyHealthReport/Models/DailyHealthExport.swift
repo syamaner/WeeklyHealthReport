@@ -4,6 +4,8 @@ enum DailyHealthExportError: Error, Equatable {
     case invalidTimeZone
     case invalidWindow
     case invalidMetricValue
+    case nutritionSourceRequired
+    case nutritionSourceUnavailable
 }
 
 struct DailyExportWindow: Equatable {
@@ -236,6 +238,61 @@ struct DailyWatchCoverageData: Codable, Equatable {
     let qualifyingDataPresent: Bool
 }
 
+struct DailyNutritionNutrient: Codable, Equatable {
+    let key: String
+    let label: String
+    let category: NutritionCategory
+    let unit: String
+    let value: ExportMetric<ExportScalar>
+}
+
+struct DailyNutritionData: Codable, Equatable {
+    let source: NutritionSource
+    let nutrients: [DailyNutritionNutrient]
+}
+
+struct ExportNutritionDay: Codable, Equatable {
+    let date: String
+    let value: ExportMetric<ExportScalar>
+}
+
+struct ExportNutritionAverage: Codable, Equatable {
+    let value: Double
+    let unit: String
+    let sampledDays: Int
+    let reportingDays: Int
+}
+
+struct ExportNutritionTrend: Codable, Equatable {
+    let change: Double
+    let unit: String
+}
+
+struct ExportNutritionNutrientContext: Codable, Equatable {
+    let key: String
+    let label: String
+    let category: NutritionCategory
+    let unit: String
+    let days: [ExportNutritionDay]
+    let average: ExportMetric<ExportNutritionAverage>
+    let previousAverage: ExportMetric<ExportNutritionAverage>
+    let trend: ExportMetric<ExportNutritionTrend>
+}
+
+struct ExportNutritionContext: Codable, Equatable {
+    let policyID: String
+    let currentWindow: ExportInterval
+    let previousWindow: ExportInterval
+    let nutrients: [ExportNutritionNutrientContext]
+
+    private enum CodingKeys: String, CodingKey {
+        case policyID = "policyId"
+        case currentWindow
+        case previousWindow
+        case nutrients
+    }
+}
+
 struct DailyHealthMetrics: Codable, Equatable {
     let weight: ExportMetric<DailyWeightData>
     let bodyFat: ExportMetric<DailyBodyFatData>
@@ -251,6 +308,13 @@ struct DailyHealthMetrics: Codable, Equatable {
     let workouts: ExportMetric<[DailyWorkoutData]>
     let watchCoverage: ExportMetric<DailyWatchCoverageData>
     let medications: ExportMetric<[DailyMedicationData]>
+    let nutrition: DailyNutritionData?
+
+    private enum CodingKeys: String, CodingKey {
+        case weight, bodyFat, waist, bloodPressure, glucose
+        case restingHeartRate, hrv, bloodOxygen, vo2Max, sleep
+        case activity, workouts, watchCoverage, medications, nutrition
+    }
 }
 
 struct ExportWeightContext: Codable, Equatable {
@@ -372,6 +436,7 @@ struct DailyAppContext: Codable, Equatable {
     let exercise: ExportMetric<ExportScalar>
     let workouts: ExportMetric<ExportWorkoutContext>
     let medications: ExportMetric<ExportMedicationContext>
+    let nutrition: ExportNutritionContext?
 
     private enum CodingKeys: String, CodingKey {
         case policyID = "policyId"
@@ -392,6 +457,53 @@ struct DailyAppContext: Codable, Equatable {
         case exercise
         case workouts
         case medications
+        case nutrition
+    }
+}
+
+extension DailyHealthMetrics {
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(weight, forKey: .weight)
+        try container.encode(bodyFat, forKey: .bodyFat)
+        try container.encode(waist, forKey: .waist)
+        try container.encode(bloodPressure, forKey: .bloodPressure)
+        try container.encode(glucose, forKey: .glucose)
+        try container.encode(restingHeartRate, forKey: .restingHeartRate)
+        try container.encode(hrv, forKey: .hrv)
+        try container.encode(bloodOxygen, forKey: .bloodOxygen)
+        try container.encode(vo2Max, forKey: .vo2Max)
+        try container.encode(sleep, forKey: .sleep)
+        try container.encode(activity, forKey: .activity)
+        try container.encode(workouts, forKey: .workouts)
+        try container.encode(watchCoverage, forKey: .watchCoverage)
+        try container.encode(medications, forKey: .medications)
+        try container.encodeIfPresent(nutrition, forKey: .nutrition)
+    }
+}
+
+extension DailyAppContext {
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(policyID, forKey: .policyID)
+        try container.encode(window, forKey: .window)
+        try container.encode(weight, forKey: .weight)
+        try container.encode(bodyFat, forKey: .bodyFat)
+        try container.encode(waist, forKey: .waist)
+        try container.encode(glucose, forKey: .glucose)
+        try container.encode(vo2Max, forKey: .vo2Max)
+        try container.encode(bloodOxygen, forKey: .bloodOxygen)
+        try container.encode(bloodPressure, forKey: .bloodPressure)
+        try container.encode(steps, forKey: .steps)
+        try container.encode(restingHeartRate, forKey: .restingHeartRate)
+        try container.encode(hrv, forKey: .hrv)
+        try container.encode(watchCoverage, forKey: .watchCoverage)
+        try container.encode(sleep, forKey: .sleep)
+        try container.encode(activeEnergy, forKey: .activeEnergy)
+        try container.encode(exercise, forKey: .exercise)
+        try container.encode(workouts, forKey: .workouts)
+        try container.encode(medications, forKey: .medications)
+        try container.encodeIfPresent(nutrition, forKey: .nutrition)
     }
 }
 
@@ -437,6 +549,7 @@ struct DailyHealthExportInputs: Equatable {
     let contextWorkouts: [WorkoutRecord]
     let contextAsleepIntervals: [AsleepInterval]
     let contextMedicationDoses: [MedicationDoseRecord]
+    let nutrition: NutritionExportInput
 }
 
 enum DailyHealthExportBuilder {
@@ -495,6 +608,7 @@ enum DailyHealthExportBuilder {
         guard inputs.hourlyGlucose.count == window.glucoseHours.count else {
             throw DailyHealthExportError.invalidWindow
         }
+        let nutrition = try makeNutrition(window: window, input: inputs.nutrition)
 
         let todayWeight = inputs.weight.filter { window.day.containsHalfOpen($0.date) }
         let weight = WeightMeasurement.latest(in: todayWeight).map {
@@ -672,16 +786,18 @@ enum DailyHealthExportBuilder {
             }
                 ? .available(DailyWatchCoverageData(qualifyingDataPresent: true))
                 : .noDataOrAccess,
-            medications: medications
+            medications: medications,
+            nutrition: nutrition.today
         )
 
         let context = try makeContext(
             window: window,
             inputs: inputs,
-            calendar: calendar
+            calendar: calendar,
+            nutrition: nutrition.context
         )
         return DailyHealthExportEnvelope(
-            schemaVersion: 1,
+            schemaVersion: 2,
             reportDate: window.reportDate,
             timeZone: window.timeZoneIdentifier,
             dataAsOf: timestamp(window.cutoff),
@@ -689,6 +805,115 @@ enum DailyHealthExportBuilder {
             dayWindow: interval(window.day),
             today: today,
             appContext: context
+        )
+    }
+
+    private static func makeNutrition(
+        window: DailyExportWindow,
+        input: NutritionExportInput
+    ) throws -> (today: DailyNutritionData, context: ExportNutritionContext) {
+        guard !input.source.bundleIdentifier.isEmpty,
+              input.nutrients.map(\.key) == NutritionCatalogue.all.map(\.key),
+              let previous = window.context.precedingEquivalent(calendar: window.calendar)
+        else {
+            throw DailyHealthExportError.invalidWindow
+        }
+
+        let currentDays = window.context.completedDays.map(\.start)
+        let previousDays = previous.completedDays.map(\.start)
+        guard input.nutrients.allSatisfy({ nutrient in
+            nutrient.currentDays.map(\.day) == currentDays
+                && nutrient.previousDays.map(\.day) == previousDays
+        }) else {
+            throw DailyHealthExportError.invalidWindow
+        }
+
+        let values = input.nutrients.flatMap { nutrient in
+            [nutrient.today].compactMap { $0 }
+                + nutrient.currentDays.compactMap(\.value)
+                + nutrient.previousDays.compactMap(\.value)
+        }
+        guard values.allSatisfy(\.isFinite) else {
+            throw DailyHealthExportError.invalidMetricValue
+        }
+
+        func scalar(_ value: Double?, unit: NutritionExportUnit) -> ExportMetric<ExportScalar> {
+            value.map {
+                .available(ExportScalar(value: $0, unit: unit.rawValue))
+            } ?? .noDataOrAccess
+        }
+
+        func average(
+            _ days: [NutritionDailyTotal],
+            unit: NutritionExportUnit
+        ) -> ExportMetric<ExportNutritionAverage> {
+            let available = days.compactMap(\.value)
+            guard !available.isEmpty else { return .noDataOrAccess }
+            return .available(ExportNutritionAverage(
+                value: available.reduce(0, +) / Double(available.count),
+                unit: unit.rawValue,
+                sampledDays: available.count,
+                reportingDays: days.count
+            ))
+        }
+
+        var todayNutrients: [DailyNutritionNutrient] = []
+        var contextNutrients: [ExportNutritionNutrientContext] = []
+        for (definition, totals) in zip(NutritionCatalogue.all, input.nutrients) {
+            let currentValues = totals.currentDays.compactMap(\.value)
+            let previousValues = totals.previousDays.compactMap(\.value)
+            let currentAverage = average(totals.currentDays, unit: definition.unit)
+            let previousAverage = average(totals.previousDays, unit: definition.unit)
+            let trend: ExportMetric<ExportNutritionTrend>
+            if currentValues.count == 7, previousValues.count == 7 {
+                let current = currentValues.reduce(0, +) / 7
+                let prior = previousValues.reduce(0, +) / 7
+                trend = .available(ExportNutritionTrend(
+                    change: current - prior,
+                    unit: definition.unit.rawValue
+                ))
+            } else {
+                trend = .insufficientData
+            }
+
+            todayNutrients.append(DailyNutritionNutrient(
+                key: definition.key,
+                label: definition.label,
+                category: definition.category,
+                unit: definition.unit.rawValue,
+                value: scalar(totals.today, unit: definition.unit)
+            ))
+            contextNutrients.append(ExportNutritionNutrientContext(
+                key: definition.key,
+                label: definition.label,
+                category: definition.category,
+                unit: definition.unit.rawValue,
+                days: totals.currentDays.map {
+                    ExportNutritionDay(
+                        date: ExportDateText.date($0.day, calendar: window.calendar),
+                        value: scalar($0.value, unit: definition.unit)
+                    )
+                },
+                average: currentAverage,
+                previousAverage: previousAverage,
+                trend: trend
+            ))
+        }
+
+        return (
+            DailyNutritionData(source: input.source, nutrients: todayNutrients),
+            ExportNutritionContext(
+                policyID: NutritionCatalogue.reportingPolicyID,
+                currentWindow: ExportDateText.interval(
+                    window.context.interval,
+                    calendar: window.calendar
+                ),
+                previousWindow: ExportDateText.interval(
+                    previous.interval,
+                    calendar: window.calendar
+                ),
+                nutrients: contextNutrients
+            )
         )
     }
 
@@ -724,7 +949,8 @@ enum DailyHealthExportBuilder {
     private static func makeContext(
         window: DailyExportWindow,
         inputs: DailyHealthExportInputs,
-        calendar: Calendar
+        calendar: Calendar,
+        nutrition: ExportNutritionContext
     ) throws -> DailyAppContext {
         let timestamp = { ExportDateText.timestamp($0, calendar: calendar) }
         let exportInterval = { ExportDateText.interval($0, calendar: calendar) }
@@ -1136,7 +1362,8 @@ enum DailyHealthExportBuilder {
                             )
                         }
                     ))
-                } ?? .noDataOrAccess
+                } ?? .noDataOrAccess,
+            nutrition: nutrition
         )
     }
 }

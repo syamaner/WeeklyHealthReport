@@ -26,6 +26,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
     @Published private(set) var lastVerifiedLabel = "No verified Drive upload in this session"
     @Published private(set) var canForgetTrashedDestination = false
     @Published private(set) var fileReplacementReason: FileReplacementReason?
+    @Published private(set) var nutritionSources: [NutritionSource] = []
+    @Published private(set) var selectedNutritionSourceBundleIdentifier: String?
 
     var isConfigured: Bool { (try? oauthConfiguration()) != nil }
     var canExport: Bool {
@@ -34,12 +36,29 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
     var previewText: String? {
         preview.flatMap { String(data: $0.bytes, encoding: .utf8) }
     }
+    var nutritionSourceLabel: String {
+        guard let selectedNutritionSourceBundleIdentifier else {
+            return "No source selected"
+        }
+        guard let source = nutritionSources.first(where: {
+            $0.bundleIdentifier == selectedNutritionSourceBundleIdentifier
+        }) else {
+            return "Saved source unavailable — \(selectedNutritionSourceBundleIdentifier)"
+        }
+        return "\(source.name) — \(source.bundleIdentifier)"
+    }
+    var canRefreshPreview: Bool {
+        !busy && nutritionSources.contains {
+            $0.bundleIdentifier == selectedNutritionSourceBundleIdentifier
+        }
+    }
 
     private let keychain: DailyDriveKeychainStore
     private let drive: DailyDriveAPI
     private let exportService: DailyHealthExportService
     private let identityStore: KeychainDailyDriveExportIdentityStore
     private let exportCoordinator: DailyDriveExportCoordinator
+    private let nutritionSourceSelection: any NutritionSourceSelectionPersisting
     private var authState: OIDAuthState?
     private var authorizationFlow: OIDExternalUserAgentSession?
     private var account: DailyDriveAccount?
@@ -67,7 +86,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
             keychain: keychain,
             drive: DailyDriveAPI(),
             exportService: DailyHealthExportService(healthData: HealthKitClient()),
-            identityStore: KeychainDailyDriveExportIdentityStore(keychain: keychain)
+            identityStore: KeychainDailyDriveExportIdentityStore(keychain: keychain),
+            nutritionSourceSelection: UserDefaultsNutritionSourceSelectionStore()
         )
     }
 
@@ -75,17 +95,20 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         keychain: DailyDriveKeychainStore,
         drive: DailyDriveAPI,
         exportService: DailyHealthExportService,
-        identityStore: KeychainDailyDriveExportIdentityStore
+        identityStore: KeychainDailyDriveExportIdentityStore,
+        nutritionSourceSelection: any NutritionSourceSelectionPersisting
     ) {
         self.keychain = keychain
         self.drive = drive
         self.exportService = exportService
         self.identityStore = identityStore
+        self.nutritionSourceSelection = nutritionSourceSelection
         exportCoordinator = DailyDriveExportCoordinator(
             transport: drive,
             store: identityStore
         )
         super.init()
+        selectedNutritionSourceBundleIdentifier = nutritionSourceSelection.loadBundleIdentifier()
         restoreLocalStateWithoutNetwork()
         if !isConfigured {
             status = "Drive export is disabled until this app has its own local OAuth client configuration."
@@ -208,13 +231,45 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
 
     func refreshPreview() async {
         await run("Reading a fresh on-device daily snapshot…") {
-            let result = try await self.exportService.refresh()
+            let result = try await self.exportService.refresh(
+                nutritionSourceBundleIdentifier: self.selectedNutritionSourceBundleIdentifier
+            )
             if self.fileReplacementCandidate?.reportDate != result.envelope.reportDate {
                 self.clearFileReplacementCandidate()
             }
             self.preview = result
             self.status = "Fresh preview created in memory. Review it before choosing Export."
         }
+    }
+
+    func refreshNutritionSources() async {
+        await run("Requesting nutrition read access and discovering visible sources…") {
+            let sources = try await self.exportService.discoverNutritionSources()
+            self.nutritionSources = sources
+            guard let selected = self.selectedNutritionSourceBundleIdentifier else {
+                self.status = sources.isEmpty
+                    ? "No visible nutrition source was found. No preview or Drive request was created."
+                    : "Choose a visible nutrition source. No preview or Drive request was created."
+                return
+            }
+            guard sources.contains(where: { $0.bundleIdentifier == selected }) else {
+                self.preview = nil
+                self.status = "The saved nutrition source is not visible. Choose an available source; no unfiltered nutrition was used."
+                return
+            }
+            self.status = "Nutrition source resolved by bundle identifier. Refresh the preview when ready."
+        }
+    }
+
+    func selectNutritionSource(bundleIdentifier: String) {
+        guard !busy,
+              let source = nutritionSources.first(where: {
+                $0.bundleIdentifier == bundleIdentifier
+              }) else { return }
+        selectedNutritionSourceBundleIdentifier = source.bundleIdentifier
+        nutritionSourceSelection.saveBundleIdentifier(source.bundleIdentifier)
+        preview = nil
+        status = "Selected \(source.name) by bundle identifier. Refresh to create a new reviewed preview."
     }
 
     func exportPreview() async {
@@ -627,6 +682,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
             status = failure.userFacingLabel
         } catch HealthDataError.unavailable {
             status = "Health data is unavailable on this device. No JSON or Drive request was created."
+        } catch DailyHealthExportError.nutritionSourceRequired {
+            status = "Choose a visible nutrition source before refreshing the preview."
+        } catch DailyHealthExportError.nutritionSourceUnavailable {
+            preview = nil
+            status = "The selected nutrition source is unavailable. Refresh sources and choose again; no unfiltered nutrition was used."
         } catch let error as NSError
             where error.domain == OIDGeneralErrorDomain && error.code == -3 {
             status = "Consent or selection was cancelled. Existing state was preserved."
