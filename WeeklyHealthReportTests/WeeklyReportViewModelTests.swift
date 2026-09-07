@@ -1,3 +1,4 @@
+import Combine
 import XCTest
 @testable import WeeklyHealthReport
 
@@ -29,6 +30,58 @@ final class WeeklyReportViewModelTests: XCTestCase {
         XCTAssertEqual(authorizationRequestCount, 1)
         assertAllReportMetricsAvailable(viewModel)
         assertSnapshotMatchesPublishedStates(viewModel)
+    }
+
+    func testRefreshPublishesLoadingForEveryMetricWhileQueryIsInFlight() async {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let provider = FakeHealthDataProvider(pauseFirstWeightFetch: true)
+        let viewModel = makeViewModel(
+            provider: provider,
+            calendar: calendar,
+            dates: [refreshDate]
+        )
+
+        let refresh = Task { await viewModel.refresh() }
+        await provider.waitUntilFirstWeightFetchIsPaused()
+
+        XCTAssertEqual(viewModel.state, .loading)
+        XCTAssertEqual(viewModel.weightState, .loading)
+        XCTAssertEqual(viewModel.bodyFatState, .loading)
+        XCTAssertEqual(viewModel.waistState, .loading)
+        XCTAssertEqual(viewModel.glucoseState, .loading)
+        XCTAssertEqual(viewModel.vo2MaxState, .loading)
+        XCTAssertEqual(viewModel.bloodOxygenState, .loading)
+        XCTAssertEqual(viewModel.bloodPressureState, .loading)
+        XCTAssertEqual(viewModel.restingHeartRateState, .loading)
+        XCTAssertEqual(viewModel.hrvState, .loading)
+        XCTAssertEqual(viewModel.watchCoverageState, .loading)
+        XCTAssertEqual(viewModel.exerciseState, .loading)
+        XCTAssertEqual(viewModel.activeEnergyState, .loading)
+        XCTAssertEqual(viewModel.workoutState, .loading)
+        XCTAssertEqual(viewModel.sleepState, .loading)
+        XCTAssertEqual(viewModel.medicationState, .loading)
+        assertSnapshotMatchesPublishedStates(viewModel)
+
+        await provider.resumeFirstWeightFetch()
+        await refresh.value
+    }
+
+    func testMetricMutationPublishesViewModelChange() {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let viewModel = makeViewModel(
+            provider: FakeHealthDataProvider(),
+            calendar: calendar,
+            dates: [refreshDate]
+        )
+        let published = expectation(description: "Metric state change is published")
+        let observation = viewModel.objectWillChange.sink { published.fulfill() }
+
+        viewModel.setMedicationAuthorizationFailure("Synthetic medication failure")
+
+        wait(for: [published], timeout: 0.1)
+        withExtendedLifetime(observation) {}
     }
 
     func testHealthUnavailablePublishesUnavailableForEveryMetric() async {

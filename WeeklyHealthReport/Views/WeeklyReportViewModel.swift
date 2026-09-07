@@ -29,25 +29,125 @@ final class WeeklyReportViewModel: ObservableObject {
     typealias WeightState = MetricState<WeightTrendSummary>
     typealias BodyFatState = MetricState<BodyFatTrendSummary>
 
+    private enum CommonReportState {
+        case idle
+        case loading
+        case healthUnavailable
+        case failed(String)
+
+        var stepState: State {
+            switch self {
+            case .idle:
+                .idle
+            case .loading:
+                .loading
+            case .healthUnavailable:
+                .healthUnavailable
+            case .failed(let message):
+                .failed(message)
+            }
+        }
+
+        func metricState<Value>() -> MetricState<Value> {
+            switch self {
+            case .idle:
+                .idle
+            case .loading:
+                .loading
+            case .healthUnavailable:
+                .healthUnavailable
+            case .failed(let message):
+                .failed(message)
+            }
+        }
+    }
+
+    private struct ReportStates: Equatable {
+        var steps: State
+        var weight: WeightState
+        var bodyFat: BodyFatState
+        var waist: MetricState<WaistSummary>
+        var glucose: MetricState<GlucoseSummary>
+        var vo2Max: MetricState<VO2MaxSummary>
+        var bloodOxygen: MetricState<BloodOxygenSummary>
+        var bloodPressure: MetricState<BloodPressureSummary>
+        var restingHeartRate: MetricState<HeartMetricTrendSummary>
+        var hrv: MetricState<HeartMetricTrendSummary>
+        var watchCoverage: MetricState<WatchCoverageSummary>
+        var exercise: MetricState<Double>
+        var activeEnergy: MetricState<Double>
+        var workouts: MetricState<WorkoutSummary>
+        var sleep: MetricState<SleepSummary>
+        var medications: MetricState<MedicationSummary>
+
+        init(commonState: CommonReportState) {
+            steps = commonState.stepState
+            weight = commonState.metricState()
+            bodyFat = commonState.metricState()
+            waist = commonState.metricState()
+            glucose = commonState.metricState()
+            vo2Max = commonState.metricState()
+            bloodOxygen = commonState.metricState()
+            bloodPressure = commonState.metricState()
+            restingHeartRate = commonState.metricState()
+            hrv = commonState.metricState()
+            watchCoverage = commonState.metricState()
+            exercise = commonState.metricState()
+            activeEnergy = commonState.metricState()
+            workouts = commonState.metricState()
+            sleep = commonState.metricState()
+            medications = commonState.metricState()
+        }
+
+        func snapshot(period: ReportPeriod) -> WeeklyReportSnapshot {
+            WeeklyReportSnapshot(
+                period: period,
+                weight: weight.value,
+                bodyFat: bodyFat.value,
+                waist: waist.value,
+                glucose: glucose.value,
+                vo2Max: vo2Max.value,
+                bloodOxygen: bloodOxygen.value,
+                bloodPressure: bloodPressure.value,
+                steps: {
+                    if case .loaded(let summary) = steps { return summary }
+                    return nil
+                }(),
+                restingHeartRate: restingHeartRate.value,
+                hrv: hrv.value,
+                watchCoverage: watchCoverage.value,
+                sleep: sleep.value,
+                activeEnergyKilocalories: activeEnergy.value,
+                exerciseMinutes: exercise.value,
+                workouts: workouts.value,
+                medications: medications.value
+            )
+        }
+    }
+
     @Published var selection: ReportPeriodSelection = .lastSevenCompletedDays
     @Published private(set) var period: ReportPeriod
-    @Published private(set) var state: State = .idle
-    @Published private(set) var weightState: WeightState = .idle
-    @Published private(set) var bodyFatState: BodyFatState = .idle
-    @Published private(set) var waistState: MetricState<WaistSummary> = .idle
-    @Published private(set) var glucoseState: MetricState<GlucoseSummary> = .idle
-    @Published private(set) var vo2MaxState: MetricState<VO2MaxSummary> = .idle
-    @Published private(set) var bloodOxygenState: MetricState<BloodOxygenSummary> = .idle
-    @Published private(set) var bloodPressureState: MetricState<BloodPressureSummary> = .idle
-    @Published private(set) var restingHeartRateState: MetricState<HeartMetricTrendSummary> = .idle
-    @Published private(set) var hrvState: MetricState<HeartMetricTrendSummary> = .idle
-    @Published private(set) var watchCoverageState: MetricState<WatchCoverageSummary> = .idle
-    @Published private(set) var exerciseState: MetricState<Double> = .idle
-    @Published private(set) var activeEnergyState: MetricState<Double> = .idle
-    @Published private(set) var workoutState: MetricState<WorkoutSummary> = .idle
-    @Published private(set) var sleepState: MetricState<SleepSummary> = .idle
-    @Published private(set) var medicationState: MetricState<MedicationSummary> = .idle
+    @Published private var reportStates = ReportStates(commonState: .idle)
     @Published private(set) var lastRefreshed: Date?
+
+    var state: State { reportStates.steps }
+    var weightState: WeightState { reportStates.weight }
+    var bodyFatState: BodyFatState { reportStates.bodyFat }
+    var waistState: MetricState<WaistSummary> { reportStates.waist }
+    var glucoseState: MetricState<GlucoseSummary> { reportStates.glucose }
+    var vo2MaxState: MetricState<VO2MaxSummary> { reportStates.vo2Max }
+    var bloodOxygenState: MetricState<BloodOxygenSummary> { reportStates.bloodOxygen }
+    var bloodPressureState: MetricState<BloodPressureSummary> { reportStates.bloodPressure }
+    var restingHeartRateState: MetricState<HeartMetricTrendSummary> {
+        reportStates.restingHeartRate
+    }
+    var hrvState: MetricState<HeartMetricTrendSummary> { reportStates.hrv }
+    var watchCoverageState: MetricState<WatchCoverageSummary> { reportStates.watchCoverage }
+    var exerciseState: MetricState<Double> { reportStates.exercise }
+    var activeEnergyState: MetricState<Double> { reportStates.activeEnergy }
+    var workoutState: MetricState<WorkoutSummary> { reportStates.workouts }
+    var sleepState: MetricState<SleepSummary> { reportStates.sleep }
+    var medicationState: MetricState<MedicationSummary> { reportStates.medications }
 
     private let healthData: HealthDataProviding
     private let calendar: Calendar
@@ -70,56 +170,35 @@ final class WeeklyReportViewModel: ObservableObject {
     }
 
     var reportSnapshot: WeeklyReportSnapshot {
-        WeeklyReportSnapshot(
-            period: period,
-            weight: weightState.value,
-            bodyFat: bodyFatState.value,
-            waist: waistState.value,
-            glucose: glucoseState.value,
-            vo2Max: vo2MaxState.value,
-            bloodOxygen: bloodOxygenState.value,
-            bloodPressure: bloodPressureState.value,
-            steps: {
-                if case .loaded(let summary) = state { return summary }
-                return nil
-            }(),
-            restingHeartRate: restingHeartRateState.value,
-            hrv: hrvState.value,
-            watchCoverage: watchCoverageState.value,
-            sleep: sleepState.value,
-            activeEnergyKilocalories: activeEnergyState.value,
-            exerciseMinutes: exerciseState.value,
-            workouts: workoutState.value,
-            medications: medicationState.value
-        )
+        reportStates.snapshot(period: period)
     }
 
     var supportsMedicationData: Bool { healthData.supportsMedicationData }
 
     func setMedicationAuthorizationFailure(_ message: String) {
-        medicationState = .failed(message)
+        reportStates.medications = .failed(message)
     }
 
     func refreshMedications() async {
         guard healthData.isHealthDataAvailable else {
-            medicationState = .healthUnavailable
+            reportStates.medications = .healthUnavailable
             return
         }
         guard healthData.supportsMedicationData, !period.completedDays.isEmpty else {
-            medicationState = .noDataOrAccess
+            reportStates.medications = .noDataOrAccess
             return
         }
 
         let queriedPeriod = period
-        medicationState = .loading
+        reportStates.medications = .loading
         do {
             let doses = try await healthData.fetchTakenMedicationDoses(for: queriedPeriod)
             guard queriedPeriod == period else { return }
-            medicationState = MedicationSummary.aggregate(doses)
+            reportStates.medications = MedicationSummary.aggregate(doses)
                 .map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard queriedPeriod == period else { return }
-            medicationState = .failed(error.localizedDescription)
+            reportStates.medications = .failed(error.localizedDescription)
         }
     }
 
@@ -152,17 +231,17 @@ final class WeeklyReportViewModel: ObservableObject {
         guard generation == refreshGeneration else { return }
 
         guard !period.completedDays.isEmpty else {
-            state = .noCompletedDays
-            glucoseState = .noDataOrAccess
-            bloodOxygenState = .noDataOrAccess
-            restingHeartRateState = .noDataOrAccess
-            hrvState = .noDataOrAccess
-            watchCoverageState = .noDataOrAccess
-            exerciseState = .noDataOrAccess
-            activeEnergyState = .noDataOrAccess
-            workoutState = .noDataOrAccess
-            sleepState = .noDataOrAccess
-            medicationState = .noDataOrAccess
+            reportStates.steps = .noCompletedDays
+            reportStates.glucose = .noDataOrAccess
+            reportStates.bloodOxygen = .noDataOrAccess
+            reportStates.restingHeartRate = .noDataOrAccess
+            reportStates.hrv = .noDataOrAccess
+            reportStates.watchCoverage = .noDataOrAccess
+            reportStates.exercise = .noDataOrAccess
+            reportStates.activeEnergy = .noDataOrAccess
+            reportStates.workouts = .noDataOrAccess
+            reportStates.sleep = .noDataOrAccess
+            reportStates.medications = .noDataOrAccess
             lastRefreshed = refreshDate
             return
         }
@@ -181,10 +260,10 @@ final class WeeklyReportViewModel: ObservableObject {
                 asOf: date,
                 calendar: calendar
             )
-            weightState = summary.map(WeightState.available) ?? .noDataOrAccess
+            reportStates.weight = summary.map(WeightState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            weightState = .failed(error.localizedDescription)
+            reportStates.weight = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
@@ -196,10 +275,10 @@ final class WeeklyReportViewModel: ObservableObject {
                 asOf: date,
                 calendar: calendar
             )
-            bodyFatState = summary.map(BodyFatState.available) ?? .noDataOrAccess
+            reportStates.bodyFat = summary.map(BodyFatState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            bodyFatState = .failed(error.localizedDescription)
+            reportStates.bodyFat = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
@@ -211,24 +290,24 @@ final class WeeklyReportViewModel: ObservableObject {
                 asOf: date,
                 calendar: calendar
             )
-            waistState = summary.map(MetricState.available) ?? .noDataOrAccess
+            reportStates.waist = summary.map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            waistState = .failed(error.localizedDescription)
+            reportStates.waist = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
         do {
             let measurements = try await healthData.fetchVO2MaxMeasurements(asOf: date)
             guard generation == refreshGeneration else { return }
-            vo2MaxState = VO2MaxSummary.calculate(
+            reportStates.vo2Max = VO2MaxSummary.calculate(
                 measurements: measurements,
                 asOf: date,
                 calendar: calendar
             ).map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            vo2MaxState = .failed(error.localizedDescription)
+            reportStates.vo2Max = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
@@ -238,7 +317,7 @@ final class WeeklyReportViewModel: ObservableObject {
                 asOf: date
             )
             guard generation == refreshGeneration else { return }
-            bloodPressureState = BloodPressureSummary.calculate(
+            reportStates.bloodPressure = BloodPressureSummary.calculate(
                 readings: readings,
                 period: period,
                 asOf: date,
@@ -246,35 +325,35 @@ final class WeeklyReportViewModel: ObservableObject {
             ).map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            bloodPressureState = .failed(error.localizedDescription)
+            reportStates.bloodPressure = .failed(error.localizedDescription)
         }
     }
 
     private func loadPeriodMetrics(asOf date: Date, generation: Int) async {
         guard let previousPeriod = period.precedingEquivalent(calendar: calendar) else {
-            restingHeartRateState = .noDataOrAccess
-            hrvState = .noDataOrAccess
+            reportStates.restingHeartRate = .noDataOrAccess
+            reportStates.hrv = .noDataOrAccess
             return
         }
 
         do {
             let values = try await healthData.fetchDailySteps(for: period)
             guard generation == refreshGeneration else { return }
-            state = StepSummary.aggregate(values).map(State.loaded) ?? .noDataOrAccess
+            reportStates.steps = StepSummary.aggregate(values).map(State.loaded) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            state = .failed(error.localizedDescription)
+            reportStates.steps = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
         do {
             let dailyValues = try await healthData.fetchDailyBloodGlucose(for: period)
             guard generation == refreshGeneration else { return }
-            glucoseState = GlucoseSummary.aggregate(dailyValues)
+            reportStates.glucose = GlucoseSummary.aggregate(dailyValues)
                 .map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            glucoseState = .failed(error.localizedDescription)
+            reportStates.glucose = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
@@ -284,7 +363,7 @@ final class WeeklyReportViewModel: ObservableObject {
                 asOf: date
             )
             guard generation == refreshGeneration else { return }
-            bloodOxygenState = BloodOxygenSummary.calculate(
+            reportStates.bloodOxygen = BloodOxygenSummary.calculate(
                 measurements: measurements,
                 period: period,
                 asOf: date,
@@ -292,7 +371,7 @@ final class WeeklyReportViewModel: ObservableObject {
             ).map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            bloodOxygenState = .failed(error.localizedDescription)
+            reportStates.bloodOxygen = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
@@ -300,14 +379,14 @@ final class WeeklyReportViewModel: ObservableObject {
             let currentValues = try await healthData.fetchDailyRestingHeartRate(for: period)
             let previousValues = try await healthData.fetchDailyRestingHeartRate(for: previousPeriod)
             guard generation == refreshGeneration else { return }
-            restingHeartRateState = HeartMetricTrendSummary.calculate(
+            reportStates.restingHeartRate = HeartMetricTrendSummary.calculate(
                 currentValues: currentValues,
                 previousValues: previousValues
             )
                 .map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            restingHeartRateState = .failed(error.localizedDescription)
+            reportStates.restingHeartRate = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
@@ -315,47 +394,47 @@ final class WeeklyReportViewModel: ObservableObject {
             let currentValues = try await healthData.fetchDailyHRV(for: period)
             let previousValues = try await healthData.fetchDailyHRV(for: previousPeriod)
             guard generation == refreshGeneration else { return }
-            hrvState = HeartMetricTrendSummary.calculate(
+            reportStates.hrv = HeartMetricTrendSummary.calculate(
                 currentValues: currentValues,
                 previousValues: previousValues
             )
                 .map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            hrvState = .failed(error.localizedDescription)
+            reportStates.hrv = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
         do {
             let sampleDates = try await healthData.fetchAppleWatchHeartRateSampleDates(for: period)
             guard generation == refreshGeneration else { return }
-            watchCoverageState = WatchCoverageSummary.calculate(
+            reportStates.watchCoverage = WatchCoverageSummary.calculate(
                 appleWatchSampleDates: sampleDates,
                 period: period
             ).map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            watchCoverageState = .failed(error.localizedDescription)
+            reportStates.watchCoverage = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
         do {
             let minutes = try await healthData.fetchExerciseMinutes(for: period)
             guard generation == refreshGeneration else { return }
-            exerciseState = minutes.map(MetricState.available) ?? .noDataOrAccess
+            reportStates.exercise = minutes.map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            exerciseState = .failed(error.localizedDescription)
+            reportStates.exercise = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
         do {
             let kilocalories = try await healthData.fetchActiveEnergyKilocalories(for: period)
             guard generation == refreshGeneration else { return }
-            activeEnergyState = kilocalories.map(MetricState.available) ?? .noDataOrAccess
+            reportStates.activeEnergy = kilocalories.map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            activeEnergyState = .failed(error.localizedDescription)
+            reportStates.activeEnergy = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
@@ -364,98 +443,53 @@ final class WeeklyReportViewModel: ObservableObject {
             guard generation == refreshGeneration else { return }
             // HealthKit does not disclose read denial. An empty result could be
             // either zero workouts or no read visibility, so do not claim zero.
-            workoutState = workouts.isEmpty
+            reportStates.workouts = workouts.isEmpty
                 ? .noDataOrAccess
                 : .available(WorkoutSummary(workouts: workouts))
         } catch {
             guard generation == refreshGeneration else { return }
-            workoutState = .failed(error.localizedDescription)
+            reportStates.workouts = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
         do {
             let intervals = try await healthData.fetchAsleepIntervals(for: period, calendar: calendar)
             guard generation == refreshGeneration else { return }
-            sleepState = SleepSummary.calculate(
+            reportStates.sleep = SleepSummary.calculate(
                 asleepIntervals: intervals,
                 period: period,
                 calendar: calendar
             ).map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            sleepState = .failed(error.localizedDescription)
+            reportStates.sleep = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
 
         guard healthData.supportsMedicationData else {
-            medicationState = .noDataOrAccess
+            reportStates.medications = .noDataOrAccess
             return
         }
         do {
             let doses = try await healthData.fetchTakenMedicationDoses(for: period)
             guard generation == refreshGeneration else { return }
-            medicationState = MedicationSummary.aggregate(doses)
+            reportStates.medications = MedicationSummary.aggregate(doses)
                 .map(MetricState.available) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
-            medicationState = .failed(error.localizedDescription)
+            reportStates.medications = .failed(error.localizedDescription)
         }
     }
 
     private func setLoading() {
-        state = .loading
-        weightState = .loading
-        bodyFatState = .loading
-        waistState = .loading
-        glucoseState = .loading
-        vo2MaxState = .loading
-        bloodOxygenState = .loading
-        bloodPressureState = .loading
-        restingHeartRateState = .loading
-        hrvState = .loading
-        watchCoverageState = .loading
-        exerciseState = .loading
-        activeEnergyState = .loading
-        workoutState = .loading
-        sleepState = .loading
-        medicationState = .loading
+        reportStates = ReportStates(commonState: .loading)
     }
 
     private func setHealthUnavailable() {
-        state = .healthUnavailable
-        weightState = .healthUnavailable
-        bodyFatState = .healthUnavailable
-        waistState = .healthUnavailable
-        glucoseState = .healthUnavailable
-        vo2MaxState = .healthUnavailable
-        bloodOxygenState = .healthUnavailable
-        bloodPressureState = .healthUnavailable
-        restingHeartRateState = .healthUnavailable
-        hrvState = .healthUnavailable
-        watchCoverageState = .healthUnavailable
-        exerciseState = .healthUnavailable
-        activeEnergyState = .healthUnavailable
-        workoutState = .healthUnavailable
-        sleepState = .healthUnavailable
-        medicationState = .healthUnavailable
+        reportStates = ReportStates(commonState: .healthUnavailable)
     }
 
     private func setAuthorizationFailure(_ message: String) {
-        state = .failed(message)
-        weightState = .failed(message)
-        bodyFatState = .failed(message)
-        waistState = .failed(message)
-        glucoseState = .failed(message)
-        vo2MaxState = .failed(message)
-        bloodOxygenState = .failed(message)
-        bloodPressureState = .failed(message)
-        restingHeartRateState = .failed(message)
-        hrvState = .failed(message)
-        watchCoverageState = .failed(message)
-        exerciseState = .failed(message)
-        activeEnergyState = .failed(message)
-        workoutState = .failed(message)
-        sleepState = .failed(message)
-        medicationState = .failed(message)
+        reportStates = ReportStates(commonState: .failed(message))
     }
 }
