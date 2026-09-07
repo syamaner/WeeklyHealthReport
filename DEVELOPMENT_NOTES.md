@@ -671,3 +671,50 @@ subsequent commit/push/PR/CI/merge activity, issue #16 work, the final handoff,
 every other session and separate service usage. Every earlier row remains frozen.
 Tracked total becomes **293,101,235 tokens / $181.36**, summing recorded rounded
 comparison amounts.
+
+
+## Issue #16 source-filtered nutrition export, 8 September 2026
+
+Added a single ordered catalogue for all 39 current HealthKit dietary quantity
+types and reused it for read-only nutrition authorisation, visible-source
+discovery, source-filtered cumulative statistics, deterministic schema-v2 JSON
+and catalogue completeness tests. Daily JSON Export now requires an explicitly
+selected visible source persisted by bundle identifier, reports today's partial
+totals plus current and previous seven-completed-day coverage-aware summaries,
+and never falls back to unfiltered nutrition.
+
+Focused tests passed with all 23 tests passing. The complete simulator suite ran
+exactly once after stabilisation with all 90 tests passing, Xcode static analysis
+succeeded, and `git diff --check` plus the pre-ledger diff/status review passed.
+This is local/simulator evidence only: no physical device, HealthKit store,
+personal health data, provider operation, Google Drive, OAuth flow or signing
+configuration was exercised.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 8 Sep | `codex-phase-accounting` — issue #16 source-filtered nutrition export — GPT-5.6 Sol | Uncommitted implementation, tests and accounting note | 11,395,292 (11,151,232) | 48,731 | 11,444,023 | $6.41 |
+
+Model confirmed from the session metadata and current turn context:
+`gpt-5.6-sol`. At the ledger's historical Sol comparison assumptions ($4/M
+uncached input, $0.40/M cached input and $20/M output), 244,060 × $4/M +
+11,151,232 × $0.40/M + 48,731 × $20/M = **$6.4113528**, rounded **$6.41**
+API-equivalent, not an actual ChatGPT subscription charge or a model benchmark.
+Separate tool/service charges are not measured or estimated.
+
+Session `01a07de9-019c-7cc0-837e-f01b76d40cc5`, rollout
+`rollout-2026-09-07T23-06-57-01a07de9-019c-7cc0-837e-f01b76d40cc5.jsonl`.
+Baseline line 768, **2026-09-07 22:39:21.669 UTC**: **10,622,444 input /
+10,347,776 cached input / 30,739 output**. Frozen end line 1402,
+**2026-09-07 23:17:39.917 UTC**: **22,017,736 input / 21,499,008 cached
+input / 79,470 output**. Reproduce from that rollout prefix with `--baseline
+10622444 10347776 30739 --uncached-input-rate 4 --cached-input-rate 0.40
+--output-rate 20`.
+
+Includes live issue/dependency/contract inspection, isolated-worktree
+implementation and review, focused tests, the one complete 90-test simulator
+suite, static analysis, and pre-ledger diff/status review through the frozen
+boundary. No subagents, reused tasks or hosted reviews were used. Excludes this
+accounting edit/check, subsequent commit/push/PR/CI/merge activity, the final
+handoff, every other session and separate service usage. Every earlier row
+remains frozen. Tracked total becomes **304,545,258 tokens / $187.77**, summing
+recorded rounded comparison amounts.

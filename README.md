@@ -20,6 +20,7 @@ The screenshot uses invented data. The repository does not contain exported or p
 | Fitness estimates | Latest VO₂ max with four-week, three-month and six-month averages, plus blood oxygen |
 | Glucose | A weekly average calculated from daily values, observed range and days with data |
 | Medications | Taken medication events, dose and time on iOS 26 or later |
+| Daily JSON only | Source-filtered nutrition totals, completed-day averages and trends for all 39 Apple Health dietary quantity types |
 
 The app has one main screen, a manual **Daily JSON Export** screen and a separate Developer Diagnostics screen for checking daily values against Apple Health. **Copy Report** puts a human-readable version on the iOS clipboard.
 
@@ -51,7 +52,7 @@ The app asks only for read access to the HealthKit types it uses. HealthKit does
 <details>
 <summary>See the requested Health permissions</summary>
 
-The app requests read access to Body Mass, Body Fat Percentage, Waist Circumference, Blood Glucose, Blood Pressure Systolic, Blood Pressure Diastolic, VO₂ Max, Oxygen Saturation, Step Count, Heart Rate, Resting Heart Rate, Heart Rate Variability (SDNN), Sleep Analysis, Active Energy, Apple Exercise Time and Workouts. On iOS 26 or later, it can also request access to medications that you select individually.
+The app requests read access to Body Mass, Body Fat Percentage, Waist Circumference, Blood Glucose, Blood Pressure Systolic, Blood Pressure Diastolic, VO₂ Max, Oxygen Saturation, Step Count, Heart Rate, Resting Heart Rate, Heart Rate Variability (SDNN), Sleep Analysis, Active Energy, Apple Exercise Time and Workouts. The Daily JSON Export flow separately requests read-only access to Apple's 39 dietary quantity types when you refresh visible nutrition sources. On iOS 26 or later, it can also request access to medications that you select individually.
 
 It never asks for write access, background delivery or clinical health records. If you installed an older build before a metric was added, iOS should offer the new read permission the next time the app runs.
 
@@ -60,6 +61,8 @@ It never asks for write access, background delivery or clinical health records. 
 Glucose is read from Apple Health. The app does not connect directly to Abbott, Lingo or another sensor account. The sensor's own app must write `bloodGlucose` samples to HealthKit first.
 
 Blood pressure is also read from Apple Health rather than directly from a cuff. A monitor's companion app, such as Omron Connect, must first save complete blood-pressure correlations to HealthKit.
+
+Nutrition is also an Apple Health feature rather than a direct provider integration. In Daily JSON Export, refresh the visible nutrition sources and explicitly choose one. The app stores that choice by HealthKit bundle identifier; the source name is only a label. Every nutrition statistic is restricted to the selected source, and a missing or unavailable selection blocks preview refresh rather than falling back to combined nutrition data.
 
 ## Run it on your iPhone
 
@@ -177,6 +180,7 @@ Correct HealthKit aggregation is the main reason this project exists. Cumulative
 - **Workouts:** the app reads `HKWorkout` samples whose start date is inside the report interval. It shows the count, summed duration, activity type, duration and local start time in `dd/MM/yy - HH:mm` format. Functional Strength Training is shortened to `FST`. A workout crossing midnight belongs to the day on which it started. An empty result is shown as **No data** because HealthKit does not distinguish missing read access from an empty history.
 - **Sleep:** only `asleepUnspecified`, `asleepCore`, `asleepDeep` and `asleepREM` samples are included. `awake` and `inBed` are excluded. Included intervals from all sources are clipped and combined so overlaps count once. Each report date is a local noon-to-noon night bucket ending on that wake date. Only nights with visible asleep time enter the average.
 - **Medications on iOS 26 or later:** the person chooses individual medications through Apple's medication access sheet. The app queries active and archived authorised concepts, then includes only `HKMedicationDoseEvent` samples with a `taken` status and a start time inside the selected completed-day period. Events are grouped by HealthKit's exact medication concept, so a changed strength appears as a separate row. Each row reports the latest logged quantity and time plus the number of taken events. Diagnostics lists every event. Medications without a visible taken event are omitted from copied text. Missing events are never treated as a missed dose or non-adherence.
+- **Nutrition in Daily JSON Export:** the app supports all 39 current HealthKit dietary quantity types through one fixed catalogue. It uses source-filtered HealthKit `cumulativeSum` statistics and converts energy to kcal, water to mL and nutrients to the catalogue's g, mg or mcg unit at the query boundary. Schema v2 contains today's partial total through the captured cutoff and exactly seven chronological completed-day states per nutrient. Current and previous averages are arithmetic means over visible sampled days and state both sampled and reporting days. A signed current-minus-previous trend is available only with 7/7 visible days in both windows; otherwise it is `insufficient_data`. Missing source-filtered statistics remain `no_data_or_access`, never zero. Nutrition is not added to the weekly screen, copied report or Diagnostics and has no target, score or interpretation.
 
 Apple does not fully document the sleep source precedence used by the Health app. Combining overlapping asleep intervals is the closest transparent and defensible calculation available through documented HealthKit data.
 
@@ -207,7 +211,7 @@ For your own check, run a Debug build, select **Last 7 Completed Days**, and use
 
 </details>
 
-Simulator tests cover calendar boundaries, paired blood-pressure aggregation, daily-first averages, missing data, sleep overlap handling, workout totals, formatting and clipboard output. A simulator cannot provide representative personal HealthKit data, so final validation still requires an iPhone.
+Simulator tests cover calendar boundaries, paired blood-pressure aggregation, daily-first averages, missing data, sleep overlap handling, workout totals, nutrition catalogue/schema semantics, formatting and clipboard output. A simulator cannot prove nutrition source visibility, provider coverage or representative personal HealthKit data, so those checks still require separately authorised iPhone testing.
 
 Values can legitimately differ while Health or a sensor app is still synchronising, when historical read access is limited, when the selected dates differ, or because Apple has not documented part of its source precedence. Investigate material discrepancies through the daily and nightly diagnostics rather than hiding them through rounding.
 

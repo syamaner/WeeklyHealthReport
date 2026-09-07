@@ -55,14 +55,58 @@ struct DailyExportView: View {
                     .font(.caption)
             }
 
+            Section("Apple Health nutrition source") {
+                LabeledContent("Selected", value: session.nutritionSourceLabel)
+                Button("Refresh visible nutrition sources") {
+                    Task { await session.refreshNutritionSources() }
+                }
+                .disabled(session.busy)
+                if !session.nutritionSources.isEmpty {
+                    Picker(
+                        "Source",
+                        selection: Binding(
+                            get: {
+                                session.selectedNutritionSourceBundleIdentifier ?? ""
+                            },
+                            set: { session.selectNutritionSource(bundleIdentifier: $0) }
+                        )
+                    ) {
+                        Text("Choose a source").tag("")
+                        ForEach(session.nutritionSources) { source in
+                            Text("\(source.name) — \(source.bundleIdentifier)")
+                                .tag(source.bundleIdentifier)
+                        }
+                    }
+                }
+                Text("Nutrition is read only from the selected bundle identifier. Missing values remain No data; the app never falls back to totals from every source.")
+                    .font(.caption)
+            }
+
             Section("Daily snapshot") {
                 Button("Refresh preview from Apple Health") {
                     Task { await session.refreshPreview() }
                 }
-                .disabled(session.busy)
+                .disabled(!session.canRefreshPreview)
                 if let preview = session.preview {
                     LabeledContent("Report date", value: preview.envelope.reportDate)
                     LabeledContent("Data as of", value: preview.envelope.dataAsOf)
+                    if let todayNutrition = preview.envelope.today.nutrition,
+                       let nutritionContext = preview.envelope.appContext.nutrition {
+                        LabeledContent(
+                            "Nutrition source",
+                            value: "\(todayNutrition.source.name) — \(todayNutrition.source.bundleIdentifier)"
+                        )
+                        LabeledContent(
+                            "Current completed days",
+                            value: "\(nutritionContext.currentWindow.start) to \(nutritionContext.currentWindow.end)"
+                        )
+                        LabeledContent(
+                            "Previous completed days",
+                            value: "\(nutritionContext.previousWindow.start) to \(nutritionContext.previousWindow.end)"
+                        )
+                        Text("Today nutrition is partial from local midnight through Data as of. Each history window contains exactly seven completed local-calendar days.")
+                            .font(.caption)
+                    }
                     LabeledContent("JSON bytes", value: preview.bytes.count.formatted())
                     DisclosureGroup("Review exact JSON", isExpanded: $showingPreview) {
                         ScrollView(.horizontal) {
