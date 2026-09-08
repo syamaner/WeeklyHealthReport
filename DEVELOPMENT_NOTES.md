@@ -629,6 +629,42 @@ row remains frozen. Tracked total becomes **288,316,889 tokens / $178.77**,
 summing recorded rounded comparison amounts.
 
 
+## Issue #16 dependency preflight, 7 September 2026
+
+Issue #16 implementation did not start because its required issue #3 reporting-window
+policy dependency is not merged into current `origin/main`. Live issue state, current
+history and source inspection confirmed that issue #3 remains open and the 30-day
+blood-pressure lookback plus 14:00/17:00 slot boundaries are still independently
+encoded in the HealthKit query and pure aggregation layers. No worktree, implementation,
+test run, static analysis, HealthKit query, personal data, signing/OAuth access, Drive
+request or remote mutation was created or performed.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 7 Sep | `codex-phase-accounting` — issue #16 dependency preflight — GPT-5.6 Sol | No implementation; uncommitted accounting note only | 2,914,568 (2,785,024) | 7,661 | 2,922,229 | $1.79 |
+
+Model confirmed from the session metadata and every recorded turn context:
+`gpt-5.6-sol`. At the ledger's historical Sol comparison assumptions ($4/M
+uncached input, $0.40/M cached input and $20/M output), 129,544 × $4/M +
+2,785,024 × $0.40/M + 7,661 × $20/M = **$1.7854056**, rounded **$1.79**
+API-equivalent, not an actual ChatGPT subscription charge or a model benchmark.
+Separate tool/service charges are not measured or estimated.
+
+Session `01a07de9-019c-7cc0-837e-f01b76d40cc5`, rollout
+`rollout-2026-09-07T23-06-57-01a07de9-019c-7cc0-837e-f01b76d40cc5.jsonl`.
+This row uses the whole-session counter through line 259, **2026-09-07
+22:12:35.717 UTC**: **2,914,568 input / 2,785,024 cached input / 7,661 output**.
+Reproduce from that rollout prefix with no baseline and
+`--uncached-input-rate 4 --cached-input-rate 0.40 --output-rate 20`.
+
+Includes this top-level task's memory/authority inspection, live issue and remote-head
+checks, required source/test reading and dependency decision through the frozen
+boundary. No subagents, reused tasks or hosted reviews were used. Excludes this
+accounting edit/check, the final handoff, every other session and separate service
+usage. Every earlier row remains frozen. Tracked total becomes **291,239,118 tokens /
+$180.56**, summing recorded rounded comparison amounts.
+
+
 ## Issue #3 reporting-policy consolidation, 7 September 2026
 
 Centralised the existing blood-pressure slot boundaries and 30-day latest-value
@@ -669,7 +705,7 @@ pre-ledger diff/status review through the frozen boundary. No subagents, reused
 tasks or hosted reviews were used. Excludes this accounting edit/check,
 subsequent commit/push/PR/CI/merge activity, issue #16 work, the final handoff,
 every other session and separate service usage. Every earlier row remains frozen.
-Tracked total becomes **293,101,235 tokens / $181.36**, summing recorded rounded
+Tracked total becomes **296,023,464 tokens / $183.15**, summing recorded rounded
 comparison amounts.
 
 
@@ -716,5 +752,49 @@ suite, static analysis, and pre-ledger diff/status review through the frozen
 boundary. No subagents, reused tasks or hosted reviews were used. Excludes this
 accounting edit/check, subsequent commit/push/PR/CI/merge activity, the final
 handoff, every other session and separate service usage. Every earlier row
-remains frozen. Tracked total becomes **304,545,258 tokens / $187.77**, summing
+remains frozen. Tracked total becomes **307,467,487 tokens / $189.56**, summing
 recorded rounded comparison amounts.
+
+
+## Issue #4 report and diagnostics section extraction, 8 September 2026
+
+Extracted the main report and Developer Diagnostics metric families into dedicated
+SwiftUI section types with explicit state, value and binding inputs. The root report
+retains navigation, view-model ownership, reporting-period refresh, medication
+authorisation, copying and other top-level actions, while the existing debug-only
+Diagnostics route and responsive blood-pressure layout remain unchanged. No HealthKit
+query, aggregation, formatter, export or navigation semantics changed.
+
+The 16 focused formatter and view-model tests passed. The complete simulator suite
+then ran exactly once with all 90 tests passing, followed by successful Xcode static
+analysis. `git diff --check`, project-file validation and the pre-accounting diff and
+status review also passed. This is local/simulator evidence only: no physical device,
+HealthKit store, personal health data, provider operation, Google Drive, OAuth flow or
+signing configuration was exercised.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 8 Sep | `codex-phase-accounting` — issue #4 report and diagnostics section extraction — GPT-5.6 Sol | Uncommitted implementation, ledger reconciliation and accounting note | 4,886,184 (4,711,552) | 31,184 | 4,917,368 | $3.21 |
+
+Model confirmed from the session metadata and recorded turn context:
+`gpt-5.6-sol`. At the ledger's historical Sol comparison assumptions ($4/M
+uncached input, $0.40/M cached input and $20/M output), 174,632 × $4/M +
+4,711,552 × $0.40/M + 31,184 × $20/M = **$3.2068288**, rounded **$3.21**
+API-equivalent, not an actual ChatGPT subscription charge or a model benchmark.
+Separate tool/service charges are not measured or estimated.
+
+Session `01a07f6b-e058-7f51-883a-57455379c989`, rollout
+`rollout-2026-09-08T06-09-31-01a07f6b-e058-7f51-883a-57455379c989.jsonl`.
+This row uses the whole-session counter through line 349, **2026-09-08
+05:29:01.496 UTC**: **4,886,184 input / 4,711,552 cached input / 31,184 output**.
+Reproduce from that rollout prefix with no baseline and
+`--uncached-input-rate 4 --cached-input-rate 0.40 --output-rate 20`.
+
+Includes this dedicated task's memory and authority inspection, live issue and
+remote-head checks, source/test reading, implementation, focused tests, the one
+complete 90-test simulator suite, static analysis, authorised ledger reconciliation
+and pre-accounting diff/status review through the frozen boundary. No subagents,
+reused tasks or hosted reviews were used. Excludes this accounting edit/check,
+subsequent commit/push/PR/CI/merge activity, the final handoff, every other session
+and separate service usage. Every earlier row remains frozen. Tracked total becomes
+**312,384,855 tokens / $192.77**, summing recorded rounded comparison amounts.
