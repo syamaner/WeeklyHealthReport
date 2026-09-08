@@ -29,9 +29,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
     @Published private(set) var nutritionSources: [NutritionSource] = []
     @Published private(set) var selectedNutritionSourceBundleIdentifier: String?
 
+    let notes: DailyNotesController
+
     var isConfigured: Bool { (try? oauthConfiguration()) != nil }
     var canExport: Bool {
-        preview != nil && account != nil && activeDestination != nil && !busy
+        previewIsCurrent && account != nil && activeDestination != nil && !busy
     }
     var previewText: String? {
         preview.flatMap { String(data: $0.bytes, encoding: .utf8) }
@@ -48,7 +50,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         return "\(source.name) — \(source.bundleIdentifier)"
     }
     var canRefreshPreview: Bool {
-        !busy && nutritionSources.contains {
+        !busy && notes.storageAvailable && nutritionSources.contains {
             $0.bundleIdentifier == selectedNutritionSourceBundleIdentifier
         }
     }
@@ -82,12 +84,18 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
 
     override convenience init() {
         let keychain = DailyDriveKeychainStore()
+        let notesStore = FileDailyNotesStore()
+        let notes = DailyNotesController(store: notesStore)
         self.init(
             keychain: keychain,
             drive: DailyDriveAPI(),
-            exportService: DailyHealthExportService(healthData: HealthKitClient()),
+            exportService: DailyHealthExportService(
+                healthData: HealthKitClient(),
+                notesStore: notesStore
+            ),
             identityStore: KeychainDailyDriveExportIdentityStore(keychain: keychain),
-            nutritionSourceSelection: UserDefaultsNutritionSourceSelectionStore()
+            nutritionSourceSelection: UserDefaultsNutritionSourceSelectionStore(),
+            notes: notes
         )
     }
 
@@ -96,18 +104,23 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         drive: DailyDriveAPI,
         exportService: DailyHealthExportService,
         identityStore: KeychainDailyDriveExportIdentityStore,
-        nutritionSourceSelection: any NutritionSourceSelectionPersisting
+        nutritionSourceSelection: any NutritionSourceSelectionPersisting,
+        notes: DailyNotesController
     ) {
         self.keychain = keychain
         self.drive = drive
         self.exportService = exportService
         self.identityStore = identityStore
         self.nutritionSourceSelection = nutritionSourceSelection
+        self.notes = notes
         exportCoordinator = DailyDriveExportCoordinator(
             transport: drive,
             store: identityStore
         )
         super.init()
+        notes.onSavedNotesMutation = { [weak self] snapshot in
+            self?.invalidatePreview(after: snapshot)
+        }
         selectedNutritionSourceBundleIdentifier = nutritionSourceSelection.loadBundleIdentifier()
         restoreLocalStateWithoutNetwork()
         if !isConfigured {
@@ -273,7 +286,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
     }
 
     func exportPreview() async {
-        guard let preview, let account, let destination = activeDestination else {
+        guard let preview, previewIsCurrent,
+              let account, let destination = activeDestination else {
             status = "Refresh a preview and validate an account and destination before export."
             return
         }
@@ -315,6 +329,13 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
             )
             self.lastVerifiedLabel = result.verifiedLabel
             self.status = result.userFacingLabel
+            if result.authorizesNoteCleanup,
+               !self.notes.markVerified(
+                   snapshot: preview.notesSnapshot,
+                   payload: preview.bytes
+               ) {
+                self.status += " Current notes were retained because their verified cleanup marker was not saved."
+            }
         }
     }
 
@@ -687,6 +708,12 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         } catch DailyHealthExportError.nutritionSourceUnavailable {
             preview = nil
             status = "The selected nutrition source is unavailable. Refresh sources and choose again; no unfiltered nutrition was used."
+        } catch DailyHealthExportError.notesChanged {
+            preview = nil
+            status = "Saved notes changed during refresh. Refresh and review a new preview."
+        } catch DailyHealthExportError.notesUnavailable {
+            preview = nil
+            status = "Saved notes are unavailable. No preview or Drive request was created."
         } catch let error as NSError
             where error.domain == OIDGeneralErrorDomain && error.code == -3 {
             status = "Consent or selection was cancelled. Existing state was preserved."
@@ -695,6 +722,18 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         } catch {
             status = "Operation failed. No background retry was queued."
         }
+    }
+
+    private var previewIsCurrent: Bool {
+        guard let preview else { return false }
+        return notes.document.snapshot(for: preview.notesSnapshot.dayID) == preview.notesSnapshot
+    }
+
+    private func invalidatePreview(after snapshot: DailyNotesSnapshot) {
+        guard let preview, preview.notesSnapshot.dayID == snapshot.dayID,
+              preview.notesSnapshot != snapshot else { return }
+        self.preview = nil
+        status = "Saved notes changed. Refresh and review a new preview before exporting."
     }
 }
 
@@ -727,7 +766,18 @@ private extension DailyDriveConsentPolicy.Failure {
     }
 }
 
+extension DailyDriveExportResult {
+
+    var authorizesNoteCleanup: Bool {
+        switch self {
+        case .verified, .unchangedVerified: true
+        case .cancelledBeforeSubmission, .cancelledAfterSubmissionVerified: false
+        }
+    }
+}
+
 private extension DailyDriveExportResult {
+
     var verifiedLabel: String {
         switch self {
         case .verified(let dataAsOf, _), .unchangedVerified(let dataAsOf),

@@ -64,7 +64,7 @@ final class DailyHealthExportTests: XCTestCase {
             inputs: inputs
         )
 
-        XCTAssertEqual(envelope.schemaVersion, 2)
+        XCTAssertEqual(envelope.schemaVersion, 3)
         XCTAssertEqual(envelope.reportDate, "2026-09-06")
         XCTAssertEqual(envelope.timeZone, "Europe/London")
         XCTAssertEqual(envelope.today.weight.data?.value, 81)
@@ -84,12 +84,14 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertEqual(envelope.today.medications.availability, .unsupported)
         XCTAssertNil(envelope.today.medications.data)
         XCTAssertEqual(envelope.today.nutrition?.source, fixtureNutritionSource)
+        XCTAssertEqual(envelope.today.notes, [])
         XCTAssertEqual(envelope.today.nutrition?.nutrients.count, 39)
         XCTAssertEqual(envelope.appContext.nutrition?.nutrients.count, 39)
 
         let bytes = try DailyHealthExportSerializer.encode(envelope)
         let text = try XCTUnwrap(String(data: bytes, encoding: .utf8))
-        XCTAssertTrue(text.contains("\"schema_version\" : 2"))
+        XCTAssertTrue(text.contains("\"schema_version\" : 3"))
+        XCTAssertTrue(text.contains("\"notes\" : ["))
         XCTAssertTrue(text.contains("\"no_data_or_access\""))
         XCTAssertFalse(text.contains(": null"))
         XCTAssertEqual(bytes, try DailyHealthExportSerializer.encode(envelope))
@@ -286,6 +288,114 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertEqual(result.envelope.dataAsOf, "2026-09-06T08:00:00+01:00")
         XCTAssertEqual(result.envelope.exportedAt, "2026-09-06T08:00:30+01:00")
         XCTAssertEqual(result.envelope.appContext.policyID, "last_7_completed_days_v1")
+    }
+
+    func testServiceFreezesNotesWithTheHealthWindowAndSerializesExactStrings() async throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 8, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        var notes = DailyNotesDocument()
+        try notes.beginDraft(for: DailyNoteDayID(window: window), now: cutoff)
+        try notes.updateDraft(text: "Energy good 🌤️\nEasy run.", now: cutoff)
+        try notes.saveDraft(now: cutoff)
+        try notes.beginDraft(for: DailyNoteDayID(window: window), now: cutoff)
+        try notes.updateDraft(text: "Unfinished private draft", now: cutoff)
+        let store = SequencedDailyNotesStore(documents: [notes, notes])
+        let provider = RecordingDailyProvider { self.emptyInputs(window: $0) }
+        var times = [cutoff, cutoff.addingTimeInterval(1)].makeIterator()
+        let service = DailyHealthExportService(
+            healthData: provider,
+            notesStore: store,
+            calendar: calendar,
+            now: { times.next()! }
+        )
+
+        let result = try await service.refresh(
+            nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier
+        )
+
+        XCTAssertEqual(result.notesSnapshot.dayID, DailyNoteDayID(window: window))
+        XCTAssertEqual(result.envelope.today.notes, ["Energy good 🌤️\nEasy run."])
+        let text = try XCTUnwrap(String(data: result.bytes, encoding: .utf8))
+        XCTAssertTrue(text.contains("\"notes\" : ["))
+        XCTAssertTrue(text.contains("Energy good 🌤️\\nEasy run."))
+        XCTAssertFalse(text.contains("Unfinished private draft"))
+    }
+
+    func testServiceRejectsNoteMutationDuringHealthRefresh() async throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 8, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        var first = DailyNotesDocument()
+        try first.beginDraft(for: DailyNoteDayID(window: window), now: cutoff)
+        try first.updateDraft(text: "First", now: cutoff)
+        try first.saveDraft(now: cutoff)
+        var changed = first
+        try changed.beginDraft(for: DailyNoteDayID(window: window), now: cutoff)
+        try changed.updateDraft(text: "Changed", now: cutoff)
+        try changed.saveDraft(now: cutoff)
+        let store = SequencedDailyNotesStore(documents: [first, changed])
+        let provider = RecordingDailyProvider { self.emptyInputs(window: $0) }
+        let service = DailyHealthExportService(
+            healthData: provider,
+            notesStore: store,
+            calendar: calendar,
+            now: { cutoff }
+        )
+
+        do {
+            _ = try await service.refresh(
+                nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier
+            )
+            XCTFail("A preview with a stale saved-note revision must not be published")
+        } catch DailyHealthExportError.notesChanged {}
+    }
+
+    @MainActor
+    func testSessionInvalidatesPublishedPreviewAfterSavedNoteMutation() async throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 8, calendar: calendar)
+        let notesStore = MutableDailyNotesStore()
+        let notes = DailyNotesController(
+            store: notesStore,
+            calendar: calendar,
+            now: { cutoff }
+        )
+        let provider = RecordingDailyProvider { self.emptyInputs(window: $0) }
+        let keychain = DailyDriveKeychainStore(service: "WeeklyHealthReportTests.\(UUID())")
+        let session = DailyDriveSessionController(
+            keychain: keychain,
+            drive: DailyDriveAPI(),
+            exportService: DailyHealthExportService(
+                healthData: provider,
+                notesStore: notesStore,
+                calendar: calendar,
+                now: { cutoff }
+            ),
+            identityStore: KeychainDailyDriveExportIdentityStore(keychain: keychain),
+            nutritionSourceSelection: FixedNutritionSourceSelection(
+                bundleIdentifier: fixtureNutritionSource.bundleIdentifier
+            ),
+            notes: notes
+        )
+
+        await session.refreshPreview()
+        XCTAssertNotNil(session.preview)
+        XCTAssertEqual(session.preview?.envelope.today.notes, [])
+        let reviewedBytes = try XCTUnwrap(session.preview?.bytes)
+
+        notesStore.failSaves = true
+        XCTAssertFalse(notes.beginNewDraft())
+        XCTAssertEqual(session.preview?.bytes, reviewedBytes)
+        notesStore.failSaves = false
+
+        XCTAssertTrue(notes.beginNewDraft())
+        notes.updateDraftText("New context")
+        XCTAssertTrue(notes.saveDraft())
+
+        XCTAssertNil(session.preview)
+        XCTAssertFalse(session.canExport)
+        XCTAssertTrue(session.status.contains("Saved notes changed"))
     }
 
     func testNutritionCatalogueIsCompleteOrderedUniqueAndUnitCompatible() throws {
@@ -952,6 +1062,40 @@ final class DailyHealthExportTests: XCTestCase {
 
 private enum ProbeError: Error {
     case queryFailed
+}
+
+private final class SequencedDailyNotesStore: DailyNotesPersisting {
+    private let documents: [DailyNotesDocument]
+    private var index = 0
+
+    init(documents: [DailyNotesDocument]) {
+        self.documents = documents
+    }
+
+    func load() throws -> DailyNotesDocument? {
+        defer { index += 1 }
+        return documents[min(index, documents.count - 1)]
+    }
+
+    func save(_ document: DailyNotesDocument) throws {}
+}
+
+private final class MutableDailyNotesStore: DailyNotesPersisting {
+    var document: DailyNotesDocument?
+    var failSaves = false
+
+    func load() throws -> DailyNotesDocument? { document }
+    func save(_ document: DailyNotesDocument) throws {
+        if failSaves { throw CocoaError(.fileWriteUnknown) }
+        self.document = document
+    }
+}
+
+private struct FixedNutritionSourceSelection: NutritionSourceSelectionPersisting {
+    let bundleIdentifier: String?
+
+    func loadBundleIdentifier() -> String? { bundleIdentifier }
+    func saveBundleIdentifier(_ bundleIdentifier: String?) {}
 }
 
 private final class FailingDailyProvider: DailyHealthExportDataProviding {

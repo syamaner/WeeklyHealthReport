@@ -845,7 +845,7 @@ actor DailyDriveExportCoordinator {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         guard let envelope = try? decoder.decode(DailyHealthExportEnvelope.self, from: payload),
-              envelope.schemaVersion == 1 || envelope.schemaVersion == 2,
+              (1...3).contains(envelope.schemaVersion),
               envelope.reportDate == reportDate,
               try DailyHealthExportSerializer.encode(envelope) == payload,
               let dataAsOf = try? timestamp(envelope.dataAsOf),
@@ -855,7 +855,8 @@ actor DailyDriveExportCoordinator {
         }
         if envelope.schemaVersion == 1 {
             guard envelope.today.nutrition == nil,
-                  envelope.appContext.nutrition == nil else {
+                  envelope.appContext.nutrition == nil,
+                  envelope.today.notes == nil else {
                 throw DailyDriveExportFailure.invalidPayload
             }
         } else {
@@ -863,6 +864,22 @@ actor DailyDriveExportCoordinator {
             guard envelope.today.nutrition?.nutrients.map(\.key) == expectedKeys,
                   envelope.appContext.nutrition?.nutrients.map(\.key) == expectedKeys else {
                 throw DailyDriveExportFailure.invalidPayload
+            }
+            if envelope.schemaVersion == 2 {
+                guard envelope.today.notes == nil else {
+                    throw DailyDriveExportFailure.invalidPayload
+                }
+            } else {
+                guard let notes = envelope.today.notes,
+                      notes.count <= DailyNotesPolicy.maximumNotesPerDay,
+                      notes.allSatisfy({
+                          !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                              && $0.count <= DailyNotesPolicy.maximumCharactersPerNote
+                      }),
+                      notes.reduce(0, { $0 + $1.count })
+                          <= DailyNotesPolicy.maximumCharactersPerDay else {
+                    throw DailyDriveExportFailure.invalidPayload
+                }
             }
         }
         return PayloadIdentity(

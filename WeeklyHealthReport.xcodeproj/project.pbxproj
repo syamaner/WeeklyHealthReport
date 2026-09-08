@@ -58,6 +58,12 @@
 		A00000000000000000000031 /* NutritionExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000037 /* NutritionExport.swift */; };
 		A00000000000000000000032 /* WeeklyReportSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000038 /* WeeklyReportSections.swift */; };
 		A00000000000000000000033 /* DeveloperDiagnosticsSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000039 /* DeveloperDiagnosticsSections.swift */; };
+		A00000000000000000000034 /* DailyNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003A /* DailyNotes.swift */; };
+		A00000000000000000000035 /* DailyNotesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003B /* DailyNotesStore.swift */; };
+		A00000000000000000000036 /* DailyNotesController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003C /* DailyNotesController.swift */; };
+		A00000000000000000000037 /* DailyNotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003D /* DailyNotesView.swift */; };
+		A00000000000000000000038 /* DailyNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003E /* DailyNotesTests.swift */; };
+		A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003F /* DailyNotesStoreTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -128,6 +134,12 @@
 		B00000000000000000000037 /* NutritionExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionExport.swift; sourceTree = "<group>"; };
 		B00000000000000000000038 /* WeeklyReportSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportSections.swift; sourceTree = "<group>"; };
 		B00000000000000000000039 /* DeveloperDiagnosticsSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperDiagnosticsSections.swift; sourceTree = "<group>"; };
+		B0000000000000000000003A /* DailyNotes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotes.swift; sourceTree = "<group>"; };
+		B0000000000000000000003B /* DailyNotesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesStore.swift; sourceTree = "<group>"; };
+		B0000000000000000000003C /* DailyNotesController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesController.swift; sourceTree = "<group>"; };
+		B0000000000000000000003D /* DailyNotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesView.swift; sourceTree = "<group>"; };
+		B0000000000000000000003E /* DailyNotesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesTests.swift; sourceTree = "<group>"; };
+		B0000000000000000000003F /* DailyNotesStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesStoreTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -172,6 +184,7 @@
 				G00000000000000000000003 /* Models */,
 				G00000000000000000000004 /* HealthKit */,
 				G0000000000000000000000A /* GoogleDrive */,
+				G0000000000000000000000B /* Notes */,
 				G00000000000000000000005 /* Views */,
 				G00000000000000000000009 /* Utilities */,
 				B00000000000000000000032 /* Info.plist */,
@@ -199,6 +212,7 @@
 				B00000000000000000000029 /* BloodPressureSummary.swift */,
 				B0000000000000000000002B /* DailyHealthExport.swift */,
 				B00000000000000000000037 /* NutritionExport.swift */,
+				B0000000000000000000003A /* DailyNotes.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -222,6 +236,7 @@
 				B0000000000000000000001B /* DeveloperDiagnosticsView.swift */,
 				B00000000000000000000039 /* DeveloperDiagnosticsSections.swift */,
 				B00000000000000000000031 /* DailyExportView.swift */,
+				B0000000000000000000003D /* DailyNotesView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -246,6 +261,8 @@
 				B0000000000000000000002D /* DailyHealthExportTests.swift */,
 				B00000000000000000000035 /* DailyDriveExportCoordinatorTests.swift */,
 				B00000000000000000000036 /* WeeklyReportViewModelTests.swift */,
+				B0000000000000000000003E /* DailyNotesTests.swift */,
+				B0000000000000000000003F /* DailyNotesStoreTests.swift */,
 			);
 			path = WeeklyHealthReportTests;
 			sourceTree = "<group>";
@@ -284,6 +301,15 @@
 				B00000000000000000000030 /* DailyDriveSessionController.swift */,
 			);
 			path = GoogleDrive;
+			sourceTree = "<group>";
+		};
+		G0000000000000000000000B /* Notes */ = {
+			isa = PBXGroup;
+			children = (
+				B0000000000000000000003B /* DailyNotesStore.swift */,
+				B0000000000000000000003C /* DailyNotesController.swift */,
+			);
+			path = Notes;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -416,11 +442,15 @@
 				A00000000000000000000025 /* BloodPressureSummary.swift in Sources */,
 				A00000000000000000000027 /* DailyHealthExport.swift in Sources */,
 				A00000000000000000000031 /* NutritionExport.swift in Sources */,
+				A00000000000000000000034 /* DailyNotes.swift in Sources */,
 				A00000000000000000000028 /* DailyHealthExportService.swift in Sources */,
 				A0000000000000000000002A /* DailyDriveTransport.swift in Sources */,
 				A0000000000000000000002B /* DailyDriveExportCoordinator.swift in Sources */,
 				A0000000000000000000002C /* DailyDriveSessionController.swift in Sources */,
 				A0000000000000000000002D /* DailyExportView.swift in Sources */,
+				A00000000000000000000035 /* DailyNotesStore.swift in Sources */,
+				A00000000000000000000036 /* DailyNotesController.swift in Sources */,
+				A00000000000000000000037 /* DailyNotesView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -445,6 +475,8 @@
 				A00000000000000000000029 /* DailyHealthExportTests.swift in Sources */,
 				A0000000000000000000002F /* DailyDriveExportCoordinatorTests.swift in Sources */,
 				A00000000000000000000030 /* WeeklyReportViewModelTests.swift in Sources */,
+				A00000000000000000000038 /* DailyNotesTests.swift in Sources */,
+				A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
