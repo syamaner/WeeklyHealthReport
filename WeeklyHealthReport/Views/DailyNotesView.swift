@@ -2,8 +2,8 @@ import SwiftUI
 
 struct DailyNotesView: View {
     @ObservedObject var controller: DailyNotesController
+    let openEditor: () -> Void
     @Environment(\.scenePhase) private var scenePhase
-    @State private var showingEditor = false
     @State private var notePendingDeletion: DailyNote?
 
     var body: some View {
@@ -14,7 +14,7 @@ struct DailyNotesView: View {
                         .lineLimit(3)
                     Button("Copy draft into today") {
                         if controller.copyRecoverableDraftToToday() {
-                            showingEditor = true
+                            openEditor()
                         }
                     }
                     Button("Discard old draft", role: .destructive) {
@@ -26,9 +26,21 @@ struct DailyNotesView: View {
                 }
             }
 
-            if controller.currentDraft != nil {
-                Section("Unfinished draft") {
-                    Button("Continue editing") { showingEditor = true }
+            if let draft = controller.currentDraft, draft.editingNoteID == nil {
+                Section("Unfinished new note") {
+                    Button {
+                        openEditor()
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(draft.text.isEmpty ? "Empty draft" : draft.text)
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.leading)
+                                .lineLimit(3)
+                            Text("Tap to continue editing")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                     Text("Closing the editor keeps this draft on this device. Drafts are never exported.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -41,18 +53,35 @@ struct DailyNotesView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(controller.notes) { note in
-                        Button {
-                            if controller.beginEditing(noteID: note.id) {
-                                showingEditor = true
+                        if let draft = controller.currentDraft,
+                           draft.editingNoteID == note.id {
+                            Button {
+                                openEditor()
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(draft.text.isEmpty ? "Empty edit" : draft.text)
+                                        .foregroundStyle(.primary)
+                                        .multilineTextAlignment(.leading)
+                                        .lineLimit(3)
+                                    Text("Unsaved changes — tap to continue")
+                                        .font(.caption)
+                                        .foregroundStyle(.orange)
+                                }
                             }
-                        } label: {
-                            Text(note.text)
-                                .foregroundStyle(.primary)
-                                .multilineTextAlignment(.leading)
-                        }
-                        .swipeActions(allowsFullSwipe: false) {
-                            Button("Delete", role: .destructive) {
-                                notePendingDeletion = note
+                        } else {
+                            Button {
+                                if controller.beginEditing(noteID: note.id) {
+                                    openEditor()
+                                }
+                            } label: {
+                                Text(note.text)
+                                    .foregroundStyle(.primary)
+                                    .multilineTextAlignment(.leading)
+                            }
+                            .swipeActions(allowsFullSwipe: false) {
+                                Button("Delete", role: .destructive) {
+                                    notePendingDeletion = note
+                                }
                             }
                         }
                     }
@@ -70,17 +99,18 @@ struct DailyNotesView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
-                    if controller.beginNewDraft() {
-                        showingEditor = true
+                    if controller.beginOrResumeDraft() {
+                        openEditor()
                     }
                 } label: {
-                    Label("Add Note", systemImage: "plus")
+                    if controller.currentDraft == nil {
+                        Label("Add Note", systemImage: "plus")
+                    } else {
+                        Label("Continue Draft", systemImage: "square.and.pencil")
+                    }
                 }
                 .disabled(!controller.storageAvailable || controller.recoverableDraft != nil)
             }
-        }
-        .navigationDestination(isPresented: $showingEditor) {
-            DailyNoteEditorView(controller: controller)
         }
         .alert(
             "Delete note?",
@@ -120,11 +150,31 @@ struct DailyNotesView: View {
     }
 }
 
-private struct DailyNoteEditorView: View {
+struct DailyNoteEditorView: View {
     @ObservedObject var controller: DailyNotesController
+    @StateObject private var speechController: DailyNoteSpeechController
+    let willOpenApplicationSettings: () -> Void
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @State private var showingDiscardConfirmation = false
+    @State private var isOpeningApplicationSettings = false
+    @FocusState private var noteTextIsFocused: Bool
+
+    init(
+        controller: DailyNotesController,
+        willOpenApplicationSettings: @escaping () -> Void = {}
+    ) {
+        self.controller = controller
+        self.willOpenApplicationSettings = willOpenApplicationSettings
+        _speechController = StateObject(wrappedValue: DailyNoteSpeechController(
+            capture: SystemOnDeviceSpeechCapture(),
+            appendFinalTranscript: { transcript in
+                controller.appendSpeechTranscript(transcript)
+                    ? nil
+                    : (controller.errorMessage ?? "The transcript could not be added. Your draft was preserved.")
+            }
+        ))
+    }
 
     private var text: Binding<String> {
         Binding(
@@ -142,12 +192,74 @@ private struct DailyNoteEditorView: View {
             Section("Note") {
                 TextEditor(text: text)
                     .frame(minHeight: 180)
+                    .focused($noteTextIsFocused)
                 HStack {
                     Spacer()
                     Text("\(characterCount) / \(DailyNotesPolicy.maximumCharactersPerNote)")
                         .font(.caption)
                         .foregroundStyle(characterCount >= 1_900 ? Color.orange : Color.secondary)
                 }
+            }
+
+            Section {
+                HStack {
+                    Button {
+                        if speechController.canOpenPermissionSettings {
+                            controller.flushDraft()
+                            isOpeningApplicationSettings = true
+                            willOpenApplicationSettings()
+                            guard let url = URL(string: UIApplication.openSettingsURLString) else {
+                                isOpeningApplicationSettings = false
+                                return
+                            }
+                            UIApplication.shared.open(url)
+                        } else {
+                            Task { await speechController.toggle() }
+                        }
+                    } label: {
+                        Label(
+                            speechController.canOpenPermissionSettings
+                                ? "Permission Settings"
+                                : (speechController.state == .listening ? "Stop" : "Microphone"),
+                            systemImage: speechController.canOpenPermissionSettings
+                                ? "gear"
+                                : (speechController.state == .listening
+                                    ? "stop.circle.fill"
+                                    : "mic.circle.fill")
+                        )
+                    }
+                    .disabled(
+                        !speechController.isMicrophoneEnabled
+                            && !speechController.canOpenPermissionSettings
+                    )
+
+                    Spacer()
+
+                    if speechController.state == .listening {
+                        ProgressView()
+                    }
+                }
+
+                Text(speechController.statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if !speechController.partialTranscript.isEmpty {
+                    Text(speechController.partialTranscript)
+                        .italic()
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Partial transcript")
+                }
+
+                if speechController.canRetryAvailability {
+                    Button("Check availability") {
+                        speechController.retryAvailability()
+                    }
+                }
+            } header: {
+                Text("On-device dictation")
+            } footer: {
+                Text("This microphone path runs only when on-device recognition is supported. Audio is streamed only during listening and is never saved, exported or uploaded. Keyboard Dictation is controlled separately by iOS and is not covered by this guarantee.")
             }
 
             Section {
@@ -166,8 +278,17 @@ private struct DailyNoteEditorView: View {
                 Text("Intentional line breaks are preserved. Leading and trailing whitespace is removed when you save.")
             }
         }
+        .scrollDismissesKeyboard(.interactively)
         .navigationTitle(controller.currentDraft?.editingNoteID == nil ? "New Note" : "Edit Note")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") {
+                    noteTextIsFocused = false
+                }
+            }
+        }
         .alert("Discard this draft?", isPresented: $showingDiscardConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Discard Draft", role: .destructive) {
@@ -187,9 +308,24 @@ private struct DailyNoteEditorView: View {
         } message: {
             Text(controller.errorMessage ?? "")
         }
-        .onDisappear { controller.flushDraft() }
+        .onDisappear {
+            speechController.stopForLifecycle()
+            if !isOpeningApplicationSettings,
+               scenePhase == .active,
+               UIApplication.shared.applicationState == .active {
+                controller.finishEditorDismissal()
+            } else {
+                controller.flushDraft()
+            }
+        }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .background { controller.flushDraft() }
+            if phase == .background {
+                speechController.stopForLifecycle()
+                controller.flushDraft()
+            } else if phase == .active {
+                isOpeningApplicationSettings = false
+                speechController.retryAvailability()
+            }
         }
     }
 }

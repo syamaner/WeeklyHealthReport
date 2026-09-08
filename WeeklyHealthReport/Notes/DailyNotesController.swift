@@ -67,23 +67,49 @@ final class DailyNotesController: ObservableObject {
     }
 
     @discardableResult
+    func beginOrResumeDraft() -> Bool {
+        guard storageAvailable else { return false }
+        if currentDraft != nil {
+            errorMessage = nil
+            return true
+        }
+        return beginNewDraft()
+    }
+
+    @discardableResult
     func beginEditing(noteID: UUID) -> Bool {
         mutateAndPersistDraft { document in
             try document.beginDraft(for: currentDayID, editing: noteID, now: now())
         }
     }
 
-    func updateDraftText(_ text: String) {
-        guard storageAvailable else { return }
+    @discardableResult
+    func updateDraftText(_ text: String) -> Bool {
+        guard storageAvailable else { return false }
         var candidate = document
         do {
             try candidate.updateDraft(text: text, now: now())
             document = candidate
             errorMessage = nil
             scheduleDraftSave()
+            return true
         } catch {
             errorMessage = Self.message(for: error)
+            return false
         }
+    }
+
+    @discardableResult
+    func appendSpeechTranscript(_ transcript: String) -> Bool {
+        guard let draft = currentDraft else {
+            errorMessage = Self.message(for: DailyNotesError.noDraft)
+            return false
+        }
+        let finalTranscript = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !finalTranscript.isEmpty else { return true }
+
+        let separator = draft.text.isEmpty || draft.text.last?.isWhitespace == true ? "" : " "
+        return updateDraftText(draft.text + separator + finalTranscript)
     }
 
     @discardableResult
@@ -124,6 +150,16 @@ final class DailyNotesController: ObservableObject {
         } catch {
             errorMessage = "Draft could not be saved. The previous saved notes file was preserved."
         }
+    }
+
+    func finishEditorDismissal() {
+        guard let draft = currentDraft,
+              let editingNoteID = draft.editingNoteID,
+              notes.first(where: { $0.id == editingNoteID })?.text == draft.text else {
+            flushDraft()
+            return
+        }
+        _ = discardDraft()
     }
 
     @discardableResult

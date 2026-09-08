@@ -3,6 +3,60 @@ import XCTest
 
 @MainActor
 final class DailyNotesStoreTests: XCTestCase {
+    func testNavigationRestoresEditorAfterSettingsWhenDraftExists() {
+        XCTAssertEqual(
+            WeeklyReportView.restoredNavigationPath(
+                from: WeeklyReportRoute.noteEditor.rawValue,
+                hasDraft: true
+            ),
+            [.dailyExport, .notes, .noteEditor]
+        )
+    }
+
+    func testNavigationDoesNotRestoreEditorWithoutDraft() {
+        XCTAssertEqual(
+            WeeklyReportView.restoredNavigationPath(
+                from: WeeklyReportRoute.noteEditor.rawValue,
+                hasDraft: false
+            ),
+            [.dailyExport, .notes]
+        )
+    }
+
+    func testNavigationRejectsLifecyclePopsUntilActivationCompletes() {
+        let navigation = WeeklyReportNavigationController()
+        let editorPath: [WeeklyReportRoute] = [.dailyExport, .notes, .noteEditor]
+        navigation.replacePath(editorPath)
+
+        navigation.protectCurrentPath()
+        navigation.acceptPathChange([.dailyExport, .notes])
+        navigation.acceptPathChange([])
+
+        XCTAssertEqual(navigation.path, editorPath)
+
+        navigation.restoreProtectedPath()
+        navigation.acceptPathChange([.dailyExport, .notes])
+
+        XCTAssertEqual(navigation.path, [.dailyExport, .notes])
+
+        navigation.acceptPathChange([])
+
+        XCTAssertTrue(navigation.path.isEmpty)
+    }
+
+    func testNavigationProtectionSupportsRepeatedLifecycleCycles() {
+        let navigation = WeeklyReportNavigationController()
+        let notesPath: [WeeklyReportRoute] = [.dailyExport, .notes]
+        navigation.replacePath(notesPath)
+
+        for _ in 0..<10 {
+            navigation.protectCurrentPath()
+            navigation.acceptPathChange([])
+            navigation.restoreProtectedPath()
+            XCTAssertEqual(navigation.path, notesPath)
+        }
+    }
+
     func testFileStorePersistsSavedNotesAndDraftAcrossRelaunch() throws {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: "WeeklyHealthReportNotesTests-\(UUID().uuidString)")
@@ -49,6 +103,79 @@ final class DailyNotesStoreTests: XCTestCase {
 
         let relaunched = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
         XCTAssertNil(relaunched.currentDraft)
+    }
+
+    func testAddActionResumesExistingDraftWithoutReplacingIt() throws {
+        let store = MemoryDailyNotesStore()
+        let now = londonDate(2026, 9, 8, 10)
+        let controller = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertTrue(controller.beginOrResumeDraft())
+        XCTAssertTrue(controller.updateDraftText("Unfinished invented note"))
+        let draftID = try XCTUnwrap(controller.currentDraft?.id)
+
+        XCTAssertTrue(controller.beginOrResumeDraft())
+
+        XCTAssertEqual(controller.currentDraft?.id, draftID)
+        XCTAssertEqual(controller.currentDraft?.text, "Unfinished invented note")
+        XCTAssertNil(controller.errorMessage)
+    }
+
+    func testUnfinishedEditPersistsIdentityAndReplacesOriginalAfterRelaunch() throws {
+        let store = MemoryDailyNotesStore()
+        let now = londonDate(2026, 9, 8, 10)
+        let first = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertTrue(first.beginNewDraft())
+        XCTAssertTrue(first.updateDraftText("Original invented note"))
+        XCTAssertTrue(first.saveDraft())
+        let noteID = try XCTUnwrap(first.notes.first?.id)
+
+        XCTAssertTrue(first.beginEditing(noteID: noteID))
+        XCTAssertTrue(first.updateDraftText("Edited invented note"))
+        first.flushDraft()
+
+        let relaunched = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertEqual(relaunched.currentDraft?.editingNoteID, noteID)
+        XCTAssertEqual(relaunched.notes.map(\.text), ["Original invented note"])
+        XCTAssertTrue(relaunched.saveDraft())
+        XCTAssertEqual(relaunched.notes.map(\.id), [noteID])
+        XCTAssertEqual(relaunched.notes.map(\.text), ["Edited invented note"])
+    }
+
+    func testClosingUnchangedEditClearsDraftWithoutMutatingSavedNote() throws {
+        let store = MemoryDailyNotesStore()
+        let now = londonDate(2026, 9, 8, 10)
+        let controller = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertTrue(controller.beginNewDraft())
+        XCTAssertTrue(controller.updateDraftText("Original invented note"))
+        XCTAssertTrue(controller.saveDraft())
+        let noteID = try XCTUnwrap(controller.notes.first?.id)
+        let savedSnapshot = controller.document.snapshot(for: controller.currentDayID)
+
+        XCTAssertTrue(controller.beginEditing(noteID: noteID))
+        controller.finishEditorDismissal()
+
+        XCTAssertNil(controller.currentDraft)
+        XCTAssertNil(store.document?.draft)
+        XCTAssertEqual(controller.document.snapshot(for: controller.currentDayID), savedSnapshot)
+    }
+
+    func testClosingChangedEditKeepsPersistedDraft() throws {
+        let store = MemoryDailyNotesStore()
+        let now = londonDate(2026, 9, 8, 10)
+        let controller = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertTrue(controller.beginNewDraft())
+        XCTAssertTrue(controller.updateDraftText("Original invented note"))
+        XCTAssertTrue(controller.saveDraft())
+        let noteID = try XCTUnwrap(controller.notes.first?.id)
+
+        XCTAssertTrue(controller.beginEditing(noteID: noteID))
+        XCTAssertTrue(controller.updateDraftText("Changed invented note"))
+        controller.finishEditorDismissal()
+
+        XCTAssertEqual(controller.currentDraft?.editingNoteID, noteID)
+        XCTAssertEqual(controller.currentDraft?.text, "Changed invented note")
+        XCTAssertEqual(store.document?.draft, controller.currentDraft)
+        XCTAssertEqual(controller.notes.map(\.text), ["Original invented note"])
     }
 
     func testFailedSavedMutationPreservesPreviousGoodDocument() throws {

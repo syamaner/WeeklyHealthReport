@@ -91,9 +91,7 @@ struct DailyExportView: View {
 
             Section("Today’s notes") {
                 LabeledContent("Saved", value: notes.noteCountLabel)
-                NavigationLink("Manage notes") {
-                    DailyNotesView(controller: notes)
-                }
+                NavigationLink("Manage notes", value: WeeklyReportRoute.notes)
                 .disabled(!notes.storageAvailable)
                 Text("Notes and unfinished drafts stay on this device until saved notes are included in a refreshed preview and you explicitly export it.")
                     .font(.caption)

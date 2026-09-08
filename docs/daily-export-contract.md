@@ -54,6 +54,14 @@ exported; unfinished drafts never serialize.
 - Notes and the one unfinished draft use an atomically replaced Codable document in
   Application Support with complete iOS file protection. Note text is not stored in
   UserDefaults, Keychain, logs, analytics, notifications or Google identity metadata.
+- The editor's dedicated microphone uses `SFSpeechRecognizer` with a live
+  `SFSpeechAudioBufferRecognitionRequest` only after a user tap. It requires
+  `supportsOnDeviceRecognition`, sets `requiresOnDeviceRecognition` on every request
+  and fails closed rather than using server recognition. Partial text remains outside
+  the draft; final text is appended through the same character and daily-limit checks.
+  Capture stops on backgrounding or editor dismissal. Audio is never persisted,
+  logged, exported or uploaded, and this guarantee does not extend to system-keyboard
+  Dictation.
 - Refresh captures the saved-note strings and monotonically changing revision before
   asynchronous HealthKit work. A changed revision blocks a late result; a mutation
   after publication invalidates the preview and disables export.

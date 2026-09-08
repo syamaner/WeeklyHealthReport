@@ -39,6 +39,10 @@
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Weekly Health Report reads your selected Apple Health data to create on-device reports and previews that you explicitly choose to export.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Weekly Health Report uses the microphone only while you dictate a note for on-device transcription. Audio is not stored or uploaded.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Weekly Health Report converts microphone audio into note text only when on-device speech recognition is available.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

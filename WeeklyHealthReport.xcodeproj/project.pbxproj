@@ -64,6 +64,8 @@
 		A00000000000000000000037 /* DailyNotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003D /* DailyNotesView.swift */; };
 		A00000000000000000000038 /* DailyNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003E /* DailyNotesTests.swift */; };
 		A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003F /* DailyNotesStoreTests.swift */; };
+		A0000000000000000000003A /* DailyNoteSpeechCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000040 /* DailyNoteSpeechCapture.swift */; };
+		A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -140,6 +142,8 @@
 		B0000000000000000000003D /* DailyNotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesView.swift; sourceTree = "<group>"; };
 		B0000000000000000000003E /* DailyNotesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000003F /* DailyNotesStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesStoreTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000040 /* DailyNoteSpeechCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNoteSpeechCapture.swift; sourceTree = "<group>"; };
+		B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNoteSpeechCaptureTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -263,6 +267,7 @@
 				B00000000000000000000036 /* WeeklyReportViewModelTests.swift */,
 				B0000000000000000000003E /* DailyNotesTests.swift */,
 				B0000000000000000000003F /* DailyNotesStoreTests.swift */,
+				B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */,
 			);
 			path = WeeklyHealthReportTests;
 			sourceTree = "<group>";
@@ -308,6 +313,7 @@
 			children = (
 				B0000000000000000000003B /* DailyNotesStore.swift */,
 				B0000000000000000000003C /* DailyNotesController.swift */,
+				B00000000000000000000040 /* DailyNoteSpeechCapture.swift */,
 			);
 			path = Notes;
 			sourceTree = "<group>";
@@ -451,6 +457,7 @@
 				A00000000000000000000035 /* DailyNotesStore.swift in Sources */,
 				A00000000000000000000036 /* DailyNotesController.swift in Sources */,
 				A00000000000000000000037 /* DailyNotesView.swift in Sources */,
+				A0000000000000000000003A /* DailyNoteSpeechCapture.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -477,6 +484,7 @@
 				A00000000000000000000030 /* WeeklyReportViewModelTests.swift in Sources */,
 				A00000000000000000000038 /* DailyNotesTests.swift in Sources */,
 				A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */,
+				A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

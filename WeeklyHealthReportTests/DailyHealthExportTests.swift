@@ -320,6 +320,7 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertTrue(text.contains("\"notes\" : ["))
         XCTAssertTrue(text.contains("Energy good 🌤️\\nEasy run."))
         XCTAssertFalse(text.contains("Unfinished private draft"))
+        XCTAssertFalse(text.contains("\"audio\""))
     }
 
     func testServiceRejectsNoteMutationDuringHealthRefresh() async throws {
