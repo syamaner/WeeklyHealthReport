@@ -15,19 +15,23 @@ protocol DailyHealthExportDataProviding {
 struct DailyHealthExportResult: Equatable {
     let envelope: DailyHealthExportEnvelope
     let bytes: Data
+    let notesSnapshot: DailyNotesSnapshot
 }
 
 struct DailyHealthExportService {
     private let healthData: any DailyHealthExportDataProviding
+    private let notesStore: any DailyNotesPersisting
     private let calendar: Calendar
     private let now: () -> Date
 
     init(
         healthData: any DailyHealthExportDataProviding,
+        notesStore: any DailyNotesPersisting = EmptyDailyNotesStore(),
         calendar: Calendar = .autoupdatingCurrent,
         now: @escaping () -> Date = Date.init
     ) {
         self.healthData = healthData
+        self.notesStore = notesStore
         self.calendar = calendar
         self.now = now
     }
@@ -45,6 +49,12 @@ struct DailyHealthExportService {
     ) async throws -> DailyHealthExportResult {
         let cutoff = now()
         let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        let notesSnapshot: DailyNotesSnapshot
+        do {
+            notesSnapshot = try notesStore.snapshot(for: DailyNoteDayID(window: window))
+        } catch {
+            throw DailyHealthExportError.notesUnavailable
+        }
         guard healthData.isHealthDataAvailable else {
             throw HealthDataError.unavailable
         }
@@ -68,14 +78,25 @@ struct DailyHealthExportService {
         guard inputs.nutrition.source.bundleIdentifier == nutritionSourceBundleIdentifier else {
             throw DailyHealthExportError.nutritionSourceUnavailable
         }
+        do {
+            guard try notesStore.containsCurrent(notesSnapshot) else {
+                throw DailyHealthExportError.notesChanged
+            }
+        } catch let error as DailyHealthExportError {
+            throw error
+        } catch {
+            throw DailyHealthExportError.notesUnavailable
+        }
         let envelope = try DailyHealthExportBuilder.make(
             window: window,
             exportedAt: now(),
-            inputs: inputs
+            inputs: inputs,
+            notes: notesSnapshot.notes
         )
         return DailyHealthExportResult(
             envelope: envelope,
-            bytes: try DailyHealthExportSerializer.encode(envelope)
+            bytes: try DailyHealthExportSerializer.encode(envelope),
+            notesSnapshot: notesSnapshot
         )
     }
 }

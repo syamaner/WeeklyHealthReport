@@ -6,8 +6,10 @@ integration. The merged synthetic harness includes accepted slice A. Slice B is 
 accepted within its synthetic-only boundary through local checks and bounded build-5/
 build-6 device and Drive evidence. Slice C's product policies are ratified and its
 daily query/model/JSON path is accepted locally through invented fixtures, the complete
-62-test simulator suite and static analysis. The additive nutrition contract uses schema
-version 2, a selected visible HealthKit source and fixed seven-completed-day windows.
+62-test simulator suite and static analysis. The additive nutrition contract introduced
+schema version 2, a selected visible HealthKit source and fixed seven-completed-day
+windows. Schema version 3 adds ordered, date-bound user notes while retaining every
+schema-v2 health and nutrition field.
 Slice D now has a locally integrated,
 manual production UI and fail-closed transport path, but no production OAuth client,
 personal-data export, real-device HealthKit validation or new Google mutation exists.
@@ -34,7 +36,32 @@ Use manual, user-initiated Google Drive API export after consent. Offer Create â
 
 ## JSON envelope
 
-Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `exported_at`, `day_window`, `today`, `app_context`. The current envelope is schema version 2. Schema version 1 remains valid only for verifying and safely replacing an existing canonical same-date Drive file.
+Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `exported_at`, `day_window`, `today`, `app_context`. The current envelope is schema version 3. Schema versions 1 and 2 remain valid only for verifying and safely replacing an existing canonical same-date Drive file.
+
+Schema v3 always includes `today.notes: [String]`. No saved notes is `[]`, never
+`null` or an availability wrapper. Strings retain intentional embedded line breaks
+and deterministic creation order. Local note IDs, timestamps and revisions are not
+exported; unfinished drafts never serialize.
+
+### User-authored note lifecycle
+
+- Notes are keyed by the captured local reporting date and time-zone identity. A
+  draft crossing into another identity remains recoverable under its original date
+  until the person explicitly copies it into today or discards it.
+- The app retains at most 20 saved notes per reporting day, 2,000 Unicode characters
+  per note and 20,000 characters across the day. It trims leading and trailing
+  whitespace only when saving and never silently truncates input.
+- Notes and the one unfinished draft use an atomically replaced Codable document in
+  Application Support with complete iOS file protection. Note text is not stored in
+  UserDefaults, Keychain, logs, analytics, notifications or Google identity metadata.
+- Refresh captures the saved-note strings and monotonically changing revision before
+  asynchronous HealthKit work. A changed revision blocks a late result; a mutation
+  after publication invalidates the preview and disables export.
+- A remotely verified export records the exact note revision and payload hash. The
+  unchanged saved notes become cleanup-eligible only from a later local reporting
+  date. Cleanup is lazy, never background work, and never removes an unfinished draft.
+- Failed, cancelled-before-submission, uncertain or stale exports cannot authorize
+  cleanup. A post-export note change is a new unsent revision and must be retained.
 
 `today` contains daily metric summaries and agreed detail. `app_context` contains existing app-derived summaries/trends with their own windows, coverage, calculation policy identifier and availability. Do not add a blanket previous-seven-days raw-data bundle or ask Cowork to reconstruct established app calculations.
 
@@ -87,6 +114,7 @@ The earlier conversation's blanket claim that all trends use completed-day windo
 - One export operation at a time; an older attempt cannot overwrite a newer snapshot.
 - Repeating a save of the same snapshot must leave one canonical daily artifact.
 - A newer schema-v2 snapshot for the same reporting date replaces a verified schema-v1 canonical file under the same persisted Drive file ID. Version evolution does not relax stale-cutoff rejection, exact-byte readback or one-file-per-day identity.
+- A schema-v3 snapshot likewise replaces a verified schema-v1 or schema-v2 canonical file under the same persisted Drive file ID. It never patches notes into already reviewed bytes.
 - A failed refresh, cancellation or failed write must preserve the prior good file. Never delete the prior file first to simulate replacement.
 - Validate the complete JSON before handing it to storage. Keep temporary data only as long as needed and clean it up after completion/cancellation where possible.
 - Treat HTTP upload response separately from verified remote content. Verify the expected account/folder/file ID and JSON bytes through the Drive API before reporting verified upload. Independent Drive web verification remains an acceptance check; this does not prove Cowork fetched the file.

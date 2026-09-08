@@ -21,7 +21,7 @@ The screenshot uses invented data. The repository does not contain exported or p
 | Fitness estimates | Latest VO₂ max with four-week, three-month and six-month averages, plus blood oxygen |
 | Glucose | A weekly average calculated from daily values, observed range and days with data |
 | Medications | Taken medication events, dose and time on iOS 26 or later |
-| Daily JSON only | Source-filtered nutrition totals, completed-day averages and trends for all 39 Apple Health dietary quantity types |
+| Daily JSON only | Source-filtered nutrition totals, completed-day averages and trends for all 39 Apple Health dietary quantity types, plus private date-bound notes you type and explicitly export |
 
 The app has one main screen, a manual **Daily JSON Export** screen and a separate Developer Diagnostics screen for checking daily values against Apple Health. **Copy Report** puts a human-readable version on the iOS clipboard.
 
@@ -42,6 +42,13 @@ The optional Drive feature:
 - never enumerates destination contents or treats limited Drive visibility as proof
   that a folder is empty; and
 - supports one active exporting installation and blocks ambiguous identity recovery.
+
+Typed notes and unfinished drafts are stored in this app's Application Support
+directory with iOS file protection. Drafts are never exported. Saved notes enter
+only a newly refreshed JSON preview and remain on-device until you review and
+explicitly export those exact bytes. An edit or deletion makes an existing preview
+stale. Verified prior-day notes are removed lazily only when the same unchanged
+revision was remotely verified; drafts are retained.
 
 Google receives the selected JSON and applies its own storage/account terms. A
 successful app status means Drive metadata and content bytes were read back and
@@ -182,6 +189,7 @@ Correct HealthKit aggregation is the main reason this project exists. Cumulative
 - **Sleep:** only `asleepUnspecified`, `asleepCore`, `asleepDeep` and `asleepREM` samples are included. `awake` and `inBed` are excluded. Included intervals from all sources are clipped and combined so overlaps count once. Each report date is a local noon-to-noon night bucket ending on that wake date. Only nights with visible asleep time enter the average.
 - **Medications on iOS 26 or later:** the person chooses individual medications through Apple's medication access sheet. The app queries active and archived authorised concepts, then includes only `HKMedicationDoseEvent` samples with a `taken` status and a start time inside the selected completed-day period. Events are grouped by HealthKit's exact medication concept, so a changed strength appears as a separate row. Each row reports the latest logged quantity and time plus the number of taken events. Diagnostics lists every event. Medications without a visible taken event are omitted from copied text. Missing events are never treated as a missed dose or non-adherence.
 - **Nutrition in Daily JSON Export:** the app supports all 39 current HealthKit dietary quantity types through one fixed catalogue. It uses source-filtered HealthKit `cumulativeSum` statistics and converts energy to kcal, water to mL and nutrients to the catalogue's g, mg or mcg unit at the query boundary. Schema v2 contains today's partial total through the captured cutoff and exactly seven chronological completed-day states per nutrient. Current and previous averages are arithmetic means over visible sampled days and state both sampled and reporting days. A signed current-minus-previous trend is available only with 7/7 visible days in both windows; otherwise it is `insufficient_data`. Missing source-filtered statistics remain `no_data_or_access`, never zero. Nutrition is not added to the weekly screen, copied report or Diagnostics and has no target, score or interpretation.
+- **Private notes in Daily JSON Export:** schema v3 always includes `today.notes` as an ordered array of strings, including `[]` when no notes are saved. Each string belongs to the envelope's reporting date and time zone. Local record identities and timestamps are not exported, and drafts never enter JSON. A preview freezes the saved-note revision alongside its HealthKit cutoff; later note changes invalidate it rather than being patched into reviewed bytes. Notes are user-authored context, not HealthKit data or medical interpretation, and are not added to the weekly screen, copied report or Developer Diagnostics.
 
 Apple does not fully document the sleep source precedence used by the Health app. Combining overlapping asleep intervals is the closest transparent and defensible calculation available through documented HealthKit data.
 
@@ -208,11 +216,12 @@ For your own check, run a Debug build, select **Last 7 Completed Days**, and use
 10. **Workouts:** compare workout start dates, count and total duration.
 11. **Sleep:** compare each diagnostic night with the Health date on which you woke. If a night differs, check for overlapping third-party or manually entered records.
 12. **Medications:** compare every taken-event timestamp in Diagnostics with Health. Confirm that an unlogged medicine is absent and a changed strength appears as a separate row. Today's event enters the default report only after that day is complete.
-13. Tap **Copy Report**, paste it into Notes, and compare it with the screen. Diagnostics are never included in copied text.
+13. **Daily notes:** add, edit and delete invented text, then refresh the daily preview. Confirm `today.notes` matches the saved order exactly, a draft is absent, and any later saved-note change disables the old preview until refresh.
+14. Tap **Copy Report**, paste it into Notes, and compare it with the screen. Diagnostics and daily notes are never included in copied text.
 
 </details>
 
-Simulator tests cover calendar boundaries, paired blood-pressure aggregation, daily-first averages, missing data, sleep overlap handling, workout totals, nutrition catalogue/schema semantics, formatting and clipboard output. A simulator cannot prove nutrition source visibility, provider coverage or representative personal HealthKit data, so those checks still require separately authorised iPhone testing.
+Simulator tests cover calendar boundaries, paired blood-pressure aggregation, daily-first averages, missing data, sleep overlap handling, workout totals, nutrition catalogue/schema semantics, date-bound note persistence and preview invalidation, formatting and clipboard output. A simulator cannot prove nutrition source visibility, provider coverage, iOS file-protection behaviour through a real lock cycle or representative personal HealthKit data, so those checks still require separately authorised iPhone testing.
 
 CI also enforces unsigned Xcode static analysis, publishes layer-aware simulator
 coverage in GitHub Actions and sends app-target coverage to Codecov. The

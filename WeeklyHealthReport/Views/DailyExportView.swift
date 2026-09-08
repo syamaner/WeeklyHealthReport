@@ -2,9 +2,16 @@ import SwiftUI
 
 struct DailyExportView: View {
     @ObservedObject var session: DailyDriveSessionController
+    @ObservedObject private var notes: DailyNotesController
+    @Environment(\.scenePhase) private var scenePhase
     @State private var showingPreview = false
     @State private var showingTrashedDestinationConfirmation = false
     @State private var showingTrashedFileConfirmation = false
+
+    init(session: DailyDriveSessionController) {
+        self.session = session
+        _notes = ObservedObject(wrappedValue: session.notes)
+    }
 
     var body: some View {
         Form {
@@ -80,6 +87,21 @@ struct DailyExportView: View {
                 }
                 Text("Nutrition is read only from the selected bundle identifier. Missing values remain No data; the app never falls back to totals from every source.")
                     .font(.caption)
+            }
+
+            Section("Today’s notes") {
+                LabeledContent("Saved", value: notes.noteCountLabel)
+                NavigationLink("Manage notes") {
+                    DailyNotesView(controller: notes)
+                }
+                .disabled(!notes.storageAvailable)
+                Text("Notes and unfinished drafts stay on this device until saved notes are included in a refreshed preview and you explicitly export it.")
+                    .font(.caption)
+                if !notes.storageAvailable {
+                    Text("Saved notes are unavailable. The existing file was left unchanged.")
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
             }
 
             Section("Daily snapshot") {
@@ -169,6 +191,13 @@ struct DailyExportView: View {
         }
         .navigationTitle("Daily JSON Export")
         .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: scenePhase) { _, phase in
+            switch phase {
+            case .active: notes.activate()
+            case .background: notes.flushDraft()
+            default: break
+            }
+        }
     }
 }
 

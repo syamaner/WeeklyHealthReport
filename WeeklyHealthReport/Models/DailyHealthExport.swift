@@ -6,6 +6,8 @@ enum DailyHealthExportError: Error, Equatable {
     case invalidMetricValue
     case nutritionSourceRequired
     case nutritionSourceUnavailable
+    case notesChanged
+    case notesUnavailable
 }
 
 struct DailyExportWindow: Equatable {
@@ -294,6 +296,7 @@ struct ExportNutritionContext: Codable, Equatable {
 }
 
 struct DailyHealthMetrics: Codable, Equatable {
+    let notes: [String]?
     let weight: ExportMetric<DailyWeightData>
     let bodyFat: ExportMetric<DailyBodyFatData>
     let waist: ExportMetric<DailyMeasurementListData>
@@ -311,7 +314,7 @@ struct DailyHealthMetrics: Codable, Equatable {
     let nutrition: DailyNutritionData?
 
     private enum CodingKeys: String, CodingKey {
-        case weight, bodyFat, waist, bloodPressure, glucose
+        case notes, weight, bodyFat, waist, bloodPressure, glucose
         case restingHeartRate, hrv, bloodOxygen, vo2Max, sleep
         case activity, workouts, watchCoverage, medications, nutrition
     }
@@ -464,6 +467,7 @@ struct DailyAppContext: Codable, Equatable {
 extension DailyHealthMetrics {
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(notes, forKey: .notes)
         try container.encode(weight, forKey: .weight)
         try container.encode(bodyFat, forKey: .bodyFat)
         try container.encode(waist, forKey: .waist)
@@ -556,7 +560,8 @@ enum DailyHealthExportBuilder {
     static func make(
         window: DailyExportWindow,
         exportedAt: Date,
-        inputs: DailyHealthExportInputs
+        inputs: DailyHealthExportInputs,
+        notes: [String] = []
     ) throws -> DailyHealthExportEnvelope {
         guard exportedAt >= window.cutoff else {
             throw DailyHealthExportError.invalidWindow
@@ -607,6 +612,14 @@ enum DailyHealthExportBuilder {
             + inputs.contextMedicationDoses.compactMap(\.quantity))
         guard inputs.hourlyGlucose.count == window.glucoseHours.count else {
             throw DailyHealthExportError.invalidWindow
+        }
+        guard notes.count <= DailyNotesPolicy.maximumNotesPerDay,
+              notes.allSatisfy({
+                  !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                      && $0.count <= DailyNotesPolicy.maximumCharactersPerNote
+              }),
+              notes.reduce(0, { $0 + $1.count }) <= DailyNotesPolicy.maximumCharactersPerDay else {
+            throw DailyHealthExportError.invalidMetricValue
         }
         let nutrition = try makeNutrition(window: window, input: inputs.nutrition)
 
@@ -746,6 +759,7 @@ enum DailyHealthExportBuilder {
                 })
 
         let today = DailyHealthMetrics(
+            notes: notes,
             weight: weight,
             bodyFat: todayBodyFat,
             waist: measurementList(
@@ -797,7 +811,7 @@ enum DailyHealthExportBuilder {
             nutrition: nutrition.context
         )
         return DailyHealthExportEnvelope(
-            schemaVersion: 2,
+            schemaVersion: 3,
             reportDate: window.reportDate,
             timeZone: window.timeZoneIdentifier,
             dataAsOf: timestamp(window.cutoff),

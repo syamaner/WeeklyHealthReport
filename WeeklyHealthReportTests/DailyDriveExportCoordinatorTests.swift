@@ -50,7 +50,7 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         XCTAssertEqual(storedContent, try payload(hour: 23))
     }
 
-    func testSchemaV1CanonicalFileIsReplacedByV2UnderSameIDWithoutWeakeningGuards() async throws {
+    func testSchemaV1CanonicalFileIsReplacedByV3UnderSameIDWithoutWeakeningGuards() async throws {
         let store = MemoryDailyIdentityStore()
         let server = MockDailyDriveServer()
         let coordinator = DailyDriveExportCoordinator(transport: server, store: store)
@@ -64,9 +64,9 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
             tokenProvider: token
         )
         let fileID = try XCTUnwrap(store.snapshot()?.identities.first?.fileID)
-        let version2 = try payload(hour: 18)
+        let version3 = try payload(hour: 18)
         _ = try await coordinator.export(
-            payload: version2,
+            payload: version3,
             reportDate: reportDate,
             accountID: accountID,
             folderID: folderID,
@@ -79,7 +79,7 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         let updateIDs = await server.updateIDs
         XCTAssertEqual(store.snapshot()?.identities.first?.fileID, fileID)
         XCTAssertEqual(fileCountAfterReplacement, 1)
-        XCTAssertEqual(contentAfterReplacement, version2)
+        XCTAssertEqual(contentAfterReplacement, version3)
         XCTAssertEqual(generatedIDs, [fileID])
         XCTAssertEqual(updateIDs, [fileID])
 
@@ -91,12 +91,42 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
                 folderID: folderID,
                 tokenProvider: token
             )
-            XCTFail("A schema-v2 payload older than the verified replacement must be rejected")
+            XCTFail("A schema-v3 payload older than the verified replacement must be rejected")
         } catch DailyDriveExportFailure.staleSnapshot {}
         let fileCountAfterStaleAttempt = await server.fileCount()
         let contentAfterStaleAttempt = await server.storedContent(id: fileID)
         XCTAssertEqual(fileCountAfterStaleAttempt, 1)
-        XCTAssertEqual(contentAfterStaleAttempt, version2)
+        XCTAssertEqual(contentAfterStaleAttempt, version3)
+    }
+
+    func testSchemaV2CanonicalFileIsReplacedByV3UnderSameID() async throws {
+        let store = MemoryDailyIdentityStore()
+        let server = MockDailyDriveServer()
+        let coordinator = DailyDriveExportCoordinator(transport: server, store: store)
+        let version2 = try legacyVersion2Payload(hour: 8)
+        _ = try await coordinator.export(
+            payload: version2,
+            reportDate: reportDate,
+            accountID: accountID,
+            folderID: folderID,
+            tokenProvider: token
+        )
+        let fileID = try XCTUnwrap(store.snapshot()?.identities.first?.fileID)
+
+        let version3 = try payload(hour: 18)
+        _ = try await coordinator.export(
+            payload: version3,
+            reportDate: reportDate,
+            accountID: accountID,
+            folderID: folderID,
+            tokenProvider: token
+        )
+
+        let fileCount = await server.fileCount()
+        let storedContent = await server.storedContent(id: fileID)
+        XCTAssertEqual(fileCount, 1)
+        XCTAssertEqual(storedContent, version3)
+        XCTAssertEqual(store.snapshot()?.identities.first?.fileID, fileID)
     }
 
     func testUncertainCreateRetriesSameReservedIDAndLostResponseReconciles() async throws {
@@ -172,6 +202,21 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         XCTAssertEqual(cancelledResult, .cancelledAfterSubmissionVerified(
             dataAsOf: "2026-09-06T23:00:00+01:00", created: false
         ))
+    }
+
+    func testOnlyUncancelledVerifiedResultsAuthorizeNoteCleanup() {
+        XCTAssertTrue(DailyDriveExportResult.verified(
+            dataAsOf: "2026-09-06T23:00:00+01:00",
+            created: true
+        ).authorizesNoteCleanup)
+        XCTAssertTrue(DailyDriveExportResult.unchangedVerified(
+            dataAsOf: "2026-09-06T23:00:00+01:00"
+        ).authorizesNoteCleanup)
+        XCTAssertFalse(DailyDriveExportResult.cancelledBeforeSubmission.authorizesNoteCleanup)
+        XCTAssertFalse(DailyDriveExportResult.cancelledAfterSubmissionVerified(
+            dataAsOf: "2026-09-06T23:00:00+01:00",
+            created: false
+        ).authorizesNoteCleanup)
     }
 
     func testUnresolvedSubmissionHasNoQueueAndBlocksNewerSnapshot() async throws {
@@ -527,6 +572,7 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
             exportedAt: current.exportedAt,
             dayWindow: current.dayWindow,
             today: DailyHealthMetrics(
+                notes: nil,
                 weight: today.weight,
                 bodyFat: today.bodyFat,
                 waist: today.waist,
@@ -571,6 +617,47 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         let decoded = try decoder.decode(DailyHealthExportEnvelope.self, from: bytes)
         XCTAssertEqual(decoded.schemaVersion, 1)
         XCTAssertNil(decoded.today.nutrition)
+        XCTAssertEqual(try DailyHealthExportSerializer.encode(decoded), bytes)
+        return bytes
+    }
+
+    private func legacyVersion2Payload(hour: Int) throws -> Data {
+        let current = try decodedPayload(hour: hour)
+        let today = current.today
+        let legacy = DailyHealthExportEnvelope(
+            schemaVersion: 2,
+            reportDate: current.reportDate,
+            timeZone: current.timeZone,
+            dataAsOf: current.dataAsOf,
+            exportedAt: current.exportedAt,
+            dayWindow: current.dayWindow,
+            today: DailyHealthMetrics(
+                notes: nil,
+                weight: today.weight,
+                bodyFat: today.bodyFat,
+                waist: today.waist,
+                bloodPressure: today.bloodPressure,
+                glucose: today.glucose,
+                restingHeartRate: today.restingHeartRate,
+                hrv: today.hrv,
+                bloodOxygen: today.bloodOxygen,
+                vo2Max: today.vo2Max,
+                sleep: today.sleep,
+                activity: today.activity,
+                workouts: today.workouts,
+                watchCoverage: today.watchCoverage,
+                medications: today.medications,
+                nutrition: today.nutrition
+            ),
+            appContext: current.appContext
+        )
+        let bytes = try DailyHealthExportSerializer.encode(legacy)
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let decoded = try decoder.decode(DailyHealthExportEnvelope.self, from: bytes)
+        XCTAssertEqual(decoded.schemaVersion, 2)
+        XCTAssertNil(decoded.today.notes)
+        XCTAssertNotNil(decoded.today.nutrition)
         XCTAssertEqual(try DailyHealthExportSerializer.encode(decoded), bytes)
         return bytes
     }
