@@ -56,6 +56,8 @@
 		A0000000000000000000002F /* DailyDriveExportCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000035 /* DailyDriveExportCoordinatorTests.swift */; };
 		A00000000000000000000030 /* WeeklyReportViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000036 /* WeeklyReportViewModelTests.swift */; };
 		A00000000000000000000031 /* NutritionExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000037 /* NutritionExport.swift */; };
+		A00000000000000000000032 /* WeeklyReportSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000038 /* WeeklyReportSections.swift */; };
+		A00000000000000000000033 /* DeveloperDiagnosticsSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000039 /* DeveloperDiagnosticsSections.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -124,6 +126,8 @@
 		B00000000000000000000035 /* DailyDriveExportCoordinatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyDriveExportCoordinatorTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000036 /* WeeklyReportViewModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportViewModelTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000037 /* NutritionExport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionExport.swift; sourceTree = "<group>"; };
+		B00000000000000000000038 /* WeeklyReportSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportSections.swift; sourceTree = "<group>"; };
+		B00000000000000000000039 /* DeveloperDiagnosticsSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperDiagnosticsSections.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -214,7 +218,9 @@
 			children = (
 				B00000000000000000000006 /* WeeklyReportViewModel.swift */,
 				B00000000000000000000007 /* WeeklyReportView.swift */,
+				B00000000000000000000038 /* WeeklyReportSections.swift */,
 				B0000000000000000000001B /* DeveloperDiagnosticsView.swift */,
+				B00000000000000000000039 /* DeveloperDiagnosticsSections.swift */,
 				B00000000000000000000031 /* DailyExportView.swift */,
 			);
 			path = Views;
@@ -392,7 +398,9 @@
 				A00000000000000000000005 /* HealthKitClient.swift in Sources */,
 				A00000000000000000000006 /* WeeklyReportViewModel.swift in Sources */,
 				A00000000000000000000007 /* WeeklyReportView.swift in Sources */,
+				A00000000000000000000032 /* WeeklyReportSections.swift in Sources */,
 				A00000000000000000000018 /* DeveloperDiagnosticsView.swift in Sources */,
+				A00000000000000000000033 /* DeveloperDiagnosticsSections.swift in Sources */,
 				A0000000000000000000000B /* WeightMeasurement.swift in Sources */,
 				A0000000000000000000000C /* HealthReportFormatter.swift in Sources */,
 				A0000000000000000000000F /* BodyComposition.swift in Sources */,
