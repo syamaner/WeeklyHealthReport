@@ -1,6 +1,7 @@
 # Weekly Health Report
 
 [![iOS CI](https://github.com/syamaner/WeeklyHealthReport/actions/workflows/ios-ci.yml/badge.svg)](https://github.com/syamaner/WeeklyHealthReport/actions/workflows/ios-ci.yml)
+[![codecov](https://codecov.io/gh/syamaner/WeeklyHealthReport/branch/main/graph/badge.svg)](https://codecov.io/gh/syamaner/WeeklyHealthReport)
 
 Weekly Health Report is a small iPhone app that turns selected Apple Health data into a readable weekly summary and an explicitly reviewed daily JSON snapshot. Pick a reporting period, refresh the data, then copy the plain-text report or manually export the daily JSON to a Google Drive destination you selected.
 
