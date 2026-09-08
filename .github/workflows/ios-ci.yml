@@ -66,6 +66,7 @@ jobs:
             -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -enableCodeCoverage YES \
             -resultBundlePath "$RUNNER_TEMP/WeeklyHealthReportTests.xcresult" \
+            ENABLE_DEBUG_DYLIB=NO \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Summarise code coverage
@@ -87,6 +88,7 @@ jobs:
           plugins: xcode
           swift_project: WeeklyHealthReport
           token: ${{ secrets.CODECOV_TOKEN }}
+          version: v11.3.1
 
       - name: Upload test and coverage results
         if: always()

@@ -28,8 +28,9 @@ or code that requires Apple frameworks with directly testable domain logic.
 
 Codecov's project and patch statuses are also explicitly informational in
 `codecov.yml`; they do not replace or broaden the repository-owned 95.0% gate.
-The Codecov upload step itself fails CI if the configured report cannot be
-generated or uploaded, so loss of hosted visibility is not silent.
+The Codecov action fails CI for local generation or transport errors. Codecov
+processes accepted uploads asynchronously, so its hosted result must still be
+checked independently when reviewing a pull request.
 
 The summariser fails closed if the app target or a named layer disappears from
 Xcode's coverage report. Its standard-library unit tests also run before Xcode
