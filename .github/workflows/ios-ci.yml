@@ -45,11 +45,45 @@ jobs:
           ' )"
           echo "SIMULATOR_ID=$simulator_id" >> "$GITHUB_ENV"
 
-      - name: Run unit tests
+      - name: Validate coverage summariser
+        run: python3 -m unittest discover -s .github/scripts/tests -v
+
+      - name: Run Xcode static analysis
         run: |
-          set -o pipefail
-          xcodebuild test \
+          set -euo pipefail
+          /usr/bin/time -p xcodebuild analyze \
             -project WeeklyHealthReport.xcodeproj \
             -scheme WeeklyHealthReport \
             -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             CODE_SIGNING_ALLOWED=NO
+
+      - name: Run unit tests with code coverage
+        run: |
+          set -euo pipefail
+          /usr/bin/time -p xcodebuild test \
+            -project WeeklyHealthReport.xcodeproj \
+            -scheme WeeklyHealthReport \
+            -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
+            -enableCodeCoverage YES \
+            -resultBundlePath "$RUNNER_TEMP/WeeklyHealthReportTests.xcresult" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Summarise code coverage
+        run: |
+          python3 .github/scripts/summarize_coverage.py \
+            --xcresult "$RUNNER_TEMP/WeeklyHealthReportTests.xcresult" \
+            --commit "$GITHUB_SHA" \
+            --output "$RUNNER_TEMP/coverage-summary.md" \
+            --github-step-summary "$GITHUB_STEP_SUMMARY" \
+            --minimum-domain-coverage 95
+
+      - name: Upload test and coverage results
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-test-and-coverage-results
+          path: |
+            ${{ runner.temp }}/WeeklyHealthReportTests.xcresult
+            ${{ runner.temp }}/coverage-summary.md
+          if-no-files-found: warn
+          retention-days: 14
