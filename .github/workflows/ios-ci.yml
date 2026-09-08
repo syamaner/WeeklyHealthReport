@@ -66,6 +66,7 @@ jobs:
             -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -enableCodeCoverage YES \
             -resultBundlePath "$RUNNER_TEMP/WeeklyHealthReportTests.xcresult" \
+            ENABLE_DEBUG_DYLIB=NO \
             CODE_SIGNING_ALLOWED=NO
 
       - name: Summarise code coverage
@@ -76,6 +77,18 @@ jobs:
             --output "$RUNNER_TEMP/coverage-summary.md" \
             --github-step-summary "$GITHUB_STEP_SUMMARY" \
             --minimum-domain-coverage 95
+
+      - name: Upload app coverage to Codecov
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+        with:
+          disable_search: true
+          disable_telem: true
+          fail_ci_if_error: true
+          files: WeeklyHealthReport.app.coverage.txt
+          plugins: xcode
+          swift_project: WeeklyHealthReport
+          token: ${{ secrets.CODECOV_TOKEN }}
+          version: v11.3.1
 
       - name: Upload test and coverage results
         if: always()
