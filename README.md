@@ -213,10 +213,11 @@ For your own check, run a Debug build, select **Last 7 Completed Days**, and use
 
 Simulator tests cover calendar boundaries, paired blood-pressure aggregation, daily-first averages, missing data, sleep overlap handling, workout totals, nutrition catalogue/schema semantics, formatting and clipboard output. A simulator cannot prove nutrition source visibility, provider coverage or representative personal HealthKit data, so those checks still require separately authorised iPhone testing.
 
-CI also enforces unsigned Xcode static analysis and publishes layer-aware
-simulator coverage without a hosted coverage service. The reproducible baseline,
-pure-domain regression gate and runtime evidence are documented in
-[CI static analysis and coverage](docs/ci-analysis-and-coverage.md).
+CI also enforces unsigned Xcode static analysis, publishes layer-aware simulator
+coverage in GitHub Actions and sends app-target coverage to Codecov. The
+reproducible baseline, pure-domain regression gate, external disclosure boundary
+and runtime evidence are documented in [CI static analysis and
+coverage](docs/ci-analysis-and-coverage.md).
 
 Values can legitimately differ while Health or a sensor app is still synchronising, when historical read access is limited, when the selected dates differ, or because Apple has not documented part of its source precedence. Investigate material discrepancies through the daily and nightly diagnostics rather than hiding them through rounding.
 

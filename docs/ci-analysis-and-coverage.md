@@ -3,8 +3,8 @@
 The iOS workflow runs Xcode static analysis as a required step, collects line
 coverage during the unsigned simulator test run, writes a layer-aware table to
 the GitHub Actions job summary and retains the `xcresult` plus Markdown summary
-as a normal workflow artifact for 14 days. It does not use a hosted coverage
-service.
+as a normal workflow artifact for 14 days. It also sends app-target coverage to
+Codecov for hosted history, source-line navigation and pull-request visibility.
 
 Both analysis and tests set `CODE_SIGNING_ALLOWED=NO`. Coverage therefore needs
 neither signing nor HealthKit permission, and it never reads personal health
@@ -26,9 +26,29 @@ conservative minimum of 95.0%. App-wide, view-model and HealthKit-client values
 remain informational. That avoids equating SwiftUI-generated executable lines
 or code that requires Apple frameworks with directly testable domain logic.
 
+Codecov's project and patch statuses are also explicitly informational in
+`codecov.yml`; they do not replace or broaden the repository-owned 95.0% gate.
+The Codecov upload step itself fails CI if the configured report cannot be
+generated or uploaded, so loss of hosted visibility is not silent.
+
 The summariser fails closed if the app target or a named layer disappears from
 Xcode's coverage report. Its standard-library unit tests also run before Xcode
 analysis and testing.
+
+## Codecov disclosure boundary
+
+The pinned Codecov action runs only after the local coverage gate passes. Its
+Xcode plugin converts the app target's local profiling data into
+`WeeklyHealthReport.app.coverage.txt`; search is disabled so only that named
+report is uploaded. The action receives the repository's `CODECOV_TOKEN`, with
+its optional telemetry disabled.
+
+Codecov receives repository source paths, line-level execution data, source
+text embedded by Xcode's coverage rendering, and Git metadata needed to attach
+the report to a commit or pull request. It does not receive the `xcresult`,
+HealthKit permission, personal health data, signing credentials or the Google
+Drive credentials used by the app. The `xcresult` remains a GitHub Actions
+artifact under the retention policy above.
 
 ## Reviewed baseline
 
