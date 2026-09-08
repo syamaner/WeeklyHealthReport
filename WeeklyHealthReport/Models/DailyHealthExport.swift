@@ -1386,7 +1386,7 @@ enum DailyHealthExportSerializer {
     static func encode(_ envelope: DailyHealthExportEnvelope) throws -> Data {
         let encoder = JSONEncoder()
         encoder.keyEncodingStrategy = .convertToSnakeCase
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         return try encoder.encode(envelope)
     }
 }

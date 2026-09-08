@@ -90,10 +90,12 @@ final class DailyHealthExportTests: XCTestCase {
 
         let bytes = try DailyHealthExportSerializer.encode(envelope)
         let text = try XCTUnwrap(String(data: bytes, encoding: .utf8))
-        XCTAssertTrue(text.contains("\"schema_version\" : 3"))
-        XCTAssertTrue(text.contains("\"notes\" : ["))
+        XCTAssertTrue(text.contains("\"schema_version\":3"))
+        XCTAssertTrue(text.contains("\"notes\":["))
         XCTAssertTrue(text.contains("\"no_data_or_access\""))
-        XCTAssertFalse(text.contains(": null"))
+        XCTAssertFalse(text.contains(":null"))
+        XCTAssertFalse(text.contains("\n"))
+        XCTAssertTrue(text.hasPrefix("{\"app_context\":"))
         XCTAssertEqual(bytes, try DailyHealthExportSerializer.encode(envelope))
     }
 
@@ -317,7 +319,7 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertEqual(result.notesSnapshot.dayID, DailyNoteDayID(window: window))
         XCTAssertEqual(result.envelope.today.notes, ["Energy good 🌤️\nEasy run."])
         let text = try XCTUnwrap(String(data: result.bytes, encoding: .utf8))
-        XCTAssertTrue(text.contains("\"notes\" : ["))
+        XCTAssertTrue(text.contains("\"notes\":["))
         XCTAssertTrue(text.contains("Energy good 🌤️\\nEasy run."))
         XCTAssertFalse(text.contains("Unfinished private draft"))
         XCTAssertFalse(text.contains("\"audio\""))
