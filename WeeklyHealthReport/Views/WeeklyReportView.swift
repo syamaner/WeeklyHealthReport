@@ -3,15 +3,54 @@ import UIKit
 import HealthKit
 import HealthKitUI
 
+enum WeeklyReportRoute: String, Codable, Hashable {
+    case dailyExport
+    case notes
+    case noteEditor
+}
+
+@MainActor
+final class WeeklyReportNavigationController: ObservableObject {
+    @Published private(set) var path: [WeeklyReportRoute] = []
+    private var protectedPath: [WeeklyReportRoute]?
+
+    func acceptPathChange(_ proposedPath: [WeeklyReportRoute]) {
+        guard protectedPath == nil else { return }
+        path = proposedPath
+    }
+
+    func replacePath(_ newPath: [WeeklyReportRoute]) {
+        path = newPath
+    }
+
+    func append(_ route: WeeklyReportRoute) {
+        path.append(route)
+    }
+
+    func protectCurrentPath() {
+        guard protectedPath == nil, !path.isEmpty else { return }
+        protectedPath = path
+    }
+
+    func restoreProtectedPath() {
+        guard let protectedPath else { return }
+        path = protectedPath
+        self.protectedPath = nil
+    }
+}
+
 struct WeeklyReportView: View {
     @ObservedObject var dailyExport: DailyDriveSessionController
+    @ObservedObject var navigation: WeeklyReportNavigationController
     @StateObject private var viewModel = WeeklyReportViewModel()
     @State private var copied = false
     @State private var medicationAuthorizationRequest = 0
     @State private var showsMedicationAccessHelp = false
     @State private var showsMorningBloodPressureDetails = true
     @State private var showsEveningBloodPressureDetails = false
+    @State private var didRestoreNavigationPath = false
     @AppStorage("hasRequestedMedicationAccess") private var hasRequestedMedicationAccess = false
+    @AppStorage("weeklyReport.navigationDestination.v1") private var storedNavigationDestination = ""
 
     @ViewBuilder
     var body: some View {
@@ -43,12 +82,13 @@ struct WeeklyReportView: View {
     }
 
     private var reportContent: some View {
-        NavigationStack {
+        NavigationStack(path: Binding(
+            get: { navigation.path },
+            set: { navigation.acceptPathChange($0) }
+        )) {
             Form {
                 Section("Export") {
-                    NavigationLink("Daily JSON Export") {
-                        DailyExportView(session: dailyExport)
-                    }
+                    NavigationLink("Daily JSON Export", value: WeeklyReportRoute.dailyExport)
                     Text("Refresh, review and export are separate manual actions.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -179,6 +219,24 @@ struct WeeklyReportView: View {
                 #endif
             }
             .navigationTitle("Weekly Health Report")
+            .navigationDestination(for: WeeklyReportRoute.self) { route in
+                switch route {
+                case .dailyExport:
+                    DailyExportView(session: dailyExport)
+                case .notes:
+                    DailyNotesView(
+                        controller: dailyExport.notes,
+                        openEditor: { navigation.append(.noteEditor) }
+                    )
+                case .noteEditor:
+                    DailyNoteEditorView(
+                        controller: dailyExport.notes,
+                        willOpenApplicationSettings: {
+                            navigation.protectCurrentPath()
+                        }
+                    )
+                }
+            }
             .task {
                 // Hosted unit tests launch the app process. Avoid presenting the
                 // Health authorization sheet before XCTest can load its bundle.
@@ -190,6 +248,59 @@ struct WeeklyReportView: View {
                     medicationAuthorizationRequest += 1
                 }
             }
+            .onAppear {
+                guard !didRestoreNavigationPath else { return }
+                didRestoreNavigationPath = true
+                navigation.replacePath(Self.restoredNavigationPath(
+                    from: storedNavigationDestination,
+                    hasDraft: dailyExport.notes.currentDraft != nil
+                ))
+            }
+            .onChange(of: navigation.path) { _, path in
+                guard didRestoreNavigationPath else { return }
+                storedNavigationDestination = path.last?.rawValue ?? ""
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: UIApplication.willResignActiveNotification
+                )
+            ) { _ in
+                navigation.protectCurrentPath()
+                if let destination = navigation.path.last?.rawValue {
+                    storedNavigationDestination = destination
+                }
+            }
+            .onReceive(
+                NotificationCenter.default.publisher(
+                    for: UIApplication.didBecomeActiveNotification
+                )
+            ) { _ in
+                navigation.restoreProtectedPath()
+                if navigation.path.isEmpty {
+                    navigation.replacePath(Self.restoredNavigationPath(
+                        from: storedNavigationDestination,
+                        hasDraft: dailyExport.notes.currentDraft != nil
+                    ))
+                }
+            }
+        }
+    }
+
+    static func restoredNavigationPath(
+        from storedDestination: String,
+        hasDraft: Bool
+    ) -> [WeeklyReportRoute] {
+        guard let destination = WeeklyReportRoute(rawValue: storedDestination) else {
+            return []
+        }
+
+        switch destination {
+        case .dailyExport:
+            return [.dailyExport]
+        case .notes:
+            return [.dailyExport, .notes]
+        case .noteEditor:
+            return hasDraft ? [.dailyExport, .notes, .noteEditor] : [.dailyExport, .notes]
         }
     }
 
