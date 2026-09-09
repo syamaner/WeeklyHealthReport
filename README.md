@@ -56,10 +56,13 @@ locales. Microphone and speech permissions are requested only after you tap it. 
 app starts capture only when `SFSpeechRecognizer` reports on-device support and every
 request requires on-device recognition; there is no server-recognition fallback.
 Audio is streamed only into the active recognition request and is never persisted,
-logged, exported or uploaded. Partial text stays separate until Speech finalises it,
-then the app appends it to the editable draft under the same note limits. Ordinary
-keyboard Dictation is controlled separately by iOS and is not covered by this local
-guarantee.
+logged, exported or uploaded. Partial text stays separate until Speech finalises it.
+If a pause resets the live result or Stop returns an empty or incomplete final result,
+the app assembles the affected recognised text once, adds it atomically to the editable
+draft and shows a prompt to check it there. If the complete addition exceeds a note
+limit, the draft stays unchanged and the candidate remains separately editable until
+it is accepted after editing or explicitly discarded. Ordinary keyboard Dictation is
+controlled separately by iOS and is not covered by this local guarantee.
 
 Google receives the selected JSON and applies its own storage/account terms. A
 successful app status means Drive metadata and content bytes were read back and
@@ -208,7 +211,7 @@ Correct HealthKit aggregation is the main reason this project exists. Cumulative
 - **Medications on iOS 26 or later:** the person chooses individual medications through Apple's medication access sheet. The app queries active and archived authorised concepts, then includes only `HKMedicationDoseEvent` samples with a `taken` status and a start time inside the selected completed-day period. Events are grouped by HealthKit's exact medication concept, so a changed strength appears as a separate row. Each row reports the latest logged quantity and time plus the number of taken events. Diagnostics lists every event. Medications without a visible taken event are omitted from copied text. Missing events are never treated as a missed dose or non-adherence.
 - **Nutrition in Daily JSON Export:** the app supports all 39 current HealthKit dietary quantity types through one fixed catalogue. It uses source-filtered HealthKit `cumulativeSum` statistics and converts energy to kcal, water to mL and nutrients to the catalogue's g, mg or mcg unit at the query boundary. Schema v2 contains today's partial total through the captured cutoff and exactly seven chronological completed-day states per nutrient. Current and previous averages are arithmetic means over visible sampled days and state both sampled and reporting days. A signed current-minus-previous trend is available only with 7/7 visible days in both windows; otherwise it is `insufficient_data`. Missing source-filtered statistics remain `no_data_or_access`, never zero. Nutrition is not added to the weekly screen, copied report or Diagnostics and has no target, score or interpretation.
 - **Private notes in Daily JSON Export:** schema v3 always includes `today.notes` as an ordered array of strings, including `[]` when no notes are saved. Each string belongs to the envelope's reporting date and time zone. Local record identities and timestamps are not exported, and drafts never enter JSON. A preview freezes the saved-note revision alongside its HealthKit cutoff; later note changes invalidate it rather than being patched into reviewed bytes. Notes are user-authored context, not HealthKit data or medical interpretation, and are not added to the weekly screen, copied report or Developer Diagnostics.
-- **On-device note dictation:** the dedicated editor microphone uses the iOS 17 `SFSpeechRecognizer` live-audio path only when the active locale supports on-device recognition. Permission denial, restriction, unsupported locale/device and temporary unavailability leave typing available. Final transcripts are appended to the draft; partial or failed recognition never replaces typed text. Capture stops when the editor closes or the app backgrounds, and no audio artifact enters note storage or JSON.
+- **On-device note dictation:** the dedicated editor microphone uses the iOS 17 `SFSpeechRecognizer` live-audio path only when the active locale supports on-device recognition. Permission denial, restriction, unsupported locale/device and temporary unavailability leave typing available. A complete final transcript is appended once. If silence resets the live result or explicit Stop produces an empty or incomplete final, ordered recognised fragments are assembled once into the editable draft with a visible prompt to check them. A limit-rejected complete candidate remains separately editable and blocks accidental editor dismissal until it is accepted or explicitly discarded. Partial or failed recognition never replaces typed text. Capture stops when the editor closes or the app backgrounds, and no audio artifact enters note storage or JSON.
 
 Apple does not fully document the sleep source precedence used by the Health app. Combining overlapping asleep intervals is the closest transparent and defensible calculation available through documented HealthKit data.
 

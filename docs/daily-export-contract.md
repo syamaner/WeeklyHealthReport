@@ -69,10 +69,15 @@ exported; unfinished drafts never serialize.
   `SFSpeechAudioBufferRecognitionRequest` only after a user tap. It requires
   `supportsOnDeviceRecognition`, sets `requiresOnDeviceRecognition` on every request
   and fails closed rather than using server recognition. Partial text remains outside
-  the draft; final text is appended through the same character and daily-limit checks.
-  Capture stops on backgrounding or editor dismissal. Audio is never persisted,
-  logged, exported or uploaded, and this guarantee does not extend to system-keyboard
-  Dictation.
+  the draft. Complete final text is appended once; a reset partial or empty or
+  incomplete final instead assembles the ordered recognised fragments once, appends
+  the complete candidate atomically to the editable draft and visibly asks the user to
+  check it there. If one character or daily-limit check rejects the complete candidate,
+  the draft remains unchanged and the untruncated candidate stays separately editable.
+  That limit-recovery state remains in memory across backgrounding and prevents
+  accidental editor dismissal until explicit acceptance or discard. Capture stops on
+  backgrounding or editor dismissal. Audio is never persisted, logged, exported or
+  uploaded, and this guarantee does not extend to system-keyboard Dictation.
 - Refresh captures the saved-note strings and monotonically changing revision before
   asynchronous HealthKit work. A changed revision blocks a late result; a mutation
   after publication invalidates the preview and disables export.
