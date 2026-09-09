@@ -187,6 +187,132 @@ struct DailyNoteEditorView: View {
         controller.currentDraft?.text.count ?? 0
     }
 
+    private var microphoneLabel: String {
+        if speechController.canOpenPermissionSettings {
+            return "Permission Settings"
+        }
+        return speechController.state == .listening ? "Stop" : "Microphone"
+    }
+
+    private var microphoneSystemImage: String {
+        if speechController.canOpenPermissionSettings {
+            return "gear"
+        }
+        return speechController.state == .listening ? "stop.circle.fill" : "mic.circle.fill"
+    }
+
+    private var dictationSection: some View {
+        Section {
+            HStack {
+                Button {
+                    if speechController.canOpenPermissionSettings {
+                        controller.flushDraft()
+                        isOpeningApplicationSettings = true
+                        willOpenApplicationSettings()
+                        guard let url = URL(string: UIApplication.openSettingsURLString) else {
+                            isOpeningApplicationSettings = false
+                            return
+                        }
+                        UIApplication.shared.open(url)
+                    } else {
+                        Task { await speechController.toggle() }
+                    }
+                } label: {
+                    Label(microphoneLabel, systemImage: microphoneSystemImage)
+                }
+                .disabled(
+                    !speechController.isMicrophoneEnabled
+                        && !speechController.canOpenPermissionSettings
+                )
+
+                Spacer()
+
+                if speechController.state == .listening {
+                    ProgressView()
+                }
+            }
+
+            Text(speechController.statusMessage)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if let noticeMessage = speechController.noticeMessage {
+                Label(noticeMessage, systemImage: "checkmark.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            if !speechController.earlierUnfinalisedTranscript.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label("Earlier speech retained", systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    Text(speechController.earlierUnfinalisedTranscript)
+                        .italic()
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Earlier speech retained")
+                }
+            }
+
+            if !speechController.partialTranscript.isEmpty {
+                Text(speechController.partialTranscript)
+                    .italic()
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("Partial transcript")
+            }
+
+            if speechController.canRetryAvailability {
+                Button("Check availability") {
+                    speechController.retryAvailability()
+                }
+            }
+        } header: {
+            Text("On-device dictation")
+        } footer: {
+            Text("This microphone path runs only when on-device recognition is supported. Audio is streamed only during listening and is never saved, exported or uploaded. Keyboard Dictation is controlled separately by iOS and is not covered by this guarantee.")
+        }
+    }
+
+    @ViewBuilder
+    private var speechReviewSection: some View {
+        if speechController.hasReviewTranscript {
+            Section {
+                Text("The complete recognised addition did not fit within the note limits. Edit or discard it; the existing draft has not changed.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                TextEditor(text: Binding(
+                    get: { speechController.reviewTranscript },
+                    set: { speechController.updateReviewTranscript($0) }
+                ))
+                .frame(minHeight: 120)
+
+                if let reviewErrorMessage = speechController.reviewErrorMessage {
+                    Text(reviewErrorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
+                Button("Add Reviewed Text") {
+                    _ = speechController.acceptReviewTranscript()
+                }
+                .disabled(
+                    speechController.reviewTranscript
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                        .isEmpty
+                )
+
+                Button("Discard Recognised Text", role: .destructive) {
+                    speechController.discardReviewTranscript()
+                }
+            } header: {
+                Text("Review recognised text")
+            } footer: {
+                Text("Resolve this limit failure before leaving the editor. Only Add Reviewed Text changes the editable draft; Discard Recognised Text removes the candidate.")
+            }
+        }
+    }
+
     var body: some View {
         Form {
             Section("Note") {
@@ -201,66 +327,8 @@ struct DailyNoteEditorView: View {
                 }
             }
 
-            Section {
-                HStack {
-                    Button {
-                        if speechController.canOpenPermissionSettings {
-                            controller.flushDraft()
-                            isOpeningApplicationSettings = true
-                            willOpenApplicationSettings()
-                            guard let url = URL(string: UIApplication.openSettingsURLString) else {
-                                isOpeningApplicationSettings = false
-                                return
-                            }
-                            UIApplication.shared.open(url)
-                        } else {
-                            Task { await speechController.toggle() }
-                        }
-                    } label: {
-                        Label(
-                            speechController.canOpenPermissionSettings
-                                ? "Permission Settings"
-                                : (speechController.state == .listening ? "Stop" : "Microphone"),
-                            systemImage: speechController.canOpenPermissionSettings
-                                ? "gear"
-                                : (speechController.state == .listening
-                                    ? "stop.circle.fill"
-                                    : "mic.circle.fill")
-                        )
-                    }
-                    .disabled(
-                        !speechController.isMicrophoneEnabled
-                            && !speechController.canOpenPermissionSettings
-                    )
-
-                    Spacer()
-
-                    if speechController.state == .listening {
-                        ProgressView()
-                    }
-                }
-
-                Text(speechController.statusMessage)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if !speechController.partialTranscript.isEmpty {
-                    Text(speechController.partialTranscript)
-                        .italic()
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel("Partial transcript")
-                }
-
-                if speechController.canRetryAvailability {
-                    Button("Check availability") {
-                        speechController.retryAvailability()
-                    }
-                }
-            } header: {
-                Text("On-device dictation")
-            } footer: {
-                Text("This microphone path runs only when on-device recognition is supported. Audio is streamed only during listening and is never saved, exported or uploaded. Keyboard Dictation is controlled separately by iOS and is not covered by this guarantee.")
-            }
+            dictationSection
+            speechReviewSection
 
             Section {
                 Button("Save Note") {
@@ -270,6 +338,7 @@ struct DailyNoteEditorView: View {
                     controller.currentDraft?.text
                         .trimmingCharacters(in: .whitespacesAndNewlines)
                         .isEmpty != false
+                        || speechController.hasReviewTranscript
                 )
                 Button("Discard Draft", role: .destructive) {
                     showingDiscardConfirmation = true
@@ -281,6 +350,8 @@ struct DailyNoteEditorView: View {
         .scrollDismissesKeyboard(.interactively)
         .navigationTitle(controller.currentDraft?.editingNoteID == nil ? "New Note" : "Edit Note")
         .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(speechController.hasReviewTranscript)
+        .interactiveDismissDisabled(speechController.hasReviewTranscript)
         .toolbar {
             ToolbarItemGroup(placement: .keyboard) {
                 Spacer()
@@ -292,6 +363,7 @@ struct DailyNoteEditorView: View {
         .alert("Discard this draft?", isPresented: $showingDiscardConfirmation) {
             Button("Cancel", role: .cancel) {}
             Button("Discard Draft", role: .destructive) {
+                speechController.discardReviewTranscript()
                 if controller.discardDraft() { dismiss() }
             }
         } message: {
@@ -326,6 +398,12 @@ struct DailyNoteEditorView: View {
                 isOpeningApplicationSettings = false
                 speechController.retryAvailability()
             }
+        }
+        .task(id: speechController.noticeMessage) {
+            guard speechController.noticeMessage != nil else { return }
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
+            speechController.dismissNotice()
         }
     }
 }

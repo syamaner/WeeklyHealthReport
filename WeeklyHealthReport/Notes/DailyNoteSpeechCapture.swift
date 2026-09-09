@@ -17,9 +17,35 @@ enum OnDeviceSpeechAvailability: Equatable {
     case unavailable
 }
 
+struct SpeechCaptureAudioRange: Equatable {
+    let start: TimeInterval
+    let end: TimeInterval
+
+    init?(start: TimeInterval, end: TimeInterval) {
+        guard start >= 0, end > start else { return nil }
+        self.start = start
+        self.end = end
+    }
+
+    func covers(_ other: SpeechCaptureAudioRange, tolerance: TimeInterval = 0.05) -> Bool {
+        start <= other.start + tolerance && end >= other.end - tolerance
+    }
+}
+
 struct SpeechCaptureUpdate: Equatable {
     let transcript: String
     let isFinal: Bool
+    let audioRange: SpeechCaptureAudioRange?
+
+    init(
+        transcript: String,
+        isFinal: Bool,
+        audioRange: SpeechCaptureAudioRange? = nil
+    ) {
+        self.transcript = transcript
+        self.isFinal = isFinal
+        self.audioRange = audioRange
+    }
 }
 
 enum SpeechCaptureFailure: Error, Equatable {
@@ -157,9 +183,20 @@ final class SystemOnDeviceSpeechCapture: NSObject, OnDeviceSpeechCapturing {
             Task { @MainActor in
                 guard let self, self.sessionID == sessionID else { return }
                 if let result {
+                    let transcription = result.bestTranscription
+                    let segments = transcription.segments
+                    let audioRange = segments.first.flatMap { first in
+                        segments.last.flatMap { last in
+                            SpeechCaptureAudioRange(
+                                start: first.timestamp,
+                                end: last.timestamp + last.duration
+                            )
+                        }
+                    }
                     onUpdate(SpeechCaptureUpdate(
-                        transcript: result.bestTranscription.formattedString,
-                        isFinal: result.isFinal
+                        transcript: transcription.formattedString,
+                        isFinal: result.isFinal,
+                        audioRange: audioRange
                     ))
                     if result.isFinal {
                         self.finishSession(cancelRecognition: false)
@@ -256,6 +293,7 @@ final class DailyNoteSpeechController: ObservableObject {
         case requestingPermission
         case listening
         case stopping
+        case reviewRequired
         case denied
         case restricted
         case unsupportedLocale
@@ -264,12 +302,24 @@ final class DailyNoteSpeechController: ObservableObject {
         case failed(String)
     }
 
+    private struct Fragment: Equatable {
+        let transcript: String
+        let audioRange: SpeechCaptureAudioRange?
+    }
+
     @Published private(set) var state: State = .ready
     @Published private(set) var partialTranscript = ""
+    @Published private(set) var earlierUnfinalisedTranscript = ""
+    @Published private(set) var reviewTranscript = ""
+    @Published private(set) var reviewErrorMessage: String?
+    @Published private(set) var noticeMessage: String?
 
     private let capture: any OnDeviceSpeechCapturing
     private let appendFinalTranscript: (String) -> String?
     private var cycleID: UUID?
+    private var activePartial: Fragment?
+    private var settledPartial: Fragment?
+    private var supersededFragments: [Fragment] = []
 
     init(
         capture: any OnDeviceSpeechCapturing,
@@ -302,6 +352,10 @@ final class DailyNoteSpeechController: ObservableObject {
         }
     }
 
+    var hasReviewTranscript: Bool {
+        state == .reviewRequired
+    }
+
     var statusMessage: String {
         switch state {
         case .ready:
@@ -310,10 +364,14 @@ final class DailyNoteSpeechController: ObservableObject {
                 : "Ready for on-device dictation."
         case .requestingPermission:
             return "Waiting for microphone and speech-recognition permission."
+        case .listening where !earlierUnfinalisedTranscript.isEmpty:
+            return "A pause changed the live transcript. Earlier speech is retained; tap Stop when you finish."
         case .listening:
             return "Listening on device… Tap Stop when you finish."
         case .stopping:
             return "Finishing the on-device transcript…"
+        case .reviewRequired:
+            return "Review the recognised text below before adding or discarding it."
         case .denied:
             return "Microphone or speech-recognition access is denied. You can keep typing or enable access in Settings."
         case .restricted:
@@ -341,15 +399,54 @@ final class DailyNoteSpeechController: ObservableObject {
         }
     }
 
+    func updateReviewTranscript(_ transcript: String) {
+        guard state == .reviewRequired else { return }
+        reviewTranscript = transcript
+        reviewErrorMessage = nil
+    }
+
+    @discardableResult
+    func acceptReviewTranscript() -> Bool {
+        guard state == .reviewRequired else { return false }
+        let transcript = reviewTranscript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !transcript.isEmpty else {
+            reviewErrorMessage = "Recognised text cannot be empty. Edit it or discard it."
+            return false
+        }
+        if let rejection = appendFinalTranscript(transcript) {
+            reviewErrorMessage = rejection
+            return false
+        }
+        reviewTranscript = ""
+        reviewErrorMessage = nil
+        refreshState()
+        return true
+    }
+
+    func discardReviewTranscript() {
+        guard state == .reviewRequired else { return }
+        reviewTranscript = ""
+        reviewErrorMessage = nil
+        refreshState()
+    }
+
+    func dismissNotice() {
+        noticeMessage = nil
+    }
+
     func stopForLifecycle() {
         cycleID = nil
         capture.cancel()
-        partialTranscript = ""
+        if state == .reviewRequired, hasReviewTranscript {
+            clearUnsafeTranscripts(includingReview: false)
+            return
+        }
+        clearUnsafeTranscripts(includingReview: true)
         refreshState()
     }
 
     func retryAvailability() {
-        guard state != .listening, state != .stopping else { return }
+        guard state != .listening, state != .stopping, state != .reviewRequired else { return }
         refreshState()
     }
 
@@ -357,6 +454,8 @@ final class DailyNoteSpeechController: ObservableObject {
         refreshState()
         guard state == .ready else { return }
 
+        noticeMessage = nil
+        clearUnsafeTranscripts(includingReview: true)
         let cycleID = UUID()
         self.cycleID = cycleID
         if capture.permission != .authorized {
@@ -380,7 +479,6 @@ final class DailyNoteSpeechController: ObservableObject {
                 capture.cancel()
                 return
             }
-            partialTranscript = ""
             state = .listening
         } catch let failure as SpeechCaptureFailure {
             fail(failure, cycleID: cycleID)
@@ -393,15 +491,150 @@ final class DailyNoteSpeechController: ObservableObject {
         guard self.cycleID == cycleID,
               state == .listening || state == .stopping else { return }
         if update.isFinal {
-            partialTranscript = ""
-            self.cycleID = nil
-            if let rejection = appendFinalTranscript(update.transcript) {
-                state = .failed(rejection)
-            } else {
-                refreshState()
-            }
+            finish(with: update)
         } else {
-            partialTranscript = update.transcript
+            receivePartial(update)
+        }
+    }
+
+    private func receivePartial(_ update: SpeechCaptureUpdate) {
+        let transcript = update.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !transcript.isEmpty else { return }
+        let incoming = Fragment(transcript: transcript, audioRange: update.audioRange)
+
+        if let settledPartial,
+           isNewUtterance(after: settledPartial, incoming: incoming) {
+            supersededFragments.append(settledPartial)
+            earlierUnfinalisedTranscript = assemble(supersededFragments)
+            self.settledPartial = nil
+        }
+
+        activePartial = incoming
+        if incoming.audioRange != nil {
+            settledPartial = incoming
+        }
+        partialTranscript = transcript
+    }
+
+    private func finish(with update: SpeechCaptureUpdate) {
+        let finalTranscript = update.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+        let finalFragment = finalTranscript.isEmpty
+            ? nil
+            : Fragment(transcript: finalTranscript, audioRange: update.audioRange)
+        cycleID = nil
+        partialTranscript = ""
+
+        var uncoveredFragments = supersededFragments
+        if let finalFragment {
+            uncoveredFragments.removeAll { fragment in
+                finalCovers(fragment, final: finalFragment)
+            }
+        }
+
+        let finalAppearsIncomplete = finalFragment.map { final in
+            activePartial.map { active in
+                finalDoesNotCoverActivePartial(final, active: active)
+            } ?? false
+        } ?? false
+
+        if let finalFragment, uncoveredFragments.isEmpty, !finalAppearsIncomplete {
+            clearUnsafeTranscripts(includingReview: false)
+            appendOrHoldForLimit(finalFragment.transcript, showRecoveredNotice: false)
+            return
+        }
+
+        var reviewFragments = uncoveredFragments
+        if let finalFragment {
+            reviewFragments.append(
+                finalAppearsIncomplete ? (activePartial ?? finalFragment) : finalFragment
+            )
+        } else if let activePartial {
+            reviewFragments.append(activePartial)
+        } else if let settledPartial {
+            reviewFragments.append(settledPartial)
+        }
+
+        let recoveredTranscript = assemble(reviewFragments)
+        clearUnsafeTranscripts(includingReview: false)
+        if recoveredTranscript.isEmpty {
+            state = .failed("On-device recognition finished without usable text. Your typed draft was preserved.")
+        } else {
+            appendOrHoldForLimit(recoveredTranscript, showRecoveredNotice: true)
+        }
+    }
+
+    private func appendOrHoldForLimit(_ transcript: String, showRecoveredNotice: Bool) {
+        if let rejection = appendFinalTranscript(transcript) {
+            reviewTranscript = transcript
+            reviewErrorMessage = rejection
+            state = .reviewRequired
+            return
+        }
+        if showRecoveredNotice {
+            noticeMessage = "Speech was added to the note above."
+        }
+        refreshState()
+    }
+
+    private func finalCovers(_ fragment: Fragment, final: Fragment) -> Bool {
+        if let finalRange = final.audioRange,
+           let fragmentRange = fragment.audioRange,
+           finalRange.covers(fragmentRange) {
+            return true
+        }
+        return beginsWithWords(final.transcript, prefix: fragment.transcript)
+    }
+
+    private func finalDoesNotCoverActivePartial(_ final: Fragment, active: Fragment) -> Bool {
+        if let finalRange = final.audioRange,
+           let activeRange = active.audioRange {
+            return !finalRange.covers(activeRange)
+        }
+        return words(in: final.transcript).count < words(in: active.transcript).count
+    }
+
+    private func isNewUtterance(after settled: Fragment, incoming: Fragment) -> Bool {
+        if let settledRange = settled.audioRange,
+           let incomingRange = incoming.audioRange {
+            return incomingRange.start > settledRange.end + 0.05
+        }
+        return !beginsWithWords(incoming.transcript, prefix: settled.transcript)
+    }
+
+    private func beginsWithWords(_ transcript: String, prefix: String) -> Bool {
+        let transcriptWords = words(in: transcript)
+        let prefixWords = words(in: prefix)
+        guard !prefixWords.isEmpty, transcriptWords.count >= prefixWords.count else { return false }
+        return transcriptWords.prefix(prefixWords.count).elementsEqual(prefixWords)
+    }
+
+    private func words(in transcript: String) -> [String] {
+        transcript
+            .lowercased()
+            .components(separatedBy: CharacterSet.alphanumerics.inverted)
+            .filter { !$0.isEmpty }
+    }
+
+    private func assemble(_ fragments: [Fragment]) -> String {
+        fragments.reduce(into: "") { result, fragment in
+            let transcript = fragment.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !transcript.isEmpty else { return }
+            if !result.isEmpty, result.last?.isWhitespace != true {
+                result.append(" ")
+            }
+            result.append(transcript)
+        }
+    }
+
+    private func clearUnsafeTranscripts(includingReview: Bool) {
+        partialTranscript = ""
+        earlierUnfinalisedTranscript = ""
+        activePartial = nil
+        settledPartial = nil
+        supersededFragments = []
+        if includingReview {
+            reviewTranscript = ""
+            reviewErrorMessage = nil
         }
     }
 
@@ -409,7 +642,7 @@ final class DailyNoteSpeechController: ObservableObject {
         guard self.cycleID == cycleID else { return }
         self.cycleID = nil
         capture.cancel()
-        partialTranscript = ""
+        clearUnsafeTranscripts(includingReview: true)
         switch failure {
         case .audioInputUnavailable:
             state = .failed("The microphone input could not start. Your draft was preserved.")
