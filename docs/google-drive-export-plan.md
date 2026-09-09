@@ -34,8 +34,9 @@ Synthetic API feasibility must pass before production HealthKit wiring.
 - Drive permission: `https://www.googleapis.com/auth/drive.file` only. No broad
   `drive`, `drive.readonly` or metadata-wide scope. Review any basic identity scopes
   required by the chosen SDK separately; never silently widen Drive access.
-- UI: **Create WeeklyHealthReport Exports** (default) or **Choose existing folder**.
-  Persist Google account identity and folder ID, not folder name as identity.
+- UI: automatically create **WeeklyHealthReport Exports** only for an account that is
+  definitively unbound; retain **Choose existing folder** as a contextual setup/change
+  action. Persist Google account identity and folder ID, not folder name as identity.
 - `drive.file` is per-file/app-created access, not a Google-enforced folder sandbox.
   Selecting a folder must not be described as granting all its pre-existing children.
   Restrict app operations to the selected destination and app-owned daily file IDs.
@@ -317,11 +318,20 @@ synthetic slices; it needs explicit device/user authority when reached.
 
 ### Local slice-D integration, 6 September 2026
 
-The production app now exposes a separate manual flow for Connect/Restore,
-create/select destination, fresh HealthKit preview, exact JSON review, Export,
-Cancel, explicit file recovery, local sign-out and remote revocation. Opening the
-export screen does not automatically restore its session, refresh its daily snapshot
-or contact Drive; the existing weekly report's HealthKit refresh remains unchanged.
+The production app now exposes a foreground-only preparation flow that automatically
+restores a secure session, revalidates its account-specific destination, resolves the
+exact saved nutrition source without requesting HealthKit authorisation and creates a
+fresh in-memory preview. A definitively unbound account gets one dedicated destination
+folder; missing, inaccessible and trashed stored destinations fail closed without
+replacement. Its ID is reserved and persisted before creation so response loss cannot
+turn a foreground retry into a second folder. Repeated appearances, activation,
+refresh and export are serialised.
+Opening the screen never presents Google consent, Picker, Health authorisation or
+canonical recovery, and never uploads. First-time connection, nutrition authorisation
+and source selection remain explicit. The healthy screen shows a compact snapshot
+summary and one explicit Export action; exact compact JSON is constructed lazily in a
+separate inspector. Account removal, folder changes and recovery remain contextual.
+The existing weekly report's HealthKit refresh remains unchanged.
 The first release supports one
 active exporting installation, partitions destination state by account, persists
 canonical Drive file IDs before create, updates by stored ID, verifies metadata and

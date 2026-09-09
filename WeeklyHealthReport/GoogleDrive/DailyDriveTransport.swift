@@ -54,6 +54,20 @@ protocol DailyDriveTransporting: Sendable {
     func fileContent(id: String, accessToken: String) async throws -> Data
 }
 
+protocol DailyDriveSessionTransporting: DailyDriveTransporting {
+    func createFolder(
+        id: String,
+        accessToken: String,
+        accountID: String
+    ) async throws -> DailyDriveFolder
+    func folder(
+        id: String,
+        accessToken: String,
+        accountID: String
+    ) async throws -> DailyDriveFolder
+    func revoke(token: String) async throws -> Int
+}
+
 enum DailyDriveConsentPolicy {
     static let scope = "https://www.googleapis.com/auth/drive.file"
     static let folderMIMEType = "application/vnd.google-apps.folder"
@@ -98,7 +112,7 @@ enum DailyDriveConsentPolicy {
 }
 
 struct DailyDestinationBinding: Codable, Equatable, Sendable {
-    enum Origin: String, Codable, Sendable { case created, picker }
+    enum Origin: String, Codable, Sendable { case pendingCreate, created, picker }
 
     let accountID: String
     let folderID: String
@@ -134,7 +148,13 @@ enum DailyDisconnectTransition: Equatable {
     }
 }
 
-struct DailyDriveKeychainStore: Sendable {
+protocol DailyDriveSecurePersisting {
+    func save(_ data: Data, account: String) throws
+    func load(account: String) throws -> Data?
+    func delete(account: String) throws
+}
+
+struct DailyDriveKeychainStore: DailyDriveSecurePersisting, Sendable {
     enum Failure: Error { case unexpectedStatus(OSStatus) }
 
     private let service: String
@@ -189,7 +209,7 @@ struct DailyDriveKeychainStore: Sendable {
     }
 }
 
-struct DailyDriveAPI: DailyDriveTransporting, @unchecked Sendable {
+struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
     enum Failure: Error, Equatable, Sendable {
         case invalidResponse
         case httpStatus(Int, String?)
@@ -231,11 +251,16 @@ struct DailyDriveAPI: DailyDriveTransporting, @unchecked Sendable {
         )
     }
 
-    func createFolder(accessToken: String, accountID: String) async throws -> DailyDriveFolder {
+    func createFolder(
+        id: String,
+        accessToken: String,
+        accountID: String
+    ) async throws -> DailyDriveFolder {
         let url = try endpoint("https://www.googleapis.com/drive/v3/files", query: [
             URLQueryItem(name: "fields", value: Self.folderFields)
         ])
         let body = try JSONSerialization.data(withJSONObject: [
+            "id": id,
             "name": "WeeklyHealthReport Exports",
             "mimeType": DailyDriveConsentPolicy.folderMIMEType
         ], options: [.sortedKeys])

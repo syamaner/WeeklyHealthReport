@@ -4,7 +4,7 @@ struct DailyExportView: View {
     @ObservedObject var session: DailyDriveSessionController
     @ObservedObject private var notes: DailyNotesController
     @Environment(\.scenePhase) private var scenePhase
-    @State private var showingPreview = false
+    @State private var exactJSON: ExactJSONInspection?
     @State private var showingTrashedDestinationConfirmation = false
     @State private var showingTrashedFileConfirmation = false
 
@@ -16,153 +16,55 @@ struct DailyExportView: View {
     var body: some View {
         Form {
             Section("Private until you export") {
-                Text("Refresh reads a new daily snapshot from Apple Health into memory. Nothing is sent until you review the preview and choose Export.")
+                Text("Opening this screen restores known choices and prepares a fresh snapshot in memory. Nothing is sent until you choose Export.")
                 Text(session.status)
                     .font(.caption)
                 if session.busy { ProgressView() }
             }
 
-            Section("Google account") {
-                LabeledContent("Selected", value: session.accountLabel)
-                if !session.isConfigured {
-                    Text("Drive is disabled because this build has no production OAuth client configuration.")
-                        .foregroundStyle(.secondary)
+            switch session.presentationState {
+            case .preparing:
+                EmptyView()
+            case .needsGoogleConnection:
+                googleConnectionSection
+                notesSection
+            case .needsNutritionSource:
+                accountContextSection
+                nutritionSourceSection
+                notesSection
+            case .readyToExport:
+                accountContextSection
+                notesSection
+                snapshotSection
+                exportSection
+            case .needsAttention:
+                accountContextSection
+                attentionSection
+                if session.presentationState.actions.contains(.authorizeNutrition) {
+                    nutritionSourceSection
                 }
-                Button("Connect with Google") { Task { await session.connect() } }
-                    .disabled(session.busy || !session.isConfigured)
-                Button("Restore secure session") { Task { await session.restore() } }
-                    .disabled(session.busy || !session.isConfigured)
-                Button("Sign out locally") { session.signOut() }
-                    .disabled(session.busy)
-                Button("Revoke Google access", role: .destructive) {
-                    Task { await session.disconnect() }
-                }
-                .disabled(session.busy || !session.isConfigured)
-                Text("Sign-out clears this installation’s credential. Revocation also withdraws the grant. Neither deletes Drive files.")
-                    .font(.caption)
-            }
-
-            Section("Destination") {
-                LabeledContent("Selected", value: session.destinationLabel)
-                Button("Create WeeklyHealthReport Exports") {
-                    Task { await session.createDestination() }
-                }
-                .disabled(session.busy || !session.isConfigured)
-                Button("Choose existing folder") {
-                    Task { await session.chooseDestination() }
-                }
-                .disabled(session.busy || !session.isConfigured)
-                if session.canForgetTrashedDestination {
-                    Button("Forget trashed destination", role: .destructive) {
-                        showingTrashedDestinationConfirmation = true
-                    }
-                    .disabled(session.busy)
-                }
-                Text("The app binds one account and folder ID. drive.file is per-file access, not a folder sandbox; folder contents are never enumerated.")
-                    .font(.caption)
-            }
-
-            Section("Apple Health nutrition source") {
-                LabeledContent("Selected", value: session.nutritionSourceLabel)
-                Button("Refresh visible nutrition sources") {
-                    Task { await session.refreshNutritionSources() }
-                }
-                .disabled(session.busy)
-                if !session.nutritionSources.isEmpty {
-                    Picker(
-                        "Source",
-                        selection: Binding(
-                            get: {
-                                session.selectedNutritionSourceBundleIdentifier ?? ""
-                            },
-                            set: { session.selectNutritionSource(bundleIdentifier: $0) }
-                        )
-                    ) {
-                        Text("Choose a source").tag("")
-                        ForEach(session.nutritionSources) { source in
-                            Text("\(source.name) — \(source.bundleIdentifier)")
-                                .tag(source.bundleIdentifier)
-                        }
-                    }
-                }
-                Text("Nutrition is read only from the selected bundle identifier. Missing values remain No data; the app never falls back to totals from every source.")
-                    .font(.caption)
-            }
-
-            Section("Today’s notes") {
-                LabeledContent("Saved", value: notes.noteCountLabel)
-                NavigationLink("Manage notes", value: WeeklyReportRoute.notes)
-                .disabled(!notes.storageAvailable)
-                Text("Notes and unfinished drafts stay on this device until saved notes are included in a refreshed preview and you explicitly export it.")
-                    .font(.caption)
-                if !notes.storageAvailable {
-                    Text("Saved notes are unavailable. The existing file was left unchanged.")
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                notesSection
+                if session.preview != nil {
+                    snapshotSection
                 }
             }
-
-            Section("Daily snapshot") {
-                Button("Refresh preview from Apple Health") {
-                    Task { await session.refreshPreview() }
+        }
+        .sheet(item: $exactJSON) { inspection in
+            NavigationStack {
+                ScrollView([.horizontal, .vertical]) {
+                    Text(inspection.text)
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .padding()
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .disabled(!session.canRefreshPreview)
-                if let preview = session.preview {
-                    LabeledContent("Report date", value: preview.envelope.reportDate)
-                    LabeledContent("Data as of", value: preview.envelope.dataAsOf)
-                    if let todayNutrition = preview.envelope.today.nutrition,
-                       let nutritionContext = preview.envelope.appContext.nutrition {
-                        LabeledContent(
-                            "Nutrition source",
-                            value: "\(todayNutrition.source.name) — \(todayNutrition.source.bundleIdentifier)"
-                        )
-                        LabeledContent(
-                            "Current completed days",
-                            value: "\(nutritionContext.currentWindow.start) to \(nutritionContext.currentWindow.end)"
-                        )
-                        LabeledContent(
-                            "Previous completed days",
-                            value: "\(nutritionContext.previousWindow.start) to \(nutritionContext.previousWindow.end)"
-                        )
-                        Text("Today nutrition is partial from local midnight through Data as of. Each history window contains exactly seven completed local-calendar days.")
-                            .font(.caption)
+                .navigationTitle("Exact JSON")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("Done") { exactJSON = nil }
                     }
-                    LabeledContent("JSON bytes", value: preview.bytes.count.formatted())
-                    DisclosureGroup("Review exact JSON", isExpanded: $showingPreview) {
-                        ScrollView(.horizontal) {
-                            Text(session.previewText ?? "Preview unavailable")
-                                .font(.system(.caption, design: .monospaced))
-                                .textSelection(.enabled)
-                        }
-                    }
-                } else {
-                    Text("No preview in memory.")
-                        .foregroundStyle(.secondary)
                 }
-            }
-
-            Section("Manual export") {
-                Button("Export reviewed preview") {
-                    Task { await session.exportPreview() }
-                }
-                .disabled(!session.canExport)
-                Button("Cancel active export", role: .cancel) {
-                    session.cancelExport()
-                }
-                .disabled(!session.exporting)
-                Button("Recover explicitly selected canonical JSON") {
-                    Task { await session.recoverSelectedFile() }
-                }
-                .disabled(session.busy || session.preview == nil || !session.isConfigured)
-                if let reason = session.fileReplacementReason {
-                    Button(reason.buttonTitle, role: .destructive) {
-                        showingTrashedFileConfirmation = true
-                    }
-                    .disabled(session.busy)
-                }
-                LabeledContent("Last verified", value: session.lastVerifiedLabel)
-                Text("The first release supports one active exporting installation. Ambiguous recovery fails closed. There is no automatic or offline queue.")
-                    .font(.caption)
             }
         }
         .alert(
@@ -174,7 +76,7 @@ struct DailyExportView: View {
                 Task { await session.forgetTrashedDestination() }
             }
         } message: {
-            Text("This forgets the selected folder and every daily file identity tracked inside it on this installation. It does not change or delete anything in Google Drive. You can then create or choose a fresh destination.")
+            Text("This forgets the selected folder and every daily file identity tracked inside it on this installation. It does not change or delete anything in Google Drive. A later retry may create a fresh dedicated folder.")
         }
         .alert(
             session.fileReplacementReason?.confirmationTitle ?? "Replace daily file?",
@@ -189,14 +91,202 @@ struct DailyExportView: View {
         }
         .navigationTitle("Daily JSON Export")
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            Task { await session.prepareForPresentation() }
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
-            case .active: notes.activate()
-            case .background: notes.flushDraft()
-            default: break
+            case .active:
+                notes.activate()
+                Task { await session.prepareForPresentation() }
+            case .background:
+                notes.flushDraft()
+            default:
+                break
             }
         }
     }
+
+    private var googleConnectionSection: some View {
+        Section("Google account") {
+            if !session.isConfigured {
+                Text("Drive is disabled because this build has no production OAuth client configuration.")
+                    .foregroundStyle(.secondary)
+            } else {
+                Button("Connect with Google") { Task { await session.connect() } }
+                    .disabled(session.busy)
+                if session.hasStoredGoogleSession {
+                    Menu("Stored account options") {
+                        Button("Sign out locally") { session.signOut() }
+                        Button("Revoke Google access", role: .destructive) {
+                            Task { await session.disconnect() }
+                        }
+                    }
+                    .disabled(session.busy)
+                }
+                Text("Connection requests drive.file only. Consent never runs merely because this screen opened.")
+                    .font(.caption)
+            }
+        }
+    }
+
+    private var accountContextSection: some View {
+        Section("Export destination") {
+            LabeledContent("Account", value: session.accountLabel)
+            LabeledContent("Folder", value: session.destinationLabel)
+            Menu("Account and folder options") {
+                Button("Choose existing folder") {
+                    Task { await session.chooseDestination() }
+                }
+                Button("Sign out locally") { session.signOut() }
+                Button("Revoke Google access", role: .destructive) {
+                    Task { await session.disconnect() }
+                }
+            }
+            .disabled(session.busy || !session.isConfigured)
+            Text("Sign-out clears this installation’s credential. Revocation also withdraws the grant. Neither deletes Drive files.")
+                .font(.caption)
+        }
+    }
+
+    private var nutritionSourceSection: some View {
+        Section("Apple Health nutrition source") {
+            LabeledContent("Selected", value: session.nutritionSourceLabel)
+            Button("Authorise and refresh visible sources") {
+                Task { await session.refreshNutritionSources() }
+            }
+            .disabled(session.busy)
+            if !session.nutritionSources.isEmpty {
+                Picker(
+                    "Source",
+                    selection: Binding(
+                        get: { session.selectedNutritionSourceBundleIdentifier ?? "" },
+                        set: { session.selectNutritionSource(bundleIdentifier: $0) }
+                    )
+                ) {
+                    Text("Choose a source").tag("")
+                    ForEach(session.nutritionSources) { source in
+                        Text("\(source.name) — \(source.bundleIdentifier)")
+                            .tag(source.bundleIdentifier)
+                    }
+                }
+            }
+            if session.canRefreshPreview {
+                Button("Refresh preview") {
+                    Task { await session.refreshPreview() }
+                }
+            }
+            Text("First-time access and source choice are explicit. Restoration uses only the exact saved bundle identifier and never falls back to combined nutrition.")
+                .font(.caption)
+        }
+    }
+
+    private var notesSection: some View {
+        Section("Today’s notes") {
+            LabeledContent("Saved", value: notes.noteCountLabel)
+            NavigationLink("Manage notes", value: WeeklyReportRoute.notes)
+                .disabled(!notes.storageAvailable)
+            Text("Drafts remain local. A saved-note change invalidates the prepared snapshot and disables export until refresh finishes again.")
+                .font(.caption)
+            if !notes.storageAvailable {
+                Text("Saved notes are unavailable. The existing file was left unchanged.")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    private var snapshotSection: some View {
+        Section("Prepared daily snapshot") {
+            if let summary = session.previewSummary {
+                LabeledContent("Report date", value: summary.reportDate)
+                LabeledContent("Data cutoff", value: summary.dataAsOf)
+                LabeledContent("Nutrition source", value: summary.nutritionSource)
+                LabeledContent("Saved notes", value: summary.savedNoteCount.formatted())
+                LabeledContent("Current completed days", value: summary.currentWindow)
+                LabeledContent("Previous completed days", value: summary.previousWindow)
+                LabeledContent(
+                    "Encoded JSON",
+                    value: "\(summary.encodedByteCount.formatted()) bytes"
+                )
+                Button("Review exact JSON") {
+                    if let text = session.makeExactPreviewText() {
+                        exactJSON = ExactJSONInspection(text: text)
+                    }
+                }
+                .disabled(session.busy)
+                Text("The inspector shows the exact compact canonical bytes. It is constructed only when opened.")
+                    .font(.caption)
+            } else {
+                Text("No preview in memory.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var exportSection: some View {
+        Section("Export") {
+            Button("Export prepared snapshot") {
+                Task { await session.exportPreview() }
+            }
+            .disabled(!session.canExport)
+            Button("Refresh") {
+                Task { await session.refreshPreview() }
+            }
+            .disabled(!session.canRefreshPreview)
+            Button("Cancel active export", role: .cancel) {
+                session.cancelExport()
+            }
+            .disabled(!session.exporting)
+            LabeledContent("Last verified", value: session.lastVerifiedLabel)
+            Text("Export preserves these frozen bytes, verifies remote metadata and exact bytes, and never queues an automatic retry.")
+                .font(.caption)
+        }
+    }
+
+    private var attentionSection: some View {
+        Section("Needs attention") {
+            if session.presentationState.actions.contains(.connect) {
+                Button("Connect with Google") { Task { await session.connect() } }
+                    .disabled(session.busy || !session.isConfigured)
+            }
+            if session.presentationState.actions.contains(.chooseDestination) {
+                Button("Choose existing folder") {
+                    Task { await session.chooseDestination() }
+                }
+                .disabled(session.busy || !session.isConfigured)
+            }
+            if session.canForgetTrashedDestination {
+                Button("Forget trashed destination", role: .destructive) {
+                    showingTrashedDestinationConfirmation = true
+                }
+                .disabled(session.busy)
+            }
+            if session.presentationState.actions.contains(.recoverCanonicalFile) {
+                Button("Recover explicitly selected canonical JSON") {
+                    Task { await session.recoverSelectedFile() }
+                }
+                .disabled(session.busy || session.preview == nil || !session.isConfigured)
+            }
+            if let reason = session.fileReplacementReason {
+                Button(reason.buttonTitle, role: .destructive) {
+                    showingTrashedFileConfirmation = true
+                }
+                .disabled(session.busy)
+            }
+            if session.presentationState.actions.contains(.retry) {
+                Button("Retry preparation") {
+                    Task { await session.prepareForPresentation() }
+                }
+                .disabled(session.busy)
+            }
+        }
+    }
+}
+
+private struct ExactJSONInspection: Identifiable {
+    let id = UUID()
+    let text: String
 }
 
 private extension DailyDriveSessionController.FileReplacementReason {

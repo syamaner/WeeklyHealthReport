@@ -2,8 +2,205 @@ import AppAuth
 import Foundation
 import UIKit
 
+enum DailyExportAttention: Equatable {
+    case configurationUnavailable
+    case googleUnavailable
+    case destinationMissingOrInaccessible
+    case destinationTrashed
+    case destinationSetupFailed
+    case nutritionSourceUnavailable
+    case healthDataUnavailable
+    case notesUnavailable
+    case notesChanged
+    case canonicalRecovery
+    case unexpected
+}
+
+enum DailyExportPresentationAction: Hashable {
+    case connect
+    case authorizeNutrition
+    case selectNutritionSource
+    case refreshPreview
+    case export
+    case inspectExactJSON
+    case manageAccount
+    case chooseDestination
+    case forgetTrashedDestination
+    case recoverCanonicalFile
+    case retry
+}
+
+enum DailyExportPresentationState: Equatable {
+    case preparing
+    case needsGoogleConnection
+    case needsNutritionSource
+    case readyToExport
+    case needsAttention(DailyExportAttention)
+
+    var actions: Set<DailyExportPresentationAction> {
+        switch self {
+        case .preparing:
+            []
+        case .needsGoogleConnection:
+            [.connect]
+        case .needsNutritionSource:
+            [.authorizeNutrition, .selectNutritionSource, .refreshPreview, .manageAccount]
+        case .readyToExport:
+            [
+                .refreshPreview, .export, .inspectExactJSON, .manageAccount,
+                .chooseDestination
+            ]
+        case .needsAttention(let attention):
+            switch attention {
+            case .configurationUnavailable:
+                []
+            case .googleUnavailable:
+                [.connect, .manageAccount, .retry]
+            case .destinationMissingOrInaccessible, .destinationSetupFailed:
+                [.chooseDestination, .manageAccount, .retry]
+            case .destinationTrashed:
+                [.chooseDestination, .forgetTrashedDestination, .manageAccount, .retry]
+            case .nutritionSourceUnavailable:
+                [.authorizeNutrition, .selectNutritionSource, .manageAccount]
+            case .healthDataUnavailable, .notesUnavailable, .notesChanged, .unexpected:
+                [.retry, .manageAccount]
+            case .canonicalRecovery:
+                [.recoverCanonicalFile, .refreshPreview, .manageAccount]
+            }
+        }
+    }
+}
+
+enum DailyExportPreparationFailure: Error, Equatable {
+    case freshGoogleConsentRequired
+    case googleUnavailable
+    case destinationMissingOrInaccessible
+    case destinationTrashed
+    case destinationSetupFailed
+    case nutritionSourceUnavailable
+    case healthDataUnavailable
+    case notesUnavailable
+    case notesChanged
+}
+
+struct DailyExportGoogleContext: Equatable {
+    let account: DailyDriveAccount
+    let accessToken: String
+}
+
 @MainActor
-final class DailyDriveSessionController: NSObject, ObservableObject {
+protocol DailyExportPreparationDriving: AnyObject {
+    var hasStoredGoogleSession: Bool { get }
+    var storedNutritionSourceBundleIdentifier: String? { get }
+
+    func restoreGoogleSession() async throws -> DailyExportGoogleContext
+    func storedDestination(for accountID: String) throws -> DailyDestinationBinding?
+    func validateStoredDestination(
+        _ binding: DailyDestinationBinding,
+        context: DailyExportGoogleContext
+    ) async throws
+    func createDefaultDestination(context: DailyExportGoogleContext) async throws
+    func resolveNutritionSourceWithoutAuthorization(bundleIdentifier: String) async throws
+    func refreshPreviewWithoutAuthorization(bundleIdentifier: String) async throws
+}
+
+@MainActor
+final class DailyExportPreparationOrchestrator {
+    private(set) var isRunning = false
+
+    func prepare(using driver: any DailyExportPreparationDriving) async
+        -> DailyExportPresentationState {
+        guard !isRunning else { return .preparing }
+        isRunning = true
+        defer { isRunning = false }
+
+        guard driver.hasStoredGoogleSession else {
+            return .needsGoogleConnection
+        }
+        do {
+            let context = try await driver.restoreGoogleSession()
+            return try await finish(context: context, using: driver)
+        } catch {
+            return state(for: error)
+        }
+    }
+
+    func prepareAfterGoogleConnection(
+        context: DailyExportGoogleContext,
+        using driver: any DailyExportPreparationDriving
+    ) async -> DailyExportPresentationState {
+        guard !isRunning else { return .preparing }
+        isRunning = true
+        defer { isRunning = false }
+        do {
+            return try await finish(context: context, using: driver)
+        } catch {
+            return state(for: error)
+        }
+    }
+
+    private func finish(
+        context: DailyExportGoogleContext,
+        using driver: any DailyExportPreparationDriving
+    ) async throws -> DailyExportPresentationState {
+        if let binding = try driver.storedDestination(for: context.account.id) {
+            try await driver.validateStoredDestination(binding, context: context)
+        } else {
+            try await driver.createDefaultDestination(context: context)
+        }
+
+        guard let bundleIdentifier = driver.storedNutritionSourceBundleIdentifier,
+              !bundleIdentifier.isEmpty else {
+            return .needsNutritionSource
+        }
+        try await driver.resolveNutritionSourceWithoutAuthorization(
+            bundleIdentifier: bundleIdentifier
+        )
+        try await driver.refreshPreviewWithoutAuthorization(
+            bundleIdentifier: bundleIdentifier
+        )
+        return .readyToExport
+    }
+
+    private func state(for error: Error) -> DailyExportPresentationState {
+        guard let failure = error as? DailyExportPreparationFailure else {
+            return .needsAttention(.unexpected)
+        }
+        switch failure {
+        case .freshGoogleConsentRequired:
+            return .needsGoogleConnection
+        case .googleUnavailable:
+            return .needsAttention(.googleUnavailable)
+        case .destinationMissingOrInaccessible:
+            return .needsAttention(.destinationMissingOrInaccessible)
+        case .destinationTrashed:
+            return .needsAttention(.destinationTrashed)
+        case .destinationSetupFailed:
+            return .needsAttention(.destinationSetupFailed)
+        case .nutritionSourceUnavailable:
+            return .needsAttention(.nutritionSourceUnavailable)
+        case .healthDataUnavailable:
+            return .needsAttention(.healthDataUnavailable)
+        case .notesUnavailable:
+            return .needsAttention(.notesUnavailable)
+        case .notesChanged:
+            return .needsAttention(.notesChanged)
+        }
+    }
+}
+
+struct DailyExportPreviewSummary: Equatable {
+    let reportDate: String
+    let dataAsOf: String
+    let nutritionSource: String
+    let savedNoteCount: Int
+    let currentWindow: String
+    let previousWindow: String
+    let encodedByteCount: Int
+}
+
+@MainActor
+final class DailyDriveSessionController: NSObject, ObservableObject, DailyExportPreparationDriving {
     enum AuthorizationPurpose { case connect, chooseFolder, recoverFile }
     enum FileReplacementReason { case trashed, missingOrInaccessible }
     enum Failure: Error {
@@ -28,15 +225,29 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
     @Published private(set) var fileReplacementReason: FileReplacementReason?
     @Published private(set) var nutritionSources: [NutritionSource] = []
     @Published private(set) var selectedNutritionSourceBundleIdentifier: String?
+    @Published private(set) var presentationState: DailyExportPresentationState = .preparing
 
     let notes: DailyNotesController
+    private(set) var exactJSONConstructionCount = 0
 
     var isConfigured: Bool { (try? oauthConfiguration()) != nil }
     var canExport: Bool {
         previewIsCurrent && account != nil && activeDestination != nil && !busy
+            && presentationState == .readyToExport
     }
-    var previewText: String? {
-        preview.flatMap { String(data: $0.bytes, encoding: .utf8) }
+    var previewSummary: DailyExportPreviewSummary? {
+        guard let preview,
+              let nutrition = preview.envelope.today.nutrition,
+              let context = preview.envelope.appContext.nutrition else { return nil }
+        return DailyExportPreviewSummary(
+            reportDate: preview.envelope.reportDate,
+            dataAsOf: preview.envelope.dataAsOf,
+            nutritionSource: "\(nutrition.source.name) — \(nutrition.source.bundleIdentifier)",
+            savedNoteCount: preview.envelope.today.notes?.count ?? 0,
+            currentWindow: "\(context.currentWindow.start) to \(context.currentWindow.end)",
+            previousWindow: "\(context.previousWindow.start) to \(context.previousWindow.end)",
+            encodedByteCount: preview.bytes.count
+        )
     }
     var nutritionSourceLabel: String {
         guard let selectedNutritionSourceBundleIdentifier else {
@@ -55,18 +266,21 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         }
     }
 
-    private let keychain: DailyDriveKeychainStore
-    private let drive: DailyDriveAPI
+    private let keychain: any DailyDriveSecurePersisting
+    private let drive: any DailyDriveSessionTransporting
     private let exportService: DailyHealthExportService
     private let identityStore: KeychainDailyDriveExportIdentityStore
     private let exportCoordinator: DailyDriveExportCoordinator
     private let nutritionSourceSelection: any NutritionSourceSelectionPersisting
+    private let preparationOrchestrator = DailyExportPreparationOrchestrator()
     private var authState: OIDAuthState?
     private var authorizationFlow: OIDExternalUserAgentSession?
     private var account: DailyDriveAccount?
     private var partitions = DailyDestinationPartitions()
     private var trashedDestinationCandidate: DailyDestinationBinding?
     private var fileReplacementCandidate: FileReplacementCandidate?
+    private var identityRecoveryRequired = false
+    private var destinationPartitionsAvailable = true
 
     private static let authKey = "google.oauth.daily-export.appauth-state.v1"
     private static let destinationsKey = "google.drive.daily-export-destinations.v1"
@@ -80,6 +294,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
     private var activeDestination: DailyDestinationBinding? {
         guard let account else { return nil }
         return partitions.destination(for: account.id)
+    }
+
+    var hasStoredGoogleSession: Bool { authState != nil }
+    var storedNutritionSourceBundleIdentifier: String? {
+        selectedNutritionSourceBundleIdentifier
     }
 
     override convenience init() {
@@ -100,8 +319,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
     }
 
     init(
-        keychain: DailyDriveKeychainStore,
-        drive: DailyDriveAPI,
+        keychain: any DailyDriveSecurePersisting,
+        drive: any DailyDriveSessionTransporting,
         exportService: DailyHealthExportService,
         identityStore: KeychainDailyDriveExportIdentityStore,
         nutritionSourceSelection: any NutritionSourceSelectionPersisting,
@@ -125,6 +344,9 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         restoreLocalStateWithoutNetwork()
         if !isConfigured {
             status = "Drive export is disabled until this app has its own local OAuth client configuration."
+            presentationState = .needsAttention(.configurationUnavailable)
+        } else if authState == nil {
+            presentationState = .needsGoogleConnection
         }
     }
 
@@ -132,64 +354,47 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         await run("Opening Google consent…") {
             let result = try await self.authorize(.connect)
             self.accept(account: result.account)
-            self.status = "Connected with drive.file only. Choose or create a destination; no export ran."
+            let state = await self.preparationOrchestrator.prepareAfterGoogleConnection(
+                context: DailyExportGoogleContext(
+                    account: result.account,
+                    accessToken: result.token
+                ),
+                using: self
+            )
+            self.applyPresentationState(state)
         }
     }
 
     func restore() async {
-        guard authState != nil else {
-            status = "No secure Google session is stored on this installation."
+        await prepareForPresentation()
+    }
+
+    func prepareForPresentation() async {
+        guard !busy, isConfigured else {
+            if !isConfigured {
+                presentationState = .needsAttention(.configurationUnavailable)
+            }
             return
         }
-        await run("Revalidating the stored Google session…") {
-            let token = try await self.freshAccessToken()
-            try self.validateCurrentGrant()
-            let account = try await self.drive.account(accessToken: token)
-            if let binding = self.partitions.destination(for: account.id) {
-                let folder = try await self.drive.folder(
-                    id: binding.folderID,
-                    accessToken: token,
-                    accountID: account.id
-                )
-                try self.validateStoredDestination(
-                    folder,
-                    binding: binding,
-                    accountID: account.id
-                )
-                try self.accept(folder: folder, origin: binding.origin, account: account)
-                self.status = "Session, account and destination revalidated. No export ran."
-            } else {
-                self.accept(account: account)
-                self.status = "Session and account revalidated. Choose or create a destination."
-            }
-        }
+        busy = true
+        preview = nil
+        presentationState = .preparing
+        status = "Restoring the saved account, destination and nutrition source…"
+        let state = await preparationOrchestrator.prepare(using: self)
+        applyPresentationState(state)
+        busy = false
     }
 
     func createDestination() async {
         await run("Creating the dedicated Drive destination…") {
             let context = try await self.currentContext()
-            if let existing = self.partitions.destination(for: context.account.id) {
-                let folder = try await self.drive.folder(
-                    id: existing.folderID,
-                    accessToken: context.token,
-                    accountID: context.account.id
+            try await self.createDefaultDestination(
+                context: DailyExportGoogleContext(
+                    account: context.account,
+                    accessToken: context.token
                 )
-                try self.validateStoredDestination(
-                    folder,
-                    binding: existing,
-                    accountID: context.account.id
-                )
-                try self.accept(folder: folder, origin: existing.origin, account: context.account)
-                self.status = "Revalidated the existing destination. No duplicate folder or export was created."
-                return
-            }
-            let folder = try await self.drive.createFolder(
-                accessToken: context.token,
-                accountID: context.account.id
             )
-            try DailyDriveConsentPolicy.validate(folder: folder, expectedAccountID: context.account.id)
-            try self.accept(folder: folder, origin: .created, account: context.account)
-            self.status = "Created and validated the destination. No health JSON was exported."
+            self.status = "Created or revalidated the one reserved destination. No duplicate folder or health export was created."
         }
     }
 
@@ -238,20 +443,29 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
             )
             try DailyDriveConsentPolicy.validate(folder: folder, expectedAccountID: result.account.id)
             try self.accept(folder: folder, origin: .picker, account: result.account)
-            self.status = "Selected and validated the folder. Its contents were not enumerated."
+            let state = await self.preparationOrchestrator.prepareAfterGoogleConnection(
+                context: DailyExportGoogleContext(
+                    account: result.account,
+                    accessToken: result.token
+                ),
+                using: self
+            )
+            self.applyPresentationState(state)
         }
     }
 
     func refreshPreview() async {
         await run("Reading a fresh on-device daily snapshot…") {
-            let result = try await self.exportService.refresh(
-                nutritionSourceBundleIdentifier: self.selectedNutritionSourceBundleIdentifier
-            )
-            if self.fileReplacementCandidate?.reportDate != result.envelope.reportDate {
-                self.clearFileReplacementCandidate()
+            guard let bundleIdentifier = self.selectedNutritionSourceBundleIdentifier else {
+                throw DailyHealthExportError.nutritionSourceRequired
             }
-            self.preview = result
-            self.status = "Fresh preview created in memory. Review it before choosing Export."
+            try await self.resolveNutritionSourceWithoutAuthorization(
+                bundleIdentifier: bundleIdentifier
+            )
+            try await self.refreshPreviewWithoutAuthorization(
+                bundleIdentifier: bundleIdentifier
+            )
+            self.applyReadyStateAfterPreview()
         }
     }
 
@@ -260,6 +474,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
             let sources = try await self.exportService.discoverNutritionSources()
             self.nutritionSources = sources
             guard let selected = self.selectedNutritionSourceBundleIdentifier else {
+                self.presentationState = .needsNutritionSource
                 self.status = sources.isEmpty
                     ? "No visible nutrition source was found. No preview or Drive request was created."
                     : "Choose a visible nutrition source. No preview or Drive request was created."
@@ -267,9 +482,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
             }
             guard sources.contains(where: { $0.bundleIdentifier == selected }) else {
                 self.preview = nil
+                self.presentationState = .needsAttention(.nutritionSourceUnavailable)
                 self.status = "The saved nutrition source is not visible. Choose an available source; no unfiltered nutrition was used."
                 return
             }
+            self.presentationState = .needsNutritionSource
             self.status = "Nutrition source resolved by bundle identifier. Refresh the preview when ready."
         }
     }
@@ -282,7 +499,14 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         selectedNutritionSourceBundleIdentifier = source.bundleIdentifier
         nutritionSourceSelection.saveBundleIdentifier(source.bundleIdentifier)
         preview = nil
+        presentationState = .needsNutritionSource
         status = "Selected \(source.name) by bundle identifier. Refresh to create a new reviewed preview."
+    }
+
+    func makeExactPreviewText() -> String? {
+        guard let preview else { return nil }
+        exactJSONConstructionCount += 1
+        return String(data: preview.bytes, encoding: .utf8)
     }
 
     func exportPreview() async {
@@ -411,6 +635,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
             clearFileReplacementCandidate()
             accountLabel = "Not connected"
             destinationLabel = "No active destination"
+            preview = nil
+            presentationState = .needsGoogleConnection
             status = "Signed out locally. Drive access was not revoked and exports were not deleted."
         } catch {
             status = "Local sign-out failed; secure credentials may still be present."
@@ -437,6 +663,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
                 self.clearFileReplacementCandidate()
                 self.accountLabel = "Not connected"
                 self.destinationLabel = "No active destination"
+                self.preview = nil
+                self.presentationState = .needsGoogleConnection
                 self.status = "Access revoked and local credentials cleared. Drive files were not deleted."
             case .keepCredentialsAndReportFailure:
                 throw DailyDriveAPI.Failure.httpStatus(code, nil)
@@ -510,6 +738,186 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         attachDelegates()
         try saveAuthState()
         return AuthorizationResult(token: token, account: account, pickedItemID: pickedID)
+    }
+
+    func restoreGoogleSession() async throws -> DailyExportGoogleContext {
+        guard authState != nil else {
+            throw DailyExportPreparationFailure.freshGoogleConsentRequired
+        }
+        let token: String
+        do {
+            token = try await freshAccessToken()
+            try validateCurrentGrant()
+        } catch {
+            throw DailyExportPreparationFailure.freshGoogleConsentRequired
+        }
+        let restoredAccount: DailyDriveAccount
+        do {
+            restoredAccount = try await drive.account(accessToken: token)
+        } catch DailyDriveAPI.Failure.httpStatus(401, _) {
+            throw DailyExportPreparationFailure.freshGoogleConsentRequired
+        } catch {
+            throw DailyExportPreparationFailure.googleUnavailable
+        }
+        accept(account: restoredAccount)
+        return DailyExportGoogleContext(account: restoredAccount, accessToken: token)
+    }
+
+    func storedDestination(for accountID: String) throws -> DailyDestinationBinding? {
+        guard destinationPartitionsAvailable else {
+            throw DailyExportPreparationFailure.destinationSetupFailed
+        }
+        return partitions.destination(for: accountID)
+    }
+
+    func validateStoredDestination(
+        _ binding: DailyDestinationBinding,
+        context: DailyExportGoogleContext
+    ) async throws {
+        do {
+            let folder = try await drive.folder(
+                id: binding.folderID,
+                accessToken: context.accessToken,
+                accountID: context.account.id
+            )
+            try validateStoredDestination(
+                folder,
+                binding: binding,
+                accountID: context.account.id
+            )
+            try accept(
+                folder: folder,
+                origin: binding.origin == .pendingCreate ? .created : binding.origin,
+                account: context.account
+            )
+        } catch DailyDriveConsentPolicy.Failure.trashed {
+            throw DailyExportPreparationFailure.destinationTrashed
+        } catch DailyDriveAPI.Failure.httpStatus(401, _) {
+            throw DailyExportPreparationFailure.freshGoogleConsentRequired
+        } catch DailyDriveAPI.Failure.httpStatus(404, _)
+            where binding.origin == .pendingCreate {
+            try await submitReservedDefaultDestination(binding, context: context)
+        } catch DailyDriveAPI.Failure.httpStatus(403, _),
+                DailyDriveAPI.Failure.httpStatus(404, _) {
+            throw DailyExportPreparationFailure.destinationMissingOrInaccessible
+        } catch let failure as DailyDriveConsentPolicy.Failure {
+            if failure == .trashed {
+                throw DailyExportPreparationFailure.destinationTrashed
+            }
+            throw DailyExportPreparationFailure.destinationMissingOrInaccessible
+        } catch {
+            throw DailyExportPreparationFailure.destinationMissingOrInaccessible
+        }
+    }
+
+    func createDefaultDestination(context: DailyExportGoogleContext) async throws {
+        guard destinationPartitionsAvailable else {
+            throw DailyExportPreparationFailure.destinationSetupFailed
+        }
+        if let binding = partitions.destination(for: context.account.id) {
+            try await validateStoredDestination(binding, context: context)
+            return
+        }
+        do {
+            let folderID = try await drive.generateFileID(accessToken: context.accessToken)
+            let binding = DailyDestinationBinding(
+                accountID: context.account.id,
+                folderID: folderID,
+                folderName: "WeeklyHealthReport Exports",
+                origin: .pendingCreate
+            )
+            var updatedPartitions = partitions
+            updatedPartitions.bind(binding)
+            try keychain.save(
+                try JSONEncoder().encode(updatedPartitions),
+                account: Self.destinationsKey
+            )
+            partitions = updatedPartitions
+            accept(account: context.account)
+            try await submitReservedDefaultDestination(binding, context: context)
+        } catch DailyDriveAPI.Failure.httpStatus(401, _) {
+            throw DailyExportPreparationFailure.freshGoogleConsentRequired
+        } catch let failure as DailyExportPreparationFailure {
+            throw failure
+        } catch {
+            throw DailyExportPreparationFailure.destinationSetupFailed
+        }
+    }
+
+    private func submitReservedDefaultDestination(
+        _ binding: DailyDestinationBinding,
+        context: DailyExportGoogleContext
+    ) async throws {
+        let folder: DailyDriveFolder
+        do {
+            folder = try await drive.createFolder(
+                id: binding.folderID,
+                accessToken: context.accessToken,
+                accountID: context.account.id
+            )
+        } catch DailyDriveAPI.Failure.httpStatus(401, _) {
+            throw DailyExportPreparationFailure.freshGoogleConsentRequired
+        } catch {
+            do {
+                folder = try await drive.folder(
+                    id: binding.folderID,
+                    accessToken: context.accessToken,
+                    accountID: context.account.id
+                )
+            } catch DailyDriveAPI.Failure.httpStatus(401, _) {
+                throw DailyExportPreparationFailure.freshGoogleConsentRequired
+            } catch {
+                throw DailyExportPreparationFailure.destinationSetupFailed
+            }
+        }
+        do {
+            try DailyDriveConsentPolicy.validate(
+                folder: folder,
+                expectedAccountID: context.account.id
+            )
+            try accept(folder: folder, origin: .created, account: context.account)
+        } catch {
+            throw DailyExportPreparationFailure.destinationSetupFailed
+        }
+    }
+
+    func resolveNutritionSourceWithoutAuthorization(bundleIdentifier: String) async throws {
+        let sources: [NutritionSource]
+        do {
+            sources = try await exportService.resolveNutritionSourcesWithoutAuthorization()
+        } catch HealthDataError.unavailable {
+            throw DailyExportPreparationFailure.healthDataUnavailable
+        } catch {
+            throw DailyExportPreparationFailure.nutritionSourceUnavailable
+        }
+        nutritionSources = sources
+        guard sources.contains(where: { $0.bundleIdentifier == bundleIdentifier }) else {
+            preview = nil
+            throw DailyExportPreparationFailure.nutritionSourceUnavailable
+        }
+    }
+
+    func refreshPreviewWithoutAuthorization(bundleIdentifier: String) async throws {
+        do {
+            let result = try await exportService.refresh(
+                nutritionSourceBundleIdentifier: bundleIdentifier
+            )
+            if fileReplacementCandidate?.reportDate != result.envelope.reportDate {
+                clearFileReplacementCandidate()
+            }
+            preview = result
+        } catch HealthDataError.unavailable {
+            throw DailyExportPreparationFailure.healthDataUnavailable
+        } catch DailyHealthExportError.nutritionSourceUnavailable {
+            preview = nil
+            throw DailyExportPreparationFailure.nutritionSourceUnavailable
+        } catch DailyHealthExportError.notesChanged {
+            preview = nil
+            throw DailyExportPreparationFailure.notesChanged
+        } catch DailyHealthExportError.notesUnavailable {
+            preview = nil
+            throw DailyExportPreparationFailure.notesUnavailable
+        }
     }
 
     private func currentContext() async throws -> (token: String, account: DailyDriveAccount) {
@@ -651,11 +1059,17 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
                 )
                 attachDelegates()
             }
+        } catch {
+            authState = nil
+            status = "Secure Google session state could not be restored; fresh consent is required."
+        }
+        do {
             if let data = try keychain.load(account: Self.destinationsKey) {
                 partitions = try JSONDecoder().decode(DailyDestinationPartitions.self, from: data)
             }
         } catch {
-            status = "Secure local state could not be restored; export is blocked."
+            destinationPartitionsAvailable = false
+            status = "Secure destination state could not be restored; automatic folder creation is blocked."
         }
     }
 
@@ -671,8 +1085,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
             } else {
                 lastVerifiedLabel = "No verified Drive upload for this destination"
             }
+            identityRecoveryRequired = false
         } catch {
             lastVerifiedLabel = "Stored identity is ambiguous; explicit recovery required"
+            identityRecoveryRequired = true
         }
     }
 
@@ -698,29 +1114,101 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         do {
             try await operation()
         } catch let failure as DailyDriveConsentPolicy.Failure {
+            presentationState = failure == .trashed
+                ? .needsAttention(.destinationTrashed)
+                : .needsAttention(.destinationMissingOrInaccessible)
             status = "Rejected by consent/destination policy: \(failure.userFacingLabel)."
         } catch let failure as DailyDriveExportFailure {
+            switch failure {
+            case .credentials, .credentialsRejected:
+                presentationState = .needsGoogleConnection
+            case .remoteMissing, .remoteTrashed, .identityRecoveryAmbiguous:
+                presentationState = .needsAttention(.canonicalRecovery)
+            default:
+                presentationState = .needsAttention(.unexpected)
+            }
             status = failure.userFacingLabel
         } catch HealthDataError.unavailable {
+            presentationState = .needsAttention(.healthDataUnavailable)
             status = "Health data is unavailable on this device. No JSON or Drive request was created."
         } catch DailyHealthExportError.nutritionSourceRequired {
+            presentationState = .needsNutritionSource
             status = "Choose a visible nutrition source before refreshing the preview."
         } catch DailyHealthExportError.nutritionSourceUnavailable {
             preview = nil
+            presentationState = .needsAttention(.nutritionSourceUnavailable)
             status = "The selected nutrition source is unavailable. Refresh sources and choose again; no unfiltered nutrition was used."
         } catch DailyHealthExportError.notesChanged {
             preview = nil
+            presentationState = .needsAttention(.notesChanged)
             status = "Saved notes changed during refresh. Refresh and review a new preview."
         } catch DailyHealthExportError.notesUnavailable {
             preview = nil
+            presentationState = .needsAttention(.notesUnavailable)
             status = "Saved notes are unavailable. No preview or Drive request was created."
         } catch let error as NSError
             where error.domain == OIDGeneralErrorDomain && error.code == -3 {
             status = "Consent or selection was cancelled. Existing state was preserved."
         } catch Failure.missingConfiguration {
+            presentationState = .needsAttention(.configurationUnavailable)
             status = "Drive export is disabled until this app has its own local OAuth client configuration."
         } catch {
+            presentationState = .needsAttention(.unexpected)
             status = "Operation failed. No background retry was queued."
+        }
+    }
+
+    private func applyReadyStateAfterPreview() {
+        if identityRecoveryRequired {
+            presentationState = .needsAttention(.canonicalRecovery)
+            status = "Fresh preview created. Stored canonical identity is ambiguous; use contextual recovery before exporting."
+        } else if account != nil, activeDestination != nil {
+            presentationState = .readyToExport
+            status = "Fresh preview created in memory. Review the snapshot, then choose Export."
+        } else {
+            presentationState = .needsAttention(.destinationSetupFailed)
+            status = "Fresh preview created, but a validated account and destination are still required."
+        }
+    }
+
+    private func applyPresentationState(_ state: DailyExportPresentationState) {
+        presentationState = state
+        switch state {
+        case .preparing:
+            status = "Restoring the saved account, destination and nutrition source…"
+        case .needsGoogleConnection:
+            status = authState == nil
+                ? "Connect Google to continue. No Health or Drive request ran."
+                : "The stored Google session needs fresh consent before export can continue."
+        case .needsNutritionSource:
+            status = "Choose a nutrition source explicitly. Opening this screen did not request Health access."
+        case .readyToExport:
+            applyReadyStateAfterPreview()
+        case .needsAttention(let attention):
+            switch attention {
+            case .configurationUnavailable:
+                status = "Drive export is disabled until this app has its own local OAuth client configuration."
+            case .googleUnavailable:
+                status = "The stored Google account could not be revalidated. No export ran."
+            case .destinationMissingOrInaccessible:
+                status = "The stored destination is missing or inaccessible. It was not replaced."
+            case .destinationTrashed:
+                status = "The stored destination is trashed. It was not replaced."
+            case .destinationSetupFailed:
+                status = "The destination could not be prepared. No duplicate folder or export was created."
+            case .nutritionSourceUnavailable:
+                status = "The exact saved nutrition source is no longer visible. No all-source fallback was used."
+            case .healthDataUnavailable:
+                status = "Health data is unavailable on this device. No JSON or Drive request was created."
+            case .notesUnavailable:
+                status = "Saved notes are unavailable. No preview or Drive request was created."
+            case .notesChanged:
+                status = "Saved notes changed during refresh. Refresh and review a new preview."
+            case .canonicalRecovery:
+                status = "Canonical file identity needs contextual recovery before export."
+            case .unexpected:
+                status = "Preparation failed. No export or background retry ran."
+            }
         }
     }
 
@@ -733,6 +1221,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject {
         guard let preview, preview.notesSnapshot.dayID == snapshot.dayID,
               preview.notesSnapshot != snapshot else { return }
         self.preview = nil
+        presentationState = .needsAttention(.notesChanged)
         status = "Saved notes changed. Refresh and review a new preview before exporting."
     }
 }
@@ -745,6 +1234,8 @@ extension DailyDriveSessionController: OIDAuthStateChangeDelegate, OIDAuthStateE
     nonisolated func authState(_ state: OIDAuthState, didEncounterAuthorizationError error: Error) {
         Task { @MainActor in
             try? self.saveAuthState()
+            self.preview = nil
+            self.presentationState = .needsGoogleConnection
             self.status = "The Google grant is expired, denied or revoked. Reconnect before exporting."
         }
     }

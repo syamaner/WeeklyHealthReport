@@ -386,6 +386,12 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertNotNil(session.preview)
         XCTAssertEqual(session.preview?.envelope.today.notes, [])
         let reviewedBytes = try XCTUnwrap(session.preview?.bytes)
+        let summary = try XCTUnwrap(session.previewSummary)
+        XCTAssertEqual(summary.encodedByteCount, reviewedBytes.count)
+        XCTAssertEqual(summary.savedNoteCount, 0)
+        XCTAssertEqual(session.exactJSONConstructionCount, 0)
+        XCTAssertEqual(session.makeExactPreviewText(), String(data: reviewedBytes, encoding: .utf8))
+        XCTAssertEqual(session.exactJSONConstructionCount, 1)
 
         notesStore.failSaves = true
         XCTAssertFalse(notes.beginNewDraft())
@@ -651,11 +657,15 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertEqual(sources, [first, selected])
         XCTAssertEqual(provider.nutritionAuthorizationCount, 1)
         XCTAssertEqual(provider.readAuthorizationCount, 0)
+        let restoredSources = try await service.resolveNutritionSourcesWithoutAuthorization()
+        XCTAssertEqual(restoredSources, [first, selected])
+        XCTAssertEqual(provider.nutritionAuthorizationCount, 1)
+        XCTAssertEqual(provider.readAuthorizationCount, 0)
         let result = try await service.refresh(
             nutritionSourceBundleIdentifier: selected.bundleIdentifier
         )
-        XCTAssertEqual(provider.nutritionAuthorizationCount, 2)
-        XCTAssertEqual(provider.readAuthorizationCount, 1)
+        XCTAssertEqual(provider.nutritionAuthorizationCount, 1)
+        XCTAssertEqual(provider.readAuthorizationCount, 0)
         XCTAssertEqual(provider.requestedSourceBundleIdentifier, selected.bundleIdentifier)
         XCTAssertEqual(
             result.envelope.today.nutrition?.nutrients.first { $0.key == "protein" }?
@@ -708,6 +718,238 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertEqual(store.loadBundleIdentifier(), "example.same-name.second")
         store.saveBundleIdentifier(nil)
         XCTAssertNil(store.loadBundleIdentifier())
+    }
+
+    @MainActor
+    func testPreparationWithNoStoredSessionStopsBeforeDriveHealthOrUpload() async {
+        let driver = PreparationDriverFixture(hasStoredGoogleSession: false)
+        let orchestrator = DailyExportPreparationOrchestrator()
+
+        let state = await orchestrator.prepare(using: driver)
+
+        XCTAssertEqual(state, .needsGoogleConnection)
+        XCTAssertEqual(driver.restoreCount, 0)
+        XCTAssertEqual(driver.resolveCount, 0)
+        XCTAssertEqual(driver.refreshCount, 0)
+        XCTAssertEqual(driver.authorizationRequestCount, 0)
+        XCTAssertEqual(driver.uploadCount, 0)
+    }
+
+    @MainActor
+    func testHealthyStoredPreparationValidatesDestinationAndRefreshesAutomatically() async {
+        let driver = PreparationDriverFixture()
+        driver.destination = driver.fixtureDestination
+        let orchestrator = DailyExportPreparationOrchestrator()
+
+        let state = await orchestrator.prepare(using: driver)
+
+        XCTAssertEqual(state, .readyToExport)
+        XCTAssertEqual(driver.restoreCount, 1)
+        XCTAssertEqual(driver.validateCount, 1)
+        XCTAssertEqual(driver.createCount, 0)
+        XCTAssertEqual(driver.resolvedBundleIdentifiers, [driver.savedBundleIdentifier])
+        XCTAssertEqual(driver.refreshedBundleIdentifiers, [driver.savedBundleIdentifier])
+        XCTAssertEqual(driver.authorizationRequestCount, 0)
+        XCTAssertEqual(driver.uploadCount, 0)
+    }
+
+    @MainActor
+    func testPreparationRequiringFreshConsentReturnsOnlyConnectionState() async {
+        let driver = PreparationDriverFixture()
+        driver.restoreFailure = .freshGoogleConsentRequired
+
+        let state = await DailyExportPreparationOrchestrator().prepare(using: driver)
+
+        XCTAssertEqual(state, .needsGoogleConnection)
+        XCTAssertEqual(driver.createCount, 0)
+        XCTAssertEqual(driver.resolveCount, 0)
+        XCTAssertEqual(driver.refreshCount, 0)
+    }
+
+    @MainActor
+    func testDestinationRestorationCreatesOnlyWhenDefinitivelyUnbound() async {
+        let driver = PreparationDriverFixture()
+        let orchestrator = DailyExportPreparationOrchestrator()
+
+        let first = await orchestrator.prepare(using: driver)
+        let second = await orchestrator.prepare(using: driver)
+
+        XCTAssertEqual(first, .readyToExport)
+        XCTAssertEqual(second, .readyToExport)
+        XCTAssertEqual(driver.createCount, 1)
+        XCTAssertEqual(driver.validateCount, 1)
+        XCTAssertEqual(driver.refreshCount, 2)
+
+        let inaccessible = PreparationDriverFixture()
+        inaccessible.destination = inaccessible.fixtureDestination
+        inaccessible.validationFailure = .destinationMissingOrInaccessible
+        let inaccessibleState = await DailyExportPreparationOrchestrator()
+            .prepare(using: inaccessible)
+        XCTAssertEqual(
+            inaccessibleState,
+            .needsAttention(.destinationMissingOrInaccessible)
+        )
+        XCTAssertEqual(inaccessible.createCount, 0)
+
+        let ambiguousLocalState = PreparationDriverFixture()
+        ambiguousLocalState.destinationLookupFailure = .destinationSetupFailed
+        let ambiguousState = await DailyExportPreparationOrchestrator()
+            .prepare(using: ambiguousLocalState)
+        XCTAssertEqual(ambiguousState, .needsAttention(.destinationSetupFailed))
+        XCTAssertEqual(ambiguousLocalState.createCount, 0)
+
+        let trashed = PreparationDriverFixture()
+        trashed.destination = trashed.fixtureDestination
+        trashed.validationFailure = .destinationTrashed
+        let trashedState = await DailyExportPreparationOrchestrator().prepare(using: trashed)
+        XCTAssertEqual(trashedState, .needsAttention(.destinationTrashed))
+        XCTAssertEqual(trashed.createCount, 0)
+    }
+
+    @MainActor
+    func testReservedDefaultFolderReconcilesLostSuccessWithoutDuplicateCreation() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [.transientAfterCommit])
+        let session = makePreparationSession(drive: drive)
+        let context = DailyExportGoogleContext(
+            account: await drive.fixtureAccount(),
+            accessToken: "invented-token"
+        )
+
+        try await session.createDefaultDestination(context: context)
+        try await session.createDefaultDestination(context: context)
+
+        let snapshot = await drive.snapshot()
+        XCTAssertEqual(snapshot.generatedCount, 1)
+        XCTAssertEqual(snapshot.createIDs, ["reserved-folder-1"])
+        XCTAssertEqual(snapshot.folderCount, 1)
+        XCTAssertGreaterThanOrEqual(snapshot.folderReadCount, 2)
+        XCTAssertEqual(snapshot.uploadCount, 0)
+    }
+
+    @MainActor
+    func testReservedDefaultFolderRetriesSameIDAfterDefinitivePreCommitFailure() async throws {
+        let drive = PreparationDriveTransportFixture(
+            createOutcomes: [.transientBeforeCommit, .success]
+        )
+        let secureStore = MemoryDailySessionStore()
+        let session = makePreparationSession(drive: drive, secureStore: secureStore)
+        let context = DailyExportGoogleContext(
+            account: await drive.fixtureAccount(),
+            accessToken: "invented-token"
+        )
+
+        do {
+            try await session.createDefaultDestination(context: context)
+            XCTFail("The first pre-commit failure should remain retryable by reserved ID")
+        } catch DailyExportPreparationFailure.destinationSetupFailed {}
+        let relaunched = makePreparationSession(drive: drive, secureStore: secureStore)
+        try await relaunched.createDefaultDestination(context: context)
+
+        let snapshot = await drive.snapshot()
+        XCTAssertEqual(snapshot.generatedCount, 1)
+        XCTAssertEqual(snapshot.createIDs, ["reserved-folder-1", "reserved-folder-1"])
+        XCTAssertEqual(snapshot.folderCount, 1)
+        XCTAssertEqual(snapshot.uploadCount, 0)
+    }
+
+    @MainActor
+    func testPreparationRestoresOnlyExactSavedNutritionSource() async {
+        let missing = PreparationDriverFixture(savedBundleIdentifier: nil)
+        missing.destination = missing.fixtureDestination
+        let missingState = await DailyExportPreparationOrchestrator().prepare(using: missing)
+        XCTAssertEqual(missingState, .needsNutritionSource)
+        XCTAssertEqual(missing.resolveCount, 0)
+        XCTAssertEqual(missing.refreshCount, 0)
+
+        let unavailable = PreparationDriverFixture(savedBundleIdentifier: "invented.missing")
+        unavailable.destination = unavailable.fixtureDestination
+        unavailable.resolveFailure = .nutritionSourceUnavailable
+        let unavailableState = await DailyExportPreparationOrchestrator()
+            .prepare(using: unavailable)
+        XCTAssertEqual(unavailableState, .needsAttention(.nutritionSourceUnavailable))
+        XCTAssertEqual(unavailable.resolvedBundleIdentifiers, ["invented.missing"])
+        XCTAssertEqual(unavailable.refreshCount, 0)
+    }
+
+    @MainActor
+    func testRepeatedConcurrentPreparationIsSerialAndDoesNotDuplicateFolderOrUpload() async {
+        let driver = PreparationDriverFixture()
+        driver.suspendRestore = true
+        let orchestrator = DailyExportPreparationOrchestrator()
+        let first = Task { @MainActor in await orchestrator.prepare(using: driver) }
+        for _ in 0..<100 where !driver.restoreIsSuspended {
+            await Task.yield()
+        }
+        XCTAssertTrue(driver.restoreIsSuspended)
+
+        let overlapping = await orchestrator.prepare(using: driver)
+        XCTAssertEqual(overlapping, .preparing)
+        XCTAssertEqual(driver.restoreCount, 1)
+        driver.resumeRestore()
+        let completed = await first.value
+
+        XCTAssertEqual(completed, .readyToExport)
+        XCTAssertEqual(driver.createCount, 1)
+        XCTAssertEqual(driver.refreshCount, 1)
+        XCTAssertEqual(driver.uploadCount, 0)
+    }
+
+    @MainActor
+    func testAutomaticPreparationRejectsNoteMutationDuringRefresh() async {
+        let driver = PreparationDriverFixture()
+        driver.destination = driver.fixtureDestination
+        driver.refreshFailure = .notesChanged
+
+        let state = await DailyExportPreparationOrchestrator().prepare(using: driver)
+
+        XCTAssertEqual(state, .needsAttention(.notesChanged))
+        XCTAssertEqual(driver.refreshCount, 1)
+        XCTAssertEqual(driver.uploadCount, 0)
+    }
+
+    func testPresentationActionsKeepRoutineAndRecoveryControlsContextual() {
+        let ready = DailyExportPresentationState.readyToExport.actions
+        XCTAssertTrue(ready.contains(.export))
+        XCTAssertTrue(ready.contains(.refreshPreview))
+        XCTAssertTrue(ready.contains(.inspectExactJSON))
+        XCTAssertTrue(ready.contains(.manageAccount))
+        XCTAssertFalse(ready.contains(.connect))
+        XCTAssertFalse(ready.contains(.recoverCanonicalFile))
+        XCTAssertFalse(ready.contains(.forgetTrashedDestination))
+
+        XCTAssertEqual(DailyExportPresentationState.needsGoogleConnection.actions, [.connect])
+        XCTAssertTrue(
+            DailyExportPresentationState.needsAttention(.destinationTrashed).actions
+                .contains(.forgetTrashedDestination)
+        )
+        XCTAssertTrue(
+            DailyExportPresentationState.needsAttention(.canonicalRecovery).actions
+                .contains(.recoverCanonicalFile)
+        )
+    }
+
+    @MainActor
+    private func makePreparationSession(
+        drive: any DailyDriveSessionTransporting,
+        secureStore: any DailyDriveSecurePersisting = MemoryDailySessionStore()
+    ) -> DailyDriveSessionController {
+        let identityKeychain = DailyDriveKeychainStore(
+            service: "WeeklyHealthReportTests.PreparationIdentity.\(UUID())"
+        )
+        let notesStore = MutableDailyNotesStore()
+        return DailyDriveSessionController(
+            keychain: secureStore,
+            drive: drive,
+            exportService: DailyHealthExportService(
+                healthData: RecordingDailyProvider { _ in
+                    fatalError("Folder preparation must not query HealthKit")
+                },
+                notesStore: notesStore
+            ),
+            identityStore: KeychainDailyDriveExportIdentityStore(keychain: identityKeychain),
+            nutritionSourceSelection: FixedNutritionSourceSelection(bundleIdentifier: nil),
+            notes: DailyNotesController(store: notesStore)
+        )
     }
 
     private func londonCalendar() -> Calendar {
@@ -1060,6 +1302,243 @@ final class DailyHealthExportTests: XCTestCase {
                 )
             }
         )
+    }
+}
+
+@MainActor
+private final class PreparationDriverFixture: DailyExportPreparationDriving {
+    let account = DailyDriveAccount(
+        id: "invented-account",
+        displayName: "Invented Account",
+        emailAddress: "invented@example.invalid"
+    )
+    let savedBundleIdentifier: String
+    let fixtureDestination = DailyDestinationBinding(
+        accountID: "invented-account",
+        folderID: "invented-folder",
+        folderName: "WeeklyHealthReport Exports",
+        origin: .created
+    )
+
+    var hasStoredGoogleSession: Bool
+    var storedNutritionSourceBundleIdentifier: String?
+    var destination: DailyDestinationBinding?
+    var destinationLookupFailure: DailyExportPreparationFailure?
+    var restoreFailure: DailyExportPreparationFailure?
+    var validationFailure: DailyExportPreparationFailure?
+    var creationFailure: DailyExportPreparationFailure?
+    var resolveFailure: DailyExportPreparationFailure?
+    var refreshFailure: DailyExportPreparationFailure?
+    var suspendRestore = false
+    private(set) var restoreIsSuspended = false
+    private var restoreContinuation: CheckedContinuation<Void, Never>?
+
+    private(set) var restoreCount = 0
+    private(set) var validateCount = 0
+    private(set) var createCount = 0
+    private(set) var resolveCount = 0
+    private(set) var refreshCount = 0
+    private(set) var authorizationRequestCount = 0
+    private(set) var uploadCount = 0
+    private(set) var resolvedBundleIdentifiers: [String] = []
+    private(set) var refreshedBundleIdentifiers: [String] = []
+
+    init(
+        hasStoredGoogleSession: Bool = true,
+        savedBundleIdentifier: String? = "invented.nutrition"
+    ) {
+        self.hasStoredGoogleSession = hasStoredGoogleSession
+        storedNutritionSourceBundleIdentifier = savedBundleIdentifier
+        self.savedBundleIdentifier = savedBundleIdentifier ?? ""
+    }
+
+    func restoreGoogleSession() async throws -> DailyExportGoogleContext {
+        restoreCount += 1
+        if suspendRestore {
+            restoreIsSuspended = true
+            await withCheckedContinuation { continuation in
+                restoreContinuation = continuation
+            }
+            restoreIsSuspended = false
+        }
+        if let restoreFailure { throw restoreFailure }
+        return DailyExportGoogleContext(account: account, accessToken: "invented-token")
+    }
+
+    func storedDestination(for accountID: String) throws -> DailyDestinationBinding? {
+        if let destinationLookupFailure { throw destinationLookupFailure }
+        guard accountID == account.id else { return nil }
+        return destination
+    }
+
+    func validateStoredDestination(
+        _ binding: DailyDestinationBinding,
+        context: DailyExportGoogleContext
+    ) async throws {
+        validateCount += 1
+        if let validationFailure { throw validationFailure }
+    }
+
+    func createDefaultDestination(context: DailyExportGoogleContext) async throws {
+        createCount += 1
+        if let creationFailure { throw creationFailure }
+        destination = fixtureDestination
+    }
+
+    func resolveNutritionSourceWithoutAuthorization(bundleIdentifier: String) async throws {
+        resolveCount += 1
+        resolvedBundleIdentifiers.append(bundleIdentifier)
+        if let resolveFailure { throw resolveFailure }
+    }
+
+    func refreshPreviewWithoutAuthorization(bundleIdentifier: String) async throws {
+        refreshCount += 1
+        refreshedBundleIdentifiers.append(bundleIdentifier)
+        if let refreshFailure { throw refreshFailure }
+    }
+
+    func resumeRestore() {
+        restoreContinuation?.resume()
+        restoreContinuation = nil
+    }
+}
+
+private final class MemoryDailySessionStore: DailyDriveSecurePersisting {
+    private var values: [String: Data] = [:]
+
+    func save(_ data: Data, account: String) throws {
+        values[account] = data
+    }
+
+    func load(account: String) throws -> Data? {
+        values[account]
+    }
+
+    func delete(account: String) throws {
+        values.removeValue(forKey: account)
+    }
+}
+
+private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
+    enum CreateOutcome: Sendable {
+        case success
+        case transientBeforeCommit
+        case transientAfterCommit
+    }
+
+    struct Snapshot: Sendable {
+        let generatedCount: Int
+        let createIDs: [String]
+        let folderReadCount: Int
+        let folderCount: Int
+        let uploadCount: Int
+    }
+
+    private let accountValue = DailyDriveAccount(
+        id: "invented-account",
+        displayName: "Invented Account",
+        emailAddress: "invented@example.invalid"
+    )
+    private var createOutcomes: [CreateOutcome]
+    private var folders: [String: DailyDriveFolder] = [:]
+    private var generatedCount = 0
+    private var createIDs: [String] = []
+    private var folderReadCount = 0
+    private var uploadCount = 0
+
+    init(createOutcomes: [CreateOutcome]) {
+        self.createOutcomes = createOutcomes
+    }
+
+    func fixtureAccount() -> DailyDriveAccount { accountValue }
+
+    func snapshot() -> Snapshot {
+        Snapshot(
+            generatedCount: generatedCount,
+            createIDs: createIDs,
+            folderReadCount: folderReadCount,
+            folderCount: folders.count,
+            uploadCount: uploadCount
+        )
+    }
+
+    func account(accessToken: String) async throws -> DailyDriveAccount { accountValue }
+
+    func generateFileID(accessToken: String) async throws -> String {
+        generatedCount += 1
+        return "reserved-folder-\(generatedCount)"
+    }
+
+    func createFolder(
+        id: String,
+        accessToken: String,
+        accountID: String
+    ) async throws -> DailyDriveFolder {
+        createIDs.append(id)
+        let folder = DailyDriveFolder(
+            id: id,
+            accountID: accountID,
+            name: "WeeklyHealthReport Exports",
+            mimeType: DailyDriveConsentPolicy.folderMIMEType,
+            trashed: false,
+            driveID: nil,
+            isAppAuthorized: true,
+            canAddChildren: true
+        )
+        let outcome = createOutcomes.isEmpty ? .success : createOutcomes.removeFirst()
+        switch outcome {
+        case .success:
+            folders[id] = folder
+            return folder
+        case .transientBeforeCommit:
+            throw URLError(.timedOut)
+        case .transientAfterCommit:
+            folders[id] = folder
+            throw URLError(.networkConnectionLost)
+        }
+    }
+
+    func folder(
+        id: String,
+        accessToken: String,
+        accountID: String
+    ) async throws -> DailyDriveFolder {
+        folderReadCount += 1
+        guard let folder = folders[id] else {
+            throw DailyDriveAPI.Failure.httpStatus(404, nil)
+        }
+        return folder
+    }
+
+    func revoke(token: String) async throws -> Int { 200 }
+
+    func createFile(
+        _ descriptor: DailyDriveUploadDescriptor,
+        content: Data,
+        accessToken: String
+    ) async throws {
+        uploadCount += 1
+        throw URLError(.unsupportedURL)
+    }
+
+    func updateFile(
+        _ descriptor: DailyDriveUploadDescriptor,
+        content: Data,
+        accessToken: String
+    ) async throws {
+        uploadCount += 1
+        throw URLError(.unsupportedURL)
+    }
+
+    func fileMetadata(
+        id: String,
+        accessToken: String
+    ) async throws -> DailyDriveFileMetadata {
+        throw DailyDriveAPI.Failure.httpStatus(404, nil)
+    }
+
+    func fileContent(id: String, accessToken: String) async throws -> Data {
+        throw DailyDriveAPI.Failure.httpStatus(404, nil)
     }
 }
 
