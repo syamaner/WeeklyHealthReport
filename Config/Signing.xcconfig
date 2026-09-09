@@ -1,7 +1,7 @@
 // Public defaults. Personal signing values belong in the optional ignored file.
 #include "DriveOAuth.xcconfig"
 
-WEEKLY_HEALTH_REPORT_BUNDLE_IDENTIFIER = com.example.WeeklyHealthReport
+WEEKLY_HEALTH_REPORT_BUNDLE_IDENTIFIER = com.otherweather.WeeklyHealthReport
 DEVELOPMENT_TEAM =
 
 #include? "Signing.local.xcconfig"

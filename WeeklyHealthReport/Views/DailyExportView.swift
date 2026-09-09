@@ -76,7 +76,7 @@ struct DailyExportView: View {
                 Task { await session.forgetTrashedDestination() }
             }
         } message: {
-            Text("This forgets the selected folder and every daily file identity tracked inside it on this installation. It does not change or delete anything in Google Drive. A later retry may create a fresh dedicated folder.")
+            Text("This forgets the selected folder and every daily file identity tracked inside it on this installation. It does not change or delete anything in Google Drive. You can then explicitly choose an existing folder or create a fresh dedicated folder.")
         }
         .alert(
             session.fileReplacementReason?.confirmationTitle ?? "Replace daily file?",
@@ -137,6 +137,12 @@ struct DailyExportView: View {
             Menu("Account and folder options") {
                 Button("Choose existing folder") {
                     Task { await session.chooseDestination() }
+                }
+                if session.presentationState.actions.contains(.recoverCanonicalFile) {
+                    Button("Recover existing canonical JSON") {
+                        Task { await session.recoverSelectedFile() }
+                    }
+                    .disabled(session.preview == nil)
                 }
                 Button("Sign out locally") { session.signOut() }
                 Button("Revoke Google access", role: .destructive) {
@@ -253,6 +259,12 @@ struct DailyExportView: View {
             if session.presentationState.actions.contains(.chooseDestination) {
                 Button("Choose existing folder") {
                     Task { await session.chooseDestination() }
+                }
+                .disabled(session.busy || !session.isConfigured)
+            }
+            if session.presentationState.actions.contains(.createDestination) {
+                Button("Create new export folder") {
+                    Task { await session.createDestination() }
                 }
                 .disabled(session.busy || !session.isConfigured)
             }

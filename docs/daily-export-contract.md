@@ -22,14 +22,15 @@ Claude Cowork consumes a daily JSON report for the following morning's 06:00 exe
 
 Include useful daily breakdowns and the app's existing deterministic HealthKit-derived summaries and trends. Weight has one value and recording time for the day, not a list or daily average in the daily detail. Existing weight trend calculations retain their daily-first aggregation internally.
 
-Use manual, user-initiated Google Drive API export after consent. A newly connected or restored account with definitively no prior binding creates and binds one dedicated “WeeklyHealthReport Exports” folder automatically; Choose existing folder remains an explicit setup/change action. Revalidate and reuse a stored account-specific destination, but never replace a missing, inaccessible or trashed binding automatically. Keep `drive.file` access and an application-enforced destination restriction; do not request whole-Drive scopes. This supersedes the original Files-only/no-OAuth transport restriction. Evening automation and treadmill intervals remain deferred. Google configuration, real-device acceptance, canonical transport and personal-data export remain separate gated work.
+Use manual, user-initiated Google Drive API export after consent. A newly connected or restored account with definitively no prior binding must explicitly choose an existing folder by Drive ID or create and bind one dedicated “WeeklyHealthReport Exports” folder. Folder names are never searched or treated as identity. Revalidate and reuse a stored account-specific destination, but never replace a missing, inaccessible or trashed binding automatically. Keep `drive.file` access and an application-enforced destination restriction; do not request whole-Drive scopes. This supersedes the original Files-only/no-OAuth transport restriction. Evening automation and treadmill intervals remain deferred. Google configuration, real-device acceptance, canonical transport and personal-data export remain separate gated work.
 
 Foreground preparation is serial and idempotent: restore and revalidate the secure
-Google session, validate or definitively create the account destination, silently
+Google session, validate the account destination or require an explicit choose/create
+decision, silently
 resolve the exact saved nutrition-source bundle identifier, then refresh one new
 in-memory preview. Silent resolution and preview queries never request HealthKit
 authorisation. First-time nutrition authorisation/source discovery remains an explicit
-action. Automatic folder creation reserves and securely persists one Drive ID before
+action. Explicit folder creation reserves and securely persists one Drive ID before
 submission, so an uncertain response is reconciled or retried only under that same ID.
 Repeated appearances cannot overlap preparation, refresh or export, and no
 preparation step uploads bytes, opens Google consent or Picker UI, performs canonical

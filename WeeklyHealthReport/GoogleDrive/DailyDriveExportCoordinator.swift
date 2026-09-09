@@ -147,6 +147,7 @@ enum DailyDriveExportResult: Equatable, Sendable {
 enum DailyDriveRecoveryResult: Equatable, Sendable {
     case recovered(dataAsOf: String)
     case alreadyTracked(dataAsOf: String)
+    case migrated(dataAsOf: String)
 }
 
 enum DailyDriveMetadataKeys {
@@ -526,14 +527,6 @@ actor DailyDriveExportCoordinator {
         guard registry.identities.isEmpty || registry.installationID == remoteInstallationID else {
             throw DailyDriveExportFailure.identityRecoveryAmbiguous
         }
-        guard !registry.hasDifferentDestination(
-            accountID: accountID,
-            folderID: folderID,
-            reportDate: reportDate
-        ) else {
-            throw DailyDriveExportFailure.destinationChangeRequiresMigration
-        }
-
         let verified = VerifiedDailyDriveSnapshot(
             dataAsOf: payloadIdentity.envelope.dataAsOf,
             payloadSHA256: payloadIdentity.hash,
@@ -551,6 +544,35 @@ actor DailyDriveExportCoordinator {
             registry.identities[index].pending = nil
             try persist(registry)
             return .alreadyTracked(dataAsOf: verified.dataAsOf)
+        }
+
+        let sameDateIndices = registry.identities.indices.filter {
+            registry.identities[$0].reportDate == reportDate
+        }
+        if !sameDateIndices.isEmpty {
+            guard sameDateIndices.count == 1 else {
+                throw DailyDriveExportFailure.identityRecoveryAmbiguous
+            }
+            let index = sameDateIndices[0]
+            let existing = registry.identities[index]
+            guard existing.accountID == accountID else {
+                throw DailyDriveExportFailure.destinationChangeRequiresMigration
+            }
+            guard existing.fileID == selectedFileID,
+                  existing.installationID == remoteInstallationID else {
+                throw DailyDriveExportFailure.identityRecoveryAmbiguous
+            }
+            registry.identities[index] = DailyDriveExportIdentity(
+                accountID: accountID,
+                folderID: folderID,
+                reportDate: reportDate,
+                fileID: selectedFileID,
+                installationID: remoteInstallationID,
+                lastVerified: verified,
+                pending: nil
+            )
+            try persist(registry)
+            return .migrated(dataAsOf: verified.dataAsOf)
         }
 
         registry.installationID = remoteInstallationID
