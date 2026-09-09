@@ -708,6 +708,76 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         )
     }
 
+    func testExplicitRecoveryMigratesTheSameCanonicalFileAfterFolderMove() async throws {
+        let store = MemoryDailyIdentityStore()
+        let server = MockDailyDriveServer()
+        let coordinator = DailyDriveExportCoordinator(transport: server, store: store)
+        _ = try await export(8, coordinator: coordinator)
+        let identity = try XCTUnwrap(store.snapshot()?.identities.first)
+
+        await server.overrideParent("folder-b")
+        let recovery = try await coordinator.recover(
+            selectedFileID: identity.fileID,
+            reportDate: reportDate,
+            accountID: accountID,
+            folderID: "folder-b",
+            tokenProvider: token
+        )
+
+        XCTAssertEqual(recovery, .migrated(dataAsOf: "2026-09-06T08:00:00+01:00"))
+        let migrated = try XCTUnwrap(store.snapshot()?.identities.first)
+        XCTAssertEqual(migrated.accountID, accountID)
+        XCTAssertEqual(migrated.folderID, "folder-b")
+        XCTAssertEqual(migrated.fileID, identity.fileID)
+        XCTAssertNil(migrated.pending)
+        let generatedAfterMigration = await server.generatedIDs.count
+        XCTAssertEqual(generatedAfterMigration, 1)
+
+        _ = try await export(18, coordinator: coordinator, folder: "folder-b")
+        let generatedAfterUpdate = await server.generatedIDs.count
+        let updateIDs = await server.updateIDs
+        XCTAssertEqual(generatedAfterUpdate, 1)
+        XCTAssertEqual(updateIDs, [identity.fileID])
+    }
+
+    func testExplicitRecoveryWillNotMigrateADifferentCanonicalFile() async throws {
+        let store = MemoryDailyIdentityStore()
+        let server = MockDailyDriveServer()
+        let coordinator = DailyDriveExportCoordinator(transport: server, store: store)
+        _ = try await export(8, coordinator: coordinator)
+        let selectedFileID = try XCTUnwrap(store.snapshot()?.identities.first?.fileID)
+        store.mutate { registry in
+            let existing = registry.identities[0]
+            registry.identities[0] = DailyDriveExportIdentity(
+                accountID: existing.accountID,
+                folderID: existing.folderID,
+                reportDate: existing.reportDate,
+                fileID: "different-file",
+                installationID: existing.installationID,
+                lastVerified: existing.lastVerified,
+                pending: existing.pending
+            )
+        }
+        await server.overrideParent("folder-b")
+
+        do {
+            _ = try await coordinator.recover(
+                selectedFileID: selectedFileID,
+                reportDate: reportDate,
+                accountID: accountID,
+                folderID: "folder-b",
+                tokenProvider: token
+            )
+            XCTFail("Migration must require the exact previously tracked file ID")
+        } catch DailyDriveExportFailure.identityRecoveryAmbiguous {}
+
+        XCTAssertEqual(store.snapshot()?.identities.first?.folderID, folderID)
+        let generatedIDs = await server.generatedIDs
+        let updateIDs = await server.updateIDs
+        XCTAssertEqual(generatedIDs.count, 1)
+        XCTAssertTrue(updateIDs.isEmpty)
+    }
+
     private func waitUntil(_ predicate: @escaping () async -> Bool) async {
         for _ in 0..<5_000 {
             if await predicate() { return }

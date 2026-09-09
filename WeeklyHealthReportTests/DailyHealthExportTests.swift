@@ -767,18 +767,18 @@ final class DailyHealthExportTests: XCTestCase {
     }
 
     @MainActor
-    func testDestinationRestorationCreatesOnlyWhenDefinitivelyUnbound() async {
+    func testDestinationRestorationRequiresExplicitChoiceWhenDefinitivelyUnbound() async {
         let driver = PreparationDriverFixture()
         let orchestrator = DailyExportPreparationOrchestrator()
 
         let first = await orchestrator.prepare(using: driver)
         let second = await orchestrator.prepare(using: driver)
 
-        XCTAssertEqual(first, .readyToExport)
-        XCTAssertEqual(second, .readyToExport)
-        XCTAssertEqual(driver.createCount, 1)
-        XCTAssertEqual(driver.validateCount, 1)
-        XCTAssertEqual(driver.refreshCount, 2)
+        XCTAssertEqual(first, .needsAttention(.destinationRequired))
+        XCTAssertEqual(second, .needsAttention(.destinationRequired))
+        XCTAssertEqual(driver.createCount, 0)
+        XCTAssertEqual(driver.validateCount, 0)
+        XCTAssertEqual(driver.refreshCount, 0)
 
         let inaccessible = PreparationDriverFixture()
         inaccessible.destination = inaccessible.fixtureDestination
@@ -874,6 +874,7 @@ final class DailyHealthExportTests: XCTestCase {
     @MainActor
     func testRepeatedConcurrentPreparationIsSerialAndDoesNotDuplicateFolderOrUpload() async {
         let driver = PreparationDriverFixture()
+        driver.destination = driver.fixtureDestination
         driver.suspendRestore = true
         let orchestrator = DailyExportPreparationOrchestrator()
         let first = Task { @MainActor in await orchestrator.prepare(using: driver) }
@@ -889,7 +890,7 @@ final class DailyHealthExportTests: XCTestCase {
         let completed = await first.value
 
         XCTAssertEqual(completed, .readyToExport)
-        XCTAssertEqual(driver.createCount, 1)
+        XCTAssertEqual(driver.createCount, 0)
         XCTAssertEqual(driver.refreshCount, 1)
         XCTAssertEqual(driver.uploadCount, 0)
     }
@@ -914,13 +915,21 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertTrue(ready.contains(.inspectExactJSON))
         XCTAssertTrue(ready.contains(.manageAccount))
         XCTAssertFalse(ready.contains(.connect))
-        XCTAssertFalse(ready.contains(.recoverCanonicalFile))
+        XCTAssertTrue(ready.contains(.recoverCanonicalFile))
         XCTAssertFalse(ready.contains(.forgetTrashedDestination))
 
         XCTAssertEqual(DailyExportPresentationState.needsGoogleConnection.actions, [.connect])
+        XCTAssertEqual(
+            DailyExportPresentationState.needsAttention(.destinationRequired).actions,
+            [.createDestination, .chooseDestination, .manageAccount]
+        )
         XCTAssertTrue(
             DailyExportPresentationState.needsAttention(.destinationTrashed).actions
                 .contains(.forgetTrashedDestination)
+        )
+        XCTAssertFalse(
+            DailyExportPresentationState.needsAttention(.destinationTrashed).actions
+                .contains(.chooseDestination)
         )
         XCTAssertTrue(
             DailyExportPresentationState.needsAttention(.canonicalRecovery).actions

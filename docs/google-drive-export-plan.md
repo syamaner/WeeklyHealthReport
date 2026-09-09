@@ -34,9 +34,9 @@ Synthetic API feasibility must pass before production HealthKit wiring.
 - Drive permission: `https://www.googleapis.com/auth/drive.file` only. No broad
   `drive`, `drive.readonly` or metadata-wide scope. Review any basic identity scopes
   required by the chosen SDK separately; never silently widen Drive access.
-- UI: automatically create **WeeklyHealthReport Exports** only for an account that is
-  definitively unbound; retain **Choose existing folder** as a contextual setup/change
-  action. Persist Google account identity and folder ID, not folder name as identity.
+- UI: for an account that is definitively unbound, require an explicit choice between
+  creating **WeeklyHealthReport Exports** and choosing an existing folder. Persist
+  Google account identity and folder ID; never search or match by folder name.
 - `drive.file` is per-file/app-created access, not a Google-enforced folder sandbox.
   Selecting a folder must not be described as granting all its pre-existing children.
   Restrict app operations to the selected destination and app-owned daily file IDs.
@@ -48,8 +48,10 @@ Synthetic API feasibility must pass before production HealthKit wiring.
   no collisions. Require a dedicated user-confirmed empty destination for first use;
   define recovery/adoption before reusing a previously populated export folder.
 - Changing account/folder must not silently create a second canonical export for a
-  date already exported elsewhere. Block that date until an explicit migration or
-  destination policy is agreed. Never silently re-create a missing/inaccessible file.
+  date already exported elsewhere. Explicit recovery may migrate only the exact
+  previously tracked file ID after verifying its current parent, account, installation
+  marker, date, metadata and bytes. Never silently re-create a missing/inaccessible
+  file or adopt a same-name item.
 - If the app remotely verifies that its stored folder is trashed, it may offer a
   destructive confirmation to forget only that exact account/folder binding and its
   local canonical file identities. Cancellation preserves state. Confirmation makes
@@ -321,8 +323,9 @@ synthetic slices; it needs explicit device/user authority when reached.
 The production app now exposes a foreground-only preparation flow that automatically
 restores a secure session, revalidates its account-specific destination, resolves the
 exact saved nutrition source without requesting HealthKit authorisation and creates a
-fresh in-memory preview. A definitively unbound account gets one dedicated destination
-folder; missing, inaccessible and trashed stored destinations fail closed without
+fresh in-memory preview. A definitively unbound account must explicitly choose an
+existing destination by ID or create one dedicated destination folder; missing,
+inaccessible and trashed stored destinations fail closed without
 replacement. Its ID is reserved and persisted before creation so response loss cannot
 turn a foreground retry into a second folder. Repeated appearances, activation,
 refresh and export are serialised.
@@ -346,7 +349,7 @@ was added.
 
 Invented mock coverage exercises same-ID creation/update, uncertain-create retry,
 lost-response reconciliation, cancellation on both sides of submission, relaunch,
-explicit recovery, expired/denied/revoked credentials, account/destination isolation,
+explicit recovery and exact-file destination migration, expired/denied/revoked credentials, account/destination isolation,
 stale completion, remote mismatch/move/trash and no background queue. These remain
 local/simulator facts. Product OAuth consent, representative physical-device
 HealthKit comparison and independent Google replacement evidence are still required

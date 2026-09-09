@@ -5,6 +5,7 @@ import UIKit
 enum DailyExportAttention: Equatable {
     case configurationUnavailable
     case googleUnavailable
+    case destinationRequired
     case destinationMissingOrInaccessible
     case destinationTrashed
     case destinationSetupFailed
@@ -24,6 +25,7 @@ enum DailyExportPresentationAction: Hashable {
     case export
     case inspectExactJSON
     case manageAccount
+    case createDestination
     case chooseDestination
     case forgetTrashedDestination
     case recoverCanonicalFile
@@ -48,7 +50,7 @@ enum DailyExportPresentationState: Equatable {
         case .readyToExport:
             [
                 .refreshPreview, .export, .inspectExactJSON, .manageAccount,
-                .chooseDestination
+                .chooseDestination, .recoverCanonicalFile
             ]
         case .needsAttention(let attention):
             switch attention {
@@ -56,10 +58,12 @@ enum DailyExportPresentationState: Equatable {
                 []
             case .googleUnavailable:
                 [.connect, .manageAccount, .retry]
+            case .destinationRequired:
+                [.createDestination, .chooseDestination, .manageAccount]
             case .destinationMissingOrInaccessible, .destinationSetupFailed:
-                [.chooseDestination, .manageAccount, .retry]
+                [.manageAccount, .retry]
             case .destinationTrashed:
-                [.chooseDestination, .forgetTrashedDestination, .manageAccount, .retry]
+                [.forgetTrashedDestination, .manageAccount, .retry]
             case .nutritionSourceUnavailable:
                 [.authorizeNutrition, .selectNutritionSource, .manageAccount]
             case .healthDataUnavailable, .notesUnavailable, .notesChanged, .unexpected:
@@ -74,6 +78,7 @@ enum DailyExportPresentationState: Equatable {
 enum DailyExportPreparationFailure: Error, Equatable {
     case freshGoogleConsentRequired
     case googleUnavailable
+    case destinationRequired
     case destinationMissingOrInaccessible
     case destinationTrashed
     case destinationSetupFailed
@@ -143,11 +148,10 @@ final class DailyExportPreparationOrchestrator {
         context: DailyExportGoogleContext,
         using driver: any DailyExportPreparationDriving
     ) async throws -> DailyExportPresentationState {
-        if let binding = try driver.storedDestination(for: context.account.id) {
-            try await driver.validateStoredDestination(binding, context: context)
-        } else {
-            try await driver.createDefaultDestination(context: context)
+        guard let binding = try driver.storedDestination(for: context.account.id) else {
+            throw DailyExportPreparationFailure.destinationRequired
         }
+        try await driver.validateStoredDestination(binding, context: context)
 
         guard let bundleIdentifier = driver.storedNutritionSourceBundleIdentifier,
               !bundleIdentifier.isEmpty else {
@@ -171,6 +175,8 @@ final class DailyExportPreparationOrchestrator {
             return .needsGoogleConnection
         case .googleUnavailable:
             return .needsAttention(.googleUnavailable)
+        case .destinationRequired:
+            return .needsAttention(.destinationRequired)
         case .destinationMissingOrInaccessible:
             return .needsAttention(.destinationMissingOrInaccessible)
         case .destinationTrashed:
@@ -394,7 +400,14 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                     accessToken: context.token
                 )
             )
-            self.status = "Created or revalidated the one reserved destination. No duplicate folder or health export was created."
+            let state = await self.preparationOrchestrator.prepareAfterGoogleConnection(
+                context: DailyExportGoogleContext(
+                    account: context.account,
+                    accessToken: context.token
+                ),
+                using: self
+            )
+            self.applyPresentationState(state)
         }
     }
 
@@ -426,13 +439,20 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             self.clearTrashedDestinationCandidate()
             self.clearFileReplacementCandidate()
             self.accept(account: context.account)
+            self.presentationState = .needsAttention(.destinationRequired)
             self.status = "Forgot the trashed destination and its local file identities. You can now create or choose a fresh folder; no Drive item was changed."
         }
     }
 
     func chooseDestination() async {
         await run("Opening explicit folder selection…") {
-            let result = try await self.authorize(.chooseFolder)
+            guard let expectedAccountID = self.account?.id else {
+                throw Failure.noAccount
+            }
+            let result = try await self.authorize(
+                .chooseFolder,
+                expectedAccountID: expectedAccountID
+            )
             guard let pickedID = result.pickedItemID else {
                 throw DailyDriveConsentPolicy.Failure.invalidPickerSelection
             }
@@ -601,9 +621,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             return
         }
         await run("Opening explicit canonical-file recovery…") {
-            let result = try await self.authorize(.recoverFile)
-            guard result.account.id == destination.accountID,
-                  let selectedFileID = result.pickedItemID else {
+            let result = try await self.authorize(
+                .recoverFile,
+                expectedAccountID: destination.accountID
+            )
+            guard let selectedFileID = result.pickedItemID else {
                 throw DailyDriveExportFailure.identityRecoveryAmbiguous
             }
             let recovery = try await self.exportCoordinator.recover(
@@ -621,6 +643,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 reportDate: preview.envelope.reportDate
             )
             self.lastVerifiedLabel = recovery.verifiedLabel
+            self.identityRecoveryRequired = false
+            self.presentationState = .readyToExport
             self.status = recovery.userFacingLabel
         }
     }
@@ -682,7 +706,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         let pickedItemID: String?
     }
 
-    private func authorize(_ purpose: AuthorizationPurpose) async throws -> AuthorizationResult {
+    private func authorize(
+        _ purpose: AuthorizationPurpose,
+        expectedAccountID: String? = nil
+    ) async throws -> AuthorizationResult {
         let configuration = try oauthConfiguration()
         guard let presenter = UIApplication.shared.activeRootViewController else {
             throw Failure.noPresenter
@@ -693,10 +720,13 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         )
         var parameters = [
             "access_type": "offline",
-            "prompt": "consent select_account",
             "include_granted_scopes": "false"
         ]
+        parameters["prompt"] = purpose == .connect ? "consent select_account" : "consent"
         if purpose == .chooseFolder || purpose == .recoverFile {
+            if let emailAddress = account?.emailAddress, !emailAddress.isEmpty {
+                parameters["login_hint"] = emailAddress
+            }
             parameters["trigger_onepick"] = "true"
             parameters["allow_multiple"] = "false"
             parameters["allow_folder_selection"] = purpose == .chooseFolder ? "true" : "false"
@@ -734,6 +764,9 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         }
         guard let token = newState.lastTokenResponse?.accessToken else { throw Failure.noToken }
         let account = try await drive.account(accessToken: token)
+        if let expectedAccountID, account.id != expectedAccountID {
+            throw DailyDriveExportFailure.accountMismatch
+        }
         authState = newState
         attachDelegates()
         try saveAuthState()
@@ -1122,7 +1155,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             switch failure {
             case .credentials, .credentialsRejected:
                 presentationState = .needsGoogleConnection
-            case .remoteMissing, .remoteTrashed, .identityRecoveryAmbiguous:
+            case .remoteMissing, .remoteTrashed, .remoteMoved,
+                 .destinationChangeRequiresMigration, .identityRecoveryAmbiguous:
                 presentationState = .needsAttention(.canonicalRecovery)
             default:
                 presentationState = .needsAttention(.unexpected)
@@ -1190,6 +1224,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 status = "Drive export is disabled until this app has its own local OAuth client configuration."
             case .googleUnavailable:
                 status = "The stored Google account could not be revalidated. No export ran."
+            case .destinationRequired:
+                status = "Choose an existing Drive folder or explicitly create a new export folder. No folder was created automatically."
             case .destinationMissingOrInaccessible:
                 status = "The stored destination is missing or inaccessible. It was not replaced."
             case .destinationTrashed:
@@ -1296,7 +1332,8 @@ private extension DailyDriveExportResult {
 private extension DailyDriveRecoveryResult {
     var verifiedLabel: String {
         switch self {
-        case .recovered(let dataAsOf), .alreadyTracked(let dataAsOf):
+        case .recovered(let dataAsOf), .alreadyTracked(let dataAsOf),
+             .migrated(let dataAsOf):
             "Recovered and verified through \(dataAsOf)"
         }
     }
@@ -1307,6 +1344,8 @@ private extension DailyDriveRecoveryResult {
             "Explicit recovery verified the selected canonical file through \(dataAsOf)."
         case .alreadyTracked(let dataAsOf):
             "The selected canonical file was already tracked and reverified through \(dataAsOf)."
+        case .migrated(let dataAsOf):
+            "The selected canonical file was safely migrated to this destination and verified through \(dataAsOf)."
         }
     }
 }
@@ -1317,7 +1356,7 @@ private extension DailyDriveExportFailure {
         case .busy: "Another export or reconciliation is active."
         case .invalidPayload: "The preview is not canonical daily-export JSON."
         case .staleSnapshot: "A stale or conflicting snapshot was rejected; the last verified file is unchanged."
-        case .destinationChangeRequiresMigration: "Export is blocked because account or destination identity changed."
+        case .destinationChangeRequiresMigration: "The selected destination differs from this date's canonical file identity. Explicitly recover that JSON file to migrate it safely."
         case .accountMismatch: "Export is blocked by a Google account mismatch."
         case .identityRecoveryAmbiguous: "Export is blocked because canonical identity recovery is ambiguous."
         case .staleCompletion: "A stale completion was rejected; the last verified file was preserved."
@@ -1327,7 +1366,7 @@ private extension DailyDriveExportFailure {
         case .quotaExceeded: "Drive quota is exhausted. No retry was queued."
         case .rateLimited: "Drive rate-limited the request. No background retry was queued."
         case .remoteMissing: "The stored Drive file is missing or inaccessible. Confirm an explicit override before creating a replacement."
-        case .remoteMoved: "The stored file moved outside the validated destination; export is blocked."
+        case .remoteMoved: "The canonical file moved outside the validated destination. Choose its current folder, then explicitly recover that JSON file."
         case .remoteTrashed: "The stored file is trashed. Confirm replacement before creating a new file ID."
         case .remoteMetadataMismatch: "Remote metadata did not match the canonical identity."
         case .remoteContentMismatch: "Remote bytes did not match the reviewed preview."

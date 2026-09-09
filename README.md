@@ -114,12 +114,17 @@ scheme. Do not reuse the synthetic-harness client and do not add a client secret
 API key, web client, hosted origin or backend. See
 [the product setup notes](docs/google-drive-product-setup.md).
 
-After explicit Google consent, an account with no prior destination binding gets one
-dedicated **WeeklyHealthReport Exports** folder automatically. Later foreground visits
-revalidate the secure session, account-specific folder and exact saved nutrition
-source, then prepare a new in-memory snapshot. Missing, inaccessible or trashed stored
-destinations are never silently replaced. Export remains a separate explicit action;
-account removal, destination changes and canonical recovery are contextual controls.
+After explicit Google consent, an account with no prior destination binding must
+either choose an existing folder by its exact Drive ID or explicitly create one
+dedicated **WeeklyHealthReport Exports** folder. Folder names are never searched or
+treated as identity. Later foreground visits revalidate the secure session,
+account-specific folder and exact saved nutrition source, then prepare a new in-memory
+snapshot. Missing, inaccessible or trashed stored destinations are never silently
+replaced. Export remains a separate explicit action; account removal, destination
+changes and exact-file migration or recovery are contextual controls. Google's mobile
+Picker requires a consent step when granting access to another folder or file, but the
+app pins that flow to the already connected account rather than asking for a new
+account choice.
 
 On iOS 26 or later, Health presents a separate medication chooser. To change access later, open Health, tap your profile picture, then go to **Apps > WeeklyHealthReport**. When you add a new medication in Health, enable WeeklyHealthReport on the final screen if you want the app to read it.
 
