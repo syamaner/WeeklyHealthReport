@@ -90,6 +90,10 @@ Nutrition is also an Apple Health feature rather than a direct provider integrat
 
 You need a Mac with the current stable Xcode, an iPhone and an Apple development team for code signing. The deployment target is iOS 17. Medication reporting requires iOS 26 or later.
 
+The published app uses `com.otherweather.WeeklyHealthReport` as its canonical
+bundle identifier. Forks and local variants should override it with an identifier
+owned by their development team.
+
 1. Clone the repository and open `WeeklyHealthReport.xcodeproj` in Xcode.
 2. Copy `Config/Signing.local.xcconfig.example` to `Config/Signing.local.xcconfig`.
 3. In the local file, replace `YOUR_TEAM_ID` with your Apple development team ID and choose a bundle identifier that is unique to your team.
