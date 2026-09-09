@@ -44,6 +44,13 @@ struct DailyHealthExportService {
         return try await healthData.fetchVisibleNutritionSources()
     }
 
+    func resolveNutritionSourcesWithoutAuthorization() async throws -> [NutritionSource] {
+        guard healthData.isHealthDataAvailable else {
+            throw HealthDataError.unavailable
+        }
+        return try await healthData.fetchVisibleNutritionSources()
+    }
+
     func refresh(
         nutritionSourceBundleIdentifier: String?
     ) async throws -> DailyHealthExportResult {
@@ -63,8 +70,6 @@ struct DailyHealthExportService {
             throw DailyHealthExportError.nutritionSourceRequired
         }
 
-        try await healthData.requestReadAuthorization()
-        try await healthData.requestNutritionReadAuthorization()
         let sources = try await healthData.fetchVisibleNutritionSources()
         guard sources.contains(where: {
             $0.bundleIdentifier == nutritionSourceBundleIdentifier

@@ -29,7 +29,8 @@ The app has one main screen, a manual **Daily JSON Export** screen and a separat
 
 All HealthKit reading and calculation happens on the iPhone. Nothing leaves the
 device unless you copy the text report yourself or explicitly open **Daily JSON
-Export**, refresh and review a preview, and choose **Export reviewed preview**.
+Export**, review the automatically prepared or manually refreshed snapshot, and
+choose **Export prepared snapshot**.
 
 The optional Drive feature:
 
@@ -80,7 +81,7 @@ Glucose is read from Apple Health. The app does not connect directly to Abbott, 
 
 Blood pressure is also read from Apple Health rather than directly from a cuff. A monitor's companion app, such as Omron Connect, must first save complete blood-pressure correlations to HealthKit.
 
-Nutrition is also an Apple Health feature rather than a direct provider integration. In Daily JSON Export, refresh the visible nutrition sources and explicitly choose one. The app stores that choice by HealthKit bundle identifier; the source name is only a label. Every nutrition statistic is restricted to the selected source, and a missing or unavailable selection blocks preview refresh rather than falling back to combined nutrition data.
+Nutrition is also an Apple Health feature rather than a direct provider integration. In Daily JSON Export, first-time nutrition authorisation and source selection are explicit. The app stores that choice by HealthKit bundle identifier; the source name is only a label. On later foreground visits it silently resolves only that exact source and prepares a fresh preview without presenting HealthKit authorisation. Every nutrition statistic is restricted to the selected source, and a missing or unavailable selection blocks preview refresh rather than falling back to combined nutrition data.
 
 ## Run it on your iPhone
 
@@ -105,6 +106,13 @@ identifier, then copy `Config/DriveOAuth.local.xcconfig.example` to the ignored
 scheme. Do not reuse the synthetic-harness client and do not add a client secret,
 API key, web client, hosted origin or backend. See
 [the product setup notes](docs/google-drive-product-setup.md).
+
+After explicit Google consent, an account with no prior destination binding gets one
+dedicated **WeeklyHealthReport Exports** folder automatically. Later foreground visits
+revalidate the secure session, account-specific folder and exact saved nutrition
+source, then prepare a new in-memory snapshot. Missing, inaccessible or trashed stored
+destinations are never silently replaced. Export remains a separate explicit action;
+account removal, destination changes and canonical recovery are contextual controls.
 
 On iOS 26 or later, Health presents a separate medication chooser. To change access later, open Health, tap your profile picture, then go to **Apps > WeeklyHealthReport**. When you add a new medication in Health, enable WeeklyHealthReport on the final screen if you want the app to read it.
 

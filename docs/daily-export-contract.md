@@ -10,8 +10,8 @@ daily query/model/JSON path is accepted locally through invented fixtures, the c
 schema version 2, a selected visible HealthKit source and fixed seven-completed-day
 windows. Schema version 3 adds ordered, date-bound user notes while retaining every
 schema-v2 health and nutrition field.
-Slice D now has a locally integrated,
-manual production UI and fail-closed transport path, but no production OAuth client,
+Slice D now has a locally integrated, automatically restored foreground preparation
+flow and fail-closed manual transport path, but no production OAuth client,
 personal-data export, real-device HealthKit validation or new Google mutation exists.
 See `daily-export-feasibility-results.md`
 for evidence and `google-drive-export-plan.md` for implementation gates.
@@ -22,7 +22,18 @@ Claude Cowork consumes a daily JSON report for the following morning's 06:00 exe
 
 Include useful daily breakdowns and the app's existing deterministic HealthKit-derived summaries and trends. Weight has one value and recording time for the day, not a list or daily average in the daily detail. Existing weight trend calculations retain their daily-first aggregation internally.
 
-Use manual, user-initiated Google Drive API export after consent. Offer Create “WeeklyHealthReport Exports” or Choose existing folder, with `drive.file` access and an application-enforced destination restriction; do not request whole-Drive scopes. This supersedes the original Files-only/no-OAuth transport restriction. Evening automation and treadmill intervals remain deferred. Google configuration, real-device acceptance, canonical transport and personal-data export remain separate gated work.
+Use manual, user-initiated Google Drive API export after consent. A newly connected or restored account with definitively no prior binding creates and binds one dedicated “WeeklyHealthReport Exports” folder automatically; Choose existing folder remains an explicit setup/change action. Revalidate and reuse a stored account-specific destination, but never replace a missing, inaccessible or trashed binding automatically. Keep `drive.file` access and an application-enforced destination restriction; do not request whole-Drive scopes. This supersedes the original Files-only/no-OAuth transport restriction. Evening automation and treadmill intervals remain deferred. Google configuration, real-device acceptance, canonical transport and personal-data export remain separate gated work.
+
+Foreground preparation is serial and idempotent: restore and revalidate the secure
+Google session, validate or definitively create the account destination, silently
+resolve the exact saved nutrition-source bundle identifier, then refresh one new
+in-memory preview. Silent resolution and preview queries never request HealthKit
+authorisation. First-time nutrition authorisation/source discovery remains an explicit
+action. Automatic folder creation reserves and securely persists one Drive ID before
+submission, so an uncertain response is reconciled or retried only under that same ID.
+Repeated appearances cannot overlap preparation, refresh or export, and no
+preparation step uploads bytes, opens Google consent or Picker UI, performs canonical
+recovery, or queues later work.
 
 ## Daily identity and time
 
@@ -158,11 +169,12 @@ Refresh daily data, preview the report date/cutoff and content, then save/replac
 
 Acceptance: focused tests during development, complete simulator suite once stable, static analysis, diff review, then real-device Apple Health comparisons and Drive replacement checks. Synthetic/simulator success is not personal HealthKit or remote-sync validation.
 
-Local integration provides separate Connect/Restore, destination, Refresh Preview,
-review, Export, Cancel, explicit Recovery, sign-out and revoke actions. Opening the
-export screen performs no automatic daily-snapshot refresh, Google request or queued
-write; the existing weekly-report refresh remains unchanged. The checked-in OAuth
-values are non-working placeholders and a distinct
+Local integration provides one serial foreground preparation flow and contextual
+Connect, source selection, folder change, account management and Recovery actions.
+Opening the export screen may revalidate an existing secure Google session and its
+stored destination and may refresh an in-memory HealthKit snapshot without presenting
+consent; it performs no automatic export or queued write. The existing weekly-report
+refresh remains unchanged. The checked-in OAuth values are non-working placeholders and a distinct
 product iOS client remains an external acceptance gate.
 
 ### Deferred work
