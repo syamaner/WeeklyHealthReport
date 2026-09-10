@@ -67,6 +67,59 @@ final class WeeklyReportViewModelTests: XCTestCase {
         await refresh.value
     }
 
+    func testScreenshotSnapshotFailsClosedThroughoutRefreshThenUsesOneStableGeneration() async throws {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let provider = FakeHealthDataProvider(pauseFirstWeightFetch: true)
+        let viewModel = makeViewModel(
+            provider: provider,
+            calendar: calendar,
+            dates: [refreshDate]
+        )
+
+        let refresh = Task { await viewModel.refresh() }
+        await provider.waitUntilFirstWeightFetchIsPaused()
+
+        XCTAssertNil(viewModel.screenshotSnapshot(
+            includesMedicationSection: true,
+            showsMorningBloodPressureDetails: true,
+            showsEveningBloodPressureDetails: false
+        ))
+
+        await provider.resumeFirstWeightFetch()
+        await refresh.value
+
+        let snapshot = try XCTUnwrap(viewModel.screenshotSnapshot(
+            includesMedicationSection: true,
+            showsMorningBloodPressureDetails: true,
+            showsEveningBloodPressureDetails: false
+        ))
+        XCTAssertEqual(snapshot.period, viewModel.period)
+        XCTAssertEqual(snapshot.weight, viewModel.weightState)
+        XCTAssertEqual(snapshot.steps, viewModel.state)
+        XCTAssertEqual(snapshot.includesMedicationSection, true)
+        XCTAssertEqual(snapshot.showsMorningBloodPressureDetails, true)
+        XCTAssertEqual(snapshot.showsEveningBloodPressureDetails, false)
+    }
+
+    func testScreenshotSnapshotFailsClosedBetweenPeriodSelectionAndRefresh() {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let viewModel = makeViewModel(
+            provider: FakeHealthDataProvider(),
+            calendar: calendar,
+            dates: [refreshDate]
+        )
+
+        viewModel.selection = .previousWeek
+
+        XCTAssertNil(viewModel.screenshotSnapshot(
+            includesMedicationSection: false,
+            showsMorningBloodPressureDetails: true,
+            showsEveningBloodPressureDetails: false
+        ))
+    }
+
     func testMetricMutationPublishesViewModelChange() {
         let calendar = testCalendar()
         let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)

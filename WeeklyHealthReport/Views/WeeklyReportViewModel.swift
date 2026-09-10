@@ -153,6 +153,9 @@ final class WeeklyReportViewModel: ObservableObject {
     private let calendar: Calendar
     private let now: () -> Date
     private var refreshGeneration = 0
+    private var activeRefreshGeneration: Int?
+    private var medicationRefreshGeneration = 0
+    private var activeMedicationRefreshGeneration: Int?
 
     init(
         healthData: HealthDataProviding = HealthKitClient(),
@@ -175,11 +178,56 @@ final class WeeklyReportViewModel: ObservableObject {
 
     var supportsMedicationData: Bool { healthData.supportsMedicationData }
 
+    func screenshotSnapshot(
+        includesMedicationSection: Bool,
+        showsMorningBloodPressureDetails: Bool,
+        showsEveningBloodPressureDetails: Bool
+    ) -> WeeklyReportScreenshotSnapshot? {
+        guard activeRefreshGeneration == nil,
+              activeMedicationRefreshGeneration == nil,
+              period.selection == selection else {
+            return nil
+        }
+
+        let states = reportStates
+        return WeeklyReportScreenshotSnapshot(
+            period: period,
+            steps: states.steps,
+            weight: states.weight,
+            bodyFat: states.bodyFat,
+            waist: states.waist,
+            glucose: states.glucose,
+            vo2Max: states.vo2Max,
+            bloodOxygen: states.bloodOxygen,
+            bloodPressure: states.bloodPressure,
+            restingHeartRate: states.restingHeartRate,
+            hrv: states.hrv,
+            watchCoverage: states.watchCoverage,
+            exercise: states.exercise,
+            activeEnergy: states.activeEnergy,
+            workouts: states.workouts,
+            sleep: states.sleep,
+            medications: states.medications,
+            includesMedicationSection: includesMedicationSection,
+            showsMorningBloodPressureDetails: showsMorningBloodPressureDetails,
+            showsEveningBloodPressureDetails: showsEveningBloodPressureDetails
+        )
+    }
+
     func setMedicationAuthorizationFailure(_ message: String) {
         reportStates.medications = .failed(message)
     }
 
     func refreshMedications() async {
+        medicationRefreshGeneration += 1
+        let generation = medicationRefreshGeneration
+        activeMedicationRefreshGeneration = generation
+        defer {
+            if activeMedicationRefreshGeneration == generation {
+                activeMedicationRefreshGeneration = nil
+            }
+        }
+
         guard healthData.isHealthDataAvailable else {
             reportStates.medications = .healthUnavailable
             return
@@ -193,11 +241,13 @@ final class WeeklyReportViewModel: ObservableObject {
         reportStates.medications = .loading
         do {
             let doses = try await healthData.fetchTakenMedicationDoses(for: queriedPeriod)
-            guard queriedPeriod == period else { return }
+            guard generation == medicationRefreshGeneration,
+                  queriedPeriod == period else { return }
             reportStates.medications = MedicationSummary.aggregate(doses)
                 .map(MetricState.available) ?? .noDataOrAccess
         } catch {
-            guard queriedPeriod == period else { return }
+            guard generation == medicationRefreshGeneration,
+                  queriedPeriod == period else { return }
             reportStates.medications = .failed(error.localizedDescription)
         }
     }
@@ -205,6 +255,14 @@ final class WeeklyReportViewModel: ObservableObject {
     func refresh() async {
         refreshGeneration += 1
         let generation = refreshGeneration
+        activeRefreshGeneration = generation
+        medicationRefreshGeneration += 1
+        activeMedicationRefreshGeneration = nil
+        defer {
+            if activeRefreshGeneration == generation {
+                activeRefreshGeneration = nil
+            }
+        }
         let refreshDate = now()
         period = ReportPeriod.make(selection: selection, now: refreshDate, calendar: calendar)
         setLoading()
