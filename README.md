@@ -7,9 +7,19 @@ Weekly Health Report is a small iPhone app that turns selected Apple Health data
 
 It is a personal informational utility, not medical software.
 
-<img src="docs/images/weekly-health-report-simulator.png" alt="Weekly Health Report running on an iPhone simulator with synthetic health data" width="390">
+<table>
+  <tr>
+    <td><img src="docs/images/weekly-health-report-simulator.png" alt="Weekly Health Report running on an iPhone simulator with synthetic health data" width="360"></td>
+    <td><img src="docs/images/weekly-health-report-daily-export-synthetic.png" alt="Synthetic Daily JSON Export screen showing a prepared snapshot and explicit export action" width="360"></td>
+  </tr>
+  <tr>
+    <td align="center">Weekly report</td>
+    <td align="center">Daily JSON review and export</td>
+  </tr>
+</table>
 
-The screenshot uses invented data. The repository does not contain exported or personal HealthKit values.
+All screenshots use invented values and identities. They are documentation
+examples; the repository does not contain exported or personal HealthKit values.
 
 ## What it reports
 
@@ -33,6 +43,61 @@ detail state, but not navigation, export, copy, refresh or diagnostics controls.
 Other screens provide only the ordinary screenshot. Saving or sharing remains in
 the system screenshot editor; the app adds no screenshot or share button and keeps
 no generated file.
+
+<details>
+<summary>See a synthetic Full Page report</summary>
+
+<img src="docs/images/weekly-health-report-full-page-synthetic.png" alt="Complete synthetic Full Page weekly health report containing every metric section" width="460">
+
+This mock-up shows the document structure returned to the iOS screenshot editor.
+Every value and name is invented.
+
+</details>
+
+## Export daily JSON to Google Drive
+
+Daily export is a separate, manual workflow. Opening **Daily JSON Export**
+restores any known account, destination and nutrition-source choices, then
+prepares a fresh immutable snapshot in memory. Nothing is uploaded until you
+review that snapshot and tap **Export prepared snapshot**.
+
+1. Connect the Google account that should receive the file. The app requests only
+   `drive.file`, which limits it to files and folders opened or created through
+   the app.
+2. Select an existing folder by its exact Drive ID, or explicitly create a
+   dedicated **WeeklyHealthReport Exports** folder. Folder names are labels, not
+   identity.
+3. Authorise and select the exact Apple Health nutrition source whose data should
+   be included, then save any date-bound notes you want to export. Draft notes are
+   excluded.
+4. Review the report date, data cutoff, nutrition source, note count,
+   completed-day windows and encoded byte count. Use **Review exact JSON** to
+   inspect the actual bytes prepared for upload.
+5. Tap **Export prepared snapshot**. Refresh first if a saved note or relevant
+   selection changed, because the previous preview is deliberately made stale
+   rather than silently altered.
+
+The version 3 JSON envelope records `schema_version`, `report_date`, `time_zone`,
+`data_as_of`, `exported_at` and `day_window`. Its `today` object contains the
+current day's values through the frozen cutoff and an ordered `notes` array.
+`app_context` contains deterministic completed-day summaries and trends.
+Nutrition covers Apple's 39 supported dietary quantity types, restricted to the
+selected HealthKit source; missing or inaccessible values remain explicit states
+rather than becoming zero.
+
+Each local reporting date has one canonical `health-daily-YYYY-MM-DD.json` file
+in the selected destination. The filename is a convention; the securely stored
+Drive file ID is its identity. A later export for the same date updates that
+exact file without deleting it first. The app reports success only after reading
+back the account, folder and file metadata and confirming that the remote bytes
+exactly match the reviewed snapshot.
+
+There is no automatic export, background sync or offline queue. Disconnecting
+Google or changing the app's destination does not delete files already stored in
+Drive. For the normative field and state rules, see the
+[daily export contract](docs/daily-export-contract.md). Developers enabling Drive
+in a local build should also read the
+[product setup notes](docs/google-drive-product-setup.md).
 
 ## Privacy
 
@@ -227,7 +292,7 @@ Correct HealthKit aggregation is the main reason this project exists. Cumulative
 - **Workouts:** the app reads `HKWorkout` samples whose start date is inside the report interval. It shows the count, summed duration, activity type, duration and local start time in `dd/MM/yy - HH:mm` format. Functional Strength Training is shortened to `FST`. A workout crossing midnight belongs to the day on which it started. An empty result is shown as **No data** because HealthKit does not distinguish missing read access from an empty history.
 - **Sleep:** only `asleepUnspecified`, `asleepCore`, `asleepDeep` and `asleepREM` samples are included. `awake` and `inBed` are excluded. Included intervals from all sources are clipped and combined so overlaps count once. Each report date is a local noon-to-noon night bucket ending on that wake date. Only nights with visible asleep time enter the average.
 - **Medications on iOS 26 or later:** the person chooses individual medications through Apple's medication access sheet. The app queries active and archived authorised concepts, then includes only `HKMedicationDoseEvent` samples with a `taken` status and a start time inside the selected completed-day period. Events are grouped by HealthKit's exact medication concept, so a changed strength appears as a separate row. Each row reports the latest logged quantity and time plus the number of taken events. Diagnostics lists every event. Medications without a visible taken event are omitted from copied text. Missing events are never treated as a missed dose or non-adherence.
-- **Nutrition in Daily JSON Export:** the app supports all 39 current HealthKit dietary quantity types through one fixed catalogue. It uses source-filtered HealthKit `cumulativeSum` statistics and converts energy to kcal, water to mL and nutrients to the catalogue's g, mg or mcg unit at the query boundary. Schema v2 contains today's partial total through the captured cutoff and exactly seven chronological completed-day states per nutrient. Current and previous averages are arithmetic means over visible sampled days and state both sampled and reporting days. A signed current-minus-previous trend is available only with 7/7 visible days in both windows; otherwise it is `insufficient_data`. Missing source-filtered statistics remain `no_data_or_access`, never zero. Nutrition is not added to the weekly screen, copied report or Diagnostics and has no target, score or interpretation.
+- **Nutrition in Daily JSON Export:** the app supports all 39 current HealthKit dietary quantity types through one fixed catalogue. It uses source-filtered HealthKit `cumulativeSum` statistics and converts energy to kcal, water to mL and nutrients to the catalogue's g, mg or mcg unit at the query boundary. The current schema v3 retains the nutrition payload introduced in schema v2: today's partial total through the captured cutoff and exactly seven chronological completed-day states per nutrient. Current and previous averages are arithmetic means over visible sampled days and state both sampled and reporting days. A signed current-minus-previous trend is available only with 7/7 visible days in both windows; otherwise it is `insufficient_data`. Missing source-filtered statistics remain `no_data_or_access`, never zero. Nutrition is not added to the weekly screen, copied report or Diagnostics and has no target, score or interpretation.
 - **Private notes in Daily JSON Export:** schema v3 always includes `today.notes` as an ordered array of strings, including `[]` when no notes are saved. Each string belongs to the envelope's reporting date and time zone. Local record identities and timestamps are not exported, and drafts never enter JSON. A preview freezes the saved-note revision alongside its HealthKit cutoff; later note changes invalidate it rather than being patched into reviewed bytes. Notes are user-authored context, not HealthKit data or medical interpretation, and are not added to the weekly screen, copied report or Developer Diagnostics.
 - **On-device note dictation:** the dedicated editor microphone uses the iOS 17 `SFSpeechRecognizer` live-audio path only when the active locale supports on-device recognition. Permission denial, restriction, unsupported locale/device and temporary unavailability leave typing available. A complete final transcript is appended once. If silence resets the live result or explicit Stop produces an empty or incomplete final, ordered recognised fragments are assembled once into the editable draft with a visible prompt to check them. A limit-rejected complete candidate remains separately editable and blocks accidental editor dismissal until it is accepted or explicitly discarded. Partial or failed recognition never replaces typed text. Capture stops when the editor closes or the app backgrounds, and no audio artifact enters note storage or JSON.
 
