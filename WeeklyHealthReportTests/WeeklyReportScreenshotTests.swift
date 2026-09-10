@@ -73,6 +73,23 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         }
     }
 
+    func testMedicationAuthorizationRequestIsAnExcludingTransientPresentation() {
+        let presentationState = WeeklyReportPresentationState()
+
+        XCTAssertFalse(presentationState.isTransientUIPresented)
+        presentationState.beginMedicationAuthorizationRequest()
+        XCTAssertTrue(presentationState.isTransientUIPresented)
+        XCTAssertFalse(WeeklyReportScreenshotEligibility.isEligible(
+            navigationPath: [],
+            isTransientUIPresented: presentationState.isTransientUIPresented
+        ))
+
+        presentationState.finishMedicationAuthorizationRequest()
+        XCTAssertFalse(presentationState.isTransientUIPresented)
+        presentationState.showsMedicationAccessHelp = true
+        XCTAssertTrue(presentationState.isTransientUIPresented)
+    }
+
     func testControllerStronglyRetainsDelegateAndRegistersWithOneSceneService() {
         let firstService = FakeScreenshotService()
         let secondService = FakeScreenshotService()

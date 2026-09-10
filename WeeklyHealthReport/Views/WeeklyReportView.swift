@@ -45,6 +45,19 @@ final class WeeklyReportPresentationState: ObservableObject {
     @Published var showsMorningBloodPressureDetails = true
     @Published var showsEveningBloodPressureDetails = false
     @Published var showsMedicationAccessHelp = false
+    @Published private(set) var isMedicationAuthorizationRequestActive = false
+
+    var isTransientUIPresented: Bool {
+        showsMedicationAccessHelp || isMedicationAuthorizationRequestActive
+    }
+
+    func beginMedicationAuthorizationRequest() {
+        isMedicationAuthorizationRequestActive = true
+    }
+
+    func finishMedicationAuthorizationRequest() {
+        isMedicationAuthorizationRequestActive = false
+    }
 }
 
 struct WeeklyReportView: View {
@@ -69,6 +82,7 @@ struct WeeklyReportView: View {
                     trigger: medicationAuthorizationRequest
                 ) { result in
                     Task { @MainActor in
+                        presentationState.finishMedicationAuthorizationRequest()
                         switch result {
                         case .success:
                             hasRequestedMedicationAccess = true
@@ -256,6 +270,7 @@ struct WeeklyReportView: View {
                 }
                 await viewModel.refresh()
                 if #available(iOS 26.0, *), !hasRequestedMedicationAccess {
+                    presentationState.beginMedicationAuthorizationRequest()
                     medicationAuthorizationRequest += 1
                 }
             }
@@ -306,7 +321,7 @@ struct WeeklyReportView: View {
                   let presentationState,
                   WeeklyReportScreenshotEligibility.isEligible(
                     navigationPath: navigation.path,
-                    isTransientUIPresented: presentationState.showsMedicationAccessHelp
+                    isTransientUIPresented: presentationState.isTransientUIPresented
                   ) else {
                 return nil
             }
