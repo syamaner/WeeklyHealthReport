@@ -7,6 +7,7 @@ enum WeeklyReportRoute: String, Codable, Hashable {
     case dailyExport
     case notes
     case noteEditor
+    case diagnostics
 }
 
 @MainActor
@@ -39,15 +40,34 @@ final class WeeklyReportNavigationController: ObservableObject {
     }
 }
 
+@MainActor
+final class WeeklyReportPresentationState: ObservableObject {
+    @Published var showsMorningBloodPressureDetails = true
+    @Published var showsEveningBloodPressureDetails = false
+    @Published var showsMedicationAccessHelp = false
+    @Published private(set) var isMedicationAuthorizationRequestActive = false
+
+    var isTransientUIPresented: Bool {
+        showsMedicationAccessHelp || isMedicationAuthorizationRequestActive
+    }
+
+    func beginMedicationAuthorizationRequest() {
+        isMedicationAuthorizationRequestActive = true
+    }
+
+    func finishMedicationAuthorizationRequest() {
+        isMedicationAuthorizationRequestActive = false
+    }
+}
+
 struct WeeklyReportView: View {
     @ObservedObject var dailyExport: DailyDriveSessionController
     @ObservedObject var navigation: WeeklyReportNavigationController
     @StateObject private var viewModel = WeeklyReportViewModel()
+    @StateObject private var presentationState = WeeklyReportPresentationState()
+    @StateObject private var screenshotController = WeeklyReportScreenshotController()
     @State private var copied = false
     @State private var medicationAuthorizationRequest = 0
-    @State private var showsMedicationAccessHelp = false
-    @State private var showsMorningBloodPressureDetails = true
-    @State private var showsEveningBloodPressureDetails = false
     @State private var didRestoreNavigationPath = false
     @AppStorage("hasRequestedMedicationAccess") private var hasRequestedMedicationAccess = false
     @AppStorage("weeklyReport.navigationDestination.v1") private var storedNavigationDestination = ""
@@ -62,6 +82,7 @@ struct WeeklyReportView: View {
                     trigger: medicationAuthorizationRequest
                 ) { result in
                     Task { @MainActor in
+                        presentationState.finishMedicationAuthorizationRequest()
                         switch result {
                         case .success:
                             hasRequestedMedicationAccess = true
@@ -73,7 +94,7 @@ struct WeeklyReportView: View {
                         }
                     }
                 }
-                .sheet(isPresented: $showsMedicationAccessHelp) {
+                .sheet(isPresented: $presentationState.showsMedicationAccessHelp) {
                     medicationAccessHelp
                 }
         } else {
@@ -121,8 +142,8 @@ struct WeeklyReportView: View {
                 )
                 BloodPressureReportSection(
                     state: viewModel.bloodPressureState,
-                    showsMorningDetails: $showsMorningBloodPressureDetails,
-                    showsEveningDetails: $showsEveningBloodPressureDetails
+                    showsMorningDetails: $presentationState.showsMorningBloodPressureDetails,
+                    showsEveningDetails: $presentationState.showsEveningBloodPressureDetails
                 )
                 CardiorespiratoryReportSection(
                     vo2MaxState: viewModel.vo2MaxState,
@@ -165,7 +186,7 @@ struct WeeklyReportView: View {
                         }
 
                         Button("Medication Access") {
-                            showsMedicationAccessHelp = true
+                            presentationState.showsMedicationAccessHelp = true
                         }
                     }
                 }
@@ -210,15 +231,17 @@ struct WeeklyReportView: View {
 
                 #if DEBUG
                 Section {
-                    NavigationLink {
-                        DeveloperDiagnosticsView(viewModel: viewModel)
-                    } label: {
+                    NavigationLink(value: WeeklyReportRoute.diagnostics) {
                         Label("Developer Diagnostics", systemImage: "stethoscope")
                     }
                 }
                 #endif
             }
             .navigationTitle("Weekly Health Report")
+            .background {
+                WeeklyReportScreenshotSceneRegistration(controller: screenshotController)
+                    .frame(width: 0, height: 0)
+            }
             .navigationDestination(for: WeeklyReportRoute.self) { route in
                 switch route {
                 case .dailyExport:
@@ -235,6 +258,8 @@ struct WeeklyReportView: View {
                             navigation.protectCurrentPath()
                         }
                     )
+                case .diagnostics:
+                    DeveloperDiagnosticsView(viewModel: viewModel)
                 }
             }
             .task {
@@ -245,10 +270,12 @@ struct WeeklyReportView: View {
                 }
                 await viewModel.refresh()
                 if #available(iOS 26.0, *), !hasRequestedMedicationAccess {
+                    presentationState.beginMedicationAuthorizationRequest()
                     medicationAuthorizationRequest += 1
                 }
             }
             .onAppear {
+                configureScreenshotProvider()
                 guard !didRestoreNavigationPath else { return }
                 didRestoreNavigationPath = true
                 navigation.replacePath(Self.restoredNavigationPath(
@@ -286,6 +313,39 @@ struct WeeklyReportView: View {
         }
     }
 
+    private func configureScreenshotProvider() {
+        screenshotController.setRequestProvider {
+            [weak viewModel, weak navigation, weak presentationState] in
+            guard let viewModel,
+                  let navigation,
+                  let presentationState,
+                  WeeklyReportScreenshotEligibility.isEligible(
+                    navigationPath: navigation.path,
+                    isTransientUIPresented: presentationState.isTransientUIPresented
+                  ) else {
+                return nil
+            }
+
+            let includesMedicationSection: Bool
+            if #available(iOS 26.0, *) {
+                includesMedicationSection = true
+            } else {
+                includesMedicationSection = false
+            }
+
+            guard let snapshot = viewModel.screenshotSnapshot(
+                includesMedicationSection: includesMedicationSection,
+                showsMorningBloodPressureDetails:
+                    presentationState.showsMorningBloodPressureDetails,
+                showsEveningBloodPressureDetails:
+                    presentationState.showsEveningBloodPressureDetails
+            ) else {
+                return nil
+            }
+            return WeeklyReportPDFDocument(snapshot: snapshot)
+        }
+    }
+
     static func restoredNavigationPath(
         from storedDestination: String,
         hasDraft: Bool
@@ -301,6 +361,8 @@ struct WeeklyReportView: View {
             return [.dailyExport, .notes]
         case .noteEditor:
             return hasDraft ? [.dailyExport, .notes, .noteEditor] : [.dailyExport, .notes]
+        case .diagnostics:
+            return []
         }
     }
 
@@ -332,7 +394,7 @@ struct WeeklyReportView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") {
-                        showsMedicationAccessHelp = false
+                        presentationState.showsMedicationAccessHelp = false
                     }
                 }
             }

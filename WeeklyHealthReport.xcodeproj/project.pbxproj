@@ -66,6 +66,10 @@
 		A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003F /* DailyNotesStoreTests.swift */; };
 		A0000000000000000000003A /* DailyNoteSpeechCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000040 /* DailyNoteSpeechCapture.swift */; };
 		A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */; };
+		A0000000000000000000003C /* WeeklyReportScreenshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000042 /* WeeklyReportScreenshot.swift */; };
+		A0000000000000000000003D /* WeeklyReportPDFView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000043 /* WeeklyReportPDFView.swift */; };
+		A0000000000000000000003E /* WeeklyReportScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000044 /* WeeklyReportScreenshotService.swift */; };
+		A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -144,6 +148,10 @@
 		B0000000000000000000003F /* DailyNotesStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesStoreTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000040 /* DailyNoteSpeechCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNoteSpeechCapture.swift; sourceTree = "<group>"; };
 		B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNoteSpeechCaptureTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000042 /* WeeklyReportScreenshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshot.swift; sourceTree = "<group>"; };
+		B00000000000000000000043 /* WeeklyReportPDFView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportPDFView.swift; sourceTree = "<group>"; };
+		B00000000000000000000044 /* WeeklyReportScreenshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshotService.swift; sourceTree = "<group>"; };
+		B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshotTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -241,6 +249,9 @@
 				B00000000000000000000039 /* DeveloperDiagnosticsSections.swift */,
 				B00000000000000000000031 /* DailyExportView.swift */,
 				B0000000000000000000003D /* DailyNotesView.swift */,
+				B00000000000000000000042 /* WeeklyReportScreenshot.swift */,
+				B00000000000000000000043 /* WeeklyReportPDFView.swift */,
+				B00000000000000000000044 /* WeeklyReportScreenshotService.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -268,6 +279,7 @@
 				B0000000000000000000003E /* DailyNotesTests.swift */,
 				B0000000000000000000003F /* DailyNotesStoreTests.swift */,
 				B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */,
+				B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */,
 			);
 			path = WeeklyHealthReportTests;
 			sourceTree = "<group>";
@@ -431,15 +443,18 @@
 				A00000000000000000000006 /* WeeklyReportViewModel.swift in Sources */,
 				A00000000000000000000007 /* WeeklyReportView.swift in Sources */,
 				A00000000000000000000032 /* WeeklyReportSections.swift in Sources */,
+				A0000000000000000000003D /* WeeklyReportPDFView.swift in Sources */,
 				A00000000000000000000018 /* DeveloperDiagnosticsView.swift in Sources */,
 				A00000000000000000000033 /* DeveloperDiagnosticsSections.swift in Sources */,
 				A0000000000000000000000B /* WeightMeasurement.swift in Sources */,
 				A0000000000000000000000C /* HealthReportFormatter.swift in Sources */,
+				A0000000000000000000003E /* WeeklyReportScreenshotService.swift in Sources */,
 				A0000000000000000000000F /* BodyComposition.swift in Sources */,
 				A00000000000000000000010 /* HeartMetricSummary.swift in Sources */,
 				A00000000000000000000011 /* ActivitySummary.swift in Sources */,
 				A00000000000000000000012 /* SleepSummary.swift in Sources */,
 				A00000000000000000000013 /* WeeklyReportSnapshot.swift in Sources */,
+				A0000000000000000000003C /* WeeklyReportScreenshot.swift in Sources */,
 				A00000000000000000000019 /* WatchCoverageSummary.swift in Sources */,
 				A0000000000000000000001C /* WaistMeasurement.swift in Sources */,
 				A0000000000000000000001D /* GlucoseSummary.swift in Sources */,
@@ -485,6 +500,7 @@
 				A00000000000000000000038 /* DailyNotesTests.swift in Sources */,
 				A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */,
 				A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */,
+				A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

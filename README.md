@@ -25,6 +25,15 @@ The screenshot uses invented data. The repository does not contain exported or p
 
 The app has one main screen, a manual **Daily JSON Export** screen and a separate Developer Diagnostics screen for checking daily values against Apple Health. **Copy Report** puts a human-readable version on the iOS clipboard.
 
+On the main report, a normal system screenshot also offers Apple's native **Full
+Page** representation. The app creates that report PDF in memory only when iOS
+requests it, using one stable snapshot and a document layout independent of the
+scrolling form. It includes all report sections and the current blood-pressure
+detail state, but not navigation, export, copy, refresh or diagnostics controls.
+Other screens provide only the ordinary screenshot. Saving or sharing remains in
+the system screenshot editor; the app adds no screenshot or share button and keeps
+no generated file.
+
 ## Privacy
 
 All HealthKit reading and calculation happens on the iPhone. Nothing leaves the
@@ -252,7 +261,7 @@ For your own check, run a Debug build, select **Last 7 Completed Days**, and use
 
 </details>
 
-Simulator tests cover calendar boundaries, paired blood-pressure aggregation, daily-first averages, missing data, sleep overlap handling, workout totals, nutrition catalogue/schema semantics, date-bound note persistence and preview invalidation, synthetic speech state/transcript handling, formatting and clipboard output. A simulator cannot prove nutrition source visibility, provider coverage, iOS file-protection behaviour through a real lock cycle, representative personal HealthKit data or physical-device on-device speech behaviour and audio lifecycle, so those checks still require separately authorised iPhone testing.
+Simulator tests cover calendar boundaries, paired blood-pressure aggregation, daily-first averages, missing data, sleep overlap handling, workout totals, nutrition catalogue/schema semantics, date-bound note persistence and preview invalidation, synthetic speech state/transcript handling, formatting, clipboard output and the deterministic full-page screenshot document. A simulator cannot prove the native Full Page screenshot-editor flow, nutrition source visibility, provider coverage, iOS file-protection behaviour through a real lock cycle, representative personal HealthKit data or physical-device on-device speech behaviour and audio lifecycle, so those checks still require separately authorised iPhone testing.
 
 CI also enforces unsigned Xcode static analysis, publishes layer-aware simulator
 coverage in GitHub Actions and sends app-target coverage to Codecov. The
