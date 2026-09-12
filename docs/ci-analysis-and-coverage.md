@@ -36,6 +36,43 @@ The summariser fails closed if the app target or a named layer disappears from
 Xcode's coverage report. Its standard-library unit tests also run before Xcode
 analysis and testing.
 
+## Measurement and shadow policy
+
+Every pull request and `main` push still runs the complete unsigned Xcode
+analysis, simulator suite, coverage gate and uploads. The workflow also records a
+shadow decision describing what a future selective post-merge policy would have
+chosen. That decision is evidence only: no job condition or command consumes it.
+
+The shadow classifier is deliberately fail-closed. Executable pull requests are
+always classified as full. A `main` push can report documentation or focused mode
+only when it matches exactly one merged pull request targeting `main`, its before
+and after revisions match that pull request, and the exact pull-request head has
+one successful GitHub Actions `Build and test` check. Forced pushes, missing
+comparison bases, ambiguous pull requests, absent checks, renames, copies,
+multiple focused subsystems and unrecognised paths all report full mode. Project,
+workflow, classifier, test-infrastructure, HealthKit, model, formatter and shared
+reporting changes also report full mode.
+
+The current focused path groups are Notes, production Google Drive and the
+separate synthetic Drive harness. They exist only to collect shadow evidence and
+must be revalidated before activation. In particular, a full production-app run
+does not exercise the synthetic harness's separate project and deterministic
+checks.
+
+The workflow writes `ci-policy.json`, `ci-timing.json` and a Markdown timing
+summary to the `ios-ci-measurement` artifact. Timing combines completed GitHub
+Actions step timestamps with the `.xcresult` activity log. It records package
+resolution, build activity, launch/test-host activity, time from launch activity
+to the first suite, every suite and the ten slowest tests. Xcode build, launch and
+test activity can overlap, so those durations must not be added together. The
+launch-to-first-suite interval is an observable preparation boundary, not proof
+that every second was simulator startup.
+
+This workflow does not add a stable required policy check or make any repository
+rule change. GitHub currently has no branch protection or ruleset for `main`.
+Selective execution and any required-check configuration remain separate,
+explicitly authorised work.
+
 ## Codecov disclosure boundary
 
 The pinned Codecov action runs only after the local coverage gate passes. Its
@@ -75,6 +112,30 @@ without creating a misleading whole-app target.
 
 ## Runtime evidence
 
+Issue #44's read-only baseline sampled seven matched pull-request and post-merge
+`main` pairs from 10–12 September 2026: #35, #43, #45, #46, #59, #60 and #61.
+Across those 14 successful runs, median pull-request runner occupancy was 8
+minutes 53 seconds and median post-merge occupancy was 7 minutes 28 seconds. The
+median Xcode test-and-coverage step was 7 minutes 15 seconds on pull requests and
+6 minutes 12 seconds on `main`; median analysis was 46 and 43 seconds
+respectively. The seven repeated `main` jobs occupied 56 minutes 11 seconds in
+total.
+
+The exact result bundle from `main` run
+[34716161541](https://github.com/syamaner/WeeklyHealthReport/actions/runs/34716161541)
+contained 198 tests. Its Xcode test step took 491.70 seconds, while the result
+reported 11.23 seconds of build activity, 477.50 seconds of launch/test-host
+activity and 41.08 seconds across named test bodies. A faster comparison run,
+[34695869474](https://github.com/syamaner/WeeklyHealthReport/actions/runs/34695869474),
+reported 9.40 seconds of build activity, 256.70 seconds of launch/test-host
+activity and 20.02 seconds across named test bodies. The dominant and variable
+cost was therefore outside the test bodies themselves.
+
+On run 34716161541, the first AppAuth package fetch and resolution took about
+10.1 seconds; the subsequent resolution in the same job took about 1.2 seconds.
+That small single-job observation does not establish a cache benefit. The shadow
+slice adds no cache and makes no cache-performance claim.
+
 The [existing hosted run for the same reviewed
 commit](https://github.com/syamaner/WeeklyHealthReport/actions/runs/34191409074)
 spent 8 minutes 31 seconds in its test step and 8 minutes 47 seconds in the job
@@ -95,6 +156,9 @@ Choose an available iPhone simulator identifier, then run:
 
 ```bash
 python3 -m unittest discover -s .github/scripts/tests -v
+
+python3 .github/scripts/ci_policy.py --help
+python3 .github/scripts/summarize_ci_timing.py --help
 
 result_directory="$(mktemp -d)"
 result_bundle="$result_directory/WeeklyHealthReportTests.xcresult"

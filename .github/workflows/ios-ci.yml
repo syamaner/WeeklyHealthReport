@@ -7,7 +7,10 @@ on:
     branches: [main]
 
 permissions:
+  actions: read
+  checks: read
   contents: read
+  pull-requests: read
 
 concurrency:
   group: ios-ci-${{ github.workflow }}-${{ github.ref }}
@@ -23,6 +26,24 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Evaluate shadow CI policy
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          python3 .github/scripts/ci_policy.py \
+            --event-name "$GITHUB_EVENT_NAME" \
+            --event-json "$GITHUB_EVENT_PATH" \
+            --repository "$GITHUB_REPOSITORY" \
+            --output "$RUNNER_TEMP/ci-policy.json" \
+            --github-step-summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Resolve Swift packages
+        run: |
+          set -euo pipefail
+          /usr/bin/time -p xcodebuild -resolvePackageDependencies \
+            -project WeeklyHealthReport.xcodeproj \
+            -scheme WeeklyHealthReport
 
       - name: Select an available iPhone simulator
         shell: bash
@@ -45,7 +66,7 @@ jobs:
           ' )"
           echo "SIMULATOR_ID=$simulator_id" >> "$GITHUB_ENV"
 
-      - name: Validate coverage summariser
+      - name: Validate CI helpers
         run: python3 -m unittest discover -s .github/scripts/tests -v
 
       - name: Run Xcode static analysis
@@ -98,5 +119,53 @@ jobs:
           path: |
             ${{ runner.temp }}/WeeklyHealthReportTests.xcresult
             ${{ runner.temp }}/coverage-summary.md
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Collect workflow step timings
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for _ in 1 2 3 4 5; do
+            gh api \
+              "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/jobs?filter=latest&per_page=100" \
+              > "$RUNNER_TEMP/actions-jobs.json"
+            if jq -e '
+              .jobs[]
+              | select(.name == "Build and test")
+              | .steps[]
+              | select(.name == "Upload test and coverage results")
+              | .conclusion == "success"
+            ' "$RUNNER_TEMP/actions-jobs.json" > /dev/null; then
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "completed artifact-upload timing was unavailable" >&2
+          exit 1
+
+      - name: Summarise CI timing
+        if: success()
+        run: |
+          python3 .github/scripts/summarize_ci_timing.py \
+            --jobs-json "$RUNNER_TEMP/actions-jobs.json" \
+            --xcresult "$RUNNER_TEMP/WeeklyHealthReportTests.xcresult" \
+            --commit "$GITHUB_SHA" \
+            --run-id "$GITHUB_RUN_ID" \
+            --output "$RUNNER_TEMP/ci-timing.json" \
+            --markdown-output "$RUNNER_TEMP/ci-timing-summary.md" \
+            --github-step-summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload CI measurement
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ios-ci-measurement
+          path: |
+            ${{ runner.temp }}/ci-policy.json
+            ${{ runner.temp }}/ci-timing.json
+            ${{ runner.temp }}/ci-timing-summary.md
           if-no-files-found: warn
           retention-days: 14
