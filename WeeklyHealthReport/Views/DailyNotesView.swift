@@ -277,7 +277,7 @@ struct DailyNoteEditorView: View {
     private var speechReviewSection: some View {
         if speechController.hasReviewTranscript {
             Section {
-                Text("The complete recognised addition did not fit within the note limits. Edit or discard it; the existing draft has not changed.")
+                Text("This recognised addition needs review because recognition did not finish cleanly or it did not fit within the note limits. Edit or discard it; the existing draft has not changed.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -308,7 +308,7 @@ struct DailyNoteEditorView: View {
             } header: {
                 Text("Review recognised text")
             } footer: {
-                Text("Resolve this limit failure before leaving the editor. Only Add Reviewed Text changes the editable draft; Discard Recognised Text removes the candidate.")
+                Text("Resolve this candidate before leaving the editor. Only Add Reviewed Text changes the editable draft; Discard Recognised Text removes the candidate.")
             }
         }
     }
