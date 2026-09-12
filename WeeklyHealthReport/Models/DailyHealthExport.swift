@@ -464,53 +464,6 @@ struct DailyAppContext: Codable, Equatable {
     }
 }
 
-extension DailyHealthMetrics {
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encodeIfPresent(notes, forKey: .notes)
-        try container.encode(weight, forKey: .weight)
-        try container.encode(bodyFat, forKey: .bodyFat)
-        try container.encode(waist, forKey: .waist)
-        try container.encode(bloodPressure, forKey: .bloodPressure)
-        try container.encode(glucose, forKey: .glucose)
-        try container.encode(restingHeartRate, forKey: .restingHeartRate)
-        try container.encode(hrv, forKey: .hrv)
-        try container.encode(bloodOxygen, forKey: .bloodOxygen)
-        try container.encode(vo2Max, forKey: .vo2Max)
-        try container.encode(sleep, forKey: .sleep)
-        try container.encode(activity, forKey: .activity)
-        try container.encode(workouts, forKey: .workouts)
-        try container.encode(watchCoverage, forKey: .watchCoverage)
-        try container.encode(medications, forKey: .medications)
-        try container.encodeIfPresent(nutrition, forKey: .nutrition)
-    }
-}
-
-extension DailyAppContext {
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(policyID, forKey: .policyID)
-        try container.encode(window, forKey: .window)
-        try container.encode(weight, forKey: .weight)
-        try container.encode(bodyFat, forKey: .bodyFat)
-        try container.encode(waist, forKey: .waist)
-        try container.encode(glucose, forKey: .glucose)
-        try container.encode(vo2Max, forKey: .vo2Max)
-        try container.encode(bloodOxygen, forKey: .bloodOxygen)
-        try container.encode(bloodPressure, forKey: .bloodPressure)
-        try container.encode(steps, forKey: .steps)
-        try container.encode(restingHeartRate, forKey: .restingHeartRate)
-        try container.encode(hrv, forKey: .hrv)
-        try container.encode(watchCoverage, forKey: .watchCoverage)
-        try container.encode(sleep, forKey: .sleep)
-        try container.encode(activeEnergy, forKey: .activeEnergy)
-        try container.encode(exercise, forKey: .exercise)
-        try container.encode(workouts, forKey: .workouts)
-        try container.encode(medications, forKey: .medications)
-        try container.encodeIfPresent(nutrition, forKey: .nutrition)
-    }
-}
-
 struct DailyHealthExportEnvelope: Codable, Equatable {
     let schemaVersion: Int
     let reportDate: String
