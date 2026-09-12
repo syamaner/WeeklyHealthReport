@@ -1063,3 +1063,81 @@ phases contain **10,248,343 tokens** in total. Their combined exact comparison i
 **$5.6574840**, rounded **$5.66**; summing individually rounded ledger rows also adds
 **$5.66**. Earlier rows remain frozen. Tracked total becomes **331,225,504 tokens /
 $203.02**, summing recorded rounded comparison amounts.
+
+## Issues #41 and #42 HealthKit concurrency correctness, 12 September 2026
+
+Medication dose grouping now compares HealthKit's stable opaque medication concept
+identifier directly and maps it to a process-local grouping key independently of
+query or display order. The identifier and local key are not persisted or exported.
+Full-report and medication-only refreshes share a medication generation boundary, so
+only the newest relevant completion can publish medication state. Nutrition source
+discovery now builds a complete local snapshot and replaces the previous snapshot
+atomically only after every query succeeds; concurrent readers see either the
+previous or next complete map, while failure or cancellation preserves the previous
+map. Permissions, nutrition calculations, ordering and Daily JSON schema v3 are
+unchanged.
+
+Focused synthetic suites passed for stable identity, duplicate display names and both
+medication refresh overlap directions, and for concurrent nutrition-cache reads plus
+failed and cancelled discovery. After the final executable change, the complete iOS
+26.5 simulator suite passed with all 196 tests and the pure-model coverage gate passed
+at 95.70%. Xcode static analysis, project and plist validation, the coverage script's
+three tests, `git diff --check`, final scope/status review and executable-input
+fingerprint `399d1c5e8ea95c33cc140570f9369a11e302ddf5979614336c66f58d8ee321c7`
+also passed. A `SWIFT_STRICT_CONCURRENCY=complete` build passed without warnings in
+the new cache isolation; it continued to report the repository's existing HealthKit
+key-path, provider-boundary, speech callback and AppAuth warnings outside #42's narrow
+scope. Per the user's acceptance boundary, this is synthetic simulator evidence only:
+no physical device, personal HealthKit data, Google Drive, OAuth flow or provider
+operation was exercised.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 12 Sep | `codex-phase-accounting` — issue #41 stable medication identity and latest-refresh publication — GPT-5.6 Sol | Uncommitted Apple documentation research, implementation and focused synthetic tests | 4,242,920 (4,114,176) | 18,566 | 4,261,486 | $2.53 |
+| 12 Sep | `codex-phase-accounting` — issue #42 atomic nutrition-source snapshot — GPT-5.6 Sol | Uncommitted implementation and focused synthetic tests | 1,176,005 (1,156,352) | 4,510 | 1,180,515 | $0.63 |
+| 12 Sep | `codex-phase-accounting` — issues #41/#42 shared validation — GPT-5.6 Sol | Uncommitted full validation and local review-index update | 2,559,304 (2,525,440) | 4,441 | 2,563,745 | $1.23 |
+
+Model confirmed from the session metadata and every recorded turn context:
+`gpt-5.6-sol`. At the ledger's historical Sol comparison assumptions ($4/M uncached
+input, $0.40/M cached input and $20/M output), the issue #41 row is 128,744 × $4/M +
+4,114,176 × $0.40/M + 18,566 × $20/M = **$2.5319664**, rounded **$2.53**;
+the issue #42 row is 19,653 × $4/M + 1,156,352 × $0.40/M + 4,510 × $20/M =
+**$0.6313528**, rounded **$0.63**; and the shared row is 33,864 × $4/M +
+2,525,440 × $0.40/M + 4,441 × $20/M = **$1.2344520**, rounded **$1.23**.
+These are API-equivalent comparisons, not actual ChatGPT subscription charges or a
+model benchmark. Separate tool/service charges are not measured or estimated.
+
+Session `01a0956f-d724-7290-b97f-eeab1fdc0c96`, rollout
+`rollout-2026-09-12T12-45-29-01a0956f-d724-7290-b97f-eeab1fdc0c96.jsonl`.
+The issue #41 baseline is line 1337, **2026-09-12 12:43:05.816 UTC**:
+**19,199,136 input / 18,824,576 cached input / 65,447 output**. Its frozen end
+is line 1614, **2026-09-12 12:53:49.590 UTC**: **23,442,056 input /
+22,938,752 cached input / 84,013 output**. Reproduce with
+`--baseline 19199136 18824576 65447`.
+
+The issue #42 baseline is line 1614, **2026-09-12 12:53:49.590 UTC**:
+**23,442,056 input / 22,938,752 cached input / 84,013 output**. Its frozen end
+is line 1696, **2026-09-12 12:56:31.393 UTC**: **24,618,061 input /
+24,095,104 cached input / 88,523 output**. Reproduce with
+`--baseline 23442056 22938752 84013`.
+
+The shared-validation baseline is line 1696, **2026-09-12 12:56:31.393 UTC**:
+**24,618,061 input / 24,095,104 cached input / 88,523 output**. Its frozen end
+is line 1852, **2026-09-12 13:00:08.420 UTC**: **27,177,365 input /
+26,620,544 cached input / 92,964 output**. Reproduce with
+`--baseline 24618061 24095104 88523`. Append `--uncached-input-rate 4
+--cached-input-rate 0.40 --output-rate 20` to each command.
+
+The three exact, non-overlapping phases include issue-specific inspection,
+implementation and focused tests, followed by the one complete simulator suite,
+coverage gate, Xcode analysis, project/plist and coverage-script validation, final
+diff review and external review-index update through their stated boundaries. No
+subagents, reused tasks or hosted reviews were used. Excludes the gaps between
+captured phases, the post-boundary strict-concurrency confirmation, these accounting
+calculations and ledger edits, subsequent issue comments, commit/push/PR/CI/merge
+work, every other session and separate service usage. The phases contain
+**8,005,746 tokens** in total. Their combined exact
+comparison is **$4.3977712**, rounded **$4.40** when calculated once; summing
+individually rounded ledger rows adds **$4.39**. Earlier rows remain frozen. Tracked
+total becomes **339,231,250 tokens / $207.41**, summing recorded rounded comparison
+amounts.
