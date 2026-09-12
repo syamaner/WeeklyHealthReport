@@ -1,7 +1,5 @@
 import SwiftUI
 import UIKit
-import HealthKit
-import HealthKitUI
 
 enum WeeklyReportRoute: String, Codable, Hashable {
     case dailyExport
@@ -61,9 +59,10 @@ final class WeeklyReportPresentationState: ObservableObject {
 }
 
 struct WeeklyReportView: View {
+    @ObservedObject var viewModel: WeeklyReportViewModel
     @ObservedObject var dailyExport: DailyDriveSessionController
     @ObservedObject var navigation: WeeklyReportNavigationController
-    @StateObject private var viewModel = WeeklyReportViewModel()
+    let medicationAccess: MedicationAccessRequest
     @StateObject private var presentationState = WeeklyReportPresentationState()
     @StateObject private var screenshotController = WeeklyReportScreenshotController()
     @State private var copied = false
@@ -76,9 +75,8 @@ struct WeeklyReportView: View {
     var body: some View {
         if #available(iOS 26.0, *) {
             reportContent
-                .healthDataAccessRequest(
-                    store: HealthStoreProvider.shared,
-                    objectType: .userAnnotatedMedicationType(),
+                .medicationAccessRequest(
+                    medicationAccess,
                     trigger: medicationAuthorizationRequest
                 ) { result in
                     Task { @MainActor in

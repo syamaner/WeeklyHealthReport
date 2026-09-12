@@ -74,6 +74,7 @@
 		A00000000000000000000041 /* FixtureClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000047 /* FixtureClock.swift */; };
 		A00000000000000000000042 /* FakeHealthDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000048 /* FakeHealthDataProvider.swift */; };
 		A00000000000000000000043 /* NutritionQueryCatalogue.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000049 /* NutritionQueryCatalogue.swift */; };
+		A00000000000000000000044 /* MedicationAccessRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004A /* MedicationAccessRequest.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -160,6 +161,7 @@
 		B00000000000000000000047 /* FixtureClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureClock.swift; sourceTree = "<group>"; };
 		B00000000000000000000048 /* FakeHealthDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeHealthDataProvider.swift; sourceTree = "<group>"; };
 		B00000000000000000000049 /* NutritionQueryCatalogue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionQueryCatalogue.swift; sourceTree = "<group>"; };
+		B0000000000000000000004A /* MedicationAccessRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationAccessRequest.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -253,6 +255,7 @@
 			children = (
 				B00000000000000000000006 /* WeeklyReportViewModel.swift */,
 				B00000000000000000000007 /* WeeklyReportView.swift */,
+				B0000000000000000000004A /* MedicationAccessRequest.swift */,
 				B00000000000000000000038 /* WeeklyReportSections.swift */,
 				B0000000000000000000001B /* DeveloperDiagnosticsView.swift */,
 				B00000000000000000000039 /* DeveloperDiagnosticsSections.swift */,
@@ -463,6 +466,7 @@
 				A00000000000000000000043 /* NutritionQueryCatalogue.swift in Sources */,
 				A00000000000000000000006 /* WeeklyReportViewModel.swift in Sources */,
 				A00000000000000000000007 /* WeeklyReportView.swift in Sources */,
+				A00000000000000000000044 /* MedicationAccessRequest.swift in Sources */,
 				A00000000000000000000032 /* WeeklyReportSections.swift in Sources */,
 				A0000000000000000000003D /* WeeklyReportPDFView.swift in Sources */,
 				A00000000000000000000018 /* DeveloperDiagnosticsView.swift in Sources */,
