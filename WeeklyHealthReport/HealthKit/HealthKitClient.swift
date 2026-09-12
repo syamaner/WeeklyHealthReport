@@ -878,12 +878,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         definition: NutritionMetricDefinition,
         type: HKQuantityType
     )] {
-        try NutritionCatalogue.all.map { definition in
-            guard let type = HKObjectType.quantityType(forIdentifier: definition.identifier) else {
-                throw HealthDataError.missingType("nutrition")
-            }
-            return (definition, type)
-        }
+        try NutritionQueryCatalogue.quantityTypes()
     }
 
     private func fetchNutrition(
