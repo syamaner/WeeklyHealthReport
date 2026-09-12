@@ -856,7 +856,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             let binding = DailyDestinationBinding(
                 accountID: context.account.id,
                 folderID: folderID,
-                folderName: "WeeklyHealthReport Exports",
+                folderName: DailyDriveConsentPolicy.defaultExportFolderName,
                 origin: .pendingCreate
             )
             var updatedPartitions = partitions

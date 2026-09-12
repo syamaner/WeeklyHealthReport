@@ -907,6 +907,14 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertEqual(snapshot.folderCount, 1)
         XCTAssertGreaterThanOrEqual(snapshot.folderReadCount, 2)
         XCTAssertEqual(snapshot.uploadCount, 0)
+        XCTAssertEqual(
+            try session.storedDestination(for: context.account.id)?.folderName,
+            DailyDriveConsentPolicy.defaultExportFolderName
+        )
+        XCTAssertEqual(
+            DailyDriveConsentPolicy.defaultExportFolderName,
+            "WeeklyHealthReport Exports"
+        )
     }
 
     @MainActor
