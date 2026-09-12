@@ -71,6 +71,8 @@
 		A0000000000000000000003E /* WeeklyReportScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000044 /* WeeklyReportScreenshotService.swift */; };
 		A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */; };
 		A00000000000000000000040 /* DailyHealthExportGoldenSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000046 /* DailyHealthExportGoldenSnapshots.swift */; };
+		A00000000000000000000041 /* FixtureClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000047 /* FixtureClock.swift */; };
+		A00000000000000000000042 /* FakeHealthDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000048 /* FakeHealthDataProvider.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -154,6 +156,8 @@
 		B00000000000000000000044 /* WeeklyReportScreenshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshotService.swift; sourceTree = "<group>"; };
 		B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshotTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000046 /* DailyHealthExportGoldenSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyHealthExportGoldenSnapshots.swift; sourceTree = "<group>"; };
+		B00000000000000000000047 /* FixtureClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureClock.swift; sourceTree = "<group>"; };
+		B00000000000000000000048 /* FakeHealthDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeHealthDataProvider.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -261,6 +265,7 @@
 		G00000000000000000000006 /* WeeklyHealthReportTests */ = {
 			isa = PBXGroup;
 			children = (
+				G0000000000000000000000C /* TestSupport */,
 				B00000000000000000000009 /* ReportPeriodTests.swift */,
 				B0000000000000000000000A /* StepSummaryTests.swift */,
 				B00000000000000000000010 /* WeightMeasurementTests.swift */,
@@ -285,6 +290,15 @@
 				B00000000000000000000046 /* DailyHealthExportGoldenSnapshots.swift */,
 			);
 			path = WeeklyHealthReportTests;
+			sourceTree = "<group>";
+		};
+		G0000000000000000000000C /* TestSupport */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000047 /* FixtureClock.swift */,
+				B00000000000000000000048 /* FakeHealthDataProvider.swift */,
+			);
+			path = TestSupport;
 			sourceTree = "<group>";
 		};
 		G00000000000000000000007 /* Frameworks */ = {
@@ -505,6 +519,8 @@
 				A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */,
 				A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */,
 				A00000000000000000000040 /* DailyHealthExportGoldenSnapshots.swift in Sources */,
+				A00000000000000000000041 /* FixtureClock.swift in Sources */,
+				A00000000000000000000042 /* FakeHealthDataProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
