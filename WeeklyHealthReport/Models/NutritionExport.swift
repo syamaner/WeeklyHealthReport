@@ -1,5 +1,4 @@
 import Foundation
-import HealthKit
 
 enum NutritionCategory: String, Codable, Equatable {
     case energy
@@ -17,20 +16,9 @@ enum NutritionExportUnit: String, Codable, Equatable {
     case milligrams = "mg"
     case micrograms = "mcg"
     case millilitres = "mL"
-
-    var healthKitUnit: HKUnit {
-        switch self {
-        case .kilocalories: .kilocalorie()
-        case .grams: .gramUnit(with: .none)
-        case .milligrams: .gramUnit(with: .milli)
-        case .micrograms: .gramUnit(with: .micro)
-        case .millilitres: .literUnit(with: .milli)
-        }
-    }
 }
 
 struct NutritionMetricDefinition: Equatable {
-    let identifier: HKQuantityTypeIdentifier
     let key: String
     let label: String
     let category: NutritionCategory
@@ -41,45 +29,45 @@ enum NutritionCatalogue {
     static let reportingPolicyID = "nutrition_last_7_completed_days_v1"
 
     static let all: [NutritionMetricDefinition] = [
-        .init(identifier: .dietaryEnergyConsumed, key: "energy_consumed", label: "Energy Consumed", category: .energy, unit: .kilocalories),
-        .init(identifier: .dietaryCarbohydrates, key: "carbohydrates", label: "Carbohydrates", category: .macronutrient, unit: .grams),
-        .init(identifier: .dietaryProtein, key: "protein", label: "Protein", category: .macronutrient, unit: .grams),
-        .init(identifier: .dietaryFatTotal, key: "fat_total", label: "Total Fat", category: .macronutrient, unit: .grams),
-        .init(identifier: .dietaryFatSaturated, key: "fat_saturated", label: "Saturated Fat", category: .macronutrient, unit: .grams),
-        .init(identifier: .dietaryFatMonounsaturated, key: "fat_monounsaturated", label: "Monounsaturated Fat", category: .macronutrient, unit: .grams),
-        .init(identifier: .dietaryFatPolyunsaturated, key: "fat_polyunsaturated", label: "Polyunsaturated Fat", category: .macronutrient, unit: .grams),
-        .init(identifier: .dietaryFiber, key: "fiber", label: "Fibre", category: .macronutrient, unit: .grams),
-        .init(identifier: .dietarySugar, key: "sugar", label: "Sugar", category: .macronutrient, unit: .grams),
-        .init(identifier: .dietaryCholesterol, key: "cholesterol", label: "Cholesterol", category: .macronutrient, unit: .milligrams),
-        .init(identifier: .dietaryVitaminA, key: "vitamin_a", label: "Vitamin A", category: .vitamin, unit: .micrograms),
-        .init(identifier: .dietaryThiamin, key: "thiamin_b1", label: "Thiamin (B1)", category: .vitamin, unit: .milligrams),
-        .init(identifier: .dietaryRiboflavin, key: "riboflavin_b2", label: "Riboflavin (B2)", category: .vitamin, unit: .milligrams),
-        .init(identifier: .dietaryNiacin, key: "niacin_b3", label: "Niacin (B3)", category: .vitamin, unit: .milligrams),
-        .init(identifier: .dietaryPantothenicAcid, key: "pantothenic_acid_b5", label: "Pantothenic Acid (B5)", category: .vitamin, unit: .milligrams),
-        .init(identifier: .dietaryVitaminB6, key: "vitamin_b6", label: "Vitamin B6", category: .vitamin, unit: .milligrams),
-        .init(identifier: .dietaryBiotin, key: "biotin_b7", label: "Biotin (B7)", category: .vitamin, unit: .micrograms),
-        .init(identifier: .dietaryFolate, key: "folate_b9", label: "Folate (B9)", category: .vitamin, unit: .micrograms),
-        .init(identifier: .dietaryVitaminB12, key: "vitamin_b12", label: "Vitamin B12", category: .vitamin, unit: .micrograms),
-        .init(identifier: .dietaryVitaminC, key: "vitamin_c", label: "Vitamin C", category: .vitamin, unit: .milligrams),
-        .init(identifier: .dietaryVitaminD, key: "vitamin_d", label: "Vitamin D", category: .vitamin, unit: .micrograms),
-        .init(identifier: .dietaryVitaminE, key: "vitamin_e", label: "Vitamin E", category: .vitamin, unit: .milligrams),
-        .init(identifier: .dietaryVitaminK, key: "vitamin_k", label: "Vitamin K", category: .vitamin, unit: .micrograms),
-        .init(identifier: .dietaryCalcium, key: "calcium", label: "Calcium", category: .mineral, unit: .milligrams),
-        .init(identifier: .dietaryChloride, key: "chloride", label: "Chloride", category: .mineral, unit: .milligrams),
-        .init(identifier: .dietaryIron, key: "iron", label: "Iron", category: .mineral, unit: .milligrams),
-        .init(identifier: .dietaryMagnesium, key: "magnesium", label: "Magnesium", category: .mineral, unit: .milligrams),
-        .init(identifier: .dietaryPhosphorus, key: "phosphorus", label: "Phosphorus", category: .mineral, unit: .milligrams),
-        .init(identifier: .dietaryPotassium, key: "potassium", label: "Potassium", category: .mineral, unit: .milligrams),
-        .init(identifier: .dietarySodium, key: "sodium", label: "Sodium", category: .mineral, unit: .milligrams),
-        .init(identifier: .dietaryZinc, key: "zinc", label: "Zinc", category: .mineral, unit: .milligrams),
-        .init(identifier: .dietaryChromium, key: "chromium", label: "Chromium", category: .ultratraceMineral, unit: .micrograms),
-        .init(identifier: .dietaryCopper, key: "copper", label: "Copper", category: .ultratraceMineral, unit: .milligrams),
-        .init(identifier: .dietaryIodine, key: "iodine", label: "Iodine", category: .ultratraceMineral, unit: .micrograms),
-        .init(identifier: .dietaryManganese, key: "manganese", label: "Manganese", category: .ultratraceMineral, unit: .milligrams),
-        .init(identifier: .dietaryMolybdenum, key: "molybdenum", label: "Molybdenum", category: .ultratraceMineral, unit: .micrograms),
-        .init(identifier: .dietarySelenium, key: "selenium", label: "Selenium", category: .ultratraceMineral, unit: .micrograms),
-        .init(identifier: .dietaryWater, key: "water", label: "Water", category: .hydration, unit: .millilitres),
-        .init(identifier: .dietaryCaffeine, key: "caffeine", label: "Caffeine", category: .caffeination, unit: .milligrams)
+        .init(key: "energy_consumed", label: "Energy Consumed", category: .energy, unit: .kilocalories),
+        .init(key: "carbohydrates", label: "Carbohydrates", category: .macronutrient, unit: .grams),
+        .init(key: "protein", label: "Protein", category: .macronutrient, unit: .grams),
+        .init(key: "fat_total", label: "Total Fat", category: .macronutrient, unit: .grams),
+        .init(key: "fat_saturated", label: "Saturated Fat", category: .macronutrient, unit: .grams),
+        .init(key: "fat_monounsaturated", label: "Monounsaturated Fat", category: .macronutrient, unit: .grams),
+        .init(key: "fat_polyunsaturated", label: "Polyunsaturated Fat", category: .macronutrient, unit: .grams),
+        .init(key: "fiber", label: "Fibre", category: .macronutrient, unit: .grams),
+        .init(key: "sugar", label: "Sugar", category: .macronutrient, unit: .grams),
+        .init(key: "cholesterol", label: "Cholesterol", category: .macronutrient, unit: .milligrams),
+        .init(key: "vitamin_a", label: "Vitamin A", category: .vitamin, unit: .micrograms),
+        .init(key: "thiamin_b1", label: "Thiamin (B1)", category: .vitamin, unit: .milligrams),
+        .init(key: "riboflavin_b2", label: "Riboflavin (B2)", category: .vitamin, unit: .milligrams),
+        .init(key: "niacin_b3", label: "Niacin (B3)", category: .vitamin, unit: .milligrams),
+        .init(key: "pantothenic_acid_b5", label: "Pantothenic Acid (B5)", category: .vitamin, unit: .milligrams),
+        .init(key: "vitamin_b6", label: "Vitamin B6", category: .vitamin, unit: .milligrams),
+        .init(key: "biotin_b7", label: "Biotin (B7)", category: .vitamin, unit: .micrograms),
+        .init(key: "folate_b9", label: "Folate (B9)", category: .vitamin, unit: .micrograms),
+        .init(key: "vitamin_b12", label: "Vitamin B12", category: .vitamin, unit: .micrograms),
+        .init(key: "vitamin_c", label: "Vitamin C", category: .vitamin, unit: .milligrams),
+        .init(key: "vitamin_d", label: "Vitamin D", category: .vitamin, unit: .micrograms),
+        .init(key: "vitamin_e", label: "Vitamin E", category: .vitamin, unit: .milligrams),
+        .init(key: "vitamin_k", label: "Vitamin K", category: .vitamin, unit: .micrograms),
+        .init(key: "calcium", label: "Calcium", category: .mineral, unit: .milligrams),
+        .init(key: "chloride", label: "Chloride", category: .mineral, unit: .milligrams),
+        .init(key: "iron", label: "Iron", category: .mineral, unit: .milligrams),
+        .init(key: "magnesium", label: "Magnesium", category: .mineral, unit: .milligrams),
+        .init(key: "phosphorus", label: "Phosphorus", category: .mineral, unit: .milligrams),
+        .init(key: "potassium", label: "Potassium", category: .mineral, unit: .milligrams),
+        .init(key: "sodium", label: "Sodium", category: .mineral, unit: .milligrams),
+        .init(key: "zinc", label: "Zinc", category: .mineral, unit: .milligrams),
+        .init(key: "chromium", label: "Chromium", category: .ultratraceMineral, unit: .micrograms),
+        .init(key: "copper", label: "Copper", category: .ultratraceMineral, unit: .milligrams),
+        .init(key: "iodine", label: "Iodine", category: .ultratraceMineral, unit: .micrograms),
+        .init(key: "manganese", label: "Manganese", category: .ultratraceMineral, unit: .milligrams),
+        .init(key: "molybdenum", label: "Molybdenum", category: .ultratraceMineral, unit: .micrograms),
+        .init(key: "selenium", label: "Selenium", category: .ultratraceMineral, unit: .micrograms),
+        .init(key: "water", label: "Water", category: .hydration, unit: .millilitres),
+        .init(key: "caffeine", label: "Caffeine", category: .caffeination, unit: .milligrams)
     ]
 }
 

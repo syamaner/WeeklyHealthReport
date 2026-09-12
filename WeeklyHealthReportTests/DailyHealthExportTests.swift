@@ -575,10 +575,17 @@ final class DailyHealthExportTests: XCTestCase {
 
         XCTAssertEqual(NutritionCatalogue.all.count, 39)
         XCTAssertEqual(Set(NutritionCatalogue.all.map(\.key)).count, 39)
-        XCTAssertEqual(Set(NutritionCatalogue.all.map(\.identifier)).count, 39)
         XCTAssertEqual(NutritionCatalogue.all.map(\.key), expected.map(\.0))
-        XCTAssertEqual(NutritionCatalogue.all.map(\.identifier), expected.map(\.1))
         XCTAssertEqual(NutritionCatalogue.all.map(\.unit), expected.map(\.2))
+        XCTAssertEqual(NutritionQueryCatalogue.quantityTypeIdentifiers.count, 39)
+        XCTAssertEqual(
+            Set(NutritionQueryCatalogue.quantityTypeIdentifiers.keys),
+            Set(NutritionCatalogue.all.map(\.key))
+        )
+        XCTAssertEqual(
+            Set(NutritionQueryCatalogue.quantityTypeIdentifiers.values).count,
+            39
+        )
         XCTAssertEqual(NutritionCatalogue.all.map(\.label), [
             "Energy Consumed", "Carbohydrates", "Protein", "Total Fat",
             "Saturated Fat", "Monounsaturated Fat", "Polyunsaturated Fat", "Fibre",
@@ -602,9 +609,16 @@ final class DailyHealthExportTests: XCTestCase {
             .ultratraceMineral, .ultratraceMineral, .ultratraceMineral,
             .hydration, .caffeination
         ])
-        for definition in NutritionCatalogue.all {
+        for (definition, (_, expectedIdentifier, _)) in zip(
+            NutritionCatalogue.all,
+            expected
+        ) {
+            let identifier = try XCTUnwrap(
+                NutritionQueryCatalogue.quantityTypeIdentifiers[definition.key]
+            )
+            XCTAssertEqual(identifier, expectedIdentifier)
             let type = try XCTUnwrap(
-                HKObjectType.quantityType(forIdentifier: definition.identifier)
+                HKObjectType.quantityType(forIdentifier: identifier)
             )
             XCTAssertTrue(type.is(compatibleWith: definition.unit.healthKitUnit))
         }

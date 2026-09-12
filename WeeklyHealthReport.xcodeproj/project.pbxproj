@@ -73,6 +73,7 @@
 		A00000000000000000000040 /* DailyHealthExportGoldenSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000046 /* DailyHealthExportGoldenSnapshots.swift */; };
 		A00000000000000000000041 /* FixtureClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000047 /* FixtureClock.swift */; };
 		A00000000000000000000042 /* FakeHealthDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000048 /* FakeHealthDataProvider.swift */; };
+		A00000000000000000000043 /* NutritionQueryCatalogue.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000049 /* NutritionQueryCatalogue.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -158,6 +159,7 @@
 		B00000000000000000000046 /* DailyHealthExportGoldenSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyHealthExportGoldenSnapshots.swift; sourceTree = "<group>"; };
 		B00000000000000000000047 /* FixtureClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureClock.swift; sourceTree = "<group>"; };
 		B00000000000000000000048 /* FakeHealthDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeHealthDataProvider.swift; sourceTree = "<group>"; };
+		B00000000000000000000049 /* NutritionQueryCatalogue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionQueryCatalogue.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -240,6 +242,7 @@
 			children = (
 				B00000000000000000000004 /* HealthDataProviding.swift */,
 				B00000000000000000000005 /* HealthKitClient.swift */,
+				B00000000000000000000049 /* NutritionQueryCatalogue.swift */,
 				B0000000000000000000002C /* DailyHealthExportService.swift */,
 			);
 			path = HealthKit;
@@ -457,6 +460,7 @@
 				A00000000000000000000003 /* StepSummary.swift in Sources */,
 				A00000000000000000000004 /* HealthDataProviding.swift in Sources */,
 				A00000000000000000000005 /* HealthKitClient.swift in Sources */,
+				A00000000000000000000043 /* NutritionQueryCatalogue.swift in Sources */,
 				A00000000000000000000006 /* WeeklyReportViewModel.swift in Sources */,
 				A00000000000000000000007 /* WeeklyReportView.swift in Sources */,
 				A00000000000000000000032 /* WeeklyReportSections.swift in Sources */,
