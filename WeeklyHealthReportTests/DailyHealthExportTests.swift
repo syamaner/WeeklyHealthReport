@@ -4,6 +4,46 @@ import XCTest
 
 // Every health value in this file is invented. These tests never access HealthKit.
 final class DailyHealthExportTests: XCTestCase {
+    func testSerializerOutputMatchesGoldenForPopulatedFixture() throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 23, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        let envelope = try DailyHealthExportBuilder.make(
+            window: window,
+            exportedAt: cutoff,
+            inputs: populatedInputs(window: window),
+            notes: ["Invented note"]
+        )
+
+        try assertGolden(
+            try DailyHealthExportSerializer.encode(envelope),
+            equals: DailyHealthExportGoldenSnapshots.populated
+        )
+    }
+
+    func testSerializerOmitsNilNotesAndNutritionAndMatchesGolden() throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 23, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        let populated = try DailyHealthExportBuilder.make(
+            window: window,
+            exportedAt: cutoff,
+            inputs: populatedInputs(window: window),
+            notes: ["Invented note"]
+        )
+        let envelope = withoutNotesAndNutrition(populated)
+        let bytes = try DailyHealthExportSerializer.encode(envelope)
+        let text = try XCTUnwrap(String(data: bytes, encoding: .utf8))
+
+        XCTAssertFalse(text.contains("\"notes\":"))
+        XCTAssertFalse(text.contains("\"nutrition\":"))
+        XCTAssertFalse(text.contains(":null"))
+        try assertGolden(
+            bytes,
+            equals: DailyHealthExportGoldenSnapshots.nilNotesAndNutrition
+        )
+    }
+
     func testEnvelopePreservesDailySemanticsAndExplicitAvailability() throws {
         let calendar = londonCalendar()
         let cutoff = date(2026, 9, 6, 23, calendar: calendar)
@@ -1057,6 +1097,70 @@ final class DailyHealthExportTests: XCTestCase {
         calendar.locale = Locale(identifier: "en_GB")
         calendar.timeZone = TimeZone(identifier: "Europe/London")!
         return calendar
+    }
+
+    private func withoutNotesAndNutrition(
+        _ envelope: DailyHealthExportEnvelope
+    ) -> DailyHealthExportEnvelope {
+        let today = envelope.today
+        let appContext = envelope.appContext
+        return DailyHealthExportEnvelope(
+            schemaVersion: envelope.schemaVersion,
+            reportDate: envelope.reportDate,
+            timeZone: envelope.timeZone,
+            dataAsOf: envelope.dataAsOf,
+            exportedAt: envelope.exportedAt,
+            dayWindow: envelope.dayWindow,
+            today: DailyHealthMetrics(
+                notes: nil,
+                weight: today.weight,
+                bodyFat: today.bodyFat,
+                waist: today.waist,
+                bloodPressure: today.bloodPressure,
+                glucose: today.glucose,
+                restingHeartRate: today.restingHeartRate,
+                hrv: today.hrv,
+                bloodOxygen: today.bloodOxygen,
+                vo2Max: today.vo2Max,
+                sleep: today.sleep,
+                activity: today.activity,
+                workouts: today.workouts,
+                watchCoverage: today.watchCoverage,
+                medications: today.medications,
+                nutrition: nil
+            ),
+            appContext: DailyAppContext(
+                policyID: appContext.policyID,
+                window: appContext.window,
+                weight: appContext.weight,
+                bodyFat: appContext.bodyFat,
+                waist: appContext.waist,
+                glucose: appContext.glucose,
+                vo2Max: appContext.vo2Max,
+                bloodOxygen: appContext.bloodOxygen,
+                bloodPressure: appContext.bloodPressure,
+                steps: appContext.steps,
+                restingHeartRate: appContext.restingHeartRate,
+                hrv: appContext.hrv,
+                watchCoverage: appContext.watchCoverage,
+                sleep: appContext.sleep,
+                activeEnergy: appContext.activeEnergy,
+                exercise: appContext.exercise,
+                workouts: appContext.workouts,
+                medications: appContext.medications,
+                nutrition: nil
+            )
+        )
+    }
+
+    private func assertGolden(
+        _ bytes: Data,
+        equals expected: String,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) throws {
+        let actual = try XCTUnwrap(String(data: bytes, encoding: .utf8), file: file, line: line)
+        XCTAssertEqual(actual, expected, file: file, line: line)
     }
 
     private func date(

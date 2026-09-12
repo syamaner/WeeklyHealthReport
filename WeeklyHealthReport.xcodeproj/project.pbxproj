@@ -70,6 +70,7 @@
 		A0000000000000000000003D /* WeeklyReportPDFView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000043 /* WeeklyReportPDFView.swift */; };
 		A0000000000000000000003E /* WeeklyReportScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000044 /* WeeklyReportScreenshotService.swift */; };
 		A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */; };
+		A00000000000000000000040 /* DailyHealthExportGoldenSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000046 /* DailyHealthExportGoldenSnapshots.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -152,6 +153,7 @@
 		B00000000000000000000043 /* WeeklyReportPDFView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportPDFView.swift; sourceTree = "<group>"; };
 		B00000000000000000000044 /* WeeklyReportScreenshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshotService.swift; sourceTree = "<group>"; };
 		B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshotTests.swift; sourceTree = "<group>"; };
+		B00000000000000000000046 /* DailyHealthExportGoldenSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyHealthExportGoldenSnapshots.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -280,6 +282,7 @@
 				B0000000000000000000003F /* DailyNotesStoreTests.swift */,
 				B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */,
 				B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */,
+				B00000000000000000000046 /* DailyHealthExportGoldenSnapshots.swift */,
 			);
 			path = WeeklyHealthReportTests;
 			sourceTree = "<group>";
@@ -501,6 +504,7 @@
 				A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */,
 				A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */,
 				A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */,
+				A00000000000000000000040 /* DailyHealthExportGoldenSnapshots.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
