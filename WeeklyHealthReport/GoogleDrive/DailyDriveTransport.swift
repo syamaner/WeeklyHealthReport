@@ -71,6 +71,7 @@ protocol DailyDriveSessionTransporting: DailyDriveTransporting {
 enum DailyDriveConsentPolicy {
     static let scope = "https://www.googleapis.com/auth/drive.file"
     static let folderMIMEType = "application/vnd.google-apps.folder"
+    static let defaultExportFolderName = "WeeklyHealthReport Exports"
 
     enum Failure: Error, Equatable {
         case missingDriveFileScope
@@ -261,7 +262,7 @@ struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
         ])
         let body = try JSONSerialization.data(withJSONObject: [
             "id": id,
-            "name": "WeeklyHealthReport Exports",
+            "name": DailyDriveConsentPolicy.defaultExportFolderName,
             "mimeType": DailyDriveConsentPolicy.folderMIMEType
         ], options: [.sortedKeys])
         return try await folderRequest(
