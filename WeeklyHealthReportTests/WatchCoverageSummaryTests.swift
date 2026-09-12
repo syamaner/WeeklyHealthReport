@@ -40,6 +40,29 @@ final class WatchCoverageSummaryTests: XCTestCase {
         XCTAssertNil(WatchCoverageSummary.calculate(appleWatchSampleDates: [], period: period))
     }
 
+    func testExactMidnightBelongsOnlyToFollowingDayAcrossDST() throws {
+        let calendar = testCalendar()
+        let period = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: date(2026, 10, 27, hour: 9, calendar: calendar),
+            calendar: calendar
+        )
+        let midnightAfterLongDay = date(2026, 10, 26, hour: 0, calendar: calendar)
+        let summary = try XCTUnwrap(WatchCoverageSummary.calculate(
+            appleWatchSampleDates: [
+                midnightAfterLongDay.addingTimeInterval(-1),
+                midnightAfterLongDay
+            ],
+            period: period
+        ))
+
+        XCTAssertEqual(summary.coveredDays.map(\.start), [
+            date(2026, 10, 25, hour: 0, calendar: calendar),
+            midnightAfterLongDay
+        ])
+        XCTAssertEqual(summary.coveredDays.first?.duration, 25 * 60 * 60)
+    }
+
     private func testCalendar() -> Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/London")!

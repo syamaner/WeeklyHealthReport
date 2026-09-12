@@ -404,7 +404,6 @@ subsequent commit/push/PR/merge activity and separate service usage. Every earli
 remains frozen. Tracked total becomes **196,368,023 tokens / $131.03**, summing
 recorded rounded comparison amounts.
 
-
 ## Slice-C daily query, model and canonical JSON, 6 September 2026
 
 The three product policies were ratified before implementation: latest end timestamp
@@ -916,3 +915,151 @@ final handoff, every other session and separate service usage. The three exact i
 **$4.579752**, rounded **$4.58** when calculated once; summing the three individually
 rounded ledger rows adds **$4.59**. Earlier rows remain frozen. Tracked total becomes
 **320,977,161 tokens / $197.36**, summing recorded rounded comparison amounts.
+
+
+## Issues #39 and #40 reporting semantics, 12 September 2026
+
+Corrected body-fat completed-day windows, weight and Watch interval membership, and
+Daily JSON interval metadata so report calculations use start-inclusive,
+end-exclusive local-calendar ranges while the independent latest body-fat reading can
+still include today. Corrected Average Daily Steps to average visible HealthKit daily
+totals only, preserved a returned zero as visible data, and added sampled/reporting-day
+coverage consistently to the report, copied text, native Full Page document,
+Developer Diagnostics and Daily JSON. JSON schema version 3 remains unchanged.
+
+Focused synthetic suites passed for both issues. After the final executable change,
+the complete iOS 26.5 simulator suite passed with all 189 tests, and the pure-model
+coverage gate passed at 95.70%. Xcode static analysis, project and plist validation,
+`git diff --check`, the final scope/status review and executable-input fingerprint
+`8ba057590c1610f204f0bd6215c805e4743eb157aa1397f84249e7ee6cb19e67`
+also passed. This is local and simulator evidence only: no physical device, personal
+HealthKit data, Google Drive, OAuth flow, provider operation, commit, push or CI run
+was exercised.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 12 Sep | `codex-phase-accounting` — issue #39 complete days and half-open ranges — GPT-5.6 Sol | Uncommitted implementation and focused synthetic tests | 2,540,339 (2,444,288) | 11,514 | 2,551,853 | $1.59 |
+| 12 Sep | `codex-phase-accounting` — issue #40 missing-day step semantics — GPT-5.6 Sol | Uncommitted Apple documentation research, implementation and focused synthetic tests | 2,700,169 (2,648,448) | 7,947 | 2,708,116 | $1.43 |
+| 12 Sep | `codex-phase-accounting` — issues #39/#40 shared validation — GPT-5.6 Sol | Uncommitted full validation and local review-index update | 3,320,759 (3,246,336) | 7,020 | 3,327,779 | $1.74 |
+
+Model confirmed from the session metadata and recorded turn context:
+`gpt-5.6-sol`. At the ledger's historical Sol comparison assumptions ($4/M uncached
+input, $0.40/M cached input and $20/M output), the issue #39 row is 96,051 × $4/M +
+2,444,288 × $0.40/M + 11,514 × $20/M = **$1.5921992**, rounded **$1.59**;
+the issue #40 row is 51,721 × $4/M + 2,648,448 × $0.40/M + 7,947 × $20/M =
+**$1.4252032**, rounded **$1.43**; and the shared row is 74,423 × $4/M +
+3,246,336 × $0.40/M + 7,020 × $20/M = **$1.7366264**, rounded **$1.74**.
+These are API-equivalent comparisons, not actual ChatGPT subscription charges or a
+model benchmark. Separate tool/service charges are not measured or estimated.
+
+Session `01a0956f-d724-7290-b97f-eeab1fdc0c96`, rollout
+`rollout-2026-09-12T12-45-29-01a0956f-d724-7290-b97f-eeab1fdc0c96.jsonl`.
+The issue #39 baseline is line 54, **2026-09-12 11:46:09.383 UTC**:
+**192,924 input / 160,384 cached input / 1,426 output**. Its frozen end is line
+248, **2026-09-12 11:51:05.298 UTC**: **2,733,263 input / 2,604,672 cached
+input / 12,940 output**. Reproduce with `--baseline 192924 160384 1426`.
+
+The issue #40 baseline is line 255, **2026-09-12 11:51:15.011 UTC**:
+**2,876,727 input / 2,745,728 cached input / 13,321 output**. Its frozen end is
+line 378, **2026-09-12 11:54:51.981 UTC**: **5,576,896 input / 5,394,176
+cached input / 21,268 output**. Reproduce with `--baseline 2876727 2745728
+13321`.
+
+The shared-validation baseline is line 385, **2026-09-12 11:54:58.628 UTC**:
+**5,769,698 input / 5,586,432 cached input / 21,546 output**. Its frozen end is
+line 582, **2026-09-12 12:01:19.964 UTC**: **9,090,457 input / 8,832,768
+cached input / 28,566 output**. Reproduce with `--baseline 5769698 5586432
+21546`. Append `--uncached-input-rate 4 --cached-input-rate 0.40
+--output-rate 20` to each command.
+
+The three exact, non-overlapping phases include issue-specific inspection,
+implementation and focused tests, followed by the one complete simulator suite,
+coverage gate, Xcode analysis, project validation, final diff review and external
+review-index update through their stated boundaries. The shared phase includes one
+environment-only analysis attempt against a simulator UUID that disappeared after the
+test run and the successful analysis rerun against the current equivalent simulator.
+No subagents, reused tasks or hosted reviews were used. Excludes the gaps between
+captured phases, these accounting calculations and ledger edits, subsequent device
+work, physical acceptance, issue comments, commit/push/PR/review/CI/merge work, every
+other session and separate service usage. The phases contain **8,587,748 tokens** in
+total. Their combined exact comparison is **$4.7540288**, rounded **$4.75** when
+calculated once; summing individually rounded ledger rows adds **$4.76**. Earlier rows
+remain frozen. Tracked total becomes **329,564,909 tokens / $202.12**, summing
+recorded rounded comparison amounts.
+
+### Authorised device build and installation
+
+After separate current authorisation, verified the paired iPhone destination and the
+unchanged executable-input fingerprint, built the uncommitted #39/#40 source state
+with local signing in isolated temporary DerivedData, installed it, and verified
+WeeklyHealthReport version 0.1.1 (build 1) by bundle identifier. CoreDevice accepted
+the developer app. The app was not launched or operated. No HealthKit value,
+measurement, screenshot, export or personal data was captured, so physical behaviour
+remains awaiting the user's private test result.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 12 Sep | `codex-phase-accounting` — issues #39/#40 authorised device build and installation — GPT-5.6 Sol | Uncommitted signed build, installation and verification | 887,024 (865,792) | 3,383 | 890,407 | $0.50 |
+
+At the same Sol comparison rates, 21,232 uncached input × $4/M + 865,792 cached
+input × $0.40/M + 3,383 output × $20/M = **$0.4989048**, rounded **$0.50**
+API-equivalent. It is not an actual ChatGPT subscription charge or a model benchmark,
+and separate tool/service charges are not measured or estimated.
+
+Same session and rollout as the three preceding #39/#40 rows. Baseline line 696,
+**2026-09-12 12:08:31.835 UTC**: **9,993,202 input / 9,709,952 cached input /
+36,513 output**. Frozen end line 784, **2026-09-12 12:11:32.223 UTC**:
+**10,880,226 input / 10,575,744 cached input / 39,896 output**. Reproduce from
+that rollout prefix with `--baseline 9993202 9709952 36513
+--uncached-input-rate 4 --cached-input-rate 0.40 --output-rate 20`.
+
+Includes the explicit current device authorisation, live destination check, unchanged
+fingerprint and repository-status check, locally signed build, installed-app identity
+and version verification, and external review-index update through the frozen
+boundary. No subagents, reused tasks or hosted reviews were used. Excludes this
+accounting edit/check, physical acceptance, issue comments, commit/push/PR/review/CI/
+merge work, every other session and separate service usage. The four exact #39/#40
+phases contain **9,478,155 tokens** in total. Their combined exact comparison is
+**$5.2529336**, rounded **$5.25** when calculated once; summing individually rounded
+ledger rows adds **$5.26**. Earlier rows remain frozen. Tracked total becomes
+**330,455,316 tokens / $202.62**, summing recorded rounded comparison amounts.
+
+### Qualified physical acceptance and pre-commit evidence
+
+The user tested the installed app privately, reported that no visible-zero step day was
+available, and explicitly approved moving on and closing the two issues. Available
+device behaviour is therefore accepted, while the visible-zero distinction remains
+supported by synthetic tests rather than physical observation. The agent did not
+operate the phone or capture any measurement, screenshot or export.
+
+Separate privacy-safe implementation, validation, installation and acceptance evidence
+was posted to issues #39 and #40. The remote base remained
+`62dc636b66bb49de3315893b44888224d537d857`, the executable-input fingerprint
+remained unchanged, and final pre-commit scope, status and diff checks passed.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 12 Sep | `codex-phase-accounting` — issues #39/#40 qualified physical acceptance and pre-commit evidence — GPT-5.6 Sol | Physical result record, issue evidence and final pre-commit checks | 766,609 (759,296) | 3,579 | 770,188 | $0.40 |
+
+At the same Sol comparison rates, 7,313 uncached input × $4/M + 759,296 cached
+input × $0.40/M + 3,579 output × $20/M = **$0.4045504**, rounded **$0.40**
+API-equivalent. It is not an actual ChatGPT subscription charge or a model benchmark,
+and separate tool/service charges are not measured or estimated.
+
+Same session and rollout as the preceding #39/#40 rows. Baseline line 868,
+**2026-09-12 12:13:54.803 UTC**: **11,984,047 input / 11,666,432 cached
+input / 46,338 output**. Frozen end line 934, **2026-09-12 12:27:57.199
+UTC**: **12,750,656 input / 12,425,728 cached input / 49,917 output**.
+Reproduce from that rollout prefix with `--baseline 11984047 11666432 46338
+--uncached-input-rate 4 --cached-input-rate 0.40 --output-rate 20`.
+
+Includes the user's qualified physical acceptance and closure authority, refreshed
+remote and live issue state, separate evidence comments on #39 and #40, external
+review-index update and final pre-commit checks through the frozen boundary. No
+subagents, reused tasks or hosted reviews were used. Excludes this accounting
+edit/check, commit, push, pull request, independent review, CI, merge, branch cleanup,
+final handoff, every other session and separate service usage. The five exact #39/#40
+phases contain **10,248,343 tokens** in total. Their combined exact comparison is
+**$5.6574840**, rounded **$5.66**; summing individually rounded ledger rows also adds
+**$5.66**. Earlier rows remain frozen. Tracked total becomes **331,225,504 tokens /
+$203.02**, summing recorded rounded comparison amounts.

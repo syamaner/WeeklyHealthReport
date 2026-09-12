@@ -20,6 +20,10 @@ struct StepsReportSection: View {
                     )
                 )
                 LabeledContent(
+                    "Data Coverage",
+                    value: HealthReportFormatter.stepCoverage(summary)
+                )
+                LabeledContent(
                     "Weekly Total",
                     value: summary.totalSteps.formatted(
                         .number.precision(.fractionLength(0))

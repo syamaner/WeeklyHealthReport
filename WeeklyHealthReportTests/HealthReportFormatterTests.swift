@@ -263,6 +263,7 @@ final class HealthReportFormatterTests: XCTestCase {
         Latest Evening Batch: 122.7/77.3 mmHg (3 readings, 24/08/26 - 20:14)
         Evening Blood Pressure Coverage: 4 / 7 days; 12 paired readings
         Average Daily Steps: 2,727
+        Step Data Coverage: 7 / 7 days
         Resting HR Average: 73 bpm
         Resting HR Trend: +3.0 bpm vs previous 7d
         HRV Average: 42 ms

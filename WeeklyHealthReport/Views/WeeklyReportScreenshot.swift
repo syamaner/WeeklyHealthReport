@@ -164,6 +164,11 @@ struct WeeklyReportPDFDocument: Equatable {
                     value: HealthReportFormatter.integer(summary.averageDailySteps, locale: locale)
                 ),
                 Row(
+                    "steps-coverage",
+                    label: "Data Coverage",
+                    value: HealthReportFormatter.stepCoverage(summary)
+                ),
+                Row(
                     "steps-total",
                     label: "Weekly Total",
                     value: HealthReportFormatter.integer(summary.totalSteps, locale: locale)
