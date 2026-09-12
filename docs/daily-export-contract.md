@@ -99,7 +99,7 @@ Metric state is explicit through an `availability` field: `available`, `no_data_
 | Metric | Today | Existing app context to retain |
 | --- | --- | --- |
 | Weight | One value in kg and recording time; missing if no measurement today | Current and previous seven-completed-day averages, signed kg trend, sampled-day counts and exact windows |
-| Body fat | Timestamped measurements in percentage points and daily summary | Existing seven-day and current/previous 28-day averages and percentage-point trend; current implementation can include today |
+| Body fat | Timestamped measurements in percentage points and daily summary | Latest may include today; seven-day and current/previous 28-day averages use completed local-calendar days and retain sampled-day coverage |
 | Waist | Timestamped measurements in cm | Latest-known measurement and existing four-week comparison, including comparison measurement/date or insufficient history |
 | Blood pressure | All intact systolic/diastolic pairs in mmHg, timestamp, morning/evening/outside-slot assignment; batch means and counts | Existing period morning/evening daily-first averages, coverage and latest batches with their dates; no invented BP trend |
 | Glucose | Daily average/minimum/maximum in mmol/L; proposed hourly statistics with explicit start/end and missing-hour states | Existing completed-period daily-first mean, observed range and coverage |
@@ -107,7 +107,7 @@ Metric state is explicit through an `availability` field: `available`, `no_data_
 | Blood oxygen | Timestamped readings in percent and today's median | Existing latest measurement, median-of-daily-medians, daily-median range and coverage |
 | VO₂ max | Timestamped estimates in mL/kg/min | Latest estimate and four-week/three-month/six-month daily-first averages and counts, ending at refresh as implemented |
 | Sleep | Merged asleep intervals and duration for today's wake-date bucket | Existing completed-period average and sampled-night coverage |
-| Activity | HealthKit-resolved steps, active kcal and exercise minutes | Existing completed-period summaries with their dates |
+| Activity | HealthKit-resolved steps, active kcal and exercise minutes | Step average over visible daily totals with sampled/reporting-day coverage; existing completed-period energy and exercise summaries |
 | Workouts | Individual type, start time and duration; stable record identity for matching | Existing period count and duration summary |
 | Watch coverage | Presence of qualifying Watch heart-rate data today, not wear duration | Existing sampled-day coverage |
 | Medications | Visible taken events with medication, logged quantity/unit and timestamp | Existing period event summaries, explicitly tied to their reporting window |
@@ -131,7 +131,10 @@ Sleep remains the existing noon-to-noon bucket ending on the waking date, clippe
 
 Weight, body fat, waist and VO₂ max already have metric-specific windows. RHR, HRV and other period summaries depend on the screen's selected period. Ratified export policy: fix period-dependent context to Last 7 Completed Days, independent of the UI selection, and use existing pure calculations. This makes repeated daily exports comparable. The export never quietly inherits whichever screen selection happens to be active.
 
-The earlier conversation's blanket claim that all trends use completed-day windows was incorrect. Preserve actual per-metric behaviour; do not change body-fat or VO₂ max calculations as part of export.
+Body-fat seven-day and current/previous 28-day summaries use start-inclusive,
+end-exclusive completed-day windows ending at local midnight today; the independent
+latest body-fat measurement may include today. VO₂ max retains its distinct windows
+ending at the captured refresh time.
 
 ## Replacement and failure contract
 

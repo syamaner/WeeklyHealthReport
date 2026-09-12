@@ -41,8 +41,8 @@ struct BodyFatTrendSummary: Equatable {
         var calendar = suppliedCalendar
         calendar.timeZone = suppliedCalendar.timeZone
         let today = calendar.startOfDay(for: asOf)
-        guard let sevenDayStart = calendar.date(byAdding: .day, value: -6, to: today),
-              let current28DayStart = calendar.date(byAdding: .day, value: -27, to: today),
+        guard let sevenDayStart = calendar.date(byAdding: .day, value: -7, to: today),
+              let current28DayStart = calendar.date(byAdding: .day, value: -28, to: today),
               let previous28DayStart = calendar.date(byAdding: .day, value: -28, to: current28DayStart)
         else {
             return nil
@@ -66,8 +66,8 @@ struct BodyFatTrendSummary: Equatable {
             return values.reduce(0, +) / Double(values.count)
         }
 
-        let sevenDayAverage = average(from: sevenDayStart, to: asOf)
-        let current28DayAverage = average(from: current28DayStart, to: asOf)
+        let sevenDayAverage = average(from: sevenDayStart, to: today)
+        let current28DayAverage = average(from: current28DayStart, to: today)
         let previous28DayAverage = average(from: previous28DayStart, to: current28DayStart)
         let trend = current28DayAverage.flatMap { current in
             previous28DayAverage.map { current - $0 }

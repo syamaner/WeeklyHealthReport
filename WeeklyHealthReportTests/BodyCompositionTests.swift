@@ -56,6 +56,56 @@ final class BodyCompositionTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(summary.trendPercentagePoints), -1.0, accuracy: 0.0001)
     }
 
+    func testTodayChangesLatestWithoutChangingCompletedDayAveragesOrTrend() throws {
+        let asOf = date(2026, 8, 25, 12)
+        let completedDayMeasurements = [
+            bodyFat(2026, 7, 2, 8, 30.0),
+            bodyFat(2026, 7, 10, 8, 28.0),
+            bodyFat(2026, 8, 1, 8, 24.0),
+            bodyFat(2026, 8, 24, 23, 22.0)
+        ]
+        let beforeToday = try XCTUnwrap(BodyFatTrendSummary.calculate(
+            measurements: completedDayMeasurements,
+            asOf: asOf,
+            calendar: calendar
+        ))
+        let withToday = try XCTUnwrap(BodyFatTrendSummary.calculate(
+            measurements: completedDayMeasurements + [
+                BodyFatMeasurement(date: date(2026, 8, 25), percentage: 10.0)
+            ],
+            asOf: asOf,
+            calendar: calendar
+        ))
+
+        XCTAssertEqual(withToday.latest.percentage, 10.0)
+        XCTAssertEqual(withToday.sevenDayAverage, beforeToday.sevenDayAverage)
+        XCTAssertEqual(withToday.current28DayAverage, beforeToday.current28DayAverage)
+        XCTAssertEqual(withToday.previous28DayAverage, beforeToday.previous28DayAverage)
+        XCTAssertEqual(withToday.trendPercentagePoints, beforeToday.trendPercentagePoints)
+    }
+
+    func testCompletedDayWindowsAreHalfOpenAcrossDaylightSavingChange() throws {
+        let asOf = date(2026, 10, 27, 12)
+        let today = calendar.startOfDay(for: asOf)
+        let justBeforeToday = today.addingTimeInterval(-1)
+        let sevenDayStart = try XCTUnwrap(
+            calendar.date(byAdding: .day, value: -7, to: today)
+        )
+        let summary = try XCTUnwrap(BodyFatTrendSummary.calculate(
+            measurements: [
+                BodyFatMeasurement(date: sevenDayStart, percentage: 20.0),
+                BodyFatMeasurement(date: justBeforeToday, percentage: 22.0),
+                BodyFatMeasurement(date: today, percentage: 90.0)
+            ],
+            asOf: asOf,
+            calendar: calendar
+        ))
+
+        XCTAssertEqual(try XCTUnwrap(summary.sevenDayAverage), 21.0, accuracy: 0.0001)
+        XCTAssertEqual(summary.latest.percentage, 90.0)
+        XCTAssertEqual(today.timeIntervalSince(sevenDayStart), 169 * 60 * 60)
+    }
+
     func testBodyFatAverageRequiresTwoDistinctSampledDays() {
         let summary = BodyFatTrendSummary.calculate(
             measurements: [bodyFat(2026, 8, 24, 8, 26.4)],

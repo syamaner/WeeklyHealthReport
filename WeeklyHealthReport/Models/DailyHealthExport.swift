@@ -979,11 +979,11 @@ enum DailyHealthExportBuilder {
         }
         guard let bodyFatSevenStart = calendar.date(
             byAdding: .day,
-            value: -6,
+            value: -7,
             to: today
         ), let bodyFatCurrent28Start = calendar.date(
             byAdding: .day,
-            value: -27,
+            value: -28,
             to: today
         ), let bodyFatPrevious28Start = calendar.date(
             byAdding: .day,
@@ -1017,7 +1017,7 @@ enum DailyHealthExportBuilder {
                         window: exportInterval(currentWindow),
                         coverage: ExportCoverage(
                             sampledDays: summary.dailyValues.filter {
-                                currentWindow.contains($0.day)
+                                currentWindow.containsHalfOpen($0.day)
                             }.count,
                             reportingDays: contextPeriod.completedDays.count
                         )
@@ -1030,7 +1030,7 @@ enum DailyHealthExportBuilder {
                         window: exportInterval(previousWindow),
                         coverage: ExportCoverage(
                             sampledDays: summary.dailyValues.filter {
-                                previousWindow.contains($0.day)
+                                previousWindow.containsHalfOpen($0.day)
                             }.count,
                             reportingDays: contextPeriod.completedDays.count
                         )
@@ -1077,13 +1077,13 @@ enum DailyHealthExportBuilder {
                 sevenDayAverage: average(
                     summary.sevenDayAverage,
                     start: bodyFatSevenStart,
-                    end: window.cutoff,
+                    end: today,
                     reportingDays: 7
                 ),
                 current28DayAverage: average(
                     summary.current28DayAverage,
                     start: bodyFatCurrent28Start,
-                    end: window.cutoff,
+                    end: today,
                     reportingDays: 28
                 ),
                 previous28DayAverage: average(

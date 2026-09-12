@@ -39,6 +39,51 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         XCTAssertTrue(document.searchableText.contains("Daily Average\nQuery failed"))
     }
 
+    func testDocumentShowsSampledDayStepAverageAndCoverage() throws {
+        let summary = try XCTUnwrap(StepSummary.aggregate([
+            DailyStepTotal(
+                day: DateInterval(start: Date(timeIntervalSinceReferenceDate: 0), duration: 86_400),
+                steps: 10_000,
+                sourceNames: ["Invented Watch"]
+            ),
+            DailyStepTotal(
+                day: DateInterval(start: Date(timeIntervalSinceReferenceDate: 86_400), duration: 86_400),
+                steps: nil,
+                sourceNames: []
+            ),
+            DailyStepTotal(
+                day: DateInterval(start: Date(timeIntervalSinceReferenceDate: 172_800), duration: 86_400),
+                steps: 4_000,
+                sourceNames: ["Invented Phone"]
+            )
+        ]))
+        let document = WeeklyReportPDFDocument(
+            snapshot: makeSnapshot(steps: .loaded(summary)),
+            calendar: testCalendar(),
+            locale: Locale(identifier: "en_GB")
+        )
+        let section = try XCTUnwrap(document.sections.first { $0.id == .steps })
+
+        XCTAssertEqual(section.rows.first { $0.id == "steps-average" }?.value, "7,000")
+        XCTAssertEqual(section.rows.first { $0.id == "steps-coverage" }?.value, "2 / 3 days")
+    }
+
+    func testDocumentPreservesUnavailableAndFailedStepStates() {
+        let unavailable = WeeklyReportPDFDocument(
+            snapshot: makeSnapshot(steps: .healthUnavailable),
+            calendar: testCalendar(),
+            locale: Locale(identifier: "en_GB")
+        )
+        let failed = WeeklyReportPDFDocument(
+            snapshot: makeSnapshot(steps: .failed("Synthetic step failure")),
+            calendar: testCalendar(),
+            locale: Locale(identifier: "en_GB")
+        )
+
+        XCTAssertTrue(unavailable.searchableText.contains("Health data is unavailable"))
+        XCTAssertTrue(failed.searchableText.contains("Step query failed: Synthetic step failure"))
+    }
+
     func testDocumentPreservesExpandedAndCollapsedBloodPressureDetails() throws {
         let summary = syntheticBloodPressureSummary()
         let document = makeDocument(

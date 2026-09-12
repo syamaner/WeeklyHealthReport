@@ -249,6 +249,89 @@ final class DailyHealthExportTests: XCTestCase {
         )
     }
 
+    func testAppContextUsesHalfOpenWeightCoverageAndCompletedBodyFatWindows() throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 23, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        let day = { offset in
+            calendar.date(byAdding: .day, value: offset, to: window.day.start)!
+        }
+        let weights = (-14 ... -1).map { offset in
+            WeightMeasurement(
+                date: calendar.date(byAdding: .hour, value: 8, to: day(offset))!,
+                kilograms: 80 + Double(offset) / 10
+            )
+        }
+        let bodyFat = [
+            BodyFatMeasurement(date: day(-40), percentage: 26),
+            BodyFatMeasurement(date: day(-30), percentage: 24),
+            BodyFatMeasurement(date: day(-2), percentage: 22),
+            BodyFatMeasurement(date: day(-1), percentage: 20),
+            BodyFatMeasurement(date: day(0), percentage: 90)
+        ]
+        let inputs = replacing(
+            emptyInputs(window: window),
+            weight: weights,
+            bodyFat: bodyFat
+        )
+
+        let envelope = try DailyHealthExportBuilder.make(
+            window: window,
+            exportedAt: cutoff,
+            inputs: inputs
+        )
+
+        XCTAssertEqual(envelope.schemaVersion, 3)
+        XCTAssertEqual(
+            envelope.appContext.weight.data?.currentSevenDayAverage.data?.coverage.sampledDays,
+            7
+        )
+        XCTAssertEqual(
+            envelope.appContext.weight.data?.previousSevenDayAverage.data?.coverage.sampledDays,
+            7
+        )
+        XCTAssertEqual(
+            envelope.appContext.bodyFat.data?.sevenDayAverage.data?.value,
+            21
+        )
+        XCTAssertEqual(
+            envelope.appContext.bodyFat.data?.sevenDayAverage.data?.window.end,
+            "2026-09-06T00:00:00+01:00"
+        )
+        XCTAssertEqual(
+            envelope.appContext.bodyFat.data?.current28DayAverage.data?.window.end,
+            "2026-09-06T00:00:00+01:00"
+        )
+        XCTAssertEqual(envelope.appContext.bodyFat.data?.latest.value, 90)
+    }
+
+    func testAppContextStepAverageAndCoverageUseVisibleDaysOnly() throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 23, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        let contextSteps = window.context.completedDays.enumerated().map { index, day in
+            DailyStepTotal(
+                day: day,
+                steps: index == 1 ? 10_000 : index == 5 ? 4_000 : nil,
+                sourceNames: index == 1 || index == 5 ? ["Invented resolver"] : []
+            )
+        }
+        let inputs = replacing(
+            emptyInputs(window: window),
+            contextSteps: contextSteps
+        )
+
+        let envelope = try DailyHealthExportBuilder.make(
+            window: window,
+            exportedAt: cutoff,
+            inputs: inputs
+        )
+
+        XCTAssertEqual(envelope.appContext.steps.data?.dailyAverage.value, 7_000)
+        XCTAssertEqual(envelope.appContext.steps.data?.coverage.sampledDays, 2)
+        XCTAssertEqual(envelope.appContext.steps.data?.coverage.reportingDays, 7)
+    }
+
     func testQueryFailureBlocksSerialization() async throws {
         let calendar = londonCalendar()
         let provider = FailingDailyProvider()
@@ -1215,6 +1298,7 @@ final class DailyHealthExportTests: XCTestCase {
         todayGlucose: DailyGlucoseValue? = nil,
         hourlyGlucose: [DailyGlucoseValue]? = nil,
         todaySteps: DailyStepTotal? = nil,
+        contextSteps: [DailyStepTotal]? = nil,
         supportsMedicationData: Bool? = nil,
         nutrition: NutritionExportInput? = nil
     ) -> DailyHealthExportInputs {
@@ -1237,7 +1321,7 @@ final class DailyHealthExportTests: XCTestCase {
             todayAsleepIntervals: value.todayAsleepIntervals,
             todayMedicationDoses: value.todayMedicationDoses,
             supportsMedicationData: supportsMedicationData ?? value.supportsMedicationData,
-            contextSteps: value.contextSteps,
+            contextSteps: contextSteps ?? value.contextSteps,
             contextGlucose: value.contextGlucose,
             contextRestingHeartRate: value.contextRestingHeartRate,
             previousRestingHeartRate: value.previousRestingHeartRate,

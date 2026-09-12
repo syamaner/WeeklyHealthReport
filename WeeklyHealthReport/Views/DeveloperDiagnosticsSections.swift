@@ -20,10 +20,13 @@ struct StepsDiagnosticsSection: View {
         if case .loaded(let summary) = state {
             Section("Steps") {
                 LabeledContent(
-                    "Denominator",
-                    value: "\(summary.reportingDayCount) completed days"
+                    "Average daily steps",
+                    value: HealthReportFormatter.integer(summary.averageDailySteps)
                 )
-                LabeledContent("Days with data", value: String(summary.daysWithVisibleData))
+                LabeledContent(
+                    "Data coverage",
+                    value: HealthReportFormatter.stepCoverage(summary)
+                )
                 ForEach(summary.dailyTotals) { daily in
                     VStack(alignment: .leading, spacing: 4) {
                         LabeledContent(

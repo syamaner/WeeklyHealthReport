@@ -8,6 +8,10 @@ enum HealthReportFormatter {
         value.formatted(.number.locale(locale).precision(.fractionLength(0)))
     }
 
+    static func stepCoverage(_ summary: StepSummary) -> String {
+        "\(summary.daysWithVisibleData) / \(summary.reportingDayCount) days"
+    }
+
     static func weightKilograms(
         _ kilograms: Double,
         locale: Locale = .autoupdatingCurrent
@@ -313,6 +317,7 @@ enum HealthReportFormatter {
             "Latest Evening Batch: \(report.bloodPressure?.latestEveningBatch.map { bloodPressureBatch($0, calendar: calendar, locale: locale) } ?? "No data")",
             "Evening Blood Pressure Coverage: \(report.bloodPressure?.evening.map(bloodPressureCoverage) ?? "No data")",
             "Average Daily Steps: \(report.steps.map { integer($0.averageDailySteps, locale: locale) } ?? "No data")",
+            "Step Data Coverage: \(report.steps.map(stepCoverage) ?? "No data")",
             "Resting HR Average: \(report.restingHeartRate.map { heartRate($0.current.average, locale: locale) } ?? "No data")",
             "Resting HR Trend: \(report.restingHeartRate?.trend.map { signedChange($0, unit: "bpm", comparison: comparison, locale: locale) } ?? "Insufficient history")",
             "HRV Average: \(report.hrv.map { hrvMilliseconds($0.current.average, locale: locale) } ?? "No data")",

@@ -25,7 +25,7 @@ struct StepSummary: Equatable {
         return StepSummary(
             dailyTotals: dailyTotals,
             totalSteps: total,
-            averageDailySteps: total / Double(dailyTotals.count),
+            averageDailySteps: total / Double(visibleValues.count),
             reportingDayCount: dailyTotals.count,
             daysWithVisibleData: visibleValues.count
         )
