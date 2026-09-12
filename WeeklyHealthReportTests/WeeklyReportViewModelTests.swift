@@ -283,6 +283,91 @@ final class WeeklyReportViewModelTests: XCTestCase {
         assertSnapshotMatchesPublishedStates(viewModel)
     }
 
+    func testMedicationOnlyRefreshRejectsOlderFullRefreshMedicationCompletion() async throws {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 2, hour: 12, calendar: calendar)
+        let period = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: refreshDate,
+            calendar: calendar
+        )
+        let provider = FakeHealthDataProvider(
+            medicationResponses: [
+                [medicationRecord(name: "Older Full Refresh", in: period)],
+                [medicationRecord(name: "Newer Medication Refresh", in: period)]
+            ],
+            pauseFirstMedicationFetch: true
+        )
+        let viewModel = makeViewModel(
+            provider: provider,
+            calendar: calendar,
+            dates: [refreshDate]
+        )
+
+        let olderFullRefresh = Task { await viewModel.refresh() }
+        await provider.waitUntilFirstMedicationFetchIsPaused()
+
+        await viewModel.refreshMedications()
+        XCTAssertEqual(
+            try XCTUnwrap(viewModel.medicationState.value).groups.first?.medicationName,
+            "Newer Medication Refresh"
+        )
+
+        await provider.resumeFirstMedicationFetch()
+        await olderFullRefresh.value
+
+        XCTAssertEqual(
+            try XCTUnwrap(viewModel.medicationState.value).groups.first?.medicationName,
+            "Newer Medication Refresh"
+        )
+    }
+
+    func testFullRefreshRejectsOlderMedicationOnlyRefreshCompletion() async throws {
+        let calendar = testCalendar()
+        let olderDate = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let newerDate = date(2026, 9, 2, hour: 12, calendar: calendar)
+        let olderPeriod = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: olderDate,
+            calendar: calendar
+        )
+        let newerPeriod = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: newerDate,
+            calendar: calendar
+        )
+        let provider = FakeHealthDataProvider(
+            medicationResponses: [
+                [medicationRecord(name: "Older Medication Refresh", in: olderPeriod)],
+                [medicationRecord(name: "Newer Full Refresh", in: newerPeriod)]
+            ],
+            pauseFirstMedicationFetch: true
+        )
+        let viewModel = makeViewModel(
+            provider: provider,
+            calendar: calendar,
+            dates: [olderDate, newerDate]
+        )
+
+        let olderMedicationRefresh = Task { await viewModel.refreshMedications() }
+        await provider.waitUntilFirstMedicationFetchIsPaused()
+
+        await viewModel.refresh()
+        XCTAssertEqual(
+            try XCTUnwrap(viewModel.medicationState.value).groups.first?.medicationName,
+            "Newer Full Refresh"
+        )
+
+        await provider.resumeFirstMedicationFetch()
+        await olderMedicationRefresh.value
+
+        XCTAssertEqual(viewModel.period, newerPeriod)
+        XCTAssertEqual(
+            try XCTUnwrap(viewModel.medicationState.value).groups.first?.medicationName,
+            "Newer Full Refresh"
+        )
+    }
+
     func testCurrentWeekWithNoCompletedDaysKeepsContextAndEndsPeriodMetrics() async {
         let calendar = testCalendar()
         let monday = date(2026, 8, 31, hour: 12, calendar: calendar)
@@ -327,6 +412,20 @@ final class WeeklyReportViewModelTests: XCTestCase {
             healthData: provider,
             calendar: calendar,
             now: clock.now
+        )
+    }
+
+    private func medicationRecord(
+        name: String,
+        in period: ReportPeriod
+    ) -> MedicationDoseRecord {
+        MedicationDoseRecord(
+            id: UUID(),
+            medicationKey: name,
+            medicationName: name,
+            date: period.completedDays[0].start.addingTimeInterval(3_600),
+            quantity: 1,
+            unitLabel: "dose"
         )
     }
 
@@ -497,6 +596,7 @@ private final class FakeHealthDataProvider: HealthDataProviding {
     private let authorizationError: FixtureError?
     private let glucoseError: FixtureError?
     private let weightResponses: [[WeightMeasurement]]
+    private let medicationResponses: [[MedicationDoseRecord]]
     private let control: FakeHealthDataControl
 
     init(
@@ -505,14 +605,20 @@ private final class FakeHealthDataProvider: HealthDataProviding {
         authorizationError: FixtureError? = nil,
         glucoseError: FixtureError? = nil,
         weightResponses: [[WeightMeasurement]] = [],
-        pauseFirstWeightFetch: Bool = false
+        pauseFirstWeightFetch: Bool = false,
+        medicationResponses: [[MedicationDoseRecord]] = [],
+        pauseFirstMedicationFetch: Bool = false
     ) {
         self.isHealthDataAvailable = isHealthDataAvailable
         self.supportsMedicationData = supportsMedicationData
         self.authorizationError = authorizationError
         self.glucoseError = glucoseError
         self.weightResponses = weightResponses
-        self.control = FakeHealthDataControl(pauseFirstWeightFetch: pauseFirstWeightFetch)
+        self.medicationResponses = medicationResponses
+        self.control = FakeHealthDataControl(
+            pauseFirstWeightFetch: pauseFirstWeightFetch,
+            pauseFirstMedicationFetch: pauseFirstMedicationFetch
+        )
     }
 
     func authorizationRequestCount() async -> Int {
@@ -525,6 +631,14 @@ private final class FakeHealthDataProvider: HealthDataProviding {
 
     func resumeFirstWeightFetch() async {
         await control.resumeFirstWeightFetch()
+    }
+
+    func waitUntilFirstMedicationFetchIsPaused() async {
+        await control.waitUntilFirstMedicationFetchIsPaused()
+    }
+
+    func resumeFirstMedicationFetch() async {
+        await control.resumeFirstMedicationFetch()
     }
 
     func requestReadAuthorization() async throws {
@@ -658,14 +772,17 @@ private final class FakeHealthDataProvider: HealthDataProviding {
         for period: ReportPeriod
     ) async throws -> [MedicationDoseRecord] {
         guard let day = period.completedDays.first else { return [] }
-        return [MedicationDoseRecord(
-            id: fixtureID,
-            medicationKey: "synthetic-medication",
-            medicationName: "ExampleMed 10 mg",
-            date: day.start.addingTimeInterval(3_600),
-            quantity: 1,
-            unitLabel: "dose"
-        )]
+        return await control.nextMedicationDoses(
+            responses: medicationResponses,
+            fallback: [MedicationDoseRecord(
+                id: fixtureID,
+                medicationKey: "synthetic-medication",
+                medicationName: "ExampleMed 10 mg",
+                date: day.start.addingTimeInterval(3_600),
+                quantity: 1,
+                unitLabel: "dose"
+            )]
+        )
     }
 
     private func heartValues(
@@ -684,13 +801,18 @@ private final class FakeHealthDataProvider: HealthDataProviding {
 
 private actor FakeHealthDataControl {
     private let pauseFirstWeightFetch: Bool
+    private let pauseFirstMedicationFetch: Bool
     private var weightFetchCount = 0
+    private var medicationFetchCount = 0
     private var pausedWeightFetch: CheckedContinuation<Void, Never>?
-    private var pauseObserver: CheckedContinuation<Void, Never>?
+    private var weightPauseObserver: CheckedContinuation<Void, Never>?
+    private var pausedMedicationFetch: CheckedContinuation<Void, Never>?
+    private var medicationPauseObserver: CheckedContinuation<Void, Never>?
     private(set) var authorizationRequestCount = 0
 
-    init(pauseFirstWeightFetch: Bool) {
+    init(pauseFirstWeightFetch: Bool, pauseFirstMedicationFetch: Bool) {
         self.pauseFirstWeightFetch = pauseFirstWeightFetch
+        self.pauseFirstMedicationFetch = pauseFirstMedicationFetch
     }
 
     func recordAuthorizationRequest() {
@@ -708,8 +830,8 @@ private actor FakeHealthDataControl {
         if pauseFirstWeightFetch, callIndex == 0 {
             await withCheckedContinuation { continuation in
                 pausedWeightFetch = continuation
-                pauseObserver?.resume()
-                pauseObserver = nil
+                weightPauseObserver?.resume()
+                weightPauseObserver = nil
             }
         }
         return result
@@ -718,7 +840,7 @@ private actor FakeHealthDataControl {
     func waitUntilFirstWeightFetchIsPaused() async {
         guard pausedWeightFetch == nil else { return }
         await withCheckedContinuation { continuation in
-            pauseObserver = continuation
+            weightPauseObserver = continuation
         }
     }
 
@@ -726,5 +848,36 @@ private actor FakeHealthDataControl {
         precondition(pausedWeightFetch != nil)
         pausedWeightFetch?.resume()
         pausedWeightFetch = nil
+    }
+
+    func nextMedicationDoses(
+        responses: [[MedicationDoseRecord]],
+        fallback: [MedicationDoseRecord]
+    ) async -> [MedicationDoseRecord] {
+        let callIndex = medicationFetchCount
+        medicationFetchCount += 1
+        let result = responses.indices.contains(callIndex) ? responses[callIndex] : fallback
+
+        if pauseFirstMedicationFetch, callIndex == 0 {
+            await withCheckedContinuation { continuation in
+                pausedMedicationFetch = continuation
+                medicationPauseObserver?.resume()
+                medicationPauseObserver = nil
+            }
+        }
+        return result
+    }
+
+    func waitUntilFirstMedicationFetchIsPaused() async {
+        guard pausedMedicationFetch == nil else { return }
+        await withCheckedContinuation { continuation in
+            medicationPauseObserver = continuation
+        }
+    }
+
+    func resumeFirstMedicationFetch() {
+        precondition(pausedMedicationFetch != nil)
+        pausedMedicationFetch?.resume()
+        pausedMedicationFetch = nil
     }
 }

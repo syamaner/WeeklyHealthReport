@@ -7,6 +7,70 @@ enum HealthStoreProvider {
     static let shared = HKHealthStore()
 }
 
+/// Maps opaque, stable identities to process-local keys without persisting or
+/// exposing the underlying identifier. The lock protects the complete mapping
+/// and counter as one small critical section.
+final class StableIdentityKeyRegistry<Identity: Hashable & Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private let prefix: String
+    private var keys: [Identity: String] = [:]
+    private var nextKey = 0
+
+    init(prefix: String) {
+        self.prefix = prefix
+    }
+
+    func key(for identity: Identity) -> String {
+        lock.withLock {
+            if let key = keys[identity] {
+                return key
+            }
+            let key = "\(prefix)-\(nextKey)"
+            nextKey += 1
+            keys[identity] = key
+            return key
+        }
+    }
+}
+
+/// Publishes whole snapshots after a successful asynchronous load. Readers hold
+/// the lock only long enough to copy one value, never while HealthKit is queried.
+final class AtomicSnapshotCache<Key: Hashable & Sendable, Value: Sendable>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var snapshot: [Key: Value]
+
+    init(_ snapshot: [Key: Value] = [:]) {
+        self.snapshot = snapshot
+    }
+
+    func value(for key: Key) -> Value? {
+        lock.withLock { snapshot[key] }
+    }
+
+    @discardableResult
+    func replaceAfterSuccessfulLoad(
+        _ load: () async throws -> [Key: Value]
+    ) async throws -> [Key: Value] {
+        let loaded = try await load()
+        try Task.checkCancellation()
+        replace(with: loaded)
+        return loaded
+    }
+
+    private func replace(with newSnapshot: [Key: Value]) {
+        lock.withLock {
+            snapshot = newSnapshot
+        }
+    }
+}
+
+@available(iOS 26.0, *)
+private enum MedicationConceptKeyRegistry {
+    static let shared = StableIdentityKeyRegistry<HKHealthConceptIdentifier>(
+        prefix: "medication-concept"
+    )
+}
+
 enum HealthDataError: LocalizedError, Equatable {
     case unavailable
     case missingStepType
@@ -32,7 +96,8 @@ enum HealthDataError: LocalizedError, Equatable {
 
 final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding {
     private let store: HKHealthStore
-    private var visibleNutritionSourcesByBundleIdentifier: [String: Set<HKSource>] = [:]
+    private let visibleNutritionSourcesByBundleIdentifier =
+        AtomicSnapshotCache<String, Set<HKSource>>()
 
     init(store: HKHealthStore = HealthStoreProvider.shared) {
         self.store = store
@@ -110,16 +175,20 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         guard isHealthDataAvailable else {
             throw HealthDataError.unavailable
         }
-        var discovered: [String: Set<HKSource>] = [:]
-        for (_, type) in try nutritionQuantityTypes() {
-            let descriptor = HKSourceQueryDescriptor(
-                predicate: HKSamplePredicate.quantitySample(type: type)
-            )
-            for source in try await descriptor.result(for: store) {
-                discovered[source.bundleIdentifier, default: []].insert(source)
+        let discovered = try await visibleNutritionSourcesByBundleIdentifier
+            .replaceAfterSuccessfulLoad {
+                var discovered: [String: Set<HKSource>] = [:]
+                for (_, type) in try nutritionQuantityTypes() {
+                    try Task.checkCancellation()
+                    let descriptor = HKSourceQueryDescriptor(
+                        predicate: HKSamplePredicate.quantitySample(type: type)
+                    )
+                    for source in try await descriptor.result(for: store) {
+                        discovered[source.bundleIdentifier, default: []].insert(source)
+                    }
+                }
+                return discovered
             }
-        }
-        visibleNutritionSourcesByBundleIdentifier = discovered
         return NutritionSource.orderedUnique(discovered.compactMap { bundleIdentifier, sources in
             sources.map(\.name).min().map {
                 NutritionSource(bundleIdentifier: bundleIdentifier, name: $0)
@@ -821,9 +890,9 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         for window: DailyExportWindow,
         sourceBundleIdentifier: String
     ) async throws -> NutritionExportInput {
-        guard let sources = visibleNutritionSourcesByBundleIdentifier[
-            sourceBundleIdentifier
-        ], !sources.isEmpty else {
+        guard let sources = visibleNutritionSourcesByBundleIdentifier.value(
+            for: sourceBundleIdentifier
+        ), !sources.isEmpty else {
             throw DailyHealthExportError.nutritionSourceUnavailable
         }
         guard let previous = window.context.precedingEquivalent(
@@ -905,7 +974,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
             .result(for: store)
         var records: [MedicationDoseRecord] = []
 
-        for (index, annotatedMedication) in medications.enumerated() {
+        for annotatedMedication in medications {
             let medication = annotatedMedication.medication
             let medicationPredicate = HKQuery.predicateForMedicationDoseEvent(
                 medicationConceptIdentifier: medication.identifier
@@ -930,10 +999,12 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
             )
             let samples = try await descriptor.result(for: store)
 
-            // The key is intentionally local to this fetch. HealthKit's opaque
-            // concept identifier provides exact matching, including strength,
-            // while no identifier or medication data is persisted by the app.
-            let medicationKey = "medication-\(index)"
+            // Compare HealthKit's stable opaque identifier directly, while
+            // keeping the process-local grouping key separate from display order.
+            // Neither the identifier nor the key is persisted or exported.
+            let medicationKey = MedicationConceptKeyRegistry.shared.key(
+                for: medication.identifier
+            )
             records.append(contentsOf: samples.compactMap { sample in
                 guard let event = sample as? HKMedicationDoseEvent else { return nil }
                 let unit = event.unit.unitString == "count" ? "dose" : event.unit.unitString

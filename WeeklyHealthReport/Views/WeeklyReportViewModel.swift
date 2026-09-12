@@ -257,6 +257,7 @@ final class WeeklyReportViewModel: ObservableObject {
         let generation = refreshGeneration
         activeRefreshGeneration = generation
         medicationRefreshGeneration += 1
+        let medicationGeneration = medicationRefreshGeneration
         activeMedicationRefreshGeneration = nil
         defer {
             if activeRefreshGeneration == generation {
@@ -304,7 +305,11 @@ final class WeeklyReportViewModel: ObservableObject {
             return
         }
 
-        await loadPeriodMetrics(asOf: refreshDate, generation: generation)
+        await loadPeriodMetrics(
+            asOf: refreshDate,
+            generation: generation,
+            medicationGeneration: medicationGeneration
+        )
         guard generation == refreshGeneration else { return }
         lastRefreshed = refreshDate
     }
@@ -387,7 +392,11 @@ final class WeeklyReportViewModel: ObservableObject {
         }
     }
 
-    private func loadPeriodMetrics(asOf date: Date, generation: Int) async {
+    private func loadPeriodMetrics(
+        asOf date: Date,
+        generation: Int,
+        medicationGeneration: Int
+    ) async {
         guard let previousPeriod = period.precedingEquivalent(calendar: calendar) else {
             reportStates.restingHeartRate = .noDataOrAccess
             reportStates.hrv = .noDataOrAccess
@@ -530,11 +539,13 @@ final class WeeklyReportViewModel: ObservableObject {
         }
         do {
             let doses = try await healthData.fetchTakenMedicationDoses(for: period)
-            guard generation == refreshGeneration else { return }
+            guard generation == refreshGeneration,
+                  medicationGeneration == medicationRefreshGeneration else { return }
             reportStates.medications = MedicationSummary.aggregate(doses)
                 .map(MetricState.available) ?? .noDataOrAccess
         } catch {
-            guard generation == refreshGeneration else { return }
+            guard generation == refreshGeneration,
+                  medicationGeneration == medicationRefreshGeneration else { return }
             reportStates.medications = .failed(error.localizedDescription)
         }
     }
