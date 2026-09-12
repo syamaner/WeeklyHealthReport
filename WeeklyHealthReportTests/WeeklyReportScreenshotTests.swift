@@ -1,4 +1,5 @@
 import CoreGraphics
+import HealthKit
 import PDFKit
 import XCTest
 @testable import WeeklyHealthReport
@@ -6,6 +7,43 @@ import XCTest
 // All health values in this test file are synthetic fixtures.
 @MainActor
 final class WeeklyReportScreenshotTests: XCTestCase {
+    func testReportViewCanBeConstructedWithFakeHealthData() {
+        let calendar = testCalendar()
+        let viewModel = WeeklyReportViewModel(
+            healthData: FakeHealthDataProvider(),
+            calendar: calendar,
+            now: Date.init
+        )
+        let notesStore = EmptyDailyNotesStore()
+        let notes = DailyNotesController(store: notesStore, calendar: calendar)
+        let keychain = DailyDriveKeychainStore(
+            service: "WeeklyHealthReportTests.\(UUID())"
+        )
+        let dailyExport = DailyDriveSessionController(
+            keychain: keychain,
+            drive: DailyDriveAPI(),
+            exportService: DailyHealthExportService(
+                healthData: UnusedDailyHealthDataProvider(),
+                notesStore: notesStore,
+                calendar: calendar
+            ),
+            identityStore: KeychainDailyDriveExportIdentityStore(keychain: keychain),
+            nutritionSourceSelection: EmptyNutritionSourceSelectionStore(),
+            notes: notes
+        )
+        let store = HKHealthStore()
+
+        let view = WeeklyReportView(
+            viewModel: viewModel,
+            dailyExport: dailyExport,
+            navigation: WeeklyReportNavigationController(),
+            medicationAccess: MedicationAccessRequest(store: store)
+        )
+
+        XCTAssertTrue(view.viewModel === viewModel)
+        XCTAssertTrue(view.medicationAccess.store === store)
+    }
+
     func testDocumentUsesCompleteDeterministicSectionOrdering() {
         let document = makeDocument(includesMedicationSection: true)
 
@@ -365,5 +403,25 @@ private final class WeakBox<Value: AnyObject> {
 
     init(_ value: Value?) {
         self.value = value
+    }
+}
+
+private struct EmptyNutritionSourceSelectionStore: NutritionSourceSelectionPersisting {
+    func loadBundleIdentifier() -> String? { nil }
+    func saveBundleIdentifier(_ bundleIdentifier: String?) {}
+}
+
+private struct UnusedDailyHealthDataProvider: DailyHealthExportDataProviding {
+    var isHealthDataAvailable: Bool { false }
+
+    func requestReadAuthorization() async throws {}
+    func requestNutritionReadAuthorization() async throws {}
+    func fetchVisibleNutritionSources() async throws -> [NutritionSource] { [] }
+
+    func fetchDailyHealthExportInputs(
+        for window: DailyExportWindow,
+        nutritionSourceBundleIdentifier: String
+    ) async throws -> DailyHealthExportInputs {
+        throw HealthDataError.unavailable
     }
 }
