@@ -77,6 +77,35 @@ enum OnDeviceSpeechRequestPolicy {
     }
 }
 
+enum DailyNoteSpeechPolicy {
+    static let stopFinalisationTimeout: Duration = .seconds(3)
+}
+
+@MainActor
+protocol SpeechStopFallbackScheduling {
+    func schedule(_ operation: @escaping @MainActor () -> Void)
+}
+
+@MainActor
+struct SystemSpeechStopFallbackScheduler: SpeechStopFallbackScheduling {
+    private let delay: Duration
+
+    init(delay: Duration = DailyNoteSpeechPolicy.stopFinalisationTimeout) {
+        self.delay = delay
+    }
+
+    func schedule(_ operation: @escaping @MainActor () -> Void) {
+        Task { @MainActor in
+            do {
+                try await Task.sleep(for: delay)
+            } catch {
+                return
+            }
+            operation()
+        }
+    }
+}
+
 @MainActor
 final class SystemOnDeviceSpeechCapture: NSObject, OnDeviceSpeechCapturing {
     private let recognizer: SFSpeechRecognizer?
@@ -242,6 +271,7 @@ final class SystemOnDeviceSpeechCapture: NSObject, OnDeviceSpeechCapturing {
         guard sessionID != nil else { return }
         stopAudioInput()
         request?.endAudio()
+        recognitionTask?.finish()
     }
 
     func cancel() {
@@ -315,6 +345,7 @@ final class DailyNoteSpeechController: ObservableObject {
     @Published private(set) var noticeMessage: String?
 
     private let capture: any OnDeviceSpeechCapturing
+    private let stopFallbackScheduler: any SpeechStopFallbackScheduling
     private let appendFinalTranscript: (String) -> String?
     private var cycleID: UUID?
     private var activePartial: Fragment?
@@ -323,11 +354,24 @@ final class DailyNoteSpeechController: ObservableObject {
 
     init(
         capture: any OnDeviceSpeechCapturing,
+        stopFallbackScheduler: any SpeechStopFallbackScheduling,
         appendFinalTranscript: @escaping (String) -> String?
     ) {
         self.capture = capture
+        self.stopFallbackScheduler = stopFallbackScheduler
         self.appendFinalTranscript = appendFinalTranscript
         refreshState()
+    }
+
+    convenience init(
+        capture: any OnDeviceSpeechCapturing,
+        appendFinalTranscript: @escaping (String) -> String?
+    ) {
+        self.init(
+            capture: capture,
+            stopFallbackScheduler: SystemSpeechStopFallbackScheduler(),
+            appendFinalTranscript: appendFinalTranscript
+        )
     }
 
     var isMicrophoneEnabled: Bool {
@@ -390,8 +434,12 @@ final class DailyNoteSpeechController: ObservableObject {
     func toggle() async {
         switch state {
         case .listening:
+            guard let cycleID else { return }
             state = .stopping
             capture.stop()
+            stopFallbackScheduler.schedule { [weak self] in
+                self?.finishStopAfterTimeout(cycleID: cycleID)
+            }
         case .ready:
             await start()
         default:
@@ -419,6 +467,7 @@ final class DailyNoteSpeechController: ObservableObject {
         }
         reviewTranscript = ""
         reviewErrorMessage = nil
+        noticeMessage = "Speech was added to the note above."
         refreshState()
         return true
     }
@@ -539,7 +588,7 @@ final class DailyNoteSpeechController: ObservableObject {
 
         if let finalFragment, uncoveredFragments.isEmpty, !finalAppearsIncomplete {
             clearUnsafeTranscripts(includingReview: false)
-            appendOrHoldForLimit(finalFragment.transcript, showRecoveredNotice: false)
+            appendOrHoldForLimit(finalFragment.transcript)
             return
         }
 
@@ -559,21 +608,52 @@ final class DailyNoteSpeechController: ObservableObject {
         if recoveredTranscript.isEmpty {
             state = .failed("On-device recognition finished without usable text. Your typed draft was preserved.")
         } else {
-            appendOrHoldForLimit(recoveredTranscript, showRecoveredNotice: true)
+            holdForReview(
+                recoveredTranscript,
+                message: "Recognition did not finish with one complete result. Check this retained candidate before adding it."
+            )
         }
     }
 
-    private func appendOrHoldForLimit(_ transcript: String, showRecoveredNotice: Bool) {
+    private func finishStopAfterTimeout(cycleID: UUID) {
+        guard self.cycleID == cycleID, state == .stopping else { return }
+        let recoveredTranscript = currentRetainedCandidate()
+        self.cycleID = nil
+        capture.cancel()
+        clearUnsafeTranscripts(includingReview: false)
+
+        if recoveredTranscript.isEmpty {
+            state = .failed("On-device recognition did not finish after Stop. Your typed draft was preserved.")
+        } else {
+            holdForReview(
+                recoveredTranscript,
+                message: "On-device recognition did not finish after Stop. Check this retained candidate before adding it."
+            )
+        }
+    }
+
+    private func appendOrHoldForLimit(_ transcript: String) {
         if let rejection = appendFinalTranscript(transcript) {
-            reviewTranscript = transcript
-            reviewErrorMessage = rejection
-            state = .reviewRequired
+            holdForReview(transcript, message: rejection)
             return
         }
-        if showRecoveredNotice {
-            noticeMessage = "Speech was added to the note above."
-        }
         refreshState()
+    }
+
+    private func holdForReview(_ transcript: String, message: String) {
+        reviewTranscript = transcript
+        reviewErrorMessage = message
+        state = .reviewRequired
+    }
+
+    private func currentRetainedCandidate() -> String {
+        var fragments = supersededFragments
+        if let activePartial {
+            fragments.append(activePartial)
+        } else if let settledPartial {
+            fragments.append(settledPartial)
+        }
+        return assemble(fragments)
     }
 
     private func finalCovers(_ fragment: Fragment, final: Fragment) -> Bool {
@@ -640,9 +720,14 @@ final class DailyNoteSpeechController: ObservableObject {
 
     private func fail(_ failure: SpeechCaptureFailure, cycleID: UUID) {
         guard self.cycleID == cycleID else { return }
+        let recoveredTranscript = currentRetainedCandidate()
         self.cycleID = nil
         capture.cancel()
-        clearUnsafeTranscripts(includingReview: true)
+        clearUnsafeTranscripts(includingReview: false)
+        if !recoveredTranscript.isEmpty {
+            holdForReview(recoveredTranscript, message: reviewMessage(for: failure))
+            return
+        }
         switch failure {
         case .audioInputUnavailable:
             state = .failed("The microphone input could not start. Your draft was preserved.")
@@ -652,6 +737,19 @@ final class DailyNoteSpeechController: ObservableObject {
             state = .failed("Dictation was interrupted. Your draft and finalised text were preserved.")
         case .recognitionFailed:
             state = .failed("On-device recognition failed. Your draft was preserved; you can keep typing.")
+        }
+    }
+
+    private func reviewMessage(for failure: SpeechCaptureFailure) -> String {
+        switch failure {
+        case .audioInputUnavailable:
+            return "Microphone input stopped unexpectedly. Check this retained candidate before adding it."
+        case .audioSessionUnavailable:
+            return "Audio capture stopped unexpectedly. Check this retained candidate before adding it."
+        case .interrupted:
+            return "Dictation was interrupted. Check this retained candidate before adding it."
+        case .recognitionFailed:
+            return "On-device recognition failed. Check this retained candidate before adding it."
         }
     }
 

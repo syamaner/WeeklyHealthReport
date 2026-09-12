@@ -117,7 +117,7 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
         XCTAssertEqual(appended, ["safely final"])
     }
 
-    func testObservedPauseResetAppendsOrderedCandidateOnce() async {
+    func testObservedPauseResetProducesOneOrderedReviewCandidate() async {
         let capture = FakeSpeechCapture()
         var appended: [String] = []
         let controller = DailyNoteSpeechController(capture: capture) {
@@ -145,8 +145,10 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
             audioRange: range(6.45, 9.24)
         ))
 
-        XCTAssertEqual(controller.state, .ready)
-        XCTAssertEqual(controller.reviewTranscript, "")
+        XCTAssertEqual(controller.state, .reviewRequired)
+        XCTAssertEqual(controller.reviewTranscript, "first utterance second utterance")
+        XCTAssertTrue(appended.isEmpty)
+        XCTAssertTrue(controller.acceptReviewTranscript())
         XCTAssertEqual(appended, ["first utterance second utterance"])
         XCTAssertEqual(
             controller.noticeMessage,
@@ -158,7 +160,7 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
         XCTAssertEqual(appended, ["first utterance second utterance"])
     }
 
-    func testRepeatedPartialRevisionsDoNotDuplicateReviewedFragments() async {
+    func testRepeatedPartialRevisionsDoNotDuplicateReviewCandidate() async {
         let capture = FakeSpeechCapture()
         var appended: [String] = []
         let controller = DailyNoteSpeechController(capture: capture) {
@@ -181,7 +183,9 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
             audioRange: range(6, 9)
         ))
 
-        XCTAssertEqual(controller.reviewTranscript, "")
+        XCTAssertEqual(controller.reviewTranscript, "earlier phrase later phrase final")
+        XCTAssertTrue(appended.isEmpty)
+        XCTAssertTrue(controller.acceptReviewTranscript())
         XCTAssertEqual(appended, ["earlier phrase later phrase final"])
     }
 
@@ -213,8 +217,10 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
             audioRange: range(9, 11)
         ))
 
-        XCTAssertEqual(controller.state, .ready)
-        XCTAssertEqual(controller.reviewTranscript, "")
+        XCTAssertEqual(controller.state, .reviewRequired)
+        XCTAssertEqual(controller.reviewTranscript, "first block second block third block")
+        XCTAssertTrue(appended.isEmpty)
+        XCTAssertTrue(controller.acceptReviewTranscript())
         XCTAssertEqual(appended, ["first block second block third block"])
     }
 
@@ -244,7 +250,7 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
         XCTAssertEqual(controller.state, .ready)
     }
 
-    func testEmptyFinalAfterExplicitStopAppendsLastVisiblePartial() async {
+    func testEmptyFinalAfterExplicitStopRequiresReviewOfLastVisiblePartial() async {
         let capture = FakeSpeechCapture()
         var appended: [String] = []
         let controller = DailyNoteSpeechController(capture: capture) {
@@ -262,13 +268,12 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
         capture.send(.init(transcript: "", isFinal: true))
 
         XCTAssertEqual(capture.stopCount, 1)
-        XCTAssertEqual(controller.state, .ready)
-        XCTAssertEqual(controller.reviewTranscript, "")
-        XCTAssertEqual(appended, ["visible partial"])
-        XCTAssertNotNil(controller.noticeMessage)
+        XCTAssertEqual(controller.state, .reviewRequired)
+        XCTAssertEqual(controller.reviewTranscript, "visible partial")
+        XCTAssertTrue(appended.isEmpty)
     }
 
-    func testShorterFinalAfterExplicitStopAppendsLastVisiblePartial() async {
+    func testShorterFinalAfterExplicitStopRequiresReviewOfLastVisiblePartial() async {
         let capture = FakeSpeechCapture()
         var appended: [String] = []
         let controller = DailyNoteSpeechController(capture: capture) {
@@ -289,9 +294,112 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
             audioRange: range(1, 3)
         ))
 
-        XCTAssertEqual(controller.state, .ready)
+        XCTAssertEqual(controller.state, .reviewRequired)
+        XCTAssertEqual(controller.reviewTranscript, "complete visible phrase")
+        XCTAssertTrue(appended.isEmpty)
+    }
+
+    func testStopWithoutTerminalCallbackFallsBackToReviewAndIgnoresLateCallbacks() async {
+        let capture = FakeSpeechCapture()
+        let fallback = ManualSpeechStopFallbackScheduler()
+        var appended: [String] = []
+        let controller = DailyNoteSpeechController(
+            capture: capture,
+            stopFallbackScheduler: fallback
+        ) {
+            appended.append($0)
+            return nil
+        }
+
+        await controller.toggle()
+        capture.send(.init(
+            transcript: "earlier speech",
+            isFinal: false,
+            audioRange: range(1, 3)
+        ))
+        capture.send(.init(transcript: "latest revision", isFinal: false))
+        await controller.toggle()
+
+        XCTAssertEqual(controller.state, .stopping)
+        XCTAssertEqual(capture.stopCount, 1)
+        fallback.fire()
+
+        XCTAssertEqual(capture.cancelCount, 1)
+        XCTAssertEqual(controller.state, .reviewRequired)
+        XCTAssertEqual(controller.reviewTranscript, "earlier speech latest revision")
+        XCTAssertTrue(appended.isEmpty)
+
+        capture.send(.init(transcript: "late final", isFinal: true))
+        capture.fail(.recognitionFailed)
+        fallback.fire()
+
+        XCTAssertEqual(controller.reviewTranscript, "earlier speech latest revision")
+        XCTAssertEqual(capture.cancelCount, 1)
+        XCTAssertTrue(appended.isEmpty)
+        XCTAssertTrue(controller.acceptReviewTranscript())
+        XCTAssertEqual(appended, ["earlier speech latest revision"])
+    }
+
+    func testStopWithoutTextOrTerminalCallbackFallsBackToExplicitFailure() async {
+        let capture = FakeSpeechCapture()
+        let fallback = ManualSpeechStopFallbackScheduler()
+        let controller = DailyNoteSpeechController(
+            capture: capture,
+            stopFallbackScheduler: fallback
+        ) { _ in nil }
+
+        await controller.toggle()
+        await controller.toggle()
+        fallback.fire()
+
+        XCTAssertEqual(capture.stopCount, 1)
+        XCTAssertEqual(capture.cancelCount, 1)
+        XCTAssertEqual(
+            controller.state,
+            .failed("On-device recognition did not finish after Stop. Your typed draft was preserved.")
+        )
         XCTAssertEqual(controller.reviewTranscript, "")
+    }
+
+    func testFinalBeforeStopFallbackMakesScheduledTimeoutADeadCallback() async {
+        let capture = FakeSpeechCapture()
+        let fallback = ManualSpeechStopFallbackScheduler()
+        var appended: [String] = []
+        let controller = DailyNoteSpeechController(
+            capture: capture,
+            stopFallbackScheduler: fallback
+        ) {
+            appended.append($0)
+            return nil
+        }
+
+        await controller.toggle()
+        capture.send(.init(transcript: "complete visible phrase", isFinal: false))
+        await controller.toggle()
+        capture.send(.init(transcript: "complete visible phrase", isFinal: true))
+        fallback.fire()
+
         XCTAssertEqual(appended, ["complete visible phrase"])
+        XCTAssertEqual(capture.cancelCount, 0)
+        XCTAssertEqual(controller.state, .ready)
+    }
+
+    func testRepeatedFinalAndFailureCallbacksAppendOnlyOnce() async {
+        let capture = FakeSpeechCapture()
+        var appended: [String] = []
+        let controller = DailyNoteSpeechController(capture: capture) {
+            appended.append($0)
+            return nil
+        }
+
+        await controller.toggle()
+        let final = SpeechCaptureUpdate(transcript: "one final result", isFinal: true)
+        capture.send(final)
+        capture.send(final)
+        capture.fail(.recognitionFailed)
+
+        XCTAssertEqual(appended, ["one final result"])
+        XCTAssertEqual(controller.state, .ready)
     }
 
     func testRecoveredTranscriptAppendsToLatestDraftEditedWhileListening() async throws {
@@ -312,6 +420,10 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
             isFinal: true,
             audioRange: range(6, 8)
         ))
+
+        XCTAssertEqual(speech.reviewTranscript, "earlier speech later speech")
+        XCTAssertEqual(notes.currentDraft?.text, "Typed first, edited while listening")
+        XCTAssertTrue(speech.acceptReviewTranscript())
 
         XCTAssertEqual(
             notes.currentDraft?.text,
@@ -341,7 +453,7 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
         XCTAssertEqual(controller.state, .ready)
     }
 
-    func testInterruptionAndRecognitionFailureDiscardOnlyPartialText() async {
+    func testInterruptionAndRecognitionFailurePreservePartialTextForReview() async {
         for failure in [SpeechCaptureFailure.interrupted, .recognitionFailed] {
             let capture = FakeSpeechCapture()
             var appended: [String] = []
@@ -355,12 +467,41 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
             capture.fail(failure)
 
             XCTAssertEqual(controller.partialTranscript, "")
+            XCTAssertEqual(controller.reviewTranscript, "unsafe partial")
             XCTAssertTrue(appended.isEmpty)
             XCTAssertEqual(capture.cancelCount, 1)
-            guard case .failed = controller.state else {
-                return XCTFail("Expected an explicit failure state")
-            }
+            XCTAssertEqual(controller.state, .reviewRequired)
+            XCTAssertTrue(controller.acceptReviewTranscript())
+            XCTAssertEqual(appended, ["unsafe partial"])
         }
+    }
+
+    func testRecognitionFailurePreservesRetainedFragmentsAsOneOrderedCandidate() async {
+        let capture = FakeSpeechCapture()
+        var appended: [String] = []
+        let controller = DailyNoteSpeechController(capture: capture) {
+            appended.append($0)
+            return nil
+        }
+
+        await controller.toggle()
+        capture.send(.init(
+            transcript: "first block",
+            isFinal: false,
+            audioRange: range(1, 3)
+        ))
+        capture.send(.init(transcript: "second", isFinal: false))
+        capture.send(.init(transcript: "second block revised", isFinal: false))
+
+        capture.fail(.recognitionFailed)
+
+        XCTAssertEqual(controller.state, .reviewRequired)
+        XCTAssertEqual(controller.reviewTranscript, "first block second block revised")
+        XCTAssertEqual(
+            controller.reviewErrorMessage,
+            "On-device recognition failed. Check this retained candidate before adding it."
+        )
+        XCTAssertTrue(appended.isEmpty)
     }
 
     func testLaterInterruptionPreservesTypedAndPreviouslyFinalisedText() async throws {
@@ -376,6 +517,9 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
 
         XCTAssertEqual(notes.currentDraft?.text, "Typed finalised")
         XCTAssertEqual(speech.partialTranscript, "")
+        XCTAssertEqual(speech.reviewTranscript, "unsafe partial")
+        XCTAssertTrue(speech.acceptReviewTranscript())
+        XCTAssertEqual(notes.currentDraft?.text, "Typed finalised unsafe partial")
     }
 
     func testBackgroundingStopsCaptureAndInvalidatesLateResults() async {
@@ -714,6 +858,21 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
             day: 8,
             hour: 10
         ))!
+    }
+}
+
+@MainActor
+private final class ManualSpeechStopFallbackScheduler: SpeechStopFallbackScheduling {
+    private var operation: (@MainActor () -> Void)?
+
+    func schedule(_ operation: @escaping @MainActor () -> Void) {
+        self.operation = operation
+    }
+
+    func fire() {
+        let operation = operation
+        self.operation = nil
+        operation?()
     }
 }
 
