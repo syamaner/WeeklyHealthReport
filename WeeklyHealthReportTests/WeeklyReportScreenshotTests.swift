@@ -99,6 +99,10 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         XCTAssertTrue(rowIDsLG.contains("blood-pressure-morning-coverage"))
         XCTAssertFalse(rowIDsLG.contains("blood-pressure-evening-latest-batch"))
         XCTAssertTrue(rowIDsLG.contains("blood-pressure-evening-average"))
+        XCTAssertEqual(
+            section.footer,
+            "Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries."
+        )
     }
 
     func testOnlyMainReportWithoutTransientUIPresentationIsEligible() {

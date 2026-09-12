@@ -281,7 +281,7 @@ struct BloodPressureReportSection: View {
         } header: {
             Text("Blood Pressure")
         } footer: {
-            Text("Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings remain visible in Diagnostics.")
+            Text("Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.")
         }
     }
 
