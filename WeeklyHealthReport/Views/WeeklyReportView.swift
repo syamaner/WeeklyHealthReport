@@ -101,7 +101,15 @@ struct WeeklyReportView: View {
     }
 
     private var reportContent: some View {
-        NavigationStack(path: Binding(
+        let document = Self.reportDocument(snapshot: viewModel.presentationSnapshot(
+            includesMedicationSection: Self.includesMedicationSection,
+            showsMorningBloodPressureDetails:
+                presentationState.showsMorningBloodPressureDetails,
+            showsEveningBloodPressureDetails:
+                presentationState.showsEveningBloodPressureDetails
+        ))
+
+        return NavigationStack(path: Binding(
             get: { navigation.path },
             set: { navigation.acceptPathChange($0) }
         )) {
@@ -126,72 +134,33 @@ struct WeeklyReportView: View {
                     LabeledContent("Period", value: periodText)
                 }
 
-                StepsReportSection(state: viewModel.state)
-                BodyMeasurementsReportSections(
-                    weightState: viewModel.weightState,
-                    bodyFatState: viewModel.bodyFatState,
-                    waistState: viewModel.waistState
-                )
-                HeartReportSection(
-                    restingHeartRateState: viewModel.restingHeartRateState,
-                    hrvState: viewModel.hrvState,
-                    watchCoverageState: viewModel.watchCoverageState,
-                    comparisonDayCount: viewModel.period.completedDays.count
-                )
-                BloodPressureReportSection(
-                    state: viewModel.bloodPressureState,
-                    showsMorningDetails: $presentationState.showsMorningBloodPressureDetails,
-                    showsEveningDetails: $presentationState.showsEveningBloodPressureDetails
-                )
-                CardiorespiratoryReportSection(
-                    vo2MaxState: viewModel.vo2MaxState,
-                    bloodOxygenState: viewModel.bloodOxygenState
-                )
-                GlucoseReportSection(state: viewModel.glucoseState)
-                ActivityReportSection(
-                    activeEnergyState: viewModel.activeEnergyState,
-                    exerciseState: viewModel.exerciseState,
-                    workoutState: viewModel.workoutState
-                )
-                SleepReportSection(state: viewModel.sleepState)
-
-                if #available(iOS 26.0, *) {
-                    Section("Medications Taken") {
-                        switch viewModel.medicationState {
-                        case .idle, .loading:
-                            HStack {
-                                ProgressView()
-                                Text("Reading authorised medication events…")
-                            }
-                        case .available(let summary):
-                            ForEach(summary.groups) { group in
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(group.medicationName)
-                                    Text(HealthReportFormatter.medicationGroupDetail(group))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
+                ForEach(document.sections) { section in
+                    switch section.id {
+                    case .bloodPressure:
+                        BloodPressureReportSection(
+                            section: section,
+                            showsMorningDetails:
+                                $presentationState.showsMorningBloodPressureDetails,
+                            showsEveningDetails:
+                                $presentationState.showsEveningBloodPressureDetails
+                        )
+                    case .medications:
+                        if #available(iOS 26.0, *) {
+                            MedicationReportSection(
+                                section: section,
+                                requestAccess: {
+                                    presentationState.showsMedicationAccessHelp = true
                                 }
-                            }
-                        case .noDataOrAccess:
-                            Text("No taken medication events are visible for this period.")
-                                .foregroundStyle(.secondary)
-                        case .healthUnavailable:
-                            Text("Health data is unavailable on this device.")
-                                .foregroundStyle(.secondary)
-                        case .failed(let message):
-                            Text("Medication query failed: \(message)")
-                                .foregroundStyle(.red)
+                            )
                         }
-
-                        Button("Medication Access") {
-                            presentationState.showsMedicationAccessHelp = true
-                        }
+                    default:
+                        ReportDocumentSectionView(section: section)
                     }
                 }
 
                 Section {
                     Button {
-                        let document = ReportDocument(
+                        let document = Self.reportDocument(
                             snapshot: viewModel.presentationSnapshot(
                                 includesMedicationSection: Self.includesMedicationSection,
                                 showsMorningBloodPressureDetails: true,
@@ -337,8 +306,14 @@ struct WeeklyReportView: View {
             ) else {
                 return nil
             }
-            return ReportDocument(snapshot: snapshot)
+            return Self.reportDocument(snapshot: snapshot)
         }
+    }
+
+    private static func reportDocument(
+        snapshot: WeeklyReportScreenshotSnapshot
+    ) -> ReportDocument {
+        ReportDocument(snapshot: snapshot)
     }
 
     private static var includesMedicationSection: Bool {
