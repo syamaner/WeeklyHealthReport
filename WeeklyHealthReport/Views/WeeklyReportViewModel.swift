@@ -1,31 +1,8 @@
 import Foundation
 
-enum MetricState<Value: Equatable>: Equatable {
-    case idle
-    case loading
-    case available(Value)
-    case noDataOrAccess
-    case healthUnavailable
-    case failed(String)
-
-    var value: Value? {
-        if case .available(let value) = self { return value }
-        return nil
-    }
-}
-
 @MainActor
 final class WeeklyReportViewModel: ObservableObject {
-    enum State: Equatable {
-        case idle
-        case loading
-        case loaded(StepSummary)
-        case noCompletedDays
-        case noDataOrAccess
-        case healthUnavailable
-        case failed(String)
-    }
-
+    typealias State = StepsState
     typealias WeightState = MetricState<WeightTrendSummary>
     typealias BodyFatState = MetricState<BodyFatTrendSummary>
 
@@ -178,17 +155,11 @@ final class WeeklyReportViewModel: ObservableObject {
 
     var supportsMedicationData: Bool { healthData.supportsMedicationData }
 
-    func screenshotSnapshot(
+    func presentationSnapshot(
         includesMedicationSection: Bool,
         showsMorningBloodPressureDetails: Bool,
         showsEveningBloodPressureDetails: Bool
-    ) -> WeeklyReportScreenshotSnapshot? {
-        guard activeRefreshGeneration == nil,
-              activeMedicationRefreshGeneration == nil,
-              period.selection == selection else {
-            return nil
-        }
-
+    ) -> WeeklyReportScreenshotSnapshot {
         let states = reportStates
         return WeeklyReportScreenshotSnapshot(
             period: period,
@@ -208,6 +179,24 @@ final class WeeklyReportViewModel: ObservableObject {
             workouts: states.workouts,
             sleep: states.sleep,
             medications: states.medications,
+            includesMedicationSection: includesMedicationSection,
+            showsMorningBloodPressureDetails: showsMorningBloodPressureDetails,
+            showsEveningBloodPressureDetails: showsEveningBloodPressureDetails
+        )
+    }
+
+    func screenshotSnapshot(
+        includesMedicationSection: Bool,
+        showsMorningBloodPressureDetails: Bool,
+        showsEveningBloodPressureDetails: Bool
+    ) -> WeeklyReportScreenshotSnapshot? {
+        guard activeRefreshGeneration == nil,
+              activeMedicationRefreshGeneration == nil,
+              period.selection == selection else {
+            return nil
+        }
+
+        return presentationSnapshot(
             includesMedicationSection: includesMedicationSection,
             showsMorningBloodPressureDetails: showsMorningBloodPressureDetails,
             showsEveningBloodPressureDetails: showsEveningBloodPressureDetails

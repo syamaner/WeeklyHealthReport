@@ -20,14 +20,14 @@ enum WeeklyReportScreenshotEligibility {
 
 @MainActor
 protocol WeeklyReportPDFRendering {
-    func pdfData(for document: WeeklyReportPDFDocument) -> Data?
+    func pdfData(for document: ReportDocument) -> Data?
 }
 
 @MainActor
 struct WeeklyReportPDFRenderer: WeeklyReportPDFRendering {
     private let pageWidth: CGFloat = 612
 
-    func pdfData(for document: WeeklyReportPDFDocument) -> Data? {
+    func pdfData(for document: ReportDocument) -> Data? {
         let imageRenderer = ImageRenderer(
             content: WeeklyReportPDFView(document: document)
                 .frame(width: pageWidth)
@@ -68,7 +68,7 @@ struct WeeklyReportPDFRenderer: WeeklyReportPDFRendering {
 
 @MainActor
 final class WeeklyReportScreenshotDelegate: NSObject, UIScreenshotServiceDelegate {
-    typealias RequestProvider = () -> WeeklyReportPDFDocument?
+    typealias RequestProvider = () -> ReportDocument?
 
     private let renderer: any WeeklyReportPDFRendering
     private var requestProvider: RequestProvider?

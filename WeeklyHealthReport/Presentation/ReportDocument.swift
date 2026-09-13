@@ -1,29 +1,6 @@
 import Foundation
 
-struct WeeklyReportScreenshotSnapshot: Equatable {
-    let period: ReportPeriod
-    let steps: WeeklyReportViewModel.State
-    let weight: WeeklyReportViewModel.WeightState
-    let bodyFat: WeeklyReportViewModel.BodyFatState
-    let waist: MetricState<WaistSummary>
-    let glucose: MetricState<GlucoseSummary>
-    let vo2Max: MetricState<VO2MaxSummary>
-    let bloodOxygen: MetricState<BloodOxygenSummary>
-    let bloodPressure: MetricState<BloodPressureSummary>
-    let restingHeartRate: MetricState<HeartMetricTrendSummary>
-    let hrv: MetricState<HeartMetricTrendSummary>
-    let watchCoverage: MetricState<WatchCoverageSummary>
-    let exercise: MetricState<Double>
-    let activeEnergy: MetricState<Double>
-    let workouts: MetricState<WorkoutSummary>
-    let sleep: MetricState<SleepSummary>
-    let medications: MetricState<MedicationSummary>
-    let includesMedicationSection: Bool
-    let showsMorningBloodPressureDetails: Bool
-    let showsEveningBloodPressureDetails: Bool
-}
-
-struct WeeklyReportPDFDocument: Equatable {
+struct ReportDocument: Equatable {
     enum SectionID: String, CaseIterable {
         case steps
         case weight
@@ -39,6 +16,7 @@ struct WeeklyReportPDFDocument: Equatable {
 
     enum RowStyle: Equatable {
         case standard
+        case loading
         case secondary
         case failure
         case note
@@ -149,13 +127,13 @@ struct WeeklyReportPDFDocument: Equatable {
     }
 
     private static func stepsSection(
-        _ state: WeeklyReportViewModel.State,
+        _ state: StepsState,
         locale: Locale
     ) -> Section {
         let rows: [Row]
         switch state {
         case .idle, .loading:
-            rows = [Row("steps-loading", value: "Reading Apple Health…", style: .secondary)]
+            rows = [Row("steps-loading", value: "Reading Apple Health…", style: .loading)]
         case .loaded(let summary):
             rows = [
                 Row(
@@ -203,14 +181,14 @@ struct WeeklyReportPDFDocument: Equatable {
     }
 
     private static func weightSection(
-        _ state: WeeklyReportViewModel.WeightState,
+        _ state: MetricState<WeightTrendSummary>,
         calendar: Calendar,
         locale: Locale
     ) -> Section {
         let rows: [Row]
         switch state {
         case .idle, .loading:
-            rows = [Row("weight-loading", value: "Reading latest weight…", style: .secondary)]
+            rows = [Row("weight-loading", value: "Reading latest weight…", style: .loading)]
         case .available(let summary):
             rows = [
                 Row(
@@ -275,7 +253,7 @@ struct WeeklyReportPDFDocument: Equatable {
     }
 
     private static func bodyCompositionSection(
-        bodyFat: WeeklyReportViewModel.BodyFatState,
+        bodyFat: MetricState<BodyFatTrendSummary>,
         waist: MetricState<WaistSummary>,
         calendar: Calendar,
         locale: Locale
@@ -286,7 +264,7 @@ struct WeeklyReportPDFDocument: Equatable {
             rows = [Row(
                 "body-fat-loading",
                 value: "Reading body-fat history…",
-                style: .secondary
+                style: .loading
             )]
         case .available(let summary):
             rows = [Row(
@@ -439,7 +417,7 @@ struct WeeklyReportPDFDocument: Equatable {
             rows = [Row(
                 "blood-pressure-loading",
                 value: "Reading blood pressure…",
-                style: .secondary
+                style: .loading
             )]
         case .available(let summary):
             var availableRows = [
@@ -777,7 +755,7 @@ struct WeeklyReportPDFDocument: Equatable {
             rows = [Row(
                 "medications-loading",
                 value: "Reading authorised medication events…",
-                style: .secondary
+                style: .loading
             )]
         case .available(let summary):
             rows = summary.groups.enumerated().map { index, group in
@@ -826,7 +804,7 @@ struct WeeklyReportPDFDocument: Equatable {
     ) -> Row {
         switch state {
         case .idle, .loading:
-            Row(id, label: label, value: "Loading…", style: .secondary)
+            Row(id, label: label, value: "Loading…", style: .loading)
         case .available(let value):
             Row(id, label: label, value: format(value))
         case .noDataOrAccess:
@@ -862,7 +840,7 @@ struct WeeklyReportPDFDocument: Equatable {
                 style: summary.trend == nil ? .secondary : .standard
             )
         case .idle, .loading:
-            Row(id, label: label, value: "Loading…", style: .secondary)
+            Row(id, label: label, value: "Loading…", style: .loading)
         case .noDataOrAccess:
             Row(id, label: label, value: "No data", style: .secondary)
         case .healthUnavailable:
