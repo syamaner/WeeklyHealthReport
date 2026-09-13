@@ -191,10 +191,14 @@ struct WeeklyReportView: View {
 
                 Section {
                     Button {
-                        UIPasteboard.general.string = HealthReportFormatter.clipboardReport(
-                            viewModel.reportSnapshot,
-                            generatedAt: Date()
+                        let document = ReportDocument(
+                            snapshot: viewModel.presentationSnapshot(
+                                includesMedicationSection: Self.includesMedicationSection,
+                                showsMorningBloodPressureDetails: true,
+                                showsEveningBloodPressureDetails: true
+                            )
                         )
+                        UIPasteboard.general.string = document.plainText(generatedAt: Date())
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                         copied = true
                         Task {
@@ -209,7 +213,7 @@ struct WeeklyReportView: View {
                         .frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent)
-                    .disabled(viewModel.state == .loading)
+                    .disabled(viewModel.isRefreshing)
                 }
 
                 Section {
@@ -324,15 +328,8 @@ struct WeeklyReportView: View {
                 return nil
             }
 
-            let includesMedicationSection: Bool
-            if #available(iOS 26.0, *) {
-                includesMedicationSection = true
-            } else {
-                includesMedicationSection = false
-            }
-
             guard let snapshot = viewModel.screenshotSnapshot(
-                includesMedicationSection: includesMedicationSection,
+                includesMedicationSection: Self.includesMedicationSection,
                 showsMorningBloodPressureDetails:
                     presentationState.showsMorningBloodPressureDetails,
                 showsEveningBloodPressureDetails:
@@ -341,6 +338,14 @@ struct WeeklyReportView: View {
                 return nil
             }
             return ReportDocument(snapshot: snapshot)
+        }
+    }
+
+    private static var includesMedicationSection: Bool {
+        if #available(iOS 26.0, *) {
+            true
+        } else {
+            false
         }
     }
 

@@ -131,6 +131,7 @@ enum HealthReportFormatter {
         calendar: Calendar = .autoupdatingCurrent,
         locale: Locale = .autoupdatingCurrent
     ) -> String {
+        // Retained until the final rendering-consolidation cleanup phase.
         let count = batch.readingCount == 1
             ? "1 reading"
             : "\(batch.readingCount) readings"
@@ -140,6 +141,7 @@ enum HealthReportFormatter {
     static func bloodPressureCoverage(
         _ summary: BloodPressurePeriodSlotSummary
     ) -> String {
+        // Retained until the final rendering-consolidation cleanup phase.
         let readings = summary.readingCount == 1
             ? "1 paired reading"
             : "\(summary.readingCount) paired readings"
@@ -263,78 +265,6 @@ enum HealthReportFormatter {
             return "\(formatted(start, template: "dMMM"))–\(formatted(lastDay, template: "dMMMyyyy"))"
         }
         return "\(formatted(start, template: "dMMMyyyy"))–\(formatted(lastDay, template: "dMMMyyyy"))"
-    }
-
-    static func clipboardReport(
-        _ report: WeeklyReportSnapshot,
-        generatedAt: Date = Date(),
-        calendar: Calendar = .autoupdatingCurrent,
-        locale: Locale = .autoupdatingCurrent
-    ) -> String {
-        let bodyFatTrend: String
-        if let trend = report.bodyFat?.trendPercentagePoints {
-            let magnitude = abs(trend).formatted(
-                .number.locale(locale).precision(.fractionLength(1))
-            )
-            let sign = trend < 0 ? "-" : trend > 0 ? "+" : ""
-            bodyFatTrend = "\(sign)\(magnitude) pp vs previous 28d"
-        } else {
-            bodyFatTrend = "Insufficient history"
-        }
-        let comparison = "previous \(report.period.completedDays.count)d"
-
-        let lines = [
-            "Weekly Health Report",
-            period(report.period, calendar: calendar, locale: locale),
-            "Generated: \(dateAndTime(generatedAt, calendar: calendar, locale: locale))",
-            "",
-            "Latest Weight: \(report.weight.map { weightKilograms($0.latest.kilograms, locale: locale) } ?? "No data")",
-            "Weight Recorded: \(report.weight.map { dateAndTime($0.latest.date, calendar: calendar, locale: locale) } ?? "No data")",
-            "Weight 7-day Avg: \(report.weight?.currentSevenDayAverage.map { weightKilograms($0, locale: locale) } ?? "Insufficient history")",
-            "Weight Trend: \(report.weight?.trendKilograms.map { signedChange($0, unit: "kg", comparison: "previous 7d", locale: locale) } ?? "Insufficient history")",
-            "Body Fat: \(report.bodyFat.map { percentage($0.latest.percentage, locale: locale) } ?? "No data")",
-            "Body Fat 28-day Avg: \(report.bodyFat?.current28DayAverage.map { percentage($0, locale: locale) } ?? "Insufficient history")",
-            "Body Fat Trend: \(bodyFatTrend)",
-            "Waist Circumference: \(report.waist.map { waistCentimetres($0.latest.centimetres, locale: locale) } ?? "No data")",
-            "Waist Recorded: \(report.waist.map { dateAndTime($0.latest.date, calendar: calendar, locale: locale) } ?? "No data")",
-            "Waist 4-week Trend: \(report.waist?.fourWeekChangeCentimetres.map { signedChange($0, unit: "cm", comparison: "~4 weeks earlier", locale: locale) } ?? "Insufficient history")",
-            "Glucose Daily Average: \(report.glucose.map { glucose($0.averageMillimolesPerLiter, locale: locale) } ?? "No data")",
-            "Glucose Observed Range: \(report.glucose.map { glucoseRange(minimum: $0.minimumMillimolesPerLiter, maximum: $0.maximumMillimolesPerLiter, locale: locale) } ?? "No data")",
-            "Glucose Data Coverage: \(report.glucose.map { "\($0.validDayCount) / \($0.reportingDayCount) days" } ?? "No data")",
-            "Latest VO₂ Max: \(report.vo2Max.map { "\(vo2Max($0.latest.millilitresPerKilogramMinute, locale: locale)) (\(dateAndTime($0.latest.date, calendar: calendar, locale: locale)))" } ?? "No data")",
-            "VO₂ Max — 4 Weeks: \(report.vo2Max.map { vo2MaxWindow($0.fourWeek, locale: locale) } ?? "No data")",
-            "VO₂ Max — 3 Months: \(report.vo2Max.map { vo2MaxWindow($0.threeMonth, locale: locale) } ?? "No data")",
-            "VO₂ Max — 6 Months: \(report.vo2Max.map { vo2MaxWindow($0.sixMonth, locale: locale) } ?? "No data")",
-            "Latest Blood Oxygen: \(report.bloodOxygen.map { "\(bloodOxygen($0.latest.percentage, locale: locale)) (\(dateAndTime($0.latest.date, calendar: calendar, locale: locale)))" } ?? "No data")",
-            "Typical Blood Oxygen: \(report.bloodOxygen?.typicalPercentage.map { bloodOxygen($0, locale: locale) } ?? "No data")",
-            "Blood Oxygen Daily Range: \(report.bloodOxygen.flatMap { summary in summary.minimumDailyMedian.flatMap { minimum in summary.maximumDailyMedian.map { maximum in bloodOxygenRange(minimum: minimum, maximum: maximum, locale: locale) } } } ?? "No data")",
-            "Blood Oxygen Data Coverage: \(report.bloodOxygen.map { "\($0.validDayCount) / \($0.reportingDayCount) days" } ?? "No data")",
-            "Latest Blood Pressure: \(report.bloodPressure.map { "\(bloodPressure(systolic: $0.latest.systolicMillimetresOfMercury, diastolic: $0.latest.diastolicMillimetresOfMercury, locale: locale)) (\(dateAndTime($0.latest.date, calendar: calendar, locale: locale)))" } ?? "No data")",
-            "Morning Blood Pressure Average: \(report.bloodPressure?.morning.map { bloodPressure(systolic: $0.averageSystolic, diastolic: $0.averageDiastolic, locale: locale) } ?? "No data")",
-            "Latest Morning Batch: \(report.bloodPressure?.latestMorningBatch.map { bloodPressureBatch($0, calendar: calendar, locale: locale) } ?? "No data")",
-            "Morning Blood Pressure Coverage: \(report.bloodPressure?.morning.map(bloodPressureCoverage) ?? "No data")",
-            "Evening Blood Pressure Average: \(report.bloodPressure?.evening.map { bloodPressure(systolic: $0.averageSystolic, diastolic: $0.averageDiastolic, locale: locale) } ?? "No data")",
-            "Latest Evening Batch: \(report.bloodPressure?.latestEveningBatch.map { bloodPressureBatch($0, calendar: calendar, locale: locale) } ?? "No data")",
-            "Evening Blood Pressure Coverage: \(report.bloodPressure?.evening.map(bloodPressureCoverage) ?? "No data")",
-            "Average Daily Steps: \(report.steps.map { integer($0.averageDailySteps, locale: locale) } ?? "No data")",
-            "Step Data Coverage: \(report.steps.map(stepCoverage) ?? "No data")",
-            "Resting HR Average: \(report.restingHeartRate.map { heartRate($0.current.average, locale: locale) } ?? "No data")",
-            "Resting HR Trend: \(report.restingHeartRate?.trend.map { signedChange($0, unit: "bpm", comparison: comparison, locale: locale) } ?? "Insufficient history")",
-            "HRV Average: \(report.hrv.map { hrvMilliseconds($0.current.average, locale: locale) } ?? "No data")",
-            "HRV Trend: \(report.hrv?.trend.map { signedChange($0, unit: "ms", comparison: comparison, locale: locale) } ?? "Insufficient history")",
-            "Watch Data Coverage: \(report.watchCoverage.map { "\($0.daysWithWatchData) / \($0.reportingDayCount) days" } ?? "No data")",
-            "Average Sleep: \(report.sleep.map { duration($0.averageDuration) } ?? "No data")",
-            "Active Energy: \(report.activeEnergyKilocalories.map { energyKilocalories($0, locale: locale) } ?? "No data")",
-            "Exercise: \(report.exerciseMinutes.map { minutes($0, locale: locale) } ?? "No data")",
-            "Workouts: \(report.workouts.map { String($0.count) } ?? "No data")"
-        ]
-        let workoutLines = report.workouts?.workouts.map {
-            "Workout: \($0.activityName) — \(duration($0.duration)) — \(workoutDateAndTime($0.startDate, calendar: calendar))"
-        } ?? ["Workout Details: No data"]
-        let medicationLines = report.medications?.groups.map {
-            "Medication Taken: \($0.medicationName) — \(medicationGroupDetail($0, calendar: calendar, locale: locale))"
-        } ?? []
-        return (lines + workoutLines + medicationLines).joined(separator: "\n")
     }
 
     static func dateAndTime(

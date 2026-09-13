@@ -81,6 +81,39 @@ final class HealthReportFormatterTests: XCTestCase {
         )
     }
 
+    func testLegacyBloodPressureClipboardHelpersRemainStableUntilCleanup() {
+        let calendar = testCalendar()
+        let measured = date(2026, 8, 24, hour: 8, minute: 11, calendar: calendar)
+        let batch = BloodPressureBatchSummary(
+            averageSystolic: 125.3,
+            averageDiastolic: 79.7,
+            readingCount: 3,
+            firstReadingDate: measured.addingTimeInterval(-6 * 60),
+            latestReadingDate: measured,
+            sourceNames: ["Fixture Monitor"]
+        )
+        let slot = BloodPressurePeriodSlotSummary(
+            averageSystolic: 124.1,
+            averageDiastolic: 79.2,
+            sampledDayCount: 5,
+            reportingDayCount: 7,
+            readingCount: 15
+        )
+
+        XCTAssertEqual(
+            HealthReportFormatter.bloodPressureBatch(
+                batch,
+                calendar: calendar,
+                locale: Locale(identifier: "en_GB")
+            ),
+            "125.3/79.7 mmHg (3 readings, 24/08/26 - 08:11)"
+        )
+        XCTAssertEqual(
+            HealthReportFormatter.bloodPressureCoverage(slot),
+            "5 / 7 days; 15 paired readings"
+        )
+    }
+
     func testClipboardReportIncludesValuesAndNoDiagnostics() throws {
         let calendar = testCalendar()
         let period = ReportPeriod.make(
@@ -222,8 +255,11 @@ final class HealthReportFormatterTests: XCTestCase {
             medications: nil
         )
 
-        let text = HealthReportFormatter.clipboardReport(
-            report,
+        let text = ReportDocument(
+            snapshot: presentationSnapshot(from: report),
+            calendar: calendar,
+            locale: Locale(identifier: "en_GB")
+        ).plainText(
             generatedAt: date(2026, 8, 26, calendar: calendar),
             calendar: calendar,
             locale: Locale(identifier: "en_GB")
@@ -231,50 +267,82 @@ final class HealthReportFormatterTests: XCTestCase {
 
         XCTAssertEqual(text, """
         Weekly Health Report
+        Last 7 Completed Days
         18–24 Aug 2026
         Generated: 26/08/26 - 09:00
 
-        Latest Weight: 100.6 kg
-        Weight Recorded: 25/08/26 - 00:00
-        Weight 7-day Avg: 100.8 kg
-        Weight Trend: -0.4 kg vs previous 7d
-        Body Fat: 26.5%
-        Body Fat 28-day Avg: 26.7%
-        Body Fat Trend: -0.9 pp vs previous 28d
-        Waist Circumference: 101.4 cm
-        Waist Recorded: 24/08/26 - 09:00
-        Waist 4-week Trend: -1.7 cm vs ~4 weeks earlier
-        Glucose Daily Average: 5.8 mmol/L
-        Glucose Observed Range: 3.9–8.7 mmol/L
-        Glucose Data Coverage: 7 / 7 days
-        Latest VO₂ Max: 32.1 mL/kg/min (24/08/26 - 09:00)
-        VO₂ Max — 4 Weeks: 31.8 mL/kg/min (8 days)
-        VO₂ Max — 3 Months: 30.9 mL/kg/min (24 days)
-        VO₂ Max — 6 Months: 29.7 mL/kg/min (51 days)
-        Latest Blood Oxygen: 97% (24/08/26 - 09:00)
-        Typical Blood Oxygen: 97%
-        Blood Oxygen Daily Range: 96–98%
-        Blood Oxygen Data Coverage: 7 / 7 days
-        Latest Blood Pressure: 123/78 mmHg (24/08/26 - 20:14)
-        Morning Blood Pressure Average: 124.1/79.2 mmHg
-        Latest Morning Batch: 125.3/79.7 mmHg (3 readings, 24/08/26 - 08:11)
-        Morning Blood Pressure Coverage: 5 / 7 days; 15 paired readings
-        Evening Blood Pressure Average: 122.8/77.6 mmHg
-        Latest Evening Batch: 122.7/77.3 mmHg (3 readings, 24/08/26 - 20:14)
-        Evening Blood Pressure Coverage: 4 / 7 days; 12 paired readings
+        Steps
         Average Daily Steps: 2,727
-        Step Data Coverage: 7 / 7 days
+        Data Coverage: 7 / 7 days
+        Weekly Total: 19,089
+
+        Weight
+        Latest Weight: 100.6 kg
+        Measured: 25/08/26 - 00:00
+        7-day Average: 100.8 kg
+        Weight Trend: -0.4 kg vs previous 7d
+
+        Body Composition
+        Body Fat: 26.5% latest
+        7-day Average: 26.7%
+        28-day Average: 26.7%
+        Body Fat Trend: ↓ 0.9 pp vs previous 28d
+        Waist Circumference: 101.4 cm
+        Waist Measured: 24/08/26 - 09:00
+        4-week Waist Trend: -1.7 cm vs ~4 weeks earlier
+
+        Heart
         Resting HR Average: 73 bpm
         Resting HR Trend: +3.0 bpm vs previous 7d
         HRV Average: 42 ms
         HRV Trend: -5.0 ms vs previous 7d
         Watch Data Coverage: 4 / 7 days
-        Average Sleep: 6h 48m
+
+        Blood Pressure
+        Latest reading: 123/78 mmHg
+        Recorded: 24/08/26 - 20:14
+        Morning average: 124.1/79.2 mmHg
+        Latest batch: 125.3/79.7 mmHg
+        Recorded: 24/08/26 - 08:11 · 3 readings
+        Coverage: 5/7 days · 15 readings
+        Evening average: 122.8/77.6 mmHg
+        Latest batch: 122.7/77.3 mmHg
+        Recorded: 24/08/26 - 20:14 · 3 readings
+        Coverage: 4/7 days · 12 readings
+        Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
+
+        Cardiorespiratory
+        Latest VO₂ Max: 32.1 mL/kg/min
+        VO₂ Max Measured: 24/08/26 - 09:00
+        4-Week Average: 31.8 mL/kg/min (8 days)
+        3-Month Average: 30.9 mL/kg/min (24 days)
+        6-Month Average: 29.7 mL/kg/min (51 days)
+        Latest Blood Oxygen: 97%
+        Blood Oxygen Measured: 24/08/26 - 09:00
+        Period Typical: 97%
+        Daily Median Range: 96–98%
+        Blood Oxygen Coverage: 7 / 7 days
+        Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
+
+        Glucose
+        Daily Average: 5.8 mmol/L
+        Observed Range: 3.9–8.7 mmol/L
+        Data Coverage: 7 / 7 days
+
+        Activity
         Active Energy: 1,974 kcal
         Exercise: 89 min
         Workouts: 1
-        Workout: Walking — 30m — 18/08/26 - 00:00
+        Workout Time: 30m
+        Walking: 30m — 18/08/26 - 00:00
+
+        Sleep
+        Average Sleep: 6h 48m
+
+        Medications Taken
+        No taken medication events are visible for this period.
         """)
+        XCTAssertFalse(text.hasSuffix("\n"))
     }
 
     func testClipboardMissingDataIsExplicitRatherThanZero() {
@@ -291,20 +359,31 @@ final class HealthReportFormatterTests: XCTestCase {
             activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil,
             medications: nil
         )
-        let text = HealthReportFormatter.clipboardReport(report, calendar: calendar)
-        XCTAssertTrue(text.contains("HRV Average: No data"))
-        XCTAssertTrue(text.contains("Body Fat Trend: Insufficient history"))
-        XCTAssertTrue(text.contains("Weight Recorded: No data"))
+        let text = ReportDocument(
+            snapshot: presentationSnapshot(
+                from: report,
+                glucose: .failed("Synthetic glucose failure")
+            ),
+            calendar: calendar,
+            locale: Locale(identifier: "en_GB")
+        ).plainText(
+            generatedAt: date(2026, 8, 25, calendar: calendar),
+            calendar: calendar,
+            locale: Locale(identifier: "en_GB")
+        )
+        XCTAssertTrue(text.contains("HRV Average: No data"), text)
+        XCTAssertTrue(text.contains(
+            "No weight data is visible, or Health access was not granted."
+        ))
         XCTAssertTrue(text.contains("Waist Circumference: No data"))
-        XCTAssertTrue(text.contains("Waist 4-week Trend: Insufficient history"))
-        XCTAssertTrue(text.contains("Glucose Daily Average: No data"))
+        XCTAssertTrue(text.contains("Daily Average: Query failed"))
         XCTAssertTrue(text.contains("Latest VO₂ Max: No data"))
         XCTAssertTrue(text.contains("Latest Blood Oxygen: No data"))
-        XCTAssertTrue(text.contains("Latest Blood Pressure: No data"))
-        XCTAssertTrue(text.contains("Morning Blood Pressure Average: No data"))
-        XCTAssertTrue(text.contains("Evening Blood Pressure Average: No data"))
+        XCTAssertTrue(text.contains(
+            "No complete blood-pressure readings are visible, or Health access was not granted."
+        ))
         XCTAssertTrue(text.contains("Watch Data Coverage: No data"))
-        XCTAssertTrue(text.contains("Workout Details: No data"))
+        XCTAssertTrue(text.contains("Workouts: No data"))
         XCTAssertFalse(text.contains("HRV Average: 0"))
         XCTAssertFalse(text.contains("Medication Taken:"))
     }
@@ -329,14 +408,61 @@ final class HealthReportFormatterTests: XCTestCase {
             medications: MedicationSummary.aggregate([medication])
         )
 
-        let text = HealthReportFormatter.clipboardReport(
-            report, generatedAt: eventDate, calendar: calendar,
+        let document = ReportDocument(
+            snapshot: presentationSnapshot(from: report),
+            calendar: calendar,
+            locale: Locale(identifier: "en_GB")
+        )
+        let text = document.plainText(
+            generatedAt: eventDate, calendar: calendar,
             locale: Locale(identifier: "en_GB")
         )
 
         XCTAssertTrue(text.contains(
-            "Medication Taken: ExampleMed 20 mg — 1 dose at 09/02/26 - 09:00; 1 taken event"
+            "ExampleMed 20 mg: 1 dose at 09/02/26 - 09:00; 1 taken event"
         ))
+        let withoutMedicationSection = ReportDocument(
+            snapshot: presentationSnapshot(
+                from: report,
+                includesMedicationSection: false
+            ),
+            calendar: calendar,
+            locale: Locale(identifier: "en_GB")
+        ).plainText(
+            generatedAt: eventDate,
+            calendar: calendar,
+            locale: Locale(identifier: "en_GB")
+        )
+        XCTAssertFalse(withoutMedicationSection.contains("Medications Taken"))
+    }
+
+    private func presentationSnapshot(
+        from report: WeeklyReportSnapshot,
+        glucose: MetricState<GlucoseSummary>? = nil,
+        includesMedicationSection: Bool = true
+    ) -> WeeklyReportScreenshotSnapshot {
+        WeeklyReportScreenshotSnapshot(
+            period: report.period,
+            steps: report.steps.map(StepsState.loaded) ?? .noDataOrAccess,
+            weight: report.weight.map(MetricState.available) ?? .noDataOrAccess,
+            bodyFat: report.bodyFat.map(MetricState.available) ?? .noDataOrAccess,
+            waist: report.waist.map(MetricState.available) ?? .noDataOrAccess,
+            glucose: glucose ?? report.glucose.map(MetricState.available) ?? .noDataOrAccess,
+            vo2Max: report.vo2Max.map(MetricState.available) ?? .noDataOrAccess,
+            bloodOxygen: report.bloodOxygen.map(MetricState.available) ?? .noDataOrAccess,
+            bloodPressure: report.bloodPressure.map(MetricState.available) ?? .noDataOrAccess,
+            restingHeartRate: report.restingHeartRate.map(MetricState.available) ?? .noDataOrAccess,
+            hrv: report.hrv.map(MetricState.available) ?? .noDataOrAccess,
+            watchCoverage: report.watchCoverage.map(MetricState.available) ?? .noDataOrAccess,
+            exercise: report.exerciseMinutes.map(MetricState.available) ?? .noDataOrAccess,
+            activeEnergy: report.activeEnergyKilocalories.map(MetricState.available) ?? .noDataOrAccess,
+            workouts: report.workouts.map(MetricState.available) ?? .noDataOrAccess,
+            sleep: report.sleep.map(MetricState.available) ?? .noDataOrAccess,
+            medications: report.medications.map(MetricState.available) ?? .noDataOrAccess,
+            includesMedicationSection: includesMedicationSection,
+            showsMorningBloodPressureDetails: true,
+            showsEveningBloodPressureDetails: true
+        )
     }
 
     private func stepSummary(period: ReportPeriod) -> StepSummary {
