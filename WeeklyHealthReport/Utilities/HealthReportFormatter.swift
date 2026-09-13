@@ -171,28 +171,6 @@ enum HealthReportFormatter {
         return "\(systolic.formatted(format))/\(diastolic.formatted(format)) mmHg"
     }
 
-    static func bloodPressureBatch(
-        _ batch: BloodPressureBatchSummary,
-        calendar: Calendar = .autoupdatingCurrent,
-        locale: Locale = .autoupdatingCurrent
-    ) -> String {
-        // Retained until the final rendering-consolidation cleanup phase.
-        let count = batch.readingCount == 1
-            ? "1 reading"
-            : "\(batch.readingCount) readings"
-        return "\(bloodPressure(systolic: batch.averageSystolic, diastolic: batch.averageDiastolic, locale: locale)) (\(count), \(dateAndTime(batch.latestReadingDate, calendar: calendar, locale: locale)))"
-    }
-
-    static func bloodPressureCoverage(
-        _ summary: BloodPressurePeriodSlotSummary
-    ) -> String {
-        // Retained until the final rendering-consolidation cleanup phase.
-        let readings = summary.readingCount == 1
-            ? "1 paired reading"
-            : "\(summary.readingCount) paired readings"
-        return "\(summary.sampledDayCount) / \(summary.reportingDayCount) days; \(readings)"
-    }
-
     static func percentagePointTrend(
         _ value: Double,
         locale: Locale = .autoupdatingCurrent

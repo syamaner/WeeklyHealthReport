@@ -484,7 +484,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
     }
 
     private func makeSnapshot(
-        steps: WeeklyReportViewModel.State = .noDataOrAccess,
+        steps: StepsState = .noDataOrAccess,
         weight: WeeklyReportViewModel.WeightState = .noDataOrAccess,
         bodyFat: WeeklyReportViewModel.BodyFatState = .noDataOrAccess,
         waist: MetricState<WaistSummary> = .noDataOrAccess,
@@ -503,7 +503,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         includesMedicationSection: Bool = false,
         showsMorningDetails: Bool = true,
         showsEveningDetails: Bool = false
-    ) -> WeeklyReportScreenshotSnapshot {
+    ) -> ReportPresentationSnapshot {
         let calendar = testCalendar()
         let now = calendar.date(from: DateComponents(
             year: 2026,
@@ -516,7 +516,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
             now: now,
             calendar: calendar
         )
-        return WeeklyReportScreenshotSnapshot(
+        return ReportPresentationSnapshot(
             period: period,
             steps: steps,
             weight: weight,
@@ -540,7 +540,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         )
     }
 
-    private func makeFullFixtureSnapshot() -> WeeklyReportScreenshotSnapshot {
+    private func makeFullFixtureSnapshot() -> ReportPresentationSnapshot {
         let calendar = testCalendar()
         let now = date(2026, 9, 10, hour: 12, calendar: calendar)
         let measured = date(2026, 9, 9, hour: 8, calendar: calendar)
@@ -579,7 +579,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
             )
         ])!
 
-        return WeeklyReportScreenshotSnapshot(
+        return ReportPresentationSnapshot(
             period: period,
             steps: .loaded(StepSummary(
                 dailyTotals: [], totalSteps: 49_000, averageDailySteps: 7_000,
@@ -835,7 +835,7 @@ private enum SyntheticDocumentStateCase: CaseIterable {
     case healthUnavailable
     case failed
 
-    var stepsState: WeeklyReportViewModel.State {
+    var stepsState: StepsState {
         switch self {
         case .idle: .idle
         case .loading: .loading

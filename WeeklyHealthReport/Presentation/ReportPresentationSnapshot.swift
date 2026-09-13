@@ -1,6 +1,6 @@
 import Foundation
 
-struct WeeklyReportScreenshotSnapshot: Equatable {
+struct ReportPresentationSnapshot: Equatable {
     let period: ReportPeriod
     let steps: StepsState
     let weight: MetricState<WeightTrendSummary>

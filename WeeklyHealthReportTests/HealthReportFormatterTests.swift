@@ -154,39 +154,6 @@ final class HealthReportFormatterTests: XCTestCase {
         )
     }
 
-    func testLegacyBloodPressureClipboardHelpersRemainStableUntilCleanup() {
-        let calendar = testCalendar()
-        let measured = date(2026, 8, 24, hour: 8, minute: 11, calendar: calendar)
-        let batch = BloodPressureBatchSummary(
-            averageSystolic: 125.3,
-            averageDiastolic: 79.7,
-            readingCount: 3,
-            firstReadingDate: measured.addingTimeInterval(-6 * 60),
-            latestReadingDate: measured,
-            sourceNames: ["Fixture Monitor"]
-        )
-        let slot = BloodPressurePeriodSlotSummary(
-            averageSystolic: 124.1,
-            averageDiastolic: 79.2,
-            sampledDayCount: 5,
-            reportingDayCount: 7,
-            readingCount: 15
-        )
-
-        XCTAssertEqual(
-            HealthReportFormatter.bloodPressureBatch(
-                batch,
-                calendar: calendar,
-                locale: Locale(identifier: "en_GB")
-            ),
-            "125.3/79.7 mmHg (3 readings, 24/08/26 - 08:11)"
-        )
-        XCTAssertEqual(
-            HealthReportFormatter.bloodPressureCoverage(slot),
-            "5 / 7 days; 15 paired readings"
-        )
-    }
-
     func testClipboardReportIncludesValuesAndNoDiagnostics() throws {
         let calendar = testCalendar()
         let period = ReportPeriod.make(
@@ -204,7 +171,7 @@ final class HealthReportFormatterTests: XCTestCase {
             asOf: date(2026, 8, 25, calendar: calendar),
             calendar: calendar
         ))
-        let report = WeeklyReportSnapshot(
+        let snapshot = presentationSnapshot(
             period: period,
             weight: WeightTrendSummary(
                 latest: WeightMeasurement(date: period.interval.end, kilograms: 100.6),
@@ -329,7 +296,7 @@ final class HealthReportFormatterTests: XCTestCase {
         )
 
         let text = ReportDocument(
-            snapshot: presentationSnapshot(from: report),
+            snapshot: snapshot,
             calendar: calendar,
             locale: Locale(identifier: "en_GB")
         ).plainText(
@@ -425,17 +392,10 @@ final class HealthReportFormatterTests: XCTestCase {
             now: date(2026, 8, 25, calendar: calendar),
             calendar: calendar
         )
-        let report = WeeklyReportSnapshot(
-            period: period, weight: nil, bodyFat: nil, waist: nil, glucose: nil,
-            vo2Max: nil, bloodOxygen: nil, bloodPressure: nil, steps: nil,
-            restingHeartRate: nil, hrv: nil, watchCoverage: nil, sleep: nil,
-            activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil,
-            medications: nil
-        )
         let text = ReportDocument(
             snapshot: presentationSnapshot(
-                from: report,
-                glucose: .failed("Synthetic glucose failure")
+                period: period,
+                glucoseState: .failed("Synthetic glucose failure")
             ),
             calendar: calendar,
             locale: Locale(identifier: "en_GB")
@@ -473,16 +433,13 @@ final class HealthReportFormatterTests: XCTestCase {
             id: UUID(), medicationKey: "example-20", medicationName: "ExampleMed 20 mg",
             date: eventDate, quantity: 1, unitLabel: "dose"
         )
-        let report = WeeklyReportSnapshot(
-            period: period, weight: nil, bodyFat: nil, waist: nil, glucose: nil,
-            vo2Max: nil, bloodOxygen: nil, bloodPressure: nil, steps: nil,
-            restingHeartRate: nil, hrv: nil, watchCoverage: nil, sleep: nil,
-            activeEnergyKilocalories: nil, exerciseMinutes: nil, workouts: nil,
+        let snapshot = presentationSnapshot(
+            period: period,
             medications: MedicationSummary.aggregate([medication])
         )
 
         let document = ReportDocument(
-            snapshot: presentationSnapshot(from: report),
+            snapshot: snapshot,
             calendar: calendar,
             locale: Locale(identifier: "en_GB")
         )
@@ -496,7 +453,8 @@ final class HealthReportFormatterTests: XCTestCase {
         ))
         let withoutMedicationSection = ReportDocument(
             snapshot: presentationSnapshot(
-                from: report,
+                period: period,
+                medications: MedicationSummary.aggregate([medication]),
                 includesMedicationSection: false
             ),
             calendar: calendar,
@@ -510,28 +468,44 @@ final class HealthReportFormatterTests: XCTestCase {
     }
 
     private func presentationSnapshot(
-        from report: WeeklyReportSnapshot,
-        glucose: MetricState<GlucoseSummary>? = nil,
+        period: ReportPeriod,
+        weight: WeightTrendSummary? = nil,
+        bodyFat: BodyFatTrendSummary? = nil,
+        waist: WaistSummary? = nil,
+        glucose: GlucoseSummary? = nil,
+        vo2Max: VO2MaxSummary? = nil,
+        bloodOxygen: BloodOxygenSummary? = nil,
+        bloodPressure: BloodPressureSummary? = nil,
+        steps: StepSummary? = nil,
+        restingHeartRate: HeartMetricTrendSummary? = nil,
+        hrv: HeartMetricTrendSummary? = nil,
+        watchCoverage: WatchCoverageSummary? = nil,
+        sleep: SleepSummary? = nil,
+        activeEnergyKilocalories: Double? = nil,
+        exerciseMinutes: Double? = nil,
+        workouts: WorkoutSummary? = nil,
+        medications: MedicationSummary? = nil,
+        glucoseState: MetricState<GlucoseSummary>? = nil,
         includesMedicationSection: Bool = true
-    ) -> WeeklyReportScreenshotSnapshot {
-        WeeklyReportScreenshotSnapshot(
-            period: report.period,
-            steps: report.steps.map(StepsState.loaded) ?? .noDataOrAccess,
-            weight: report.weight.map(MetricState.available) ?? .noDataOrAccess,
-            bodyFat: report.bodyFat.map(MetricState.available) ?? .noDataOrAccess,
-            waist: report.waist.map(MetricState.available) ?? .noDataOrAccess,
-            glucose: glucose ?? report.glucose.map(MetricState.available) ?? .noDataOrAccess,
-            vo2Max: report.vo2Max.map(MetricState.available) ?? .noDataOrAccess,
-            bloodOxygen: report.bloodOxygen.map(MetricState.available) ?? .noDataOrAccess,
-            bloodPressure: report.bloodPressure.map(MetricState.available) ?? .noDataOrAccess,
-            restingHeartRate: report.restingHeartRate.map(MetricState.available) ?? .noDataOrAccess,
-            hrv: report.hrv.map(MetricState.available) ?? .noDataOrAccess,
-            watchCoverage: report.watchCoverage.map(MetricState.available) ?? .noDataOrAccess,
-            exercise: report.exerciseMinutes.map(MetricState.available) ?? .noDataOrAccess,
-            activeEnergy: report.activeEnergyKilocalories.map(MetricState.available) ?? .noDataOrAccess,
-            workouts: report.workouts.map(MetricState.available) ?? .noDataOrAccess,
-            sleep: report.sleep.map(MetricState.available) ?? .noDataOrAccess,
-            medications: report.medications.map(MetricState.available) ?? .noDataOrAccess,
+    ) -> ReportPresentationSnapshot {
+        ReportPresentationSnapshot(
+            period: period,
+            steps: steps.map(StepsState.loaded) ?? .noDataOrAccess,
+            weight: weight.map(MetricState.available) ?? .noDataOrAccess,
+            bodyFat: bodyFat.map(MetricState.available) ?? .noDataOrAccess,
+            waist: waist.map(MetricState.available) ?? .noDataOrAccess,
+            glucose: glucoseState ?? glucose.map(MetricState.available) ?? .noDataOrAccess,
+            vo2Max: vo2Max.map(MetricState.available) ?? .noDataOrAccess,
+            bloodOxygen: bloodOxygen.map(MetricState.available) ?? .noDataOrAccess,
+            bloodPressure: bloodPressure.map(MetricState.available) ?? .noDataOrAccess,
+            restingHeartRate: restingHeartRate.map(MetricState.available) ?? .noDataOrAccess,
+            hrv: hrv.map(MetricState.available) ?? .noDataOrAccess,
+            watchCoverage: watchCoverage.map(MetricState.available) ?? .noDataOrAccess,
+            exercise: exerciseMinutes.map(MetricState.available) ?? .noDataOrAccess,
+            activeEnergy: activeEnergyKilocalories.map(MetricState.available) ?? .noDataOrAccess,
+            workouts: workouts.map(MetricState.available) ?? .noDataOrAccess,
+            sleep: sleep.map(MetricState.available) ?? .noDataOrAccess,
+            medications: medications.map(MetricState.available) ?? .noDataOrAccess,
             includesMedicationSection: includesMedicationSection,
             showsMorningBloodPressureDetails: true,
             showsEveningBloodPressureDetails: true

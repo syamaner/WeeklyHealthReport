@@ -311,7 +311,7 @@ struct WeeklyReportView: View {
     }
 
     private static func reportDocument(
-        snapshot: WeeklyReportScreenshotSnapshot
+        snapshot: ReportPresentationSnapshot
     ) -> ReportDocument {
         ReportDocument(snapshot: snapshot)
     }

@@ -54,7 +54,7 @@ struct ReportDocument: Equatable {
     let sections: [Section]
 
     init(
-        snapshot: WeeklyReportScreenshotSnapshot,
+        snapshot: ReportPresentationSnapshot,
         calendar: Calendar = .autoupdatingCurrent,
         locale: Locale = .autoupdatingCurrent
     ) {

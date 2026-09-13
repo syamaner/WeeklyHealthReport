@@ -25,7 +25,6 @@
 		A00000000000000000000010 /* HeartMetricSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000013 /* HeartMetricSummary.swift */; };
 		A00000000000000000000011 /* ActivitySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000014 /* ActivitySummary.swift */; };
 		A00000000000000000000012 /* SleepSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000015 /* SleepSummary.swift */; };
-		A00000000000000000000013 /* WeeklyReportSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000016 /* WeeklyReportSnapshot.swift */; };
 		A00000000000000000000014 /* HeartMetricSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000017 /* HeartMetricSummaryTests.swift */; };
 		A00000000000000000000015 /* ActivitySummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000018 /* ActivitySummaryTests.swift */; };
 		A00000000000000000000016 /* SleepSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000019 /* SleepSummaryTests.swift */; };
@@ -115,7 +114,6 @@
 		B00000000000000000000013 /* HeartMetricSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartMetricSummary.swift; sourceTree = "<group>"; };
 		B00000000000000000000014 /* ActivitySummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitySummary.swift; sourceTree = "<group>"; };
 		B00000000000000000000015 /* SleepSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSummary.swift; sourceTree = "<group>"; };
-		B00000000000000000000016 /* WeeklyReportSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportSnapshot.swift; sourceTree = "<group>"; };
 		B00000000000000000000017 /* HeartMetricSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartMetricSummaryTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000018 /* ActivitySummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitySummaryTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000019 /* SleepSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSummaryTests.swift; sourceTree = "<group>"; };
@@ -238,7 +236,6 @@
 				B00000000000000000000013 /* HeartMetricSummary.swift */,
 				B00000000000000000000014 /* ActivitySummary.swift */,
 				B00000000000000000000015 /* SleepSummary.swift */,
-				B00000000000000000000016 /* WeeklyReportSnapshot.swift */,
 				B0000000000000000000001C /* WatchCoverageSummary.swift */,
 				B00000000000000000000020 /* WaistMeasurement.swift */,
 				B00000000000000000000021 /* GlucoseSummary.swift */,
@@ -506,7 +503,6 @@
 				A00000000000000000000010 /* HeartMetricSummary.swift in Sources */,
 				A00000000000000000000011 /* ActivitySummary.swift in Sources */,
 				A00000000000000000000012 /* SleepSummary.swift in Sources */,
-				A00000000000000000000013 /* WeeklyReportSnapshot.swift in Sources */,
 				A0000000000000000000003C /* ReportDocument.swift in Sources */,
 				A00000000000000000000045 /* MetricState.swift in Sources */,
 				A00000000000000000000046 /* ReportPresentationSnapshot.swift in Sources */,

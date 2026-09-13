@@ -223,7 +223,14 @@ final class WeeklyReportViewModelTests: XCTestCase {
             .failed(FixtureError.glucoseFailure.localizedDescription)
         )
         assertAllReportMetricsAvailable(viewModel, excludingGlucose: true)
-        XCTAssertNil(viewModel.reportSnapshot.glucose)
+        XCTAssertEqual(
+            viewModel.presentationSnapshot(
+                includesMedicationSection: true,
+                showsMorningBloodPressureDetails: true,
+                showsEveningBloodPressureDetails: true
+            ).glucose,
+            viewModel.glucoseState
+        )
         XCTAssertEqual(viewModel.lastRefreshed, refreshDate)
         assertSnapshotMatchesPublishedStates(viewModel)
     }
@@ -522,63 +529,61 @@ final class WeeklyReportViewModelTests: XCTestCase {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        let snapshot = viewModel.reportSnapshot
-        let steps: StepSummary?
-        if case .loaded(let summary) = viewModel.state {
-            steps = summary
-        } else {
-            steps = nil
-        }
+        let snapshot = viewModel.presentationSnapshot(
+            includesMedicationSection: true,
+            showsMorningBloodPressureDetails: true,
+            showsEveningBloodPressureDetails: true
+        )
 
         XCTAssertEqual(snapshot.period, viewModel.period, file: file, line: line)
-        XCTAssertEqual(snapshot.weight, viewModel.weightState.value, file: file, line: line)
-        XCTAssertEqual(snapshot.bodyFat, viewModel.bodyFatState.value, file: file, line: line)
-        XCTAssertEqual(snapshot.waist, viewModel.waistState.value, file: file, line: line)
-        XCTAssertEqual(snapshot.glucose, viewModel.glucoseState.value, file: file, line: line)
-        XCTAssertEqual(snapshot.vo2Max, viewModel.vo2MaxState.value, file: file, line: line)
+        XCTAssertEqual(snapshot.weight, viewModel.weightState, file: file, line: line)
+        XCTAssertEqual(snapshot.bodyFat, viewModel.bodyFatState, file: file, line: line)
+        XCTAssertEqual(snapshot.waist, viewModel.waistState, file: file, line: line)
+        XCTAssertEqual(snapshot.glucose, viewModel.glucoseState, file: file, line: line)
+        XCTAssertEqual(snapshot.vo2Max, viewModel.vo2MaxState, file: file, line: line)
         XCTAssertEqual(
             snapshot.bloodOxygen,
-            viewModel.bloodOxygenState.value,
+            viewModel.bloodOxygenState,
             file: file,
             line: line
         )
         XCTAssertEqual(
             snapshot.bloodPressure,
-            viewModel.bloodPressureState.value,
+            viewModel.bloodPressureState,
             file: file,
             line: line
         )
-        XCTAssertEqual(snapshot.steps, steps, file: file, line: line)
+        XCTAssertEqual(snapshot.steps, viewModel.state, file: file, line: line)
         XCTAssertEqual(
             snapshot.restingHeartRate,
-            viewModel.restingHeartRateState.value,
+            viewModel.restingHeartRateState,
             file: file,
             line: line
         )
-        XCTAssertEqual(snapshot.hrv, viewModel.hrvState.value, file: file, line: line)
+        XCTAssertEqual(snapshot.hrv, viewModel.hrvState, file: file, line: line)
         XCTAssertEqual(
             snapshot.watchCoverage,
-            viewModel.watchCoverageState.value,
+            viewModel.watchCoverageState,
             file: file,
             line: line
         )
-        XCTAssertEqual(snapshot.sleep, viewModel.sleepState.value, file: file, line: line)
+        XCTAssertEqual(snapshot.sleep, viewModel.sleepState, file: file, line: line)
         XCTAssertEqual(
-            snapshot.activeEnergyKilocalories,
-            viewModel.activeEnergyState.value,
+            snapshot.activeEnergy,
+            viewModel.activeEnergyState,
             file: file,
             line: line
         )
         XCTAssertEqual(
-            snapshot.exerciseMinutes,
-            viewModel.exerciseState.value,
+            snapshot.exercise,
+            viewModel.exerciseState,
             file: file,
             line: line
         )
-        XCTAssertEqual(snapshot.workouts, viewModel.workoutState.value, file: file, line: line)
+        XCTAssertEqual(snapshot.workouts, viewModel.workoutState, file: file, line: line)
         XCTAssertEqual(
             snapshot.medications,
-            viewModel.medicationState.value,
+            viewModel.medicationState,
             file: file,
             line: line
         )

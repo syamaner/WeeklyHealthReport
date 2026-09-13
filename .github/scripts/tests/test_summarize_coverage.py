@@ -29,6 +29,7 @@ class CoverageSummaryTests(unittest.TestCase):
                     "files": [
                         file("Models/ReportPeriod.swift", 95, 100),
                         file("Utilities/HealthReportFormatter.swift", 97, 100),
+                        file("Presentation/ReportDocument.swift", 96, 100),
                         file("Views/WeeklyReportViewModel.swift", 20, 100),
                         file("HealthKit/HealthKitClient.swift", 1, 100),
                         file("Views/WeeklyReportView.swift", 0, 100),
@@ -45,8 +46,8 @@ class CoverageSummaryTests(unittest.TestCase):
                 for summary in summaries
             ],
             [
-                ("App target", 213, 500),
-                ("Pure models and formatting", 192, 200),
+                ("App target", 309, 600),
+                ("Models, formatting and presentation", 288, 300),
                 ("Report orchestration", 20, 100),
                 ("HealthKit client", 1, 100),
             ],
@@ -64,6 +65,7 @@ class CoverageSummaryTests(unittest.TestCase):
                     "files": [
                         file("Models/ReportPeriod.swift", 94, 100),
                         file("Utilities/HealthReportFormatter.swift", 95, 100),
+                        file("Presentation/ReportDocument.swift", 90, 100),
                         file("Views/WeeklyReportViewModel.swift", 20, 100),
                         file("HealthKit/HealthKitClient.swift", 1, 100),
                     ],

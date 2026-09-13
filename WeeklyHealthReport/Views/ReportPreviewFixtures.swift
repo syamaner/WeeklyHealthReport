@@ -25,7 +25,7 @@ enum ReportPreviewFixtures {
         ).sections.first { $0.id == id }!
     }
 
-    private static func snapshot(state: State) -> WeeklyReportScreenshotSnapshot {
+    private static func snapshot(state: State) -> ReportPresentationSnapshot {
         let period = ReportPeriod.make(
             selection: .lastSevenCompletedDays,
             now: date(2026, 9, 10, hour: 12),
@@ -65,7 +65,7 @@ enum ReportPreviewFixtures {
             )
         ])!
 
-        return WeeklyReportScreenshotSnapshot(
+        return ReportPresentationSnapshot(
             period: period,
             steps: stepsState(state, available: StepSummary(
                 dailyTotals: [],
