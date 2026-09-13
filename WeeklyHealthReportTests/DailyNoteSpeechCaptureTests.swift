@@ -646,6 +646,24 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
         XCTAssertEqual(appended, ["current final"])
     }
 
+    func testFailureCallbackFromCancelledCycleCannotFailLaterCycle() async {
+        let capture = FakeSpeechCapture()
+        let controller = makeSpeechController(capture: capture)
+
+        await controller.toggle()
+        controller.stopForLifecycle()
+        await controller.toggle()
+
+        capture.fail(.interrupted, fromCycle: 0)
+        XCTAssertEqual(controller.state, .listening)
+
+        capture.fail(.interrupted, fromCycle: 1)
+        XCTAssertEqual(
+            controller.state,
+            .failed("Dictation was interrupted. Your draft and finalised text were preserved.")
+        )
+    }
+
     func testStartFailureIsVisibleAndRetryable() async {
         let capture = FakeSpeechCapture()
         capture.startFailure = .audioInputUnavailable
@@ -887,9 +905,10 @@ private final class FakeSpeechCapture: OnDeviceSpeechCapturing {
     private(set) var startCount = 0
     private(set) var stopCount = 0
     private(set) var cancelCount = 0
-    private var onUpdate: ((SpeechCaptureUpdate) -> Void)?
-    private var onFailure: ((SpeechCaptureFailure) -> Void)?
-    private var updateHandlers: [(SpeechCaptureUpdate) -> Void] = []
+    private var onUpdate: (@MainActor @Sendable (SpeechCaptureUpdate) -> Void)?
+    private var onFailure: (@MainActor @Sendable (SpeechCaptureFailure) -> Void)?
+    private var updateHandlers: [@MainActor @Sendable (SpeechCaptureUpdate) -> Void] = []
+    private var failureHandlers: [@MainActor @Sendable (SpeechCaptureFailure) -> Void] = []
     private var permissionContinuation: CheckedContinuation<SpeechCapturePermission, Never>?
     private var permissionRequestWaiters: [CheckedContinuation<Void, Never>] = []
 
@@ -930,14 +949,15 @@ private final class FakeSpeechCapture: OnDeviceSpeechCapturing {
     }
 
     func start(
-        onUpdate: @escaping (SpeechCaptureUpdate) -> Void,
-        onFailure: @escaping (SpeechCaptureFailure) -> Void
+        onUpdate: @escaping @MainActor @Sendable (SpeechCaptureUpdate) -> Void,
+        onFailure: @escaping @MainActor @Sendable (SpeechCaptureFailure) -> Void
     ) throws {
         startCount += 1
         if let startFailure { throw startFailure }
         self.onUpdate = onUpdate
         self.onFailure = onFailure
         updateHandlers.append(onUpdate)
+        failureHandlers.append(onFailure)
     }
 
     func stop() { stopCount += 1 }
@@ -947,6 +967,9 @@ private final class FakeSpeechCapture: OnDeviceSpeechCapturing {
         updateHandlers[index](update)
     }
     func fail(_ failure: SpeechCaptureFailure) { onFailure?(failure) }
+    func fail(_ failure: SpeechCaptureFailure, fromCycle index: Int) {
+        failureHandlers[index](failure)
+    }
 }
 
 private final class SpeechNotesStore: DailyNotesPersisting {

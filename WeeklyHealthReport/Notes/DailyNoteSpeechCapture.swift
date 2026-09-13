@@ -62,8 +62,8 @@ protocol OnDeviceSpeechCapturing: AnyObject {
 
     func requestPermission() async -> SpeechCapturePermission
     func start(
-        onUpdate: @escaping (SpeechCaptureUpdate) -> Void,
-        onFailure: @escaping (SpeechCaptureFailure) -> Void
+        onUpdate: @escaping @MainActor @Sendable (SpeechCaptureUpdate) -> Void,
+        onFailure: @escaping @MainActor @Sendable (SpeechCaptureFailure) -> Void
     ) throws
     func stop()
     func cancel()
@@ -177,8 +177,8 @@ final class SystemOnDeviceSpeechCapture: NSObject, OnDeviceSpeechCapturing {
     }
 
     func start(
-        onUpdate: @escaping (SpeechCaptureUpdate) -> Void,
-        onFailure: @escaping (SpeechCaptureFailure) -> Void
+        onUpdate: @escaping @MainActor @Sendable (SpeechCaptureUpdate) -> Void,
+        onFailure: @escaping @MainActor @Sendable (SpeechCaptureFailure) -> Void
     ) throws {
         cancel()
         guard permission == .authorized,
