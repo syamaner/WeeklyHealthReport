@@ -15,7 +15,7 @@ enum FixtureError: LocalizedError {
     }
 }
 
-final class FakeHealthDataProvider: HealthDataProviding {
+final class FakeHealthDataProvider: HealthDataProviding, Sendable {
     let isHealthDataAvailable: Bool
     let supportsMedicationData: Bool
 
@@ -85,7 +85,7 @@ final class FakeHealthDataProvider: HealthDataProviding {
     }
 
     func fetchWeightMeasurements(asOf date: Date) async throws -> [WeightMeasurement] {
-        await control.nextWeightMeasurements(
+        return await control.nextWeightMeasurements(
             responses: weightResponses,
             fallback: [WeightMeasurement(
                 id: fixtureID,

@@ -94,7 +94,7 @@ enum HealthDataError: LocalizedError, Equatable {
     }
 }
 
-final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding {
+final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding, Sendable {
     private let store: HKHealthStore
     private let visibleNutritionSourcesByBundleIdentifier =
         AtomicSnapshotCache<String, Set<HKSource>>()
