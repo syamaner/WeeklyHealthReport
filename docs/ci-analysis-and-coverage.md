@@ -16,15 +16,19 @@ HealthKit validation.
 The summary reports executable-line coverage for:
 
 - the complete `WeeklyHealthReport.app` target;
-- pure domain code under `WeeklyHealthReport/Models` and formatting under
-  `WeeklyHealthReport/Utilities`;
+- pure domain code under `WeeklyHealthReport/Models`, formatting under
+  `WeeklyHealthReport/Utilities`, and deterministic report construction under
+  `WeeklyHealthReport/Presentation`;
 - report orchestration in `WeeklyReportViewModel.swift`; and
 - the framework-bound `HealthKitClient.swift`.
 
-Only the pure models-and-formatting layer has a regression gate, with a
-conservative minimum of 95.0%. App-wide, view-model and HealthKit-client values
-remain informational. That avoids equating SwiftUI-generated executable lines
-or code that requires Apple frameworks with directly testable domain logic.
+Only the models, formatting and presentation layer has a regression gate, with
+a conservative minimum of 95.0%. App-wide, view-model and HealthKit-client
+values remain informational. Presentation joined the gate after its state and
+available-value branches were covered and a Phase 4 measurement reported
+3,870 / 4,013 lines (96.44%). This avoids equating SwiftUI-generated executable
+lines or code that requires Apple frameworks with directly testable report
+logic.
 
 Codecov's project and patch statuses are also explicitly informational in
 `codecov.yml`; they do not replace or broaden the repository-owned 95.0% gate.
@@ -97,7 +101,7 @@ using Xcode 26.6, an iOS 26.5 iPhone 17 Pro simulator and all 90 tests:
 | Layer | Covered / executable lines | Line coverage |
 | --- | ---: | ---: |
 | App target | 5,175 / 10,406 | 49.73% |
-| Pure models and formatting | 2,840 / 2,960 | 95.95% |
+| Models and formatting (historical scope) | 2,840 / 2,960 | 95.95% |
 | Report orchestration | 374 / 452 | 82.74% |
 | HealthKit client | 4 / 1,211 | 0.33% |
 
@@ -106,9 +110,10 @@ covered app-target lines (49.72% rather than 49.73%), while the pure-domain and
 two orchestration rows were unchanged. This observed generated/runtime variance
 is another reason the whole-app percentage is informational.
 
-The 95.0% pure-domain threshold leaves just under one percentage point below
-the measured baseline. It protects the extensively tested deterministic layer
-without creating a misleading whole-app target.
+The 95.0% threshold protects the extensively tested deterministic report layer
+without creating a misleading whole-app target. The table above predates the
+Phase 5 widening; the current gate additionally includes `Presentation/` as
+described above.
 
 ## Runtime evidence
 

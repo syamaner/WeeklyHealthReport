@@ -2,7 +2,6 @@ import Foundation
 
 @MainActor
 final class WeeklyReportViewModel: ObservableObject {
-    typealias State = StepsState
     typealias WeightState = MetricState<WeightTrendSummary>
     typealias BodyFatState = MetricState<BodyFatTrendSummary>
 
@@ -12,7 +11,7 @@ final class WeeklyReportViewModel: ObservableObject {
         case healthUnavailable
         case failed(String)
 
-        var stepState: State {
+        var stepState: StepsState {
             switch self {
             case .idle:
                 .idle
@@ -40,7 +39,7 @@ final class WeeklyReportViewModel: ObservableObject {
     }
 
     private struct ReportStates: Equatable {
-        var steps: State
+        var steps: StepsState
         var weight: WeightState
         var bodyFat: BodyFatState
         var waist: MetricState<WaistSummary>
@@ -75,31 +74,6 @@ final class WeeklyReportViewModel: ObservableObject {
             sleep = commonState.metricState()
             medications = commonState.metricState()
         }
-
-        func snapshot(period: ReportPeriod) -> WeeklyReportSnapshot {
-            WeeklyReportSnapshot(
-                period: period,
-                weight: weight.value,
-                bodyFat: bodyFat.value,
-                waist: waist.value,
-                glucose: glucose.value,
-                vo2Max: vo2Max.value,
-                bloodOxygen: bloodOxygen.value,
-                bloodPressure: bloodPressure.value,
-                steps: {
-                    if case .loaded(let summary) = steps { return summary }
-                    return nil
-                }(),
-                restingHeartRate: restingHeartRate.value,
-                hrv: hrv.value,
-                watchCoverage: watchCoverage.value,
-                sleep: sleep.value,
-                activeEnergyKilocalories: activeEnergy.value,
-                exerciseMinutes: exercise.value,
-                workouts: workouts.value,
-                medications: medications.value
-            )
-        }
     }
 
     @Published var selection: ReportPeriodSelection = .lastSevenCompletedDays
@@ -107,7 +81,7 @@ final class WeeklyReportViewModel: ObservableObject {
     @Published private var reportStates = ReportStates(commonState: .idle)
     @Published private(set) var lastRefreshed: Date?
 
-    var state: State { reportStates.steps }
+    var state: StepsState { reportStates.steps }
     var isRefreshing: Bool {
         activeRefreshGeneration != nil || activeMedicationRefreshGeneration != nil
     }
@@ -152,19 +126,15 @@ final class WeeklyReportViewModel: ObservableObject {
         )
     }
 
-    var reportSnapshot: WeeklyReportSnapshot {
-        reportStates.snapshot(period: period)
-    }
-
     var supportsMedicationData: Bool { healthData.supportsMedicationData }
 
     func presentationSnapshot(
         includesMedicationSection: Bool,
         showsMorningBloodPressureDetails: Bool,
         showsEveningBloodPressureDetails: Bool
-    ) -> WeeklyReportScreenshotSnapshot {
+    ) -> ReportPresentationSnapshot {
         let states = reportStates
-        return WeeklyReportScreenshotSnapshot(
+        return ReportPresentationSnapshot(
             period: period,
             steps: states.steps,
             weight: states.weight,
@@ -192,7 +162,7 @@ final class WeeklyReportViewModel: ObservableObject {
         includesMedicationSection: Bool,
         showsMorningBloodPressureDetails: Bool,
         showsEveningBloodPressureDetails: Bool
-    ) -> WeeklyReportScreenshotSnapshot? {
+    ) -> ReportPresentationSnapshot? {
         guard activeRefreshGeneration == nil,
               activeMedicationRefreshGeneration == nil,
               period.selection == selection else {
@@ -398,7 +368,7 @@ final class WeeklyReportViewModel: ObservableObject {
         do {
             let values = try await healthData.fetchDailySteps(for: period)
             guard generation == refreshGeneration else { return }
-            reportStates.steps = StepSummary.aggregate(values).map(State.loaded) ?? .noDataOrAccess
+            reportStates.steps = StepSummary.aggregate(values).map(StepsState.loaded) ?? .noDataOrAccess
         } catch {
             guard generation == refreshGeneration else { return }
             reportStates.steps = .failed(error.localizedDescription)

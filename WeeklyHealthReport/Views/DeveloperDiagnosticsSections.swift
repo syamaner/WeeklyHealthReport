@@ -13,7 +13,7 @@ struct QueryDiagnosticsSection: View {
 }
 
 struct StepsDiagnosticsSection: View {
-    let state: WeeklyReportViewModel.State
+    let state: StepsState
 
     @ViewBuilder
     var body: some View {

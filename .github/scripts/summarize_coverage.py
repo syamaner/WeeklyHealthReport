@@ -84,9 +84,10 @@ def summarise(report: dict, minimum_domain_coverage: float) -> list[LayerCoverag
     layers = [
         Layer("App target", lambda _path: True),
         Layer(
-            "Pure models and formatting",
+            "Models, formatting and presentation",
             lambda path: "/WeeklyHealthReport/Models/" in path
-            or "/WeeklyHealthReport/Utilities/" in path,
+            or "/WeeklyHealthReport/Utilities/" in path
+            or "/WeeklyHealthReport/Presentation/" in path,
             minimum_domain_coverage,
         ),
         Layer(
@@ -165,7 +166,7 @@ def render_markdown(commit: str, summaries: list[LayerCoverage]) -> str:
             "",
             f"Coverage gate: **{overall_result}**.",
             "",
-            "Only pure models and formatting are regression-gated. The app total and "
+            "Models, formatting and presentation are regression-gated. The app total and "
             "orchestration rows are visible context: SwiftUI-generated executable lines "
             "and framework-bound HealthKit code are not treated as equivalent to pure "
             "domain logic.",
