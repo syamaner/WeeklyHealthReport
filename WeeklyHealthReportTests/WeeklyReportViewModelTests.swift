@@ -283,6 +283,25 @@ final class WeeklyReportViewModelTests: XCTestCase {
         assertSnapshotMatchesPublishedStates(viewModel)
     }
 
+    func testSendableHealthDataFixtureSerializesConcurrentResponseOwnership() async throws {
+        let calendar = testCalendar()
+        let firstDate = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let secondDate = date(2026, 9, 2, hour: 12, calendar: calendar)
+        let provider = FakeHealthDataProvider(weightResponses: [
+            [WeightMeasurement(id: UUID(), date: firstDate, kilograms: 91)],
+            [WeightMeasurement(id: UUID(), date: secondDate, kilograms: 72)]
+        ])
+
+        async let first = provider.fetchWeightMeasurements(asOf: firstDate)
+        async let second = provider.fetchWeightMeasurements(asOf: secondDate)
+        let (firstResult, secondResult) = try await (first, second)
+        let kilograms = [firstResult, secondResult]
+            .compactMap { $0.first?.kilograms }
+            .sorted()
+
+        XCTAssertEqual(kilograms, [72, 91])
+    }
+
     func testMedicationOnlyRefreshRejectsOlderFullRefreshMedicationCompletion() async throws {
         let calendar = testCalendar()
         let refreshDate = date(2026, 9, 2, hour: 12, calendar: calendar)

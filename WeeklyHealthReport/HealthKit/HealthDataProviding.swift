@@ -1,6 +1,6 @@
 import Foundation
 
-protocol HealthDataProviding {
+protocol HealthDataProviding: Sendable {
     var isHealthDataAvailable: Bool { get }
     var supportsMedicationData: Bool { get }
 
