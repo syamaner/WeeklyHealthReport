@@ -340,7 +340,7 @@ struct WeeklyReportView: View {
             ) else {
                 return nil
             }
-            return WeeklyReportPDFDocument(snapshot: snapshot)
+            return ReportDocument(snapshot: snapshot)
         }
     }
 

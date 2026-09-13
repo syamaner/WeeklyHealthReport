@@ -155,17 +155,11 @@ final class WeeklyReportViewModel: ObservableObject {
 
     var supportsMedicationData: Bool { healthData.supportsMedicationData }
 
-    func screenshotSnapshot(
+    func presentationSnapshot(
         includesMedicationSection: Bool,
         showsMorningBloodPressureDetails: Bool,
         showsEveningBloodPressureDetails: Bool
-    ) -> WeeklyReportScreenshotSnapshot? {
-        guard activeRefreshGeneration == nil,
-              activeMedicationRefreshGeneration == nil,
-              period.selection == selection else {
-            return nil
-        }
-
+    ) -> WeeklyReportScreenshotSnapshot {
         let states = reportStates
         return WeeklyReportScreenshotSnapshot(
             period: period,
@@ -185,6 +179,24 @@ final class WeeklyReportViewModel: ObservableObject {
             workouts: states.workouts,
             sleep: states.sleep,
             medications: states.medications,
+            includesMedicationSection: includesMedicationSection,
+            showsMorningBloodPressureDetails: showsMorningBloodPressureDetails,
+            showsEveningBloodPressureDetails: showsEveningBloodPressureDetails
+        )
+    }
+
+    func screenshotSnapshot(
+        includesMedicationSection: Bool,
+        showsMorningBloodPressureDetails: Bool,
+        showsEveningBloodPressureDetails: Bool
+    ) -> WeeklyReportScreenshotSnapshot? {
+        guard activeRefreshGeneration == nil,
+              activeMedicationRefreshGeneration == nil,
+              period.selection == selection else {
+            return nil
+        }
+
+        return presentationSnapshot(
             includesMedicationSection: includesMedicationSection,
             showsMorningBloodPressureDetails: showsMorningBloodPressureDetails,
             showsEveningBloodPressureDetails: showsEveningBloodPressureDetails

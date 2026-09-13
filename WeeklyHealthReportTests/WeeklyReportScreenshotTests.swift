@@ -49,14 +49,14 @@ final class WeeklyReportScreenshotTests: XCTestCase {
 
         XCTAssertEqual(
             document.sections.map(\.id),
-            WeeklyReportPDFDocument.SectionID.allCases
+            ReportDocument.SectionID.allCases
         )
         XCTAssertEqual(document.title, "Weekly Health Report")
         XCTAssertEqual(document.selection, "Last 7 Completed Days")
     }
 
     func testDocumentGoldenRowsForFullFixture() {
-        let document = WeeklyReportPDFDocument(
+        let document = ReportDocument(
             snapshot: makeFullFixtureSnapshot(),
             calendar: testCalendar(),
             locale: Locale(identifier: "en_GB")
@@ -146,7 +146,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
 
     func testDocumentStateRowsPerSection() throws {
         for stateCase in SyntheticDocumentStateCase.allCases {
-            let document = WeeklyReportPDFDocument(
+            let document = ReportDocument(
                 snapshot: makeSnapshot(
                     steps: stateCase.stepsState,
                     weight: stateCase.metricState(),
@@ -170,7 +170,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
                 locale: Locale(identifier: "en_GB")
             )
 
-            for sectionID in WeeklyReportPDFDocument.SectionID.allCases {
+            for sectionID in ReportDocument.SectionID.allCases {
                 let section = try XCTUnwrap(
                     document.sections.first { $0.id == sectionID },
                     "Missing \(sectionID) for \(stateCase)"
@@ -202,7 +202,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
     }
 
     func testDocumentPreservesMissingUnavailableAndFailedStates() {
-        let document = WeeklyReportPDFDocument(snapshot: makeSnapshot(
+        let document = ReportDocument(snapshot: makeSnapshot(
             steps: .noDataOrAccess,
             weight: .healthUnavailable,
             bodyFat: .failed("Synthetic body-fat failure"),
@@ -241,7 +241,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
                 sourceNames: ["Invented Phone"]
             )
         ]))
-        let document = WeeklyReportPDFDocument(
+        let document = ReportDocument(
             snapshot: makeSnapshot(steps: .loaded(summary)),
             calendar: testCalendar(),
             locale: Locale(identifier: "en_GB")
@@ -253,12 +253,12 @@ final class WeeklyReportScreenshotTests: XCTestCase {
     }
 
     func testDocumentPreservesUnavailableAndFailedStepStates() {
-        let unavailable = WeeklyReportPDFDocument(
+        let unavailable = ReportDocument(
             snapshot: makeSnapshot(steps: .healthUnavailable),
             calendar: testCalendar(),
             locale: Locale(identifier: "en_GB")
         )
-        let failed = WeeklyReportPDFDocument(
+        let failed = ReportDocument(
             snapshot: makeSnapshot(steps: .failed("Synthetic step failure")),
             calendar: testCalendar(),
             locale: Locale(identifier: "en_GB")
@@ -405,8 +405,8 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         bloodPressure: MetricState<BloodPressureSummary> = .noDataOrAccess,
         showsMorningDetails: Bool = true,
         showsEveningDetails: Bool = false
-    ) -> WeeklyReportPDFDocument {
-        WeeklyReportPDFDocument(
+    ) -> ReportDocument {
+        ReportDocument(
             snapshot: makeSnapshot(
                 bloodPressure: bloodPressure,
                 includesMedicationSection: includesMedicationSection,
@@ -670,7 +670,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
     }
 
     private func stateRowExpectation(
-        for sectionID: WeeklyReportPDFDocument.SectionID,
+        for sectionID: ReportDocument.SectionID,
         stateCase: SyntheticDocumentStateCase
     ) -> DocumentStateRowExpectation {
         switch sectionID {
@@ -731,7 +731,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
     }
 
     private func additionalGenericStateRows(
-        for sectionID: WeeklyReportPDFDocument.SectionID
+        for sectionID: ReportDocument.SectionID
     ) -> [DocumentStateRowTarget] {
         switch sectionID {
         case .steps, .weight, .bloodPressure, .medications:
@@ -796,7 +796,7 @@ private enum SyntheticDocumentStateCase: CaseIterable {
     ) -> DocumentStateRowExpectation {
         switch self {
         case .idle, .loading:
-            DocumentStateRowExpectation(id: id, label: label, value: "Loading…", style: .secondary)
+            DocumentStateRowExpectation(id: id, label: label, value: "Loading…", style: .loading)
         case .noDataOrAccess:
             DocumentStateRowExpectation(id: id, label: label, value: "No data", style: .secondary)
         case .healthUnavailable:
@@ -816,7 +816,7 @@ private enum SyntheticDocumentStateCase: CaseIterable {
         switch self {
         case .idle, .loading:
             DocumentStateRowExpectation(
-                id: "\(idPrefix)-loading", label: label, value: loading, style: .secondary
+                id: "\(idPrefix)-loading", label: label, value: loading, style: .loading
             )
         case .noDataOrAccess:
             DocumentStateRowExpectation(
@@ -841,7 +841,7 @@ private struct DocumentStateRowExpectation {
     let id: String
     let label: String?
     let value: String
-    let style: WeeklyReportPDFDocument.RowStyle
+    let style: ReportDocument.RowStyle
 }
 
 private struct DocumentStateRowTarget {
@@ -865,14 +865,14 @@ private final class FakeScreenshotService: ScreenshotServiceRegistering {
 
 @MainActor
 private final class FakePDFRenderer: WeeklyReportPDFRendering {
-    private(set) var documents: [WeeklyReportPDFDocument] = []
+    private(set) var documents: [ReportDocument] = []
     private let result: Data?
 
     init(result: Data?) {
         self.result = result
     }
 
-    func pdfData(for document: WeeklyReportPDFDocument) -> Data? {
+    func pdfData(for document: ReportDocument) -> Data? {
         documents.append(document)
         return result
     }

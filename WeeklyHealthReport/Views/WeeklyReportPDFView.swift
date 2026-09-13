@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct WeeklyReportPDFView: View {
-    let document: WeeklyReportPDFDocument
+    let document: ReportDocument
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -28,7 +28,7 @@ struct WeeklyReportPDFView: View {
         .environment(\.colorScheme, .light)
     }
 
-    private func reportSection(_ section: WeeklyReportPDFDocument.Section) -> some View {
+    private func reportSection(_ section: ReportDocument.Section) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(section.title)
                 .font(.title2.bold())
@@ -58,7 +58,7 @@ struct WeeklyReportPDFView: View {
     }
 
     @ViewBuilder
-    private func reportRow(_ row: WeeklyReportPDFDocument.Row) -> some View {
+    private func reportRow(_ row: ReportDocument.Row) -> some View {
         if let label = row.label {
             HStack(alignment: .firstTextBaseline, spacing: 20) {
                 Text(label)
@@ -82,11 +82,11 @@ struct WeeklyReportPDFView: View {
         }
     }
 
-    private func rowColor(_ style: WeeklyReportPDFDocument.RowStyle) -> Color {
+    private func rowColor(_ style: ReportDocument.RowStyle) -> Color {
         switch style {
         case .standard:
             .black
-        case .secondary, .note:
+        case .loading, .secondary, .note:
             Color(white: 0.28)
         case .failure:
             Color(red: 0.65, green: 0, blue: 0)
