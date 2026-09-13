@@ -8,6 +8,79 @@ final class HealthReportFormatterTests: XCTestCase {
         XCTAssertEqual(HealthReportFormatter.duration(89 * 60), "1h 29m")
     }
 
+    func testCountAndCoverageHelpersPreserveCurrentOutputShapes() {
+        let locale = Locale(identifier: "en_GB")
+        XCTAssertEqual(HealthReportFormatter.count(1_234, locale: locale), "1234")
+        XCTAssertEqual(HealthReportFormatter.readingCount(1, locale: locale), "1 reading")
+        XCTAssertEqual(HealthReportFormatter.readingCount(2, locale: locale), "2 readings")
+        XCTAssertEqual(
+            HealthReportFormatter.readingCount(
+                1,
+                style: .alwaysPlural,
+                locale: locale
+            ),
+            "1 readings"
+        )
+        XCTAssertEqual(
+            HealthReportFormatter.dayCoverage(4, of: 7, locale: locale),
+            "4 / 7 days"
+        )
+        XCTAssertEqual(
+            HealthReportFormatter.dayCoverage(
+                5,
+                of: 7,
+                spacing: .compact,
+                locale: locale
+            ),
+            "5/7 days"
+        )
+    }
+
+    func testBloodPressureSlotCoveragePreservesCompactLegacySpacingAndPlural() {
+        let locale = Locale(identifier: "en_GB")
+        XCTAssertEqual(
+            HealthReportFormatter.bloodPressureSlotCoverage(
+                BloodPressurePeriodSlotSummary(
+                    averageSystolic: 124.1,
+                    averageDiastolic: 79.2,
+                    sampledDayCount: 5,
+                    reportingDayCount: 7,
+                    readingCount: 15
+                ),
+                locale: locale
+            ),
+            "5/7 days · 15 readings"
+        )
+        XCTAssertEqual(
+            HealthReportFormatter.bloodPressureSlotCoverage(
+                BloodPressurePeriodSlotSummary(
+                    averageSystolic: 124.1,
+                    averageDiastolic: 79.2,
+                    sampledDayCount: 1,
+                    reportingDayCount: 7,
+                    readingCount: 1
+                ),
+                locale: locale
+            ),
+            "1/7 days · 1 readings"
+        )
+    }
+
+    func testWorkoutDetailPreservesDurationSeparatorAndDate() {
+        let calendar = testCalendar()
+        let workout = WorkoutRecord(
+            id: UUID(),
+            startDate: date(2026, 9, 9, hour: 8, calendar: calendar),
+            duration: 30 * 60,
+            activityName: "Walking"
+        )
+
+        XCTAssertEqual(
+            HealthReportFormatter.workoutDetail(workout, calendar: calendar),
+            "30m — 09/09/26 - 08:00"
+        )
+    }
+
     func testMedicationDoseFormattingPluralisesOnlyCountBasedDoses() {
         let locale = Locale(identifier: "en_GB")
         XCTAssertEqual(

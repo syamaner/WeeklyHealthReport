@@ -80,6 +80,7 @@
 		A00000000000000000000047 /* ReportDocument+PlainText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004D /* ReportDocument+PlainText.swift */; };
 		A00000000000000000000048 /* ReportDocumentSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004E /* ReportDocumentSectionView.swift */; };
 		A00000000000000000000049 /* ReportPreviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004F /* ReportPreviewFixtures.swift */; };
+		A0000000000000000000004A /* MetricRowPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000050 /* MetricRowPresentation.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -172,6 +173,7 @@
 		B0000000000000000000004D /* ReportDocument+PlainText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReportDocument+PlainText.swift"; sourceTree = "<group>"; };
 		B0000000000000000000004E /* ReportDocumentSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDocumentSectionView.swift; sourceTree = "<group>"; };
 		B0000000000000000000004F /* ReportPreviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPreviewFixtures.swift; sourceTree = "<group>"; };
+		B00000000000000000000050 /* MetricRowPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricRowPresentation.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -370,6 +372,7 @@
 			children = (
 				B0000000000000000000004B /* MetricState.swift */,
 				B0000000000000000000004C /* ReportPresentationSnapshot.swift */,
+				B00000000000000000000050 /* MetricRowPresentation.swift */,
 				B00000000000000000000042 /* ReportDocument.swift */,
 				B0000000000000000000004D /* ReportDocument+PlainText.swift */,
 			);
@@ -507,6 +510,7 @@
 				A0000000000000000000003C /* ReportDocument.swift in Sources */,
 				A00000000000000000000045 /* MetricState.swift in Sources */,
 				A00000000000000000000046 /* ReportPresentationSnapshot.swift in Sources */,
+				A0000000000000000000004A /* MetricRowPresentation.swift in Sources */,
 				A00000000000000000000047 /* ReportDocument+PlainText.swift in Sources */,
 				A00000000000000000000019 /* WatchCoverageSummary.swift in Sources */,
 				A0000000000000000000001C /* WaistMeasurement.swift in Sources */,

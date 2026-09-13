@@ -201,6 +201,71 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         }
     }
 
+    func testSharedMetricRowMappingPreservesEveryStateAndInsufficientHistory() {
+        let cases: [(MetricState<Double>, String, ReportDocument.RowStyle)] = [
+            (.idle, "Loading…", .loading),
+            (.loading, "Loading…", .loading),
+            (.available(12.5), "12.5 units", .standard),
+            (.noDataOrAccess, "No data", .secondary),
+            (.healthUnavailable, "Unavailable", .secondary),
+            (.failed("Synthetic failure"), "Query failed", .failure)
+        ]
+
+        for (state, expectedValue, expectedStyle) in cases {
+            let row = ReportDocument.Row.metric(
+                id: "metric",
+                label: "Metric",
+                state: state,
+                format: { "\($0) units" }
+            )
+            XCTAssertEqual(row.id, "metric")
+            XCTAssertEqual(row.label, "Metric")
+            XCTAssertEqual(row.value, expectedValue)
+            XCTAssertEqual(row.style, expectedStyle)
+        }
+
+        let insufficient = ReportDocument.Row.metric(
+            id: "trend",
+            label: "Trend",
+            state: MetricState<Double>.available(12.5),
+            format: { _ in nil }
+        )
+        XCTAssertEqual(insufficient.value, "Insufficient history")
+        XCTAssertEqual(insufficient.style, .secondary)
+    }
+
+    func testSharedOptionalRowMappingPreservesAvailableAndMissingVocabulary() {
+        let available = ReportDocument.Row.optional(
+            id: "available",
+            label: "Available",
+            value: 3,
+            missing: .noData,
+            format: String.init
+        )
+        XCTAssertEqual(available.value, "3")
+        XCTAssertEqual(available.style, .standard)
+
+        let noData = ReportDocument.Row.optional(
+            id: "no-data",
+            label: "No data",
+            value: Optional<Int>.none,
+            missing: .noData,
+            format: String.init
+        )
+        XCTAssertEqual(noData.value, "No data")
+        XCTAssertEqual(noData.style, .secondary)
+
+        let noPeriodData = ReportDocument.Row.optional(
+            id: "no-period-data",
+            label: "No period data",
+            value: Optional<Int>.none,
+            missing: .noPeriodData,
+            format: String.init
+        )
+        XCTAssertEqual(noPeriodData.value, "No period data")
+        XCTAssertEqual(noPeriodData.style, .secondary)
+    }
+
     func testDocumentPreservesMissingUnavailableAndFailedStates() {
         let document = ReportDocument(snapshot: makeSnapshot(
             steps: .noDataOrAccess,
