@@ -78,6 +78,8 @@
 		A00000000000000000000045 /* MetricState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004B /* MetricState.swift */; };
 		A00000000000000000000046 /* ReportPresentationSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004C /* ReportPresentationSnapshot.swift */; };
 		A00000000000000000000047 /* ReportDocument+PlainText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004D /* ReportDocument+PlainText.swift */; };
+		A00000000000000000000048 /* ReportDocumentSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004E /* ReportDocumentSectionView.swift */; };
+		A00000000000000000000049 /* ReportPreviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004F /* ReportPreviewFixtures.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -168,6 +170,8 @@
 		B0000000000000000000004B /* MetricState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricState.swift; sourceTree = "<group>"; };
 		B0000000000000000000004C /* ReportPresentationSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPresentationSnapshot.swift; sourceTree = "<group>"; };
 		B0000000000000000000004D /* ReportDocument+PlainText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReportDocument+PlainText.swift"; sourceTree = "<group>"; };
+		B0000000000000000000004E /* ReportDocumentSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDocumentSectionView.swift; sourceTree = "<group>"; };
+		B0000000000000000000004F /* ReportPreviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPreviewFixtures.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -263,6 +267,8 @@
 				B00000000000000000000006 /* WeeklyReportViewModel.swift */,
 				B00000000000000000000007 /* WeeklyReportView.swift */,
 				B0000000000000000000004A /* MedicationAccessRequest.swift */,
+				B0000000000000000000004E /* ReportDocumentSectionView.swift */,
+				B0000000000000000000004F /* ReportPreviewFixtures.swift */,
 				B00000000000000000000038 /* WeeklyReportSections.swift */,
 				B0000000000000000000001B /* DeveloperDiagnosticsView.swift */,
 				B00000000000000000000039 /* DeveloperDiagnosticsSections.swift */,
@@ -484,6 +490,8 @@
 				A00000000000000000000006 /* WeeklyReportViewModel.swift in Sources */,
 				A00000000000000000000007 /* WeeklyReportView.swift in Sources */,
 				A00000000000000000000044 /* MedicationAccessRequest.swift in Sources */,
+				A00000000000000000000048 /* ReportDocumentSectionView.swift in Sources */,
+				A00000000000000000000049 /* ReportPreviewFixtures.swift in Sources */,
 				A00000000000000000000032 /* WeeklyReportSections.swift in Sources */,
 				A0000000000000000000003D /* WeeklyReportPDFView.swift in Sources */,
 				A00000000000000000000018 /* DeveloperDiagnosticsView.swift in Sources */,
