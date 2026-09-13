@@ -553,10 +553,18 @@ private struct DiagnosticMetricRow: View {
 
     @ViewBuilder
     var body: some View {
-        if case .available(let value) = state {
+        let row = ReportDocument.Row.metric(
+            id: label,
+            label: label,
+            state: state,
+            format: {
+                "\($0.formatted(.number.precision(.fractionLength(3)))) \(unit)"
+            }
+        )
+        if row.style == .standard {
             LabeledContent(
-                label,
-                value: "\(value.formatted(.number.precision(.fractionLength(3)))) \(unit)"
+                row.label ?? label,
+                value: row.value
             )
         }
     }

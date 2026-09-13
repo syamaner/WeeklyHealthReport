@@ -1,6 +1,16 @@
 import Foundation
 
 enum HealthReportFormatter {
+    enum DayCoverageSpacing: Equatable {
+        case spaced
+        case compact
+    }
+
+    enum ReadingCountStyle: Equatable {
+        case singularAware
+        case alwaysPlural
+    }
+
     static func integer(
         _ value: Double,
         locale: Locale = .autoupdatingCurrent
@@ -9,7 +19,42 @@ enum HealthReportFormatter {
     }
 
     static func stepCoverage(_ summary: StepSummary) -> String {
-        "\(summary.daysWithVisibleData) / \(summary.reportingDayCount) days"
+        dayCoverage(summary.daysWithVisibleData, of: summary.reportingDayCount)
+    }
+
+    static func count(_ value: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        // Preserve the existing ASCII count output for every locale.
+        _ = locale
+        return String(value)
+    }
+
+    static func readingCount(
+        _ value: Int,
+        style: ReadingCountStyle = .singularAware,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let formattedCount = count(value, locale: locale)
+        if style == .singularAware, value == 1 {
+            return "1 reading"
+        }
+        return "\(formattedCount) readings"
+    }
+
+    static func dayCoverage(
+        _ covered: Int,
+        of total: Int,
+        spacing: DayCoverageSpacing = .spaced,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let separator = spacing == .spaced ? " / " : "/"
+        return "\(count(covered, locale: locale))\(separator)\(count(total, locale: locale)) days"
+    }
+
+    static func bloodPressureSlotCoverage(
+        _ summary: BloodPressurePeriodSlotSummary,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        "\(dayCoverage(summary.sampledDayCount, of: summary.reportingDayCount, spacing: .compact, locale: locale)) · \(readingCount(summary.readingCount, style: .alwaysPlural, locale: locale))"
     }
 
     static func weightKilograms(
@@ -202,6 +247,13 @@ enum HealthReportFormatter {
         if hours == 0 { return "\(minutes)m" }
         if minutes == 0 { return "\(hours)h" }
         return "\(hours)h \(minutes)m"
+    }
+
+    static func workoutDetail(
+        _ workout: WorkoutRecord,
+        calendar: Calendar = .autoupdatingCurrent
+    ) -> String {
+        "\(duration(workout.duration)) — \(workoutDateAndTime(workout.startDate, calendar: calendar))"
     }
 
     static func medicationDose(

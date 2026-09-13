@@ -208,26 +208,26 @@ struct ReportDocument: Equatable {
                         locale: locale
                     )
                 ),
-                Row(
-                    "weight-average",
+                Row.metric(
+                    id: "weight-average",
                     label: "7-day Average",
-                    value: summary.currentSevenDayAverage.map {
+                    state: .available(summary.currentSevenDayAverage),
+                    format: { average in average.map {
                         HealthReportFormatter.weightKilograms($0, locale: locale)
-                    } ?? "Insufficient history",
-                    style: summary.currentSevenDayAverage == nil ? .secondary : .standard
+                    } }
                 ),
-                Row(
-                    "weight-trend",
+                Row.metric(
+                    id: "weight-trend",
                     label: "Weight Trend",
-                    value: summary.trendKilograms.map {
+                    state: .available(summary.trendKilograms),
+                    format: { trend in trend.map {
                         HealthReportFormatter.signedChange(
                             $0,
                             unit: "kg",
                             comparison: "previous 7d",
                             locale: locale
                         )
-                    } ?? "Insufficient history",
-                    style: summary.trendKilograms == nil ? .secondary : .standard
+                    } }
                 )
             ]
         case .noDataOrAccess:
@@ -279,21 +279,21 @@ struct ReportDocument: Equatable {
                     value: HealthReportFormatter.percentage(average, locale: locale)
                 ))
             }
-            rows.append(Row(
-                "body-fat-28-day",
+            rows.append(Row.metric(
+                id: "body-fat-28-day",
                 label: "28-day Average",
-                value: summary.current28DayAverage.map {
+                state: .available(summary.current28DayAverage),
+                format: { average in average.map {
                     HealthReportFormatter.percentage($0, locale: locale)
-                } ?? "Insufficient history",
-                style: summary.current28DayAverage == nil ? .secondary : .standard
+                } }
             ))
-            rows.append(Row(
-                "body-fat-trend",
+            rows.append(Row.metric(
+                id: "body-fat-trend",
                 label: "Body Fat Trend",
-                value: summary.trendPercentagePoints.map {
+                state: .available(summary.trendPercentagePoints),
+                format: { trend in trend.map {
                     HealthReportFormatter.percentagePointTrend($0, locale: locale)
-                } ?? "Insufficient history",
-                style: summary.trendPercentagePoints == nil ? .secondary : .standard
+                } }
             ))
         case .noDataOrAccess:
             rows = [Row(
@@ -315,7 +315,7 @@ struct ReportDocument: Equatable {
             )]
         }
 
-        rows.append(metricRow(
+        rows.append(Row.metric(
             id: "waist",
             label: "Waist Circumference",
             state: waist,
@@ -331,18 +331,18 @@ struct ReportDocument: Equatable {
                     locale: locale
                 )
             ))
-            rows.append(Row(
-                "waist-trend",
+            rows.append(Row.metric(
+                id: "waist-trend",
                 label: "4-week Waist Trend",
-                value: summary.fourWeekChangeCentimetres.map {
+                state: .available(summary.fourWeekChangeCentimetres),
+                format: { change in change.map {
                     HealthReportFormatter.signedChange(
                         $0,
                         unit: "cm",
                         comparison: "~4 weeks earlier",
                         locale: locale
                     )
-                } ?? "Insufficient history",
-                style: summary.fourWeekChangeCentimetres == nil ? .secondary : .standard
+                } }
             ))
         }
         return Section(
@@ -365,39 +365,55 @@ struct ReportDocument: Equatable {
             id: .heart,
             title: "Heart",
             rows: [
-                metricRow(
+                Row.metric(
                     id: "resting-heart-rate-average",
                     label: "Resting HR Average",
                     state: restingHeartRate,
                     format: { HealthReportFormatter.heartRate($0.current.average, locale: locale) }
                 ),
-                trendRow(
+                Row.metric(
                     id: "resting-heart-rate-trend",
                     label: "Resting HR Trend",
                     state: restingHeartRate,
-                    unit: "bpm",
-                    comparison: comparison,
-                    locale: locale
+                    format: { summary in summary.trend.map {
+                        HealthReportFormatter.signedChange(
+                            $0,
+                            unit: "bpm",
+                            comparison: comparison,
+                            locale: locale
+                        )
+                    } }
                 ),
-                metricRow(
+                Row.metric(
                     id: "hrv-average",
                     label: "HRV Average",
                     state: hrv,
                     format: { HealthReportFormatter.hrvMilliseconds($0.current.average, locale: locale) }
                 ),
-                trendRow(
+                Row.metric(
                     id: "hrv-trend",
                     label: "HRV Trend",
                     state: hrv,
-                    unit: "ms",
-                    comparison: comparison,
-                    locale: locale
+                    format: { summary in summary.trend.map {
+                        HealthReportFormatter.signedChange(
+                            $0,
+                            unit: "ms",
+                            comparison: comparison,
+                            locale: locale
+                        )
+                    } }
                 ),
-                metricRow(
+                Row.metric(
                     id: "watch-coverage",
                     label: "Watch Data Coverage",
                     state: watchCoverage,
-                    format: { "\($0.daysWithWatchData) / \($0.reportingDayCount) days" }
+                    format: {
+                        HealthReportFormatter.dayCoverage(
+                            $0.daysWithWatchData,
+                            of: $0.reportingDayCount,
+                            locale: locale
+                        )
+                    }
                 )
             ],
             footer: nil
@@ -496,48 +512,49 @@ struct ReportDocument: Equatable {
         calendar: Calendar,
         locale: Locale
     ) -> [Row] {
-        var rows = [Row(
-            "blood-pressure-\(id)-average",
+        var rows = [Row.optional(
+            id: "blood-pressure-\(id)-average",
             label: title,
-            value: periodSummary.map {
+            value: periodSummary,
+            missing: .noData,
+            format: {
                 HealthReportFormatter.bloodPressure(
                     systolic: $0.averageSystolic,
                     diastolic: $0.averageDiastolic,
                     locale: locale
                 )
-            } ?? "No data",
-            style: periodSummary == nil ? .secondary : .standard
+            }
         )]
         guard isExpanded else { return rows }
 
-        rows.append(Row(
-            "blood-pressure-\(id)-latest-batch",
+        rows.append(Row.optional(
+            id: "blood-pressure-\(id)-latest-batch",
             label: "Latest batch",
-            value: latestBatch.map {
+            value: latestBatch,
+            missing: .noData,
+            format: {
                 HealthReportFormatter.bloodPressure(
                     systolic: $0.averageSystolic,
                     diastolic: $0.averageDiastolic,
                     locale: locale
                 )
-            } ?? "No data",
-            style: latestBatch == nil ? .secondary : .standard
+            }
         ))
-        rows.append(Row(
-            "blood-pressure-\(id)-recorded",
+        rows.append(Row.optional(
+            id: "blood-pressure-\(id)-recorded",
             label: "Recorded",
-            value: latestBatch.map {
-                let count = $0.readingCount == 1 ? "1 reading" : "\($0.readingCount) readings"
-                return "\(HealthReportFormatter.dateAndTime($0.latestReadingDate, calendar: calendar, locale: locale)) · \(count)"
-            } ?? "No data",
-            style: latestBatch == nil ? .secondary : .standard
+            value: latestBatch,
+            missing: .noData,
+            format: {
+                "\(HealthReportFormatter.dateAndTime($0.latestReadingDate, calendar: calendar, locale: locale)) · \(HealthReportFormatter.readingCount($0.readingCount, locale: locale))"
+            }
         ))
-        rows.append(Row(
-            "blood-pressure-\(id)-coverage",
+        rows.append(Row.optional(
+            id: "blood-pressure-\(id)-coverage",
             label: "Coverage",
-            value: periodSummary.map {
-                "\($0.sampledDayCount)/\($0.reportingDayCount) days · \($0.readingCount) readings"
-            } ?? "No period data",
-            style: periodSummary == nil ? .secondary : .standard
+            value: periodSummary,
+            missing: .noPeriodData,
+            format: { HealthReportFormatter.bloodPressureSlotCoverage($0, locale: locale) }
         ))
         return rows
     }
@@ -548,7 +565,7 @@ struct ReportDocument: Equatable {
         calendar: Calendar,
         locale: Locale
     ) -> Section {
-        var rows = [metricRow(
+        var rows = [Row.metric(
             id: "vo2-max-latest",
             label: "Latest VO₂ Max",
             state: vo2Max,
@@ -588,7 +605,7 @@ struct ReportDocument: Equatable {
             ]
         }
 
-        rows.append(metricRow(
+        rows.append(Row.metric(
             id: "blood-oxygen-latest",
             label: "Latest Blood Oxygen",
             state: bloodOxygen,
@@ -605,16 +622,17 @@ struct ReportDocument: Equatable {
                         locale: locale
                     )
                 ),
-                Row(
-                    "blood-oxygen-typical",
+                Row.optional(
+                    id: "blood-oxygen-typical",
                     label: "Period Typical",
-                    value: summary.typicalPercentage.map {
+                    value: summary.typicalPercentage,
+                    missing: .noData,
+                    format: {
                         HealthReportFormatter.bloodOxygen($0, locale: locale)
-                    } ?? "No data",
-                    style: summary.typicalPercentage == nil ? .secondary : .standard
+                    }
                 ),
-                Row(
-                    "blood-oxygen-range",
+                Row.optional(
+                    id: "blood-oxygen-range",
                     label: "Daily Median Range",
                     value: summary.minimumDailyMedian.flatMap { minimum in
                         summary.maximumDailyMedian.map { maximum in
@@ -624,15 +642,18 @@ struct ReportDocument: Equatable {
                                 locale: locale
                             )
                         }
-                    } ?? "No data",
-                    style: summary.minimumDailyMedian == nil || summary.maximumDailyMedian == nil
-                        ? .secondary
-                        : .standard
+                    },
+                    missing: .noData,
+                    format: { $0 }
                 ),
                 Row(
                     "blood-oxygen-coverage",
                     label: "Blood Oxygen Coverage",
-                    value: "\(summary.validDayCount) / \(summary.reportingDayCount) days"
+                    value: HealthReportFormatter.dayCoverage(
+                        summary.validDayCount,
+                        of: summary.reportingDayCount,
+                        locale: locale
+                    )
                 )
             ]
         }
@@ -657,13 +678,13 @@ struct ReportDocument: Equatable {
             id: .glucose,
             title: "Glucose",
             rows: [
-                metricRow(
+                Row.metric(
                     id: "glucose-average",
                     label: "Daily Average",
                     state: state,
                     format: { HealthReportFormatter.glucose($0.averageMillimolesPerLiter, locale: locale) }
                 ),
-                metricRow(
+                Row.metric(
                     id: "glucose-range",
                     label: "Observed Range",
                     state: state,
@@ -675,11 +696,17 @@ struct ReportDocument: Equatable {
                         )
                     }
                 ),
-                metricRow(
+                Row.metric(
                     id: "glucose-coverage",
                     label: "Data Coverage",
                     state: state,
-                    format: { "\($0.validDayCount) / \($0.reportingDayCount) days" }
+                    format: {
+                        HealthReportFormatter.dayCoverage(
+                            $0.validDayCount,
+                            of: $0.reportingDayCount,
+                            locale: locale
+                        )
+                    }
                 )
             ],
             footer: nil
@@ -694,23 +721,23 @@ struct ReportDocument: Equatable {
         locale: Locale
     ) -> Section {
         var rows = [
-            metricRow(
+            Row.metric(
                 id: "active-energy",
                 label: "Active Energy",
                 state: activeEnergy,
                 format: { HealthReportFormatter.energyKilocalories($0, locale: locale) }
             ),
-            metricRow(
+            Row.metric(
                 id: "exercise",
                 label: "Exercise",
                 state: exercise,
                 format: { HealthReportFormatter.minutes($0, locale: locale) }
             ),
-            metricRow(
+            Row.metric(
                 id: "workouts",
                 label: "Workouts",
                 state: workouts,
-                format: { String($0.count) }
+                format: { HealthReportFormatter.count($0.count, locale: locale) }
             )
         ]
         if case .available(let summary) = workouts {
@@ -723,7 +750,7 @@ struct ReportDocument: Equatable {
                 Row(
                     "workout-\(index)",
                     label: workout.activityName,
-                    value: "\(HealthReportFormatter.duration(workout.duration)) — \(HealthReportFormatter.workoutDateAndTime(workout.startDate, calendar: calendar))"
+                    value: HealthReportFormatter.workoutDetail(workout, calendar: calendar)
                 )
             }
         }
@@ -734,7 +761,7 @@ struct ReportDocument: Equatable {
         Section(
             id: .sleep,
             title: "Sleep",
-            rows: [metricRow(
+            rows: [Row.metric(
                 id: "sleep-average",
                 label: "Average Sleep",
                 state: state,
@@ -796,57 +823,4 @@ struct ReportDocument: Equatable {
         )
     }
 
-    private static func metricRow<Value: Equatable>(
-        id: String,
-        label: String,
-        state: MetricState<Value>,
-        format: (Value) -> String
-    ) -> Row {
-        switch state {
-        case .idle, .loading:
-            Row(id, label: label, value: "Loading…", style: .loading)
-        case .available(let value):
-            Row(id, label: label, value: format(value))
-        case .noDataOrAccess:
-            Row(id, label: label, value: "No data", style: .secondary)
-        case .healthUnavailable:
-            Row(id, label: label, value: "Unavailable", style: .secondary)
-        case .failed:
-            Row(id, label: label, value: "Query failed", style: .failure)
-        }
-    }
-
-    private static func trendRow(
-        id: String,
-        label: String,
-        state: MetricState<HeartMetricTrendSummary>,
-        unit: String,
-        comparison: String,
-        locale: Locale
-    ) -> Row {
-        switch state {
-        case .available(let summary):
-            Row(
-                id,
-                label: label,
-                value: summary.trend.map {
-                    HealthReportFormatter.signedChange(
-                        $0,
-                        unit: unit,
-                        comparison: comparison,
-                        locale: locale
-                    )
-                } ?? "Insufficient history",
-                style: summary.trend == nil ? .secondary : .standard
-            )
-        case .idle, .loading:
-            Row(id, label: label, value: "Loading…", style: .loading)
-        case .noDataOrAccess:
-            Row(id, label: label, value: "No data", style: .secondary)
-        case .healthUnavailable:
-            Row(id, label: label, value: "Unavailable", style: .secondary)
-        case .failed:
-            Row(id, label: label, value: "Query failed", style: .failure)
-        }
-    }
 }
