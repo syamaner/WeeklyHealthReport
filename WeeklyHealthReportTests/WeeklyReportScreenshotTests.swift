@@ -55,6 +55,152 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         XCTAssertEqual(document.selection, "Last 7 Completed Days")
     }
 
+    func testDocumentGoldenRowsForFullFixture() {
+        let document = WeeklyReportPDFDocument(
+            snapshot: makeFullFixtureSnapshot(),
+            calendar: testCalendar(),
+            locale: Locale(identifier: "en_GB")
+        )
+
+        let lines = document.sections.flatMap { section in
+            ["section|\(section.id.rawValue)|\(section.title)"]
+                + section.rows.map {
+                    "\(section.id.rawValue)|\($0.id)|\($0.label ?? "")|\($0.value)|\(String(describing: $0.style))"
+                }
+                + ["footer|\(section.id.rawValue)|\(section.footer ?? "")"]
+        }
+
+        XCTAssertEqual(lines.joined(separator: "\n"), """
+        section|steps|Steps
+        steps|steps-average|Average Daily Steps|7,000|standard
+        steps|steps-coverage|Data Coverage|7 / 7 days|standard
+        steps|steps-total|Weekly Total|49,000|standard
+        footer|steps|
+        section|weight|Weight
+        weight|weight-latest|Latest Weight|100.6 kg|standard
+        weight|weight-measured|Measured|09/09/26 - 08:00|standard
+        weight|weight-average|7-day Average|100.8 kg|standard
+        weight|weight-trend|Weight Trend|-0.4 kg vs previous 7d|standard
+        footer|weight|
+        section|bodyComposition|Body Composition
+        bodyComposition|body-fat-latest|Body Fat|26.5% latest|standard
+        bodyComposition|body-fat-seven-day|7-day Average|26.6%|standard
+        bodyComposition|body-fat-28-day|28-day Average|26.7%|standard
+        bodyComposition|body-fat-trend|Body Fat Trend|↓ 0.9 pp vs previous 28d|standard
+        bodyComposition|waist|Waist Circumference|101.4 cm|standard
+        bodyComposition|waist-measured|Waist Measured|09/09/26 - 08:00|standard
+        bodyComposition|waist-trend|4-week Waist Trend|-1.7 cm vs ~4 weeks earlier|standard
+        footer|bodyComposition|
+        section|heart|Heart
+        heart|resting-heart-rate-average|Resting HR Average|73 bpm|standard
+        heart|resting-heart-rate-trend|Resting HR Trend|+3.0 bpm vs previous 7d|standard
+        heart|hrv-average|HRV Average|42 ms|standard
+        heart|hrv-trend|HRV Trend|-5.0 ms vs previous 7d|standard
+        heart|watch-coverage|Watch Data Coverage|4 / 7 days|standard
+        footer|heart|
+        section|bloodPressure|Blood Pressure
+        bloodPressure|blood-pressure-latest|Latest reading|120/75 mmHg|standard
+        bloodPressure|blood-pressure-recorded|Recorded|09/09/26 - 08:00|secondary
+        bloodPressure|blood-pressure-morning-average|Morning average|120/75 mmHg|standard
+        bloodPressure|blood-pressure-morning-latest-batch|Latest batch|120/75 mmHg|standard
+        bloodPressure|blood-pressure-morning-recorded|Recorded|09/09/26 - 08:00 · 1 reading|standard
+        bloodPressure|blood-pressure-morning-coverage|Coverage|1/7 days · 1 readings|standard
+        bloodPressure|blood-pressure-evening-average|Evening average|120/75 mmHg|standard
+        bloodPressure|blood-pressure-evening-latest-batch|Latest batch|120/75 mmHg|standard
+        bloodPressure|blood-pressure-evening-recorded|Recorded|09/09/26 - 08:00 · 1 reading|standard
+        bloodPressure|blood-pressure-evening-coverage|Coverage|1/7 days · 1 readings|standard
+        footer|bloodPressure|Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
+        section|cardiorespiratory|Cardiorespiratory
+        cardiorespiratory|vo2-max-latest|Latest VO₂ Max|32.1 mL/kg/min|standard
+        cardiorespiratory|vo2-max-measured|VO₂ Max Measured|09/09/26 - 08:00|standard
+        cardiorespiratory|vo2-max-four-week|4-Week Average|31.8 mL/kg/min (8 days)|standard
+        cardiorespiratory|vo2-max-three-month|3-Month Average|30.9 mL/kg/min (24 days)|standard
+        cardiorespiratory|vo2-max-six-month|6-Month Average|29.7 mL/kg/min (51 days)|standard
+        cardiorespiratory|blood-oxygen-latest|Latest Blood Oxygen|97%|standard
+        cardiorespiratory|blood-oxygen-measured|Blood Oxygen Measured|09/09/26 - 08:00|standard
+        cardiorespiratory|blood-oxygen-typical|Period Typical|97%|standard
+        cardiorespiratory|blood-oxygen-range|Daily Median Range|96–98%|standard
+        cardiorespiratory|blood-oxygen-coverage|Blood Oxygen Coverage|7 / 7 days|standard
+        cardiorespiratory|blood-oxygen-note||Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.|note
+        footer|cardiorespiratory|
+        section|glucose|Glucose
+        glucose|glucose-average|Daily Average|5.8 mmol/L|standard
+        glucose|glucose-range|Observed Range|3.9–8.7 mmol/L|standard
+        glucose|glucose-coverage|Data Coverage|7 / 7 days|standard
+        footer|glucose|
+        section|activity|Activity
+        activity|active-energy|Active Energy|1,974 kcal|standard
+        activity|exercise|Exercise|89 min|standard
+        activity|workouts|Workouts|1|standard
+        activity|workout-time|Workout Time|30m|standard
+        activity|workout-0|Walking|30m — 09/09/26 - 08:00|standard
+        footer|activity|
+        section|sleep|Sleep
+        sleep|sleep-average|Average Sleep|6h 48m|standard
+        footer|sleep|
+        section|medications|Medications Taken
+        medications|medication-0|SyntheticMed 20 mg|1 dose at 09/09/26 - 08:00; 1 taken event|standard
+        footer|medications|
+        """)
+    }
+
+    func testDocumentStateRowsPerSection() throws {
+        for stateCase in SyntheticDocumentStateCase.allCases {
+            let document = WeeklyReportPDFDocument(
+                snapshot: makeSnapshot(
+                    steps: stateCase.stepsState,
+                    weight: stateCase.metricState(),
+                    bodyFat: stateCase.metricState(),
+                    waist: stateCase.metricState(),
+                    glucose: stateCase.metricState(),
+                    vo2Max: stateCase.metricState(),
+                    bloodOxygen: stateCase.metricState(),
+                    bloodPressure: stateCase.metricState(),
+                    restingHeartRate: stateCase.metricState(),
+                    hrv: stateCase.metricState(),
+                    watchCoverage: stateCase.metricState(),
+                    exercise: stateCase.metricState(),
+                    activeEnergy: stateCase.metricState(),
+                    workouts: stateCase.metricState(),
+                    sleep: stateCase.metricState(),
+                    medications: stateCase.metricState(),
+                    includesMedicationSection: true
+                ),
+                calendar: testCalendar(),
+                locale: Locale(identifier: "en_GB")
+            )
+
+            for sectionID in WeeklyReportPDFDocument.SectionID.allCases {
+                let section = try XCTUnwrap(
+                    document.sections.first { $0.id == sectionID },
+                    "Missing \(sectionID) for \(stateCase)"
+                )
+                let expected = stateRowExpectation(for: sectionID, stateCase: stateCase)
+                let row = try XCTUnwrap(
+                    section.rows.first { $0.id == expected.id },
+                    "Missing \(expected.id) for \(stateCase)"
+                )
+                XCTAssertEqual(row.label, expected.label, "\(sectionID), \(stateCase)")
+                XCTAssertEqual(row.value, expected.value, "\(sectionID), \(stateCase)")
+                XCTAssertEqual(row.style, expected.style, "\(sectionID), \(stateCase)")
+
+                for target in additionalGenericStateRows(for: sectionID) {
+                    let expected = stateCase.genericExpectation(
+                        id: target.id,
+                        label: target.label
+                    )
+                    let row = try XCTUnwrap(
+                        section.rows.first { $0.id == target.id },
+                        "Missing \(target.id) for \(stateCase)"
+                    )
+                    XCTAssertEqual(row.label, expected.label, "\(target.id), \(stateCase)")
+                    XCTAssertEqual(row.value, expected.value, "\(target.id), \(stateCase)")
+                    XCTAssertEqual(row.style, expected.style, "\(target.id), \(stateCase)")
+                }
+            }
+        }
+    }
+
     func testDocumentPreservesMissingUnavailableAndFailedStates() {
         let document = WeeklyReportPDFDocument(snapshot: makeSnapshot(
             steps: .noDataOrAccess,
@@ -278,7 +424,17 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         bodyFat: WeeklyReportViewModel.BodyFatState = .noDataOrAccess,
         waist: MetricState<WaistSummary> = .noDataOrAccess,
         glucose: MetricState<GlucoseSummary> = .noDataOrAccess,
+        vo2Max: MetricState<VO2MaxSummary> = .noDataOrAccess,
+        bloodOxygen: MetricState<BloodOxygenSummary> = .noDataOrAccess,
         bloodPressure: MetricState<BloodPressureSummary> = .noDataOrAccess,
+        restingHeartRate: MetricState<HeartMetricTrendSummary> = .noDataOrAccess,
+        hrv: MetricState<HeartMetricTrendSummary> = .noDataOrAccess,
+        watchCoverage: MetricState<WatchCoverageSummary> = .noDataOrAccess,
+        exercise: MetricState<Double> = .noDataOrAccess,
+        activeEnergy: MetricState<Double> = .noDataOrAccess,
+        workouts: MetricState<WorkoutSummary> = .noDataOrAccess,
+        sleep: MetricState<SleepSummary> = .noDataOrAccess,
+        medications: MetricState<MedicationSummary> = .noDataOrAccess,
         includesMedicationSection: Bool = false,
         showsMorningDetails: Bool = true,
         showsEveningDetails: Bool = false
@@ -302,20 +458,150 @@ final class WeeklyReportScreenshotTests: XCTestCase {
             bodyFat: bodyFat,
             waist: waist,
             glucose: glucose,
-            vo2Max: .noDataOrAccess,
-            bloodOxygen: .noDataOrAccess,
+            vo2Max: vo2Max,
+            bloodOxygen: bloodOxygen,
             bloodPressure: bloodPressure,
-            restingHeartRate: .noDataOrAccess,
-            hrv: .noDataOrAccess,
-            watchCoverage: .noDataOrAccess,
-            exercise: .noDataOrAccess,
-            activeEnergy: .noDataOrAccess,
-            workouts: .noDataOrAccess,
-            sleep: .noDataOrAccess,
-            medications: .noDataOrAccess,
+            restingHeartRate: restingHeartRate,
+            hrv: hrv,
+            watchCoverage: watchCoverage,
+            exercise: exercise,
+            activeEnergy: activeEnergy,
+            workouts: workouts,
+            sleep: sleep,
+            medications: medications,
             includesMedicationSection: includesMedicationSection,
             showsMorningBloodPressureDetails: showsMorningDetails,
             showsEveningBloodPressureDetails: showsEveningDetails
+        )
+    }
+
+    private func makeFullFixtureSnapshot() -> WeeklyReportScreenshotSnapshot {
+        let calendar = testCalendar()
+        let now = date(2026, 9, 10, hour: 12, calendar: calendar)
+        let measured = date(2026, 9, 9, hour: 8, calendar: calendar)
+        let period = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: now,
+            calendar: calendar
+        )
+        let dailyGlucose = period.completedDays.map {
+            DailyGlucoseValue(
+                day: $0,
+                averageMillimolesPerLiter: 5.8,
+                minimumMillimolesPerLiter: 3.9,
+                maximumMillimolesPerLiter: 8.7,
+                sourceNames: ["Synthetic Sensor"]
+            )
+        }
+        let dailyOxygen = period.completedDays.map {
+            DailyOxygenSaturationValue(
+                day: $0,
+                medianPercentage: 97,
+                sampleCount: 4,
+                sourceNames: ["Synthetic Watch"]
+            )
+        }
+        let heartCurrent = HeartMetricSummary(dailyValues: [], average: 73)
+        let hrvCurrent = HeartMetricSummary(dailyValues: [], average: 42)
+        let medication = MedicationSummary.aggregate([
+            MedicationDoseRecord(
+                id: UUID(uuidString: "00000000-0000-0000-0000-000000000055")!,
+                medicationKey: "synthetic-20",
+                medicationName: "SyntheticMed 20 mg",
+                date: measured,
+                quantity: 1,
+                unitLabel: "dose"
+            )
+        ])!
+
+        return WeeklyReportScreenshotSnapshot(
+            period: period,
+            steps: .loaded(StepSummary(
+                dailyTotals: [], totalSteps: 49_000, averageDailySteps: 7_000,
+                reportingDayCount: 7, daysWithVisibleData: 7
+            )),
+            weight: .available(WeightTrendSummary(
+                latest: WeightMeasurement(date: measured, kilograms: 100.6),
+                currentSevenDayAverage: 100.8,
+                previousSevenDayAverage: 101.2,
+                trendKilograms: -0.4,
+                dailyValues: []
+            )),
+            bodyFat: .available(BodyFatTrendSummary(
+                latest: BodyFatMeasurement(date: measured, percentage: 26.5),
+                sevenDayAverage: 26.6,
+                current28DayAverage: 26.7,
+                previous28DayAverage: 27.6,
+                trendPercentagePoints: -0.9,
+                dailyValues: [],
+                measurements: []
+            )),
+            waist: .available(WaistSummary(
+                latest: WaistMeasurement(date: measured, centimetres: 101.4),
+                comparison: WaistMeasurement(date: measured, centimetres: 103.1),
+                fourWeekChangeCentimetres: -1.7,
+                measurements: []
+            )),
+            glucose: .available(GlucoseSummary(
+                dailyValues: dailyGlucose,
+                averageMillimolesPerLiter: 5.8,
+                minimumMillimolesPerLiter: 3.9,
+                maximumMillimolesPerLiter: 8.7
+            )),
+            vo2Max: .available(VO2MaxSummary(
+                latest: VO2MaxMeasurement(
+                    date: measured,
+                    millilitresPerKilogramMinute: 32.1,
+                    sourceName: "Synthetic Watch"
+                ),
+                fourWeek: VO2MaxWindowSummary(average: 31.8, sampledDayCount: 8),
+                threeMonth: VO2MaxWindowSummary(average: 30.9, sampledDayCount: 24),
+                sixMonth: VO2MaxWindowSummary(average: 29.7, sampledDayCount: 51),
+                dailyValues: [],
+                measurements: []
+            )),
+            bloodOxygen: .available(BloodOxygenSummary(
+                latest: OxygenSaturationMeasurement(
+                    date: measured,
+                    percentage: 97,
+                    sourceName: "Synthetic Watch"
+                ),
+                dailyValues: dailyOxygen,
+                typicalPercentage: 97,
+                minimumDailyMedian: 96,
+                maximumDailyMedian: 98,
+                measurements: []
+            )),
+            bloodPressure: .available(syntheticBloodPressureSummary()),
+            restingHeartRate: .available(HeartMetricTrendSummary(
+                current: heartCurrent,
+                previous: HeartMetricSummary(dailyValues: [], average: 70),
+                trend: 3
+            )),
+            hrv: .available(HeartMetricTrendSummary(
+                current: hrvCurrent,
+                previous: HeartMetricSummary(dailyValues: [], average: 47),
+                trend: -5
+            )),
+            watchCoverage: .available(WatchCoverageSummary(
+                reportingDayCount: 7,
+                coveredDays: Array(period.completedDays.prefix(4))
+            )),
+            exercise: .available(89),
+            activeEnergy: .available(1_974),
+            workouts: .available(WorkoutSummary(workouts: [
+                WorkoutRecord(
+                    id: UUID(uuidString: "00000000-0000-0000-0000-000000000056")!,
+                    startDate: measured,
+                    duration: 1_800,
+                    activityName: "Walking"
+                )
+            ])),
+            sleep: .available(SleepSummary(nights: [], averageDuration: 6 * 3_600 + 48 * 60)),
+            medications: .available(medication),
+            includesMedicationSection: true,
+            showsMorningBloodPressureDetails: true,
+            showsEveningBloodPressureDetails: true
         )
     }
 
@@ -367,6 +653,200 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         calendar.minimumDaysInFirstWeek = 4
         return calendar
     }
+
+    private func date(
+        _ year: Int,
+        _ month: Int,
+        _ day: Int,
+        hour: Int,
+        calendar: Calendar
+    ) -> Date {
+        calendar.date(from: DateComponents(
+            year: year,
+            month: month,
+            day: day,
+            hour: hour
+        ))!
+    }
+
+    private func stateRowExpectation(
+        for sectionID: WeeklyReportPDFDocument.SectionID,
+        stateCase: SyntheticDocumentStateCase
+    ) -> DocumentStateRowExpectation {
+        switch sectionID {
+        case .steps:
+            return stateCase.specialisedExpectation(
+                idPrefix: "steps",
+                label: nil,
+                loading: "Reading Apple Health…",
+                noData: "No step data is visible, or Health access was not granted.",
+                failed: "Step query failed: Synthetic failure"
+            )
+        case .weight:
+            return stateCase.specialisedExpectation(
+                idPrefix: "weight",
+                label: nil,
+                loading: "Reading latest weight…",
+                noData: "No weight data is visible, or Health access was not granted.",
+                failed: "Weight query failed: Synthetic failure"
+            )
+        case .bodyComposition:
+            return stateCase.specialisedExpectation(
+                idPrefix: "body-fat",
+                label: nil,
+                loading: "Reading body-fat history…",
+                noData: "No body-fat data is visible, or Health access was not granted.",
+                failed: "Body-fat query failed: Synthetic failure"
+            )
+        case .bloodPressure:
+            return stateCase.specialisedExpectation(
+                idPrefix: "blood-pressure",
+                label: nil,
+                loading: "Reading blood pressure…",
+                noData: "No complete blood-pressure readings are visible, or Health access was not granted.",
+                failed: "Blood-pressure query failed: Synthetic failure"
+            )
+        case .medications:
+            return stateCase.specialisedExpectation(
+                idPrefix: "medications",
+                label: nil,
+                loading: "Reading authorised medication events…",
+                noData: "No taken medication events are visible for this period.",
+                failed: "Medication query failed: Synthetic failure"
+            )
+        case .heart:
+            return stateCase.genericExpectation(
+                id: "resting-heart-rate-average",
+                label: "Resting HR Average"
+            )
+        case .cardiorespiratory:
+            return stateCase.genericExpectation(id: "vo2-max-latest", label: "Latest VO₂ Max")
+        case .glucose:
+            return stateCase.genericExpectation(id: "glucose-average", label: "Daily Average")
+        case .activity:
+            return stateCase.genericExpectation(id: "active-energy", label: "Active Energy")
+        case .sleep:
+            return stateCase.genericExpectation(id: "sleep-average", label: "Average Sleep")
+        }
+    }
+
+    private func additionalGenericStateRows(
+        for sectionID: WeeklyReportPDFDocument.SectionID
+    ) -> [DocumentStateRowTarget] {
+        switch sectionID {
+        case .steps, .weight, .bloodPressure, .medications:
+            []
+        case .bodyComposition:
+            [DocumentStateRowTarget(id: "waist", label: "Waist Circumference")]
+        case .heart:
+            [
+                DocumentStateRowTarget(id: "resting-heart-rate-trend", label: "Resting HR Trend"),
+                DocumentStateRowTarget(id: "hrv-average", label: "HRV Average"),
+                DocumentStateRowTarget(id: "hrv-trend", label: "HRV Trend"),
+                DocumentStateRowTarget(id: "watch-coverage", label: "Watch Data Coverage")
+            ]
+        case .cardiorespiratory:
+            [DocumentStateRowTarget(id: "blood-oxygen-latest", label: "Latest Blood Oxygen")]
+        case .glucose:
+            [
+                DocumentStateRowTarget(id: "glucose-range", label: "Observed Range"),
+                DocumentStateRowTarget(id: "glucose-coverage", label: "Data Coverage")
+            ]
+        case .activity:
+            [
+                DocumentStateRowTarget(id: "exercise", label: "Exercise"),
+                DocumentStateRowTarget(id: "workouts", label: "Workouts")
+            ]
+        case .sleep:
+            []
+        }
+    }
+}
+
+private enum SyntheticDocumentStateCase: CaseIterable {
+    case idle
+    case loading
+    case noDataOrAccess
+    case healthUnavailable
+    case failed
+
+    var stepsState: WeeklyReportViewModel.State {
+        switch self {
+        case .idle: .idle
+        case .loading: .loading
+        case .noDataOrAccess: .noDataOrAccess
+        case .healthUnavailable: .healthUnavailable
+        case .failed: .failed("Synthetic failure")
+        }
+    }
+
+    func metricState<Value: Equatable>() -> MetricState<Value> {
+        switch self {
+        case .idle: .idle
+        case .loading: .loading
+        case .noDataOrAccess: .noDataOrAccess
+        case .healthUnavailable: .healthUnavailable
+        case .failed: .failed("Synthetic failure")
+        }
+    }
+
+    func genericExpectation(
+        id: String,
+        label: String
+    ) -> DocumentStateRowExpectation {
+        switch self {
+        case .idle, .loading:
+            DocumentStateRowExpectation(id: id, label: label, value: "Loading…", style: .secondary)
+        case .noDataOrAccess:
+            DocumentStateRowExpectation(id: id, label: label, value: "No data", style: .secondary)
+        case .healthUnavailable:
+            DocumentStateRowExpectation(id: id, label: label, value: "Unavailable", style: .secondary)
+        case .failed:
+            DocumentStateRowExpectation(id: id, label: label, value: "Query failed", style: .failure)
+        }
+    }
+
+    func specialisedExpectation(
+        idPrefix: String,
+        label: String?,
+        loading: String,
+        noData: String,
+        failed: String
+    ) -> DocumentStateRowExpectation {
+        switch self {
+        case .idle, .loading:
+            DocumentStateRowExpectation(
+                id: "\(idPrefix)-loading", label: label, value: loading, style: .secondary
+            )
+        case .noDataOrAccess:
+            DocumentStateRowExpectation(
+                id: "\(idPrefix)-no-data", label: label, value: noData, style: .secondary
+            )
+        case .healthUnavailable:
+            DocumentStateRowExpectation(
+                id: "\(idPrefix)-unavailable",
+                label: label,
+                value: "Health data is unavailable on this device.",
+                style: .secondary
+            )
+        case .failed:
+            DocumentStateRowExpectation(
+                id: "\(idPrefix)-failed", label: label, value: failed, style: .failure
+            )
+        }
+    }
+}
+
+private struct DocumentStateRowExpectation {
+    let id: String
+    let label: String?
+    let value: String
+    let style: WeeklyReportPDFDocument.RowStyle
+}
+
+private struct DocumentStateRowTarget {
+    let id: String
+    let label: String
 }
 
 private extension WeeklyReportRoute {
