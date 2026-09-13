@@ -1,31 +1,8 @@
 import Foundation
 
-enum MetricState<Value: Equatable>: Equatable {
-    case idle
-    case loading
-    case available(Value)
-    case noDataOrAccess
-    case healthUnavailable
-    case failed(String)
-
-    var value: Value? {
-        if case .available(let value) = self { return value }
-        return nil
-    }
-}
-
 @MainActor
 final class WeeklyReportViewModel: ObservableObject {
-    enum State: Equatable {
-        case idle
-        case loading
-        case loaded(StepSummary)
-        case noCompletedDays
-        case noDataOrAccess
-        case healthUnavailable
-        case failed(String)
-    }
-
+    typealias State = StepsState
     typealias WeightState = MetricState<WeightTrendSummary>
     typealias BodyFatState = MetricState<BodyFatTrendSummary>
 

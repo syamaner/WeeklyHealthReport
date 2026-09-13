@@ -1,28 +1,5 @@
 import Foundation
 
-struct WeeklyReportScreenshotSnapshot: Equatable {
-    let period: ReportPeriod
-    let steps: WeeklyReportViewModel.State
-    let weight: WeeklyReportViewModel.WeightState
-    let bodyFat: WeeklyReportViewModel.BodyFatState
-    let waist: MetricState<WaistSummary>
-    let glucose: MetricState<GlucoseSummary>
-    let vo2Max: MetricState<VO2MaxSummary>
-    let bloodOxygen: MetricState<BloodOxygenSummary>
-    let bloodPressure: MetricState<BloodPressureSummary>
-    let restingHeartRate: MetricState<HeartMetricTrendSummary>
-    let hrv: MetricState<HeartMetricTrendSummary>
-    let watchCoverage: MetricState<WatchCoverageSummary>
-    let exercise: MetricState<Double>
-    let activeEnergy: MetricState<Double>
-    let workouts: MetricState<WorkoutSummary>
-    let sleep: MetricState<SleepSummary>
-    let medications: MetricState<MedicationSummary>
-    let includesMedicationSection: Bool
-    let showsMorningBloodPressureDetails: Bool
-    let showsEveningBloodPressureDetails: Bool
-}
-
 struct WeeklyReportPDFDocument: Equatable {
     enum SectionID: String, CaseIterable {
         case steps
@@ -149,7 +126,7 @@ struct WeeklyReportPDFDocument: Equatable {
     }
 
     private static func stepsSection(
-        _ state: WeeklyReportViewModel.State,
+        _ state: StepsState,
         locale: Locale
     ) -> Section {
         let rows: [Row]
@@ -203,7 +180,7 @@ struct WeeklyReportPDFDocument: Equatable {
     }
 
     private static func weightSection(
-        _ state: WeeklyReportViewModel.WeightState,
+        _ state: MetricState<WeightTrendSummary>,
         calendar: Calendar,
         locale: Locale
     ) -> Section {
@@ -275,7 +252,7 @@ struct WeeklyReportPDFDocument: Equatable {
     }
 
     private static func bodyCompositionSection(
-        bodyFat: WeeklyReportViewModel.BodyFatState,
+        bodyFat: MetricState<BodyFatTrendSummary>,
         waist: MetricState<WaistSummary>,
         calendar: Calendar,
         locale: Locale

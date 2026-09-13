@@ -66,7 +66,7 @@
 		A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003F /* DailyNotesStoreTests.swift */; };
 		A0000000000000000000003A /* DailyNoteSpeechCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000040 /* DailyNoteSpeechCapture.swift */; };
 		A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */; };
-		A0000000000000000000003C /* WeeklyReportScreenshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000042 /* WeeklyReportScreenshot.swift */; };
+		A0000000000000000000003C /* ReportDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000042 /* ReportDocument.swift */; };
 		A0000000000000000000003D /* WeeklyReportPDFView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000043 /* WeeklyReportPDFView.swift */; };
 		A0000000000000000000003E /* WeeklyReportScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000044 /* WeeklyReportScreenshotService.swift */; };
 		A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */; };
@@ -75,6 +75,8 @@
 		A00000000000000000000042 /* FakeHealthDataProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000048 /* FakeHealthDataProvider.swift */; };
 		A00000000000000000000043 /* NutritionQueryCatalogue.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000049 /* NutritionQueryCatalogue.swift */; };
 		A00000000000000000000044 /* MedicationAccessRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004A /* MedicationAccessRequest.swift */; };
+		A00000000000000000000045 /* MetricState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004B /* MetricState.swift */; };
+		A00000000000000000000046 /* ReportPresentationSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004C /* ReportPresentationSnapshot.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -153,7 +155,7 @@
 		B0000000000000000000003F /* DailyNotesStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesStoreTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000040 /* DailyNoteSpeechCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNoteSpeechCapture.swift; sourceTree = "<group>"; };
 		B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNoteSpeechCaptureTests.swift; sourceTree = "<group>"; };
-		B00000000000000000000042 /* WeeklyReportScreenshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshot.swift; sourceTree = "<group>"; };
+		B00000000000000000000042 /* ReportDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDocument.swift; sourceTree = "<group>"; };
 		B00000000000000000000043 /* WeeklyReportPDFView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportPDFView.swift; sourceTree = "<group>"; };
 		B00000000000000000000044 /* WeeklyReportScreenshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshotService.swift; sourceTree = "<group>"; };
 		B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshotTests.swift; sourceTree = "<group>"; };
@@ -162,6 +164,8 @@
 		B00000000000000000000048 /* FakeHealthDataProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FakeHealthDataProvider.swift; sourceTree = "<group>"; };
 		B00000000000000000000049 /* NutritionQueryCatalogue.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionQueryCatalogue.swift; sourceTree = "<group>"; };
 		B0000000000000000000004A /* MedicationAccessRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationAccessRequest.swift; sourceTree = "<group>"; };
+		B0000000000000000000004B /* MetricState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricState.swift; sourceTree = "<group>"; };
+		B0000000000000000000004C /* ReportPresentationSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPresentationSnapshot.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -207,6 +211,7 @@
 				G00000000000000000000004 /* HealthKit */,
 				G0000000000000000000000A /* GoogleDrive */,
 				G0000000000000000000000B /* Notes */,
+				G0000000000000000000000D /* Presentation */,
 				G00000000000000000000005 /* Views */,
 				G00000000000000000000009 /* Utilities */,
 				B00000000000000000000032 /* Info.plist */,
@@ -261,7 +266,6 @@
 				B00000000000000000000039 /* DeveloperDiagnosticsSections.swift */,
 				B00000000000000000000031 /* DailyExportView.swift */,
 				B0000000000000000000003D /* DailyNotesView.swift */,
-				B00000000000000000000042 /* WeeklyReportScreenshot.swift */,
 				B00000000000000000000043 /* WeeklyReportPDFView.swift */,
 				B00000000000000000000044 /* WeeklyReportScreenshotService.swift */,
 			);
@@ -351,6 +355,16 @@
 				B00000000000000000000040 /* DailyNoteSpeechCapture.swift */,
 			);
 			path = Notes;
+			sourceTree = "<group>";
+		};
+		G0000000000000000000000D /* Presentation */ = {
+			isa = PBXGroup;
+			children = (
+				B0000000000000000000004B /* MetricState.swift */,
+				B0000000000000000000004C /* ReportPresentationSnapshot.swift */,
+				B00000000000000000000042 /* ReportDocument.swift */,
+			);
+			path = Presentation;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -479,7 +493,9 @@
 				A00000000000000000000011 /* ActivitySummary.swift in Sources */,
 				A00000000000000000000012 /* SleepSummary.swift in Sources */,
 				A00000000000000000000013 /* WeeklyReportSnapshot.swift in Sources */,
-				A0000000000000000000003C /* WeeklyReportScreenshot.swift in Sources */,
+				A0000000000000000000003C /* ReportDocument.swift in Sources */,
+				A00000000000000000000045 /* MetricState.swift in Sources */,
+				A00000000000000000000046 /* ReportPresentationSnapshot.swift in Sources */,
 				A00000000000000000000019 /* WatchCoverageSummary.swift in Sources */,
 				A0000000000000000000001C /* WaistMeasurement.swift in Sources */,
 				A0000000000000000000001D /* GlucoseSummary.swift in Sources */,
