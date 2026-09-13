@@ -77,6 +77,7 @@
 		A00000000000000000000044 /* MedicationAccessRequest.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004A /* MedicationAccessRequest.swift */; };
 		A00000000000000000000045 /* MetricState.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004B /* MetricState.swift */; };
 		A00000000000000000000046 /* ReportPresentationSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004C /* ReportPresentationSnapshot.swift */; };
+		A00000000000000000000047 /* ReportDocument+PlainText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004D /* ReportDocument+PlainText.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -166,6 +167,7 @@
 		B0000000000000000000004A /* MedicationAccessRequest.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationAccessRequest.swift; sourceTree = "<group>"; };
 		B0000000000000000000004B /* MetricState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricState.swift; sourceTree = "<group>"; };
 		B0000000000000000000004C /* ReportPresentationSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPresentationSnapshot.swift; sourceTree = "<group>"; };
+		B0000000000000000000004D /* ReportDocument+PlainText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReportDocument+PlainText.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -363,6 +365,7 @@
 				B0000000000000000000004B /* MetricState.swift */,
 				B0000000000000000000004C /* ReportPresentationSnapshot.swift */,
 				B00000000000000000000042 /* ReportDocument.swift */,
+				B0000000000000000000004D /* ReportDocument+PlainText.swift */,
 			);
 			path = Presentation;
 			sourceTree = "<group>";
@@ -496,6 +499,7 @@
 				A0000000000000000000003C /* ReportDocument.swift in Sources */,
 				A00000000000000000000045 /* MetricState.swift in Sources */,
 				A00000000000000000000046 /* ReportPresentationSnapshot.swift in Sources */,
+				A00000000000000000000047 /* ReportDocument+PlainText.swift in Sources */,
 				A00000000000000000000019 /* WatchCoverageSummary.swift in Sources */,
 				A0000000000000000000001C /* WaistMeasurement.swift in Sources */,
 				A0000000000000000000001D /* GlucoseSummary.swift in Sources */,

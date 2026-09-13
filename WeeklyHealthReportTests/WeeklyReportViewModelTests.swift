@@ -45,6 +45,7 @@ final class WeeklyReportViewModelTests: XCTestCase {
         let refresh = Task { await viewModel.refresh() }
         await provider.waitUntilFirstWeightFetchIsPaused()
 
+        XCTAssertTrue(viewModel.isRefreshing)
         XCTAssertEqual(viewModel.state, .loading)
         XCTAssertEqual(viewModel.weightState, .loading)
         XCTAssertEqual(viewModel.bodyFatState, .loading)
@@ -65,6 +66,7 @@ final class WeeklyReportViewModelTests: XCTestCase {
 
         await provider.resumeFirstWeightFetch()
         await refresh.value
+        XCTAssertFalse(viewModel.isRefreshing)
     }
 
     func testScreenshotSnapshotFailsClosedThroughoutRefreshThenUsesOneStableGeneration() async throws {
@@ -339,6 +341,35 @@ final class WeeklyReportViewModelTests: XCTestCase {
             try XCTUnwrap(viewModel.medicationState.value).groups.first?.medicationName,
             "Newer Medication Refresh"
         )
+    }
+
+    func testMedicationOnlyRefreshPublishesRefreshingUntilCompletion() async {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 2, hour: 12, calendar: calendar)
+        let period = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: refreshDate,
+            calendar: calendar
+        )
+        let provider = FakeHealthDataProvider(
+            medicationResponses: [[medicationRecord(name: "Medication", in: period)]],
+            pauseFirstMedicationFetch: true
+        )
+        let viewModel = makeViewModel(
+            provider: provider,
+            calendar: calendar,
+            dates: [refreshDate]
+        )
+
+        let refresh = Task { await viewModel.refreshMedications() }
+        await provider.waitUntilFirstMedicationFetchIsPaused()
+
+        XCTAssertTrue(viewModel.isRefreshing)
+
+        await provider.resumeFirstMedicationFetch()
+        await refresh.value
+
+        XCTAssertFalse(viewModel.isRefreshing)
     }
 
     func testFullRefreshRejectsOlderMedicationOnlyRefreshCompletion() async throws {

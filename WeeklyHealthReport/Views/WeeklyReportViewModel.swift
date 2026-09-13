@@ -108,6 +108,9 @@ final class WeeklyReportViewModel: ObservableObject {
     @Published private(set) var lastRefreshed: Date?
 
     var state: State { reportStates.steps }
+    var isRefreshing: Bool {
+        activeRefreshGeneration != nil || activeMedicationRefreshGeneration != nil
+    }
     var weightState: WeightState { reportStates.weight }
     var bodyFatState: BodyFatState { reportStates.bodyFat }
     var waistState: MetricState<WaistSummary> { reportStates.waist }
@@ -130,9 +133,9 @@ final class WeeklyReportViewModel: ObservableObject {
     private let calendar: Calendar
     private let now: () -> Date
     private var refreshGeneration = 0
-    private var activeRefreshGeneration: Int?
+    @Published private var activeRefreshGeneration: Int?
     private var medicationRefreshGeneration = 0
-    private var activeMedicationRefreshGeneration: Int?
+    @Published private var activeMedicationRefreshGeneration: Int?
 
     init(
         healthData: HealthDataProviding = HealthKitClient(),
