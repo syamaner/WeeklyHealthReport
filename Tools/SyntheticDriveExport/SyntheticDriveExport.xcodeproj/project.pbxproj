@@ -23,7 +23,7 @@
  A0000000000000000000000E = {isa = PBXBuildFile; fileRef = A00000000000000000000008; };
  A00000000000000000000019 = {isa = PBXBuildFile; fileRef = A00000000000000000000013; };
  A0000000000000000000001A = {isa = PBXFileReference; path = CanonicalTransport.swift; lastKnownFileType = sourcecode.swift; sourceTree = "<group>"; };
- A0000000000000000000001B = {isa = PBXFileReference; path = CanonicalExportCoordinator.swift; lastKnownFileType = sourcecode.swift; sourceTree = "<group>"; };
+ A0000000000000000000001B = {isa = PBXFileReference; path = SyntheticFixtureIdentityPolicy.swift; lastKnownFileType = sourcecode.swift; sourceTree = "<group>"; };
  A0000000000000000000001C = {isa = PBXBuildFile; fileRef = A0000000000000000000001A; };
  A0000000000000000000001D = {isa = PBXBuildFile; fileRef = A0000000000000000000001B; };
  A0000000000000000000001E = {isa = PBXFileReference; path = HarnessCompatibility.swift; lastKnownFileType = sourcecode.swift; sourceTree = "<group>"; };

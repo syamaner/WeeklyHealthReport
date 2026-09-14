@@ -46,6 +46,16 @@ final class TestIdentityStore: CanonicalExportIdentityPersisting, @unchecked Sen
     }
 }
 
+struct AmbiguousIdentityStore: CanonicalExportIdentityPersisting {
+    func load() throws -> CanonicalExportRegistry? {
+        throw CanonicalExportFailure.identityRecoveryAmbiguous
+    }
+
+    func installationMarker() throws -> String? { nil }
+
+    func save(_ registry: CanonicalExportRegistry) throws {}
+}
+
 actor TestDriveServer: DriveTransporting {
     enum SubmissionBehavior: Sendable {
         case succeed
@@ -191,6 +201,8 @@ enum CanonicalTransportChecks {
     }
 
     static func main() async throws {
+        print("CHECK: synthetic payload identity policy")
+        try syntheticPayloadIdentityPolicy()
         print("CHECK: initial create and replacement")
         try await initialCreateAndReplacement()
         print("CHECK: uncertain create retry")
@@ -205,6 +217,8 @@ enum CanonicalTransportChecks {
         try await unresolvedRequestHasNoQueue()
         print("CHECK: relaunch and recovery")
         try await relaunchRecoveryAndExplicitRecovery()
+        print("CHECK: shipping recovery and persistence semantics")
+        try await shippingRecoveryAndPersistenceSemantics()
         print("CHECK: credentials and destination isolation")
         try await credentialAndDestinationIsolation()
         print("CHECK: verification and stale completion")
@@ -216,6 +230,26 @@ enum CanonicalTransportChecks {
         print("PASS: canonical Drive transport state, retry, update, verification, cancellation, recovery and fail-closed checks")
     }
 
+    static func syntheticPayloadIdentityPolicy() throws {
+        let policy = SyntheticFixtureIdentityPolicy()
+        for revision in 1...3 {
+            let payload = try SyntheticPayload.data(revision)
+            let identity = try policy.validate(payload: payload, reportDate: reportDate)
+            precondition(identity.orderingToken == String(revision))
+            precondition(identity.payloadSHA256 == CanonicalExportCoordinator.sha256(payload))
+        }
+        let ascending = try policy.compare("1", "2")
+        let same = try policy.compare("2", "2")
+        let descending = try policy.compare("3", "2")
+        precondition(ascending == .orderedAscending)
+        precondition(same == .orderedSame)
+        precondition(descending == .orderedDescending)
+        do {
+            _ = try policy.validate(payload: Data("foreign".utf8), reportDate: reportDate)
+            preconditionFailure("Foreign bytes must not be admitted")
+        } catch {}
+    }
+
     static func export(
         _ revision: Int,
         coordinator: CanonicalExportCoordinator,
@@ -225,7 +259,6 @@ enum CanonicalTransportChecks {
     ) async throws -> CanonicalExportResult {
         try await coordinator.export(
             payload: SyntheticPayload.data(revision),
-            generation: revision,
             reportDate: reportDate,
             accountID: account,
             folderID: folder,
@@ -239,7 +272,6 @@ enum CanonicalTransportChecks {
     ) async throws -> CanonicalExportResult {
         try await coordinator.export(
             payload: SyntheticPayload.data(revision, reportDate: SyntheticPayload.adverseReportDate),
-            generation: revision,
             reportDate: SyntheticPayload.adverseReportDate,
             accountID: accountID,
             folderID: folderID,
@@ -266,13 +298,13 @@ enum CanonicalTransportChecks {
         let coordinator = CanonicalExportCoordinator(transport: probe, store: TestIdentityStore())
 
         let acceptedResult = try await export(3, coordinator: coordinator)
-        precondition(acceptedResult == .verified(generation: 3, created: true))
+        precondition(acceptedResult == .verified(dataAsOf: "3", created: true))
 
         try await probe.arm(.retryNextCreateAfterLostResponse)
         let createResult = try await exportAdverse(1, coordinator: coordinator)
         let createObservation = await probe.takeObservation()
         let countAfterCreate = await server.fileCount()
-        precondition(createResult == .verified(generation: 1, created: true))
+        precondition(createResult == .verified(dataAsOf: "1", created: true))
         precondition(createObservation == .createRetriedAfterLostResponseWithSameReservedID)
         precondition(countAfterCreate == 2)
         let createIDs = await server.createIDs
@@ -303,7 +335,7 @@ enum CanonicalTransportChecks {
         try await probe.arm(.loseNextResponseAfterCommit)
         let lostResponseResult = try await exportAdverse(2, coordinator: coordinator)
         let lostResponseObservation = await probe.takeObservation()
-        precondition(lostResponseResult == .verified(generation: 2, created: false))
+        precondition(lostResponseResult == .verified(dataAsOf: "2", created: false))
         precondition(lostResponseObservation == .responseLostAfterCommit)
 
         try await probe.arm(
@@ -313,7 +345,7 @@ enum CanonicalTransportChecks {
         let postCancellationResult = try await exportAdverse(3, coordinator: coordinator)
         let postCancellationObservation = await probe.takeObservation()
         let finalCount = await server.fileCount()
-        precondition(postCancellationResult == .cancelledAfterSubmissionVerified(generation: 3, created: false))
+        precondition(postCancellationResult == .cancelledAfterSubmissionVerified(dataAsOf: "3", created: false))
         precondition(postCancellationObservation == .cancellationInjectedAfterSubmission)
         precondition(finalCount == 2)
     }
@@ -327,10 +359,10 @@ enum CanonicalTransportChecks {
         }
         let coordinator = CanonicalExportCoordinator(transport: server, store: store)
         let morningResult = try await export(1, coordinator: coordinator)
-        precondition(morningResult == .verified(generation: 1, created: true))
+        precondition(morningResult == .verified(dataAsOf: "1", created: true))
         let savedAfterCreate = try store.load()!
         let fileID = savedAfterCreate.identities[0].fileID
-        precondition(savedAfterCreate.identities[0].lastVerified?.generation == 1)
+        precondition(savedAfterCreate.identities[0].lastVerified?.dataAsOf == "1")
         precondition(savedAfterCreate.identities[0].pending == nil)
         let generatedIDs = await server.generatedIDs
         let createIDs = await server.createIDs
@@ -344,9 +376,9 @@ enum CanonicalTransportChecks {
         let fileCount = await server.fileCount()
         let finalContent = await server.storedContent(id: fileID)
         let expectedBedtime = try SyntheticPayload.data(3)
-        precondition(eveningResult == .verified(generation: 2, created: false))
-        precondition(bedtimeResult == .verified(generation: 3, created: false))
-        precondition(repeatedResult == .unchangedVerified(generation: 3))
+        precondition(eveningResult == .verified(dataAsOf: "2", created: false))
+        precondition(bedtimeResult == .verified(dataAsOf: "3", created: false))
+        precondition(repeatedResult == .unchangedVerified(dataAsOf: "3"))
         precondition(updateIDs == [fileID, fileID])
         precondition(fileCount == 1)
         precondition(finalContent == expectedBedtime)
@@ -360,7 +392,7 @@ enum CanonicalTransportChecks {
         let result = try await export(1, coordinator: coordinator)
         let ids = await server.createIDs
         let generatedCount = await server.generatedIDs.count
-        precondition(result == .verified(generation: 1, created: true))
+        precondition(result == .verified(dataAsOf: "1", created: true))
         precondition(ids.count == 2 && ids[0] == ids[1])
         precondition(generatedCount == 1)
         precondition(store.saveCount >= 3, "Reservation and submitted state must persist before create completion")
@@ -374,7 +406,7 @@ enum CanonicalTransportChecks {
         let result = try await export(1, coordinator: coordinator)
         let createCount = await server.createIDs.count
         let fileCount = await server.fileCount()
-        precondition(result == .verified(generation: 1, created: true))
+        precondition(result == .verified(dataAsOf: "1", created: true))
         precondition(createCount == 1)
         precondition(fileCount == 1)
     }
@@ -389,7 +421,7 @@ enum CanonicalTransportChecks {
         await server.enqueueUpdate(.unauthorized)
         let refreshedResult = try await export(2, coordinator: coordinator)
         let refreshedCount = await server.updateIDs.count
-        precondition(refreshedResult == .verified(generation: 2, created: false))
+        precondition(refreshedResult == .verified(dataAsOf: "2", created: false))
         precondition(refreshedCount == 2)
 
         await server.enqueueUpdate(.permissionDenied)
@@ -401,7 +433,7 @@ enum CanonicalTransportChecks {
         let expectedEvening = try SyntheticPayload.data(2)
         let persisted = try store.load()!.identities[0]
         precondition(content == expectedEvening)
-        precondition(persisted.lastVerified?.generation == 2)
+        precondition(persisted.lastVerified?.dataAsOf == "2")
         precondition(persisted.pending == nil)
     }
 
@@ -435,7 +467,7 @@ enum CanonicalTransportChecks {
         await postCoordinator.requestCancellation()
         await postServer.resumeUpdate()
         let postResult = try await postTask.value
-        precondition(postResult == .cancelledAfterSubmissionVerified(generation: 2, created: false))
+        precondition(postResult == .cancelledAfterSubmissionVerified(dataAsOf: "2", created: false))
     }
 
     static func unresolvedRequestHasNoQueue() async throws {
@@ -458,7 +490,7 @@ enum CanonicalTransportChecks {
             preconditionFailure("A newer generation must be blocked while a request is unresolved")
         } catch CanonicalExportFailure.unresolvedRequest {}
         let persisted = try store.load()!.identities[0]
-        precondition(persisted.lastVerified?.generation == 1)
+        precondition(persisted.lastVerified?.dataAsOf == "1")
     }
 
     static func relaunchRecoveryAndExplicitRecovery() async throws {
@@ -483,7 +515,7 @@ enum CanonicalTransportChecks {
             folderID: folderID,
             tokenProvider: token
         )
-        precondition(recoveryResult == .recovered(generation: 2))
+        precondition(recoveryResult == .recovered(dataAsOf: "2"))
         let recovered = try recoveredStore.load()!
         precondition(recovered.identities[0].fileID == identity.fileID)
         precondition(recovered.identities[0].installationID == identity.installationID)
@@ -503,7 +535,35 @@ enum CanonicalTransportChecks {
             folderID: folderID,
             tokenProvider: token
         )
-        precondition(recoveredAfterLoss == .recovered(generation: 2))
+        precondition(recoveredAfterLoss == .recovered(dataAsOf: "2"))
+    }
+
+    static func shippingRecoveryAndPersistenceSemantics() async throws {
+        let store = TestIdentityStore()
+        let server = TestDriveServer()
+        let coordinator = CanonicalExportCoordinator(transport: server, store: store)
+        _ = try await export(1, coordinator: coordinator)
+        let identity = try store.load()!.identities[0]
+        await server.overrideParent("folder-b")
+        let migration = try await coordinator.recover(
+            selectedFileID: identity.fileID,
+            reportDate: reportDate,
+            accountID: accountID,
+            folderID: "folder-b",
+            tokenProvider: token
+        )
+        precondition(migration == .migrated(dataAsOf: "1"))
+        let migratedIdentity = try store.load()!.identities[0]
+        precondition(migratedIdentity.folderID == "folder-b")
+
+        let ambiguous = CanonicalExportCoordinator(
+            transport: TestDriveServer(),
+            store: AmbiguousIdentityStore()
+        )
+        do {
+            _ = try await export(1, coordinator: ambiguous)
+            preconditionFailure("Typed identity ambiguity must not be flattened")
+        } catch CanonicalExportFailure.identityRecoveryAmbiguous {}
     }
 
     static func credentialAndDestinationIsolation() async throws {
@@ -552,7 +612,7 @@ enum CanonicalTransportChecks {
             preconditionFailure("Remote content must be byte-for-byte verified")
         } catch CanonicalExportFailure.remoteContentMismatch {}
         let mismatchIdentity = try mismatchStore.load()!.identities[0]
-        precondition(mismatchIdentity.lastVerified?.generation == 2)
+        precondition(mismatchIdentity.lastVerified?.dataAsOf == "2")
 
         let staleStore = TestIdentityStore()
         let staleServer = TestDriveServer()
@@ -565,7 +625,7 @@ enum CanonicalTransportChecks {
             guard let pending = registry.identities[0].pending else { return }
             registry.identities[0].pending = PendingSyntheticOperation(
                 operationID: "newer-operation",
-                generation: pending.generation,
+                dataAsOf: pending.dataAsOf,
                 payloadSHA256: pending.payloadSHA256,
                 kind: pending.kind,
                 phase: pending.phase
@@ -577,7 +637,7 @@ enum CanonicalTransportChecks {
             preconditionFailure("A stale completion must not become verified state")
         } catch CanonicalExportFailure.staleCompletion {}
         let staleIdentity = try staleStore.load()!.identities[0]
-        precondition(staleIdentity.lastVerified?.generation == 1)
+        precondition(staleIdentity.lastVerified?.dataAsOf == "1")
     }
 
     static func invalidPayloadAndRemoteStateRejection() async throws {
@@ -587,14 +647,13 @@ enum CanonicalTransportChecks {
         do {
             _ = try await coordinator.export(
                 payload: Data(#"{"synthetic_only":true,"marker":"invented-but-not-approved"}"#.utf8),
-                generation: 4,
                 reportDate: reportDate,
                 accountID: accountID,
                 folderID: folderID,
                 tokenProvider: token
             )
             preconditionFailure("Only the three fixed invented fixtures are admitted")
-        } catch CanonicalExportFailure.invalidSyntheticPayload {}
+        } catch CanonicalExportFailure.invalidPayload {}
 
         _ = try await export(1, coordinator: coordinator)
         await server.overrideParent("different-folder")

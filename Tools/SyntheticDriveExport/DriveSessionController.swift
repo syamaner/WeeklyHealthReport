@@ -32,7 +32,11 @@ final class DriveSessionController: NSObject, ObservableObject {
     private let keychain = KeychainStore()
     private let drive = DriveAPI()
     private lazy var probeDrive = AdverseProbeDriveTransport(base: drive)
-    private lazy var identityStore = KeychainCanonicalExportIdentityStore(keychain: keychain)
+    private lazy var identityStore = KeychainDailyDriveExportIdentityStore(
+        keychain: keychain,
+        registryKey: SyntheticIdentityStoreKeys.registry,
+        markerKey: SyntheticIdentityStoreKeys.marker
+    )
     private lazy var exportCoordinator = CanonicalExportCoordinator(
         transport: probeDrive,
         store: identityStore
@@ -345,7 +349,6 @@ final class DriveSessionController: NSObject, ObservableObject {
             }
             _ = try await self.exportCoordinator.export(
                 payload: SyntheticPayload.data(3, reportDate: SyntheticPayload.adverseReportDate),
-                generation: 3,
                 reportDate: SyntheticPayload.adverseReportDate,
                 accountID: identity.accountID,
                 folderID: identity.folderID,
@@ -362,11 +365,10 @@ final class DriveSessionController: NSObject, ObservableObject {
                   }) else {
                 throw CanonicalExportFailure.identityRecoveryAmbiguous
             }
-            try self.identityStore.removeRegistryPreservingInstallationMarkerForProbe()
+            try self.keychain.delete(account: SyntheticIdentityStoreKeys.registry)
             do {
                 _ = try await self.exportCoordinator.export(
                     payload: SyntheticPayload.data(3, reportDate: SyntheticPayload.adverseReportDate),
-                    generation: 3,
                     reportDate: SyntheticPayload.adverseReportDate,
                     accountID: identity.accountID,
                     folderID: identity.folderID,
@@ -382,7 +384,7 @@ final class DriveSessionController: NSObject, ObservableObject {
     func simulateMissingCanonicalIdentity() {
         guard !busy else { return }
         do {
-            try identityStore.removeRegistryPreservingInstallationMarkerForProbe()
+            try keychain.delete(account: SyntheticIdentityStoreKeys.registry)
             status = "Simulated missing canonical identity while preserving the installation marker. Export must now fail closed until explicit recovery."
         } catch {
             status = "Could not simulate missing identity; secure state was left unchanged."
@@ -416,7 +418,6 @@ final class DriveSessionController: NSObject, ObservableObject {
                 let reportDate = self.fixtureSet.reportDate
                 let result = try await self.exportCoordinator.export(
                     payload: SyntheticPayload.data(revision, reportDate: reportDate),
-                    generation: revision,
                     reportDate: reportDate,
                     accountID: account.id,
                     folderID: destination.folderID,
@@ -679,6 +680,8 @@ private extension CanonicalRecoveryResult {
             return "Explicit file recovery verified and restored invented revision \(generation)."
         case .alreadyTracked(let generation):
             return "The selected file was already tracked and revision \(generation) was reverified."
+        case .migrated(let generation):
+            return "The selected file was migrated to this destination and revision \(generation) was reverified."
         }
     }
 }
@@ -687,8 +690,8 @@ private extension CanonicalExportFailure {
     var userFacingLabel: String {
         switch self {
         case .busy: return "Another export or reconciliation is still active."
-        case .invalidSyntheticPayload: return "Rejected: only the fixed morning, evening and bedtime fixtures are allowed."
-        case .staleGeneration: return "Rejected stale synthetic completion; the last verified file is unchanged."
+        case .invalidPayload: return "Rejected: only the fixed morning, evening and bedtime fixtures are allowed."
+        case .staleSnapshot: return "Rejected stale synthetic completion; the last verified file is unchanged."
         case .destinationChangeRequiresMigration: return "Export blocked: account or destination changed and no migration policy is authorised."
         case .accountMismatch: return "Export blocked by Google account mismatch."
         case .identityRecoveryAmbiguous: return "Export blocked: canonical destination identity recovery is ambiguous."

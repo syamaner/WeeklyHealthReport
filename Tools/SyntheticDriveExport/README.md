@@ -27,8 +27,17 @@ resume them. Local checks and a simulator build do not prove Google Drive behavi
   Recovery requires explicit selection of the exact app-owned JSON and validates
   its remote metadata/content. Folder contents are never enumerated.
 - The ratified first release supports one active exporting installation. Account
-  or destination changes for an already-exported date require a future explicit
-  migration policy; state is never reused across accounts or destinations.
+  changes for an already-exported date remain blocked. Explicit recovery may move
+  the same canonical file to another validated folder on the same account; state
+  is never reused across accounts or file identities.
+
+The harness now links the shipping `DailyDriveExportCoordinator` from
+`DriveExportKit` and supplies only its fixed-fixture validation and integer-ordering
+policy. The former harness coordinator clone has been removed. This phase moves both
+harness-only canonical identity keys from their legacy names to a `.v2` namespace,
+so the first installed build starts with no harness registry or installation marker;
+state continuity resumes within that build. The shipping app's version-1 keys and
+registry bytes are unchanged.
 
 The canonical online path has bounded build-5/build-6 device and Google evidence for
 pre-generated create, same-ID updates, uncertain-response reconciliation,
@@ -196,7 +205,7 @@ xcrun swiftc -module-cache-path /tmp/whr-consent-swift-module-cache \
   Tools/SyntheticDriveExport/ExportPolicy.swift \
   Tools/SyntheticDriveExport/HarnessCompatibility.swift \
   Tools/SyntheticDriveExport/CanonicalTransport.swift \
-  Tools/SyntheticDriveExport/CanonicalExportCoordinator.swift \
+  Tools/SyntheticDriveExport/SyntheticFixtureIdentityPolicy.swift \
   Tools/SyntheticDriveExport/CanonicalTransportChecks.swift \
   -o /tmp/whr-canonical-transport-checks
 /tmp/whr-canonical-transport-checks

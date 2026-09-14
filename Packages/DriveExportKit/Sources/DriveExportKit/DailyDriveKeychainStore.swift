@@ -1,7 +1,7 @@
 import Foundation
 import Security
 
-public protocol DailyDriveSecurePersisting {
+public protocol DailyDriveSecurePersisting: Sendable {
     func save(_ data: Data, account: String) throws
     func load(account: String) throws -> Data?
     func delete(account: String) throws

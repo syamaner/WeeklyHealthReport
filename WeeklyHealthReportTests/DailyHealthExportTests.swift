@@ -1623,7 +1623,7 @@ private final class PreparationDriverFixture: DailyExportPreparationDriving {
     }
 }
 
-private final class MemoryDailySessionStore: DailyDriveSecurePersisting {
+private final class MemoryDailySessionStore: DailyDriveSecurePersisting, @unchecked Sendable {
     private var values: [String: Data] = [:]
 
     func save(_ data: Data, account: String) throws {
