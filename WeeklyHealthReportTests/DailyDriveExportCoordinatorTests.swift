@@ -498,6 +498,62 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         )
     }
 
+    func testCapturedVersion1RegistryRoundTripsByteForByte() throws {
+        let fixture = Data(#"{"identities":[{"accountID":"account-a","fileID":"file-a","folderID":"folder-a","installationID":"installation-a","lastVerified":{"dataAsOf":"2026-09-06T08:00:00+01:00","payloadSHA256":"verified-hash","verifiedAt":810000000},"pending":{"dataAsOf":"2026-09-06T18:00:00+01:00","kind":"update","operationID":"operation-a","payloadSHA256":"pending-hash","phase":"uncertain"},"reportDate":"2026-09-06"}],"installationID":"installation-a","version":1}"#.utf8)
+        let registry = try JSONDecoder().decode(DailyDriveExportRegistry.self, from: fixture)
+        XCTAssertEqual(registry.version, 1)
+        XCTAssertEqual(registry.identities[0].lastVerified?.dataAsOf, "2026-09-06T08:00:00+01:00")
+        XCTAssertEqual(registry.identities[0].pending?.dataAsOf, "2026-09-06T18:00:00+01:00")
+
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        XCTAssertEqual(try encoder.encode(registry), fixture)
+    }
+
+    func testDailyPayloadPolicyPreservesSchemaAndOrderingRules() throws {
+        let policy = DailyHealthExportIdentityPolicy()
+        let valid = try payload(hour: 8)
+        let identity = try policy.validate(payload: valid, reportDate: reportDate)
+        XCTAssertEqual(identity.orderingToken, "2026-09-06T08:00:00+01:00")
+        XCTAssertEqual(identity.payloadSHA256, DailyDriveExportCoordinator.sha256(valid))
+        XCTAssertEqual(
+            try policy.compare(
+                "2026-09-06T08:00:00+01:00",
+                "2026-09-06T18:00:00+01:00"
+            ),
+            .orderedAscending
+        )
+        XCTAssertThrowsError(try policy.validate(payload: valid + Data([0x20]), reportDate: reportDate))
+
+        var schema4 = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: valid) as? [String: Any]
+        )
+        schema4["schema_version"] = 4
+        let schema4Bytes = try JSONSerialization.data(
+            withJSONObject: schema4,
+            options: [.prettyPrinted, .sortedKeys]
+        )
+        XCTAssertThrowsError(try policy.validate(payload: schema4Bytes, reportDate: reportDate))
+    }
+
+    func testCoordinatorMapsPolicyThrowsToInvalidPayload() async throws {
+        let coordinator = DailyDriveExportCoordinator(
+            transport: MockDailyDriveServer(),
+            store: MemoryDailyIdentityStore(),
+            policy: ThrowingPayloadIdentityPolicy()
+        )
+        do {
+            _ = try await coordinator.export(
+                payload: Data("fixture".utf8),
+                reportDate: reportDate,
+                accountID: accountID,
+                folderID: folderID,
+                tokenProvider: token
+            )
+            XCTFail("A policy error must be mapped to invalidPayload")
+        } catch DailyDriveExportFailure.invalidPayload {}
+    }
+
     private func payload(hour: Int) throws -> Data {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/London")!
@@ -785,6 +841,25 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
             try? await Task.sleep(for: .milliseconds(1))
         }
         XCTFail("Timed out waiting for deterministic test gate")
+    }
+}
+
+private struct ThrowingPayloadIdentityPolicy: DrivePayloadIdentityPolicy {
+    enum Failure: Error { case rejected }
+
+    let ownerPropertyKey = "fixtureOwner"
+    let orderingPropertyKey = "fixtureOrder"
+
+    func validate(payload: Data, reportDate: String) throws -> DrivePayloadIdentity {
+        throw Failure.rejected
+    }
+
+    func compare(_ lhs: String, _ rhs: String) throws -> ComparisonResult {
+        throw Failure.rejected
+    }
+
+    func filename(for reportDate: String) -> String {
+        "fixture-\(reportDate).json"
     }
 }
 
