@@ -169,29 +169,33 @@ screenshots containing them and tokens private.
 ## Local validation
 
 ```sh
+swift build --package-path Packages/DriveExportKit
+
+grep -rnE "import HealthKit|HealthKitUI|DailyHealthExportEnvelope|NutritionCatalogue|DailyNotesPolicy|HealthKitClient" \
+  Packages/DriveExportKit/Sources
+
 xcrun swiftc -module-cache-path /tmp/whr-consent-swift-module-cache \
+  Packages/DriveExportKit/Sources/DriveExportKit/*.swift \
   Tools/SyntheticDriveExport/ExportPolicy.swift \
-  Tools/SyntheticDriveExport/ConsentPolicy.swift \
+  Tools/SyntheticDriveExport/HarnessCompatibility.swift \
   Tools/SyntheticDriveExport/PolicyChecks.swift \
   -o /tmp/whr-consent-policy-checks
 /tmp/whr-consent-policy-checks
 
 xcrun swiftc -module-cache-path /tmp/whr-consent-swift-module-cache \
+  Packages/DriveExportKit/Sources/DriveExportKit/*.swift \
   Tools/SyntheticDriveExport/ExportPolicy.swift \
-  Tools/SyntheticDriveExport/ConsentPolicy.swift \
-  Tools/SyntheticDriveExport/KeychainStore.swift \
+  Tools/SyntheticDriveExport/HarnessCompatibility.swift \
   Tools/SyntheticDriveExport/CanonicalTransport.swift \
-  Tools/SyntheticDriveExport/DriveAPI.swift \
   Tools/SyntheticDriveExport/DriveAPIChecks.swift \
   -o /tmp/whr-drive-api-checks
 /tmp/whr-drive-api-checks
 
 xcrun swiftc -module-cache-path /tmp/whr-consent-swift-module-cache \
+  Packages/DriveExportKit/Sources/DriveExportKit/*.swift \
   Tools/SyntheticDriveExport/ExportPolicy.swift \
-  Tools/SyntheticDriveExport/ConsentPolicy.swift \
-  Tools/SyntheticDriveExport/KeychainStore.swift \
+  Tools/SyntheticDriveExport/HarnessCompatibility.swift \
   Tools/SyntheticDriveExport/CanonicalTransport.swift \
-  Tools/SyntheticDriveExport/DriveAPI.swift \
   Tools/SyntheticDriveExport/CanonicalExportCoordinator.swift \
   Tools/SyntheticDriveExport/CanonicalTransportChecks.swift \
   -o /tmp/whr-canonical-transport-checks

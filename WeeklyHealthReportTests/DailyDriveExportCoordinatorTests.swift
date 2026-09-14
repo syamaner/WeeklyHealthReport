@@ -1,5 +1,6 @@
 import Foundation
 import XCTest
+@testable import DriveExportKit
 @testable import WeeklyHealthReport
 
 // All values and identities in this file are invented. No test contacts HealthKit or Google.
@@ -1003,5 +1004,69 @@ final class DailyDrivePolicyTests: XCTestCase {
         XCTAssertNotNil(partitions.destination(for: "account-a"))
         XCTAssertTrue(partitions.unbind(accountID: "account-a", folderID: "folder-a"))
         XCTAssertNil(partitions.destination(for: "account-a"))
+    }
+}
+
+final class DriveOAuthRequestPolicyTests: XCTestCase {
+    func testOAuthClientConfigurationRejectsMissingSentinelAndInvalidPairs() throws {
+        XCTAssertThrowsError(try DriveOAuthClientConfiguration(infoDictionary: [:])) { error in
+            XCTAssertEqual(error as? DriveOAuthClientConfiguration.Failure, .missingConfiguration)
+        }
+        XCTAssertThrowsError(try DriveOAuthClientConfiguration(infoDictionary: [
+            "GoogleOAuthClientID": "MISSING",
+            "GoogleOAuthRedirectScheme": "MISSING"
+        ])) { error in
+            XCTAssertEqual(error as? DriveOAuthClientConfiguration.Failure, .missingConfiguration)
+        }
+        XCTAssertThrowsError(try DriveOAuthClientConfiguration(infoDictionary: [
+            "GoogleOAuthClientID": "client.example.com",
+            "GoogleOAuthRedirectScheme": "com.googleusercontent.apps.client"
+        ])) { error in
+            XCTAssertEqual(error as? DriveOAuthClientConfiguration.Failure, .invalidConfiguration)
+        }
+        XCTAssertThrowsError(try DriveOAuthClientConfiguration(infoDictionary: [
+            "GoogleOAuthClientID": "client.apps.googleusercontent.com",
+            "GoogleOAuthRedirectScheme": "com.googleusercontent.apps.other"
+        ])) { error in
+            XCTAssertEqual(error as? DriveOAuthClientConfiguration.Failure, .invalidConfiguration)
+        }
+
+        let valid = try DriveOAuthClientConfiguration(infoDictionary: [
+            "GoogleOAuthClientID": "client.apps.googleusercontent.com",
+            "GoogleOAuthRedirectScheme": "com.googleusercontent.apps.client"
+        ])
+        XCTAssertEqual(valid.clientID, "client.apps.googleusercontent.com")
+        XCTAssertEqual(valid.redirectURL.absoluteString, "com.googleusercontent.apps.client:/oauth2redirect")
+    }
+
+    func testAuthorizationRequestKeepsScopesSecretsAndPickerParametersNarrow() {
+        let connect = DriveAuthorizationRequest(purpose: .connect)
+        XCTAssertEqual(connect.scopes, [DailyDriveConsentPolicy.scope])
+        XCTAssertNil(connect.clientSecret)
+        XCTAssertEqual(connect.responseType, "code")
+        XCTAssertEqual(connect.additionalParameters, [
+            "access_type": "offline",
+            "include_granted_scopes": "false",
+            "prompt": "consent select_account"
+        ])
+
+        let folder = DriveAuthorizationRequest(purpose: .chooseFolder, loginHint: "tester@example.com")
+        XCTAssertEqual(folder.additionalParameters["prompt"], "consent")
+        XCTAssertEqual(folder.additionalParameters["login_hint"], "tester@example.com")
+        XCTAssertEqual(folder.additionalParameters["trigger_onepick"], "true")
+        XCTAssertEqual(folder.additionalParameters["allow_multiple"], "false")
+        XCTAssertEqual(folder.additionalParameters["allow_folder_selection"], "true")
+        XCTAssertEqual(folder.additionalParameters["mimetypes"], DailyDriveConsentPolicy.folderMIMEType)
+
+        let file = DriveAuthorizationRequest(purpose: .recoverFile, loginHint: "")
+        XCTAssertNil(file.additionalParameters["login_hint"])
+        XCTAssertEqual(file.additionalParameters["allow_folder_selection"], "false")
+        XCTAssertEqual(file.additionalParameters["mimetypes"], "application/json")
+
+        let syntheticPicker = DriveAuthorizationRequest(
+            purpose: .chooseFolder,
+            selectsAccount: true
+        )
+        XCTAssertEqual(syntheticPicker.additionalParameters["prompt"], "consent select_account")
     }
 }

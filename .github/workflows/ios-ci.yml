@@ -17,6 +17,94 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  drive-export-kit-build:
+    name: DriveExportKit build
+    runs-on: macos-26
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build HealthKit-free DriveExportKit
+        run: swift build --package-path Packages/DriveExportKit
+
+  drive-export-kit-isolation:
+    name: DriveExportKit isolation
+    runs-on: macos-26
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Guard package isolation
+        run: |
+          if grep -rnE "import HealthKit|HealthKitUI|DailyHealthExportEnvelope|NutritionCatalogue|DailyNotesPolicy|HealthKitClient" \
+            Packages/DriveExportKit/Sources; then
+            echo "DriveExportKit must not depend on HealthKit or app model types" >&2
+            exit 1
+          fi
+
+  synthetic-drive-policy-checks:
+    name: Synthetic Drive policy checks
+    runs-on: macos-26
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run synthetic consent and policy checks
+        run: |
+          xcrun swiftc -module-cache-path "$RUNNER_TEMP/whr-consent-swift-module-cache" \
+            Packages/DriveExportKit/Sources/DriveExportKit/*.swift \
+            Tools/SyntheticDriveExport/ExportPolicy.swift \
+            Tools/SyntheticDriveExport/HarnessCompatibility.swift \
+            Tools/SyntheticDriveExport/PolicyChecks.swift \
+            -o "$RUNNER_TEMP/whr-consent-policy-checks"
+          "$RUNNER_TEMP/whr-consent-policy-checks"
+
+  synthetic-drive-api-checks:
+    name: Synthetic Drive API checks
+    runs-on: macos-26
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run synthetic Drive API checks
+        run: |
+          xcrun swiftc -module-cache-path "$RUNNER_TEMP/whr-consent-swift-module-cache" \
+            Packages/DriveExportKit/Sources/DriveExportKit/*.swift \
+            Tools/SyntheticDriveExport/ExportPolicy.swift \
+            Tools/SyntheticDriveExport/HarnessCompatibility.swift \
+            Tools/SyntheticDriveExport/CanonicalTransport.swift \
+            Tools/SyntheticDriveExport/DriveAPIChecks.swift \
+            -o "$RUNNER_TEMP/whr-drive-api-checks"
+          "$RUNNER_TEMP/whr-drive-api-checks"
+
+  synthetic-drive-harness:
+    name: Synthetic Drive harness build and analysis
+    runs-on: macos-26
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build and analyze synthetic harness
+        run: |
+          xcodebuild \
+            -project Tools/SyntheticDriveExport/SyntheticDriveExport.xcodeproj \
+            -scheme SyntheticDriveExport \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/whr-drive-consent-derived" \
+            CODE_SIGNING_ALLOWED=NO \
+            build analyze
+
   test:
     name: Build and test
     # Medication dose events require the iOS 26 SDK and Xcode 26 or later.

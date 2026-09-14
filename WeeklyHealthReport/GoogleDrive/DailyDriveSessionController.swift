@@ -1,4 +1,5 @@
 import AppAuth
+import DriveExportKit
 import Foundation
 import UIKit
 
@@ -711,6 +712,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         expectedAccountID: String? = nil
     ) async throws -> AuthorizationResult {
         let configuration = try oauthConfiguration()
+        let authorization = DriveAuthorizationRequest(
+            purpose: purpose.driveAuthorizationPurpose,
+            loginHint: account?.emailAddress
+        )
         guard let presenter = UIApplication.shared.activeRootViewController else {
             throw Failure.noPresenter
         }
@@ -718,30 +723,14 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             authorizationEndpoint: URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!,
             tokenEndpoint: URL(string: "https://oauth2.googleapis.com/token")!
         )
-        var parameters = [
-            "access_type": "offline",
-            "include_granted_scopes": "false"
-        ]
-        parameters["prompt"] = purpose == .connect ? "consent select_account" : "consent"
-        if purpose == .chooseFolder || purpose == .recoverFile {
-            if let emailAddress = account?.emailAddress, !emailAddress.isEmpty {
-                parameters["login_hint"] = emailAddress
-            }
-            parameters["trigger_onepick"] = "true"
-            parameters["allow_multiple"] = "false"
-            parameters["allow_folder_selection"] = purpose == .chooseFolder ? "true" : "false"
-            parameters["mimetypes"] = purpose == .chooseFolder
-                ? DailyDriveConsentPolicy.folderMIMEType
-                : "application/json"
-        }
         let request = OIDAuthorizationRequest(
             configuration: service,
             clientId: configuration.clientID,
-            clientSecret: nil,
-            scopes: [DailyDriveConsentPolicy.scope],
+            clientSecret: authorization.clientSecret,
+            scopes: authorization.scopes,
             redirectURL: configuration.redirectURL,
-            responseType: OIDResponseTypeCode,
-            additionalParameters: parameters
+            responseType: authorization.responseType,
+            additionalParameters: authorization.additionalParameters
         )
         let newState: OIDAuthState = try await withCheckedThrowingContinuation { continuation in
             authorizationFlow = OIDAuthState.authState(
@@ -962,20 +951,14 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         return (token, current)
     }
 
-    private func oauthConfiguration() throws -> (clientID: String, redirectURL: URL) {
-        guard let clientID = Bundle.main.object(forInfoDictionaryKey: "GoogleOAuthClientID") as? String,
-              let scheme = Bundle.main.object(forInfoDictionaryKey: "GoogleOAuthRedirectScheme") as? String,
-              clientID != "MISSING", scheme != "MISSING" else {
+    private func oauthConfiguration() throws -> DriveOAuthClientConfiguration {
+        do {
+            return try DriveOAuthClientConfiguration.fromMainBundle()
+        } catch DriveOAuthClientConfiguration.Failure.missingConfiguration {
             throw Failure.missingConfiguration
-        }
-        let suffix = ".apps.googleusercontent.com"
-        guard clientID.hasSuffix(suffix) else { throw Failure.invalidConfiguration }
-        let stem = String(clientID.dropLast(suffix.count))
-        guard scheme == "com.googleusercontent.apps.\(stem)",
-              let redirectURL = URL(string: "\(scheme):/oauth2redirect") else {
+        } catch DriveOAuthClientConfiguration.Failure.invalidConfiguration {
             throw Failure.invalidConfiguration
         }
-        return (clientID, redirectURL)
     }
 
     private func freshAccessToken(forceRefresh: Bool = false) async throws -> String {
@@ -1273,6 +1256,16 @@ extension DailyDriveSessionController: OIDAuthStateChangeDelegate, OIDAuthStateE
             self.preview = nil
             self.presentationState = .needsGoogleConnection
             self.status = "The Google grant is expired, denied or revoked. Reconnect before exporting."
+        }
+    }
+}
+
+private extension DailyDriveSessionController.AuthorizationPurpose {
+    var driveAuthorizationPurpose: DriveAuthorizationRequest.Purpose {
+        switch self {
+        case .connect: .connect
+        case .chooseFolder: .chooseFolder
+        case .recoverFile: .recoverFile
         }
     }
 }

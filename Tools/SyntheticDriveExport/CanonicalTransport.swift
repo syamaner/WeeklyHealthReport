@@ -1,41 +1,5 @@
 import Foundation
 
-struct DriveFileMetadata: Equatable, Sendable {
-    let id: String
-    let name: String
-    let mimeType: String
-    let parents: [String]
-    let trashed: Bool
-    let driveID: String?
-    let isAppAuthorized: Bool
-    let canEdit: Bool
-    let appProperties: [String: String]
-}
-
-struct DriveUploadDescriptor: Equatable, Sendable {
-    let id: String
-    let name: String
-    let parentID: String
-    let appProperties: [String: String]
-}
-
-protocol DriveTransporting: Sendable {
-    func account(accessToken: String) async throws -> DriveAccount
-    func generateFileID(accessToken: String) async throws -> String
-    func createFile(
-        _ descriptor: DriveUploadDescriptor,
-        content: Data,
-        accessToken: String
-    ) async throws
-    func updateFile(
-        _ descriptor: DriveUploadDescriptor,
-        content: Data,
-        accessToken: String
-    ) async throws
-    func fileMetadata(id: String, accessToken: String) async throws -> DriveFileMetadata
-    func fileContent(id: String, accessToken: String) async throws -> Data
-}
-
 // Test-only transport interposer for build-6 device acceptance. It never changes
 // request bodies, identifiers, scopes or destinations. Its bounded modes either
 // suppress a request before it reaches Drive, discard a successful response, or
