@@ -1,224 +1,14 @@
 import Foundation
-import Security
 
-struct DailyDriveAccount: Codable, Equatable, Sendable {
-    let id: String
-    let displayName: String
-    let emailAddress: String
-}
-
-struct DailyDriveFolder: Codable, Equatable, Sendable {
-    let id: String
-    let accountID: String
-    let name: String
-    let mimeType: String
-    let trashed: Bool
-    let driveID: String?
-    let isAppAuthorized: Bool
-    let canAddChildren: Bool
-}
-
-struct DailyDriveFileMetadata: Equatable, Sendable {
-    let id: String
-    let name: String
-    let mimeType: String
-    let parents: [String]
-    let trashed: Bool
-    let driveID: String?
-    let isAppAuthorized: Bool
-    let canEdit: Bool
-    let appProperties: [String: String]
-}
-
-struct DailyDriveUploadDescriptor: Equatable, Sendable {
-    let id: String
-    let name: String
-    let parentID: String
-    let appProperties: [String: String]
-}
-
-protocol DailyDriveTransporting: Sendable {
-    func account(accessToken: String) async throws -> DailyDriveAccount
-    func generateFileID(accessToken: String) async throws -> String
-    func createFile(
-        _ descriptor: DailyDriveUploadDescriptor,
-        content: Data,
-        accessToken: String
-    ) async throws
-    func updateFile(
-        _ descriptor: DailyDriveUploadDescriptor,
-        content: Data,
-        accessToken: String
-    ) async throws
-    func fileMetadata(id: String, accessToken: String) async throws -> DailyDriveFileMetadata
-    func fileContent(id: String, accessToken: String) async throws -> Data
-}
-
-protocol DailyDriveSessionTransporting: DailyDriveTransporting {
-    func createFolder(
-        id: String,
-        accessToken: String,
-        accountID: String
-    ) async throws -> DailyDriveFolder
-    func folder(
-        id: String,
-        accessToken: String,
-        accountID: String
-    ) async throws -> DailyDriveFolder
-    func revoke(token: String) async throws -> Int
-}
-
-enum DailyDriveConsentPolicy {
-    static let scope = "https://www.googleapis.com/auth/drive.file"
-    static let folderMIMEType = "application/vnd.google-apps.folder"
-    static let defaultExportFolderName = "WeeklyHealthReport Exports"
-
-    enum Failure: Error, Equatable {
-        case missingDriveFileScope
-        case unexpectedScope(String)
-        case invalidPickerSelection
-        case accountMismatch
-        case notAppAuthorized
-        case notFolder
-        case trashed
-        case sharedDriveUnsupported
-        case notWritable
-    }
-
-    static func validateGrantedScopes(_ rawScope: String?) throws {
-        let scopes = Set((rawScope ?? "").split(whereSeparator: { $0.isWhitespace }).map(String.init))
-        guard scopes.contains(scope) else { throw Failure.missingDriveFileScope }
-        for value in scopes where value != scope {
-            throw Failure.unexpectedScope(value)
-        }
-    }
-
-    static func selectedItemID(from rawValue: Any?) throws -> String {
-        guard let value = rawValue as? String else { throw Failure.invalidPickerSelection }
-        let ids = value.split(separator: ",", omittingEmptySubsequences: true).map(String.init)
-        guard ids.count == 1, let id = ids.first, !id.isEmpty else {
-            throw Failure.invalidPickerSelection
-        }
-        return id
-    }
-
-    static func validate(folder: DailyDriveFolder, expectedAccountID: String) throws {
-        guard folder.accountID == expectedAccountID else { throw Failure.accountMismatch }
-        guard folder.isAppAuthorized else { throw Failure.notAppAuthorized }
-        guard folder.mimeType == folderMIMEType else { throw Failure.notFolder }
-        guard !folder.trashed else { throw Failure.trashed }
-        guard folder.driveID == nil else { throw Failure.sharedDriveUnsupported }
-        guard folder.canAddChildren else { throw Failure.notWritable }
-    }
-}
-
-struct DailyDestinationBinding: Codable, Equatable, Sendable {
-    enum Origin: String, Codable, Sendable { case pendingCreate, created, picker }
-
-    let accountID: String
-    let folderID: String
-    let folderName: String
-    let origin: Origin
-}
-
-struct DailyDestinationPartitions: Codable, Equatable, Sendable {
-    private(set) var values: [String: DailyDestinationBinding] = [:]
-
-    mutating func bind(_ destination: DailyDestinationBinding) {
-        values[destination.accountID] = destination
-    }
-
-    func destination(for accountID: String) -> DailyDestinationBinding? {
-        values[accountID]
-    }
-
-    @discardableResult
-    mutating func unbind(accountID: String, folderID: String) -> Bool {
-        guard values[accountID]?.folderID == folderID else { return false }
-        values.removeValue(forKey: accountID)
-        return true
-    }
-}
-
-enum DailyDisconnectTransition: Equatable {
-    case keepCredentialsAndReportFailure
-    case clearCredentialsPreserveDestinations
-
-    static func afterRevocation(statusCode: Int) -> DailyDisconnectTransition {
-        statusCode == 200 ? .clearCredentialsPreserveDestinations : .keepCredentialsAndReportFailure
-    }
-}
-
-protocol DailyDriveSecurePersisting {
-    func save(_ data: Data, account: String) throws
-    func load(account: String) throws -> Data?
-    func delete(account: String) throws
-}
-
-struct DailyDriveKeychainStore: DailyDriveSecurePersisting, Sendable {
-    enum Failure: Error { case unexpectedStatus(OSStatus) }
-
-    private let service: String
-
-    init(service: String = Bundle.main.bundleIdentifier ?? "WeeklyHealthReport") {
-        self.service = service
-    }
-
-    func save(_ data: Data, account: String) throws {
-        let query = baseQuery(account: account)
-        let updateStatus = SecItemUpdate(
-            query as CFDictionary,
-            [kSecValueData as String: data] as CFDictionary
-        )
-        if updateStatus == errSecSuccess { return }
-        guard updateStatus == errSecItemNotFound else {
-            throw Failure.unexpectedStatus(updateStatus)
-        }
-        var addition = query
-        addition[kSecValueData as String] = data
-        addition[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
-        let status = SecItemAdd(addition as CFDictionary, nil)
-        guard status == errSecSuccess else { throw Failure.unexpectedStatus(status) }
-    }
-
-    func load(account: String) throws -> Data? {
-        var query = baseQuery(account: account)
-        query[kSecReturnData as String] = true
-        query[kSecMatchLimit as String] = kSecMatchLimitOne
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        if status == errSecItemNotFound { return nil }
-        guard status == errSecSuccess, let data = result as? Data else {
-            throw Failure.unexpectedStatus(status)
-        }
-        return data
-    }
-
-    func delete(account: String) throws {
-        let status = SecItemDelete(baseQuery(account: account) as CFDictionary)
-        guard status == errSecSuccess || status == errSecItemNotFound else {
-            throw Failure.unexpectedStatus(status)
-        }
-    }
-
-    private func baseQuery(account: String) -> [String: Any] {
-        [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecAttrAccount as String: account
-        ]
-    }
-}
-
-struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
-    enum Failure: Error, Equatable, Sendable {
+public struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
+    public enum Failure: Error, Equatable, Sendable {
         case invalidResponse
         case httpStatus(Int, String?)
     }
 
     private let session: URLSession
 
-    init(session: URLSession? = nil) {
+    public init(session: URLSession? = nil) {
         if let session {
             self.session = session
         } else {
@@ -230,7 +20,7 @@ struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
         }
     }
 
-    func account(accessToken: String) async throws -> DailyDriveAccount {
+    public func account(accessToken: String) async throws -> DailyDriveAccount {
         let fields = "user(permissionId,displayName,emailAddress)"
         let url = try endpoint("https://www.googleapis.com/drive/v3/about", query: [
             URLQueryItem(name: "fields", value: fields)
@@ -252,7 +42,7 @@ struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
         )
     }
 
-    func createFolder(
+    public func createFolder(
         id: String,
         accessToken: String,
         accountID: String
@@ -274,7 +64,7 @@ struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
         )
     }
 
-    func folder(
+    public func folder(
         id: String,
         accessToken: String,
         accountID: String
@@ -291,7 +81,7 @@ struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
         )
     }
 
-    func generateFileID(accessToken: String) async throws -> String {
+    public func generateFileID(accessToken: String) async throws -> String {
         let url = try endpoint("https://www.googleapis.com/drive/v3/files/generateIds", query: [
             URLQueryItem(name: "count", value: "1"),
             URLQueryItem(name: "space", value: "drive"),
@@ -306,7 +96,7 @@ struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
         return id
     }
 
-    func createFile(
+    public func createFile(
         _ descriptor: DailyDriveUploadDescriptor,
         content: Data,
         accessToken: String
@@ -331,7 +121,7 @@ struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
         )
     }
 
-    func updateFile(
+    public func updateFile(
         _ descriptor: DailyDriveUploadDescriptor,
         content: Data,
         accessToken: String
@@ -354,7 +144,7 @@ struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
         )
     }
 
-    func fileMetadata(id: String, accessToken: String) async throws -> DailyDriveFileMetadata {
+    public func fileMetadata(id: String, accessToken: String) async throws -> DailyDriveFileMetadata {
         let url = try fileEndpoint(id: id, query: [
             URLQueryItem(name: "fields", value: Self.fileFields)
         ])
@@ -362,12 +152,12 @@ struct DailyDriveAPI: DailyDriveSessionTransporting, @unchecked Sendable {
         return try decodeFile(data)
     }
 
-    func fileContent(id: String, accessToken: String) async throws -> Data {
+    public func fileContent(id: String, accessToken: String) async throws -> Data {
         let url = try fileEndpoint(id: id, query: [URLQueryItem(name: "alt", value: "media")])
         return try await request(url: url, accessToken: accessToken)
     }
 
-    func revoke(token: String) async throws -> Int {
+    public func revoke(token: String) async throws -> Int {
         guard let url = URL(string: "https://oauth2.googleapis.com/revoke") else {
             throw Failure.invalidResponse
         }

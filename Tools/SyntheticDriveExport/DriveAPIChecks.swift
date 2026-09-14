@@ -56,11 +56,16 @@ enum DriveAPIChecks {
             precondition(request.value(forHTTPHeaderField: "Authorization") == "Bearer private-token")
             let bodyData = try requestBody(request)
             let body = try JSONSerialization.jsonObject(with: bodyData) as! [String: String]
+            precondition(body["id"] == generatedID)
             precondition(body["name"] == "WeeklyHealthReport Exports")
             precondition(body["mimeType"] == DriveConsentPolicy.folderMIMEType)
             return (200, folderResponse)
         }
-        let created = try await api.createFolder(accessToken: "private-token", accountID: account.id)
+        let created = try await api.createFolder(
+            id: generatedID,
+            accessToken: "private-token",
+            accountID: account.id
+        )
         try DriveConsentPolicy.validate(folder: created, expectedAccountID: account.id)
 
         MockURLProtocol.handler = { request in
@@ -136,11 +141,13 @@ enum DriveAPIChecks {
 
         MockURLProtocol.handler = { _ in (404, Data()) }
         try await api.confirmUnrelatedFileDenied(id: "unrelated", accessToken: "private-token")
-        MockURLProtocol.handler = { _ in (200, Data(#"{"id":"unrelated"}"#.utf8)) }
+        MockURLProtocol.handler = { _ in
+            (200, Data(#"{"id":"unrelated","name":"unrelated.json","mimeType":"application/json","parents":["elsewhere"],"trashed":false,"isAppAuthorized":true,"capabilities":{"canEdit":true},"appProperties":{}}"#.utf8))
+        }
         do {
             try await api.confirmUnrelatedFileDenied(id: "unrelated", accessToken: "private-token")
             preconditionFailure("An accessible unrelated file must fail the least-privilege check")
-        } catch DriveAPI.Failure.unexpectedAccess {}
+        } catch UnrelatedFileAccessFailure.unexpectedAccess {}
 
         MockURLProtocol.handler = { request in
             precondition(request.httpMethod == "POST")

@@ -1,4 +1,5 @@
 import AppAuth
+import DriveExportKit
 import Foundation
 import UIKit
 
@@ -88,14 +89,41 @@ final class DriveSessionController: NSObject, ObservableObject {
             let folder: DriveFolderMetadata
             let reused: Bool
             if let existing = self.partitions.destination(for: result.account.id) {
-                folder = try await self.drive.folder(
-                    id: existing.folderID,
-                    accessToken: result.token,
-                    accountID: result.account.id
-                )
-                reused = true
+                do {
+                    folder = try await self.drive.folder(
+                        id: existing.folderID,
+                        accessToken: result.token,
+                        accountID: result.account.id
+                    )
+                    reused = existing.origin != .pendingCreate
+                } catch DriveAPI.Failure.httpStatus(404, _) where existing.origin == .pendingCreate {
+                    folder = try await self.createReservedDestination(
+                        existing,
+                        token: result.token,
+                        account: result.account
+                    )
+                    reused = false
+                }
             } else {
-                folder = try await self.drive.createFolder(accessToken: result.token, accountID: result.account.id)
+                let folderID = try await self.drive.generateFileID(accessToken: result.token)
+                let pending = DestinationBinding(
+                    accountID: result.account.id,
+                    folderID: folderID,
+                    folderName: DriveConsentPolicy.defaultExportFolderName,
+                    origin: .pendingCreate
+                )
+                var updated = self.partitions
+                updated.bind(pending)
+                try self.keychain.save(
+                    try JSONEncoder().encode(updated),
+                    account: Self.destinationsKey
+                )
+                self.partitions = updated
+                folder = try await self.createReservedDestination(
+                    pending,
+                    token: result.token,
+                    account: result.account
+                )
                 reused = false
             }
             try DriveConsentPolicy.validate(folder: folder, expectedAccountID: result.account.id)
@@ -452,35 +480,23 @@ final class DriveSessionController: NSObject, ObservableObject {
 
     private func authorize(_ purpose: AuthorizationPurpose) async throws -> AuthorizationResult {
         let configuration = try oauthConfiguration()
+        let authorization = DriveAuthorizationRequest(
+            purpose: purpose.driveAuthorizationPurpose,
+            selectsAccount: true
+        )
         guard let presenter = UIApplication.shared.activeRootViewController else { throw Failure.noPresenter }
         let service = OIDServiceConfiguration(
             authorizationEndpoint: URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!,
             tokenEndpoint: URL(string: "https://oauth2.googleapis.com/token")!
         )
-        var parameters = [
-            "access_type": "offline",
-            "prompt": "consent select_account",
-            "include_granted_scopes": "false"
-        ]
-        if purpose == .chooseFolder || purpose == .recoverFile {
-            parameters["trigger_onepick"] = "true"
-            parameters["allow_multiple"] = "false"
-            if purpose == .chooseFolder {
-                parameters["allow_folder_selection"] = "true"
-                parameters["mimetypes"] = DriveConsentPolicy.folderMIMEType
-            } else {
-                parameters["allow_folder_selection"] = "false"
-                parameters["mimetypes"] = "application/json"
-            }
-        }
         let request = OIDAuthorizationRequest(
             configuration: service,
             clientId: configuration.clientID,
-            clientSecret: nil,
-            scopes: [DriveConsentPolicy.scope],
+            clientSecret: authorization.clientSecret,
+            scopes: authorization.scopes,
             redirectURL: configuration.redirectURL,
-            responseType: OIDResponseTypeCode,
-            additionalParameters: parameters
+            responseType: authorization.responseType,
+            additionalParameters: authorization.additionalParameters
         )
         let newState: OIDAuthState = try await withCheckedThrowingContinuation { continuation in
             authorizationFlow = OIDAuthState.authState(byPresenting: request, presenting: presenter) { state, error in
@@ -492,7 +508,7 @@ final class DriveSessionController: NSObject, ObservableObject {
         try DriveConsentPolicy.validateGrantedScopes(newState.scope)
         let pickedID: String?
         if purpose == .chooseFolder || purpose == .recoverFile {
-            pickedID = try DriveConsentPolicy.selectedFolderID(
+            pickedID = try DriveConsentPolicy.selectedItemID(
                 from: newState.lastAuthorizationResponse.additionalParameters?["picked_file_ids"]
             )
         } else {
@@ -506,18 +522,14 @@ final class DriveSessionController: NSObject, ObservableObject {
         return AuthorizationResult(token: token, account: account, pickedItemID: pickedID)
     }
 
-    private func oauthConfiguration() throws -> (clientID: String, redirectURL: URL) {
-        guard let clientID = Bundle.main.object(forInfoDictionaryKey: "GoogleOAuthClientID") as? String,
-              let scheme = Bundle.main.object(forInfoDictionaryKey: "GoogleOAuthRedirectScheme") as? String,
-              clientID != "MISSING", scheme != "MISSING" else { throw Failure.missingConfiguration }
-        let suffix = ".apps.googleusercontent.com"
-        guard clientID.hasSuffix(suffix) else { throw Failure.invalidConfiguration }
-        let stem = String(clientID.dropLast(suffix.count))
-        guard scheme == "com.googleusercontent.apps.\(stem)",
-              let redirectURL = URL(string: "\(scheme):/oauth2redirect") else {
+    private func oauthConfiguration() throws -> DriveOAuthClientConfiguration {
+        do {
+            return try DriveOAuthClientConfiguration.fromMainBundle()
+        } catch DriveOAuthClientConfiguration.Failure.missingConfiguration {
+            throw Failure.missingConfiguration
+        } catch DriveOAuthClientConfiguration.Failure.invalidConfiguration {
             throw Failure.invalidConfiguration
         }
-        return (clientID, redirectURL)
     }
 
     private func freshAccessToken(forceRefresh: Bool = false) async throws -> String {
@@ -534,6 +546,26 @@ final class DriveSessionController: NSObject, ObservableObject {
     private func validateCurrentGrant() throws {
         guard let authState else { throw Failure.noToken }
         try DriveConsentPolicy.validateGrantedScopes(authState.scope)
+    }
+
+    private func createReservedDestination(
+        _ binding: DestinationBinding,
+        token: String,
+        account: DriveAccount
+    ) async throws -> DriveFolderMetadata {
+        do {
+            return try await drive.createFolder(
+                id: binding.folderID,
+                accessToken: token,
+                accountID: account.id
+            )
+        } catch {
+            return try await drive.folder(
+                id: binding.folderID,
+                accessToken: token,
+                accountID: account.id
+            )
+        }
     }
 
     private func accept(folder: DriveFolderMetadata, origin: DestinationBinding.Origin, account: DriveAccount) throws {
@@ -611,6 +643,16 @@ private extension DriveConsentPolicy.Failure {
         case .trashed: return "folder is trashed"
         case .sharedDriveUnsupported: return "Shared Drives are outside this slice"
         case .notWritable: return "folder cannot accept children"
+        }
+    }
+}
+
+private extension DriveSessionController.AuthorizationPurpose {
+    var driveAuthorizationPurpose: DriveAuthorizationRequest.Purpose {
+        switch self {
+        case .createFolder: .createFolder
+        case .chooseFolder: .chooseFolder
+        case .recoverFile: .recoverFile
         }
     }
 }

@@ -1,4 +1,5 @@
 import CryptoKit
+import DriveExportKit
 import Foundation
 
 struct VerifiedDailyDriveSnapshot: Codable, Equatable, Sendable {

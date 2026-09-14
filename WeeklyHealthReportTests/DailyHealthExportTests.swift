@@ -1,5 +1,6 @@
 import HealthKit
 import XCTest
+@testable import DriveExportKit
 @testable import WeeklyHealthReport
 
 // Every health value in this file is invented. These tests never access HealthKit.

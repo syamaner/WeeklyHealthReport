@@ -94,11 +94,11 @@ import Foundation
                 preconditionFailure("Must reject missing, identity or broad Drive scopes")
             } catch is DriveConsentPolicy.Failure {}
         }
-        let selectedFolder = try DriveConsentPolicy.selectedFolderID(from: "folder-1")
+        let selectedFolder = try DriveConsentPolicy.selectedItemID(from: "folder-1")
         precondition(selectedFolder == "folder-1")
         for invalidSelection: Any? in [nil, "", "folder-1,folder-2", 42] {
             do {
-                _ = try DriveConsentPolicy.selectedFolderID(from: invalidSelection)
+                _ = try DriveConsentPolicy.selectedItemID(from: invalidSelection)
                 preconditionFailure("Must require exactly one Picker folder")
             } catch DriveConsentPolicy.Failure.invalidPickerSelection {}
         }

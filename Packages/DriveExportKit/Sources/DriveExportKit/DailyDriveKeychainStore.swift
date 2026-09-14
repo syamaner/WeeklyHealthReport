@@ -1,16 +1,22 @@
 import Foundation
 import Security
 
-struct KeychainStore: Sendable {
-    enum Failure: Error { case unexpectedStatus(OSStatus), invalidData }
+public protocol DailyDriveSecurePersisting {
+    func save(_ data: Data, account: String) throws
+    func load(account: String) throws -> Data?
+    func delete(account: String) throws
+}
+
+public struct DailyDriveKeychainStore: DailyDriveSecurePersisting, Sendable {
+    public enum Failure: Error { case unexpectedStatus(OSStatus) }
 
     private let service: String
 
-    init(service: String = Bundle.main.bundleIdentifier ?? "WHRSyntheticDriveExport") {
+    public init(service: String = Bundle.main.bundleIdentifier ?? "WeeklyHealthReport") {
         self.service = service
     }
 
-    func save(_ data: Data, account: String) throws {
+    public func save(_ data: Data, account: String) throws {
         let query = baseQuery(account: account)
         let updateStatus = SecItemUpdate(
             query as CFDictionary,
@@ -27,7 +33,7 @@ struct KeychainStore: Sendable {
         guard status == errSecSuccess else { throw Failure.unexpectedStatus(status) }
     }
 
-    func load(account: String) throws -> Data? {
+    public func load(account: String) throws -> Data? {
         var query = baseQuery(account: account)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
@@ -40,7 +46,7 @@ struct KeychainStore: Sendable {
         return data
     }
 
-    func delete(account: String) throws {
+    public func delete(account: String) throws {
         let status = SecItemDelete(baseQuery(account: account) as CFDictionary)
         guard status == errSecSuccess || status == errSecItemNotFound else {
             throw Failure.unexpectedStatus(status)

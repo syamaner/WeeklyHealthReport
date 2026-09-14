@@ -2,6 +2,7 @@ import CoreGraphics
 import HealthKit
 import PDFKit
 import XCTest
+@testable import DriveExportKit
 @testable import WeeklyHealthReport
 
 // All health values in this test file are synthetic fixtures.
