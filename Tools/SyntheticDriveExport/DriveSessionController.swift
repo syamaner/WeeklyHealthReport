@@ -1,5 +1,6 @@
 import AppAuth
 import DriveExportKit
+import DriveExportOAuth
 import Foundation
 import UIKit
 
@@ -30,6 +31,10 @@ final class DriveSessionController: NSObject, ObservableObject {
     @Published var fixtureSet = FixtureSet.accepted
 
     private let keychain = KeychainStore()
+    private lazy var oauthSession: any DriveOAuthSessionProviding = AppAuthDriveSession(
+        secureStore: keychain,
+        authKey: Self.authKey
+    )
     private let drive = DriveAPI()
     private lazy var probeDrive = AdverseProbeDriveTransport(base: drive)
     private lazy var identityStore = KeychainDailyDriveExportIdentityStore(
@@ -41,8 +46,6 @@ final class DriveSessionController: NSObject, ObservableObject {
         transport: probeDrive,
         store: identityStore
     )
-    private var authState: OIDAuthState?
-    private var authorizationFlow: OIDExternalUserAgentSession?
     private var account: DriveAccount?
     private var partitions = DestinationPartitions()
     private var launchProbeRan = false
@@ -52,11 +55,11 @@ final class DriveSessionController: NSObject, ObservableObject {
 
     override init() {
         super.init()
+        oauthSession.onAuthorizationError = { [weak self] _ in
+            self?.status = "The Google grant is expired, denied or revoked. Reconnect before continuing."
+        }
         do {
-            if let data = try keychain.load(account: Self.authKey) {
-                authState = try NSKeyedUnarchiver.unarchivedObject(ofClass: OIDAuthState.self, from: data)
-                attachDelegates()
-            }
+            try oauthSession.restoreWithoutNetwork()
             if let data = try keychain.load(account: Self.destinationsKey) {
                 partitions = try JSONDecoder().decode(DestinationPartitions.self, from: data)
             }
@@ -66,7 +69,7 @@ final class DriveSessionController: NSObject, ObservableObject {
     }
 
     func restore() async {
-        guard authState != nil, !busy else { return }
+        guard oauthSession.hasStoredSession, !busy else { return }
         await run("Restoring secure Google session…") {
             let token = try await self.freshAccessToken()
             try self.validateCurrentGrant()
@@ -152,8 +155,7 @@ final class DriveSessionController: NSObject, ObservableObject {
     func signOut() {
         guard !busy else { return }
         do {
-            try keychain.delete(account: Self.authKey)
-            authState = nil
+            try oauthSession.clear()
             account = nil
             accountLabel = "Not connected"
             destinationLabel = "No active destination"
@@ -164,19 +166,18 @@ final class DriveSessionController: NSObject, ObservableObject {
     }
 
     func disconnect() async {
-        guard authState != nil else {
+        guard oauthSession.hasStoredSession else {
             status = "Nothing to revoke."
             return
         }
         await run("Revoking the Google grant…") {
-            guard let token = self.authState?.refreshToken ?? self.authState?.lastTokenResponse?.accessToken else {
+            guard let token = self.oauthSession.revocationToken else {
                 throw Failure.noRefreshToken
             }
             let code = try await self.drive.revoke(token: token)
             switch DisconnectTransition.afterRevocation(statusCode: code) {
             case .clearCredentialsPreserveDestinations:
-                try self.keychain.delete(account: Self.authKey)
-                self.authState = nil
+                try self.oauthSession.clear()
                 self.account = nil
                 self.accountLabel = "Not connected"
                 self.destinationLabel = "No active destination"
@@ -486,41 +487,26 @@ final class DriveSessionController: NSObject, ObservableObject {
             selectsAccount: true
         )
         guard let presenter = UIApplication.shared.activeRootViewController else { throw Failure.noPresenter }
-        let service = OIDServiceConfiguration(
-            authorizationEndpoint: URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!,
-            tokenEndpoint: URL(string: "https://oauth2.googleapis.com/token")!
-        )
-        let request = OIDAuthorizationRequest(
-            configuration: service,
-            clientId: configuration.clientID,
-            clientSecret: authorization.clientSecret,
-            scopes: authorization.scopes,
-            redirectURL: configuration.redirectURL,
-            responseType: authorization.responseType,
-            additionalParameters: authorization.additionalParameters
-        )
-        let newState: OIDAuthState = try await withCheckedThrowingContinuation { continuation in
-            authorizationFlow = OIDAuthState.authState(byPresenting: request, presenting: presenter) { state, error in
-                self.authorizationFlow = nil
-                if let state { continuation.resume(returning: state) }
-                else { continuation.resume(throwing: error ?? Failure.noToken) }
-            }
+        guard let userAgent = OIDExternalUserAgentIOS(presenting: presenter) else {
+            throw Failure.noPresenter
         }
-        try DriveConsentPolicy.validateGrantedScopes(newState.scope)
-        let pickedID: String?
-        if purpose == .chooseFolder || purpose == .recoverFile {
-            pickedID = try DriveConsentPolicy.selectedItemID(
-                from: newState.lastAuthorizationResponse.additionalParameters?["picked_file_ids"]
+        do {
+            let outcome = try await oauthSession.authorize(
+                authorization,
+                configuration: configuration,
+                userAgent: userAgent
             )
-        } else {
-            pickedID = nil
+            let account = try await drive.account(accessToken: outcome.accessToken)
+            try oauthSession.acceptPendingAuthorization()
+            return AuthorizationResult(
+                token: outcome.accessToken,
+                account: account,
+                pickedItemID: outcome.pickedItemID
+            )
+        } catch {
+            oauthSession.discardPendingAuthorization()
+            throw error
         }
-        guard let token = newState.lastTokenResponse?.accessToken else { throw Failure.noToken }
-        let account = try await drive.account(accessToken: token)
-        authState = newState
-        attachDelegates()
-        try saveAuthState()
-        return AuthorizationResult(token: token, account: account, pickedItemID: pickedID)
     }
 
     private func oauthConfiguration() throws -> DriveOAuthClientConfiguration {
@@ -534,19 +520,11 @@ final class DriveSessionController: NSObject, ObservableObject {
     }
 
     private func freshAccessToken(forceRefresh: Bool = false) async throws -> String {
-        guard let authState else { throw Failure.noToken }
-        if forceRefresh { authState.setNeedsTokenRefresh() }
-        return try await withCheckedThrowingContinuation { continuation in
-            authState.performAction { accessToken, _, error in
-                if let accessToken { continuation.resume(returning: accessToken) }
-                else { continuation.resume(throwing: error ?? Failure.noToken) }
-            }
-        }
+        try await oauthSession.accessToken(forceRefresh: forceRefresh)
     }
 
     private func validateCurrentGrant() throws {
-        guard let authState else { throw Failure.noToken }
-        try DriveConsentPolicy.validateGrantedScopes(authState.scope)
+        try oauthSession.validateCurrentGrant()
     }
 
     private func createReservedDestination(
@@ -588,17 +566,6 @@ final class DriveSessionController: NSObject, ObservableObject {
         destinationLabel = partitions.destination(for: account.id)?.folderName ?? "Choose or create a destination"
     }
 
-    private func attachDelegates() {
-        authState?.stateChangeDelegate = self
-        authState?.errorDelegate = self
-    }
-
-    private func saveAuthState() throws {
-        guard let authState else { return }
-        let data = try NSKeyedArchiver.archivedData(withRootObject: authState, requiringSecureCoding: true)
-        try keychain.save(data, account: Self.authKey)
-    }
-
     private func run(_ startingStatus: String, operation: () async throws -> Void) async {
         guard !busy else { return }
         busy = true
@@ -610,24 +577,12 @@ final class DriveSessionController: NSObject, ObservableObject {
             status = "Rejected by consent/destination policy: \(failure.userFacingLabel)."
         } catch let failure as CanonicalExportFailure {
             status = failure.userFacingLabel
-        } catch let error as NSError where error.domain == OIDGeneralErrorDomain && error.code == -3 {
+        } catch let error as NSError where error.domain == AppAuthDriveSession.errorDomain
+            && error.code == AppAuthDriveSession.userCancelledAuthorizationFlowCode {
             // OIDErrorCodeUserCanceledAuthorizationFlow. Do not replace the prior Keychain state.
             status = "Consent or Picker was cancelled. Existing credentials and destination were preserved."
         } catch {
             status = "Operation cancelled or failed. No export file was written."
-        }
-    }
-}
-
-extension DriveSessionController: OIDAuthStateChangeDelegate, OIDAuthStateErrorDelegate {
-    nonisolated func didChange(_ state: OIDAuthState) {
-        Task { @MainActor in try? self.saveAuthState() }
-    }
-
-    nonisolated func authState(_ state: OIDAuthState, didEncounterAuthorizationError error: Error) {
-        Task { @MainActor in
-            try? self.saveAuthState()
-            self.status = "The Google grant is expired, denied or revoked. Reconnect before continuing."
         }
     }
 }
