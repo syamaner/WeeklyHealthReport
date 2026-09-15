@@ -210,7 +210,7 @@ struct DailyExportPreviewSummary: Equatable {
 @MainActor
 final class DailyDriveSessionController: NSObject, ObservableObject, DailyExportPreparationDriving {
     enum AuthorizationPurpose { case connect, chooseFolder, recoverFile }
-    enum FileReplacementReason { case trashed, missingOrInaccessible }
+    typealias FileReplacementReason = DailyDestinationCoordinator.FileReplacementReason
     enum Failure: Error {
         case missingConfiguration
         case invalidConfiguration
@@ -274,33 +274,22 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         }
     }
 
-    private let keychain: any DailyDriveSecurePersisting
     private let oauthSession: any DriveOAuthSessionProviding
     private let drive: any DailyDriveSessionTransporting
+    private let destinationCoordinator: DailyDestinationCoordinator
     private let exportService: DailyHealthExportService
     private let identityStore: KeychainDailyDriveExportIdentityStore
     private let exportCoordinator: DailyDriveExportCoordinator
     private let nutritionSourceSelection: any NutritionSourceSelectionPersisting
     private let preparationOrchestrator = DailyExportPreparationOrchestrator()
     private var account: DailyDriveAccount?
-    private var partitions = DailyDestinationPartitions()
-    private var trashedDestinationCandidate: DailyDestinationBinding?
-    private var fileReplacementCandidate: FileReplacementCandidate?
     private var identityRecoveryRequired = false
-    private var destinationPartitionsAvailable = true
 
     private static let authKey = "google.oauth.daily-export.appauth-state.v1"
     private static let destinationsKey = "google.drive.daily-export-destinations.v1"
 
-    private struct FileReplacementCandidate: Equatable {
-        let accountID: String
-        let folderID: String
-        let reportDate: String
-    }
-
     private var activeDestination: DailyDestinationBinding? {
-        guard let account else { return nil }
-        return partitions.destination(for: account.id)
+        destinationCoordinator.activeDestination(for: account?.id)
     }
 
     var hasStoredGoogleSession: Bool { oauthSession.hasStoredSession }
@@ -334,12 +323,16 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         notes: DailyNotesController,
         oauthSession: (any DriveOAuthSessionProviding)? = nil
     ) {
-        self.keychain = keychain
         self.oauthSession = oauthSession ?? AppAuthDriveSession(
             secureStore: keychain,
             authKey: Self.authKey
         )
         self.drive = drive
+        destinationCoordinator = DailyDestinationCoordinator(
+            drive: drive,
+            secureStore: keychain,
+            destinationsKey: Self.destinationsKey
+        )
         self.exportService = exportService
         self.identityStore = identityStore
         self.nutritionSourceSelection = nutritionSourceSelection
@@ -426,9 +419,9 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     func forgetTrashedDestination() async {
         await run("Forgetting the confirmed trashed destination…") {
             let context = try await self.currentContext()
-            guard let candidate = self.trashedDestinationCandidate,
-                  candidate.accountID == context.account.id,
-                  self.activeDestination == candidate else {
+            guard let candidate = self.destinationCoordinator.trashedDestination(
+                for: context.account.id
+            ) else {
                 throw Failure.noDestination
             }
 
@@ -436,20 +429,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 accountID: candidate.accountID,
                 folderID: candidate.folderID
             )
-            var updatedPartitions = self.partitions
-            guard updatedPartitions.unbind(
-                accountID: candidate.accountID,
-                folderID: candidate.folderID
-            ) else {
-                throw Failure.noDestination
-            }
-            try self.keychain.save(
-                try JSONEncoder().encode(updatedPartitions),
-                account: Self.destinationsKey
-            )
-            self.partitions = updatedPartitions
-            self.clearTrashedDestinationCandidate()
-            self.clearFileReplacementCandidate()
+            try self.destinationCoordinator.forgetTrashedDestination(candidate)
             self.accept(account: context.account)
             self.presentationState = .needsAttention(.destinationRequired)
             self.status = "Forgot the trashed destination and its local file identities. You can now create or choose a fresh folder; no Drive item was changed."
@@ -473,8 +453,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 accessToken: result.token,
                 accountID: result.account.id
             )
-            try DailyDriveConsentPolicy.validate(folder: folder, expectedAccountID: result.account.id)
-            try self.accept(folder: folder, origin: .picker, account: result.account)
+            try self.destinationCoordinator.acceptPickedFolder(
+                folder,
+                accountID: result.account.id
+            )
+            self.accept(account: result.account)
             let state = await self.preparationOrchestrator.prepareAfterGoogleConnection(
                 context: DailyExportGoogleContext(
                     account: result.account,
@@ -562,30 +545,33 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                     }
                 )
             } catch DailyDriveExportFailure.remoteTrashed {
-                self.markFileForReplacement(
+                self.destinationCoordinator.markFileForReplacement(
                     accountID: account.id,
                     folderID: destination.folderID,
                     reportDate: preview.envelope.reportDate,
                     reason: .trashed
                 )
+                self.mirrorDestinationState()
                 throw DailyDriveExportFailure.remoteTrashed
             } catch DailyDriveExportFailure.remoteMissing {
-                self.markFileForReplacement(
+                self.destinationCoordinator.markFileForReplacement(
                     accountID: account.id,
                     folderID: destination.folderID,
                     reportDate: preview.envelope.reportDate,
                     reason: .missingOrInaccessible
                 )
+                self.mirrorDestinationState()
                 throw DailyDriveExportFailure.remoteMissing
             } catch let failure as DailyDriveExportFailure {
                 try self.applyExportOutcome(.failure(failure), exportedPreview: preview)
                 return
             }
-            self.clearFileReplacementCandidate(
+            self.destinationCoordinator.clearFileReplacementCandidate(
                 accountID: account.id,
                 folderID: destination.folderID,
                 reportDate: preview.envelope.reportDate
             )
+            self.mirrorDestinationState()
             try self.applyExportOutcome(.success(result), exportedPreview: preview)
         }
     }
@@ -613,8 +599,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     func confirmFileReplacementOverride() async {
         await run("Forgetting the unavailable file identity…") {
             let context = try await self.currentContext()
-            guard let candidate = self.fileReplacementCandidate,
-                  let reason = self.fileReplacementReason,
+            guard let candidate = self.destinationCoordinator.fileReplacementCandidate(
+                    accountID: context.account.id,
+                    folderID: self.activeDestination?.folderID
+                  ),
+                  let reason = self.destinationCoordinator.fileReplacementReason,
                   candidate.accountID == context.account.id,
                   self.activeDestination?.folderID == candidate.folderID else {
                 throw Failure.noDestination
@@ -625,7 +614,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 folderID: candidate.folderID,
                 reportDate: candidate.reportDate
             )
-            self.clearFileReplacementCandidate()
+            self.destinationCoordinator.clearFileReplacementCandidate()
+            self.mirrorDestinationState()
             self.restoreLastVerifiedLabel(for: context.account.id)
             switch reason {
             case .trashed:
@@ -664,11 +654,12 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                     try await self.freshAccessToken(forceRefresh: forceRefresh)
                 }
             )
-            self.clearFileReplacementCandidate(
+            self.destinationCoordinator.clearFileReplacementCandidate(
                 accountID: result.account.id,
                 folderID: destination.folderID,
                 reportDate: preview.envelope.reportDate
             )
+            self.mirrorDestinationState()
             self.lastVerifiedLabel = recovery.verifiedLabel
             self.identityRecoveryRequired = false
             self.presentationState = .readyToExport
@@ -681,8 +672,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         do {
             try oauthSession.clear()
             account = nil
-            clearTrashedDestinationCandidate()
-            clearFileReplacementCandidate()
+            destinationCoordinator.clearCandidates()
+            mirrorDestinationState()
             accountLabel = "Not connected"
             destinationLabel = "No active destination"
             preview = nil
@@ -707,8 +698,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             case .clearCredentialsPreserveDestinations:
                 try self.oauthSession.clear()
                 self.account = nil
-                self.clearTrashedDestinationCandidate()
-                self.clearFileReplacementCandidate()
+                self.destinationCoordinator.clearCandidates()
+                self.mirrorDestinationState()
                 self.accountLabel = "Not connected"
                 self.destinationLabel = "No active destination"
                 self.preview = nil
@@ -791,121 +782,22 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     func storedDestination(for accountID: String) throws -> DailyDestinationBinding? {
-        guard destinationPartitionsAvailable else {
-            throw DailyExportPreparationFailure.destinationSetupFailed
-        }
-        return partitions.destination(for: accountID)
+        try destinationCoordinator.storedDestination(for: accountID)
     }
 
     func validateStoredDestination(
         _ binding: DailyDestinationBinding,
         context: DailyExportGoogleContext
     ) async throws {
-        do {
-            let folder = try await drive.folder(
-                id: binding.folderID,
-                accessToken: context.accessToken,
-                accountID: context.account.id
-            )
-            try validateStoredDestination(
-                folder,
-                binding: binding,
-                accountID: context.account.id
-            )
-            try accept(
-                folder: folder,
-                origin: binding.origin == .pendingCreate ? .created : binding.origin,
-                account: context.account
-            )
-        } catch DailyDriveConsentPolicy.Failure.trashed {
-            throw DailyExportPreparationFailure.destinationTrashed
-        } catch DailyDriveAPI.Failure.httpStatus(401, _) {
-            throw DailyExportPreparationFailure.freshGoogleConsentRequired
-        } catch DailyDriveAPI.Failure.httpStatus(404, _)
-            where binding.origin == .pendingCreate {
-            try await submitReservedDefaultDestination(binding, context: context)
-        } catch DailyDriveAPI.Failure.httpStatus(403, _),
-                DailyDriveAPI.Failure.httpStatus(404, _) {
-            throw DailyExportPreparationFailure.destinationMissingOrInaccessible
-        } catch let failure as DailyDriveConsentPolicy.Failure {
-            if failure == .trashed {
-                throw DailyExportPreparationFailure.destinationTrashed
-            }
-            throw DailyExportPreparationFailure.destinationMissingOrInaccessible
-        } catch {
-            throw DailyExportPreparationFailure.destinationMissingOrInaccessible
-        }
+        defer { mirrorDestinationState() }
+        try await destinationCoordinator.validateStoredDestination(binding, context: context)
+        accept(account: context.account)
     }
 
     func createDefaultDestination(context: DailyExportGoogleContext) async throws {
-        guard destinationPartitionsAvailable else {
-            throw DailyExportPreparationFailure.destinationSetupFailed
-        }
-        if let binding = partitions.destination(for: context.account.id) {
-            try await validateStoredDestination(binding, context: context)
-            return
-        }
-        do {
-            let folderID = try await drive.generateFileID(accessToken: context.accessToken)
-            let binding = DailyDestinationBinding(
-                accountID: context.account.id,
-                folderID: folderID,
-                folderName: DailyDriveConsentPolicy.defaultExportFolderName,
-                origin: .pendingCreate
-            )
-            var updatedPartitions = partitions
-            updatedPartitions.bind(binding)
-            try keychain.save(
-                try JSONEncoder().encode(updatedPartitions),
-                account: Self.destinationsKey
-            )
-            partitions = updatedPartitions
-            accept(account: context.account)
-            try await submitReservedDefaultDestination(binding, context: context)
-        } catch DailyDriveAPI.Failure.httpStatus(401, _) {
-            throw DailyExportPreparationFailure.freshGoogleConsentRequired
-        } catch let failure as DailyExportPreparationFailure {
-            throw failure
-        } catch {
-            throw DailyExportPreparationFailure.destinationSetupFailed
-        }
-    }
-
-    private func submitReservedDefaultDestination(
-        _ binding: DailyDestinationBinding,
-        context: DailyExportGoogleContext
-    ) async throws {
-        let folder: DailyDriveFolder
-        do {
-            folder = try await drive.createFolder(
-                id: binding.folderID,
-                accessToken: context.accessToken,
-                accountID: context.account.id
-            )
-        } catch DailyDriveAPI.Failure.httpStatus(401, _) {
-            throw DailyExportPreparationFailure.freshGoogleConsentRequired
-        } catch {
-            do {
-                folder = try await drive.folder(
-                    id: binding.folderID,
-                    accessToken: context.accessToken,
-                    accountID: context.account.id
-                )
-            } catch DailyDriveAPI.Failure.httpStatus(401, _) {
-                throw DailyExportPreparationFailure.freshGoogleConsentRequired
-            } catch {
-                throw DailyExportPreparationFailure.destinationSetupFailed
-            }
-        }
-        do {
-            try DailyDriveConsentPolicy.validate(
-                folder: folder,
-                expectedAccountID: context.account.id
-            )
-            try accept(folder: folder, origin: .created, account: context.account)
-        } catch {
-            throw DailyExportPreparationFailure.destinationSetupFailed
-        }
+        defer { mirrorDestinationState() }
+        try await destinationCoordinator.createDefaultDestination(context: context)
+        accept(account: context.account)
     }
 
     func resolveNutritionSourceWithoutAuthorization(bundleIdentifier: String) async throws {
@@ -929,9 +821,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             let result = try await exportService.refresh(
                 nutritionSourceBundleIdentifier: bundleIdentifier
             )
-            if fileReplacementCandidate?.reportDate != result.envelope.reportDate {
-                clearFileReplacementCandidate()
-            }
+            destinationCoordinator.clearFileReplacementCandidate(
+                unlessReportDate: result.envelope.reportDate
+            )
+            mirrorDestinationState()
             preview = result
         } catch HealthDataError.unavailable {
             throw DailyExportPreparationFailure.healthDataUnavailable
@@ -974,93 +867,12 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         try oauthSession.validateCurrentGrant()
     }
 
-    private func accept(
-        folder: DailyDriveFolder,
-        origin: DailyDestinationBinding.Origin,
-        account: DailyDriveAccount
-    ) throws {
-        clearTrashedDestinationCandidate()
-        if fileReplacementCandidate?.accountID != account.id
-            || fileReplacementCandidate?.folderID != folder.id {
-            clearFileReplacementCandidate()
-        }
-        partitions.bind(DailyDestinationBinding(
-            accountID: account.id,
-            folderID: folder.id,
-            folderName: folder.name,
-            origin: origin
-        ))
-        try keychain.save(try JSONEncoder().encode(partitions), account: Self.destinationsKey)
-        accept(account: account)
-    }
-
     private func accept(account: DailyDriveAccount) {
-        if trashedDestinationCandidate?.accountID != account.id {
-            clearTrashedDestinationCandidate()
-        }
-        if fileReplacementCandidate?.accountID != account.id {
-            clearFileReplacementCandidate()
-        }
+        destinationCoordinator.acceptAccount(account.id)
         self.account = account
         accountLabel = "\(account.displayName) — \(account.emailAddress)"
-        destinationLabel = partitions.destination(for: account.id)?.folderName
-            ?? "Choose or create a destination"
+        mirrorDestinationState()
         restoreLastVerifiedLabel(for: account.id)
-    }
-
-    private func validateStoredDestination(
-        _ folder: DailyDriveFolder,
-        binding: DailyDestinationBinding,
-        accountID: String
-    ) throws {
-        do {
-            try DailyDriveConsentPolicy.validate(
-                folder: folder,
-                expectedAccountID: accountID
-            )
-            clearTrashedDestinationCandidate()
-        } catch DailyDriveConsentPolicy.Failure.trashed {
-            trashedDestinationCandidate = binding
-            canForgetTrashedDestination = true
-            throw DailyDriveConsentPolicy.Failure.trashed
-        }
-    }
-
-    private func clearTrashedDestinationCandidate() {
-        trashedDestinationCandidate = nil
-        canForgetTrashedDestination = false
-    }
-
-    private func markFileForReplacement(
-        accountID: String,
-        folderID: String,
-        reportDate: String,
-        reason: FileReplacementReason
-    ) {
-        fileReplacementCandidate = FileReplacementCandidate(
-            accountID: accountID,
-            folderID: folderID,
-            reportDate: reportDate
-        )
-        fileReplacementReason = reason
-    }
-
-    private func clearFileReplacementCandidate(
-        accountID: String? = nil,
-        folderID: String? = nil,
-        reportDate: String? = nil
-    ) {
-        if let candidate = fileReplacementCandidate,
-           let accountID, let folderID, let reportDate,
-           candidate != FileReplacementCandidate(
-               accountID: accountID,
-               folderID: folderID,
-               reportDate: reportDate
-           ) {
-            return
-        }
-        fileReplacementCandidate = nil
-        fileReplacementReason = nil
     }
 
     private func restoreLocalStateWithoutNetwork() {
@@ -1070,18 +882,23 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             status = "Secure Google session state could not be restored; fresh consent is required."
         }
         do {
-            if let data = try keychain.load(account: Self.destinationsKey) {
-                partitions = try JSONDecoder().decode(DailyDestinationPartitions.self, from: data)
-            }
+            try destinationCoordinator.restoreWithoutNetwork()
         } catch {
-            destinationPartitionsAvailable = false
             status = "Secure destination state could not be restored; automatic folder creation is blocked."
+        }
+    }
+
+    private func mirrorDestinationState() {
+        canForgetTrashedDestination = destinationCoordinator.canForgetTrashedDestination
+        fileReplacementReason = destinationCoordinator.fileReplacementReason
+        if let account {
+            destinationLabel = destinationCoordinator.destinationLabel(for: account.id)
         }
     }
 
     private func restoreLastVerifiedLabel(for accountID: String) {
         do {
-            let folderID = partitions.destination(for: accountID)?.folderID
+            let folderID = destinationCoordinator.activeDestination(for: accountID)?.folderID
             let latest = try identityStore.load()?.identities
                 .filter { $0.accountID == accountID && $0.folderID == folderID }
                 .compactMap(\.lastVerified)
