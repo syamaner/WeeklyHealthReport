@@ -566,21 +566,36 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                     reason: .missingOrInaccessible
                 )
                 throw DailyDriveExportFailure.remoteMissing
+            } catch let failure as DailyDriveExportFailure {
+                try self.applyExportOutcome(.failure(failure), exportedPreview: preview)
+                return
             }
             self.clearFileReplacementCandidate(
                 accountID: account.id,
                 folderID: destination.folderID,
                 reportDate: preview.envelope.reportDate
             )
-            self.lastVerifiedLabel = result.verifiedLabel
-            self.status = result.userFacingLabel
-            if result.authorizesNoteCleanup,
-               !self.notes.markVerified(
-                   snapshot: preview.notesSnapshot,
-                   payload: preview.bytes
-               ) {
-                self.status += " Current notes were retained because their verified cleanup marker was not saved."
-            }
+            try self.applyExportOutcome(.success(result), exportedPreview: preview)
+        }
+    }
+
+    func applyExportOutcome(
+        _ outcome: Result<DailyDriveExportResult, DailyDriveExportFailure>,
+        exportedPreview: DailyHealthExportResult
+    ) throws {
+        let result = try outcome.get()
+        lastVerifiedLabel = result.verifiedLabel
+        status = result.userFacingLabel
+        guard result.authorizesNoteCleanup else { return }
+
+        if !notes.markVerified(
+            snapshot: exportedPreview.notesSnapshot,
+            payload: exportedPreview.bytes
+        ) {
+            status += " Current notes were retained because their verified cleanup marker was not saved."
+        }
+        if preview == exportedPreview {
+            preview = nil
         }
     }
 

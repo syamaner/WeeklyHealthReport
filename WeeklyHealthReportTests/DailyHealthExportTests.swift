@@ -531,6 +531,109 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertTrue(session.status.contains("Saved notes changed"))
     }
 
+    @MainActor
+    func testSessionDiscardsPreviewOnlyForUncancelledVerifiedResults() async throws {
+        for result in [
+            DailyDriveExportResult.verified(
+                dataAsOf: "2026-09-06T08:00:00+01:00",
+                created: true
+            ),
+            .unchangedVerified(dataAsOf: "2026-09-06T08:00:00+01:00")
+        ] {
+            let (session, _) = await makePreviewLifecycleSession()
+            let exportedPreview = try XCTUnwrap(session.preview)
+
+            try session.applyExportOutcome(.success(result), exportedPreview: exportedPreview)
+
+            XCTAssertNil(session.preview)
+            XCTAssertFalse(session.canExport)
+            XCTAssertTrue(session.lastVerifiedLabel.contains("2026-09-06T08:00:00+01:00"))
+            XCTAssertTrue(session.status.contains("verified"))
+        }
+    }
+
+    @MainActor
+    func testSessionPreservesPreviewForCancellationResults() async throws {
+        for result in [
+            DailyDriveExportResult.cancelledBeforeSubmission,
+            .cancelledAfterSubmissionVerified(
+                dataAsOf: "2026-09-06T08:00:00+01:00",
+                created: true
+            )
+        ] {
+            let (session, _) = await makePreviewLifecycleSession()
+            let exportedPreview = try XCTUnwrap(session.preview)
+
+            try session.applyExportOutcome(.success(result), exportedPreview: exportedPreview)
+
+            XCTAssertEqual(session.preview, exportedPreview)
+            XCTAssertTrue(session.status.contains("Cancelled") || session.status.contains("Cancellation"))
+        }
+    }
+
+    @MainActor
+    func testSessionPreservesPreviewForFailedUncertainAndStaleOutcomes() async throws {
+        for failure in [
+            DailyDriveExportFailure.transportFailure,
+            .unresolvedRequest,
+            .staleCompletion
+        ] {
+            let (session, _) = await makePreviewLifecycleSession()
+            let exportedPreview = try XCTUnwrap(session.preview)
+
+            XCTAssertThrowsError(
+                try session.applyExportOutcome(
+                    .failure(failure),
+                    exportedPreview: exportedPreview
+                )
+            ) { error in
+                XCTAssertEqual(error as? DailyDriveExportFailure, failure)
+            }
+            XCTAssertEqual(session.preview, exportedPreview)
+        }
+    }
+
+    @MainActor
+    func testSessionDoesNotDiscardANewerPreviewForAnOlderVerifiedCompletion() async throws {
+        let (session, _) = await makePreviewLifecycleSession()
+        let currentPreview = try XCTUnwrap(session.preview)
+        let olderPreview = DailyHealthExportResult(
+            envelope: currentPreview.envelope,
+            bytes: currentPreview.bytes + Data([0]),
+            notesSnapshot: currentPreview.notesSnapshot
+        )
+
+        try session.applyExportOutcome(
+            .success(.verified(
+                dataAsOf: "2026-09-06T08:00:00+01:00",
+                created: false
+            )),
+            exportedPreview: olderPreview
+        )
+
+        XCTAssertEqual(session.preview, currentPreview)
+        XCTAssertTrue(session.lastVerifiedLabel.contains("2026-09-06T08:00:00+01:00"))
+    }
+
+    @MainActor
+    func testSessionDiscardsVerifiedPreviewAfterFailedNoteMarkerDecision() async throws {
+        let (session, notesStore) = await makePreviewLifecycleSession()
+        let exportedPreview = try XCTUnwrap(session.preview)
+        notesStore.failSaves = true
+
+        try session.applyExportOutcome(
+            .success(.verified(
+                dataAsOf: "2026-09-06T08:00:00+01:00",
+                created: false
+            )),
+            exportedPreview: exportedPreview
+        )
+
+        XCTAssertNil(session.preview)
+        XCTAssertTrue(session.status.contains("Current notes were retained"))
+        XCTAssertTrue(session.lastVerifiedLabel.contains("2026-09-06T08:00:00+01:00"))
+    }
+
     func testNutritionCatalogueIsCompleteOrderedUniqueAndUnitCompatible() throws {
         let expected: [(String, HKQuantityTypeIdentifier, NutritionExportUnit)] = [
             ("energy_consumed", .dietaryEnergyConsumed, .kilocalories),
@@ -1105,6 +1208,42 @@ final class DailyHealthExportTests: XCTestCase {
             nutritionSourceSelection: FixedNutritionSourceSelection(bundleIdentifier: nil),
             notes: DailyNotesController(store: notesStore)
         )
+    }
+
+    @MainActor
+    private func makePreviewLifecycleSession() async -> (
+        session: DailyDriveSessionController,
+        notesStore: MutableDailyNotesStore
+    ) {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 8, calendar: calendar)
+        let notesStore = MutableDailyNotesStore()
+        let notes = DailyNotesController(
+            store: notesStore,
+            calendar: calendar,
+            now: { cutoff }
+        )
+        let provider = RecordingDailyProvider { self.emptyInputs(window: $0) }
+        let keychain = DailyDriveKeychainStore(
+            service: "WeeklyHealthReportTests.PreviewLifecycle.\(UUID())"
+        )
+        let session = DailyDriveSessionController(
+            keychain: keychain,
+            drive: DailyDriveAPI(),
+            exportService: DailyHealthExportService(
+                healthData: provider,
+                notesStore: notesStore,
+                calendar: calendar,
+                now: { cutoff }
+            ),
+            identityStore: KeychainDailyDriveExportIdentityStore(keychain: keychain),
+            nutritionSourceSelection: FixedNutritionSourceSelection(
+                bundleIdentifier: fixtureNutritionSource.bundleIdentifier
+            ),
+            notes: notes
+        )
+        await session.refreshPreview()
+        return (session, notesStore)
     }
 
     private func londonCalendar() -> Calendar {
