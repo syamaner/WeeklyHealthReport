@@ -49,6 +49,7 @@
 		A00000000000000000000029 /* DailyHealthExportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000002D /* DailyHealthExportTests.swift */; };
 		A0000000000000000000002B /* DailyDriveExportCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000002F /* DailyDriveExportCoordinator.swift */; };
 		A0000000000000000000002C /* DailyDriveSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000030 /* DailyDriveSessionController.swift */; };
+		A00000000000000000000051 /* DailyDestinationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000051 /* DailyDestinationCoordinator.swift */; };
 		A0000000000000000000002D /* DailyExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000031 /* DailyExportView.swift */; };
 		A0000000000000000000002E /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000002 /* AppAuth */; };
 		A0000000000000000000004B /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000002 /* AppAuth */; };
@@ -143,6 +144,7 @@
 		B0000000000000000000002D /* DailyHealthExportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyHealthExportTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000002F /* DailyDriveExportCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyDriveExportCoordinator.swift; sourceTree = "<group>"; };
 		B00000000000000000000030 /* DailyDriveSessionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyDriveSessionController.swift; sourceTree = "<group>"; };
+		B00000000000000000000051 /* DailyDestinationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyDestinationCoordinator.swift; sourceTree = "<group>"; };
 		B00000000000000000000031 /* DailyExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyExportView.swift; sourceTree = "<group>"; };
 		B00000000000000000000032 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B00000000000000000000033 /* DriveOAuth.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = DriveOAuth.xcconfig; path = Config/DriveOAuth.xcconfig; sourceTree = "<group>"; };
@@ -356,6 +358,7 @@
 			isa = PBXGroup;
 			children = (
 				B0000000000000000000002F /* DailyDriveExportCoordinator.swift */,
+				B00000000000000000000051 /* DailyDestinationCoordinator.swift */,
 				B00000000000000000000030 /* DailyDriveSessionController.swift */,
 			);
 			path = GoogleDrive;
@@ -534,6 +537,7 @@
 				A00000000000000000000034 /* DailyNotes.swift in Sources */,
 				A00000000000000000000028 /* DailyHealthExportService.swift in Sources */,
 				A0000000000000000000002B /* DailyDriveExportCoordinator.swift in Sources */,
+				A00000000000000000000051 /* DailyDestinationCoordinator.swift in Sources */,
 				A0000000000000000000002C /* DailyDriveSessionController.swift in Sources */,
 				A0000000000000000000002D /* DailyExportView.swift in Sources */,
 				A00000000000000000000035 /* DailyNotesStore.swift in Sources */,

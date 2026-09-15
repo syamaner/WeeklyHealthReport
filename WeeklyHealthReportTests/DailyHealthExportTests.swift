@@ -1175,6 +1175,239 @@ final class DailyHealthExportTests: XCTestCase {
     }
 
     @MainActor
+    func testDestinationCoordinatorRejectsMismatchedPickerWithoutChangingPartitions() throws {
+        let store = MemoryDailySessionStore()
+        let coordinator = DailyDestinationCoordinator(
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            secureStore: store,
+            destinationsKey: "destinations"
+        )
+        let folder = DailyDriveFolder(
+            id: "folder-b",
+            accountID: "account-b",
+            name: "Invented",
+            mimeType: DailyDriveConsentPolicy.folderMIMEType,
+            trashed: false,
+            driveID: nil,
+            isAppAuthorized: true,
+            canAddChildren: true
+        )
+
+        XCTAssertThrowsError(try coordinator.acceptPickedFolder(folder, accountID: "account-a")) {
+            XCTAssertEqual($0 as? DailyDriveConsentPolicy.Failure, .accountMismatch)
+        }
+        XCTAssertNil(try coordinator.storedDestination(for: "account-a"))
+        XCTAssertNil(store.snapshot(account: "destinations"))
+    }
+
+    @MainActor
+    func testDestinationCoordinatorPublishesPickerBindingOnlyAfterPersistence() throws {
+        let store = MemoryDailySessionStore()
+        store.failSaves = true
+        let coordinator = DailyDestinationCoordinator(
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            secureStore: store,
+            destinationsKey: "destinations"
+        )
+        let folder = DailyDriveFolder(
+            id: "folder-a",
+            accountID: "account-a",
+            name: "Invented",
+            mimeType: DailyDriveConsentPolicy.folderMIMEType,
+            trashed: false,
+            driveID: nil,
+            isAppAuthorized: true,
+            canAddChildren: true
+        )
+
+        XCTAssertThrowsError(try coordinator.acceptPickedFolder(folder, accountID: "account-a"))
+        XCTAssertNil(try coordinator.storedDestination(for: "account-a"))
+
+        store.failSaves = false
+        try coordinator.acceptPickedFolder(folder, accountID: "account-a")
+        XCTAssertEqual(try coordinator.storedDestination(for: "account-a")?.folderID, "folder-a")
+        XCTAssertEqual(store.savedAccounts, ["destinations"])
+    }
+
+    @MainActor
+    func testDestinationCoordinatorTracksAndForgetsOnlyExactTrashedDestination() async throws {
+        let store = MemoryDailySessionStore()
+        let drive = PreparationDriveTransportFixture(createOutcomes: [])
+        let coordinator = DailyDestinationCoordinator(
+            drive: drive,
+            secureStore: store,
+            destinationsKey: "destinations"
+        )
+        let account = await drive.fixtureAccount()
+        let binding = DailyDestinationBinding(
+            accountID: account.id,
+            folderID: "folder-a",
+            folderName: "Invented",
+            origin: .picker
+        )
+        try store.save(try JSONEncoder().encode(partitions(containing: binding)), account: "destinations")
+        try coordinator.restoreWithoutNetwork()
+        await drive.seedFolder(DailyDriveFolder(
+            id: binding.folderID,
+            accountID: account.id,
+            name: binding.folderName,
+            mimeType: DailyDriveConsentPolicy.folderMIMEType,
+            trashed: true,
+            driveID: nil,
+            isAppAuthorized: true,
+            canAddChildren: true
+        ))
+        let context = DailyExportGoogleContext(account: account, accessToken: "invented-token")
+
+        do {
+            try await coordinator.validateStoredDestination(binding, context: context)
+            XCTFail("A trashed destination must fail closed")
+        } catch DailyExportPreparationFailure.destinationTrashed {}
+        XCTAssertTrue(coordinator.canForgetTrashedDestination)
+        XCTAssertNil(coordinator.trashedDestination(for: "other-account"))
+
+        let candidate = try XCTUnwrap(coordinator.trashedDestination(for: account.id))
+        try coordinator.forgetTrashedDestination(candidate)
+        XCTAssertFalse(coordinator.canForgetTrashedDestination)
+        XCTAssertNil(try coordinator.storedDestination(for: account.id))
+    }
+
+    @MainActor
+    func testDestinationCoordinatorClearsFileCandidateOnlyForExactTriple() {
+        let coordinator = DailyDestinationCoordinator(
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            secureStore: MemoryDailySessionStore(),
+            destinationsKey: "destinations"
+        )
+        coordinator.markFileForReplacement(
+            accountID: "account-a",
+            folderID: "folder-a",
+            reportDate: "2026-09-15",
+            reason: .trashed
+        )
+
+        coordinator.clearFileReplacementCandidate(
+            accountID: "account-a",
+            folderID: "folder-a",
+            reportDate: "2026-09-14"
+        )
+        XCTAssertNotNil(coordinator.fileReplacementReason)
+        coordinator.clearFileReplacementCandidate(
+            accountID: "account-a",
+            folderID: "folder-a",
+            reportDate: "2026-09-15"
+        )
+        XCTAssertNil(coordinator.fileReplacementReason)
+    }
+
+    @MainActor
+    func testDestinationCoordinatorBlocksCreationAfterCorruptRestore() async throws {
+        let store = MemoryDailySessionStore()
+        try store.save(Data("not-json".utf8), account: "destinations")
+        let drive = PreparationDriveTransportFixture(createOutcomes: [])
+        let coordinator = DailyDestinationCoordinator(
+            drive: drive,
+            secureStore: store,
+            destinationsKey: "destinations"
+        )
+        XCTAssertThrowsError(try coordinator.restoreWithoutNetwork())
+        let context = DailyExportGoogleContext(
+            account: await drive.fixtureAccount(),
+            accessToken: "invented-token"
+        )
+
+        do {
+            try await coordinator.createDefaultDestination(context: context)
+            XCTFail("Corrupt destination state must block creation")
+        } catch DailyExportPreparationFailure.destinationSetupFailed {}
+        let snapshot = await drive.snapshot()
+        XCTAssertEqual(snapshot.generatedCount, 0)
+    }
+
+    @MainActor
+    func testSessionRestoreRefreshFailureRequiresFreshGoogleConnection() async {
+        let oauth = FakeDriveOAuthSession()
+        oauth.accessTokenFailure = .expired
+        let session = makePreparationSession(
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            oauthSession: oauth
+        )
+
+        do {
+            _ = try await session.restoreGoogleSession()
+            XCTFail("A failed refresh must require fresh consent")
+        } catch DailyExportPreparationFailure.freshGoogleConsentRequired {
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    @MainActor
+    func testSessionSignOutClearsCredentialsButPreservesDestinationPartitions() throws {
+        let store = MemoryDailySessionStore()
+        let binding = DailyDestinationBinding(
+            accountID: "invented-account",
+            folderID: "folder-a",
+            folderName: "Invented",
+            origin: .picker
+        )
+        try store.save(
+            try JSONEncoder().encode(partitions(containing: binding)),
+            account: "google.drive.daily-export-destinations.v1"
+        )
+        let oauth = FakeDriveOAuthSession()
+        let session = makePreparationSession(
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            secureStore: store,
+            oauthSession: oauth
+        )
+
+        session.signOut()
+
+        XCTAssertEqual(oauth.clearCount, 1)
+        let saved = try XCTUnwrap(store.snapshot(account: "google.drive.daily-export-destinations.v1"))
+        let restored = try JSONDecoder().decode(DailyDestinationPartitions.self, from: saved)
+        XCTAssertEqual(restored.destination(for: binding.accountID), binding)
+        XCTAssertEqual(session.presentationState, .needsGoogleConnection)
+    }
+
+    @MainActor
+    func testSessionDisconnectClearsCredentialsOnlyAfterSuccessfulRevocation() async {
+        let successfulOAuth = FakeDriveOAuthSession()
+        let successful = makePreparationSession(
+            drive: PreparationDriveTransportFixture(createOutcomes: [], revokeStatus: 200),
+            oauthSession: successfulOAuth
+        )
+        await successful.disconnect()
+        XCTAssertEqual(successfulOAuth.clearCount, 1)
+        XCTAssertEqual(successful.presentationState, .needsGoogleConnection)
+
+        let failedOAuth = FakeDriveOAuthSession()
+        let failed = makePreparationSession(
+            drive: PreparationDriveTransportFixture(createOutcomes: [], revokeStatus: 503),
+            oauthSession: failedOAuth
+        )
+        await failed.disconnect()
+        XCTAssertEqual(failedOAuth.clearCount, 0)
+        XCTAssertTrue(failedOAuth.hasStoredSession)
+    }
+
+    @MainActor
+    func testSessionAuthorizationErrorInvalidatesPreviewAndRequiresConnection() {
+        let oauth = FakeDriveOAuthSession()
+        let session = makePreparationSession(
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            oauthSession: oauth
+        )
+
+        oauth.onAuthorizationError?(.revoked)
+
+        XCTAssertNil(session.preview)
+        XCTAssertEqual(session.presentationState, .needsGoogleConnection)
+        XCTAssertTrue(session.status.contains("revoked"))
+    }
+
+    @MainActor
     func testPreparationRestoresOnlyExactSavedNutritionSource() async {
         let missing = PreparationDriverFixture(savedBundleIdentifier: nil)
         missing.destination = missing.fixtureDestination
@@ -1262,7 +1495,8 @@ final class DailyHealthExportTests: XCTestCase {
     @MainActor
     private func makePreparationSession(
         drive: any DailyDriveSessionTransporting,
-        secureStore: any DailyDriveSecurePersisting = MemoryDailySessionStore()
+        secureStore: any DailyDriveSecurePersisting = MemoryDailySessionStore(),
+        oauthSession: (any DriveOAuthSessionProviding)? = nil
     ) -> DailyDriveSessionController {
         let identityKeychain = DailyDriveKeychainStore(
             service: "WeeklyHealthReportTests.PreparationIdentity.\(UUID())"
@@ -1279,8 +1513,17 @@ final class DailyHealthExportTests: XCTestCase {
             ),
             identityStore: KeychainDailyDriveExportIdentityStore(keychain: identityKeychain),
             nutritionSourceSelection: FixedNutritionSourceSelection(bundleIdentifier: nil),
-            notes: DailyNotesController(store: notesStore)
+            notes: DailyNotesController(store: notesStore),
+            oauthSession: oauthSession
         )
+    }
+
+    private func partitions(
+        containing binding: DailyDestinationBinding
+    ) -> DailyDestinationPartitions {
+        var partitions = DailyDestinationPartitions()
+        partitions.bind(binding)
+        return partitions
     }
 
     @MainActor
@@ -1837,9 +2080,13 @@ private final class PreparationDriverFixture: DailyExportPreparationDriving {
 
 private final class MemoryDailySessionStore: DailyDriveSecurePersisting, @unchecked Sendable {
     private var values: [String: Data] = [:]
+    var failSaves = false
+    private(set) var savedAccounts: [String] = []
 
     func save(_ data: Data, account: String) throws {
+        if failSaves { throw ProbeError.queryFailed }
         values[account] = data
+        savedAccounts.append(account)
     }
 
     func load(account: String) throws -> Data? {
@@ -1848,6 +2095,10 @@ private final class MemoryDailySessionStore: DailyDriveSecurePersisting, @unchec
 
     func delete(account: String) throws {
         values.removeValue(forKey: account)
+    }
+
+    func snapshot(account: String) -> Data? {
+        values[account]
     }
 }
 
@@ -1877,12 +2128,18 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
     private var createIDs: [String] = []
     private var folderReadCount = 0
     private var uploadCount = 0
+    private let revokeStatus: Int
 
-    init(createOutcomes: [CreateOutcome]) {
+    init(createOutcomes: [CreateOutcome], revokeStatus: Int = 200) {
         self.createOutcomes = createOutcomes
+        self.revokeStatus = revokeStatus
     }
 
     func fixtureAccount() -> DailyDriveAccount { accountValue }
+
+    func seedFolder(_ folder: DailyDriveFolder) {
+        folders[folder.id] = folder
+    }
 
     func snapshot() -> Snapshot {
         Snapshot(
@@ -1942,7 +2199,7 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
         return folder
     }
 
-    func revoke(token: String) async throws -> Int { 200 }
+    func revoke(token: String) async throws -> Int { revokeStatus }
 
     func createFile(
         _ descriptor: DailyDriveUploadDescriptor,
@@ -1972,6 +2229,42 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
     func fileContent(id: String, accessToken: String) async throws -> Data {
         throw DailyDriveAPI.Failure.httpStatus(404, nil)
     }
+}
+
+@MainActor
+private final class FakeDriveOAuthSession: DriveOAuthSessionProviding {
+    var hasStoredSession = true
+    var revocationToken: String? = "invented-revocation-token"
+    var onAuthorizationError: (@MainActor (DailyDriveCredentialFailure) -> Void)?
+    var accessTokenFailure: DailyDriveCredentialFailure?
+    private(set) var clearCount = 0
+
+    func restoreWithoutNetwork() throws {}
+
+    func authorize(
+        _ request: DriveAuthorizationRequest,
+        configuration: DriveOAuthClientConfiguration,
+        userAgent: any OIDExternalUserAgent
+    ) async throws -> DriveAuthorizationOutcome {
+        throw ProbeError.queryFailed
+    }
+
+    func acceptPendingAuthorization() throws {}
+    func discardPendingAuthorization() {}
+
+    func accessToken(forceRefresh: Bool) async throws -> String {
+        if let accessTokenFailure { throw accessTokenFailure }
+        return "invented-token"
+    }
+
+    func validateCurrentGrant() throws {}
+
+    func clear() throws {
+        clearCount += 1
+        hasStoredSession = false
+    }
+
+    func resumeRedirect(_ url: URL) -> Bool { false }
 }
 
 private enum ProbeError: Error {
