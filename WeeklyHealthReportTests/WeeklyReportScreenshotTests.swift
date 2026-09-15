@@ -17,9 +17,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         )
         let notesStore = EmptyDailyNotesStore()
         let notes = DailyNotesController(store: notesStore, calendar: calendar)
-        let keychain = DailyDriveKeychainStore(
-            service: "WeeklyHealthReportTests.\(UUID())"
-        )
+        let keychain = ScreenshotMemoryDailySessionStore()
         let dailyExport = DailyDriveSessionController(
             keychain: keychain,
             drive: DailyDriveAPI(),
@@ -28,7 +26,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
                 notesStore: notesStore,
                 calendar: calendar
             ),
-            identityStore: KeychainDailyDriveExportIdentityStore(keychain: keychain),
+            identityStore: ControllerMemoryDailyIdentityStore(),
             nutritionSourceSelection: EmptyNutritionSourceSelectionStore(),
             notes: notes
         )
@@ -826,6 +824,22 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         case .sleep:
             []
         }
+    }
+}
+
+private final class ScreenshotMemoryDailySessionStore: DailyDriveSecurePersisting, @unchecked Sendable {
+    private var values: [String: Data] = [:]
+
+    func save(_ data: Data, account: String) throws {
+        values[account] = data
+    }
+
+    func load(account: String) throws -> Data? {
+        values[account]
+    }
+
+    func delete(account: String) throws {
+        values.removeValue(forKey: account)
     }
 }
 

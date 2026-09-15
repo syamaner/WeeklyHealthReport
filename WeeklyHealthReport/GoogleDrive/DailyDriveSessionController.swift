@@ -278,7 +278,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     private let drive: any DailyDriveSessionTransporting
     private let destinationCoordinator: DailyDestinationCoordinator
     private let exportService: DailyHealthExportService
-    private let identityStore: KeychainDailyDriveExportIdentityStore
+    private let identityStore: any DailyDriveExportIdentityPersisting
     private let exportCoordinator: DailyDriveExportCoordinator
     private let nutritionSourceSelection: any NutritionSourceSelectionPersisting
     private let preparationOrchestrator = DailyExportPreparationOrchestrator()
@@ -318,7 +318,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         keychain: any DailyDriveSecurePersisting,
         drive: any DailyDriveSessionTransporting,
         exportService: DailyHealthExportService,
-        identityStore: KeychainDailyDriveExportIdentityStore,
+        identityStore: any DailyDriveExportIdentityPersisting,
         nutritionSourceSelection: any NutritionSourceSelectionPersisting,
         notes: DailyNotesController,
         oauthSession: (any DriveOAuthSessionProviding)? = nil

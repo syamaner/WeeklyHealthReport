@@ -562,7 +562,7 @@ final class DailyHealthExportTests: XCTestCase {
             now: { cutoff }
         )
         let provider = RecordingDailyProvider { self.emptyInputs(window: $0) }
-        let keychain = DailyDriveKeychainStore(service: "WeeklyHealthReportTests.\(UUID())")
+        let keychain = MemoryDailySessionStore()
         let session = DailyDriveSessionController(
             keychain: keychain,
             drive: DailyDriveAPI(),
@@ -572,7 +572,7 @@ final class DailyHealthExportTests: XCTestCase {
                 calendar: calendar,
                 now: { cutoff }
             ),
-            identityStore: KeychainDailyDriveExportIdentityStore(keychain: keychain),
+            identityStore: ControllerMemoryDailyIdentityStore(),
             nutritionSourceSelection: FixedNutritionSourceSelection(
                 bundleIdentifier: fixtureNutritionSource.bundleIdentifier
             ),
@@ -1343,6 +1343,76 @@ final class DailyHealthExportTests: XCTestCase {
     }
 
     @MainActor
+    func testSessionRestoresLatestVerifiedLabelFromInjectedIdentityStore() async throws {
+        let secureStore = MemoryDailySessionStore()
+        let binding = DailyDestinationBinding(
+            accountID: "invented-account",
+            folderID: "folder-a",
+            folderName: "Invented",
+            origin: .picker
+        )
+        try secureStore.save(
+            try JSONEncoder().encode(partitions(containing: binding)),
+            account: "google.drive.daily-export-destinations.v1"
+        )
+        let identityStore = ControllerMemoryDailyIdentityStore(registry: DailyDriveExportRegistry(
+            installationID: "invented-installation",
+            identities: [
+                identity(
+                    accountID: binding.accountID,
+                    folderID: binding.folderID,
+                    dataAsOf: "2026-09-14T08:00:00+01:00",
+                    verifiedAt: Date(timeIntervalSince1970: 1)
+                ),
+                identity(
+                    accountID: binding.accountID,
+                    folderID: binding.folderID,
+                    dataAsOf: "2026-09-15T08:00:00+01:00",
+                    verifiedAt: Date(timeIntervalSince1970: 2)
+                ),
+                identity(
+                    accountID: binding.accountID,
+                    folderID: "other-folder",
+                    dataAsOf: "2026-09-16T08:00:00+01:00",
+                    verifiedAt: Date(timeIntervalSince1970: 3)
+                )
+            ]
+        ))
+        let session = makePreparationSession(
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            secureStore: secureStore,
+            identityStore: identityStore,
+            oauthSession: FakeDriveOAuthSession()
+        )
+
+        _ = try await session.restoreGoogleSession()
+
+        XCTAssertEqual(
+            session.lastVerifiedLabel,
+            "Persisted verification through 2026-09-15T08:00:00+01:00"
+        )
+        XCTAssertEqual(identityStore.loadCount, 1)
+    }
+
+    @MainActor
+    func testSessionKeepsAmbiguousIdentityRestorationFailClosedWithInjectedStore() async throws {
+        let identityStore = ControllerMemoryDailyIdentityStore(loadFailure: ProbeError.queryFailed)
+        let session = makePreparationSession(
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            identityStore: identityStore,
+            oauthSession: FakeDriveOAuthSession()
+        )
+
+        _ = try await session.restoreGoogleSession()
+
+        XCTAssertEqual(
+            session.lastVerifiedLabel,
+            "Stored identity is ambiguous; explicit recovery required"
+        )
+        XCTAssertEqual(identityStore.loadCount, 1)
+    }
+
+    @MainActor
     func testSessionSignOutClearsCredentialsButPreservesDestinationPartitions() throws {
         let store = MemoryDailySessionStore()
         let binding = DailyDestinationBinding(
@@ -1496,11 +1566,9 @@ final class DailyHealthExportTests: XCTestCase {
     private func makePreparationSession(
         drive: any DailyDriveSessionTransporting,
         secureStore: any DailyDriveSecurePersisting = MemoryDailySessionStore(),
+        identityStore: any DailyDriveExportIdentityPersisting = ControllerMemoryDailyIdentityStore(),
         oauthSession: (any DriveOAuthSessionProviding)? = nil
     ) -> DailyDriveSessionController {
-        let identityKeychain = DailyDriveKeychainStore(
-            service: "WeeklyHealthReportTests.PreparationIdentity.\(UUID())"
-        )
         let notesStore = MutableDailyNotesStore()
         return DailyDriveSessionController(
             keychain: secureStore,
@@ -1511,7 +1579,7 @@ final class DailyHealthExportTests: XCTestCase {
                 },
                 notesStore: notesStore
             ),
-            identityStore: KeychainDailyDriveExportIdentityStore(keychain: identityKeychain),
+            identityStore: identityStore,
             nutritionSourceSelection: FixedNutritionSourceSelection(bundleIdentifier: nil),
             notes: DailyNotesController(store: notesStore),
             oauthSession: oauthSession
@@ -1540,9 +1608,7 @@ final class DailyHealthExportTests: XCTestCase {
             now: { cutoff }
         )
         let provider = RecordingDailyProvider { self.emptyInputs(window: $0) }
-        let keychain = DailyDriveKeychainStore(
-            service: "WeeklyHealthReportTests.PreviewLifecycle.\(UUID())"
-        )
+        let keychain = MemoryDailySessionStore()
         let session = DailyDriveSessionController(
             keychain: keychain,
             drive: DailyDriveAPI(),
@@ -1552,7 +1618,7 @@ final class DailyHealthExportTests: XCTestCase {
                 calendar: calendar,
                 now: { cutoff }
             ),
-            identityStore: KeychainDailyDriveExportIdentityStore(keychain: keychain),
+            identityStore: ControllerMemoryDailyIdentityStore(),
             nutritionSourceSelection: FixedNutritionSourceSelection(
                 bundleIdentifier: fixtureNutritionSource.bundleIdentifier
             ),
@@ -1567,6 +1633,27 @@ final class DailyHealthExportTests: XCTestCase {
         calendar.locale = Locale(identifier: "en_GB")
         calendar.timeZone = TimeZone(identifier: "Europe/London")!
         return calendar
+    }
+
+    private func identity(
+        accountID: String,
+        folderID: String,
+        dataAsOf: String,
+        verifiedAt: Date
+    ) -> DailyDriveExportIdentity {
+        DailyDriveExportIdentity(
+            accountID: accountID,
+            folderID: folderID,
+            reportDate: "2026-09-15",
+            fileID: "invented-file-\(dataAsOf)",
+            installationID: "invented-installation",
+            lastVerified: VerifiedDailyDriveSnapshot(
+                dataAsOf: dataAsOf,
+                payloadSHA256: "invented-hash",
+                verifiedAt: verifiedAt
+            ),
+            pending: nil
+        )
     }
 
     private func withoutNotesAndNutrition(
@@ -2099,6 +2186,42 @@ private final class MemoryDailySessionStore: DailyDriveSecurePersisting, @unchec
 
     func snapshot(account: String) -> Data? {
         values[account]
+    }
+}
+
+final class ControllerMemoryDailyIdentityStore: DailyDriveExportIdentityPersisting, @unchecked Sendable {
+    private let lock = NSLock()
+    private var registry: DailyDriveExportRegistry?
+    private var marker: String?
+    private let loadFailure: Error?
+    private(set) var loadCount = 0
+
+    init(
+        registry: DailyDriveExportRegistry? = nil,
+        loadFailure: Error? = nil
+    ) {
+        self.registry = registry
+        marker = registry?.installationID
+        self.loadFailure = loadFailure
+    }
+
+    func load() throws -> DailyDriveExportRegistry? {
+        try lock.withLock {
+            loadCount += 1
+            if let loadFailure { throw loadFailure }
+            return registry
+        }
+    }
+
+    func installationMarker() throws -> String? {
+        lock.withLock { marker }
+    }
+
+    func save(_ registry: DailyDriveExportRegistry) throws {
+        lock.withLock {
+            marker = registry.installationID
+            self.registry = registry
+        }
     }
 }
 
