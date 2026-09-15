@@ -1,3 +1,4 @@
+import AppAuth
 import HealthKit
 import XCTest
 @testable import DriveExportKit
@@ -5,6 +6,77 @@ import XCTest
 
 // Every health value in this file is invented. These tests never access HealthKit.
 final class DailyHealthExportTests: XCTestCase {
+    func testProductionCredentialClassifierUsesOnlySupportedAppAuthEvidence() {
+        XCTAssertEqual(
+            DailyDriveCredentialFailureClassifier.classify(nil),
+            .missing
+        )
+        XCTAssertEqual(
+            DailyDriveCredentialFailureClassifier.classify(
+                NSError(domain: OIDGeneralErrorDomain, code: -11)
+            ),
+            .expired
+        )
+        XCTAssertEqual(
+            DailyDriveCredentialFailureClassifier.classify(
+                NSError(domain: OIDOAuthAuthorizationErrorDomain, code: -4)
+            ),
+            .denied
+        )
+    }
+
+    func testProductionCredentialClassifierKeepsAmbiguousAndUnknownErrorsIndeterminate() {
+        XCTAssertEqual(
+            DailyDriveCredentialFailureClassifier.classify(
+                NSError(domain: OIDOAuthTokenErrorDomain, code: -10)
+            ),
+            .indeterminate
+        )
+        XCTAssertEqual(
+            DailyDriveCredentialFailureClassifier.classify(
+                NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut)
+            ),
+            .indeterminate
+        )
+    }
+
+    func testProductionCredentialClassifierPreservesExplicitTypedFailure() {
+        for failure in [
+            DailyDriveCredentialFailure.expired,
+            .denied,
+            .revoked,
+            .missing,
+            .indeterminate
+        ] {
+            XCTAssertEqual(
+                DailyDriveCredentialFailureClassifier.classify(failure),
+                failure
+            )
+        }
+    }
+
+    func testProductionTokenResolutionNeverConvertsAnErrorIntoSuccess() throws {
+        XCTAssertEqual(
+            try DailyDriveCredentialFailureClassifier.accessToken("token", error: nil),
+            "token"
+        )
+
+        for (token, error, expected) in [
+            (nil, nil, DailyDriveCredentialFailure.missing),
+            (
+                "token",
+                NSError(domain: OIDOAuthTokenErrorDomain, code: -10),
+                .indeterminate
+            )
+        ] {
+            XCTAssertThrowsError(
+                try DailyDriveCredentialFailureClassifier.accessToken(token, error: error)
+            ) { observed in
+                XCTAssertEqual(observed as? DailyDriveCredentialFailure, expected)
+            }
+        }
+    }
+
     func testSerializerOutputMatchesGoldenForPopulatedFixture() throws {
         let calendar = londonCalendar()
         let cutoff = date(2026, 9, 6, 23, calendar: calendar)

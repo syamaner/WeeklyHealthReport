@@ -3,6 +3,45 @@ import DriveExportKit
 import Foundation
 import UIKit
 
+enum DailyDriveCredentialFailureClassifier {
+    // AppAuth 2.1.0: OIDErrorCodeTokenRefreshError and
+    // OIDErrorCodeOAuthAuthorizationAccessDenied, respectively.
+    private static let tokenRefreshErrorCode = -11
+    private static let accessDeniedErrorCode = -4
+
+    static func classify(_ error: Error?) -> DailyDriveCredentialFailure {
+        if let failure = error as? DailyDriveCredentialFailure {
+            return failure
+        }
+        guard let error else {
+            return .missing
+        }
+        let appAuthError = error as NSError
+        if appAuthError.domain == OIDGeneralErrorDomain,
+           appAuthError.code == tokenRefreshErrorCode {
+            return .expired
+        }
+        if appAuthError.domain == OIDOAuthAuthorizationErrorDomain,
+           appAuthError.code == accessDeniedErrorCode {
+            return .denied
+        }
+        return .indeterminate
+    }
+
+    static func accessToken(
+        _ accessToken: String?,
+        error: Error?
+    ) throws -> String {
+        if let error {
+            throw classify(error)
+        }
+        guard let accessToken else {
+            throw DailyDriveCredentialFailure.missing
+        }
+        return accessToken
+    }
+}
+
 enum DailyExportAttention: Equatable {
     case configurationUnavailable
     case googleUnavailable
@@ -977,12 +1016,16 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     private func freshAccessToken(forceRefresh: Bool = false) async throws -> String {
-        guard let authState else { throw Failure.noToken }
+        guard let authState else { throw DailyDriveCredentialFailure.missing }
         if forceRefresh { authState.setNeedsTokenRefresh() }
         return try await withCheckedThrowingContinuation { continuation in
             authState.performAction { accessToken, _, error in
-                if let accessToken { continuation.resume(returning: accessToken) }
-                else { continuation.resume(throwing: error ?? Failure.noToken) }
+                continuation.resume(with: Result {
+                    try DailyDriveCredentialFailureClassifier.accessToken(
+                        accessToken,
+                        error: error
+                    )
+                })
             }
         }
     }
@@ -1270,7 +1313,8 @@ extension DailyDriveSessionController: OIDAuthStateChangeDelegate, OIDAuthStateE
             try? self.saveAuthState()
             self.preview = nil
             self.presentationState = .needsGoogleConnection
-            self.status = "The Google grant is expired, denied or revoked. Reconnect before exporting."
+            let failure = DailyDriveCredentialFailureClassifier.classify(error)
+            self.status = DailyDriveExportFailure.credentials(failure).userFacingLabel
         }
     }
 }

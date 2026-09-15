@@ -279,7 +279,9 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         for failure in [
             DailyDriveCredentialFailure.expired,
             .denied,
-            .revoked
+            .revoked,
+            .missing,
+            .indeterminate
         ] {
             let credentialServer = MockDailyDriveServer()
             let coordinator = DailyDriveExportCoordinator(
