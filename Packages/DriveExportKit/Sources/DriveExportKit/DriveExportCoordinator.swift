@@ -142,6 +142,8 @@ public enum DailyDriveCredentialFailure: String, Error, Equatable, Sendable {
     case expired
     case denied
     case revoked
+    case missing
+    case indeterminate
 }
 
 public enum DailyDriveExportFailure: Error, Equatable, Sendable {
