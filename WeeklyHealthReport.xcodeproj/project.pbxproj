@@ -51,6 +51,7 @@
 		A0000000000000000000002C /* DailyDriveSessionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000030 /* DailyDriveSessionController.swift */; };
 		A0000000000000000000002D /* DailyExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000031 /* DailyExportView.swift */; };
 		A0000000000000000000002E /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000002 /* AppAuth */; };
+		A0000000000000000000004B /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000002 /* AppAuth */; };
 		A0000000000000000000002F /* DailyDriveExportCoordinatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000035 /* DailyDriveExportCoordinatorTests.swift */; };
 		A00000000000000000000030 /* WeeklyReportViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000036 /* WeeklyReportViewModelTests.swift */; };
 		A00000000000000000000031 /* NutritionExport.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000037 /* NutritionExport.swift */; };
@@ -81,6 +82,8 @@
 		A0000000000000000000004A /* MetricRowPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000050 /* MetricRowPresentation.swift */; };
 		P00000000000000000000001 /* DriveExportKit in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000004 /* DriveExportKit */; };
 		P00000000000000000000002 /* DriveExportKit in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000005 /* DriveExportKit */; };
+		P00000000000000000000003 /* DriveExportOAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000006 /* DriveExportOAuth */; };
+		P00000000000000000000004 /* DriveExportOAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000007 /* DriveExportOAuth */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -183,6 +186,7 @@
 				A00000000000000000000022 /* HealthKitUI.framework in Frameworks */,
 				A0000000000000000000002E /* AppAuth in Frameworks */,
 				P00000000000000000000001 /* DriveExportKit in Frameworks */,
+				P00000000000000000000003 /* DriveExportOAuth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -190,7 +194,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A0000000000000000000004B /* AppAuth in Frameworks */,
 				P00000000000000000000002 /* DriveExportKit in Frameworks */,
+				P00000000000000000000004 /* DriveExportOAuth in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -396,6 +402,7 @@
 			packageProductDependencies = (
 				X00000000000000000000002 /* AppAuth */,
 				X00000000000000000000004 /* DriveExportKit */,
+				X00000000000000000000006 /* DriveExportOAuth */,
 			);
 			productName = WeeklyHealthReport;
 			productReference = B0000000000000000000000C /* WeeklyHealthReport.app */;
@@ -416,7 +423,9 @@
 			);
 			name = WeeklyHealthReportTests;
 			packageProductDependencies = (
+				X00000000000000000000002 /* AppAuth */,
 				X00000000000000000000005 /* DriveExportKit */,
+				X00000000000000000000007 /* DriveExportOAuth */,
 			);
 			productName = WeeklyHealthReportTests;
 			productReference = B0000000000000000000000D /* WeeklyHealthReportTests.xctest */;
@@ -756,6 +765,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = X00000000000000000000003 /* XCLocalSwiftPackageReference "Packages/DriveExportKit" */;
 			productName = DriveExportKit;
+		};
+		X00000000000000000000006 /* DriveExportOAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = X00000000000000000000003 /* XCLocalSwiftPackageReference "Packages/DriveExportKit" */;
+			productName = DriveExportOAuth;
+		};
+		X00000000000000000000007 /* DriveExportOAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = X00000000000000000000003 /* XCLocalSwiftPackageReference "Packages/DriveExportKit" */;
+			productName = DriveExportOAuth;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

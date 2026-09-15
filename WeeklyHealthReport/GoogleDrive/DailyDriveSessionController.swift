@@ -1,46 +1,8 @@
 import AppAuth
 import DriveExportKit
+import DriveExportOAuth
 import Foundation
 import UIKit
-
-enum DailyDriveCredentialFailureClassifier {
-    // AppAuth 2.1.0: OIDErrorCodeTokenRefreshError and
-    // OIDErrorCodeOAuthAuthorizationAccessDenied, respectively.
-    private static let tokenRefreshErrorCode = -11
-    private static let accessDeniedErrorCode = -4
-
-    static func classify(_ error: Error?) -> DailyDriveCredentialFailure {
-        if let failure = error as? DailyDriveCredentialFailure {
-            return failure
-        }
-        guard let error else {
-            return .missing
-        }
-        let appAuthError = error as NSError
-        if appAuthError.domain == OIDGeneralErrorDomain,
-           appAuthError.code == tokenRefreshErrorCode {
-            return .expired
-        }
-        if appAuthError.domain == OIDOAuthAuthorizationErrorDomain,
-           appAuthError.code == accessDeniedErrorCode {
-            return .denied
-        }
-        return .indeterminate
-    }
-
-    static func accessToken(
-        _ accessToken: String?,
-        error: Error?
-    ) throws -> String {
-        if let error {
-            throw classify(error)
-        }
-        guard let accessToken else {
-            throw DailyDriveCredentialFailure.missing
-        }
-        return accessToken
-    }
-}
 
 enum DailyExportAttention: Equatable {
     case configurationUnavailable
@@ -313,14 +275,13 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     private let keychain: any DailyDriveSecurePersisting
+    private let oauthSession: any DriveOAuthSessionProviding
     private let drive: any DailyDriveSessionTransporting
     private let exportService: DailyHealthExportService
     private let identityStore: KeychainDailyDriveExportIdentityStore
     private let exportCoordinator: DailyDriveExportCoordinator
     private let nutritionSourceSelection: any NutritionSourceSelectionPersisting
     private let preparationOrchestrator = DailyExportPreparationOrchestrator()
-    private var authState: OIDAuthState?
-    private var authorizationFlow: OIDExternalUserAgentSession?
     private var account: DailyDriveAccount?
     private var partitions = DailyDestinationPartitions()
     private var trashedDestinationCandidate: DailyDestinationBinding?
@@ -342,7 +303,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         return partitions.destination(for: account.id)
     }
 
-    var hasStoredGoogleSession: Bool { authState != nil }
+    var hasStoredGoogleSession: Bool { oauthSession.hasStoredSession }
     var storedNutritionSourceBundleIdentifier: String? {
         selectedNutritionSourceBundleIdentifier
     }
@@ -370,9 +331,14 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         exportService: DailyHealthExportService,
         identityStore: KeychainDailyDriveExportIdentityStore,
         nutritionSourceSelection: any NutritionSourceSelectionPersisting,
-        notes: DailyNotesController
+        notes: DailyNotesController,
+        oauthSession: (any DriveOAuthSessionProviding)? = nil
     ) {
         self.keychain = keychain
+        self.oauthSession = oauthSession ?? AppAuthDriveSession(
+            secureStore: keychain,
+            authKey: Self.authKey
+        )
         self.drive = drive
         self.exportService = exportService
         self.identityStore = identityStore
@@ -383,6 +349,12 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             store: identityStore
         )
         super.init()
+        self.oauthSession.onAuthorizationError = { [weak self] failure in
+            guard let self else { return }
+            self.preview = nil
+            self.presentationState = .needsGoogleConnection
+            self.status = DailyDriveExportFailure.credentials(failure).userFacingLabel
+        }
         notes.onSavedNotesMutation = { [weak self] snapshot in
             self?.invalidatePreview(after: snapshot)
         }
@@ -391,7 +363,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         if !isConfigured {
             status = "Drive export is disabled until this app has its own local OAuth client configuration."
             presentationState = .needsAttention(.configurationUnavailable)
-        } else if authState == nil {
+        } else if !self.oauthSession.hasStoredSession {
             presentationState = .needsGoogleConnection
         }
     }
@@ -707,8 +679,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     func signOut() {
         guard !busy else { return }
         do {
-            try keychain.delete(account: Self.authKey)
-            authState = nil
+            try oauthSession.clear()
             account = nil
             clearTrashedDestinationCandidate()
             clearFileReplacementCandidate()
@@ -723,20 +694,18 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     func disconnect() async {
-        guard authState != nil else {
+        guard oauthSession.hasStoredSession else {
             status = "Nothing to revoke."
             return
         }
         await run("Revoking the Google grant…") {
-            guard let token = self.authState?.refreshToken
-                ?? self.authState?.lastTokenResponse?.accessToken else {
+            guard let token = self.oauthSession.revocationToken else {
                 throw Failure.noRefreshToken
             }
             let code = try await self.drive.revoke(token: token)
             switch DailyDisconnectTransition.afterRevocation(statusCode: code) {
             case .clearCredentialsPreserveDestinations:
-                try self.keychain.delete(account: Self.authKey)
-                self.authState = nil
+                try self.oauthSession.clear()
                 self.account = nil
                 self.clearTrashedDestinationCandidate()
                 self.clearFileReplacementCandidate()
@@ -752,7 +721,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     func resumeOAuthRedirect(_ url: URL) {
-        _ = authorizationFlow?.resumeExternalUserAgentFlow(with: url)
+        _ = oauthSession.resumeRedirect(url)
     }
 
     private struct AuthorizationResult {
@@ -773,51 +742,33 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         guard let presenter = UIApplication.shared.activeRootViewController else {
             throw Failure.noPresenter
         }
-        let service = OIDServiceConfiguration(
-            authorizationEndpoint: URL(string: "https://accounts.google.com/o/oauth2/v2/auth")!,
-            tokenEndpoint: URL(string: "https://oauth2.googleapis.com/token")!
-        )
-        let request = OIDAuthorizationRequest(
-            configuration: service,
-            clientId: configuration.clientID,
-            clientSecret: authorization.clientSecret,
-            scopes: authorization.scopes,
-            redirectURL: configuration.redirectURL,
-            responseType: authorization.responseType,
-            additionalParameters: authorization.additionalParameters
-        )
-        let newState: OIDAuthState = try await withCheckedThrowingContinuation { continuation in
-            authorizationFlow = OIDAuthState.authState(
-                byPresenting: request,
-                presenting: presenter
-            ) { state, error in
-                self.authorizationFlow = nil
-                if let state { continuation.resume(returning: state) }
-                else { continuation.resume(throwing: error ?? Failure.noToken) }
-            }
+        guard let userAgent = OIDExternalUserAgentIOS(presenting: presenter) else {
+            throw Failure.noPresenter
         }
-        try DailyDriveConsentPolicy.validateGrantedScopes(newState.scope)
-        let pickedID: String?
-        if purpose == .chooseFolder || purpose == .recoverFile {
-            pickedID = try DailyDriveConsentPolicy.selectedItemID(
-                from: newState.lastAuthorizationResponse.additionalParameters?["picked_file_ids"]
+        do {
+            let outcome = try await oauthSession.authorize(
+                authorization,
+                configuration: configuration,
+                userAgent: userAgent
             )
-        } else {
-            pickedID = nil
+            let account = try await drive.account(accessToken: outcome.accessToken)
+            if let expectedAccountID, account.id != expectedAccountID {
+                throw DailyDriveExportFailure.accountMismatch
+            }
+            try oauthSession.acceptPendingAuthorization()
+            return AuthorizationResult(
+                token: outcome.accessToken,
+                account: account,
+                pickedItemID: outcome.pickedItemID
+            )
+        } catch {
+            oauthSession.discardPendingAuthorization()
+            throw error
         }
-        guard let token = newState.lastTokenResponse?.accessToken else { throw Failure.noToken }
-        let account = try await drive.account(accessToken: token)
-        if let expectedAccountID, account.id != expectedAccountID {
-            throw DailyDriveExportFailure.accountMismatch
-        }
-        authState = newState
-        attachDelegates()
-        try saveAuthState()
-        return AuthorizationResult(token: token, account: account, pickedItemID: pickedID)
     }
 
     func restoreGoogleSession() async throws -> DailyExportGoogleContext {
-        guard authState != nil else {
+        guard oauthSession.hasStoredSession else {
             throw DailyExportPreparationFailure.freshGoogleConsentRequired
         }
         let token: String
@@ -1016,23 +967,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     private func freshAccessToken(forceRefresh: Bool = false) async throws -> String {
-        guard let authState else { throw DailyDriveCredentialFailure.missing }
-        if forceRefresh { authState.setNeedsTokenRefresh() }
-        return try await withCheckedThrowingContinuation { continuation in
-            authState.performAction { accessToken, _, error in
-                continuation.resume(with: Result {
-                    try DailyDriveCredentialFailureClassifier.accessToken(
-                        accessToken,
-                        error: error
-                    )
-                })
-            }
-        }
+        try await oauthSession.accessToken(forceRefresh: forceRefresh)
     }
 
     private func validateCurrentGrant() throws {
-        guard let authState else { throw Failure.noToken }
-        try DailyDriveConsentPolicy.validateGrantedScopes(authState.scope)
+        try oauthSession.validateCurrentGrant()
     }
 
     private func accept(
@@ -1126,15 +1065,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
 
     private func restoreLocalStateWithoutNetwork() {
         do {
-            if let data = try keychain.load(account: Self.authKey) {
-                authState = try NSKeyedUnarchiver.unarchivedObject(
-                    ofClass: OIDAuthState.self,
-                    from: data
-                )
-                attachDelegates()
-            }
+            try oauthSession.restoreWithoutNetwork()
         } catch {
-            authState = nil
             status = "Secure Google session state could not be restored; fresh consent is required."
         }
         do {
@@ -1164,20 +1096,6 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             lastVerifiedLabel = "Stored identity is ambiguous; explicit recovery required"
             identityRecoveryRequired = true
         }
-    }
-
-    private func attachDelegates() {
-        authState?.stateChangeDelegate = self
-        authState?.errorDelegate = self
-    }
-
-    private func saveAuthState() throws {
-        guard let authState else { return }
-        let data = try NSKeyedArchiver.archivedData(
-            withRootObject: authState,
-            requiringSecureCoding: true
-        )
-        try keychain.save(data, account: Self.authKey)
     }
 
     private func run(_ startingStatus: String, operation: () async throws -> Void) async {
@@ -1222,7 +1140,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             presentationState = .needsAttention(.notesUnavailable)
             status = "Saved notes are unavailable. No preview or Drive request was created."
         } catch let error as NSError
-            where error.domain == OIDGeneralErrorDomain && error.code == -3 {
+            where error.domain == AppAuthDriveSession.errorDomain
+                && error.code == AppAuthDriveSession.userCancelledAuthorizationFlowCode {
             status = "Consent or selection was cancelled. Existing state was preserved."
         } catch Failure.missingConfiguration {
             presentationState = .needsAttention(.configurationUnavailable)
@@ -1252,7 +1171,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         case .preparing:
             status = "Restoring the saved account, destination and nutrition source…"
         case .needsGoogleConnection:
-            status = authState == nil
+            status = !oauthSession.hasStoredSession
                 ? "Connect Google to continue. No Health or Drive request ran."
                 : "The stored Google session needs fresh consent before export can continue."
         case .needsNutritionSource:
@@ -1300,22 +1219,6 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         self.preview = nil
         presentationState = .needsAttention(.notesChanged)
         status = "Saved notes changed. Refresh and review a new preview before exporting."
-    }
-}
-
-extension DailyDriveSessionController: OIDAuthStateChangeDelegate, OIDAuthStateErrorDelegate {
-    nonisolated func didChange(_ state: OIDAuthState) {
-        Task { @MainActor in try? self.saveAuthState() }
-    }
-
-    nonisolated func authState(_ state: OIDAuthState, didEncounterAuthorizationError error: Error) {
-        Task { @MainActor in
-            try? self.saveAuthState()
-            self.preview = nil
-            self.presentationState = .needsGoogleConnection
-            let failure = DailyDriveCredentialFailureClassifier.classify(error)
-            self.status = DailyDriveExportFailure.credentials(failure).userFacingLabel
-        }
     }
 }
 

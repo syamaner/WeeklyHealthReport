@@ -26,8 +26,8 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Build HealthKit-free DriveExportKit
-        run: swift build --package-path Packages/DriveExportKit
+      - name: Build and test HealthKit-free DriveExportKit
+        run: swift test --package-path Packages/DriveExportKit
 
   drive-export-kit-isolation:
     name: DriveExportKit isolation
@@ -40,7 +40,7 @@ jobs:
 
       - name: Guard package isolation
         run: |
-          if grep -rnE "import HealthKit|HealthKitUI|DailyHealthExportEnvelope|NutritionCatalogue|DailyNotesPolicy|HealthKitClient" \
+          if grep -rnE "import HealthKit|import UIKit|HealthKitUI|DailyHealthExportEnvelope|NutritionCatalogue|DailyNotesPolicy|HealthKitClient" \
             Packages/DriveExportKit/Sources; then
             echo "DriveExportKit must not depend on HealthKit or app model types" >&2
             exit 1

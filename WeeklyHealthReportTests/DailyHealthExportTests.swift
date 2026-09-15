@@ -1,4 +1,5 @@
 import AppAuth
+import DriveExportOAuth
 import HealthKit
 import XCTest
 @testable import DriveExportKit
@@ -8,17 +9,17 @@ import XCTest
 final class DailyHealthExportTests: XCTestCase {
     func testProductionCredentialClassifierUsesOnlySupportedAppAuthEvidence() {
         XCTAssertEqual(
-            DailyDriveCredentialFailureClassifier.classify(nil),
+            AppAuthDriveSession.classify(nil),
             .missing
         )
         XCTAssertEqual(
-            DailyDriveCredentialFailureClassifier.classify(
+            AppAuthDriveSession.classify(
                 NSError(domain: OIDGeneralErrorDomain, code: -11)
             ),
             .expired
         )
         XCTAssertEqual(
-            DailyDriveCredentialFailureClassifier.classify(
+            AppAuthDriveSession.classify(
                 NSError(domain: OIDOAuthAuthorizationErrorDomain, code: -4)
             ),
             .denied
@@ -27,13 +28,13 @@ final class DailyHealthExportTests: XCTestCase {
 
     func testProductionCredentialClassifierKeepsAmbiguousAndUnknownErrorsIndeterminate() {
         XCTAssertEqual(
-            DailyDriveCredentialFailureClassifier.classify(
+            AppAuthDriveSession.classify(
                 NSError(domain: OIDOAuthTokenErrorDomain, code: -10)
             ),
             .indeterminate
         )
         XCTAssertEqual(
-            DailyDriveCredentialFailureClassifier.classify(
+            AppAuthDriveSession.classify(
                 NSError(domain: NSURLErrorDomain, code: NSURLErrorTimedOut)
             ),
             .indeterminate
@@ -49,7 +50,7 @@ final class DailyHealthExportTests: XCTestCase {
             .indeterminate
         ] {
             XCTAssertEqual(
-                DailyDriveCredentialFailureClassifier.classify(failure),
+                AppAuthDriveSession.classify(failure),
                 failure
             )
         }
@@ -57,7 +58,7 @@ final class DailyHealthExportTests: XCTestCase {
 
     func testProductionTokenResolutionNeverConvertsAnErrorIntoSuccess() throws {
         XCTAssertEqual(
-            try DailyDriveCredentialFailureClassifier.accessToken("token", error: nil),
+            try AppAuthDriveSession.resolveAccessToken("token", error: nil),
             "token"
         )
 
@@ -70,7 +71,7 @@ final class DailyHealthExportTests: XCTestCase {
             )
         ] {
             XCTAssertThrowsError(
-                try DailyDriveCredentialFailureClassifier.accessToken(token, error: error)
+                try AppAuthDriveSession.resolveAccessToken(token, error: error)
             ) { observed in
                 XCTAssertEqual(observed as? DailyDriveCredentialFailure, expected)
             }
