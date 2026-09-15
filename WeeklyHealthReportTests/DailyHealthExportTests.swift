@@ -1562,6 +1562,175 @@ final class DailyHealthExportTests: XCTestCase {
         )
     }
 
+    func testStatusCatalogueProvidesOneNonEmptyStatusForEveryAttention() {
+        let attentions: [DailyExportAttention] = [
+            .configurationUnavailable,
+            .googleUnavailable,
+            .destinationRequired,
+            .destinationMissingOrInaccessible,
+            .destinationTrashed,
+            .destinationSetupFailed,
+            .nutritionSourceUnavailable,
+            .healthDataUnavailable,
+            .notesUnavailable,
+            .notesChanged,
+            .canonicalRecovery,
+            .unexpected
+        ]
+
+        for attention in attentions {
+            let status = DailyExportStatusCatalogue.status(
+                for: .needsAttention(attention),
+                hasStoredSession: false
+            )
+            XCTAssertFalse(status.isEmpty, "Missing status for \(attention)")
+        }
+    }
+
+    func testStatusCatalogueUsesExplicitStoredSessionAvailability() {
+        XCTAssertEqual(
+            DailyExportStatusCatalogue.status(
+                for: .needsGoogleConnection,
+                hasStoredSession: false
+            ),
+            "Connect Google to continue. No Health or Drive request ran."
+        )
+        XCTAssertEqual(
+            DailyExportStatusCatalogue.status(
+                for: .needsGoogleConnection,
+                hasStoredSession: true
+            ),
+            "The stored Google session needs fresh consent before export can continue."
+        )
+    }
+
+    func testPreparationFailuresResolveThroughSharedAttentionStatuses() throws {
+        let cases: [(DailyExportPreparationFailure, DailyExportPresentationState)] = [
+            (.freshGoogleConsentRequired, .needsGoogleConnection),
+            (.googleUnavailable, .needsAttention(.googleUnavailable)),
+            (.destinationRequired, .needsAttention(.destinationRequired)),
+            (
+                .destinationMissingOrInaccessible,
+                .needsAttention(.destinationMissingOrInaccessible)
+            ),
+            (.destinationTrashed, .needsAttention(.destinationTrashed)),
+            (.destinationSetupFailed, .needsAttention(.destinationSetupFailed)),
+            (
+                .nutritionSourceUnavailable,
+                .needsAttention(.nutritionSourceUnavailable)
+            ),
+            (.healthDataUnavailable, .needsAttention(.healthDataUnavailable)),
+            (.notesUnavailable, .needsAttention(.notesUnavailable)),
+            (.notesChanged, .needsAttention(.notesChanged))
+        ]
+
+        for (failure, expectedState) in cases {
+            let resolution = DailyExportStatusCatalogue.resolve(failure)
+            let state = try XCTUnwrap(resolution.presentationState)
+            XCTAssertEqual(state, expectedState)
+            XCTAssertNil(resolution.statusOverride)
+
+            let runStatus = resolution.statusOverride ?? DailyExportStatusCatalogue.status(
+                for: state,
+                hasStoredSession: true
+            )
+            let presentationStatus = DailyExportStatusCatalogue.status(
+                for: expectedState,
+                hasStoredSession: true
+            )
+            XCTAssertEqual(runStatus, presentationStatus)
+        }
+    }
+
+    func testFailureResolutionPreservesPreviewInvalidationAndFailsClosed() throws {
+        for failure in [
+            DailyExportPreparationFailure.nutritionSourceUnavailable,
+            .notesUnavailable,
+            .notesChanged
+        ] {
+            XCTAssertTrue(DailyExportStatusCatalogue.resolve(failure).invalidatesPreview)
+        }
+
+        let resolution = DailyExportStatusCatalogue.resolve(ProbeError.queryFailed)
+        XCTAssertEqual(
+            try XCTUnwrap(resolution.presentationState),
+            .needsAttention(.unexpected)
+        )
+        XCTAssertNil(resolution.statusOverride)
+        XCTAssertFalse(resolution.invalidatesPreview)
+        XCTAssertEqual(
+            DailyExportStatusCatalogue.status(
+                for: .needsAttention(.unexpected),
+                hasStoredSession: false
+            ),
+            "Operation failed. No background retry was queued."
+        )
+    }
+
+    func testFailureResolutionPreservesTypedSafetyDetail() throws {
+        let policy = DailyExportStatusCatalogue.resolve(
+            DailyDriveConsentPolicy.Failure.trashed
+        )
+        XCTAssertEqual(
+            try XCTUnwrap(policy.presentationState),
+            .needsAttention(.destinationTrashed)
+        )
+        XCTAssertEqual(
+            policy.statusOverride,
+            "Rejected by consent/destination policy: the folder is trashed."
+        )
+
+        let credentials = DailyExportStatusCatalogue.resolve(
+            DailyDriveExportFailure.credentials(.revoked)
+        )
+        XCTAssertEqual(
+            try XCTUnwrap(credentials.presentationState),
+            .needsGoogleConnection
+        )
+        XCTAssertEqual(
+            credentials.statusOverride,
+            "Google credentials are revoked. Reconnect before exporting."
+        )
+
+        let canonicalRecovery = DailyExportStatusCatalogue.resolve(
+            DailyDriveExportFailure.remoteMissing
+        )
+        XCTAssertEqual(
+            try XCTUnwrap(canonicalRecovery.presentationState),
+            .needsAttention(.canonicalRecovery)
+        )
+        XCTAssertTrue(canonicalRecovery.statusOverride?.contains("explicit override") == true)
+
+        let sourceRequired = DailyExportStatusCatalogue.resolve(
+            DailyHealthExportError.nutritionSourceRequired
+        )
+        XCTAssertEqual(
+            try XCTUnwrap(sourceRequired.presentationState),
+            .needsNutritionSource
+        )
+        XCTAssertEqual(
+            sourceRequired.statusOverride,
+            "Choose a visible nutrition source before refreshing the preview."
+        )
+    }
+
+    func testConsolidatedAttentionWordingRetainsExistingAssurances() {
+        XCTAssertEqual(
+            DailyExportStatusCatalogue.status(
+                for: .needsAttention(.configurationUnavailable),
+                hasStoredSession: false
+            ),
+            "Drive export is disabled until this app has its own local OAuth client configuration."
+        )
+        XCTAssertEqual(
+            DailyExportStatusCatalogue.status(
+                for: .needsAttention(.nutritionSourceUnavailable),
+                hasStoredSession: false
+            ),
+            "The selected nutrition source is unavailable. Refresh sources and choose again; no unfiltered nutrition was used."
+        )
+    }
+
     @MainActor
     private func makePreparationSession(
         drive: any DailyDriveSessionTransporting,

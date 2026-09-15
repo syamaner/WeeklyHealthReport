@@ -169,31 +169,8 @@ final class DailyExportPreparationOrchestrator {
     }
 
     private func state(for error: Error) -> DailyExportPresentationState {
-        guard let failure = error as? DailyExportPreparationFailure else {
-            return .needsAttention(.unexpected)
-        }
-        switch failure {
-        case .freshGoogleConsentRequired:
-            return .needsGoogleConnection
-        case .googleUnavailable:
-            return .needsAttention(.googleUnavailable)
-        case .destinationRequired:
-            return .needsAttention(.destinationRequired)
-        case .destinationMissingOrInaccessible:
-            return .needsAttention(.destinationMissingOrInaccessible)
-        case .destinationTrashed:
-            return .needsAttention(.destinationTrashed)
-        case .destinationSetupFailed:
-            return .needsAttention(.destinationSetupFailed)
-        case .nutritionSourceUnavailable:
-            return .needsAttention(.nutritionSourceUnavailable)
-        case .healthDataUnavailable:
-            return .needsAttention(.healthDataUnavailable)
-        case .notesUnavailable:
-            return .needsAttention(.notesUnavailable)
-        case .notesChanged:
-            return .needsAttention(.notesChanged)
-        }
+        DailyExportStatusCatalogue.resolve(error).presentationState
+            ?? .needsAttention(.unexpected)
     }
 }
 
@@ -354,8 +331,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         selectedNutritionSourceBundleIdentifier = nutritionSourceSelection.loadBundleIdentifier()
         restoreLocalStateWithoutNetwork()
         if !isConfigured {
-            status = "Drive export is disabled until this app has its own local OAuth client configuration."
-            presentationState = .needsAttention(.configurationUnavailable)
+            applyPresentationState(.needsAttention(.configurationUnavailable))
         } else if !self.oauthSession.hasStoredSession {
             presentationState = .needsGoogleConnection
         }
@@ -383,7 +359,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     func prepareForPresentation() async {
         guard !busy, isConfigured else {
             if !isConfigured {
-                presentationState = .needsAttention(.configurationUnavailable)
+                applyPresentationState(.needsAttention(.configurationUnavailable))
             }
             return
         }
@@ -922,50 +898,20 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         defer { busy = false }
         do {
             try await operation()
-        } catch let failure as DailyDriveConsentPolicy.Failure {
-            presentationState = failure == .trashed
-                ? .needsAttention(.destinationTrashed)
-                : .needsAttention(.destinationMissingOrInaccessible)
-            status = "Rejected by consent/destination policy: \(failure.userFacingLabel)."
-        } catch let failure as DailyDriveExportFailure {
-            switch failure {
-            case .credentials, .credentialsRejected:
-                presentationState = .needsGoogleConnection
-            case .remoteMissing, .remoteTrashed, .remoteMoved,
-                 .destinationChangeRequiresMigration, .identityRecoveryAmbiguous:
-                presentationState = .needsAttention(.canonicalRecovery)
-            default:
-                presentationState = .needsAttention(.unexpected)
-            }
-            status = failure.userFacingLabel
-        } catch HealthDataError.unavailable {
-            presentationState = .needsAttention(.healthDataUnavailable)
-            status = "Health data is unavailable on this device. No JSON or Drive request was created."
-        } catch DailyHealthExportError.nutritionSourceRequired {
-            presentationState = .needsNutritionSource
-            status = "Choose a visible nutrition source before refreshing the preview."
-        } catch DailyHealthExportError.nutritionSourceUnavailable {
-            preview = nil
-            presentationState = .needsAttention(.nutritionSourceUnavailable)
-            status = "The selected nutrition source is unavailable. Refresh sources and choose again; no unfiltered nutrition was used."
-        } catch DailyHealthExportError.notesChanged {
-            preview = nil
-            presentationState = .needsAttention(.notesChanged)
-            status = "Saved notes changed during refresh. Refresh and review a new preview."
-        } catch DailyHealthExportError.notesUnavailable {
-            preview = nil
-            presentationState = .needsAttention(.notesUnavailable)
-            status = "Saved notes are unavailable. No preview or Drive request was created."
-        } catch let error as NSError
-            where error.domain == AppAuthDriveSession.errorDomain
-                && error.code == AppAuthDriveSession.userCancelledAuthorizationFlowCode {
-            status = "Consent or selection was cancelled. Existing state was preserved."
-        } catch Failure.missingConfiguration {
-            presentationState = .needsAttention(.configurationUnavailable)
-            status = "Drive export is disabled until this app has its own local OAuth client configuration."
         } catch {
-            presentationState = .needsAttention(.unexpected)
-            status = "Operation failed. No background retry was queued."
+            let resolution = DailyExportStatusCatalogue.resolve(error)
+            if resolution.invalidatesPreview {
+                preview = nil
+            }
+            if let state = resolution.presentationState {
+                presentationState = state
+                status = resolution.statusOverride ?? DailyExportStatusCatalogue.status(
+                    for: state,
+                    hasStoredSession: oauthSession.hasStoredSession
+                )
+            } else if let statusOverride = resolution.statusOverride {
+                status = statusOverride
+            }
         }
     }
 
@@ -985,43 +931,13 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     private func applyPresentationState(_ state: DailyExportPresentationState) {
         presentationState = state
         switch state {
-        case .preparing:
-            status = "Restoring the saved account, destination and nutrition source…"
-        case .needsGoogleConnection:
-            status = !oauthSession.hasStoredSession
-                ? "Connect Google to continue. No Health or Drive request ran."
-                : "The stored Google session needs fresh consent before export can continue."
-        case .needsNutritionSource:
-            status = "Choose a nutrition source explicitly. Opening this screen did not request Health access."
         case .readyToExport:
             applyReadyStateAfterPreview()
-        case .needsAttention(let attention):
-            switch attention {
-            case .configurationUnavailable:
-                status = "Drive export is disabled until this app has its own local OAuth client configuration."
-            case .googleUnavailable:
-                status = "The stored Google account could not be revalidated. No export ran."
-            case .destinationRequired:
-                status = "Choose an existing Drive folder or explicitly create a new export folder. No folder was created automatically."
-            case .destinationMissingOrInaccessible:
-                status = "The stored destination is missing or inaccessible. It was not replaced."
-            case .destinationTrashed:
-                status = "The stored destination is trashed. It was not replaced."
-            case .destinationSetupFailed:
-                status = "The destination could not be prepared. No duplicate folder or export was created."
-            case .nutritionSourceUnavailable:
-                status = "The exact saved nutrition source is no longer visible. No all-source fallback was used."
-            case .healthDataUnavailable:
-                status = "Health data is unavailable on this device. No JSON or Drive request was created."
-            case .notesUnavailable:
-                status = "Saved notes are unavailable. No preview or Drive request was created."
-            case .notesChanged:
-                status = "Saved notes changed during refresh. Refresh and review a new preview."
-            case .canonicalRecovery:
-                status = "Canonical file identity needs contextual recovery before export."
-            case .unexpected:
-                status = "Preparation failed. No export or background retry ran."
-            }
+        case .preparing, .needsGoogleConnection, .needsNutritionSource, .needsAttention:
+            status = DailyExportStatusCatalogue.status(
+                for: state,
+                hasStoredSession: oauthSession.hasStoredSession
+            )
         }
     }
 
@@ -1049,102 +965,12 @@ private extension DailyDriveSessionController.AuthorizationPurpose {
     }
 }
 
-private extension DailyDriveConsentPolicy.Failure {
-    var userFacingLabel: String {
-        switch self {
-        case .missingDriveFileScope: "drive.file was not granted"
-        case .unexpectedScope: "an unexpected broader or identity scope was returned"
-        case .invalidPickerSelection: "selection did not return exactly one item"
-        case .accountMismatch: "account mismatch"
-        case .notAppAuthorized: "the folder was not explicitly authorised for this app"
-        case .notFolder: "the selection is not a folder"
-        case .trashed: "the folder is trashed"
-        case .sharedDriveUnsupported: "Shared Drives are unsupported"
-        case .notWritable: "the folder cannot accept children"
-        }
-    }
-}
-
 extension DailyDriveExportResult {
 
     var authorizesNoteCleanup: Bool {
         switch self {
         case .verified, .unchangedVerified: true
         case .cancelledBeforeSubmission, .cancelledAfterSubmissionVerified: false
-        }
-    }
-}
-
-private extension DailyDriveExportResult {
-
-    var verifiedLabel: String {
-        switch self {
-        case .verified(let dataAsOf, _), .unchangedVerified(let dataAsOf),
-             .cancelledAfterSubmissionVerified(let dataAsOf, _):
-            "Verified through \(dataAsOf)"
-        case .cancelledBeforeSubmission:
-            "No new verified upload"
-        }
-    }
-
-    var userFacingLabel: String {
-        switch self {
-        case .verified(let dataAsOf, _):
-            "Upload metadata and bytes verified remotely for \(dataAsOf)."
-        case .unchangedVerified(let dataAsOf):
-            "The unchanged \(dataAsOf) snapshot was reverified; no write ran."
-        case .cancelledBeforeSubmission:
-            "Cancelled before submission. The last verified Drive file was preserved."
-        case .cancelledAfterSubmissionVerified(let dataAsOf, _):
-            "Cancellation followed submission; reconciliation verified \(dataAsOf)."
-        }
-    }
-}
-
-private extension DailyDriveRecoveryResult {
-    var verifiedLabel: String {
-        switch self {
-        case .recovered(let dataAsOf), .alreadyTracked(let dataAsOf),
-             .migrated(let dataAsOf):
-            "Recovered and verified through \(dataAsOf)"
-        }
-    }
-
-    var userFacingLabel: String {
-        switch self {
-        case .recovered(let dataAsOf):
-            "Explicit recovery verified the selected canonical file through \(dataAsOf)."
-        case .alreadyTracked(let dataAsOf):
-            "The selected canonical file was already tracked and reverified through \(dataAsOf)."
-        case .migrated(let dataAsOf):
-            "The selected canonical file was safely migrated to this destination and verified through \(dataAsOf)."
-        }
-    }
-}
-
-private extension DailyDriveExportFailure {
-    var userFacingLabel: String {
-        switch self {
-        case .busy: "Another export or reconciliation is active."
-        case .invalidPayload: "The preview is not canonical daily-export JSON."
-        case .staleSnapshot: "A stale or conflicting snapshot was rejected; the last verified file is unchanged."
-        case .destinationChangeRequiresMigration: "The selected destination differs from this date's canonical file identity. Explicitly recover that JSON file to migrate it safely."
-        case .accountMismatch: "Export is blocked by a Google account mismatch."
-        case .identityRecoveryAmbiguous: "Export is blocked because canonical identity recovery is ambiguous."
-        case .staleCompletion: "A stale completion was rejected; the last verified file was preserved."
-        case .credentials(let reason): "Google credentials are \(reason.rawValue). Reconnect before exporting."
-        case .credentialsRejected: "Google credentials were expired, denied or revoked. Reconnect before exporting."
-        case .permissionDenied: "Google denied the operation. No broader permission will be requested."
-        case .quotaExceeded: "Drive quota is exhausted. No retry was queued."
-        case .rateLimited: "Drive rate-limited the request. No background retry was queued."
-        case .remoteMissing: "The stored Drive file is missing or inaccessible. Confirm an explicit override before creating a replacement."
-        case .remoteMoved: "The canonical file moved outside the validated destination. Choose its current folder, then explicitly recover that JSON file."
-        case .remoteTrashed: "The stored file is trashed. Confirm replacement before creating a new file ID."
-        case .remoteMetadataMismatch: "Remote metadata did not match the canonical identity."
-        case .remoteContentMismatch: "Remote bytes did not match the reviewed preview."
-        case .unresolvedRequest: "The submitted request is unresolved. New writes are blocked; no retry is queued."
-        case .persistenceFailure: "Secure export identity state could not be persisted."
-        case .transportFailure: "The Drive request failed. Upload is unverified and no retry was queued."
         }
     }
 }
