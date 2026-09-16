@@ -217,14 +217,16 @@ xcodebuild -project Tools/SyntheticDriveExport/SyntheticDriveExport.xcodeproj \
   CODE_SIGNING_ALLOWED=NO build analyze
 ```
 
-The slice-B checks use a deterministic in-memory Drive server. They cover persisted
-pre-generated IDs, same-ID uncertain-create retry, stored-ID updates, exact remote
-metadata/content verification, serial admission, forced token refresh, cancellation
-on both sides of submission, unresolved blocking, relaunch, explicit recovery,
-expired/denied/revoked credentials, account/destination isolation, stale completion,
-last-verified preservation and no offline queue. Mocked HTTP checks cover the exact
-generate/create/update/get request shapes and structured errors. None proves Google,
-Keychain runtime or device behaviour.
+The slice-B checks use a deterministic in-memory Drive server. The coordinator check
+keeps the fixed-fixture admission policy, one create/update/unchanged happy path, and
+the bounded adverse-probe controls (same-ID lost-response retry, cancellation before
+and after submission, unresolved submission, and lost-response reconciliation).
+The app's `DailyDriveExportCoordinatorTests` retain the wider shipping-coordinator
+regression matrix: remote metadata/content verification, serial admission, forced
+token refresh, relaunch, explicit recovery, credential and destination isolation,
+stale completion, last-verified preservation and no offline queue. Mocked HTTP
+checks cover the exact generate/create/update/get request shapes and structured
+errors. None proves Google, Keychain runtime or device behaviour.
 
 The recorded build-4 run proved slice A, including both destination flows,
 unrelated-file denial and two-account isolation. The separately authorised build-5
