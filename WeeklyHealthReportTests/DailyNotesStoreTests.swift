@@ -215,6 +215,139 @@ final class DailyNotesStoreTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: file), corrupt)
     }
 
+    func testProtectedFileStoreNeverTreatsLockedReadAsMissingDocument() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appending(path: "WeeklyHealthReportNotesProtected-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let file = directory.appending(path: "notes.json")
+        var available = true
+        let store = FileDailyNotesStore(
+            fileURL: file,
+            isProtectedDataAvailable: { available }
+        )
+        let original = DailyNotesDocument()
+        try store.save(original)
+        let bytes = try Data(contentsOf: file)
+
+        available = false
+        XCTAssertThrowsError(try store.load()) { error in
+            XCTAssertTrue(error is DailyNotesStorageError)
+        }
+        XCTAssertThrowsError(try store.save(original)) { error in
+            XCTAssertTrue(error is DailyNotesStorageError)
+        }
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+        available = true
+        XCTAssertEqual(try store.load(), original)
+    }
+
+    func testProtectedInitialReadRecoversSavedNotesOnActivation() throws {
+        let store = MemoryDailyNotesStore()
+        let now = londonDate(2026, 9, 8, 10)
+        let first = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertTrue(first.beginNewDraft())
+        XCTAssertTrue(first.updateDraftText("Existing note"))
+        XCTAssertTrue(first.saveDraft())
+        let original = try XCTUnwrap(store.document)
+
+        store.protectedDataAvailable = false
+        let relaunched = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertEqual(relaunched.storageState, .protectedDataUnavailable)
+        XCTAssertFalse(relaunched.beginNewDraft())
+        XCTAssertEqual(store.document, original)
+
+        store.protectedDataAvailable = true
+        relaunched.activate()
+        XCTAssertTrue(relaunched.storageAvailable)
+        XCTAssertEqual(relaunched.notes.map(\.text), ["Existing note"])
+        XCTAssertEqual(store.document, original)
+    }
+
+    func testProtectedDebouncedDraftRetainsLastGoodDocumentAndRecovers() async throws {
+        let store = MemoryDailyNotesStore()
+        let now = londonDate(2026, 9, 8, 10)
+        let controller = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertTrue(controller.beginNewDraft())
+        let lastGood = try XCTUnwrap(store.document)
+        XCTAssertTrue(controller.updateDraftText("Unfinished text"))
+        store.protectedDataAvailable = false
+
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertEqual(controller.storageState, .protectedDataUnavailable)
+        XCTAssertEqual(store.document, lastGood)
+        XCTAssertEqual(controller.currentDraft?.text, "Unfinished text")
+        XCTAssertFalse(controller.saveDraft())
+
+        store.protectedDataAvailable = true
+        controller.activate()
+        XCTAssertTrue(controller.storageAvailable)
+        XCTAssertEqual(store.document?.draft?.text, "Unfinished text")
+        XCTAssertTrue(controller.saveDraft())
+        XCTAssertEqual(store.document?.savedNotes(for: controller.currentDayID).map(\.text), ["Unfinished text"])
+    }
+
+    func testBackgroundFlushDuringProtectionResumesOnActivation() throws {
+        let store = MemoryDailyNotesStore()
+        let now = londonDate(2026, 9, 8, 10)
+        let controller = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertTrue(controller.beginNewDraft())
+        let lastGood = try XCTUnwrap(store.document)
+        XCTAssertTrue(controller.updateDraftText("Background draft"))
+        store.protectedDataAvailable = false
+        controller.flushDraft()
+
+        XCTAssertEqual(controller.storageState, .protectedDataUnavailable)
+        XCTAssertEqual(store.document, lastGood)
+        store.protectedDataAvailable = true
+        controller.activate()
+
+        XCTAssertEqual(controller.currentDraft?.text, "Background draft")
+        XCTAssertEqual(store.document?.draft?.text, "Background draft")
+    }
+
+    func testProtectedSavedMutationDoesNotClaimSuccess() throws {
+        let store = MemoryDailyNotesStore()
+        let now = londonDate(2026, 9, 8, 10)
+        let controller = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertTrue(controller.beginNewDraft())
+        XCTAssertTrue(controller.updateDraftText("Saved only after unlock"))
+        controller.flushDraft()
+        let lastGood = try XCTUnwrap(store.document)
+        store.protectedDataAvailable = false
+
+        XCTAssertFalse(controller.saveDraft())
+        XCTAssertEqual(controller.storageState, .protectedDataUnavailable)
+        XCTAssertEqual(store.document, lastGood)
+        XCTAssertTrue(controller.notes.isEmpty)
+
+        store.protectedDataAvailable = true
+        controller.retryStorageAccess()
+        XCTAssertTrue(controller.saveDraft())
+        XCTAssertEqual(controller.notes.map(\.text), ["Saved only after unlock"])
+    }
+
+    func testRecoveryDoesNotOverwriteDocumentChangedWhileDraftWasUnavailable() throws {
+        let store = MemoryDailyNotesStore()
+        let now = londonDate(2026, 9, 8, 10)
+        let controller = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertTrue(controller.beginNewDraft())
+        XCTAssertTrue(controller.updateDraftText("Unsaved text"))
+        store.protectedDataAvailable = false
+        controller.flushDraft()
+        XCTAssertEqual(controller.storageState, .protectedDataUnavailable)
+
+        store.protectedDataAvailable = true
+        var changed = try XCTUnwrap(store.document)
+        try changed.updateDraft(text: "Other revision", now: now)
+        store.document = changed
+        controller.retryStorageAccess()
+
+        XCTAssertEqual(controller.storageState, .failed)
+        XCTAssertEqual(store.document, changed)
+        XCTAssertEqual(controller.currentDraft?.text, "Unsaved text")
+        XCTAssertFalse(controller.saveDraft())
+    }
+
     func testDateAndTimeZoneChangeRequireExplicitDraftRecovery() throws {
         let store = MemoryDailyNotesStore()
         let londonNow = londonDate(2026, 9, 8, 23)
@@ -287,10 +420,15 @@ final class DailyNotesStoreTests: XCTestCase {
 private final class MemoryDailyNotesStore: DailyNotesPersisting {
     var document: DailyNotesDocument?
     var failSaves = false
+    var protectedDataAvailable = true
 
-    func load() throws -> DailyNotesDocument? { document }
+    func load() throws -> DailyNotesDocument? {
+        guard protectedDataAvailable else { throw DailyNotesStorageError.protectedDataUnavailable }
+        return document
+    }
 
     func save(_ document: DailyNotesDocument) throws {
+        guard protectedDataAvailable else { throw DailyNotesStorageError.protectedDataUnavailable }
         if failSaves { throw CocoaError(.fileWriteUnknown) }
         self.document = document
     }

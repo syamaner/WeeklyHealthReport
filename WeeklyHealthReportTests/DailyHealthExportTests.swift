@@ -522,6 +522,31 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertFalse(text.contains("\"audio\""))
     }
 
+    func testProtectedNotesBlockPreviewBeforeHealthQueries() async throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 8, calendar: calendar)
+        let store = FileDailyNotesStore(
+            fileURL: FileManager.default.temporaryDirectory
+                .appending(path: "locked-notes-\(UUID().uuidString).json"),
+            isProtectedDataAvailable: { false }
+        )
+        let provider = RecordingDailyProvider { self.emptyInputs(window: $0) }
+        let service = DailyHealthExportService(
+            healthData: provider,
+            notesStore: store,
+            calendar: calendar,
+            now: { cutoff }
+        )
+
+        do {
+            _ = try await service.refresh(
+                nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier
+            )
+            XCTFail("Protected notes must block preview preparation")
+        } catch DailyHealthExportError.notesUnavailable {}
+        XCTAssertNil(provider.window)
+    }
+
     func testServiceRejectsNoteMutationDuringHealthRefresh() async throws {
         let calendar = londonCalendar()
         let cutoff = date(2026, 9, 6, 8, calendar: calendar)

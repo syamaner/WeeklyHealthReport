@@ -27,6 +27,16 @@ struct WeeklyHealthReportApp: App {
                 medicationAccess: MedicationAccessRequest(store: healthStore)
             )
                 .onOpenURL { dailyExport.resumeOAuthRedirect($0) }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIApplication.protectedDataWillBecomeUnavailableNotification
+                )) { _ in
+                    dailyExport.notes.protectedDataWillBecomeUnavailable()
+                }
+                .onReceive(NotificationCenter.default.publisher(
+                    for: UIApplication.protectedDataDidBecomeAvailableNotification
+                )) { _ in
+                    dailyExport.notes.retryStorageAccess()
+                }
         }
     }
 }

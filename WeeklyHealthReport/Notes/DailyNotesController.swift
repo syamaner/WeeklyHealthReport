@@ -4,10 +4,30 @@ import Foundation
 
 @MainActor
 final class DailyNotesController: ObservableObject {
+    enum StorageState: Equatable {
+        case available
+        case protectedDataUnavailable
+        case failed
+    }
+
     @Published private(set) var document = DailyNotesDocument()
     @Published private(set) var currentDayID: DailyNoteDayID
     @Published private(set) var errorMessage: String?
-    @Published private(set) var storageAvailable = true
+    @Published private(set) var storageState: StorageState = .available
+
+    var storageAvailable: Bool {
+        storageState == .available && store.protectedDataAvailable
+    }
+    var storageStatusMessage: String? {
+        switch storageState {
+        case .available:
+            return store.protectedDataAvailable ? nil : Self.protectedDataMessage
+        case .protectedDataUnavailable:
+            return Self.protectedDataMessage
+        case .failed:
+            return "Saved notes could not be opened. The file was left unchanged."
+        }
+    }
 
     var onSavedNotesMutation: ((DailyNotesSnapshot) -> Void)?
 
@@ -32,6 +52,10 @@ final class DailyNotesController: ObservableObject {
     private var calendar: Calendar
     private let now: () -> Date
     private var draftSaveTask: Task<Void, Never>?
+    private var persistedDocument: DailyNotesDocument?
+    private var pendingDraftSave = false
+    private static let protectedDataMessage =
+        "Notes are temporarily unavailable while this device is locked. Unlock it, then retry."
 
     init(
         store: any DailyNotesPersisting,
@@ -50,6 +74,9 @@ final class DailyNotesController: ObservableObject {
     }
 
     func activate() {
+        if storageState == .protectedDataUnavailable {
+            retryStorageAccess()
+        }
         flushDraft()
         let previousDayID = currentDayID
         currentDayID = Self.dayID(at: now(), calendar: calendar)
@@ -68,7 +95,7 @@ final class DailyNotesController: ObservableObject {
 
     @discardableResult
     func beginOrResumeDraft() -> Bool {
-        guard storageAvailable else { return false }
+        guard requireStorageAccess() else { return false }
         if currentDraft != nil {
             errorMessage = nil
             return true
@@ -85,11 +112,12 @@ final class DailyNotesController: ObservableObject {
 
     @discardableResult
     func updateDraftText(_ text: String) -> Bool {
-        guard storageAvailable else { return false }
+        guard requireStorageAccess() else { return false }
         var candidate = document
         do {
             try candidate.updateDraft(text: text, now: now())
             document = candidate
+            pendingDraftSave = true
             errorMessage = nil
             scheduleDraftSave()
             return true
@@ -143,12 +171,20 @@ final class DailyNotesController: ObservableObject {
     func flushDraft() {
         draftSaveTask?.cancel()
         draftSaveTask = nil
-        guard storageAvailable, document.draft != nil else { return }
+        guard pendingDraftSave else { return }
+        guard storageAvailable else {
+            if !store.protectedDataAvailable { markProtectedDataUnavailable() }
+            return
+        }
         do {
             try store.save(document)
+            persistedDocument = document
+            pendingDraftSave = false
             errorMessage = nil
         } catch {
-            errorMessage = "Draft could not be saved. The previous saved notes file was preserved."
+            if !handleProtectedDataError(error) {
+                errorMessage = "Draft could not be saved. The previous saved notes file was preserved."
+            }
         }
     }
 
@@ -164,7 +200,7 @@ final class DailyNotesController: ObservableObject {
 
     @discardableResult
     func markVerified(snapshot: DailyNotesSnapshot, payload: Data) -> Bool {
-        guard storageAvailable else { return false }
+        guard requireStorageAccess() else { return false }
         var candidate = document
         do {
             try candidate.markVerified(
@@ -174,13 +210,17 @@ final class DailyNotesController: ObservableObject {
             )
             try store.save(candidate)
             document = candidate
+            persistedDocument = candidate
+            pendingDraftSave = false
             errorMessage = nil
             return true
         } catch DailyNotesError.staleRevision {
             errorMessage = "Drive verified an earlier note revision. Current notes were kept for another preview."
             return false
         } catch {
-            errorMessage = "Drive verified the export, but its note-cleanup marker could not be saved. Notes were kept."
+            if !handleProtectedDataError(error) {
+                errorMessage = "Drive verified the export, but its note-cleanup marker could not be saved. Notes were kept."
+            }
             return false
         }
     }
@@ -189,20 +229,66 @@ final class DailyNotesController: ObservableObject {
         errorMessage = nil
     }
 
+    func protectedDataWillBecomeUnavailable() {
+        flushDraft()
+        markProtectedDataUnavailable()
+    }
+
+    func retryStorageAccess() {
+        guard storageState == .protectedDataUnavailable,
+              store.protectedDataAvailable else { return }
+        do {
+            let loaded = try store.load() ?? DailyNotesDocument()
+            guard loaded.version == DailyNotesDocument.formatVersion else {
+                throw DailyNotesError.corruptStorage
+            }
+            if pendingDraftSave {
+                guard loaded == persistedDocument || loaded == document else {
+                    storageState = .failed
+                    errorMessage = "Saved notes changed while the draft was unavailable. Nothing was overwritten."
+                    return
+                }
+                if loaded != document {
+                    try store.save(document)
+                }
+                persistedDocument = document
+                pendingDraftSave = false
+            } else {
+                let previousSnapshot = document.snapshot(for: currentDayID)
+                document = loaded
+                persistedDocument = loaded
+                let restoredSnapshot = loaded.snapshot(for: currentDayID)
+                if previousSnapshot != restoredSnapshot {
+                    onSavedNotesMutation?(restoredSnapshot)
+                }
+            }
+            storageState = .available
+            errorMessage = nil
+            cleanUpVerifiedPriorDays()
+        } catch {
+            if !handleProtectedDataError(error) {
+                storageState = .failed
+                errorMessage = "Saved notes could not be opened. The file was left unchanged."
+            }
+        }
+    }
+
     private func mutateAndPersistDraft(
         _ mutation: (inout DailyNotesDocument) throws -> Void
     ) -> Bool {
-        guard storageAvailable else { return false }
+        guard requireStorageAccess() else { return false }
         draftSaveTask?.cancel()
         var candidate = document
         do {
             try mutation(&candidate)
             try store.save(candidate)
             document = candidate
+            persistedDocument = candidate
+            pendingDraftSave = false
             errorMessage = nil
             return true
         } catch {
-            errorMessage = Self.message(for: error)
+            if !handleProtectedDataError(error) { errorMessage = Self.message(for: error) }
             return false
         }
     }
@@ -210,18 +296,20 @@ final class DailyNotesController: ObservableObject {
     private func mutateSavedNotes(
         _ mutation: (inout DailyNotesDocument) throws -> DailyNotesSnapshot
     ) -> Bool {
-        guard storageAvailable else { return false }
+        guard requireStorageAccess() else { return false }
         draftSaveTask?.cancel()
         var candidate = document
         do {
             let snapshot = try mutation(&candidate)
             try store.save(candidate)
             document = candidate
+            persistedDocument = candidate
+            pendingDraftSave = false
             errorMessage = nil
             onSavedNotesMutation?(snapshot)
             return true
         } catch {
-            errorMessage = Self.message(for: error)
+            if !handleProtectedDataError(error) { errorMessage = Self.message(for: error) }
             return false
         }
     }
@@ -242,10 +330,13 @@ final class DailyNotesController: ObservableObject {
                 throw DailyNotesError.corruptStorage
             }
             document = loaded
+            persistedDocument = loaded
             cleanUpVerifiedPriorDays()
         } catch {
-            storageAvailable = false
-            errorMessage = "Saved notes could not be opened. The file was left unchanged."
+            if !handleProtectedDataError(error) {
+                storageState = .failed
+                errorMessage = "Saved notes could not be opened. The file was left unchanged."
+            }
         }
     }
 
@@ -257,9 +348,31 @@ final class DailyNotesController: ObservableObject {
         do {
             try store.save(candidate)
             document = candidate
+            persistedDocument = candidate
         } catch {
-            errorMessage = "Verified prior-day notes could not be cleaned up and were kept."
+            if !handleProtectedDataError(error) {
+                errorMessage = "Verified prior-day notes could not be cleaned up and were kept."
+            }
         }
+    }
+
+    private func markProtectedDataUnavailable() {
+        storageState = .protectedDataUnavailable
+        errorMessage = Self.protectedDataMessage
+    }
+
+    private func requireStorageAccess() -> Bool {
+        if !store.protectedDataAvailable { markProtectedDataUnavailable() }
+        return storageAvailable
+    }
+
+    @discardableResult
+    private func handleProtectedDataError(_ error: Error) -> Bool {
+        guard error is DailyNotesStorageError || !store.protectedDataAvailable else {
+            return false
+        }
+        markProtectedDataUnavailable()
+        return true
     }
 
     private static func dayID(at date: Date, calendar: Calendar) -> DailyNoteDayID {

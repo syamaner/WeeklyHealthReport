@@ -66,6 +66,11 @@ exported; unfinished drafts never serialize.
 - Notes and the one unfinished draft use an atomically replaced Codable document in
   Application Support with complete iOS file protection. Note text is not stored in
   UserDefaults, Keychain, logs, analytics, notifications or Google identity metadata.
+- While protected data is unavailable, the app treats notes as temporarily inaccessible,
+  never as an empty or corrupt document. It blocks note edits and export of a prepared
+  preview. An unsaved in-memory draft is retained until the protected file can be
+  reloaded and safely saved; activation, unlock and an explicit Retry can resume it.
+  A changed on-disk document blocks automatic replacement and requires investigation.
 - The editor's dedicated microphone uses `SFSpeechRecognizer` with a live
   `SFSpeechAudioBufferRecognitionRequest` only after a user tap. It requires
   `supportsOnDeviceRecognition`, sets `requiresOnDeviceRecognition` on every request

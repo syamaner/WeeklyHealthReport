@@ -8,6 +8,15 @@ struct DailyNotesView: View {
 
     var body: some View {
         List {
+            if let status = controller.storageStatusMessage {
+                Section {
+                    Text(status)
+                        .foregroundStyle(.orange)
+                    if controller.storageState == .protectedDataUnavailable {
+                        Button("Retry notes access") { controller.retryStorageAccess() }
+                    }
+                }
+            }
             if let recoverable = controller.recoverableDraft {
                 Section("Draft from \(recoverable.dayID.reportDate)") {
                     Text(recoverable.text.isEmpty ? "Empty draft" : recoverable.text)
@@ -17,9 +26,11 @@ struct DailyNotesView: View {
                             openEditor()
                         }
                     }
+                    .disabled(!controller.storageAvailable)
                     Button("Discard old draft", role: .destructive) {
                         _ = controller.discardDraft()
                     }
+                    .disabled(!controller.storageAvailable)
                     Text("The draft keeps its original reporting date until you choose one of these actions.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -41,6 +52,7 @@ struct DailyNotesView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .disabled(!controller.storageAvailable)
                     Text("Closing the editor keeps this draft on this device. Drafts are never exported.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -48,7 +60,10 @@ struct DailyNotesView: View {
             }
 
             Section("Saved for \(controller.currentDayID.reportDate)") {
-                if controller.notes.isEmpty {
+                if !controller.storageAvailable {
+                    Text("Saved notes unavailable")
+                        .foregroundStyle(.secondary)
+                } else if controller.notes.isEmpty {
                     Text("No notes")
                         .foregroundStyle(.secondary)
                 } else {
@@ -68,6 +83,7 @@ struct DailyNotesView: View {
                                         .foregroundStyle(.orange)
                                 }
                             }
+                            .disabled(!controller.storageAvailable)
                         } else {
                             Button {
                                 if controller.beginEditing(noteID: note.id) {
@@ -78,10 +94,12 @@ struct DailyNotesView: View {
                                     .foregroundStyle(.primary)
                                     .multilineTextAlignment(.leading)
                             }
+                            .disabled(!controller.storageAvailable)
                             .swipeActions(allowsFullSwipe: false) {
                                 Button("Delete", role: .destructive) {
                                     notePendingDeletion = note
                                 }
+                                .disabled(!controller.storageAvailable)
                             }
                         }
                     }
@@ -319,6 +337,7 @@ struct DailyNoteEditorView: View {
                 TextEditor(text: text)
                     .frame(minHeight: 180)
                     .focused($noteTextIsFocused)
+                    .disabled(!controller.storageAvailable)
                 HStack {
                     Spacer()
                     Text("\(characterCount) / \(DailyNotesPolicy.maximumCharactersPerNote)")
@@ -335,13 +354,23 @@ struct DailyNoteEditorView: View {
                     if controller.saveDraft() { dismiss() }
                 }
                 .disabled(
-                    controller.currentDraft?.text
+                    !controller.storageAvailable
+                        || controller.currentDraft?.text
                         .trimmingCharacters(in: .whitespacesAndNewlines)
                         .isEmpty != false
                         || speechController.hasReviewTranscript
                 )
                 Button("Discard Draft", role: .destructive) {
                     showingDiscardConfirmation = true
+                }
+                .disabled(!controller.storageAvailable)
+                if let status = controller.storageStatusMessage {
+                    Text(status)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                    if controller.storageState == .protectedDataUnavailable {
+                        Button("Retry notes access") { controller.retryStorageAccess() }
+                    }
                 }
             } footer: {
                 Text("Intentional line breaks are preserved. Leading and trailing whitespace is removed when you save.")
@@ -396,6 +425,7 @@ struct DailyNoteEditorView: View {
                 controller.flushDraft()
             } else if phase == .active {
                 isOpeningApplicationSettings = false
+                controller.activate()
                 speechController.retryAvailability()
             }
         }

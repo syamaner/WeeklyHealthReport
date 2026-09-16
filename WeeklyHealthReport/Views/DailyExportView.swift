@@ -189,15 +189,18 @@ struct DailyExportView: View {
 
     private var notesSection: some View {
         Section("Today’s notes") {
-            LabeledContent("Saved", value: notes.noteCountLabel)
+            LabeledContent("Saved", value: notes.storageAvailable ? notes.noteCountLabel : "Unavailable")
             NavigationLink("Manage notes", value: WeeklyReportRoute.notes)
                 .disabled(!notes.storageAvailable)
             Text("Drafts remain local. A saved-note change invalidates the prepared snapshot and disables export until refresh finishes again.")
                 .font(.caption)
-            if !notes.storageAvailable {
-                Text("Saved notes are unavailable. The existing file was left unchanged.")
+            if let status = notes.storageStatusMessage {
+                Text(status)
                     .font(.caption)
                     .foregroundStyle(.red)
+                if notes.storageState == .protectedDataUnavailable {
+                    Button("Retry notes access") { notes.retryStorageAccess() }
+                }
             }
         }
     }
