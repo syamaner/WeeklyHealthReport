@@ -1,6 +1,12 @@
 import Foundation
+import UIKit
+
+enum DailyNotesStorageError: Error {
+    case protectedDataUnavailable
+}
 
 protocol DailyNotesPersisting {
+    var protectedDataAvailable: Bool { get }
     func load() throws -> DailyNotesDocument?
     func save(_ document: DailyNotesDocument) throws
 }
@@ -11,6 +17,8 @@ struct EmptyDailyNotesStore: DailyNotesPersisting {
 }
 
 extension DailyNotesPersisting {
+    var protectedDataAvailable: Bool { true }
+
     func snapshot(for dayID: DailyNoteDayID) throws -> DailyNotesSnapshot {
         let document = try load() ?? DailyNotesDocument()
         guard document.version == DailyNotesDocument.formatVersion else {
@@ -27,31 +35,54 @@ extension DailyNotesPersisting {
 struct FileDailyNotesStore: DailyNotesPersisting {
     private let fileURL: URL
     private let fileManager: FileManager
+    private let isProtectedDataAvailable: () -> Bool
+
+    var protectedDataAvailable: Bool { isProtectedDataAvailable() }
 
     init(
         fileURL: URL = URL.applicationSupportDirectory
             .appending(path: "WeeklyHealthReport", directoryHint: .isDirectory)
             .appending(path: "daily-notes-v1.json", directoryHint: .notDirectory),
-        fileManager: FileManager = .default
+        fileManager: FileManager = .default,
+        isProtectedDataAvailable: @escaping () -> Bool = {
+            UIApplication.shared.isProtectedDataAvailable
+        }
     ) {
         self.fileURL = fileURL
         self.fileManager = fileManager
+        self.isProtectedDataAvailable = isProtectedDataAvailable
     }
 
     func load() throws -> DailyNotesDocument? {
-        guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
-        let data = try Data(contentsOf: fileURL)
-        let document = try JSONDecoder().decode(DailyNotesDocument.self, from: data)
-        guard document.version == DailyNotesDocument.formatVersion else {
-            throw DailyNotesError.corruptStorage
+        guard protectedDataAvailable else { throw DailyNotesStorageError.protectedDataUnavailable }
+        do {
+            guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
+            let data = try Data(contentsOf: fileURL)
+            let document = try JSONDecoder().decode(DailyNotesDocument.self, from: data)
+            guard document.version == DailyNotesDocument.formatVersion else {
+                throw DailyNotesError.corruptStorage
+            }
+            return document
+        } catch {
+            if !protectedDataAvailable { throw DailyNotesStorageError.protectedDataUnavailable }
+            throw error
         }
-        return document
     }
 
     func save(_ document: DailyNotesDocument) throws {
+        guard protectedDataAvailable else { throw DailyNotesStorageError.protectedDataUnavailable }
         guard document.version == DailyNotesDocument.formatVersion else {
             throw DailyNotesError.corruptStorage
         }
+        do {
+            try write(document)
+        } catch {
+            if !protectedDataAvailable { throw DailyNotesStorageError.protectedDataUnavailable }
+            throw error
+        }
+    }
+
+    private func write(_ document: DailyNotesDocument) throws {
         let directory = fileURL.deletingLastPathComponent()
         try fileManager.createDirectory(
             at: directory,

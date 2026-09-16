@@ -942,7 +942,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     private var previewIsCurrent: Bool {
-        guard let preview else { return false }
+        guard notes.storageAvailable, let preview else { return false }
         return notes.document.snapshot(for: preview.notesSnapshot.dayID) == preview.notesSnapshot
     }
 
