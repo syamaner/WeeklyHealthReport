@@ -1463,6 +1463,85 @@ final class DailyHealthExportTests: XCTestCase {
     }
 
     @MainActor
+    func testRestoredDestinationLossAndAccountChangeDoNotCreateOrAdoptAFolder() async throws {
+        let store = MemoryDailySessionStore()
+        let binding = DailyDestinationBinding(
+            accountID: "invented-account",
+            folderID: "missing-folder",
+            folderName: "Invented",
+            origin: .picker
+        )
+        try store.save(
+            try JSONEncoder().encode(partitions(containing: binding)),
+            account: "google.drive.daily-export-destinations.v1"
+        )
+        let drive = PreparationDriveTransportFixture(createOutcomes: [])
+        let session = makePreparationSession(
+            drive: drive,
+            secureStore: store,
+            oauthSession: FakeDriveOAuthSession()
+        )
+        let context = try await session.restoreGoogleSession()
+        XCTAssertEqual(try session.storedDestination(for: context.account.id), binding)
+        do {
+            try await session.validateStoredDestination(binding, context: context)
+            XCTFail("The missing saved folder must not be accepted")
+        } catch DailyExportPreparationFailure.destinationMissingOrInaccessible {}
+
+        await drive.setAccountID("other-account")
+        let changed = try await session.restoreGoogleSession()
+        XCTAssertEqual(changed.account.id, "other-account")
+        XCTAssertNil(try session.storedDestination(for: changed.account.id))
+        XCTAssertEqual(session.destinationLabel, "Choose or create a destination")
+        let snapshot = await drive.snapshot()
+        XCTAssertEqual(snapshot.generatedCount, 0)
+        XCTAssertEqual(snapshot.uploadCount, 0)
+        XCTAssertEqual(
+            try JSONDecoder().decode(
+                DailyDestinationPartitions.self,
+                from: XCTUnwrap(store.snapshot(account: "google.drive.daily-export-destinations.v1"))
+            ).destination(for: binding.accountID),
+            binding
+        )
+    }
+
+    @MainActor
+    func testUncertainControllerUploadRetainsPreviewAndDisconnectDoesNotRetry() async throws {
+        let store = MemoryDailySessionStore()
+        let binding = DailyDestinationBinding(
+            accountID: "invented-account",
+            folderID: "invented-folder",
+            folderName: "Invented",
+            origin: .picker
+        )
+        try store.save(
+            try JSONEncoder().encode(partitions(containing: binding)),
+            account: "google.drive.daily-export-destinations.v1"
+        )
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], revokeStatus: 503)
+        let oauth = FakeDriveOAuthSession()
+        let (session, _) = await makePreviewLifecycleSession(
+            drive: drive,
+            secureStore: store,
+            oauthSession: oauth
+        )
+        let context = try await session.restoreGoogleSession()
+        let preview = try XCTUnwrap(session.preview)
+        XCTAssertEqual(try session.storedDestination(for: context.account.id), binding)
+
+        await session.exportPreview()
+        XCTAssertEqual(session.preview, preview)
+        let afterExport = await drive.snapshot()
+        XCTAssertEqual(afterExport.uploadCount, 2) // One immediate same-ID retry, never a queued retry.
+        await session.disconnect()
+        XCTAssertEqual(oauth.clearCount, 0)
+        XCTAssertTrue(oauth.hasStoredSession)
+        XCTAssertEqual(session.preview, preview)
+        let afterDisconnect = await drive.snapshot()
+        XCTAssertEqual(afterDisconnect.uploadCount, afterExport.uploadCount)
+    }
+
+    @MainActor
     func testSessionAuthorizationErrorInvalidatesPreviewAndRequiresConnection() {
         let oauth = FakeDriveOAuthSession()
         let session = makePreparationSession(
@@ -1764,7 +1843,11 @@ final class DailyHealthExportTests: XCTestCase {
     }
 
     @MainActor
-    private func makePreviewLifecycleSession() async -> (
+    private func makePreviewLifecycleSession(
+        drive: any DailyDriveSessionTransporting = DailyDriveAPI(),
+        secureStore: any DailyDriveSecurePersisting = MemoryDailySessionStore(),
+        oauthSession: (any DriveOAuthSessionProviding)? = nil
+    ) async -> (
         session: DailyDriveSessionController,
         notesStore: MutableDailyNotesStore
     ) {
@@ -1777,10 +1860,9 @@ final class DailyHealthExportTests: XCTestCase {
             now: { cutoff }
         )
         let provider = RecordingDailyProvider { self.emptyInputs(window: $0) }
-        let keychain = MemoryDailySessionStore()
         let session = DailyDriveSessionController(
-            keychain: keychain,
-            drive: DailyDriveAPI(),
+            keychain: secureStore,
+            drive: drive,
             exportService: DailyHealthExportService(
                 healthData: provider,
                 notesStore: notesStore,
@@ -1791,7 +1873,8 @@ final class DailyHealthExportTests: XCTestCase {
             nutritionSourceSelection: FixedNutritionSourceSelection(
                 bundleIdentifier: fixtureNutritionSource.bundleIdentifier
             ),
-            notes: notes
+            notes: notes,
+            oauthSession: oauthSession
         )
         await session.refreshPreview()
         return (session, notesStore)
@@ -2409,7 +2492,7 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
         let uploadCount: Int
     }
 
-    private let accountValue = DailyDriveAccount(
+    private var accountValue = DailyDriveAccount(
         id: "invented-account",
         displayName: "Invented Account",
         emailAddress: "invented@example.invalid"
@@ -2428,6 +2511,14 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
     }
 
     func fixtureAccount() -> DailyDriveAccount { accountValue }
+
+    func setAccountID(_ id: String) {
+        accountValue = DailyDriveAccount(
+            id: id,
+            displayName: "Invented Account",
+            emailAddress: "invented@example.invalid"
+        )
+    }
 
     func seedFolder(_ folder: DailyDriveFolder) {
         folders[folder.id] = folder
