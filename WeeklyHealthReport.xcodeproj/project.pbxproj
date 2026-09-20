@@ -87,6 +87,11 @@
 		P00000000000000000000002 /* DriveExportKit in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000005 /* DriveExportKit */; };
 		P00000000000000000000003 /* DriveExportOAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000006 /* DriveExportOAuth */; };
 		P00000000000000000000004 /* DriveExportOAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000007 /* DriveExportOAuth */; };
+		P00000000000000000000008 /* FoodLedgerCompositionRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */; };
+		P00000000000000000000009 /* FoodLedgerDomain in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000009 /* FoodLedgerDomain */; };
+		P0000000000000000000000A /* FoodLedgerApplication in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000A /* FoodLedgerApplication */; };
+		P0000000000000000000000B /* FoodLedgerPresentation in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000B /* FoodLedgerPresentation */; };
+		P0000000000000000000000C /* FoodLedgerGRDB in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000C /* FoodLedgerGRDB */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -181,6 +186,7 @@
 		B0000000000000000000004E /* ReportDocumentSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDocumentSectionView.swift; sourceTree = "<group>"; };
 		B0000000000000000000004F /* ReportPreviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPreviewFixtures.swift; sourceTree = "<group>"; };
 		B00000000000000000000050 /* MetricRowPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricRowPresentation.swift; sourceTree = "<group>"; };
+		B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLedgerCompositionRoot.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -193,6 +199,10 @@
 				A0000000000000000000002E /* AppAuth in Frameworks */,
 				P00000000000000000000001 /* DriveExportKit in Frameworks */,
 				P00000000000000000000003 /* DriveExportOAuth in Frameworks */,
+				P00000000000000000000009 /* FoodLedgerDomain in Frameworks */,
+				P0000000000000000000000A /* FoodLedgerApplication in Frameworks */,
+				P0000000000000000000000B /* FoodLedgerPresentation in Frameworks */,
+				P0000000000000000000000C /* FoodLedgerGRDB in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -231,6 +241,7 @@
 				G00000000000000000000004 /* HealthKit */,
 				G0000000000000000000000A /* GoogleDrive */,
 				G0000000000000000000000B /* Notes */,
+				G0000000000000000000000E /* FoodLedger */,
 				G0000000000000000000000D /* Presentation */,
 				G00000000000000000000005 /* Views */,
 				G00000000000000000000009 /* Utilities */,
@@ -392,6 +403,14 @@
 			path = Presentation;
 			sourceTree = "<group>";
 		};
+		G0000000000000000000000E /* FoodLedger */ = {
+			isa = PBXGroup;
+			children = (
+				B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */,
+			);
+			path = FoodLedger;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -412,6 +431,10 @@
 				X00000000000000000000002 /* AppAuth */,
 				X00000000000000000000004 /* DriveExportKit */,
 				X00000000000000000000006 /* DriveExportOAuth */,
+				X00000000000000000000009 /* FoodLedgerDomain */,
+				X0000000000000000000000A /* FoodLedgerApplication */,
+				X0000000000000000000000B /* FoodLedgerPresentation */,
+				X0000000000000000000000C /* FoodLedgerGRDB */,
 			);
 			productName = WeeklyHealthReport;
 			productReference = B0000000000000000000000C /* WeeklyHealthReport.app */;
@@ -471,6 +494,7 @@
 			packageReferences = (
 				X00000000000000000000001 /* XCRemoteSwiftPackageReference "AppAuth-iOS" */,
 				X00000000000000000000003 /* XCLocalSwiftPackageReference "Packages/DriveExportKit" */,
+				X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */,
 			);
 			productRefGroup = G00000000000000000000008 /* Products */;
 			projectDirPath = "";
@@ -552,6 +576,7 @@
 				A00000000000000000000036 /* DailyNotesController.swift in Sources */,
 				A00000000000000000000037 /* DailyNotesView.swift in Sources */,
 				A0000000000000000000003A /* DailyNoteSpeechCapture.swift in Sources */,
+				P00000000000000000000008 /* FoodLedgerCompositionRoot.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -749,6 +774,10 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/DriveExportKit;
 		};
+		X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/FoodLedgerKit;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCRemoteSwiftPackageReference section */
@@ -787,6 +816,26 @@
 			isa = XCSwiftPackageProductDependency;
 			package = X00000000000000000000003 /* XCLocalSwiftPackageReference "Packages/DriveExportKit" */;
 			productName = DriveExportOAuth;
+		};
+		X00000000000000000000009 /* FoodLedgerDomain */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
+			productName = FoodLedgerDomain;
+		};
+		X0000000000000000000000A /* FoodLedgerApplication */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
+			productName = FoodLedgerApplication;
+		};
+		X0000000000000000000000B /* FoodLedgerPresentation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
+			productName = FoodLedgerPresentation;
+		};
+		X0000000000000000000000C /* FoodLedgerGRDB */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
+			productName = FoodLedgerGRDB;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

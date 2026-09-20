@@ -17,7 +17,7 @@ public struct ProtectedDataAvailability: Sendable {
     public static let available = ProtectedDataAvailability { true }
 }
 
-public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading,
+public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, FoodConfirmationReading,
     EvidenceAttachmentStoring, @unchecked Sendable
 {
     public static let schemaVersion = 1
@@ -255,6 +255,75 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading,
             sql: "SELECT payload FROM source_release WHERE source_release_id = ?",
             arguments: [id.value]
         )
+    }
+
+    public func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation? {
+        try protectedData.requireAvailable()
+        return try databaseQueue.read { db in
+            func decode<Value: Decodable>(_ type: Value.Type, table: String, column: String, id: String) throws -> Value? {
+                guard let data = try Data.fetchOne(
+                    db,
+                    sql: "SELECT payload FROM \(table) WHERE \(column) = ?",
+                    arguments: [id]
+                ) else { return nil }
+                return try decoder.decode(type, from: data)
+            }
+            guard let data = try Data.fetchOne(
+                db,
+                sql: "SELECT payload FROM log_item_version WHERE log_item_id = ? ORDER BY ordinal DESC, version_id DESC LIMIT 1",
+                arguments: [logItemID.rawValue]
+            ) else { return nil }
+            let logVersion = try decoder.decode(LogItemVersion.self, from: data)
+            guard let logItem: LogItem = try decode(LogItem.self, table: "log_item", column: "log_item_id", id: logItemID.rawValue),
+                  case let .product(productVersionID) = logVersion.composition,
+                  let productVersion: ProductVersion = try decode(ProductVersion.self, table: "product_version", column: "version_id", id: productVersionID.rawValue),
+                  let product: Product = try decode(Product.self, table: "product", column: "product_id", id: productVersion.productID.rawValue),
+                  let resolutionVersion: NutritionResolutionVersion = try decode(NutritionResolutionVersion.self, table: "resolution_version", column: "version_id", id: logVersion.effectiveResolutionVersionID.rawValue),
+                  let resolution: NutritionResolution = try decode(NutritionResolution.self, table: "resolution", column: "resolution_id", id: resolutionVersion.resolutionID.rawValue),
+                  let decisionID = resolutionVersion.decisionIDs.first,
+                  let decision: CandidateDecision = try decode(CandidateDecision.self, table: "candidate_decision", column: "decision_id", id: decisionID.rawValue) else {
+                throw FoodLedgerStoreError.integrityFailure("incomplete food confirmation aggregate")
+            }
+            let evidence: [CaptureEvidence] = try decision.candidate.evidenceIDs.compactMap {
+                try decode(CaptureEvidence.self, table: "capture_evidence", column: "evidence_id", id: $0.rawValue)
+            }
+            let releases: [SourceRelease] = try resolutionVersion.sourceReleaseIDs.compactMap {
+                try decode(SourceRelease.self, table: "source_release", column: "source_release_id", id: $0.value)
+            }
+            let assertionIDs = Set(productVersion.assertionIDs + resolutionVersion.assertionIDs)
+            let assertions: [UserAssertion] = try assertionIDs.compactMap {
+                try decode(UserAssertion.self, table: "user_assertion", column: "assertion_id", id: $0.rawValue)
+            }.sorted { $0.createdAt < $1.createdAt }
+            guard evidence.count == decision.candidate.evidenceIDs.count,
+                  releases.count == resolutionVersion.sourceReleaseIDs.count,
+                  assertions.count == assertionIDs.count else {
+                throw FoodLedgerStoreError.integrityFailure("incomplete food confirmation provenance")
+            }
+            let conversion: QuantityConversionVersion? = try logVersion.quantityConversionVersionID.flatMap {
+                try decode(QuantityConversionVersion.self, table: "quantity_conversion_version", column: "version_id", id: $0.rawValue)
+            }
+            let plateVersion: PlateWeightVersion? = try logVersion.plateWeightVersionID.flatMap {
+                try decode(PlateWeightVersion.self, table: "plate_weight_version", column: "version_id", id: $0.rawValue)
+            }
+            let plate: Plate? = try plateVersion.flatMap {
+                try decode(Plate.self, table: "plate", column: "plate_id", id: $0.plateID.rawValue)
+            }
+            return StoredFoodConfirmation(
+                evidence: evidence,
+                sourceReleases: releases,
+                product: product,
+                productVersion: productVersion,
+                resolution: resolution,
+                resolutionVersion: resolutionVersion,
+                logItem: logItem,
+                logItemVersion: logVersion,
+                quantityConversion: conversion,
+                plate: plate,
+                plateWeightVersion: plateVersion,
+                candidateDecision: decision,
+                assertions: assertions
+            )
+        }
     }
 
     public func persist(_ bytes: Data, mediaKind: LedgerText) throws -> AttachmentDescriptor {
@@ -635,6 +704,17 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading,
                 kind: .competingLogCorrections,
                 conflicts: mutation.conflicts
             )
+            if let plateWeightVersionID = value.plateWeightVersionID,
+               !mutation.plateWeightVersions.contains(where: {
+                   $0.plateWeightVersionID == plateWeightVersionID
+               }) {
+                try requireReference(
+                    table: "plate_weight_version",
+                    column: "version_id",
+                    id: plateWeightVersionID.rawValue,
+                    db: db
+                )
+            }
             try db.execute(
                 sql: "INSERT INTO log_item_version(version_id, log_item_id, product_version_id, ordinal, supersedes_id, original_resolution_version_id, effective_resolution_version_id, quantity_conversion_version_id, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 arguments: [value.logItemVersionID.rawValue, value.logItemID.rawValue, productVersionID,

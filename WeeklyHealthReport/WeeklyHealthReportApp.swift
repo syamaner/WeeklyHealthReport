@@ -7,10 +7,12 @@ struct WeeklyHealthReportApp: App {
     @StateObject private var viewModel: WeeklyReportViewModel
     @StateObject private var dailyExport = DailyDriveSessionController()
     @StateObject private var navigation = WeeklyReportNavigationController()
+    private let foodLedger: FoodLedgerCompositionRoot?
 
     init() {
         let store = HealthStoreProvider.shared
         healthStore = store
+        foodLedger = try? FoodLedgerCompositionRoot()
         _viewModel = StateObject(
             wrappedValue: WeeklyReportViewModel(
                 healthData: HealthKitClient(store: store)

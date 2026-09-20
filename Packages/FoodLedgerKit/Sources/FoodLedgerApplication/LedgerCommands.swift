@@ -146,13 +146,14 @@ public struct LedgerOperationType: RawRepresentable, Codable, Hashable, Sendable
     public static let recordCandidateDecision = Self(rawValue: "record_candidate_decision_v1")!
     public static let preserveConflict = Self(rawValue: "preserve_conflict_v1")!
     public static let installSourceRelease = Self(rawValue: "install_source_release_v1")!
+    public static let confirmFood = Self(rawValue: "confirm_food_v1")!
     public static let composite = Self(rawValue: "composite_v1")!
 
     public static let builtInV1: Set<Self> = [
         .recordEvidence, .createProduct, .reformulateProduct, .correctResolution,
         .saveLibraryEntry, .recordLogItem, .correctLogItem, .recordQuantityConversion,
         .recordPlateWeight, .recordCandidateDecision, .preserveConflict,
-        .installSourceRelease, .composite
+        .installSourceRelease, .confirmFood, .composite
     ]
 }
 

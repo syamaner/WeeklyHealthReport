@@ -2,7 +2,9 @@ import Foundation
 import FoodLedgerApplication
 import FoodLedgerDomain
 
-public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReading, @unchecked Sendable {
+public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReading,
+    FoodConfirmationReading, @unchecked Sendable
+{
     private struct State {
         var evidence: [String: CaptureEvidence] = [:]
         var assertions: [String: UserAssertion] = [:]
@@ -118,6 +120,57 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
 
     public func sourceRelease(id: ExternalIdentifier) throws -> SourceRelease? {
         withLock { state.sourceReleases[id.value] }
+    }
+
+    public func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation? {
+        try withLock {
+            guard let logVersion = state.logItemVersions.values
+                .filter({ $0.logItemID == logItemID })
+                .max(by: { $0.ordinal.value < $1.ordinal.value }) else { return nil }
+            guard let logItem = state.logItems[logItemID.rawValue],
+                  case let .product(productVersionID) = logVersion.composition,
+                  let productVersion = state.productVersions[productVersionID.rawValue],
+                  let product = state.products[productVersion.productID.rawValue],
+                  let resolutionVersion = state.resolutionVersions[
+                    logVersion.effectiveResolutionVersionID.rawValue
+                  ],
+                  let resolution = state.resolutions[resolutionVersion.resolutionID.rawValue],
+                  let decisionID = resolutionVersion.decisionIDs.first,
+                  let decision = state.candidateDecisions[decisionID.rawValue] else {
+                throw FoodLedgerStoreError.integrityFailure("incomplete food confirmation aggregate")
+            }
+            let evidence = decision.candidate.evidenceIDs.compactMap { state.evidence[$0.rawValue] }
+            let releases = resolutionVersion.sourceReleaseIDs.compactMap { state.sourceReleases[$0.value] }
+            let assertionIDs = Set(productVersion.assertionIDs + resolutionVersion.assertionIDs)
+            let assertions = assertionIDs.compactMap { state.assertions[$0.rawValue] }
+            guard evidence.count == decision.candidate.evidenceIDs.count,
+                  releases.count == resolutionVersion.sourceReleaseIDs.count,
+                  assertions.count == assertionIDs.count else {
+                throw FoodLedgerStoreError.integrityFailure("incomplete food confirmation provenance")
+            }
+            let conversion = logVersion.quantityConversionVersionID.flatMap {
+                state.quantityConversions[$0.rawValue]
+            }
+            let plateVersion = logVersion.plateWeightVersionID.flatMap {
+                state.plateWeightVersions[$0.rawValue]
+            }
+            let plate = plateVersion.flatMap { state.plates[$0.plateID.rawValue] }
+            return StoredFoodConfirmation(
+                evidence: evidence,
+                sourceReleases: releases,
+                product: product,
+                productVersion: productVersion,
+                resolution: resolution,
+                resolutionVersion: resolutionVersion,
+                logItem: logItem,
+                logItemVersion: logVersion,
+                quantityConversion: conversion,
+                plate: plate,
+                plateWeightVersion: plateVersion,
+                candidateDecision: decision,
+                assertions: assertions.sorted { $0.createdAt < $1.createdAt }
+            )
+        }
     }
 
     private func withLock<T>(_ body: () throws -> T) rethrows -> T {
@@ -385,6 +438,13 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
             if let conversionID = version.quantityConversionVersionID,
                state.quantityConversions[conversionID.rawValue] == nil {
                 throw FoodLedgerStoreError.missingReference(conversionID.rawValue)
+            }
+            if let plateID = version.plateWeightVersionID,
+               state.plateWeightVersions[plateID.rawValue] == nil,
+               !mutation.plateWeightVersions.contains(where: {
+                   $0.plateWeightVersionID == plateID
+               }) {
+                throw FoodLedgerStoreError.missingReference(plateID.rawValue)
             }
             try insert(
                 [version],

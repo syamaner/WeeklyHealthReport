@@ -548,6 +548,56 @@ final class SharedStoreContractTests: XCTestCase {
         }
     }
 
+    func testConfirmationSaveAndOfflineReopenUseBothStoreAdapters() throws {
+        try forEachStore { harness, ledger in
+            let base = try LedgerFixtures.baseMutation()
+            let candidate = try PopulatedFoodCandidate(
+                candidate: ProviderNeutralCandidate(
+                    sourceReleaseID: try ExternalIdentifier("package:fixture-v1"),
+                    recordID: try ExternalIdentifier("fixture:row-1"),
+                    identity: try LedgerFixtures.identity(),
+                    edibleQuantity: .known(
+                        try PositiveQuantity(value: 100, unit: .grams),
+                        conversionVersionID: nil
+                    ),
+                    nutrients: try LedgerFixtures.nutrientSet(),
+                    evidenceIDs: [try LedgerFixtures.id(1, EvidenceTag.self)]
+                ),
+                name: try LedgerText("Fixture food"),
+                itemClass: .food
+            )
+            let input = try PopulatedFoodConfirmation(
+                evidence: base.evidence,
+                sourceReleases: base.sourceReleases,
+                candidates: [candidate],
+                expectedIdentity: try LedgerFixtures.identity(),
+                expectedEdibleQuantity: .known(
+                    try PositiveQuantity(value: 100, unit: .grams),
+                    conversionVersionID: nil
+                )
+            )
+            var state = FoodConfirmationState(input: input)
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            let confirmation = FoodConfirmationService(
+                ledger: ledger,
+                reader: harness.reader,
+                clock: LedgerFixtures.clock,
+                ids: ContractSequenceIDs()
+            )
+            let saved = try confirmation.save(
+                state,
+                operationID: LedgerFixtures.operationID(150)
+            )
+            let reopened = try XCTUnwrap(
+                confirmation.reopen(logItemID: saved.logItem.logItemID),
+                harness.name
+            )
+            XCTAssertEqual(reopened.selectedCandidate.name.value, "Fixture food", harness.name)
+            XCTAssertEqual(reopened.quantity.value, 100, harness.name)
+            XCTAssertEqual(try harness.reader.counts().operations, 1, harness.name)
+        }
+    }
+
     private func forEachStore(
         _ body: (TestHarness, FoodLedgerService) throws -> Void
     ) throws {
@@ -613,5 +663,17 @@ final class SharedStoreContractTests: XCTestCase {
             attribution: try LedgerText("invented fixture"),
             manifestHash: try SHA256Digest(String(repeating: hashCharacter, count: 64))
         )
+    }
+}
+
+private final class ContractSequenceIDs: LedgerIDGenerating, @unchecked Sendable {
+    private let lock = NSLock()
+    private var value = 1_000
+
+    func makeID<Tag>(_ tag: Tag.Type) throws -> LedgerID<Tag> {
+        lock.lock()
+        defer { lock.unlock() }
+        value += 1
+        return try LedgerID(String(format: "00000000-0000-0000-0000-%012x", value))
     }
 }

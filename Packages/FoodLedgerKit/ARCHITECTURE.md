@@ -83,3 +83,30 @@ Privacy purge is deliberately not exposed by this package. Issue #108 excludes
 personal-data handling, so immutable update/delete triggers remain unconditional;
 a future purge requires a separately authorised and tested capability rather than
 an adapter escape hatch.
+
+## Issue #109 confirmation-flow gate
+
+`FoodLedgerDomain` owns the closed confirmation inputs and validation rules:
+provider-neutral populated candidates, evidence preservation, decisive identity,
+nutrient states, finite quantities, conversion identity and plate subtraction.
+`FoodLedgerApplication` owns the deterministic confirmation reducer and the
+save/reopen use case. It translates one confirmed state into one atomic ledger
+mutation through `FoodLedgerService`; it does not import SwiftUI or GRDB.
+`FoodLedgerPresentation` owns SwiftUI projections, controls, accessibility labels
+and recovery messaging. The app composition root is the only code that constructs
+the GRDB adapter and injects application capabilities into presentation.
+
+The four nutrient states, 39-key catalogue, original evidence bytes/payload,
+mandatory identity contradictions, immutable version lineage, provenance and
+atomic commit remain closed invariants. Display order, supplied candidate ranking,
+route adapters, presentation copy and concrete persistence are extension axes.
+Barcode, OCR and generic-search routes all construct `PopulatedFoodConfirmation`;
+none owns a save schema or can bypass domain validation.
+
+The reducer contract covers candidate selection, explained closest-match
+acceptance, decline, correction, quantity/conversion and plate modes, validation,
+saving and recoverable failure. The save contract covers a single atomic mutation,
+idempotent retry, immutable successor versions and offline reconstruction through
+the cohesive `FoodConfirmationReading` capability. SwiftPM dependencies and the
+boundary script prevent SwiftUI from entering Domain/Application and prevent GRDB
+from entering Domain/Application/Presentation.
