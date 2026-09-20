@@ -20,23 +20,23 @@ public struct LocalFoodArchiveStore: Sendable {
             .appendingPathComponent(".\(destination.lastPathComponent).incomplete-\(UUID().uuidString)")
         do {
             try FileManager.default.createDirectory(at: staging, withIntermediateDirectories: false)
-            try protect(staging)
+            try applyCompleteProtection(to: staging)
             try bundle.snapshot.write(
                 to: staging.appendingPathComponent("snapshot.json"),
-                options: [.atomic, .completeFileProtection]
+                options: protectedWriteOptions
             )
             try bundle.operations.write(
                 to: staging.appendingPathComponent("operations.ndjson"),
-                options: [.atomic, .completeFileProtection]
+                options: protectedWriteOptions
             )
             // A generation is incomplete until the manifest is durably written last.
             try bundle.manifest.write(
                 to: staging.appendingPathComponent("manifest.json"),
-                options: [.atomic, .completeFileProtection]
+                options: protectedWriteOptions
             )
             _ = try read(from: staging)
             try FileManager.default.moveItem(at: staging, to: destination)
-            try protect(destination)
+            try applyCompleteProtection(to: destination)
         } catch {
             try? FileManager.default.removeItem(at: staging)
             throw error
@@ -60,13 +60,6 @@ public struct LocalFoodArchiveStore: Sendable {
         _ = try verifier.verify(bundle)
         return bundle
     }
-
-    private func protect(_ url: URL) throws {
-        try FileManager.default.setAttributes(
-            [.protectionKey: FileProtectionType.complete],
-            ofItemAtPath: url.path
-        )
-    }
 }
 
 public struct ProtectedGRDBFoodArchiveStaging: FoodArchiveStaging {
@@ -79,14 +72,28 @@ public struct ProtectedGRDBFoodArchiveStaging: FoodArchiveStaging {
     public func validate(_ transactions: [LedgerTransaction]) throws -> FoodArchiveState {
         let directory = root.appendingPathComponent("food-import-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-        try FileManager.default.setAttributes(
-            [.protectionKey: FileProtectionType.complete],
-            ofItemAtPath: directory.path
-        )
+        try applyCompleteProtection(to: directory)
         defer { try? FileManager.default.removeItem(at: directory) }
         let store = try FoodLedgerGRDBStore.temporary(directory: directory)
         _ = try store.commitAtomically(transactions)
         try store.verifyIntegrity()
         return try store.archiveState()
     }
+}
+
+private var protectedWriteOptions: Data.WritingOptions {
+    #if os(iOS)
+    [.atomic, .completeFileProtection]
+    #else
+    [.atomic]
+    #endif
+}
+
+private func applyCompleteProtection(to url: URL) throws {
+    #if os(iOS)
+    try FileManager.default.setAttributes(
+        [.protectionKey: FileProtectionType.complete],
+        ofItemAtPath: url.path
+    )
+    #endif
 }
