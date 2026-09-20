@@ -17,6 +17,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  food-ledger-kit-build:
+    name: FoodLedgerKit build and contracts
+    runs-on: macos-26
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build and test FoodLedgerKit
+        run: swift test --package-path Packages/FoodLedgerKit
+
+  food-ledger-kit-isolation:
+    name: FoodLedgerKit boundaries
+    runs-on: macos-26
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Guard target imports and dependency inventory
+        run: bash Packages/FoodLedgerKit/Scripts/check-boundaries.sh
+
   drive-export-kit-build:
     name: DriveExportKit build
     runs-on: macos-26
