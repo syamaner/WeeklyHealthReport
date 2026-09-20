@@ -127,3 +127,29 @@ idempotent retry, immutable successor versions and offline reconstruction throug
 the cohesive `FoodConfirmationReading` capability. SwiftPM dependencies and the
 boundary script prevent SwiftUI from entering Domain/Application and prevent GRDB
 from entering Domain/Application/Presentation.
+
+## Issue #111 canonical projection and local-archive gate
+
+`FoodLedgerApplication` owns the canonical food projection, versioned archive
+manifest, member and actor-chain verification, dry-run report and transactional
+apply orchestration. `FoodLedgerArchive` owns only protected local-directory I/O
+and disposable protected GRDB staging. `FoodLedgerGRDB` and the in-memory adapter
+expose the same archive-state and atomic-batch contracts; neither filesystem URLs
+nor GRDB types cross into the projection rules. `FoodLedgerPresentation` owns the
+user-facing integrity and deletion language.
+
+The food-contract version, schema-v4 shape, snapshot identity, 39 nutrient states,
+exact input version IDs, canonical ordering, member hashes, actor watermarks,
+conflict preservation and raw-media exclusion are closed invariants. Filesystem
+destinations, staging implementations and later separately authorised transports
+are extension axes. The archive contains descriptors and provenance but never
+attachment bytes, OCR geometry, credentials, Keychain data, search indexes or
+transient diagnostics.
+
+Generation freezes one read transaction, writes data members into a protected
+incomplete directory, writes the manifest last, reopens and verifies the complete
+generation, then moves it without overwriting an existing destination. Restore
+verifies versions, canonical bytes, member hashes, counts, source releases and
+actor chains before replaying into a fresh protected staging store. Only an
+explicitly accepted staged result can enter the live ledger, where the whole batch
+commits or rolls back in one database transaction.

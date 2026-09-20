@@ -1,5 +1,7 @@
 import AppAuth
 import DriveExportOAuth
+import FoodLedgerApplication
+import FoodLedgerDomain
 import HealthKit
 import XCTest
 @testable import DriveExportKit
@@ -211,6 +213,63 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertFalse(text.contains("\n"))
         XCTAssertTrue(text.hasPrefix("{\"app_context\":"))
         XCTAssertEqual(bytes, try DailyHealthExportSerializer.encode(envelope))
+    }
+
+    func testSchemaV4AddsCanonicalFoodProjectionWithoutChangingV3FixtureMeaning() throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 23, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        let schemaV3 = try DailyHealthExportBuilder.make(
+            window: window,
+            exportedAt: cutoff,
+            inputs: populatedInputs(window: window),
+            notes: ["Invented note"]
+        )
+        let nutrientSet = try NutrientSet(entries: NutrientKey.allCases.map {
+            try NutrientEntry(key: $0, value: .unknown(.notDeclared))
+        })
+        let summary = CanonicalFoodNutritionSummary(
+            summaryVersionID: try LedgerText("summary-fixture-v1"),
+            reportingDate: try LedgerText("2026-09-06"),
+            nutrients: nutrientSet,
+            inputLogItemVersionIDs: [],
+            hasUnknownContribution: true
+        )
+        let projection = try CanonicalFoodProjection(
+            records: LedgerMutation(),
+            summaries: [summary]
+        )
+        let document = try CanonicalFoodDocument(projection: projection)
+        let schemaV4 = try DailyHealthExportBuilder.addingFoodProjection(
+            document,
+            summary: summary,
+            to: schemaV3
+        )
+
+        XCTAssertEqual(schemaV3.schemaVersion, 3)
+        XCTAssertNil(schemaV3.today.foodLog)
+        XCTAssertNil(schemaV3.today.foodNutritionSummary)
+        XCTAssertEqual(schemaV4.schemaVersion, 4)
+        XCTAssertEqual(schemaV4.today.foodLog, document)
+        XCTAssertEqual(schemaV4.today.foodNutritionSummary?.nutrients.entries.count, 39)
+        let schemaV4Bytes = try DailyHealthExportSerializer.encode(schemaV4)
+        let text = try XCTUnwrap(String(data: schemaV4Bytes, encoding: .utf8))
+        XCTAssertTrue(text.contains("\"schema_version\":4"))
+        XCTAssertTrue(text.contains("\"food_contract_version\":1"))
+        XCTAssertTrue(text.contains("\"food_log\":"))
+        XCTAssertTrue(text.contains("\"food_nutrition_summary\":"))
+        XCTAssertThrowsError(
+            try DailyHealthExportIdentityPolicy().validate(
+                payload: schemaV4Bytes,
+                reportDate: "2026-09-06"
+            )
+        ) { error in
+            XCTAssertEqual(error as? DailyDriveExportFailure, .invalidPayload)
+        }
+        try assertGolden(
+            try DailyHealthExportSerializer.encode(schemaV3),
+            equals: DailyHealthExportGoldenSnapshots.populated
+        )
     }
 
     func testMorningEveningAndBedtimeRemainOneReportingDateWithFreshSnapshots() throws {
