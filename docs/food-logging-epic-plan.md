@@ -16,8 +16,9 @@ quantity, preparation, plate-weight and override flows as the interaction baseli
 This document turns the research recommendation into an executable issue graph. It is a plan, not implementation evidence and not authority to exercise a provider, device, OAuth account, Drive destination or HealthKit store.
 
 Epic triage was completed on 19 September 2026. #89 and #87 are complete. The
-accepted UX baseline supersedes the earlier manual-first MVP assumption and requires
-the remaining issue graph to be re-triaged before implementation.
+accepted UX baseline superseded the earlier manual-first MVP assumption. The
+affected live issues were re-triaged on 20 September 2026; #90 is now the active
+architecture decision and #94 remains a container awaiting decomposition.
 
 ## Outcome
 
@@ -58,7 +59,7 @@ The app's local, versioned data and canonical JSON remain the system of record. 
 |---|---|---|---|
 | [#89](https://github.com/syamaner/WeeklyHealthReport/issues/89) | Plan/contract | Land the research, schema, provenance and merge contract | First authority task |
 | [#87](https://github.com/syamaner/WeeklyHealthReport/issues/87) | Spike | Measured UK source coverage, CoFID ingest facts and licence/offline matrix | Starts after #89; fixtures use its source-release, provenance and identity vocabulary |
-| [#90](https://github.com/syamaner/WeeklyHealthReport/issues/90) | Spike | Local store/versioning and Drive backup/merge decision | Starts after #89; persists its stable/version IDs and conflict rules; no live Drive work |
+| [#90](https://github.com/syamaner/WeeklyHealthReport/issues/90) | Spike | [Local store/versioning and Drive backup/merge decision](food-library-storage-and-backup-decision.md) | Active; persists stable/version IDs and conflict rules; no live Drive work |
 | [#88](https://github.com/syamaner/WeeklyHealthReport/issues/88) | Eval | Printed-panel OCR corpus, harness and promotion result | MVP-critical evidence gate under the accepted UX baseline |
 | [#91](https://github.com/syamaner/WeeklyHealthReport/issues/91) | Eval | Handwriting corpus, harness and promotion result | Separate from printed OCR |
 | [#92](https://github.com/syamaner/WeeklyHealthReport/issues/92) | Eval | Matching, hard-negative and calibration corpus/harness | MVP-critical evidence gate; source releases and labels must be frozen |
@@ -66,7 +67,7 @@ The app's local, versioned data and canonical JSON remain the system of record. 
 | [#93](https://github.com/syamaner/WeeklyHealthReport/issues/93) | Delivery | Verified printed-panel capture | #94 and accepted #88 envelope |
 | [#96](https://github.com/syamaner/WeeklyHealthReport/issues/96) | Delivery | Typed and on-device voice capture | #94 and speech characterisation |
 | [#102](https://github.com/syamaner/WeeklyHealthReport/issues/102) | Delivery | Handwritten batch capture | #94 and accepted #91 envelope |
-| [#98](https://github.com/syamaner/WeeklyHealthReport/issues/98) | Delivery | Calibrated automatic augmentation | #94 and accepted #92 envelope |
+| [#98](https://github.com/syamaner/WeeklyHealthReport/issues/98) | Delivery | Populated generic-food search and calibrated augmentation | #94 shared foundation and accepted #92 envelope |
 | [#101](https://github.com/syamaner/WeeklyHealthReport/issues/101) | Delivery | Opt-in retrospective re-resolution | #98 and accepted versioning contract |
 | [#97](https://github.com/syamaner/WeeklyHealthReport/issues/97) | Plan | HealthKit-write and richer-export migration contract | Current official Apple research; no writes |
 | [#95](https://github.com/syamaner/WeeklyHealthReport/issues/95) | Eval | Commercial product-data source challengers | #87 baseline; separate commercial authority |
@@ -75,18 +76,18 @@ The app's local, versioned data and canonical JSON remain the system of record. 
 
 All sixteen tasks are native sub-issues of #86. The checklists in the epic provide a readable fallback and closure view.
 
-## Triage outcome — 19 September 2026
+## Triage outcome — updated 20 September 2026
 
 | Issue | Priority | Readiness | Triage decision |
 |---|---|---|---|
 | #89 | P0 | Complete | Contract freezes the shared domain vocabulary and gates |
 | #87 | P1 | Complete | CoFID admitted for user-selected generic augmentation; OFF rejected as a Phase 1 dependency on dated legacy-cohort evidence |
-| #90 | P1 | Ready, queued | Retain combined local/backup architecture because backup follows the local operation model |
-| #94 | P1 | Blocked by #90 and UX re-triage | Retain as phase container; decompose around the accepted shared capture and confirmation design |
-| #88 | P2 | Needs re-triage as MVP-critical | Printed-label population is now a required capture route |
-| #92 | P2 | Needs re-triage as MVP-critical | Generic search and closest-match population require a bounded matching gate |
-| #93 | P2 | Blocked by #94, #88 | Required label-photo delivery represented by the accepted designs |
-| #98 | P2 | Blocked by #94, #92 | Required bounded search/population delivery; broader automatic adjudication remains separately gated |
+| #90 | P1 | Active; decision proposed | SQLite/GRDB local ledger, append-only operations, deterministic backup generations and staged merge; no live Drive work |
+| #94 | P1 | Blocked by accepted #90 and decomposition | Phase container only; decompose around the accepted shared capture and confirmation design |
+| #88 | P1 | Ready, MVP-critical | Printed-label population is a required capture route and gates #93 |
+| #92 | P1 | Ready, MVP-critical | Generic search, closest-match presentation and any automatic subset require a bounded evaluation |
+| #93 | P1 | Blocked by #88 and shared foundation | Required label-photo population route represented by the accepted designs |
+| #98 | P1/P2 | Blocked by #92 and shared foundation | Required generic-search population; automatic acceptance remains separately gated within the evaluated envelope |
 | #91 | P3 | Queued after #89 | Independent handwriting evaluation; not an MVP blocker |
 | #96 | P3 | Blocked by #94 | Narrowed to typed and on-device voice capture |
 | #102 | P3 | Blocked by #94, #91 | New independent handwriting delivery slice |
@@ -109,11 +110,10 @@ The remaining stages are the ratified dependency order. Each issue still require
 ### Stage A — authority and fixtures
 
 #89 is complete. #87 admits CoFID only for user-selected generic augmentation and
-rejects OFF as a Phase 1 dependency. Its result is accepted.
-#90 may compare persistence/backup designs using the frozen domain model but remains
-queued until that decision. #88/#91 may define their corpora without choosing a
-winner. #92 may define labelling and hard-negative policy, but its final
-source-backed corpus waits for #87's accepted result.
+rejects OFF as a Phase 1 dependency. Its result is accepted. #90 is active and its
+proposed decision selects the local operation, snapshot, backup and merge boundary.
+#88 and #92 are ready independent MVP-critical evaluations. #91 may define its
+separate handwriting corpus without blocking the first useful product.
 
 Stage A exits when schemas, terminology, fixtures, scoring metrics and decision thresholds are fixed before final results are observed.
 
@@ -188,9 +188,8 @@ Each later task must identify and obtain the concrete authority it needs, with s
 
 ## Current triage consequence
 
-#87 and its final review are complete. #90 remains the next eligible P1 spike and
-must consume the accepted UX evidence/correction needs without beginning live Drive
-work. Before #94 is decomposed, #88, #92, #93 and #98 must be re-triaged against the
-new requirement that barcode search, label OCR and generic search all populate the
-shared confirmation flow. The HTML design bundle is planning authority, not proof
-that any of those capabilities has passed its evidence gate.
+#87 and its final review are complete. The live issues affected by the UX baseline
+have been re-triaged. #90 is active and must be accepted before #94 is decomposed;
+it does not authorise Drive or OAuth work. #88 and #92 can proceed independently as
+the evidence gates for #93 and #98. The HTML design bundle is planning authority,
+not proof that OCR, retrieval, matching or physical capture has passed its gate.
