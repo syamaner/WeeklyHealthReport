@@ -2,8 +2,18 @@ import Foundation
 import FoodLedgerApplication
 import FoodLedgerDomain
 
+public struct InMemoryFoodArchiveStaging: FoodArchiveStaging {
+    public init() {}
+
+    public func validate(_ transactions: [LedgerTransaction]) throws -> FoodArchiveState {
+        let staging = InMemoryFoodLedgerStore()
+        _ = try staging.commitAtomically(transactions)
+        return try staging.archiveState()
+    }
+}
+
 public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReading,
-    FoodConfirmationReading, @unchecked Sendable
+    FoodConfirmationReading, FoodArchiveLedgerAccess, @unchecked Sendable
 {
     private struct State {
         var evidence: [String: CaptureEvidence] = [:]
@@ -53,31 +63,46 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
 
     public func commit(_ transaction: LedgerTransaction) throws -> CommitOutcome {
         try withLock {
-            if let existing = state.operations[transaction.operation.operationID.rawValue] {
-                guard existing.operationHash == transaction.operation.operationHash else {
-                    throw FoodLedgerStoreError.divergentDuplicateOperation
-                }
-                return .idempotent(existing)
-            }
-            try verifier.verify(transaction)
-            let head = state.actorHeads[transaction.operation.actorID.rawValue]
-                ?? ActorHead(sequence: 0, operationHash: nil)
-            guard transaction.operation.actorSequence == head.sequence + 1 else {
-                throw FoodLedgerStoreError.actorSequenceMismatch
-            }
-            guard transaction.operation.previousOperationHash == head.operationHash else {
-                throw FoodLedgerStoreError.actorHashMismatch
-            }
-
             var next = state
-            try Self.apply(transaction.mutation, to: &next)
-            next.operations[transaction.operation.operationID.rawValue] = transaction.operation
-            next.actorHeads[transaction.operation.actorID.rawValue] = ActorHead(
-                sequence: transaction.operation.actorSequence,
-                operationHash: transaction.operation.operationHash
-            )
+            let outcome = try commit(transaction, to: &next)
             state = next
-            return .committed(transaction.operation)
+            return outcome
+        }
+    }
+
+    public func commitAtomically(_ transactions: [LedgerTransaction]) throws -> [CommitOutcome] {
+        try withLock {
+            var next = state
+            let outcomes = try transactions.map { try commit($0, to: &next) }
+            state = next
+            return outcomes
+        }
+    }
+
+    public func archiveState() throws -> FoodArchiveState {
+        withLock {
+            FoodArchiveState(
+                records: LedgerMutation(
+                    evidence: Array(state.evidence.values),
+                    assertions: Array(state.assertions.values),
+                    products: Array(state.products.values),
+                    productVersions: Array(state.productVersions.values),
+                    libraryEntries: Array(state.libraryEntries.values),
+                    libraryEntryVersions: Array(state.libraryEntryVersions.values),
+                    resolutions: Array(state.resolutions.values),
+                    resolutionVersions: Array(state.resolutionVersions.values),
+                    logItems: Array(state.logItems.values),
+                    logItemVersions: Array(state.logItemVersions.values),
+                    quantityConversions: Array(state.quantityConversions.values),
+                    plates: Array(state.plates.values),
+                    plateWeightVersions: Array(state.plateWeightVersions.values),
+                    candidateDecisions: Array(state.candidateDecisions.values),
+                    conflicts: Array(state.conflicts.values),
+                    sourceReleases: Array(state.sourceReleases.values),
+                    sourceInstallations: Array(state.sourceInstallations.values)
+                ),
+                operations: Array(state.operations.values)
+            )
         }
     }
 
@@ -217,6 +242,31 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
         lock.lock()
         defer { lock.unlock() }
         return try body()
+    }
+
+    private func commit(_ transaction: LedgerTransaction, to state: inout State) throws -> CommitOutcome {
+        if let existing = state.operations[transaction.operation.operationID.rawValue] {
+            guard existing.operationHash == transaction.operation.operationHash else {
+                throw FoodLedgerStoreError.divergentDuplicateOperation
+            }
+            return .idempotent(existing)
+        }
+        try verifier.verify(transaction)
+        let head = state.actorHeads[transaction.operation.actorID.rawValue]
+            ?? ActorHead(sequence: 0, operationHash: nil)
+        guard transaction.operation.actorSequence == head.sequence + 1 else {
+            throw FoodLedgerStoreError.actorSequenceMismatch
+        }
+        guard transaction.operation.previousOperationHash == head.operationHash else {
+            throw FoodLedgerStoreError.actorHashMismatch
+        }
+        try Self.apply(transaction.mutation, to: &state)
+        state.operations[transaction.operation.operationID.rawValue] = transaction.operation
+        state.actorHeads[transaction.operation.actorID.rawValue] = ActorHead(
+            sequence: transaction.operation.actorSequence,
+            operationHash: transaction.operation.operationHash
+        )
+        return .committed(transaction.operation)
     }
 
     private static func apply(_ mutation: LedgerMutation, to state: inout State) throws {

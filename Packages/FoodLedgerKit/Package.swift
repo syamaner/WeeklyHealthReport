@@ -13,6 +13,7 @@ let package = Package(
         .library(name: "FoodLedgerApplication", targets: ["FoodLedgerApplication"]),
         .library(name: "FoodLedgerPresentation", targets: ["FoodLedgerPresentation"]),
         .library(name: "FoodBarcodeCapture", targets: ["FoodBarcodeCapture"]),
+        .library(name: "FoodLedgerArchive", targets: ["FoodLedgerArchive"]),
         .library(name: "FoodLedgerGRDB", targets: ["FoodLedgerGRDB"]),
         .library(name: "FoodLedgerTestSupport", targets: ["FoodLedgerTestSupport"])
     ],
@@ -42,6 +43,10 @@ let package = Package(
             ]
         ),
         .target(
+            name: "FoodLedgerArchive",
+            dependencies: ["FoodLedgerApplication", "FoodLedgerGRDB"]
+        ),
+        .target(
             name: "FoodLedgerTestSupport",
             dependencies: ["FoodLedgerDomain", "FoodLedgerApplication"]
         ),
@@ -66,6 +71,7 @@ let package = Package(
             dependencies: [
                 "FoodLedgerDomain",
                 "FoodLedgerApplication",
+                "FoodLedgerArchive",
                 "FoodLedgerGRDB",
                 "FoodLedgerTestSupport",
                 .product(name: "GRDB", package: "GRDB.swift")

@@ -1,4 +1,5 @@
 import Foundation
+import FoodLedgerApplication
 
 enum DailyHealthExportError: Error, Equatable {
     case invalidTimeZone
@@ -312,11 +313,14 @@ struct DailyHealthMetrics: Codable, Equatable {
     let watchCoverage: ExportMetric<DailyWatchCoverageData>
     let medications: ExportMetric<[DailyMedicationData]>
     let nutrition: DailyNutritionData?
+    var foodLog: CanonicalFoodDocument? = nil
+    var foodNutritionSummary: CanonicalFoodNutritionSummary? = nil
 
     private enum CodingKeys: String, CodingKey {
         case notes, weight, bodyFat, waist, bloodPressure, glucose
         case restingHeartRate, hrv, bloodOxygen, vo2Max, sleep
         case activity, workouts, watchCoverage, medications, nutrition
+        case foodLog, foodNutritionSummary
     }
 }
 
@@ -510,6 +514,32 @@ struct DailyHealthExportInputs: Equatable {
 }
 
 enum DailyHealthExportBuilder {
+    static func addingFoodProjection(
+        _ foodLog: CanonicalFoodDocument,
+        summary: CanonicalFoodNutritionSummary,
+        to schemaV3Envelope: DailyHealthExportEnvelope
+    ) throws -> DailyHealthExportEnvelope {
+        guard schemaV3Envelope.schemaVersion == 3,
+              foodLog.projection.foodContractVersion == CanonicalFoodProjection.foodContractVersion,
+              foodLog.projection.dailySchemaVersion == CanonicalFoodProjection.dailySchemaVersion,
+              foodLog.projection.summaries.contains(summary) else {
+            throw DailyHealthExportError.invalidMetricValue
+        }
+        var today = schemaV3Envelope.today
+        today.foodLog = foodLog
+        today.foodNutritionSummary = summary
+        return DailyHealthExportEnvelope(
+            schemaVersion: 4,
+            reportDate: schemaV3Envelope.reportDate,
+            timeZone: schemaV3Envelope.timeZone,
+            dataAsOf: schemaV3Envelope.dataAsOf,
+            exportedAt: schemaV3Envelope.exportedAt,
+            dayWindow: schemaV3Envelope.dayWindow,
+            today: today,
+            appContext: schemaV3Envelope.appContext
+        )
+    }
+
     static func make(
         window: DailyExportWindow,
         exportedAt: Date,

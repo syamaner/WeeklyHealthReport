@@ -7,6 +7,13 @@ import XCTest
 
 @MainActor
 final class FoodConfirmationPresentationTests: XCTestCase {
+    func testArchiveGuidanceStatesIntegrityAndIndependentDeletionBoundaries() {
+        XCTAssertTrue(FoodArchiveGuidance.integrity.contains("check integrity"))
+        XCTAssertTrue(FoodArchiveGuidance.integrity.contains("do not encrypt or anonymise"))
+        XCTAssertTrue(FoodArchiveGuidance.deletion.contains("does not delete"))
+        XCTAssertTrue(FoodArchiveGuidance.deletion.contains("exported separately"))
+    }
+
     func testFailureMessagesProvideNonColourRecoveryInstructions() {
         XCTAssertEqual(
             FoodConfirmationViewModel.message(for: FoodQuantityValidationError.missingPlateWeight),

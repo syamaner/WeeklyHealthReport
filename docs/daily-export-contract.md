@@ -48,12 +48,21 @@ recovery, or queues later work.
 
 ## JSON envelope
 
-Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `exported_at`, `day_window`, `today`, `app_context`. The current envelope is schema version 3. Schema versions 1 and 2 remain valid only for verifying and safely replacing an existing canonical same-date Drive file.
+Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `exported_at`, `day_window`, `today`, `app_context`. The normal HealthKit-and-notes envelope remains schema version 3. Schema version 4 is an additive projection produced only when a canonical food document and its matching daily food summary are explicitly supplied. Schema versions 1 and 2 remain valid only for verifying and safely replacing an existing canonical same-date Drive file.
 
 Schema v3 always includes `today.notes: [String]`. No saved notes is `[]`, never
 `null` or an availability wrapper. Strings retain intentional embedded line breaks
 and deterministic creation order. Local note IDs, timestamps and revisions are not
 exported; unfinished drafts never serialize.
+
+Schema v4 preserves every schema-v3 field and meaning, then adds
+`today.food_log` and `today.food_nutrition_summary`. The food document carries its
+own food-contract and daily-schema versions, canonical immutable ledger records,
+explicit conflicts, source releases and summaries. A summary contains all 39
+nutrient states and the exact log-item version IDs used to derive it. The selected
+daily summary must also occur byte-for-byte in the food document. Raw attachments,
+OCR geometry, credentials, Keychain data, search indexes and transient diagnostics
+never enter this projection. Schema v4 does not itself authorise Drive transport.
 
 ### User-authored note lifecycle
 

@@ -77,13 +77,19 @@ review that snapshot and tap **Export prepared snapshot**.
    selection changed, because the previous preview is deliberately made stale
    rather than silently altered.
 
-The version 3 JSON envelope records `schema_version`, `report_date`, `time_zone`,
+The normal version 3 JSON envelope records `schema_version`, `report_date`, `time_zone`,
 `data_as_of`, `exported_at` and `day_window`. Its `today` object contains the
 current day's values through the frozen cutoff and an ordered `notes` array.
 `app_context` contains deterministic completed-day summaries and trends.
 Nutrition covers Apple's 39 supported dietary quantity types, restricted to the
 selected HealthKit source; missing or inaccessible values remain explicit states
 rather than becoming zero.
+
+An additive schema-v4 form can include a deterministic canonical food document
+and its matching daily food-nutrition summary. It preserves every v3 meaning,
+records all 39 food nutrient states and exact input log-version IDs, and excludes
+raw media and transient capture data. Creating schema v4 does not enable or call a
+provider; local food-archive export/import remains a separate explicit action.
 
 Each local reporting date has one canonical `health-daily-YYYY-MM-DD.json` file
 in the selected destination. The filename is a convention; the securely stored

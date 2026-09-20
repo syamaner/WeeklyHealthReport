@@ -18,7 +18,7 @@ public struct ProtectedDataAvailability: Sendable {
 }
 
 public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, FoodConfirmationReading,
-    EvidenceAttachmentStoring, @unchecked Sendable
+    EvidenceAttachmentStoring, FoodArchiveLedgerAccess, @unchecked Sendable
 {
     public static let schemaVersion = 1
     public static let applicationID = 0x5748_5246 // WHRF
@@ -128,58 +128,106 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
     public func commit(_ transaction: LedgerTransaction) throws -> CommitOutcome {
         try protectedData.requireAvailable()
         try verifier.verify(transaction)
-        do {
-            return try databaseQueue.write { db in
-                if let existing = try fetchOperation(
-                    db,
-                    id: transaction.operation.operationID.rawValue
-                ) {
-                    guard existing.operationHash == transaction.operation.operationHash else {
-                        throw FoodLedgerStoreError.divergentDuplicateOperation
-                    }
-                    return .idempotent(existing)
-                }
+        return try write { try commit(transaction, db: $0) }
+    }
 
-                let head = try Self.fetchActorHead(db, actorID: transaction.operation.actorID)
-                guard transaction.operation.actorSequence == head.sequence + 1 else {
-                    throw FoodLedgerStoreError.actorSequenceMismatch
-                }
-                guard transaction.operation.previousOperationHash == head.operationHash else {
-                    throw FoodLedgerStoreError.actorHashMismatch
-                }
-                try insert(transaction.mutation, db: db)
-                let record = try OperationRecord(operation: transaction.operation)
-                try db.execute(
-                    sql: """
-                        INSERT INTO ledger_operation(
-                            operation_id, actor_id, actor_sequence, operation_type, created_at,
-                            affected_ids, payload, payload_hash, previous_operation_hash,
-                            operation_hash, idempotency_key
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                    arguments: [
-                        record.operationID, record.actorID, record.actorSequence,
-                        record.operationType, record.createdAt, record.affectedIDs,
-                        record.payload, record.payloadHash, record.previousOperationHash,
-                        record.operationHash, record.idempotencyKey
-                    ]
-                )
-                try db.execute(
-                    sql: """
-                        INSERT INTO ledger_actor(actor_id, sequence, operation_hash)
-                        VALUES (?, ?, ?)
-                        ON CONFLICT(actor_id) DO UPDATE SET
-                            sequence = excluded.sequence,
-                            operation_hash = excluded.operation_hash
-                        """,
-                    arguments: [
-                        transaction.operation.actorID.rawValue,
-                        transaction.operation.actorSequence,
-                        transaction.operation.operationHash.value
-                    ]
-                )
-                return .committed(transaction.operation)
+    public func commitAtomically(_ transactions: [LedgerTransaction]) throws -> [CommitOutcome] {
+        try protectedData.requireAvailable()
+        for transaction in transactions { try verifier.verify(transaction) }
+        return try write { db in
+            try transactions.map { try commit($0, db: db) }
+        }
+    }
+
+    public func archiveState() throws -> FoodArchiveState {
+        try protectedData.requireAvailable()
+        return try databaseQueue.read { db in
+            func values<Value: Decodable>(_ type: Value.Type, table: String) throws -> [Value] {
+                let rows = try Row.fetchAll(db, sql: "SELECT payload FROM \(table) ORDER BY 1")
+                return try rows.map { try decoder.decode(type, from: $0["payload"]) }
             }
+            let operationRows = try Row.fetchAll(
+                db,
+                sql: "SELECT * FROM ledger_operation ORDER BY actor_id, actor_sequence, operation_id"
+            )
+            return FoodArchiveState(
+                records: LedgerMutation(
+                    evidence: try values(CaptureEvidence.self, table: "capture_evidence"),
+                    assertions: try values(UserAssertion.self, table: "user_assertion"),
+                    products: try values(Product.self, table: "product"),
+                    productVersions: try values(ProductVersion.self, table: "product_version"),
+                    libraryEntries: try values(LibraryEntry.self, table: "library_entry"),
+                    libraryEntryVersions: try values(LibraryEntryVersion.self, table: "library_entry_version"),
+                    resolutions: try values(NutritionResolution.self, table: "resolution"),
+                    resolutionVersions: try values(NutritionResolutionVersion.self, table: "resolution_version"),
+                    logItems: try values(LogItem.self, table: "log_item"),
+                    logItemVersions: try values(LogItemVersion.self, table: "log_item_version"),
+                    quantityConversions: try values(QuantityConversionVersion.self, table: "quantity_conversion_version"),
+                    plates: try values(Plate.self, table: "plate"),
+                    plateWeightVersions: try values(PlateWeightVersion.self, table: "plate_weight_version"),
+                    candidateDecisions: try values(CandidateDecision.self, table: "candidate_decision"),
+                    conflicts: try values(LedgerConflict.self, table: "conflict"),
+                    sourceReleases: try values(SourceRelease.self, table: "source_release"),
+                    sourceInstallations: try values(SourceInstallation.self, table: "source_installation")
+                ),
+                operations: try operationRows.map {
+                    try OperationRecord(row: $0).operation(registry: operationRegistry)
+                }
+            )
+        }
+    }
+
+    private func commit(_ transaction: LedgerTransaction, db: Database) throws -> CommitOutcome {
+        if let existing = try fetchOperation(db, id: transaction.operation.operationID.rawValue) {
+            guard existing.operationHash == transaction.operation.operationHash else {
+                throw FoodLedgerStoreError.divergentDuplicateOperation
+            }
+            return .idempotent(existing)
+        }
+        let head = try Self.fetchActorHead(db, actorID: transaction.operation.actorID)
+        guard transaction.operation.actorSequence == head.sequence + 1 else {
+            throw FoodLedgerStoreError.actorSequenceMismatch
+        }
+        guard transaction.operation.previousOperationHash == head.operationHash else {
+            throw FoodLedgerStoreError.actorHashMismatch
+        }
+        try insert(transaction.mutation, db: db)
+        let record = try OperationRecord(operation: transaction.operation)
+        try db.execute(
+            sql: """
+                INSERT INTO ledger_operation(
+                    operation_id, actor_id, actor_sequence, operation_type, created_at,
+                    affected_ids, payload, payload_hash, previous_operation_hash,
+                    operation_hash, idempotency_key
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+            arguments: [
+                record.operationID, record.actorID, record.actorSequence,
+                record.operationType, record.createdAt, record.affectedIDs,
+                record.payload, record.payloadHash, record.previousOperationHash,
+                record.operationHash, record.idempotencyKey
+            ]
+        )
+        try db.execute(
+            sql: """
+                INSERT INTO ledger_actor(actor_id, sequence, operation_hash)
+                VALUES (?, ?, ?)
+                ON CONFLICT(actor_id) DO UPDATE SET
+                    sequence = excluded.sequence,
+                    operation_hash = excluded.operation_hash
+                """,
+            arguments: [
+                transaction.operation.actorID.rawValue,
+                transaction.operation.actorSequence,
+                transaction.operation.operationHash.value
+            ]
+        )
+        return .committed(transaction.operation)
+    }
+
+    private func write<Value>(_ body: (Database) throws -> Value) throws -> Value {
+        do {
+            return try databaseQueue.write(body)
         } catch let error as FoodLedgerStoreError {
             throw error
         } catch let error as DatabaseError {
