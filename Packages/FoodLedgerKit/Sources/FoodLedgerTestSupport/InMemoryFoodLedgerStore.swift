@@ -114,6 +114,46 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
         }
     }
 
+    public func barcodeLibraryRecords(alias: LedgerText) throws -> [BarcodeLibraryRecord] {
+        try withLock {
+            let supersededIDs = Set(state.libraryEntryVersions.values.compactMap {
+                $0.supersedesLibraryEntryVersionID
+            })
+            let matchingEntries = state.libraryEntryVersions.values
+                .filter {
+                    !supersededIDs.contains($0.libraryEntryVersionID)
+                        && $0.aliases.contains(alias)
+                }
+                .sorted { $0.libraryEntryVersionID.rawValue < $1.libraryEntryVersionID.rawValue }
+            return try matchingEntries.flatMap { entry -> [BarcodeLibraryRecord] in
+                guard let product = state.productVersions[entry.productVersionID.rawValue] else {
+                    throw FoodLedgerStoreError.integrityFailure("missing barcode product version")
+                }
+                let resolutions = state.resolutions.values
+                    .filter { $0.productVersionID == product.productVersionID }
+                    .sorted { $0.resolutionID.rawValue < $1.resolutionID.rawValue }
+                return try resolutions.compactMap { resolution in
+                    guard let version = state.resolutionVersions.values
+                        .filter({ $0.resolutionID == resolution.resolutionID })
+                        .max(by: { $0.ordinal.value < $1.ordinal.value }) else { return nil }
+                    let releases = try version.sourceReleaseIDs.map { identifier in
+                        guard let release = state.sourceReleases[identifier.value] else {
+                            throw FoodLedgerStoreError.integrityFailure("missing barcode source release")
+                        }
+                        return release
+                    }
+                    return try BarcodeLibraryRecord(
+                        libraryEntryVersion: entry,
+                        productVersion: product,
+                        resolution: resolution,
+                        resolutionVersion: version,
+                        sourceReleases: releases
+                    )
+                }
+            }
+        }
+    }
+
     public func conflicts() throws -> [LedgerConflict] {
         withLock { state.conflicts.values.sorted { $0.conflictID.rawValue < $1.conflictID.rawValue } }
     }

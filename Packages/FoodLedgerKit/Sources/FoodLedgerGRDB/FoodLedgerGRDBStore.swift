@@ -244,6 +244,79 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         }
     }
 
+    public func barcodeLibraryRecords(alias: LedgerText) throws -> [BarcodeLibraryRecord] {
+        try protectedData.requireAvailable()
+        return try databaseQueue.read { db in
+            func decode<Value: Decodable>(
+                _ type: Value.Type,
+                table: String,
+                column: String,
+                id: String
+            ) throws -> Value? {
+                guard let data = try Data.fetchOne(
+                    db,
+                    sql: "SELECT payload FROM \(table) WHERE \(column) = ?",
+                    arguments: [id]
+                ) else { return nil }
+                return try decoder.decode(type, from: data)
+            }
+
+            let entryRows = try Row.fetchAll(
+                db,
+                sql: "SELECT payload FROM library_entry_version ORDER BY version_id"
+            )
+            let allEntries = try entryRows.map { row in
+                try decoder.decode(LibraryEntryVersion.self, from: row["payload"])
+            }
+            let supersededIDs = Set(allEntries.compactMap(\.supersedesLibraryEntryVersionID))
+            let entries = allEntries.filter {
+                !supersededIDs.contains($0.libraryEntryVersionID) && $0.aliases.contains(alias)
+            }
+            return try entries.flatMap { entry -> [BarcodeLibraryRecord] in
+                guard let product: ProductVersion = try decode(
+                    ProductVersion.self,
+                    table: "product_version",
+                    column: "version_id",
+                    id: entry.productVersionID.rawValue
+                ) else {
+                    throw FoodLedgerStoreError.integrityFailure("missing barcode product version")
+                }
+                let resolutionRows = try Row.fetchAll(
+                    db,
+                    sql: "SELECT payload FROM resolution WHERE product_version_id = ? ORDER BY resolution_id",
+                    arguments: [product.productVersionID.rawValue]
+                )
+                return try resolutionRows.compactMap { row -> BarcodeLibraryRecord? in
+                    let resolution = try decoder.decode(NutritionResolution.self, from: row["payload"])
+                    guard let versionData = try Data.fetchOne(
+                        db,
+                        sql: "SELECT payload FROM resolution_version WHERE resolution_id = ? ORDER BY ordinal DESC, version_id DESC LIMIT 1",
+                        arguments: [resolution.resolutionID.rawValue]
+                    ) else { return nil }
+                    let version = try decoder.decode(NutritionResolutionVersion.self, from: versionData)
+                    let releases = try version.sourceReleaseIDs.map { identifier in
+                        guard let release: SourceRelease = try decode(
+                            SourceRelease.self,
+                            table: "source_release",
+                            column: "source_release_id",
+                            id: identifier.value
+                        ) else {
+                            throw FoodLedgerStoreError.integrityFailure("missing barcode source release")
+                        }
+                        return release
+                    }
+                    return try BarcodeLibraryRecord(
+                        libraryEntryVersion: entry,
+                        productVersion: product,
+                        resolution: resolution,
+                        resolutionVersion: version,
+                        sourceReleases: releases
+                    )
+                }
+            }
+        }
+    }
+
     public func conflicts() throws -> [LedgerConflict] {
         try protectedData.requireAvailable()
         return try decodeRows(sql: "SELECT payload FROM conflict ORDER BY conflict_id")

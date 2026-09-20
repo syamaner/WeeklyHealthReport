@@ -12,6 +12,7 @@ let package = Package(
         .library(name: "FoodLedgerDomain", targets: ["FoodLedgerDomain"]),
         .library(name: "FoodLedgerApplication", targets: ["FoodLedgerApplication"]),
         .library(name: "FoodLedgerPresentation", targets: ["FoodLedgerPresentation"]),
+        .library(name: "FoodBarcodeCapture", targets: ["FoodBarcodeCapture"]),
         .library(name: "FoodLedgerGRDB", targets: ["FoodLedgerGRDB"]),
         .library(name: "FoodLedgerTestSupport", targets: ["FoodLedgerTestSupport"])
     ],
@@ -26,6 +27,10 @@ let package = Package(
         ),
         .target(
             name: "FoodLedgerPresentation",
+            dependencies: ["FoodLedgerDomain", "FoodLedgerApplication"]
+        ),
+        .target(
+            name: "FoodBarcodeCapture",
             dependencies: ["FoodLedgerDomain", "FoodLedgerApplication"]
         ),
         .target(

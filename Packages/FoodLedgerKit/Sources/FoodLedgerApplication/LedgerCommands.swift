@@ -311,6 +311,7 @@ public protocol LedgerReading: Sendable {
     func productVersions(productID: ProductID) throws -> [ProductVersion]
     func resolutionVersion(id: ResolutionVersionID) throws -> NutritionResolutionVersion?
     func exactLibraryEntries(alias: LedgerText) throws -> [LibraryEntryVersion]
+    func barcodeLibraryRecords(alias: LedgerText) throws -> [BarcodeLibraryRecord]
     func conflicts() throws -> [LedgerConflict]
     func sourceRelease(id: ExternalIdentifier) throws -> SourceRelease?
 }
