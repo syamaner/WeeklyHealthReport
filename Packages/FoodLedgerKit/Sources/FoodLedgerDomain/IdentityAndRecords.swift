@@ -493,6 +493,7 @@ public struct LogItemVersion: Codable, Equatable, Sendable {
     public let composition: LogComposition
     public let edibleQuantity: PositiveQuantity
     public let quantityConversionVersionID: QuantityConversionVersionID?
+    public let plateWeightVersionID: PlateWeightVersionID?
     public let originalResolutionVersionID: ResolutionVersionID
     public let effectiveResolutionVersionID: ResolutionVersionID
     public let correctionReason: LedgerText?
@@ -508,6 +509,7 @@ public struct LogItemVersion: Codable, Equatable, Sendable {
         composition: LogComposition,
         edibleQuantity: PositiveQuantity,
         quantityConversionVersionID: QuantityConversionVersionID? = nil,
+        plateWeightVersionID: PlateWeightVersionID? = nil,
         originalResolutionVersionID: ResolutionVersionID,
         effectiveResolutionVersionID: ResolutionVersionID,
         correctionReason: LedgerText? = nil,
@@ -528,6 +530,7 @@ public struct LogItemVersion: Codable, Equatable, Sendable {
         self.composition = composition
         self.edibleQuantity = edibleQuantity
         self.quantityConversionVersionID = quantityConversionVersionID
+        self.plateWeightVersionID = plateWeightVersionID
         self.originalResolutionVersionID = originalResolutionVersionID
         self.effectiveResolutionVersionID = effectiveResolutionVersionID
         self.correctionReason = correctionReason

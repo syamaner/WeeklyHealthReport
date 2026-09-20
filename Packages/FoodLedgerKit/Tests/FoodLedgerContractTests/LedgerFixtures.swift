@@ -7,7 +7,7 @@ import FoodLedgerTestSupport
 struct TestHarness {
     let name: String
     let committer: any LedgerCommandCommitting
-    let reader: any LedgerReading
+    let reader: any LedgerReading & FoodConfirmationReading
     let cleanup: () -> Void
 }
 

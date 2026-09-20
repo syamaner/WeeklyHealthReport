@@ -19,6 +19,7 @@ check_imports() {
 
 check_imports FoodLedgerDomain '^(Foundation)$'
 check_imports FoodLedgerApplication '^(CryptoKit|Foundation|FoodLedgerDomain)$'
+check_imports FoodLedgerPresentation '^(FoodLedgerApplication|FoodLedgerDomain|SwiftUI)$'
 check_imports FoodLedgerTestSupport '^(Foundation|FoodLedgerApplication|FoodLedgerDomain)$'
 check_imports FoodLedgerGRDB '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|GRDB)$'
 
@@ -26,6 +27,11 @@ if grep -RnsE '^import (GRDB|SwiftUI|UIKit|HealthKit)$' \
   "$package_root/Sources/FoodLedgerDomain" \
   "$package_root/Sources/FoodLedgerApplication"; then
   echo "Domain/application boundary imports infrastructure or presentation" >&2
+  exit 1
+fi
+
+if grep -RnsE '^import GRDB$' "$package_root/Sources/FoodLedgerPresentation"; then
+  echo "Presentation imports persistence infrastructure" >&2
   exit 1
 fi
 
