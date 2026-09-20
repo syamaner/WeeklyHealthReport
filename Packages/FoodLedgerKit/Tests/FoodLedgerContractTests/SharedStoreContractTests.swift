@@ -148,7 +148,10 @@ final class SharedStoreContractTests: XCTestCase {
                 libraryEntryID: entry.libraryEntryID,
                 ordinal: VersionOrdinal(1),
                 productVersionID: LedgerFixtures.id(3, ProductVersionTag.self),
-                aliases: [LedgerText("fixture alias")],
+                aliases: [
+                    LedgerText("fixture alias"),
+                    LedgerText("barcode:gtin:04006381333931")
+                ],
                 createdAt: LedgerFixtures.date
             )
             _ = try service.commit(
@@ -165,6 +168,45 @@ final class SharedStoreContractTests: XCTestCase {
             XCTAssertEqual(
                 try harness.reader.exactLibraryEntries(alias: LedgerText("Fixture alias")),
                 [],
+                harness.name
+            )
+            let barcodeRecords = try harness.reader.barcodeLibraryRecords(
+                alias: LedgerText("barcode:gtin:04006381333931")
+            )
+            let expectedProductVersionID: ProductVersionID = try LedgerFixtures.id(3, ProductVersionTag.self)
+            let expectedResolutionVersionID: ResolutionVersionID = try LedgerFixtures.id(5, ResolutionVersionTag.self)
+            XCTAssertEqual(barcodeRecords.count, 1, harness.name)
+            XCTAssertEqual(barcodeRecords[0].libraryEntryVersion, version, harness.name)
+            XCTAssertEqual(
+                barcodeRecords[0].productVersion.productVersionID,
+                expectedProductVersionID,
+                harness.name
+            )
+            XCTAssertEqual(
+                barcodeRecords[0].resolutionVersion.resolutionVersionID,
+                expectedResolutionVersionID,
+                harness.name
+            )
+
+            let successor = try LibraryEntryVersion(
+                libraryEntryVersionID: LedgerFixtures.id(62, LibraryEntryVersionTag.self),
+                libraryEntryID: entry.libraryEntryID,
+                ordinal: VersionOrdinal(2),
+                supersedesLibraryEntryVersionID: version.libraryEntryVersionID,
+                productVersionID: version.productVersionID,
+                aliases: version.aliases,
+                createdAt: LedgerFixtures.date
+            )
+            _ = try service.commit(
+                LedgerMutation(libraryEntryVersions: [successor]),
+                type: .saveLibraryEntry,
+                operationID: LedgerFixtures.operationID(119)
+            )
+            XCTAssertEqual(
+                try harness.reader.barcodeLibraryRecords(
+                    alias: LedgerText("barcode:gtin:04006381333931")
+                ).map(\.libraryEntryVersion),
+                [successor],
                 harness.name
             )
         }

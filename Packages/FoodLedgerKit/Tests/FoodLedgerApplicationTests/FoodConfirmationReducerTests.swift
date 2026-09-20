@@ -317,6 +317,7 @@ private final class RecordingStore: LedgerCommandCommitting, LedgerReading,
     func productVersions(productID: ProductID) throws -> [ProductVersion] { [] }
     func resolutionVersion(id: ResolutionVersionID) throws -> NutritionResolutionVersion? { nil }
     func exactLibraryEntries(alias: LedgerText) throws -> [LibraryEntryVersion] { [] }
+    func barcodeLibraryRecords(alias: LedgerText) throws -> [BarcodeLibraryRecord] { [] }
     func conflicts() throws -> [LedgerConflict] { [] }
     func sourceRelease(id: ExternalIdentifier) throws -> SourceRelease? { nil }
     func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation? { nil }

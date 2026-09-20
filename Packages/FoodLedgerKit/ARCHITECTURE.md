@@ -103,6 +103,23 @@ route adapters, presentation copy and concrete persistence are extension axes.
 Barcode, OCR and generic-search routes all construct `PopulatedFoodConfirmation`;
 none owns a save schema or can bypass domain validation.
 
+## Issue #110 barcode-capture gate
+
+`FoodLedgerDomain` owns checksum-valid GTIN classification, explicitly namespaced
+local-code identities and collision-proof lookup aliases. `FoodLedgerApplication`
+owns the scanner and local-search capabilities plus deterministic routing into the
+shared populated confirmation or an evidence-preserving fallback. The
+`FoodBarcodeCapture` adapter alone imports AVFoundation, VisionKit and SwiftUI; it
+maps supported symbologies and returns original scanner payloads without deciding
+product identity.
+
+Original code, reported symbology, capture time, locale and capture-method version;
+GTIN validation; explicit local namespaces; immutable product/resolution versions;
+and no blank or silently accepted fallback remain closed invariants. Scanner
+frameworks and separately admitted local indexes are extension axes. Alternate
+scanner contract tests, exact/ambiguous/malformed/retailer/reformulation/miss/weak
+fixtures, shared in-memory/GRDB reads and import guards enforce those boundaries.
+
 The reducer contract covers candidate selection, explained closest-match
 acceptance, decline, correction, quantity/conversion and plate modes, validation,
 saving and recoverable failure. The save contract covers a single atomic mutation,
