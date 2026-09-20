@@ -136,6 +136,9 @@ The issue graph must be re-triaged before implementation:
 
 - #90 must preserve OCR/search candidates, source evidence, user selections,
   overrides, quantity conversions and saved-plate versions in the local protocol.
+  Its proposed [storage and backup decision](food-library-storage-and-backup-decision.md)
+  selects a SQLite/GRDB ledger, append-only operations, deterministic backup
+  generations and staged conflict-preserving merge.
 - #88 and #92 are now MVP-critical evidence gates rather than optional polish.
 - #93 is required to deliver the label-photography route represented in the design.
 - #98 or a newly decomposed bounded search/population slice is required to deliver
