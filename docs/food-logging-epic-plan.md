@@ -8,14 +8,24 @@ Normative contract authority: `food-identity-nutrition-contract.md`. Later issue
 must consume its identifiers, nutrient states, provenance, merge and migration rules
 rather than redefining them.
 
+UX design authority: [Food log UX design baseline](food-log-ux-design-plan.md),
+backed by the versioned [36-screen HTML design bundle](designs/food-log-all-screens.html).
+Later issue decomposition must use its capture, confirmation, closest-match,
+quantity, preparation, plate-weight and override flows as the interaction baseline.
+
 This document turns the research recommendation into an executable issue graph. It is a plan, not implementation evidence and not authority to exercise a provider, device, OAuth account, Drive destination or HealthKit store.
 
-Epic triage was completed on 19 September 2026. #89 was the only child marked
-ready and was selected first. Its contract is accepted; no later child has started.
+Epic triage was completed on 19 September 2026. #89 and #87 are complete. The
+accepted UX baseline supersedes the earlier manual-first MVP assumption and requires
+the remaining issue graph to be re-triaged before implementation.
 
 ## Outcome
 
-Make repeated food logging easier while preserving enough identity and provenance evidence to correct nutrition later. The product must prefer an explicit unknown or user decision over an unjustified exact value.
+Make repeated food logging easier while preserving enough identity and provenance
+evidence to correct nutrition later. Barcode lookup, label photography and generic
+food search populate the entry; a blank manual nutrient form is not an acceptable
+normal or fallback journey. The product must prefer an explicit unknown or user
+decision over an unjustified exact value.
 
 The app's local, versioned data and canonical JSON remain the system of record. A barcode, nutrition panel, speech transcript or OCR result is capture evidence, not sufficient nutrition truth on its own.
 
@@ -27,14 +37,20 @@ The app's local, versioned data and canonical JSON remain the system of record. 
    unresolved conflicts are explicit and have an effective `unknown` value.
 3. Store decisive identity states, including preparation, bone/skin state, drained state, packing medium, fortification, serving basis and edible quantity.
 4. Reuse exact confirmed personal-library entries locally and offline.
-5. Do not depend on Open Food Facts in Phase 1; #87 rejected it as an identity or
+5. Converge barcode, label-photo and generic-name search on one confirmation flow
+   with quantity/unit, preparation, plate-weight, source and override controls.
+6. Permit explicit closest-match acceptance for minor differences, but surface
+   material preparation, edible-basis and formulation differences before save.
+7. Treat overrides as versioned corrections to populated evidence/results, not as
+   a routine blank nutrition-entry workflow.
+8. Do not depend on Open Food Facts in Phase 1; #87 rejected it as an identity or
    nutrition-resolution dependency. Any later user-invoked candidate suggestion
    remains untrusted evidence and non-canonical until separately evaluated.
-6. Start generic UK composition from a versioned CoFID release; Phase 1 requires user selection rather than automatic adjudication.
-7. Keep Drive as an explicit backup/export path under narrow `drive.file` consent, not the live database.
-8. Keep the existing app's HealthKit access read-only unless the dedicated plan is ratified and implementation is separately authorised.
-9. Keep source-rich JSON canonical even if exact combined scalar nutrients are later written to HealthKit.
-10. Do not scrape retailer sites or depend on a server for the single-user MVP.
+9. Start generic UK composition from a versioned CoFID release; Phase 1 requires user selection rather than automatic adjudication.
+10. Keep Drive as an explicit backup/export path under narrow `drive.file` consent, not the live database.
+11. Keep the existing app's HealthKit access read-only unless the dedicated plan is ratified and implementation is separately authorised.
+12. Keep source-rich JSON canonical even if exact combined scalar nutrients are later written to HealthKit.
+13. Do not scrape retailer sites or depend on a server for the single-user MVP.
 
 ## Issue graph
 
@@ -43,10 +59,10 @@ The app's local, versioned data and canonical JSON remain the system of record. 
 | [#89](https://github.com/syamaner/WeeklyHealthReport/issues/89) | Plan/contract | Land the research, schema, provenance and merge contract | First authority task |
 | [#87](https://github.com/syamaner/WeeklyHealthReport/issues/87) | Spike | Measured UK source coverage, CoFID ingest facts and licence/offline matrix | Starts after #89; fixtures use its source-release, provenance and identity vocabulary |
 | [#90](https://github.com/syamaner/WeeklyHealthReport/issues/90) | Spike | Local store/versioning and Drive backup/merge decision | Starts after #89; persists its stable/version IDs and conflict rules; no live Drive work |
-| [#88](https://github.com/syamaner/WeeklyHealthReport/issues/88) | Eval | Printed-panel OCR corpus, harness and promotion result | Independent of production UI |
+| [#88](https://github.com/syamaner/WeeklyHealthReport/issues/88) | Eval | Printed-panel OCR corpus, harness and promotion result | MVP-critical evidence gate under the accepted UX baseline |
 | [#91](https://github.com/syamaner/WeeklyHealthReport/issues/91) | Eval | Handwriting corpus, harness and promotion result | Separate from printed OCR |
-| [#92](https://github.com/syamaner/WeeklyHealthReport/issues/92) | Eval | Matching, hard-negative and calibration corpus/harness | Source releases and labels must be frozen |
-| [#94](https://github.com/syamaner/WeeklyHealthReport/issues/94) | Phase container | Local-first manual MVP, exact library reuse and provenance-rich JSON | #89, #87 and local part of #90 accepted; decompose before implementation |
+| [#92](https://github.com/syamaner/WeeklyHealthReport/issues/92) | Eval | Matching, hard-negative and calibration corpus/harness | MVP-critical evidence gate; source releases and labels must be frozen |
+| [#94](https://github.com/syamaner/WeeklyHealthReport/issues/94) | Phase container | Local-first populated capture, shared confirmation, exact library reuse and provenance-rich JSON | #89, #87, local part of #90 and UX re-triage accepted; decompose before implementation |
 | [#93](https://github.com/syamaner/WeeklyHealthReport/issues/93) | Delivery | Verified printed-panel capture | #94 and accepted #88 envelope |
 | [#96](https://github.com/syamaner/WeeklyHealthReport/issues/96) | Delivery | Typed and on-device voice capture | #94 and speech characterisation |
 | [#102](https://github.com/syamaner/WeeklyHealthReport/issues/102) | Delivery | Handwritten batch capture | #94 and accepted #91 envelope |
@@ -66,11 +82,11 @@ All sixteen tasks are native sub-issues of #86. The checklists in the epic provi
 | #89 | P0 | Complete | Contract freezes the shared domain vocabulary and gates |
 | #87 | P1 | Complete | CoFID admitted for user-selected generic augmentation; OFF rejected as a Phase 1 dependency on dated legacy-cohort evidence |
 | #90 | P1 | Ready, queued | Retain combined local/backup architecture because backup follows the local operation model |
-| #94 | P1 | Blocked by accepted #87 and #90 | Retain as phase container; decompose before implementation |
-| #88 | P2 | Queued after #89 | Independent printed-panel evaluation; not an MVP blocker |
-| #92 | P2 | Blocked by accepted #87 | Gate for automatic augmentation |
-| #93 | P2 | Blocked by #94, #88 | Independently promoted printed OCR delivery |
-| #98 | P2 | Blocked by #94, #92 | Narrowed to initial calibrated augmentation |
+| #94 | P1 | Blocked by #90 and UX re-triage | Retain as phase container; decompose around the accepted shared capture and confirmation design |
+| #88 | P2 | Needs re-triage as MVP-critical | Printed-label population is now a required capture route |
+| #92 | P2 | Needs re-triage as MVP-critical | Generic search and closest-match population require a bounded matching gate |
+| #93 | P2 | Blocked by #94, #88 | Required label-photo delivery represented by the accepted designs |
+| #98 | P2 | Blocked by #94, #92 | Required bounded search/population delivery; broader automatic adjudication remains separately gated |
 | #91 | P3 | Queued after #89 | Independent handwriting evaluation; not an MVP blocker |
 | #96 | P3 | Blocked by #94 | Narrowed to typed and on-device voice capture |
 | #102 | P3 | Blocked by #94, #91 | New independent handwriting delivery slice |
@@ -109,9 +125,17 @@ Stage B exits with reproducible artefacts, denominators, raw result formats, fai
 
 ### Stage C — minimum useful product
 
-Deliver #94 only after the contract, source choice and local persistence boundary are accepted. The MVP is intentionally manual where evidence is insufficient: user-confirmed identity and quantity, manual panel values, explicit unknowns and user-selected CoFID matches.
+Deliver #94 only after the contract, source choice, local persistence boundary and
+UX-driven issue re-triage are accepted. Decompose the shared shell represented by
+the design bundle: three capture routes, one confirmation model, source-aware
+closest-match selection, quantity/unit and preparation selection, plate handling,
+overrides and offline saved-food reuse.
 
-This stage must be useful without OCR, automatic matching, HealthKit writes, automatic Drive work or a commercial provider.
+The first acceptable product must populate nutrition through barcode search, label
+OCR or generic-food search. It must not require a blank manual nutrition form. It
+may still require user selection, quantity entry, confirmation, retaking a label
+photograph or correction of an extracted value. HealthKit writes, automatic Drive
+work and a commercial provider remain outside this stage unless separately approved.
 
 ### Stage D — independently promoted capture and augmentation
 
@@ -164,7 +188,9 @@ Each later task must identify and obtain the concrete authority it needs, with s
 
 ## Current triage consequence
 
-#87 and its final review are complete. #90 is the next eligible P1 spike and must
-not begin as part of #87. #94
-remains blocked by accepted #87 and #90 outcomes and must still be decomposed before
-implementation. #92 continues to wait for #87's accepted source decision.
+#87 and its final review are complete. #90 remains the next eligible P1 spike and
+must consume the accepted UX evidence/correction needs without beginning live Drive
+work. Before #94 is decomposed, #88, #92, #93 and #98 must be re-triaged against the
+new requirement that barcode search, label OCR and generic search all populate the
+shared confirmation flow. The HTML design bundle is planning authority, not proof
+that any of those capabilities has passed its evidence gate.
