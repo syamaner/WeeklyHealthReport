@@ -1,0 +1,3489 @@
+{
+  "evidence_date": "2026-09-20",
+  "cohort": "User-supplied food package labels provided incrementally for contract validation",
+  "method": {
+    "observation": "Manual inspection of user-supplied package images plus read-only public manufacturer and retailer corroboration",
+    "privacy": "Raw images remain local-only and are not committed. The repository retains only evidence hashes and product facts needed for contract validation.",
+    "promotion_rule": "Package facts visible in the supplied image may be measured for that evidence-scoped product version. Public nutrition remains a candidate until the exact package nutrition panel is verified.",
+    "mutations": "None; public pages were read without login, basket, order, review or account action"
+  },
+  "summary": {
+    "cases": 19,
+    "valid_gtins": 15,
+    "non_gtin_retailer_codes": 4,
+    "exact_public_gtin_matches": 8,
+    "exact_official_retailer_product_matches": 13,
+    "user_supplied_nutrition_panels": 14,
+    "user_supplied_unattributed_nutrition_tables": 1,
+    "user_confirmed_manual_nutrition_tables": 1,
+    "package_panels_with_public_nutrition_conflicts": 8,
+    "cases_with_public_nutrition_candidates": 19,
+    "public_pages_with_internal_nutrition_conflicts": 2,
+    "pages_with_an_immutable_source_release": 0,
+    "pages_with_a_formulation_effective_date": 0
+  },
+  "cases": [
+    {
+      "case_id": "olympus-yoghurt-10-percent-1kg-01",
+      "user_description": "Olympus yoghurt from Costco",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package:sha256:0c90f7b130a55bcc27182bfe4a3b06a98d2c7cf441333e7d244603b197ce2b9d",
+        "evidence_id": "sha256:0c90f7b130a55bcc27182bfe4a3b06a98d2c7cf441333e7d244603b197ce2b9d",
+        "evidence_sha256": "0c90f7b130a55bcc27182bfe4a3b06a98d2c7cf441333e7d244603b197ce2b9d",
+        "image_dimensions_pixels": "556 x 727",
+        "raw_image_committed": false,
+        "visible_facts": {
+          "gtin_13": "5202178085963",
+          "gtin_check_digit_valid": true,
+          "net_weight_g": 1000,
+          "establishment_mark": "GR 46.1 EC"
+        },
+        "not_visible": [
+          "front product name and variant",
+          "nutrition panel",
+          "ingredients",
+          "best-before or lot",
+          "serving basis"
+        ]
+      },
+      "public_identity_resolution": {
+        "status": "exact GTIN match corroborated across public sources",
+        "resolved_name_candidate": "Olympus 10% Fat Strained Greek Yoghurt",
+        "pack_candidate": "1 kg",
+        "retailer_candidate": "Costco UK",
+        "public_sources": [
+          {
+            "publisher": "Costco UK",
+            "url": "https://www.costco.co.uk/Business-Delivery/Business-Delivery/Olympus-10-Fat-Strained-Greek-Yoghurt-1kg/p/235777_BD",
+            "source_record_id": "costco-uk:235777_BD",
+            "observation": "Current public page names Olympus 10% Fat Strained Greek Yoghurt, 1 kg, and describes it as authentic natural Greek yogurt made from pasteurised milk. The page does not expose the GTIN."
+          },
+          {
+            "publisher": "OCSA public product catalogue",
+            "url": "https://www.ocsasrl.it/uploads/pagine/0051/CATALOGOX10.pdf",
+            "observation": "Catalogue associates EAN 5202178085963 with Olympus Crema Yogurt 10%, 1 kg."
+          },
+          {
+            "publisher": "Greek Market UK",
+            "url": "https://greekmarket.co.uk/product/olympos-greek-strained-yoghurt/",
+            "observation": "Public listing uses SKU 5202178085963 for Olympos Greek strained yoghurt, 10% fat, 1 kg."
+          }
+        ]
+      },
+      "public_nutrition_candidate": {
+        "publisher": "Olympus Global",
+        "url": "https://www.olympusfoods.com/products/plain-yoghurt/yogurt-10-fat.html",
+        "retrieval_date": "2026-09-20",
+        "basis": "per 100 g",
+        "source_release_id": null,
+        "formulation_effective_date": null,
+        "values": [
+          {
+            "key": "energy_consumed",
+            "value": 134,
+            "unit": "kcal",
+            "source_alternate_value": 557,
+            "source_alternate_unit": "kJ"
+          },
+          {
+            "key": "fat_total",
+            "value": 10,
+            "unit": "g"
+          },
+          {
+            "key": "fat_saturated",
+            "value": 6.2,
+            "unit": "g"
+          },
+          {
+            "key": "carbohydrates",
+            "value": 4,
+            "unit": "g"
+          },
+          {
+            "key": "sugar",
+            "value": 4,
+            "unit": "g"
+          },
+          {
+            "key": "protein",
+            "value": 7,
+            "unit": "g"
+          },
+          {
+            "source_name": "salt",
+            "value": 0.18,
+            "unit": "g",
+            "canonical_transform_candidate": "salt_to_sodium_v1",
+            "canonical_sodium_candidate_mg": 72
+          }
+        ],
+        "status": "mutable manufacturer-page candidate; not measured for the captured package until its nutrition panel confirms exact formulation compatibility"
+      },
+      "user_supplied_nutrition_table_candidate": {
+        "source_identity": "unattributed user-supplied transcription",
+        "source_url": null,
+        "source_kind": "manual_declaration",
+        "source_release_id": "manual:olympos-table-confirmation:2026-09-20",
+        "formulation_effective_date": null,
+        "user_confirmation": {
+          "assertion_id": "olympos-table-use-as-is:2026-09-20",
+          "assertion": "The user confirmed that the supplied table is correct and instructed that it be used as-is.",
+          "effect": "The table is the effective manual declaration for this evidence-scoped product version. The conflicting mutable manufacturer candidate is retained but rejected for the affected nutrients."
+        },
+        "basis": "as sold per 100 g or 100 mL; product is solid and compatible interpretation is per 100 g",
+        "values": [
+          {
+            "key": "energy_consumed",
+            "state": "measured",
+            "value": 130,
+            "unit": "kcal",
+            "approximate_marker_present": true,
+            "source_alternate_value": 540,
+            "source_alternate_unit": "kJ"
+          },
+          {
+            "key": "fat_total",
+            "state": "measured",
+            "value": 10,
+            "unit": "g"
+          },
+          {
+            "key": "fat_saturated",
+            "state": "measured",
+            "value": 6.2,
+            "unit": "g"
+          },
+          {
+            "key": "cholesterol",
+            "state": "measured",
+            "value": 48,
+            "unit": "mg",
+            "source_value": 0.048,
+            "source_unit": "g",
+            "transform": "g_to_mg"
+          },
+          {
+            "key": "carbohydrates",
+            "state": "measured",
+            "value": 4,
+            "unit": "g"
+          },
+          {
+            "key": "sugar",
+            "state": "measured",
+            "value": 4,
+            "unit": "g"
+          },
+          {
+            "key": "fiber",
+            "state": "unknown",
+            "reason": "source_table_question_mark"
+          },
+          {
+            "key": "protein",
+            "state": "measured",
+            "value": 6,
+            "unit": "g"
+          },
+          {
+            "source_name": "salt",
+            "source_status": "approximate_manual_declaration",
+            "value": 0.1075,
+            "unit": "g",
+            "approximate_marker_present": true
+          },
+          {
+            "key": "sodium",
+            "state": "measured",
+            "value": 43,
+            "unit": "mg",
+            "source_value": 0.043,
+            "source_unit": "g",
+            "transform": "g_to_mg"
+          }
+        ],
+        "excluded_fields": [
+          "comparison-to-whole-milk-yogurts column because it contains category averages rather than product facts",
+          "fruits-vegetables-legumes percentage because it is not one of the frozen 39 nutrients and is not needed for product identity"
+        ],
+        "agreement_with_manufacturer_candidate": [
+          "fat_total 10 g/100 g",
+          "fat_saturated 6.2 g/100 g",
+          "carbohydrates 4 g/100 g",
+          "sugar 4 g/100 g"
+        ],
+        "conflicts_with_manufacturer_candidate": [
+          "energy 130 kcal and approximately 540 kJ versus 134 kcal and 557 kJ",
+          "protein 6 g versus 7 g",
+          "salt approximately 0.1075 g versus 0.18 g",
+          "sodium 43 mg versus 72 mg if the manufacturer salt value is transformed with salt_to_sodium_v1"
+        ],
+        "additional_unconfirmed_value": "cholesterol 48 mg/100 g is not published on the compared manufacturer page",
+        "status": "accepted user-confirmed manual declaration; source table remains unattributed and the confirmation does not make it a physical-package panel"
+      },
+      "contract_result": "The valid GTIN and 1 kg net weight are measured package identity evidence. Public sources strongly resolve the product candidate as Olympus 10% Fat Strained Greek Yoghurt, 1 kg, sold by Costco UK. The user's explicit use-as-is assertion promotes the supplied table to the effective manual declaration at the stated per-100-g basis: its numeric canonical nutrients are measured and fibre remains unknown. The conflicting manufacturer candidate is retained and rejected for energy, protein and salt/sodium; no original evidence is overwritten."
+    },
+    {
+      "case_id": "estate-dairy-jersey-cottage-cheese-450g-01",
+      "user_description": "Cottage cheese",
+      "item_class_candidate": "food",
+      "resolved_identity": {
+        "product_name": "The Estate Dairy Jersey Milk Cottage Cheese",
+        "gtin_13": "5065019089359",
+        "net_weight_g": 450,
+        "manufacturer": "The Estate Dairy",
+        "manufacturer_address": "Wallstone Farm, Cheshire, CW5 8JR",
+        "establishment_mark": "UK EB031"
+      },
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:a4646e67bfb90f329227141faae0a062ec3aa40e97217ab97aa25aa38088831f",
+        "evidence_bundle_sha256": "a4646e67bfb90f329227141faae0a062ec3aa40e97217ab97aa25aa38088831f",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:58eaa4f44a44dc53cf7804e4978e2521ae0c2027f8083034e73246d9c0fb4097",
+            "evidence_sha256": "58eaa4f44a44dc53cf7804e4978e2521ae0c2027f8083034e73246d9c0fb4097",
+            "image_dimensions_pixels": "536 x 393",
+            "contents": "barcode, net weight, establishment mark, manufacturer and storage"
+          },
+          {
+            "evidence_id": "sha256:7f1de63b8ef7318bfa17ab06fc4cdb65d98407f18536407586e1580ce54d98aa",
+            "evidence_sha256": "7f1de63b8ef7318bfa17ab06fc4cdb65d98407f18536407586e1580ce54d98aa",
+            "image_dimensions_pixels": "475 x 683",
+            "contents": "product name, ingredients, per-100-g nutrition, net weight and storage"
+          }
+        ],
+        "visible_facts": {
+          "gtin_13": "5065019089359",
+          "gtin_check_digit_valid": true,
+          "net_weight_g": 450,
+          "product_name": "Jersey Milk Cottage Cheese",
+          "establishment_mark": "UK EB031",
+          "storage": "Store between 1-5 C; once opened, refrigerate and use within 3 days",
+          "use_by": "See base; date not visible in supplied images"
+        },
+        "ingredients": [
+          "Jersey milk",
+          "Jersey cream (milk)",
+          "live cultures",
+          "low sodium sea salt"
+        ],
+        "declared_nutrition": {
+          "basis": "per 100 g",
+          "values": [
+            {
+              "key": "energy_consumed",
+              "state": "measured",
+              "value": 135,
+              "unit": "kcal",
+              "source_alternate_value": 564,
+              "source_alternate_unit": "kJ"
+            },
+            {
+              "key": "fat_total",
+              "state": "measured",
+              "value": 7.3,
+              "unit": "g"
+            },
+            {
+              "key": "fat_saturated",
+              "state": "measured",
+              "value": 5.0,
+              "unit": "g"
+            },
+            {
+              "key": "carbohydrates",
+              "state": "measured",
+              "value": 4.1,
+              "unit": "g"
+            },
+            {
+              "key": "sugar",
+              "state": "measured",
+              "value": 3.1,
+              "unit": "g"
+            },
+            {
+              "key": "protein",
+              "state": "measured",
+              "value": 13.2,
+              "unit": "g"
+            },
+            {
+              "source_name": "salt",
+              "state": "measured",
+              "value": 0.64,
+              "unit": "g",
+              "canonical_transform": "salt_to_sodium_v1",
+              "canonical_sodium": {
+                "key": "sodium",
+                "state": "measured",
+                "value": 256,
+                "unit": "mg"
+              }
+            }
+          ],
+          "unprinted_contract_nutrients": {
+            "state": "unknown",
+            "reason": "not_declared"
+          }
+        }
+      },
+      "public_sources": [
+        {
+          "publisher": "The Estate Dairy",
+          "url": "https://www.theestatedairy.com/our-product-range/cottage-cheese/",
+          "observation": "Current producer page describes the 450 g Jersey-milk cottage cheese with four ingredients, approximately 61 g protein per pot and 7.5% fat. It does not provide a versioned nutrition panel or GTIN."
+        },
+        {
+          "publisher": "Ocado",
+          "url": "https://www.ocado.com/products/the-estate-dairy-cottage-cheese-made-with-jersey-milk/688751011",
+          "source_record_id": "ocado:688751011",
+          "observation": "Current mutable page identifies the same named 450 g product but publishes a materially different nutrition panel: 123 kcal, 7.8 g fat, 6.9 g saturates, 3.6 g carbohydrate, 3.6 g sugars, 10.0 g protein and 0.9 g salt per 100 g."
+        }
+      ],
+      "conflict_and_version_result": {
+        "status": "package declaration takes precedence; public retailer panel rejected for this evidence-scoped product version",
+        "differences_per_100_g": [
+          "energy 135 kcal package versus 123 kcal Ocado",
+          "fat 7.3 g package versus 7.8 g Ocado",
+          "saturates 5.0 g package versus 6.9 g Ocado",
+          "carbohydrate 4.1 g package versus 3.6 g Ocado",
+          "sugars 3.1 g package versus 3.6 g Ocado",
+          "protein 13.2 g package versus 10.0 g Ocado",
+          "salt 0.64 g package versus 0.9 g Ocado"
+        ],
+        "interpretation": "The divergence is compatible with reformulation or retailer staleness, but neither cause nor effective date is established. Preserve this captured package as its own product version. A later panel for the same GTIN creates another version if values differ; it does not overwrite this one."
+      },
+      "contract_result": "The supplied package images establish exact identity, ingredients, basis and seven printed nutrition facts for a 450 g product. Printed canonical nutrients are measured; sodium is measured through salt_to_sodium_v1 from the 0.64 g salt declaration, with the source salt retained. All other catalogue nutrients remain unknown. Conflicting mutable public data is retained but cannot override the package."
+    },
+    {
+      "case_id": "lancashire-farm-greek-style-yogurt-1kg-01",
+      "user_description": "Another yoghurt; barcode photo only",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package:sha256:ef0ef8d0573ca622219b06fd1b3a5d8a10c945f477375e992159decfd1021e4e",
+        "evidence_id": "sha256:ef0ef8d0573ca622219b06fd1b3a5d8a10c945f477375e992159decfd1021e4e",
+        "evidence_sha256": "ef0ef8d0573ca622219b06fd1b3a5d8a10c945f477375e992159decfd1021e4e",
+        "image_dimensions_pixels": "433 x 247",
+        "raw_image_committed": false,
+        "visible_facts": {
+          "gtin_13": "5035251001310",
+          "gtin_check_digit_valid": true
+        },
+        "not_visible": [
+          "product name and variant",
+          "pack size",
+          "nutrition panel",
+          "ingredients",
+          "best-before or lot"
+        ]
+      },
+      "public_identity_resolution": {
+        "status": "exact GTIN match corroborated across current public sources",
+        "resolved_name_candidate": "Lancashire Farm Greek Style Luxury Yogurt",
+        "variant_candidate": "10% fat",
+        "pack_candidate": "1 kg",
+        "identity_facts": [
+          "Greek-style whole-milk yogurt",
+          "made with pasteurised British cow's milk",
+          "bio-live cultures",
+          "no added sugar",
+          "gluten free",
+          "suitable for vegetarians"
+        ],
+        "public_sources": [
+          {
+            "publisher": "Lancashire Farm",
+            "url": "https://www.lancashirefarm.com/products/greek-style-luxury-yogurt/",
+            "observation": "Current manufacturer page identifies Greek Style Luxury Yogurt in 1 kg and 450 g formats and publishes per-100-g nutrition, but does not expose the GTIN or a formulation-effective date."
+          },
+          {
+            "publisher": "BB Foodservice",
+            "url": "https://www.bbfoodservice.co.uk/product/185717-1",
+            "source_record_id": "bb-foodservice:185717",
+            "observation": "Current public listing associates retail EAN 5035251001310 with Lancashire Farm Greek Style Yogurt, 1 kg, 10% fat."
+          },
+          {
+            "publisher": "Ocado",
+            "url": "https://www.ocado.com/products/lancashire-farm-greek-style-yogurt-1kg/660766011",
+            "source_record_id": "ocado:660766011",
+            "observation": "Current mutable retailer page identifies the same named 1 kg 10% product and publishes the same nutrition values as the manufacturer page; it does not expose the GTIN."
+          },
+          {
+            "publisher": "Asda",
+            "url": "https://www.asda.com/groceries/product/greek-style/greek-style-natural-yogurt/4987176",
+            "source_record_id": "asda:4987176",
+            "observation": "Current retailer page identifies Lancashire Farm Greek Style Yogurt, 1 kg, and publishes the same nutrition values as the manufacturer page."
+          }
+        ]
+      },
+      "public_nutrition_candidate": {
+        "basis": "per 100 g",
+        "source_release_id": null,
+        "formulation_effective_date": null,
+        "cross_source_status": "manufacturer, Ocado and Asda pages agree at the observation date",
+        "values": [
+          {
+            "key": "energy_consumed",
+            "value": 120,
+            "unit": "kcal",
+            "source_alternate_value": 498,
+            "source_alternate_unit": "kJ"
+          },
+          {
+            "key": "fat_total",
+            "value": 10,
+            "unit": "g"
+          },
+          {
+            "key": "fat_saturated",
+            "value": 5.15,
+            "unit": "g"
+          },
+          {
+            "key": "fat_monounsaturated",
+            "value": 2.6,
+            "unit": "g"
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "value": 0.46,
+            "unit": "g"
+          },
+          {
+            "key": "carbohydrates",
+            "value": 6.5,
+            "unit": "g"
+          },
+          {
+            "key": "sugar",
+            "value": 3.4,
+            "unit": "g"
+          },
+          {
+            "key": "protein",
+            "value": 4.13,
+            "unit": "g"
+          },
+          {
+            "key": "fiber",
+            "candidate_state": "bounded",
+            "lower": 0,
+            "upper": 0.5,
+            "lower_closed": true,
+            "upper_closed": false,
+            "unit": "g",
+            "source_value": "<0.5 g"
+          },
+          {
+            "source_name": "salt",
+            "value": 0.15,
+            "unit": "g",
+            "canonical_transform_candidate": "salt_to_sodium_v1",
+            "canonical_sodium_candidate_mg": 60
+          },
+          {
+            "key": "calcium",
+            "value": 140,
+            "unit": "mg",
+            "source_value": 0.14,
+            "source_unit": "g",
+            "transform": "g_to_mg"
+          }
+        ],
+        "status": "high-confidence exact-product public candidate; not measured or effective because the supplied package evidence contains only the barcode and the mutable pages provide no immutable release or formulation-effective date"
+      },
+      "contract_result": "The valid GTIN is measured package identity evidence and strongly resolves the current candidate as Lancashire Farm Greek Style Luxury Yogurt, 10% fat, 1 kg. Multiple current public sources agree on identity and nutrition, but this does not convert web values into a user-verified package declaration. The nutrition candidates, including the fibre interval [0, 0.5) g and salt-derived 60 mg sodium per 100 g, remain non-effective until the exact package panel is captured or a separately ratified compatible-source rule accepts them."
+    },
+    {
+      "case_id": "coop-cheesy-singles-200g-01",
+      "user_description": "Co-op American cheese",
+      "personal_alias_candidate": "Co-op American cheese",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package:sha256:0e3daba6e9741238b88880b730a430f0336000991c705a210e939d776ad58976",
+        "evidence_id": "sha256:0e3daba6e9741238b88880b730a430f0336000991c705a210e939d776ad58976",
+        "evidence_sha256": "0e3daba6e9741238b88880b730a430f0336000991c705a210e939d776ad58976",
+        "image_dimensions_pixels": "579 x 440",
+        "raw_image_committed": false,
+        "visible_facts": {
+          "gtin_13": "5000128782661",
+          "gtin_check_digit_valid": true,
+          "manufacturer_or_packaging_code": "AW CODE: C51236/1/15 0421 20788439"
+        },
+        "not_visible": [
+          "product name",
+          "pack and slice quantity",
+          "nutrition panel",
+          "ingredients",
+          "best-before or lot"
+        ]
+      },
+      "public_identity_resolution": {
+        "status": "exact GTIN page match",
+        "resolved_name_candidate": "Co-op 10 Cheesy Singles",
+        "pack_candidate": "200 g; 10 slices; 20 g per slice",
+        "form_candidate": "processed cheese slices packaged in a protective atmosphere",
+        "classification_note": "The user's American-cheese wording is retained as a personal alias, not substituted for the exact public product name.",
+        "public_sources": [
+          {
+            "publisher": "Central Co-op",
+            "url": "https://www.centralcoop.co.uk/food/products/5000128782661",
+            "source_record_id": "central-coop:5000128782661",
+            "observation": "Exact GTIN page names Co-op 10 Cheesy Singles 200 g and publishes per-100-g and per-20-g-slice nutrition, ingredients, ten servings and storage information."
+          },
+          {
+            "publisher": "Snappy Shopper",
+            "url": "https://www.snappyshopper.co.uk/stores/nisa-grange-and-grange-wine-store-4987/category/cheese-908590/menuItem/co-op-10-cheesy-singles-200g-17119507",
+            "observation": "Current retailer listing independently names Co-op 10 Cheesy Singles 200 g, but its calculated nutrition differs and is not used for resolution."
+          }
+        ]
+      },
+      "public_nutrition_candidate": {
+        "publisher": "Central Co-op",
+        "basis": "per 100 g with an additional declared 20 g slice column",
+        "source_release_id": null,
+        "formulation_effective_date": null,
+        "serving": {
+          "slices_per_pack": 10,
+          "slice_weight_g": 20,
+          "pack_weight_g": 200
+        },
+        "values_per_100_g": [
+          {
+            "key": "energy_consumed",
+            "value": 247,
+            "unit": "kcal",
+            "source_alternate_value": 1030,
+            "source_alternate_unit": "kJ"
+          },
+          {
+            "key": "fat_total",
+            "value": 16,
+            "unit": "g"
+          },
+          {
+            "key": "fat_saturated",
+            "value": 8.2,
+            "unit": "g"
+          },
+          {
+            "key": "carbohydrates",
+            "value": 10,
+            "unit": "g"
+          },
+          {
+            "key": "sugar",
+            "value": 7.6,
+            "unit": "g"
+          },
+          {
+            "key": "fiber",
+            "candidate_state": "bounded",
+            "lower": 0,
+            "upper": 0.5,
+            "lower_closed": true,
+            "upper_closed": false,
+            "unit": "g",
+            "source_value": "<0.5 g"
+          },
+          {
+            "key": "protein",
+            "value": 15,
+            "unit": "g"
+          },
+          {
+            "source_name": "salt",
+            "value": 1.99,
+            "unit": "g",
+            "canonical_transform_candidate": "salt_to_sodium_v1",
+            "canonical_sodium_candidate_mg": 796
+          }
+        ],
+        "declared_values_per_slice": {
+          "basis": "20 g slice",
+          "energy": "206 kJ / 49 kcal",
+          "fat_g": 3.2,
+          "fat_saturated_g": 1.6,
+          "carbohydrates_g": 2.0,
+          "sugar_g": 1.5,
+          "fiber": "<0.5 g",
+          "protein_g": 3.0,
+          "salt_g": 0.40
+        },
+        "projection_note": "Scaling the per-100-g fibre bound by the exact 20 g slice factor produces [0, 0.1) g, which is compatible with and tighter than the separately printed per-slice bound [0, 0.5) g. Both source declarations are retained. Scaling 1.99 g salt gives 0.398 g salt and 159.2 mg sodium per slice; the source's 0.40 g slice display is retained as rounded.",
+        "status": "exact-GTIN mutable retailer candidate; not measured or effective because the supplied package image contains only the barcode and the page provides no immutable release or formulation-effective date"
+      },
+      "public_ingredients_candidate": [
+        "vegetarian cheese (milk) 60%",
+        "water",
+        "palm oil",
+        "emulsifying salts: sodium polyphosphate, tricalcium phosphate and trisodium phosphate",
+        "modified potato starch",
+        "flavouring containing milk",
+        "milk protein",
+        "vegetarian whey powder (milk)",
+        "colours: beta-carotene and paprika extract",
+        "acidity regulator: lactic acid"
+      ],
+      "fortification_result": "Do not classify as fortified_food from tricalcium phosphate in the emulsifying-salts ingredient list. No declared calcium nutrient amount or fortification claim is published on the exact GTIN page.",
+      "contract_result": "The valid GTIN and visible packaging code are measured package identity evidence. The exact public GTIN page strongly resolves the candidate as Co-op 10 Cheesy Singles, 200 g, with ten 20 g slices. Its mutable nutrition and ingredient data remain non-effective candidates pending an exact package panel. Preserve the user's American-cheese wording as a personal alias, the official Cheesy Singles name as product identity, both fibre bounds, and the rounded-versus-scaled slice values without silent last-write-wins."
+    },
+    {
+      "case_id": "coop-ripe-ready-hass-avocados-twin-pack-01",
+      "user_description": "Co-op avocado",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package:sha256:b45e4efca3e3e050ccf7eb5963ef1c5c9a44447f35710ca0618c152fd7ca2cb3",
+        "evidence_id": "sha256:b45e4efca3e3e050ccf7eb5963ef1c5c9a44447f35710ca0618c152fd7ca2cb3",
+        "evidence_sha256": "b45e4efca3e3e050ccf7eb5963ef1c5c9a44447f35710ca0618c152fd7ca2cb3",
+        "image_dimensions_pixels": "360 x 530",
+        "raw_image_committed": false,
+        "visible_facts": {
+          "gtin_13": "5000128606387",
+          "gtin_check_digit_valid": true,
+          "origin_country": "Peru",
+          "quality_class": "Class I",
+          "packer_code": "M1799",
+          "best_before_label": "21 SEP",
+          "best_before_year_printed": false,
+          "market_marking": "NOT FOR EU"
+        },
+        "not_visible": [
+          "product name or Hass variety",
+          "number of avocados",
+          "net or edible weight",
+          "nutrition panel"
+        ]
+      },
+      "public_identity_resolution": {
+        "status": "exact GTIN page match with a seasonal-origin conflict",
+        "resolved_name_candidate": "Co-op Ripe and Ready Twin Pack Hass Avocados",
+        "pack_candidate": "two avocados",
+        "form_candidate": "whole raw ripe-and-ready Hass avocados",
+        "public_sources": [
+          {
+            "publisher": "Central Co-op",
+            "url": "https://www.centralcoop.co.uk/food/products/5000128606387",
+            "source_record_id": "central-coop:5000128606387",
+            "observation": "Exact GTIN page names Co-op Ripe and Ready Twin Pack Hass Avocados and publishes per-100-g nutrition. Its current country of origin is South Africa, conflicting with the supplied Peru package sticker."
+          }
+        ],
+        "origin_resolution": {
+          "effective_for_captured_package": "Peru",
+          "rejected_current_page_candidate": "South Africa",
+          "reason": "A mutable seasonal-origin page cannot override the origin printed on the captured package."
+        }
+      },
+      "public_nutrition_candidate": {
+        "publisher": "Central Co-op",
+        "basis": "per 100 g; edible portion is not stated",
+        "source_release_id": null,
+        "formulation_effective_date": null,
+        "values": [
+          {
+            "key": "energy_consumed",
+            "value": 177,
+            "unit": "kcal",
+            "source_alternate_value": 730,
+            "source_alternate_unit": "kJ"
+          },
+          {
+            "key": "fat_total",
+            "value": 17,
+            "unit": "g"
+          },
+          {
+            "key": "fat_saturated",
+            "value": 4.2,
+            "unit": "g"
+          },
+          {
+            "key": "carbohydrates",
+            "value": 1.8,
+            "unit": "g"
+          },
+          {
+            "key": "sugar",
+            "candidate_state": "bounded",
+            "lower": 0,
+            "upper": 0.5,
+            "lower_closed": true,
+            "upper_closed": false,
+            "unit": "g",
+            "source_value": "<0.5 g"
+          },
+          {
+            "key": "fiber",
+            "value": 3.1,
+            "unit": "g"
+          },
+          {
+            "key": "protein",
+            "value": 1.8,
+            "unit": "g"
+          },
+          {
+            "source_name": "salt",
+            "candidate_state": "bounded",
+            "lower": 0,
+            "upper": 0.01,
+            "lower_closed": true,
+            "upper_closed": false,
+            "unit": "g",
+            "source_value": "<0.01 g",
+            "canonical_transform_candidate": "salt_to_sodium_v1",
+            "canonical_sodium_candidate": {
+              "key": "sodium",
+              "candidate_state": "bounded",
+              "lower": 0,
+              "upper": 4,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "mg"
+            }
+          },
+          {
+            "key": "vitamin_e",
+            "value": 2.2,
+            "unit": "mg"
+          }
+        ],
+        "basis_and_quantity_gaps": [
+          "The page does not state whether per 100 g means edible flesh excluding skin and stone.",
+          "Neither the sticker nor page supplies net weight, edible weight or per-fruit weight.",
+          "No per-avocado nutrient amount can be derived."
+        ],
+        "status": "exact-GTIN mutable retailer candidate; seasonal origin conflicts with the captured package and edible basis is incomplete, so nutrition is not measured or effective"
+      },
+      "contract_result": "The GTIN, Peru origin, Class I, packer code, printed best-before text and market marking are measured package identity evidence. The exact GTIN page strongly proposes a ripe-and-ready Hass twin pack, but its South Africa origin is rejected for this captured package. Public nutrition retains bounded sugar and salt/sodium values but remains non-effective because the seasonal origin and edible-quantity basis are incompatible or incomplete. Do not infer grams consumed from one avocado, pack count or whole-fruit weight."
+    },
+    {
+      "case_id": "coop-british-raspberries-150g-01",
+      "user_description": "Co-op raspberries",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package:sha256:8f5789a8c00ee35f83480c54055363590c54a178fc0282f6b2798dc18471af29",
+        "evidence_id": "sha256:8f5789a8c00ee35f83480c54055363590c54a178fc0282f6b2798dc18471af29",
+        "evidence_sha256": "8f5789a8c00ee35f83480c54055363590c54a178fc0282f6b2798dc18471af29",
+        "image_dimensions_pixels": "564 x 423",
+        "raw_image_committed": false,
+        "visible_facts": {
+          "gtin_13": "5000128915618",
+          "gtin_check_digit_valid": true,
+          "net_weight_g": 150,
+          "origin_region": "Kent",
+          "origin_country": "United Kingdom",
+          "variety": "Lagorai",
+          "supplier_name": "Sean Charlton",
+          "supplier_code": "M150/SC/104",
+          "printed_code": "L1",
+          "best_before_label": "20 Sep",
+          "best_before_year_printed": false,
+          "market_marking": "Not for EU"
+        },
+        "not_visible": [
+          "nutrition panel",
+          "harvest or packing date",
+          "meaning of printed code L1"
+        ]
+      },
+      "public_identity_resolution": {
+        "status": "exact GTIN page match with a seasonal-origin conflict",
+        "resolved_name_candidate": "Co-op British Raspberries 150g",
+        "form_candidate": "fresh whole raspberries",
+        "public_sources": [
+          {
+            "publisher": "Central Co-op",
+            "url": "https://www.centralcoop.co.uk/food/products/5000128915618",
+            "source_record_id": "central-coop:5000128915618",
+            "observation": "Exact GTIN page names Co-op British Raspberries 150g and confirms the 150 g pack size, but currently states country of origin Spain and contains two incompatible per-100-g nutrition profiles."
+          },
+          {
+            "publisher": "Co-op",
+            "url": "https://www.coop.co.uk/products/co-op-british-raspberries-150g",
+            "source_record_id": "coop:co-op-british-raspberries-150g",
+            "observation": "Official product-family page names Co-op Raspberries Punnet 150G and confirms the 150 g retail product, but does not expose the GTIN or nutrition in accessible page text."
+          }
+        ],
+        "origin_resolution": {
+          "effective_for_captured_package": "Kent, United Kingdom",
+          "rejected_current_page_candidate": "Spain",
+          "reason": "A mutable seasonal-origin page cannot override the origin printed on the captured package; the page's British product name and Spain field are also internally incompatible."
+        }
+      },
+      "public_nutrition_candidate": {
+        "publisher": "Central Co-op",
+        "basis": "per 100 g",
+        "source_release_id": null,
+        "formulation_effective_date": null,
+        "conflicting_profiles": [
+          {
+            "profile_id": "page-table-profile-a",
+            "values": [
+              {
+                "key": "energy_consumed",
+                "value": 40,
+                "unit": "kcal",
+                "source_alternate_value": 170,
+                "source_alternate_unit": "kJ"
+              },
+              {
+                "key": "fat_total",
+                "value": 0.3,
+                "unit": "g"
+              },
+              {
+                "key": "fat_saturated",
+                "candidate_state": "bounded",
+                "lower": 0,
+                "upper": 0.1,
+                "lower_closed": true,
+                "upper_closed": false,
+                "unit": "g",
+                "source_value": "<0.1 g"
+              },
+              {
+                "key": "carbohydrates",
+                "value": 4.6,
+                "unit": "g"
+              },
+              {
+                "key": "sugar",
+                "value": 4.6,
+                "unit": "g"
+              },
+              {
+                "key": "fiber",
+                "value": 6.5,
+                "unit": "g"
+              },
+              {
+                "key": "protein",
+                "value": 1.4,
+                "unit": "g"
+              },
+              {
+                "source_name": "salt",
+                "candidate_state": "bounded",
+                "lower": 0,
+                "upper": 0.1,
+                "lower_closed": true,
+                "upper_closed": false,
+                "unit": "g",
+                "source_value": "<0.1 g",
+                "canonical_transform_candidate": "salt_to_sodium_v1",
+                "canonical_sodium_candidate": {
+                  "key": "sodium",
+                  "candidate_state": "bounded",
+                  "lower": 0,
+                  "upper": 40,
+                  "lower_closed": true,
+                  "upper_closed": false,
+                  "unit": "mg"
+                }
+              }
+            ],
+            "source_serving_candidate": {
+              "description": "2 handfuls",
+              "approximate_weight_g": 80
+            }
+          },
+          {
+            "profile_id": "page-table-profile-b",
+            "values": [
+              {
+                "key": "energy_consumed",
+                "value": 39,
+                "unit": "kcal",
+                "source_alternate_value": 163,
+                "source_alternate_unit": "kJ"
+              },
+              {
+                "key": "fat_total",
+                "candidate_state": "bounded",
+                "lower": 0,
+                "upper": 0.5,
+                "lower_closed": true,
+                "upper_closed": false,
+                "unit": "g",
+                "source_value": "<0.5 g"
+              },
+              {
+                "key": "fat_saturated",
+                "candidate_state": "bounded",
+                "lower": 0,
+                "upper": 0.1,
+                "lower_closed": true,
+                "upper_closed": false,
+                "unit": "g",
+                "source_value": "<0.1 g"
+              },
+              {
+                "key": "carbohydrates",
+                "value": 6.1,
+                "unit": "g"
+              },
+              {
+                "key": "sugar",
+                "value": 6.1,
+                "unit": "g"
+              },
+              {
+                "key": "fiber",
+                "value": 3.8,
+                "unit": "g"
+              },
+              {
+                "key": "protein",
+                "value": 0.6,
+                "unit": "g"
+              },
+              {
+                "source_name": "salt",
+                "candidate_state": "bounded",
+                "lower": 0,
+                "upper": 0.01,
+                "lower_closed": true,
+                "upper_closed": false,
+                "unit": "g",
+                "source_value": "<0.01 g",
+                "canonical_transform_candidate": "salt_to_sodium_v1",
+                "canonical_sodium_candidate": {
+                  "key": "sodium",
+                  "candidate_state": "bounded",
+                  "lower": 0,
+                  "upper": 4,
+                  "lower_closed": true,
+                  "upper_closed": false,
+                  "unit": "mg"
+                }
+              }
+            ]
+          }
+        ],
+        "conflict_resolution": "Reject silent field-by-field merging and do not choose the numerically closer profile. Preserve both page profiles as incompatible candidates until a matching package panel or versioned source resolves the product version.",
+        "quantity_note": "The package supplies an exact 150 g net quantity, but no whole-punnet nutrient amount becomes effective while the per-100-g profiles conflict. A logged consumed amount remains separate from package quantity.",
+        "status": "exact-GTIN mutable retailer candidates; internally conflicting, seasonally incompatible with the captured package and therefore neither measured nor effective"
+      },
+      "contract_result": "The valid GTIN, 150 g net weight, Kent UK origin, Lagorai variety, supplier evidence, printed best-before text and market marking are measured package identity evidence. The exact GTIN page supports the product name and pack size but cannot override package origin. Its two incompatible nutrition profiles remain separate, non-effective candidates; no per-100-g fields are silently combined and the 150 g pack is not projected to nutrients."
+    },
+    {
+      "case_id": "coop-irresistible-butter-basted-turkey-120g-01",
+      "user_description": "Co-op roast turkey",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:46a7a9433987d9bb9c19f9b2c6ebd6d5292cb91cdac9b7729281b2cfb72484a8",
+        "evidence_bundle_sha256": "46a7a9433987d9bb9c19f9b2c6ebd6d5292cb91cdac9b7729281b2cfb72484a8",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:dd599b28104b1cd58dfa3566bd7480d20e65a2fa65c81bf4fc9444c1f76636dd",
+            "evidence_sha256": "dd599b28104b1cd58dfa3566bd7480d20e65a2fa65c81bf4fc9444c1f76636dd",
+            "image_dimensions_pixels": "658 x 361",
+            "contents": "barcode and AW code"
+          },
+          {
+            "evidence_id": "sha256:07a5444010b71daad0af6c0caa9117608d3a91e4b1d03f68c37e65430f07ef5c",
+            "evidence_sha256": "07a5444010b71daad0af6c0caa9117608d3a91e4b1d03f68c37e65430f07ef5c",
+            "image_dimensions_pixels": "658 x 531",
+            "contents": "per-100-g and per-40-g-slice nutrition panel"
+          }
+        ],
+        "visible_facts": {
+          "gtin_13": "5000128599450",
+          "gtin_check_digit_valid": true,
+          "aw_code": "C51560/2/1",
+          "serving_description": "one slice",
+          "serving_weight_g": 40,
+          "servings_per_pack": 3,
+          "total_serving_weight_g": 120
+        },
+        "decisive_identity_attributes": {
+          "preparation_candidate": "roasted",
+          "presentation_candidate": "sliced",
+          "basting_candidate": "butter basted",
+          "basis": "exact-GTIN public identity resolution; these words are not visible in the supplied image crops"
+        },
+        "not_visible": [
+          "front product name",
+          "ingredients and allergen panel",
+          "printed net-weight declaration",
+          "use-by or lot date"
+        ],
+        "declared_nutrition": {
+          "primary_basis": "per 100 g",
+          "serving_basis": "per slice (40 g)",
+          "per_100_g": [
+            {
+              "key": "energy_consumed",
+              "state": "measured",
+              "value": 122,
+              "unit": "kcal",
+              "source_alternate_value": 517,
+              "source_alternate_unit": "kJ"
+            },
+            {
+              "key": "fat_total",
+              "state": "measured",
+              "value": 1.0,
+              "unit": "g"
+            },
+            {
+              "key": "fat_saturated",
+              "state": "measured",
+              "value": 0.4,
+              "unit": "g"
+            },
+            {
+              "key": "carbohydrates",
+              "state": "measured",
+              "value": 0,
+              "unit": "g"
+            },
+            {
+              "key": "sugar",
+              "state": "measured",
+              "value": 0,
+              "unit": "g"
+            },
+            {
+              "key": "fiber",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.5,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.5 g"
+            },
+            {
+              "key": "protein",
+              "state": "measured",
+              "value": 28,
+              "unit": "g"
+            },
+            {
+              "source_name": "salt",
+              "state": "measured",
+              "value": 0.62,
+              "unit": "g",
+              "canonical_transform": "salt_to_sodium_v1",
+              "canonical_sodium": {
+                "key": "sodium",
+                "state": "measured",
+                "value": 248,
+                "unit": "mg"
+              }
+            }
+          ],
+          "per_slice_40_g": [
+            {
+              "key": "energy_consumed",
+              "state": "measured",
+              "value": 49,
+              "unit": "kcal",
+              "source_alternate_value": 207,
+              "source_alternate_unit": "kJ"
+            },
+            {
+              "key": "fat_total",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.5,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.5 g"
+            },
+            {
+              "key": "fat_saturated",
+              "state": "measured",
+              "value": 0.1,
+              "unit": "g"
+            },
+            {
+              "key": "carbohydrates",
+              "state": "measured",
+              "value": 0,
+              "unit": "g"
+            },
+            {
+              "key": "sugar",
+              "state": "measured",
+              "value": 0,
+              "unit": "g"
+            },
+            {
+              "key": "fiber",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.5,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.5 g"
+            },
+            {
+              "key": "protein",
+              "state": "measured",
+              "value": 11,
+              "unit": "g"
+            },
+            {
+              "source_name": "salt",
+              "state": "measured",
+              "value": 0.25,
+              "unit": "g",
+              "canonical_transform": "salt_to_sodium_v1",
+              "canonical_sodium": {
+                "key": "sodium",
+                "state": "measured",
+                "value": 100,
+                "unit": "mg"
+              }
+            }
+          ],
+          "rounding_and_projection_note": "The source's per-slice declarations remain primary at the serving basis. Scaling the displayed per-100-g values by 0.4 produces compatible rounded energy, fat, carbohydrate, sugar, protein and salt values. It would tighten fibre to [0, 0.2) g rather than the separately printed [0, 0.5) g and gives 0.16 g saturated fat rather than the printed 0.1 g; preserve the source declarations and deterministic projections without overwriting either."
+        }
+      },
+      "public_identity_resolution": {
+        "status": "exact GTIN official retailer match with a materially conflicting nutrition version",
+        "resolved_name_candidate": "Co-op Irresistible Butter Basted Turkey Breast 120g",
+        "pack_weight_candidate_g": 120,
+        "form_candidate": "butter-basted roasted turkey breast slices",
+        "public_sources": [
+          {
+            "publisher": "Central Co-op",
+            "url": "https://www.centralcoop.co.uk/food/products/5000128599450",
+            "source_record_id": "central-coop:5000128599450",
+            "observation": "Exact GTIN page supplies product name, 120 g pack, current nutrition, ingredients, UK origin and refrigerated storage. Its nutrition materially conflicts with the captured package panel."
+          }
+        ]
+      },
+      "public_nutrition_candidate": {
+        "publisher": "Central Co-op",
+        "basis": "per 100 g",
+        "source_release_id": null,
+        "formulation_effective_date": null,
+        "values": [
+          {
+            "key": "energy_consumed",
+            "value": 141,
+            "unit": "kcal",
+            "source_alternate_value": 598,
+            "source_alternate_unit": "kJ"
+          },
+          {
+            "key": "fat_total",
+            "value": 1.3,
+            "unit": "g"
+          },
+          {
+            "key": "fat_saturated",
+            "value": 0.4,
+            "unit": "g"
+          },
+          {
+            "key": "carbohydrates",
+            "candidate_state": "bounded",
+            "lower": 0,
+            "upper": 0.5,
+            "lower_closed": true,
+            "upper_closed": false,
+            "unit": "g",
+            "source_value": "<0.5 g"
+          },
+          {
+            "key": "sugar",
+            "candidate_state": "bounded",
+            "lower": 0,
+            "upper": 0.5,
+            "lower_closed": true,
+            "upper_closed": false,
+            "unit": "g",
+            "source_value": "<0.5 g"
+          },
+          {
+            "key": "fiber",
+            "candidate_state": "bounded",
+            "lower": 0,
+            "upper": 0.5,
+            "lower_closed": true,
+            "upper_closed": false,
+            "unit": "g",
+            "source_value": "<0.5 g"
+          },
+          {
+            "key": "protein",
+            "value": 32,
+            "unit": "g"
+          },
+          {
+            "source_name": "salt",
+            "value": 0.50,
+            "unit": "g",
+            "canonical_transform_candidate": "salt_to_sodium_v1",
+            "canonical_sodium_candidate": {
+              "key": "sodium",
+              "value": 200,
+              "unit": "mg"
+            }
+          }
+        ],
+        "current_ingredients_candidate": [
+          "turkey",
+          "salted Jersey butter 4% (butter (milk), salt)",
+          "Cornish sea salt 1%",
+          "dextrose"
+        ],
+        "additional_current_page_facts": {
+          "raw_turkey_used_per_100_g_finished_product_g": 105,
+          "allergen": "milk",
+          "country_of_origin": "United Kingdom",
+          "storage": "Keep refrigerated at 2-5 C and consume within 2 days of opening; do not exceed use-by date"
+        },
+        "conflicts_with_package_panel": [
+          "energy 141 kcal and 598 kJ versus measured 122 kcal and 517 kJ per 100 g",
+          "fat 1.3 g versus measured 1.0 g per 100 g",
+          "carbohydrate <0.5 g versus measured 0 g per 100 g",
+          "sugars <0.5 g versus measured 0 g per 100 g",
+          "protein 32 g versus measured 28 g per 100 g",
+          "salt 0.50 g and derived sodium 200 mg versus measured salt 0.62 g and derived sodium 248 mg per 100 g"
+        ],
+        "status": "exact-GTIN mutable retailer candidate; retained as a separate possible formulation and rejected for the captured package because its nutrition conflicts with the measured panel"
+      },
+      "version_resolution": {
+        "effective_for_captured_package": "package-set:sha256:46a7a9433987d9bb9c19f9b2c6ebd6d5292cb91cdac9b7729281b2cfb72484a8",
+        "captured_package_panel_state": "measured",
+        "current_public_page_state": "conflicting candidate",
+        "retrospective_rule": "A later page or dataset re-resolution may create another nutrition-resolution version but must not rewrite the barcode image, AW code, package panel, serving declarations or the resolution used by an original log occurrence.",
+        "timing_gap": "The supplied crops do not show a use-by or lot date, and the public page provides no immutable release or formulation-effective date; chronological ordering of the two formulations is therefore not proven."
+      },
+      "contract_result": "The barcode, AW code, three 40 g servings and package nutrition are measured evidence. The exact public page strongly resolves the name, 120 g pack and roasted, sliced, butter-basted identity, but its conflicting nutrition and ingredients are a separate possible formulation rather than replacements for the captured panel. Exact zero carbohydrate and sugar remain measured for the captured pack; fibre and per-slice fat remain bounded, and salt is transformed to sodium without treating salt itself as a canonical nutrient."
+    },
+    {
+      "case_id": "coop-asparagus-tips-100g-01",
+      "user_description": "Asparagus tips",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:f5c6027cecf5860587b0983f529e07a4f9042fb71a7914d285843f16934b3b93",
+        "evidence_bundle_sha256": "f5c6027cecf5860587b0983f529e07a4f9042fb71a7914d285843f16934b3b93",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:d27f08569e68c1c5a8a6a32725407b631ad4779fcaba325a000bf4edb44b9ce9",
+            "evidence_sha256": "d27f08569e68c1c5a8a6a32725407b631ad4779fcaba325a000bf4edb44b9ce9",
+            "image_dimensions_pixels": "670 x 639",
+            "contents": "barcode, weight, origin, packer code and best-before text"
+          },
+          {
+            "evidence_id": "sha256:e6917f230c81f7e9cd4ca6c0f91e13c4811449efc160329103b2b90c0f9a73df",
+            "evidence_sha256": "e6917f230c81f7e9cd4ca6c0f91e13c4811449efc160329103b2b90c0f9a73df",
+            "image_dimensions_pixels": "510 x 750",
+            "contents": "per-100-g nutrition panel and partial storage text"
+          }
+        ],
+        "visible_facts": {
+          "gtin_13": "5000128946834",
+          "gtin_check_digit_valid": true,
+          "net_weight_g": 100,
+          "origin_country": "Peru",
+          "packer_code": "M244",
+          "best_before_label": "22 SEP",
+          "best_before_year_printed": false,
+          "additional_printed_code": "SS 2 10:08"
+        },
+        "decisive_identity_attributes": {
+          "food_part_candidate": "tips",
+          "preparation_state_candidate": "fresh raw",
+          "basis": "user description plus official and retail product-family pages; the supplied crops do not show the front product name"
+        },
+        "not_visible": [
+          "front product name or range",
+          "complete storage directions",
+          "meaning of printed code SS 2 10:08"
+        ],
+        "declared_nutrition": {
+          "basis": "per 100 g; equal to the labelled 100 g net pack quantity, but consumed quantity remains a separate log fact",
+          "values": [
+            {
+              "key": "energy_consumed",
+              "state": "measured",
+              "value": 28,
+              "unit": "kcal",
+              "source_alternate_value": 119,
+              "source_alternate_unit": "kJ"
+            },
+            {
+              "key": "fat_total",
+              "state": "measured",
+              "value": 0.6,
+              "unit": "g"
+            },
+            {
+              "key": "fat_saturated",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.1,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.1 g"
+            },
+            {
+              "key": "carbohydrates",
+              "state": "measured",
+              "value": 2.0,
+              "unit": "g"
+            },
+            {
+              "key": "sugar",
+              "state": "measured",
+              "value": 1.9,
+              "unit": "g"
+            },
+            {
+              "key": "fiber",
+              "state": "measured",
+              "value": 1.7,
+              "unit": "g"
+            },
+            {
+              "key": "protein",
+              "state": "measured",
+              "value": 2.9,
+              "unit": "g"
+            },
+            {
+              "source_name": "salt",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.01,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.01 g",
+              "canonical_transform": "salt_to_sodium_v1",
+              "canonical_sodium": {
+                "key": "sodium",
+                "state": "bounded",
+                "lower": 0,
+                "upper": 4,
+                "lower_closed": true,
+                "upper_closed": false,
+                "unit": "mg"
+              }
+            },
+            {
+              "source_name": "folic acid",
+              "key": "folate_b9",
+              "state": "measured",
+              "value": 175,
+              "unit": "mcg",
+              "source_reference_intake_percent": 88,
+              "unit_resolution": "The photographed unit glyph is visually ambiguous at this resolution. The printed 88% RI and the UK adult folic-acid reference intake of 200 mcg establish that the intended unit is micrograms, not milligrams; preserve the source image and this explicit resolution rather than silently transcribing 175 mg."
+            }
+          ]
+        }
+      },
+      "public_identity_resolution": {
+        "status": "official product-family and matching retail listing; no accessible public exact-GTIN match",
+        "resolved_name_candidate": "Co-op Specially Selected Asparagus Tips 100g",
+        "form_candidate": "fresh asparagus tips",
+        "public_sources": [
+          {
+            "publisher": "Co-op",
+            "url": "https://www.coop.co.uk/products/co-op-specially-selected-asparagus-tips",
+            "source_record_id": "coop:co-op-specially-selected-asparagus-tips",
+            "observation": "Official product page names Co-op Specially Selected Asparagus Tips and confirms the 100 g pack, but exposes no barcode or nutrition in accessible text."
+          },
+          {
+            "publisher": "Snappy Shopper / Southern Co-op listing",
+            "url": "https://www.snappyshopper.co.uk/stores/southern-co-op-wadhurst-sparrows-green-road-4911/category/vegetables-886090/menuItem/co-op-asparagus-tips-100g-16521418",
+            "source_record_id": "snappy-shopper:co-op-asparagus-tips-100g-16521418",
+            "observation": "Current product-family listing names Co-op Asparagus Tips 100G and matches the package's 28 kcal, 119 kJ, fat, sugars, Peru origin and refrigerated storage, but does not expose this GTIN."
+          }
+        ]
+      },
+      "public_nutrition_candidate": {
+        "publisher": "Snappy Shopper / Southern Co-op listing",
+        "basis": "per 100 g",
+        "source_release_id": null,
+        "formulation_effective_date": null,
+        "values": [
+          {
+            "key": "energy_consumed",
+            "value": 28,
+            "unit": "kcal",
+            "source_alternate_value": 119,
+            "source_alternate_unit": "kJ"
+          },
+          {
+            "key": "fat_total",
+            "value": 0.6,
+            "unit": "g"
+          },
+          {
+            "key": "fat_saturated",
+            "display_value": 0.1,
+            "unit": "g",
+            "compatibility_note": "The public summary drops the package panel's less-than qualifier and is therefore less precise."
+          },
+          {
+            "key": "sugar",
+            "value": 1.9,
+            "unit": "g"
+          },
+          {
+            "source_name": "salt",
+            "display_value": 0.01,
+            "unit": "g",
+            "compatibility_note": "The public summary drops the package panel's less-than qualifier and must not replace the measured [0, 0.01) g bound."
+          }
+        ],
+        "omitted_from_public_summary": [
+          "carbohydrates",
+          "fiber",
+          "protein",
+          "folate_b9"
+        ],
+        "status": "matching non-GTIN product-family candidate; compatible headline values strengthen identity but cannot replace the more precise package panel"
+      },
+      "contract_result": "The valid GTIN, 100 g net weight, Peru origin, packer code, best-before text and package nutrition are measured evidence. The per-100-g basis also describes the full labelled pack quantity, but does not assert that the user consumed it. Saturates, salt and derived sodium retain bounded states. Folic acid maps to canonical folate_b9 at 175 mcg; the visually ambiguous unit is explicitly resolved by the printed 88% RI rather than silently accepted as milligrams. Public product-family pages support name and broad compatibility but do not establish an exact public GTIN match or override the panel."
+    },
+    {
+      "case_id": "coop-baby-spinach-100g-candidate-01",
+      "user_description": "Baby spinach",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:304838b2b1ff2a069c1a466d0197e098e385ac5c04dbd527b5d2fa7214c30c7b",
+        "evidence_bundle_sha256": "304838b2b1ff2a069c1a466d0197e098e385ac5c04dbd527b5d2fa7214c30c7b",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:0645b22bcb6c6c01450014a22f404e39c53e1c017e611175c80e97e1cd5a19ee",
+            "evidence_sha256": "0645b22bcb6c6c01450014a22f404e39c53e1c017e611175c80e97e1cd5a19ee",
+            "image_dimensions_pixels": "644 x 390",
+            "contents": "barcode and AW code"
+          },
+          {
+            "evidence_id": "sha256:dad682532f6b8402188b4b7e0df7972206c136d1febe498046f7a9b87a6aa1bc",
+            "evidence_sha256": "dad682532f6b8402188b4b7e0df7972206c136d1febe498046f7a9b87a6aa1bc",
+            "image_dimensions_pixels": "729 x 512",
+            "contents": "per-100-g and per-cereal-bowl (80 g) nutrition panel"
+          }
+        ],
+        "visible_facts": {
+          "gtin_13": "5000129330328",
+          "gtin_check_digit_valid": true,
+          "aw_code": "P51128/1/4",
+          "serving_description": "cereal bowl",
+          "serving_weight_g": 80
+        },
+        "decisive_identity_attributes": {
+          "food_part_candidate": "baby leaves",
+          "preparation_state_candidate": "fresh raw",
+          "washing_state": "unknown",
+          "ready_to_eat_state": "unknown",
+          "basis": "baby-spinach identity comes from the user description and compatible public catalogue entries; the supplied crops do not show the front product name or preparation claims"
+        },
+        "not_visible": [
+          "front product name",
+          "net weight",
+          "origin",
+          "best-before or use-by date",
+          "washing or ready-to-eat claim",
+          "complete storage directions"
+        ],
+        "declared_nutrition": {
+          "primary_basis": "per 100 g",
+          "serving_basis": "per cereal bowl (80 g)",
+          "per_100_g": [
+            {
+              "key": "energy_consumed",
+              "state": "measured",
+              "value": 19,
+              "unit": "kcal",
+              "source_alternate_value": 78,
+              "source_alternate_unit": "kJ"
+            },
+            {
+              "key": "fat_total",
+              "state": "measured",
+              "value": 0.6,
+              "unit": "g"
+            },
+            {
+              "key": "fat_saturated",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.1,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.1 g"
+            },
+            {
+              "key": "carbohydrates",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.5,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.5 g"
+            },
+            {
+              "key": "sugar",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.5,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.5 g"
+            },
+            {
+              "key": "fiber",
+              "state": "measured",
+              "value": 1.0,
+              "unit": "g"
+            },
+            {
+              "key": "protein",
+              "state": "measured",
+              "value": 2.6,
+              "unit": "g"
+            },
+            {
+              "source_name": "salt",
+              "state": "measured",
+              "value": 0.08,
+              "unit": "g",
+              "canonical_transform": "salt_to_sodium_v1",
+              "canonical_sodium": {
+                "key": "sodium",
+                "state": "measured",
+                "value": 32,
+                "unit": "mg"
+              }
+            }
+          ],
+          "per_cereal_bowl_80_g": [
+            {
+              "key": "energy_consumed",
+              "state": "measured",
+              "value": 15,
+              "unit": "kcal",
+              "source_alternate_value": 62,
+              "source_alternate_unit": "kJ"
+            },
+            {
+              "key": "fat_total",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.5,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.5 g"
+            },
+            {
+              "key": "fat_saturated",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.1,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.1 g"
+            },
+            {
+              "key": "carbohydrates",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.5,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.5 g"
+            },
+            {
+              "key": "sugar",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.5,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.5 g"
+            },
+            {
+              "key": "fiber",
+              "state": "measured",
+              "value": 0.8,
+              "unit": "g"
+            },
+            {
+              "key": "protein",
+              "state": "measured",
+              "value": 2.1,
+              "unit": "g"
+            },
+            {
+              "source_name": "salt",
+              "state": "measured",
+              "value": 0.06,
+              "unit": "g",
+              "canonical_transform": "salt_to_sodium_v1",
+              "canonical_sodium": {
+                "key": "sodium",
+                "state": "measured",
+                "value": 24,
+                "unit": "mg"
+              }
+            }
+          ],
+          "rounding_and_projection_note": "The source's per-80-g declarations remain primary at that serving basis. Scaling the displayed per-100-g values by 0.8 gives compatible rounded energy, fat, fibre, protein and salt. It would tighten the displayed saturated-fat interval to [0, 0.08) g and the carbohydrate and sugar intervals to [0, 0.4) g, while the printed serving column retains the looser [0, 0.1) g and [0, 0.5) g bounds. Preserve both source columns and any deterministic projections without overwriting them."
+        }
+      },
+      "public_identity_resolution": {
+        "status": "package-led identity with compatible non-GTIN secondary catalogue entries; no accessible exact public GTIN or current official product page",
+        "resolved_name_candidate": "Co-op Baby Spinach 100g",
+        "pack_weight_candidate_g": 100,
+        "form_candidate": "fresh baby spinach leaves",
+        "public_sources": [
+          {
+            "publisher": "Nutracheck",
+            "url": "https://www.nutracheck.co.uk/CaloriesIn/Product/Search?desc=baby+spinach&page=1",
+            "source_record_id": "nutracheck:co-op-baby-spinach-100g",
+            "observation": "Search catalogue identifies Co-op Baby Spinach 100g and reports 15 kcal for an 80 g cereal-bowl serving, matching the distinctive package serving basis; it does not expose the barcode."
+          },
+          {
+            "publisher": "MyNetDiary",
+            "url": "https://www.mynetdiary.com/food/calories-in-mild-delicate-baby-spinach-by-coop-bowl-56341837-0.html",
+            "source_record_id": "mynetdiary:56341837-0",
+            "observation": "Secondary entry names Mild & Delicate Baby Spinach by Co-op and reports a 15 kcal, 80 g bowl with compatible rounded macros and 24 mg sodium; it does not expose the barcode or immutable formulation date."
+          }
+        ]
+      },
+      "public_nutrition_candidate": {
+        "publisher": "Nutracheck and MyNetDiary secondary entries",
+        "basis": "per cereal bowl (80 g)",
+        "source_release_id": null,
+        "formulation_effective_date": null,
+        "compatible_values": [
+          "15 kcal",
+          "fat displayed as 0.5 g or less",
+          "approximately 1 g carbohydrate",
+          "approximately 2 g protein",
+          "24 mg sodium"
+        ],
+        "status": "compatible secondary product-family candidate; useful for identity corroboration but not an exact GTIN resolution and not a replacement for the measured package panel"
+      },
+      "contract_result": "The valid GTIN, AW code, 80 g cereal-bowl basis and both package nutrition columns are measured evidence. Baby-spinach identity and a 100 g pack are strong candidates from the user's description and matching secondary catalogues, but the front name and net weight remain unmeasured. Washing and ready-to-eat states remain unknown rather than inferred. Carbohydrate, sugar and saturates preserve bounded states; salt transforms to 32 mg sodium per 100 g and 24 mg per printed bowl. A cereal-bowl serving is a source serving definition, not evidence that it or the candidate full pack was consumed."
+    },
+    {
+      "case_id": "marks-and-spencer-unwaxed-lemons-00806336-01",
+      "user_description": "Lemon",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:9fb68fa76b937f8d12790cc02bdd485ce9f1a657758563f4880c55f94a42ec59",
+        "evidence_bundle_sha256": "9fb68fa76b937f8d12790cc02bdd485ce9f1a657758563f4880c55f94a42ec59",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:ec20f28609cbcd70f06653f081b965d356957dc486fa25cbc1b80324b838996f",
+            "evidence_sha256": "ec20f28609cbcd70f06653f081b965d356957dc486fa25cbc1b80324b838996f",
+            "image_dimensions_pixels": "531 x 398",
+            "contents": "M&S internal barcode and human-readable product code"
+          },
+          {
+            "evidence_id": "sha256:a422aa04f2e2619e0430013f7310f92b3ced9db776c545ee32ab6516b2e9d3f4",
+            "evidence_sha256": "a422aa04f2e2619e0430013f7310f92b3ced9db776c545ee32ab6516b2e9d3f4",
+            "image_dimensions_pixels": "710 x 461",
+            "contents": "per-100-g nutrition panel including vitamin C"
+          }
+        ],
+        "visible_facts": {
+          "retailer_code_printed": "M 0806 336 S",
+          "retailer_code_normalized": "00806336",
+          "identifier_scheme": "M&S internal product code",
+          "gtin_13": null,
+          "gtin_check_digit_valid": null
+        },
+        "decisive_identity_attributes": {
+          "food_part": "whole fruit",
+          "preparation_state": "fresh raw",
+          "wax_state_candidate": "unwaxed",
+          "seed_state_candidate": "seedless",
+          "packing_or_coating_medium": "none stated",
+          "basis": "whole fresh lemons and unwaxed state come from the exact official retailer-code match; seedless appears on the matching Ocado listing but not the supplied crops"
+        },
+        "not_visible": [
+          "front product name",
+          "GTIN",
+          "pack count or net weight",
+          "origin",
+          "date or lot code",
+          "whether the nutrition basis excludes peel and seeds"
+        ],
+        "declared_nutrition": {
+          "basis": "per 100 g; edible basis is not stated",
+          "values": [
+            {
+              "key": "energy_consumed",
+              "state": "measured",
+              "value": 19,
+              "unit": "kcal",
+              "source_alternate_value": 79,
+              "source_alternate_unit": "kJ"
+            },
+            {
+              "key": "fat_total",
+              "state": "measured",
+              "value": 0.3,
+              "unit": "g"
+            },
+            {
+              "key": "fat_saturated",
+              "state": "measured",
+              "value": 0.1,
+              "unit": "g"
+            },
+            {
+              "key": "carbohydrates",
+              "state": "measured",
+              "value": 3.2,
+              "unit": "g"
+            },
+            {
+              "key": "sugar",
+              "state": "measured",
+              "value": 3.2,
+              "unit": "g"
+            },
+            {
+              "key": "fiber",
+              "state": "measured",
+              "value": 0.0,
+              "unit": "g"
+            },
+            {
+              "key": "protein",
+              "state": "measured",
+              "value": 1.0,
+              "unit": "g"
+            },
+            {
+              "source_name": "salt",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.01,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.01 g",
+              "canonical_transform": "salt_to_sodium_v1",
+              "canonical_sodium": {
+                "key": "sodium",
+                "state": "bounded",
+                "lower": 0,
+                "upper": 4,
+                "lower_closed": true,
+                "upper_closed": false,
+                "unit": "mg"
+              }
+            },
+            {
+              "source_name": "vitamin C",
+              "key": "vitamin_c",
+              "state": "measured",
+              "value": 58,
+              "unit": "mg",
+              "source_reference_intake_percent": 73
+            }
+          ]
+        }
+      },
+      "public_identity_resolution": {
+        "status": "exact official retailer-code match; the visible symbol is not a GTIN",
+        "resolved_name": "M&S Unwaxed Lemons",
+        "brand": "M&S",
+        "public_sources": [
+          {
+            "publisher": "Marks & Spencer",
+            "url": "https://www.marksandspencer.com/food/unwaxed-lemons/p/fdp21007132",
+            "source_record_id": "marks-and-spencer:00806336",
+            "observation": "Official page publishes Product Code 00806336, names M&S Unwaxed Lemons, currently displays 640 g, and reproduces the photographed per-100-g nutrients. It also publishes a sodium value incompatible with the package salt bound."
+          },
+          {
+            "publisher": "Ocado",
+            "url": "https://www.ocado.com/products/m-s-unwaxed-lemons/518291011",
+            "source_record_id": "ocado:518291011",
+            "observation": "Retail listing names M&S Seedless Unwaxed Lemons, prints M&S UPC -806336, currently lists four per pack, and reproduces the package panel including vitamin C without a separate sodium field."
+          }
+        ],
+        "pack_resolution": {
+          "package_evidence": "unknown because count and weight are outside the supplied crops",
+          "official_page_candidate": "640 g",
+          "ocado_candidate": "four fruit",
+          "rule": "Retain both current catalogue descriptions as candidates; neither establishes the captured package's count, gross quantity or edible quantity."
+        }
+      },
+      "public_nutrition_candidate": {
+        "publisher": "Marks & Spencer and Ocado",
+        "basis": "per 100 g; edible basis is not stated",
+        "source_release_id": null,
+        "formulation_effective_date": null,
+        "agreement_with_package_panel": [
+          "energy 79 kJ and 19 kcal",
+          "fat 0.3 g",
+          "saturates 0.1 g",
+          "carbohydrate 3.2 g",
+          "sugars 3.2 g",
+          "fibre 0.0 g",
+          "protein 1.0 g",
+          "salt <0.01 g",
+          "vitamin C 58 mg and 73% RI"
+        ],
+        "conflicting_official_page_value": {
+          "key": "sodium",
+          "source_value": 0.01,
+          "source_unit": "g",
+          "canonical_value": 10,
+          "canonical_unit": "mg",
+          "resolution": "rejected",
+          "reason": "A direct sodium value of 10 mg cannot coexist with total salt below 10 mg. The measured salt bound deterministically yields sodium [0, 4) mg through salt_to_sodium_v1; the Ocado copy omits the conflicting sodium field."
+        },
+        "status": "exact-code mutable retailer corroboration; matching direct fields support the captured panel, while the impossible official-page sodium value is retained and rejected"
+      },
+      "quantity_resolution": {
+        "per_100_g_nutrition_available": true,
+        "captured_pack_quantity": "unknown",
+        "edible_quantity": "unknown",
+        "per_fruit_projection": "not permitted without a measured consumed edible mass",
+        "basis_gap": "The sources do not state whether per 100 g refers to whole fruit, edible flesh, juice or another edible basis."
+      },
+      "contract_result": "The M&S internal product code and package nutrition are measured evidence. The code is not represented as a GTIN; it resolves through an explicit retailer namespace to M&S Unwaxed Lemons. Vitamin C maps directly to vitamin_c at 58 mg. Salt remains [0, 0.01) g and derived sodium [0, 4) mg; the official page's impossible 10 mg sodium value is preserved as conflicting evidence and rejected. Current 640 g and four-fruit catalogue descriptions do not establish the captured pack or an edible per-lemon quantity, so no consumed nutrient amount is inferred."
+    },
+    {
+      "case_id": "coop-tomato-unresolved-variant-5000128863186-01",
+      "user_description": "Tomato",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:5a378c8992b7be4250d528dc12103e1c4f9ed0004b9180714c1e9719a546660d",
+        "evidence_bundle_sha256": "5a378c8992b7be4250d528dc12103e1c4f9ed0004b9180714c1e9719a546660d",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:8a3c352454d2f765764783c57ccb51910a927f50932d3049be8ffe99a95702b0",
+            "evidence_sha256": "8a3c352454d2f765764783c57ccb51910a927f50932d3049be8ffe99a95702b0",
+            "image_dimensions_pixels": "500 x 377",
+            "contents": "barcode, packaging code and partial recycling instruction"
+          },
+          {
+            "evidence_id": "sha256:3cce294caa805478517c0258cf53e38f6b1966f6b631ca31b065da55681793b0",
+            "evidence_sha256": "3cce294caa805478517c0258cf53e38f6b1966f6b631ca31b065da55681793b0",
+            "image_dimensions_pixels": "467 x 275",
+            "contents": "per-100-g nutrition panel including vitamin C"
+          }
+        ],
+        "visible_facts": {
+          "gtin_13": "5000128863186",
+          "gtin_check_digit_valid": true,
+          "packaging_code": "P53944/1/2"
+        },
+        "decisive_identity_attributes": {
+          "food_part": "whole fruit",
+          "preparation_state_candidate": "fresh raw",
+          "tomato_variety": "unknown",
+          "vine_state": "unknown",
+          "organic_state": "unknown",
+          "basis": "tomato identity comes from the user description; the supplied crops do not expose a product name or variety"
+        },
+        "not_visible": [
+          "front product name or variety",
+          "pack count or net weight",
+          "origin",
+          "date or lot code",
+          "washing instructions",
+          "whether the nutrition basis excludes any stem or calyx"
+        ],
+        "declared_nutrition": {
+          "basis": "per 100 g; edible basis is not stated",
+          "values": [
+            {
+              "key": "energy_consumed",
+              "state": "measured",
+              "value": 17,
+              "unit": "kcal",
+              "source_alternate_value": 71,
+              "source_alternate_unit": "kJ"
+            },
+            {
+              "key": "fat_total",
+              "state": "measured",
+              "value": 0.1,
+              "unit": "g"
+            },
+            {
+              "key": "fat_saturated",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.1,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.1 g"
+            },
+            {
+              "key": "carbohydrates",
+              "state": "measured",
+              "value": 3.0,
+              "unit": "g"
+            },
+            {
+              "key": "sugar",
+              "state": "measured",
+              "value": 3.0,
+              "unit": "g"
+            },
+            {
+              "key": "fiber",
+              "state": "measured",
+              "value": 1.0,
+              "unit": "g"
+            },
+            {
+              "key": "protein",
+              "state": "measured",
+              "value": 0.5,
+              "unit": "g"
+            },
+            {
+              "source_name": "salt",
+              "state": "bounded",
+              "lower": 0,
+              "upper": 0.1,
+              "lower_closed": true,
+              "upper_closed": false,
+              "unit": "g",
+              "source_value": "<0.1 g",
+              "canonical_transform": "salt_to_sodium_v1",
+              "canonical_sodium": {
+                "key": "sodium",
+                "state": "bounded",
+                "lower": 0,
+                "upper": 40,
+                "lower_closed": true,
+                "upper_closed": false,
+                "unit": "mg"
+              }
+            },
+            {
+              "source_name": "vitamin C",
+              "key": "vitamin_c",
+              "state": "measured",
+              "value": 17,
+              "unit": "mg",
+              "source_nutrient_reference_value_percent": 21.25
+            }
+          ]
+        }
+      },
+      "public_identity_resolution": {
+        "status": "valid package GTIN with no accessible exact public match; exact tomato variant unresolved",
+        "resolved_name_candidate": "Co-op tomato product",
+        "rejected_variant_inferences": [
+          "organic vine tomato",
+          "tomato on the vine",
+          "salad tomato",
+          "beef tomato",
+          "cherry or plum tomato"
+        ],
+        "reason": "Generic tomato nutrition is reused across many varieties and cannot resolve product identity. No searched public source exposed GTIN 5000128863186."
+      },
+      "public_near_match_rejected": {
+        "publisher": "Central Co-op",
+        "url": "https://www.centralcoop.co.uk/food/products/5000128721141",
+        "source_record_id": "central-coop:5000128721141",
+        "product_name": "Co-op Organic Vine Tomatoes",
+        "different_gtin_13": "5000128721141",
+        "similarities": [
+          "energy 71 kJ and 17 kcal per 100 g",
+          "carbohydrate 3.0 g",
+          "sugars 3.0 g",
+          "fibre 1.0 g"
+        ],
+        "differences": [
+          "different GTIN",
+          "organic and vine identity not present in the supplied evidence",
+          "public vitamin C 22 mg versus measured 17 mg per 100 g",
+          "public fat <0.5 g versus measured 0.1 g per 100 g",
+          "public protein <0.5 g versus measured 0.5 g per 100 g"
+        ],
+        "resolution": "rejected as identity and nutrition evidence for the captured package; retained only as a negative-control example of a generic-nutrition collision"
+      },
+      "quantity_resolution": {
+        "per_100_g_nutrition_available": true,
+        "captured_pack_quantity": "unknown",
+        "edible_quantity": "unknown",
+        "per_tomato_projection": "not permitted without measured tomato or consumed edible mass"
+      },
+      "contract_result": "The valid GTIN, packaging code and package nutrition are measured evidence, but the exact tomato variant remains unresolved. Vitamin C maps directly to vitamin_c at 17 mg; salt and derived sodium remain bounded rather than zero. A different-GTIN Co-op organic vine product shares generic macro values but conflicts on vitamin C and decisive identity attributes, so it is explicitly rejected. Pack quantity, edible quantity and per-tomato nutrients remain unknown."
+    },
+    {
+      "case_id": "coop-whole-milk-unresolved-pack-5000129393828-01",
+      "user_description": "Whole milk",
+      "item_class_candidate": "drink",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:fd610cfa9d9ad780b65a4bc6ffedb6281b54169d33449ece0f639d9ac57f8477",
+        "evidence_bundle_sha256": "fd610cfa9d9ad780b65a4bc6ffedb6281b54169d33449ece0f639d9ac57f8477",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:d5435e7e7527a11204a56213dbf62de36e71693625719cb7942cb7bf5424871d",
+            "evidence_sha256": "d5435e7e7527a11204a56213dbf62de36e71693625719cb7942cb7bf5424871d",
+            "image_dimensions_pixels": "399 x 276",
+            "contents": "barcode and AW code"
+          },
+          {
+            "evidence_id": "sha256:6ef2e7c8d75f365b15a68c6731982052b3e159df782f5e569110eda5d5c98669",
+            "evidence_sha256": "6ef2e7c8d75f365b15a68c6731982052b3e159df782f5e569110eda5d5c98669",
+            "image_dimensions_pixels": "534 x 102",
+            "contents": "per-100-g nutrition declaration and ten-servings statement"
+          }
+        ],
+        "visible_facts": {
+          "gtin_13": "5000129393828",
+          "gtin_check_digit_valid": true,
+          "aw_code": "C54935/1/1",
+          "declared_servings_per_pack": 10,
+          "serving_size": "unknown because it is outside the supplied crop"
+        },
+        "decisive_identity_attributes": {
+          "milk_fat_class": "whole",
+          "animal_species_candidate": "cow",
+          "freshness_class": "unknown",
+          "pasteurisation_state": "unknown",
+          "homogenisation_state": "unknown",
+          "fortification_state": "unknown",
+          "basis": "whole-milk identity comes from the user description; the supplied crops do not show the front product name, ingredients or processing declarations"
+        },
+        "not_visible": [
+          "front product name",
+          "ingredients and milk-species declaration",
+          "pack mass or volume",
+          "serving size",
+          "origin",
+          "use-by date or lot code",
+          "pasteurisation or homogenisation declaration",
+          "vitamin or mineral fortification declaration"
+        ],
+        "declared_nutrition": {
+          "basis": "per 100 g as printed; no conversion to 100 mL is authorised without an evidenced density or source volume basis",
+          "values": [
+            {
+              "key": "energy_consumed",
+              "state": "measured",
+              "value": 63,
+              "unit": "kcal",
+              "source_alternate_value": 264,
+              "source_alternate_unit": "kJ"
+            },
+            {
+              "key": "fat_total",
+              "state": "measured",
+              "value": 3.5,
+              "unit": "g"
+            },
+            {
+              "key": "fat_saturated",
+              "state": "measured",
+              "value": 2.5,
+              "unit": "g"
+            },
+            {
+              "key": "carbohydrates",
+              "state": "measured",
+              "value": 4.6,
+              "unit": "g"
+            },
+            {
+              "key": "sugar",
+              "state": "measured",
+              "value": 4.6,
+              "unit": "g"
+            },
+            {
+              "key": "fiber",
+              "state": "measured",
+              "value": 0,
+              "unit": "g"
+            },
+            {
+              "key": "protein",
+              "state": "measured",
+              "value": 3.3,
+              "unit": "g"
+            },
+            {
+              "source_name": "salt",
+              "state": "measured",
+              "value": 0.04,
+              "unit": "g",
+              "canonical_transform": "salt_to_sodium_v1",
+              "canonical_sodium": {
+                "key": "sodium",
+                "state": "measured",
+                "value": 16,
+                "unit": "mg"
+              }
+            }
+          ],
+          "remaining_canonical_nutrients": "unknown unless separately resolved; whole-milk category knowledge does not supply calcium, vitamins or other absent nutrients"
+        }
+      },
+      "public_identity_resolution": {
+        "status": "valid package GTIN with no accessible exact public match; Co-op whole-milk family corroborated but pack and formulation unresolved",
+        "resolved_name_candidate": "Co-op Whole Milk",
+        "rejected_quantity_inference": "Do not infer 1 L, 1 kg, ten 100-g servings or ten 100-mL servings from the cropped ten-servings statement.",
+        "public_sources": [
+          {
+            "publisher": "Central Co-op",
+            "url": "https://www.centralengland.coop/assets/documents/Allergens_Table_2022.02.08_V2_.pdf",
+            "source_record_id": "central-coop:allergens-table-2022-02-08",
+            "observation": "Historical official allergen catalogue lists Co-op British Fresh Whole Milk in at least 1 pint/568 mL and 2 pints/1.136 L variants and marks milk as an allergen. It does not expose this GTIN or prove the captured pack size or current formulation."
+          }
+        ]
+      },
+      "public_near_match_rejected": {
+        "publisher": "Milk & More",
+        "url": "https://www.milkandmore.co.uk/Fresh-Milk-Delivery/Whole-Milk-Delivery/Milk-%26-More-Whole-Milk-2pt/p/2020901",
+        "product_name": "Milk & More Whole Milk 1L",
+        "similarities": [
+          "whole cow's milk category",
+          "63 kcal and 3.5 g fat per published 100-unit basis"
+        ],
+        "differences": [
+          "different brand and no matching GTIN",
+          "published per-100-mL basis rather than captured per-100-g basis",
+          "saturates 2.3 g versus measured 2.5 g",
+          "carbohydrate and sugars 4.4 g versus measured 4.6 g",
+          "protein 3.4 g versus measured 3.3 g",
+          "salt 0.11 g versus measured 0.04 g"
+        ],
+        "resolution": "rejected for identity, serving conversion and nutrient augmentation; retained only as evidence that category-level similarity cannot establish formulation"
+      },
+      "quantity_resolution": {
+        "captured_pack_mass": "unknown",
+        "captured_pack_volume": "unknown",
+        "declared_serving_count": 10,
+        "declared_serving_size": "unknown",
+        "mass_to_volume_conversion": "not permitted without evidenced density",
+        "consumed_amount": "unknown"
+      },
+      "contract_result": "The valid GTIN, AW code, ten-servings statement and per-100-g package nutrition are measured evidence. The whole-milk name is user-supplied and the Co-op family is publicly corroborated, but no exact public GTIN, pack quantity, serving size, milk processing or fortification state is resolved. The mass basis must not be silently relabelled as per 100 mL, and ten servings must not be converted into 1 L or a consumed amount. Salt maps to 16 mg sodium per 100 g; absent calcium and vitamins remain unknown."
+    },
+    {
+      "case_id": "coop-wheat-rye-sourdough-5000129399301-01",
+      "user_description": "Wheat and rye sourdough",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:d4334df2d41f4c77f6026f65254f5ce1bb9304a258170c4269b87ef2fa0c7253",
+        "evidence_bundle_sha256": "d4334df2d41f4c77f6026f65254f5ce1bb9304a258170c4269b87ef2fa0c7253",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:0954621744140f7d504fcc2beeb311f4777a2c5ffe7fcb6735504d549a21e142",
+            "evidence_sha256": "0954621744140f7d504fcc2beeb311f4777a2c5ffe7fcb6735504d549a21e142",
+            "image_dimensions_pixels": "637 x 334",
+            "contents": "barcode and AW code"
+          },
+          {
+            "evidence_id": "sha256:925f7ecddc28f510f4b46cf2984be442ca598b0c46de8ed811abec8d95cadbfb",
+            "evidence_sha256": "925f7ecddc28f510f4b46cf2984be442ca598b0c46de8ed811abec8d95cadbfb",
+            "image_dimensions_pixels": "572 x 430",
+            "contents": "per-100-g and approximate-slice nutrition declaration"
+          }
+        ],
+        "visible_facts": {
+          "gtin_13": "5000129399301",
+          "gtin_check_digit_valid": true,
+          "aw_code": "B55033/1/1",
+          "source_serving_description": "per average slice (approx. 63 g)",
+          "approximate_servings_per_pack": 8
+        },
+        "decisive_identity_attributes": {
+          "grain_identity": "wheat and rye from user-supplied product description; not visible in the supplied crops",
+          "preparation": "sourdough bread from user-supplied product description; not visible in the supplied crops",
+          "slice_state": "a per-average-slice column is printed, but the crops do not establish whether the loaf was sold sliced",
+          "fortification_state": "unknown because ingredients and any fortification declaration are not visible",
+          "serving_basis": "the directly printed slice column is approximate and remains distinct from a deterministic 0.63 projection",
+          "edible_quantity": "unknown for any consumed occurrence"
+        },
+        "not_visible": [
+          "front product name and brand",
+          "ingredients, allergens and rye proportion",
+          "net pack weight",
+          "whether sold pre-sliced",
+          "fortification declaration",
+          "origin",
+          "best-before or lot code"
+        ],
+        "declared_nutrition": {
+          "per_100_g": {
+            "basis": "per 100 g as printed",
+            "values": [
+              {
+                "key": "energy_consumed",
+                "state": "measured",
+                "value": 225,
+                "unit": "kcal",
+                "source_alternate_value": 949,
+                "source_alternate_unit": "kJ"
+              },
+              {
+                "key": "fat_total",
+                "state": "measured",
+                "value": 1.3,
+                "unit": "g"
+              },
+              {
+                "key": "fat_saturated",
+                "state": "measured",
+                "value": 0.2,
+                "unit": "g"
+              },
+              {
+                "key": "carbohydrates",
+                "state": "measured",
+                "value": 41,
+                "unit": "g"
+              },
+              {
+                "key": "sugar",
+                "state": "measured",
+                "value": 2.2,
+                "unit": "g"
+              },
+              {
+                "key": "fiber",
+                "state": "measured",
+                "value": 7.8,
+                "unit": "g"
+              },
+              {
+                "key": "protein",
+                "state": "measured",
+                "value": 8.3,
+                "unit": "g"
+              },
+              {
+                "source_name": "salt",
+                "state": "measured",
+                "value": 0.71,
+                "unit": "g",
+                "canonical_transform": "salt_to_sodium_v1",
+                "canonical_sodium": {
+                  "key": "sodium",
+                  "state": "measured",
+                  "value": 284,
+                  "unit": "mg"
+                }
+              }
+            ]
+          },
+          "per_average_slice": {
+            "basis": "per average slice (approx. 63 g) as printed",
+            "values": [
+              {
+                "key": "energy_consumed",
+                "state": "measured",
+                "value": 141,
+                "unit": "kcal",
+                "source_alternate_value": 598,
+                "source_alternate_unit": "kJ"
+              },
+              {
+                "key": "fat_total",
+                "state": "measured",
+                "value": 0.8,
+                "unit": "g"
+              },
+              {
+                "key": "fat_saturated",
+                "state": "measured",
+                "value": 0.1,
+                "unit": "g"
+              },
+              {
+                "key": "carbohydrates",
+                "state": "measured",
+                "value": 26,
+                "unit": "g"
+              },
+              {
+                "key": "sugar",
+                "state": "measured",
+                "value": 1.4,
+                "unit": "g"
+              },
+              {
+                "key": "fiber",
+                "state": "measured",
+                "value": 4.9,
+                "unit": "g"
+              },
+              {
+                "key": "protein",
+                "state": "measured",
+                "value": 5.2,
+                "unit": "g"
+              },
+              {
+                "source_name": "salt",
+                "state": "measured",
+                "value": 0.45,
+                "unit": "g",
+                "canonical_transform": "salt_to_sodium_v1",
+                "canonical_sodium": {
+                  "key": "sodium",
+                  "state": "measured",
+                  "value": 180,
+                  "unit": "mg"
+                }
+              }
+            ]
+          },
+          "remaining_canonical_nutrients": "unknown; bread category knowledge and a different product's fortified-flour ingredients do not fill absent micronutrients"
+        }
+      },
+      "public_identity_resolution": {
+        "status": "valid package GTIN with no accessible exact public product facts",
+        "resolved_name_candidate": "Co-op Wheat and Rye Sourdough",
+        "reason": "The 5000129 prefix and AW-code format are consistent with Co-op package evidence, but the exact Central Co-op URL returned only an anti-bot shell and search exposed no indexed product record. The wheat-and-rye sourdough name therefore remains user-supplied rather than an exact public-GTIN resolution.",
+        "attempted_exact_url": "https://www.centralcoop.co.uk/food/products/5000129399301"
+      },
+      "public_near_match_rejected": {
+        "publisher": "Ocado",
+        "url": "https://www.ocado.com/products/ocado-wheat-rye-sourdough/571619011",
+        "source_record_id": "ocado:571619011",
+        "product_name": "Ocado Wheat & Rye Sourdough 500g",
+        "similarities": [
+          "same generic wheat-and-rye sourdough description",
+          "per-100-g and per-slice nutrition bases"
+        ],
+        "differences": [
+          "different retailer brand and no matching GTIN",
+          "500 g pack with approximately ten 45 g servings rather than approximately eight 63 g servings",
+          "255 kcal, 3.3 g fat, 4.9 g fibre and 0.87 g salt per 100 g rather than the measured 225 kcal, 1.3 g fat, 7.8 g fibre and 0.71 g salt",
+          "ingredients include fortified wheat flour, 18% wholemeal rye flour, rapeseed oil, soya flour and wheat gluten, none of which is established for the captured product"
+        ],
+        "resolution": "rejected for identity, ingredients, fortification, pack quantity, serving conversion and nutrient augmentation; retained only as a same-name negative control"
+      },
+      "serving_projection_check": {
+        "factor": 0.63,
+        "source_slice_basis_is_approximate": true,
+        "compatible_after_display_rounding": [
+          "energy_kJ 949 x 0.63 = 597.87 versus printed 598",
+          "fat 1.3 x 0.63 = 0.819 g versus printed 0.8 g",
+          "saturates 0.2 x 0.63 = 0.126 g versus printed 0.1 g",
+          "carbohydrate 41 x 0.63 = 25.83 g versus printed 26 g",
+          "sugars 2.2 x 0.63 = 1.386 g versus printed 1.4 g",
+          "fibre 7.8 x 0.63 = 4.914 g versus printed 4.9 g",
+          "protein 8.3 x 0.63 = 5.229 g versus printed 5.2 g",
+          "salt 0.71 x 0.63 = 0.4473 g versus printed 0.45 g"
+        ],
+        "rounding_difference": "225 kcal x 0.63 = 141.75 kcal, while the package prints 141 kcal; preserve both the direct declaration and deterministic projection without correction or last-write-wins",
+        "inferred_pack_mass_rejected": "Eight approximate 63 g servings suggest about 504 g, but neither that multiplication nor the different-product 500 g pack is an exact captured net weight."
+      },
+      "quantity_resolution": {
+        "captured_pack_mass": "unknown",
+        "approximate_declared_servings": 8,
+        "source_average_slice_mass_g": 63,
+        "consumed_slice_count_or_mass": "unknown",
+        "whole_pack_projection": "not permitted without captured net weight and a consumed occurrence"
+      },
+      "contract_result": "The valid GTIN, AW code, approximate serving basis and two package nutrition columns are measured evidence. The user-supplied wheat-and-rye sourdough identity remains a candidate because no accessible exact public record exposed product facts. Both printed nutrition columns survive: the 63 g projection is compatible after display rounding except for a 141-versus-141.75 kcal difference, which is retained rather than corrected. The same-name Ocado loaf is a different product and cannot supply identity, ingredients, fortification, quantity or nutrients. Pack weight, exact slice mass, consumed amount and all undeclared canonical nutrients remain unknown."
+    },
+    {
+      "case_id": "marks-and-spencer-danish-mackerel-olive-oil-00809160-01",
+      "user_description": "Canned mackerel",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:b41571e6ec32f059a72b5e5513a767fbc72a13440489572ac2ba6ffc4417d628",
+        "evidence_bundle_sha256": "b41571e6ec32f059a72b5e5513a767fbc72a13440489572ac2ba6ffc4417d628",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:a493a43f269b9f2f654f171657080e6de8ea7842c85a374ccd0bf73e46a24ab6",
+            "evidence_sha256": "a493a43f269b9f2f654f171657080e6de8ea7842c85a374ccd0bf73e46a24ab6",
+            "image_dimensions_pixels": "491 x 234",
+            "contents": "M&S retailer code"
+          },
+          {
+            "evidence_id": "sha256:7d5e02a18f2e085b2c907f25a87b4b61efff7f1fc91fd9316b0cbb05ee443702",
+            "evidence_sha256": "7d5e02a18f2e085b2c907f25a87b4b61efff7f1fc91fd9316b0cbb05ee443702",
+            "image_dimensions_pixels": "670 x 416",
+            "contents": "product description, ingredients, bone warning, drained nutrition and serving basis"
+          }
+        ],
+        "visible_facts": {
+          "printed_identifier": "M 0809 160 S",
+          "identifier_namespace": "marks_and_spencer_product_code",
+          "normalized_retailer_product_code": "00809160",
+          "is_gtin": false,
+          "product_description": "mackerel fillets in olive oil (26%)",
+          "ingredients": [
+            "mackerel (fish)",
+            "olive oil",
+            "salt"
+          ],
+          "allergen": "fish",
+          "bone_warning": "may contain bones",
+          "declared_servings": 2,
+          "source_serving_description": "per half can (44 g drained)",
+          "declared_omega_3_per_100_g": "2.0 g",
+          "declared_omega_3_per_half_can": "0.9 g"
+        },
+        "decisive_identity_attributes": {
+          "fish_species": "mackerel; exact scientific species is not printed in the supplied crop",
+          "preparation": "canned fillets",
+          "bone_state": "unknown because the package warns that bones may be present; do not classify as boneless",
+          "packing_medium": "olive oil, 26% in the product description",
+          "drained_state": "nutrition is explicitly based on drained product",
+          "serving_basis": "half can, 44 g drained",
+          "edible_quantity": "88 g drained product per can is supported by two 44 g half-can servings and corroborated publicly; any bone-excluded or actually consumed quantity remains unknown"
+        },
+        "not_visible": [
+          "front brand name",
+          "gross net weight",
+          "explicit drained weight statement separate from the half-can serving",
+          "country of origin or packing",
+          "best-before or lot code",
+          "scientific fish species"
+        ],
+        "declared_nutrition": {
+          "per_100_g_drained": {
+            "basis": "per 100 g drained as printed",
+            "values": [
+              {
+                "key": "energy_consumed",
+                "state": "measured",
+                "value": 266,
+                "unit": "kcal",
+                "source_alternate_value": 1104,
+                "source_alternate_unit": "kJ"
+              },
+              {
+                "key": "fat_total",
+                "state": "measured",
+                "value": 19.9,
+                "unit": "g"
+              },
+              {
+                "key": "fat_saturated",
+                "state": "measured",
+                "value": 3.6,
+                "unit": "g"
+              },
+              {
+                "key": "carbohydrates",
+                "state": "measured",
+                "value": 0.3,
+                "unit": "g"
+              },
+              {
+                "key": "sugar",
+                "state": "measured",
+                "value": 0.1,
+                "unit": "g"
+              },
+              {
+                "key": "fiber",
+                "state": "measured",
+                "value": 0.4,
+                "unit": "g"
+              },
+              {
+                "key": "protein",
+                "state": "measured",
+                "value": 21.2,
+                "unit": "g"
+              },
+              {
+                "source_name": "salt",
+                "state": "measured",
+                "value": 0.68,
+                "unit": "g",
+                "canonical_transform": "salt_to_sodium_v1",
+                "canonical_sodium": {
+                  "key": "sodium",
+                  "state": "measured",
+                  "value": 272,
+                  "unit": "mg"
+                }
+              }
+            ]
+          },
+          "retained_noncanonical_source_facts": [
+            {
+              "source_name": "omega 3",
+              "state": "measured",
+              "value": 2.0,
+              "unit": "g",
+              "basis": "per 100 g drained",
+              "canonical_mapping": "none in the frozen 39-nutrient catalogue; do not alias to total polyunsaturated fat"
+            },
+            {
+              "source_name": "omega 3",
+              "state": "measured",
+              "value": 0.9,
+              "unit": "g",
+              "basis": "per half can (44 g drained)",
+              "canonical_mapping": "none in the frozen 39-nutrient catalogue; retain as source evidence"
+            }
+          ],
+          "remaining_canonical_nutrients": "unknown; fish category knowledge does not fill absent vitamins, minerals or fatty-acid components"
+        }
+      },
+      "public_identity_resolution": {
+        "status": "exact official retailer-code product match",
+        "resolved_name": "M&S Danish Mackerel Fillets in Olive Oil",
+        "resolved_pack_facts": {
+          "net_weight_g": 125,
+          "drained_weight_g": 88,
+          "packed_in": "Denmark",
+          "catch_area": "North East Atlantic",
+          "scientific_species_candidate": "Scomber scombrus from the exact-code Marks and Spencer Czech Republic page; not printed in the supplied crop"
+        },
+        "sources": [
+          {
+            "publisher": "Marks and Spencer Czech Republic",
+            "url": "https://marksandspencerstore.cz/cs/ryby/581998-F19A99717.html",
+            "source_record_id": "marks-and-spencer:00809160",
+            "observation": "Exact retailer code 00809160, 125 g pack, common mackerel (Scomber scombrus) 73.5%, olive oil, salt, may-contain-bones warning and the package-matching 0.68 g salt per 100 g profile."
+          },
+          {
+            "publisher": "Marks and Spencer",
+            "url": "https://asset1.marksandspencer.com/is/content/mands/images/424b934d4a878285ab08848d3d864044cb7c0ea2.pdf",
+            "source_record_id": "marks-and-spencer:product-list:809160",
+            "observation": "Official historical product list associates code 809160 with Danish Mackerel Fillets In Olive Oil; it is identity corroboration, not current formulation evidence."
+          },
+          {
+            "publisher": "Ocado",
+            "url": "https://www.ocado.com/products/m-s-danish-mackerel-fillets-in-olive-oil/518957011",
+            "source_record_id": "ocado:518957011",
+            "observation": "Current retailer page supplies the M&S name, 125 g net weight, 88 g drained weight, Denmark packing, North East Atlantic catch area, ingredients and serving structure."
+          }
+        ]
+      },
+      "public_nutrition_conflict": {
+        "field": "salt per 100 g drained",
+        "package_value": "0.68 g",
+        "matching_exact_code_public_value": "0.68 g on the Marks and Spencer Czech Republic page",
+        "conflicting_public_value": "0.58 g on the Ocado page",
+        "resolution": "Package-measured 0.68 g remains effective for this evidence version. The exact-code corroboration and conflicting mutable retailer value remain separate provenance; no last-write-wins or field averaging is allowed."
+      },
+      "half_can_projection_check": {
+        "factor": 0.44,
+        "projected_values_from_per_100_g": {
+          "energy_kJ": 485.76,
+          "energy_kcal": 117.04,
+          "fat_g": 8.756,
+          "saturates_g": 1.584,
+          "carbohydrate_g": 0.132,
+          "sugars_g": 0.044,
+          "fibre_g": 0.176,
+          "protein_g": 9.328,
+          "salt_g": 0.2992,
+          "sodium_mg": 119.68,
+          "omega_3_g": 0.88
+        },
+        "direct_source_comparison": "The only printed per-half-can nutrient amount visible is omega 3 at 0.9 g, compatible with the 0.88 g projection after rounding. Other projected values are deterministic calculations, not direct label declarations."
+      },
+      "quantity_resolution": {
+        "public_net_weight_g": 125,
+        "drained_weight_g": 88,
+        "source_half_can_drained_g": 44,
+        "declared_servings": 2,
+        "packing_medium_is_part_of_logged_quantity": "only if consumed and explicitly logged; the nutrition panel is drained and does not authorise applying its basis to the 125 g gross can",
+        "bone_excluded_edible_mass": "unknown",
+        "consumed_amount": "unknown"
+      },
+      "contract_result": "The M&S retailer code resolves exactly without being misrepresented as a GTIN. Product identity, ingredients, olive-oil packing medium, drained serving basis, bone warning and the package nutrition are captured separately. The effective package profile is per 100 g drained and maps 0.68 g salt to 272 mg sodium; it cannot be applied to the gross 125 g can. The 44 g half-can basis supports deterministic projections and the public 88 g drained weight, but neither proves consumption or bone-excluded edible mass. Omega 3 is retained as measured source evidence outside the frozen 39 nutrients. Ocado's conflicting 0.58 g salt value remains separate and cannot overwrite the package."
+    },
+    {
+      "case_id": "baymar-gourmet-sardines-olive-oil-chilli-8425930142231-01",
+      "user_description": "Canned sardines",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:658052ff372975962e04c201206a04d36a99112b50defddeaf3a060927f45d0f",
+        "evidence_bundle_sha256": "658052ff372975962e04c201206a04d36a99112b50defddeaf3a060927f45d0f",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:cbae4f561382abc68bed11ada23dd42f7d61d7cb553ebd628c7f02224544a9eb",
+            "evidence_sha256": "cbae4f561382abc68bed11ada23dd42f7d61d7cb553ebd628c7f02224544a9eb",
+            "image_dimensions_pixels": "457 x 228",
+            "contents": "EAN-13 barcode"
+          },
+          {
+            "evidence_id": "sha256:6f5a9d0731a0b391ac9de21a75bbe7530551ee54c9f905cccbbfd3e98f190efc",
+            "evidence_sha256": "6f5a9d0731a0b391ac9de21a75bbe7530551ee54c9f905cccbbfd3e98f190efc",
+            "image_dimensions_pixels": "646 x 248",
+            "contents": "multilingual per-100-g-of-product nutrition declaration"
+          }
+        ],
+        "visible_facts": {
+          "gtin_13": "8425930142231",
+          "gtin_check_digit_valid": true,
+          "nutrition_basis": "per 100 g of product",
+          "nutrition_languages": [
+            "Spanish",
+            "English",
+            "French"
+          ]
+        },
+        "decisive_identity_attributes": {
+          "fish_identity": "sardines from the user description; exact public GTIN resolves baby sardines/sprats (Sprattus sprattus)",
+          "preparation": "canned, exact public product is 22-26 small fish per can",
+          "bone_state": "unknown; no exact-GTIN manufacturer evidence found that states bone-in or boneless",
+          "packing_medium": "olive oil with chilli pepper from exact public GTIN evidence",
+          "drained_state": "the package nutrition basis is product as sold, not drained; public identity evidence separately gives 84 g drained weight",
+          "serving_basis": "per 100 g product; no serving is printed in the supplied crop",
+          "edible_quantity": "120 g gross product and 84 g drained product are publicly resolved, but the actually consumed fish, oil and any bone-excluded quantity remain separate log facts"
+        },
+        "not_visible": [
+          "front product name and brand",
+          "ingredients and allergen declaration",
+          "net and drained weights",
+          "bone state",
+          "country of origin or packing",
+          "best-before or lot code"
+        ],
+        "declared_nutrition": {
+          "per_100_g_product": {
+            "basis": "per 100 g of product as printed; not drained",
+            "values": [
+              {
+                "key": "energy_consumed",
+                "state": "measured",
+                "value": 251,
+                "unit": "kcal",
+                "source_alternate_value": 1040,
+                "source_alternate_unit": "kJ"
+              },
+              {
+                "key": "fat_total",
+                "state": "measured",
+                "value": 20,
+                "unit": "g"
+              },
+              {
+                "key": "fat_saturated",
+                "state": "measured",
+                "value": 4.3,
+                "unit": "g"
+              },
+              {
+                "key": "carbohydrates",
+                "state": "measured",
+                "value": 0,
+                "unit": "g"
+              },
+              {
+                "key": "sugar",
+                "state": "measured",
+                "value": 0,
+                "unit": "g"
+              },
+              {
+                "key": "protein",
+                "state": "measured",
+                "value": 17,
+                "unit": "g"
+              },
+              {
+                "source_name": "salt",
+                "state": "measured",
+                "value": 1.5,
+                "unit": "g",
+                "canonical_transform": "salt_to_sodium_v1",
+                "canonical_sodium": {
+                  "key": "sodium",
+                  "state": "measured",
+                  "value": 600,
+                  "unit": "mg"
+                }
+              }
+            ]
+          },
+          "fiber": {
+            "key": "fiber",
+            "state": "unknown",
+            "reason": "not declared in the supplied nutrition panel; omission is not zero"
+          },
+          "remaining_canonical_nutrients": "unknown; sardine category knowledge does not fill calcium, vitamin D, fatty acids or other absent nutrients"
+        }
+      },
+      "public_identity_resolution": {
+        "status": "exact official manufacturer GTIN match",
+        "resolved_name": "Baymar Gourmet Sardines in Olive Oil with Chilli Pepper",
+        "resolved_reference": "SARG004",
+        "resolved_pack_facts": {
+          "net_weight_g": 120,
+          "drained_weight_g": 84,
+          "nominal_capacity_ml": 120,
+          "fish_count_per_can": "22-26",
+          "species": "Sprattus sprattus",
+          "sardines_percent": 70,
+          "olive_oil_percent": 28.4,
+          "chilli_pepper_percent": 0.6
+        },
+        "sources": [
+          {
+            "publisher": "Conservas BayMar",
+            "url": "https://www.conservasbaymar.com/en-US/sardines-in-olive-oil-with-chilli-2226-units-120-ml-transparent-easy-peel-p-148-en",
+            "source_record_id": "baymar:SARG004",
+            "observation": "Official product page identifies SARG004 as 22-26 sardines in olive oil with chilli, 120 g net and 84 g drained."
+          },
+          {
+            "publisher": "Conservas BayMar",
+            "url": "https://www.conservasbaymar.com/downloads/148/sarg004.pdf",
+            "source_record_id": "baymar:SARG004:logistics-sheet",
+            "observation": "Official logistics sheet binds EAN 8425930142231 to SARG004, 120 g net, 84 g drained and 120 mL nominal capacity."
+          },
+          {
+            "publisher": "Cart Collect",
+            "url": "https://www.cartcollect.co.uk/products/baymar-gourmet-sardines-in-olive-oil-with-chilli-pepper-120g-x-4",
+            "source_record_id": "cart-collect:8425930142231",
+            "observation": "Exact-EAN retailer page identifies Sprattus sprattus at 70%, olive oil at 28.4%, salt and chilli pepper at 0.6%."
+          }
+        ]
+      },
+      "bone_state_resolution": {
+        "effective_state": "unknown",
+        "rejected_candidate": {
+          "publisher": "AECOC Trade",
+          "url": "https://www.aecoctrade.es/es/producto/Y0TYVtjWoRdcQi7tnlp5ce",
+          "claim": "Baymar Gourmet sardines without bones",
+          "rejection_reason": "The page describes plain olive-oil sardines and exposes no EAN or SARG004 reference. It may be the sibling SARG003 product and cannot establish bone state for the chilli SARG004 can."
+        },
+        "rule_exercised": "A product-family boneless claim does not override an exact product's unknown bone state. Bone-in and boneless sardines require distinct identity or version evidence."
+      },
+      "public_nutrition_conflict": {
+        "field": "saturates per 100 g product",
+        "package_value": "4.3 g",
+        "compatible_public_candidate": "4.3 g on the Baymar-branded AECOC product-family page",
+        "conflicting_exact_reference_value": "4.7 g on a retailer page for SARG004",
+        "conflicting_source_url": "https://www.ladespensademarta.com/sardinillas/3294-baymar-sardinillas-en-aoliva-con-guindilla-2226-piezas-ro-120-gr.html",
+        "resolution": "The measured package value 4.3 g remains effective. The conflicting mutable retailer value is retained separately and neither averaged nor selected by last-write-wins."
+      },
+      "quantity_resolution": {
+        "public_net_product_g": 120,
+        "public_drained_product_g": 84,
+        "nutrition_basis": "product as sold including packing medium",
+        "whole_can_projection_if_all_product_and_oil_consumed": {
+          "factor": 1.2,
+          "energy_kJ": 1248,
+          "energy_kcal": 301.2,
+          "fat_g": 24,
+          "saturates_g": 5.16,
+          "carbohydrate_g": 0,
+          "sugars_g": 0,
+          "protein_g": 20.4,
+          "salt_g": 1.8,
+          "sodium_mg": 720
+        },
+        "drained_projection": "not permitted: applying an as-sold profile to 84 g drained fish would silently retain the wrong oil proportion",
+        "bone_excluded_edible_mass": "unknown",
+        "consumed_fish_and_oil_amounts": "unknown"
+      },
+      "contract_result": "The valid GTIN resolves exactly to Baymar SARG004 sardines in olive oil with chilli. The measured nutrition is explicitly per 100 g of product and maps 1.5 g salt to 600 mg sodium; fibre and absent micronutrients remain unknown. Public evidence supplies 120 g net and 84 g drained weights, but the as-sold nutrition cannot be applied to the drained quantity. A whole-can projection is valid only if all 120 g of fish and packing medium is consumed. Bone state remains unknown because a boneless claim is available only for an unlinked sibling/product-family page. The package's 4.3 g saturates wins over a conflicting SARG004 retailer value of 4.7 g without rewriting either source."
+    },
+    {
+      "case_id": "marks-and-spencer-chopped-italian-tomatoes-00821964-01",
+      "user_description": "Forgot what this was",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:171c6f3b4d4ab3e42790233a43f2001839783465cadafea7b5787557774e8e2e",
+        "evidence_bundle_sha256": "171c6f3b4d4ab3e42790233a43f2001839783465cadafea7b5787557774e8e2e",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:a29b99501541ff5042fe5427501dad043e89e429300afdc4ee4f6d7a1525a516",
+            "evidence_sha256": "a29b99501541ff5042fe5427501dad043e89e429300afdc4ee4f6d7a1525a516",
+            "image_dimensions_pixels": "461 x 280",
+            "contents": "M&S retailer code"
+          },
+          {
+            "evidence_id": "sha256:ed8cc22e93114dca75ccae8d4ef01f8f558206d70870a2a45df87a64921524b2",
+            "evidence_sha256": "ed8cc22e93114dca75ccae8d4ef01f8f558206d70870a2a45df87a64921524b2",
+            "image_dimensions_pixels": "517 x 194",
+            "contents": "bilingual per-100-g nutrition declaration"
+          }
+        ],
+        "visible_facts": {
+          "printed_identifier": "M 0821 964 S",
+          "identifier_namespace": "marks_and_spencer_product_code",
+          "normalized_retailer_product_code": "00821964",
+          "is_gtin": false,
+          "nutrition_basis": "per 100 g",
+          "nutrition_languages": [
+            "English",
+            "French"
+          ]
+        },
+        "decisive_identity_attributes": {
+          "food_identity": "M&S Chopped Italian Tomatoes from exact official retailer-code resolution",
+          "preparation": "chopped and canned in tomato juice",
+          "packing_medium": "tomato juice",
+          "drained_state": "not a drained declaration; nutrition is per 100 g product",
+          "fortification_state": "not fortified in the exact official ingredient declaration",
+          "serving_basis": "per 100 g product",
+          "edible_quantity": "official current product is 400 g; consumed quantity remains a separate log fact"
+        },
+        "not_visible": [
+          "front product name",
+          "ingredients",
+          "net weight",
+          "serving count",
+          "country of production",
+          "best-before or lot code"
+        ],
+        "declared_nutrition": {
+          "per_100_g_product": {
+            "basis": "per 100 g as printed",
+            "values": [
+              {
+                "key": "energy_consumed",
+                "state": "measured",
+                "value": 25,
+                "unit": "kcal",
+                "source_alternate_value": 105,
+                "source_alternate_unit": "kJ"
+              },
+              {
+                "key": "fat_total",
+                "state": "measured",
+                "value": 0.2,
+                "unit": "g"
+              },
+              {
+                "key": "fat_saturated",
+                "state": "measured",
+                "value": 0.1,
+                "unit": "g"
+              },
+              {
+                "key": "carbohydrates",
+                "state": "measured",
+                "value": 3.9,
+                "unit": "g"
+              },
+              {
+                "key": "sugar",
+                "state": "measured",
+                "value": 3.8,
+                "unit": "g"
+              },
+              {
+                "key": "fiber",
+                "state": "measured",
+                "value": 1.2,
+                "unit": "g"
+              },
+              {
+                "key": "protein",
+                "state": "measured",
+                "value": 1.3,
+                "unit": "g"
+              },
+              {
+                "source_name": "salt",
+                "state": "measured",
+                "value": 0.02,
+                "unit": "g",
+                "canonical_transform": "salt_to_sodium_v1",
+                "canonical_sodium": {
+                  "key": "sodium",
+                  "state": "measured",
+                  "value": 8,
+                  "unit": "mg"
+                }
+              }
+            ]
+          },
+          "remaining_canonical_nutrients": "unknown; tomato category knowledge does not fill vitamin C, potassium or other absent nutrients"
+        }
+      },
+      "public_identity_resolution": {
+        "status": "exact official retailer-code product match",
+        "resolved_name": "M&S Chopped Italian Tomatoes",
+        "resolved_pack_facts": {
+          "net_weight_g": 400,
+          "tomato_content_percent": 65,
+          "packing_medium": "tomato juice",
+          "other_ingredient": "citric acid as acidity regulator",
+          "production_location": "Foggia, Italy"
+        },
+        "sources": [
+          {
+            "publisher": "Marks and Spencer",
+            "url": "https://www.marksandspencer.com/food/chopped-italian-tomatoes/p/fdp60015702",
+            "source_record_id": "marks-and-spencer:00821964",
+            "observation": "Current official page binds product code 00821964 to Chopped Italian Tomatoes, 400 g, produced in Foggia, with 65% chopped tomatoes, tomato juice and citric acid; its nutrition matches the package panel exactly."
+          },
+          {
+            "publisher": "Marks and Spencer Czech Republic",
+            "url": "https://marksandspencerstore.cz/en/tomatoes/581994-F19A99707.html",
+            "source_record_id": "marks-and-spencer:00821964:F19A99707",
+            "observation": "Exact retailer code, 400 g, two-servings statement, ingredients and package-matching nutrition. The two-servings statement is public evidence, not visible package evidence."
+          }
+        ]
+      },
+      "public_nutrition_conflict": {
+        "source": {
+          "publisher": "Marks and Spencer Cyprus",
+          "url": "https://www.symeonidesfashion.com/product/chopped-italian-tomatoes/",
+          "source_record_id": "marks-and-spencer-cyprus:00821964"
+        },
+        "same_code_profile_per_100_g": {
+          "energy_kJ": 85,
+          "energy_kcal": 20,
+          "fat_g": "<0.1",
+          "saturates_g": "<0.1",
+          "carbohydrate_g": 2.7,
+          "sugars_g": 2.5,
+          "fiber_g": 1.9,
+          "protein_g": 1.4,
+          "salt_g": 0.1
+        },
+        "resolution": "The exact-code Cyprus profile is materially incompatible with the measured package and current official UK profile. It may represent a market variant, reformulation or stale page, but no source gives an effective date. Preserve it as a separate candidate version; do not merge fields or overwrite the package."
+      },
+      "quantity_resolution": {
+        "public_pack_mass_g": 400,
+        "nutrition_basis": "per 100 g product including tomato juice",
+        "whole_can_projection_if_all_product_consumed": {
+          "factor": 4,
+          "energy_kJ": 420,
+          "energy_kcal": 100,
+          "fat_g": 0.8,
+          "saturates_g": 0.4,
+          "carbohydrate_g": 15.6,
+          "sugars_g": 15.2,
+          "fiber_g": 4.8,
+          "protein_g": 5.2,
+          "salt_g": 0.08,
+          "sodium_mg": 32
+        },
+        "consumed_amount": "unknown; a 400 g product identity does not establish that the whole can was consumed"
+      },
+      "contract_result": "The M&S retailer code resolves exactly without being treated as a GTIN. The captured per-100-g panel is measured and matches the current official UK product; salt maps to 8 mg sodium. Public evidence supplies the 400 g pack and ingredient identity, enabling a deterministic whole-can projection only when a log explicitly records the whole can. An exact-code Cyprus profile is materially different and remains a separate possible market or formulation version with no effective date. No last-write-wins, cross-market merge or inferred consumption is allowed."
+    },
+    {
+      "case_id": "eat-wholesome-organic-black-beans-628110454485-01",
+      "user_description": "Organic black beans",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:dffca69939cce3b0a1df2a1ffbf2b0d1603ccf8e261cd8bcf894db1465b147a9",
+        "evidence_bundle_sha256": "dffca69939cce3b0a1df2a1ffbf2b0d1603ccf8e261cd8bcf894db1465b147a9",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:64f52bee97d99cd6999a1d5176787efbb1df69015bad106350615203922894f3",
+            "evidence_sha256": "64f52bee97d99cd6999a1d5176787efbb1df69015bad106350615203922894f3",
+            "image_dimensions_pixels": "359 x 158",
+            "contents": "UPC-A barcode"
+          },
+          {
+            "evidence_id": "sha256:655125a51aaec5d5c022cc1dd2f9cd6191ff52b16caaf4ce184dcef7c0239328",
+            "evidence_sha256": "655125a51aaec5d5c022cc1dd2f9cd6191ff52b16caaf4ce184dcef7c0239328",
+            "image_dimensions_pixels": "363 x 812",
+            "contents": "multilingual per-100-g-drained nutrition declaration"
+          }
+        ],
+        "visible_facts": {
+          "upc_a": "628110454485",
+          "normalized_gtin_13": "0628110454485",
+          "gtin_check_digit_valid": true,
+          "nutrition_basis": "per 100 g drained"
+        },
+        "decisive_identity_attributes": {
+          "food_identity": "organic black beans from the user's product description and prior named-product context; the product name is not visible in these crops",
+          "preparation": "canned cooked-bean candidate; not independently established by the supplied crops",
+          "packing_medium": "water on the current same-name UK public candidate; not visible package evidence",
+          "drained_state": "explicitly drained for the photographed nutrition declaration",
+          "fortification_state": "unknown; no fortification is inferred",
+          "serving_basis": "per 100 g drained",
+          "edible_quantity": "unknown; neither captured net weight nor drained weight is visible"
+        },
+        "not_visible": [
+          "front product name or brand",
+          "ingredients",
+          "net weight",
+          "drained weight",
+          "serving count",
+          "country or market",
+          "best-before or lot code"
+        ],
+        "declared_nutrition": {
+          "per_100_g_drained": {
+            "basis": "per 100 g drained as printed",
+            "values": [
+              { "key": "energy_consumed", "state": "measured", "value": 101, "unit": "kcal", "source_alternate_value": 425, "source_alternate_unit": "kJ" },
+              { "key": "fat_total", "state": "measured", "value": 0.7, "unit": "g" },
+              { "key": "fat_saturated", "state": "measured", "value": 0, "unit": "g" },
+              { "key": "carbohydrates", "state": "measured", "value": 13.1, "unit": "g" },
+              { "key": "sugar", "state": "measured", "value": 0, "unit": "g" },
+              { "key": "fiber", "state": "measured", "value": 6.9, "unit": "g" },
+              { "key": "protein", "state": "measured", "value": 7.2, "unit": "g" },
+              {
+                "source_name": "salt",
+                "state": "measured",
+                "value": 0.08,
+                "unit": "g",
+                "canonical_transform": "salt_to_sodium_v1",
+                "canonical_sodium": { "key": "sodium", "state": "measured", "value": 32, "unit": "mg" }
+              }
+            ]
+          },
+          "remaining_canonical_nutrients": "unknown; black-bean category knowledge does not fill potassium, iron or other absent nutrients"
+        }
+      },
+      "public_identity_resolution": {
+        "status": "valid user-linked GTIN with same-name public candidates; no accessible exact public GTIN match",
+        "resolved_name_candidate": "Eat Wholesome Organic Black Beans",
+        "sources": [
+          {
+            "publisher": "Ocado",
+            "url": "https://www.ocado.com/products/eat-wholesome-organic-black-beans/430403011",
+            "source_record_id": "ocado:430403011",
+            "observation": "Current UK same-name candidate is 400 g and declares organic black beans 60% and water, but it does not expose the captured UPC and its nutrition materially conflicts with the package."
+          },
+          {
+            "publisher": "Well.ca",
+            "url": "https://well.ca/products/eat-wholesome-organic-black-beans_188102.html",
+            "source_record_id": "well-ca:188102",
+            "observation": "Canadian same-name product-family candidate is 398 mL with organic black beans, water and salt. The accessible page does not establish the captured UPC or photographed nutrition version."
+          }
+        ],
+        "rejected_or_limited_evidence": [
+          "A nearby Eat Wholesome company-prefix barcode supports product-family plausibility but cannot resolve this exact UPC.",
+          "Other brands' black-bean records cannot supply identity, drained weight or nutrition for this package."
+        ]
+      },
+      "public_nutrition_conflict": {
+        "source": {
+          "publisher": "Ocado",
+          "url": "https://www.ocado.com/products/eat-wholesome-organic-black-beans/430403011",
+          "source_record_id": "ocado:430403011"
+        },
+        "current_same_name_profile_per_100_g": {
+          "energy_kJ": 240,
+          "energy_kcal": 57,
+          "fat_g": 0.6,
+          "saturates_g": 0,
+          "carbohydrate_g": 6.3,
+          "sugars_g": 0,
+          "fiber_g": 5.1,
+          "protein_g": 4.1,
+          "salt_g": 0.05
+        },
+        "resolution": "The current same-name UK profile is materially incompatible with the photographed per-100-g-drained declaration, and its displayed basis is not enough to prove equivalence. It may represent another market, formulation, date or basis. Preserve it as a separate candidate version; do not merge fields or overwrite the package."
+      },
+      "quantity_resolution": {
+        "public_same_name_pack_mass_g": 400,
+        "captured_net_weight_g": "unknown",
+        "captured_drained_weight_g": "unknown",
+        "nutrition_basis": "per 100 g drained",
+        "whole_can_projection": "not calculated; neither the 400 g public gross weight nor the public 60% bean ingredient proportion proves the captured package's drained edible weight",
+        "consumed_amount": "unknown"
+      },
+      "contract_result": "The photographed declaration is authoritative for this evidence-scoped package version: per 100 g drained, with salt mapped to 32 mg sodium. UPC 628110454485 is structurally valid and the user links it to Eat Wholesome Organic Black Beans, but no accessible exact public UPC record was found. A current same-name UK page supplies only a conflicting candidate profile and cannot supply the captured drained weight. No whole-can projection, field merge, cross-market substitution or inferred consumption is allowed."
+    },
+    {
+      "case_id": "organic-protein-co-pure-unflavoured-whey-0702403240297-01",
+      "user_description": "Organic whey protein",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:9c5e4c3118c2d462fd60146d8129bc2d562841cb2519ef6f109be4b0b23e52b2",
+        "evidence_bundle_sha256": "9c5e4c3118c2d462fd60146d8129bc2d562841cb2519ef6f109be4b0b23e52b2",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:45cb03cf13e785abf77d37e82808ac4915d82d50a8d58919a79587cfc2c9b367",
+            "evidence_sha256": "45cb03cf13e785abf77d37e82808ac4915d82d50a8d58919a79587cfc2c9b367",
+            "image_dimensions_pixels": "375 x 274",
+            "contents": "EAN-13 barcode"
+          },
+          {
+            "evidence_id": "sha256:515c3edb4bca34790ee16232e315d63e9c6c11f513e904a1d7774c9fd5366961",
+            "evidence_sha256": "515c3edb4bca34790ee16232e315d63e9c6c11f513e904a1d7774c9fd5366961",
+            "image_dimensions_pixels": "583 x 441",
+            "contents": "per-100-g amino-acid declaration"
+          },
+          {
+            "evidence_id": "sha256:abc0a39e618976e8856de9e6ba0128ff75add387c95443d17c223bc160d1e209",
+            "evidence_sha256": "abc0a39e618976e8856de9e6ba0128ff75add387c95443d17c223bc160d1e209",
+            "image_dimensions_pixels": "701 x 564",
+            "contents": "per-100-g and per-25-g nutrition declaration"
+          }
+        ],
+        "visible_facts": {
+          "gtin_13": "0702403240297",
+          "gtin_check_digit_valid": true,
+          "nutrition_bases": [
+            "per 100 g",
+            "per 25 g serving"
+          ],
+          "amino_acid_basis": "per 100 g",
+          "bcaa_marker": "isoleucine, leucine and valine are marked as BCAA"
+        },
+        "decisive_identity_attributes": {
+          "food_identity": "The Organic Protein Co Pure Unflavoured Organic Whey Protein Powder from exact public GTIN resolution",
+          "form": "powder",
+          "flavour": "pure unflavoured",
+          "protein_type": "organic whey protein concentrate from organic milk",
+          "allergen": "milk from exact official and retailer ingredient declarations; not visible in the supplied crops",
+          "serving_basis": "direct label values per 100 g and per 25 g serving",
+          "pack_quantity": "400 g from exact-GTIN public evidence; not visible in the supplied crops"
+        },
+        "not_visible": [
+          "front product name or brand",
+          "ingredients or allergen declaration",
+          "net weight",
+          "organic certification mark or certifier",
+          "best-before or lot code"
+        ],
+        "declared_nutrition": {
+          "per_100_g": {
+            "basis": "per 100 g as printed",
+            "values": [
+              { "key": "energy_consumed", "state": "measured", "value": 395, "unit": "kcal", "source_alternate_value": 1672, "source_alternate_unit": "kJ" },
+              { "key": "fat_total", "state": "measured", "value": 4.1, "unit": "g" },
+              { "key": "fat_saturated", "state": "measured", "value": 3.1, "unit": "g" },
+              { "key": "carbohydrates", "state": "measured", "value": 8.5, "unit": "g" },
+              { "key": "sugar", "state": "measured", "value": 4.4, "unit": "g" },
+              { "key": "fiber", "state": "measured", "value": 5.4, "unit": "g" },
+              { "key": "protein", "state": "measured", "value": 79, "unit": "g" },
+              {
+                "source_name": "salt",
+                "state": "measured",
+                "value": 0.5,
+                "unit": "g",
+                "canonical_transform": "salt_to_sodium_v1",
+                "canonical_sodium": { "key": "sodium", "state": "measured", "value": 200, "unit": "mg" }
+              },
+              { "key": "calcium", "state": "measured", "value": 637, "unit": "mg" },
+              { "key": "phosphorus", "state": "measured", "value": 361, "unit": "mg" },
+              { "key": "vitamin_b12", "state": "measured", "value": 2, "unit": "mcg" }
+            ]
+          },
+          "per_25_g_serving": {
+            "basis": "per 25 g serving as printed",
+            "values": [
+              { "key": "energy_consumed", "state": "measured", "value": 99, "unit": "kcal", "source_alternate_value": 418, "source_alternate_unit": "kJ" },
+              { "key": "fat_total", "state": "measured", "value": 1.0, "unit": "g" },
+              { "key": "fat_saturated", "state": "measured", "value": 0.8, "unit": "g" },
+              { "key": "carbohydrates", "state": "measured", "value": 2.1, "unit": "g" },
+              { "key": "sugar", "state": "measured", "value": 1.1, "unit": "g" },
+              { "key": "fiber", "state": "measured", "value": 1.4, "unit": "g" },
+              { "key": "protein", "state": "measured", "value": 19.6, "unit": "g" },
+              {
+                "source_name": "salt",
+                "state": "measured",
+                "value": 0.1,
+                "unit": "g",
+                "canonical_transform": "salt_to_sodium_v1",
+                "canonical_sodium": { "key": "sodium", "state": "measured", "value": 40, "unit": "mg" }
+              },
+              { "key": "calcium", "state": "measured", "value": 159, "unit": "mg", "source_reference_intake_percent": 20 },
+              { "key": "phosphorus", "state": "measured", "value": 90, "unit": "mg", "source_reference_intake_percent": 16.4 },
+              { "key": "vitamin_b12", "state": "measured", "value": 0.5, "unit": "mcg", "source_reference_intake_percent": 20 }
+            ],
+            "rounding_note": "The direct serving column remains primary. Quartering the per-100-g salt declaration yields 0.125 g and 50 mg sodium, while the printed serving column rounds salt to 0.1 g and therefore maps to 40 mg sodium. Preserve both source declarations without using one to overwrite the other."
+          },
+          "remaining_canonical_nutrients": "unknown; whey category knowledge does not fill absent nutrients"
+        },
+        "additional_source_facts": {
+          "catalogue_status": "retained measured source facts outside the frozen canonical nutrient catalogue; not aliased to total protein",
+          "amino_acids_per_100_g": {
+            "alanine_g": 4.05,
+            "arginine_g": 2.03,
+            "aspartic_acid_g": 8.97,
+            "cysteine_g": 2.2,
+            "glutamic_acid_g": 14.2,
+            "glycine_g": 1.5,
+            "histidine_g": 1.56,
+            "isoleucine_g": 5.03,
+            "leucine_g": 8.4,
+            "lysine_g": 7.9,
+            "methionine_g": 1.83,
+            "phenylalanine_g": 2.9,
+            "proline_g": 4.64,
+            "serine_g": 4.33,
+            "threonine_g": 5.87,
+            "tryptophan_g": 1.4,
+            "tyrosine_g": 2.55,
+            "valine_g": 4.63
+          },
+          "derived_total_bcaa_per_100_g": {
+            "value": 18.06,
+            "unit": "g",
+            "derivation": "5.03 g isoleucine + 8.4 g leucine + 4.63 g valine"
+          }
+        }
+      },
+      "public_identity_resolution": {
+        "status": "exact public GTIN and exact official product match",
+        "resolved_name": "The Organic Protein Co Organic Whey Protein Powder Pure Unflavoured",
+        "resolved_pack_facts": {
+          "net_weight_g": 400,
+          "servings_at_25_g": 16,
+          "ingredient": "organic whey protein concentrate from organic milk",
+          "allergen": "milk"
+        },
+        "sources": [
+          {
+            "publisher": "The Organic Protein Co",
+            "url": "https://theorganicproteincompany.co.uk/products/organic-whey-protein",
+            "source_record_id": "organic-protein-co:organic-whey-protein",
+            "observation": "Current official product page matches the photographed macro profile and 25 g basis and identifies a single-ingredient organic whey protein concentrate, but publishes a different calcium value."
+          },
+          {
+            "publisher": "Infinity Foods Wholesale",
+            "url": "https://www.infinityfoodswholesale.coop/food-cupboard/supplements/organic-pure-unflavoured-organic-whey-protein-the-organic-protein-co-1x400g",
+            "source_record_id": "infinity-foods:850860",
+            "observation": "Exact barcode 702403240297 resolves to the 400 g Pure Unflavoured product and reproduces the package macro profile and single-ingredient milk identity."
+          }
+        ]
+      },
+      "public_nutrition_conflict": {
+        "source": {
+          "publisher": "The Organic Protein Co",
+          "url": "https://theorganicproteincompany.co.uk/products/organic-whey-protein",
+          "source_record_id": "organic-protein-co:organic-whey-protein"
+        },
+        "matching_fields": "energy, fat, saturates, carbohydrate, sugars, fibre, protein, salt and phosphorus match the photographed per-100-g panel",
+        "conflicting_field": {
+          "key": "calcium",
+          "package_value_mg_per_100_g": 637,
+          "current_official_value_mg_per_100_g": 545
+        },
+        "resolution": "The package calcium remains measured for the captured formulation. The current official value may reflect a batch, source or formulation change without an effective date and remains separate; it cannot overwrite the package."
+      },
+      "public_page_internal_conflict": {
+        "source": "current official manufacturer page Q&A",
+        "conflict": "One answer states approximately 3.24 g total BCAA per 25 g including 1.55 g leucine, while another states 8.4 g leucine per 100 g or 2.1 g per 25 g. The photographed amino-acid panel supports the latter leucine value and yields 4.515 g total BCAA per 25 g.",
+        "resolution": "Do not use mutable Q&A values to overwrite the measured amino-acid panel."
+      },
+      "quantity_resolution": {
+        "public_exact_gtin_pack_mass_g": 400,
+        "direct_serving_mass_g": 25,
+        "servings_per_public_pack": 16,
+        "whole_pack_projection_if_all_product_consumed": {
+          "factor_from_per_100_g": 4,
+          "energy_kJ": 6688,
+          "energy_kcal": 1580,
+          "fat_g": 16.4,
+          "saturates_g": 12.4,
+          "carbohydrate_g": 34,
+          "sugars_g": 17.6,
+          "fiber_g": 21.6,
+          "protein_g": 316,
+          "salt_g": 2,
+          "sodium_mg": 800,
+          "calcium_mg": 2548,
+          "phosphorus_mg": 1444,
+          "vitamin_b12_mcg": 8
+        },
+        "consumed_amount": "unknown; exact product identity and pack size do not establish that any serving or the whole pack was consumed"
+      },
+      "contract_result": "EAN-13 0702403240297 resolves exactly to The Organic Protein Co Pure Unflavoured Organic Whey Protein Powder, 400 g. The photographed per-100-g and per-25-g declarations remain measured, including their independent rounding, and salt maps to sodium separately at each printed basis. The amino-acid profile is retained as source evidence outside the frozen catalogue rather than collapsed into protein. The current official macro profile matches, but its lower calcium value and internally inconsistent BCAA Q&A remain separate version evidence. Pack or serving identity never establishes consumption."
+    },
+    {
+      "case_id": "marks-and-spencer-british-single-apiary-honey-29161201-01",
+      "user_description": "British honey single apiary",
+      "item_class_candidate": "food",
+      "package_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:b7b200baf02b4bd546a89e9391e77a46d9fb6d3f55f7f00472417e04d522c3a8",
+        "evidence_bundle_sha256": "b7b200baf02b4bd546a89e9391e77a46d9fb6d3f55f7f00472417e04d522c3a8",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:aea19a9deb781218d5ed7a9b5a79b01c4ac2dbbeddd4499add9ccad48cc66767",
+            "evidence_sha256": "aea19a9deb781218d5ed7a9b5a79b01c4ac2dbbeddd4499add9ccad48cc66767",
+            "image_dimensions_pixels": "489 x 244",
+            "contents": "M&S retailer product code"
+          },
+          {
+            "evidence_id": "sha256:8a6e58e47576d3373a6a7af8bb4c20222b13a188d6870a686adc8928b259bab7",
+            "evidence_sha256": "8a6e58e47576d3373a6a7af8bb4c20222b13a188d6870a686adc8928b259bab7",
+            "image_dimensions_pixels": "454 x 288",
+            "contents": "British-honey identity, storage and per-100-g nutrition panel"
+          },
+          {
+            "evidence_id": "sha256:f8e85ef46777b7db0e3fa78dd0fee7784758a27479115cc64fb432b09ced3f0a",
+            "evidence_sha256": "f8e85ef46777b7db0e3fa78dd0fee7784758a27479115cc64fb432b09ced3f0a",
+            "image_dimensions_pixels": "438 x 179",
+            "contents": "second view confirming the per-100-g nutrition declaration"
+          }
+        ],
+        "visible_facts": {
+          "printed_identifier": "M 2916 1201 S",
+          "identifier_namespace": "marks_and_spencer_product_code",
+          "normalized_retailer_product_code": "29161201",
+          "is_gtin": false,
+          "visible_product_identity": "British honey",
+          "nutrition_basis": "per 100 g",
+          "storage": "store at room temperature; honey may naturally crystallise",
+          "infant_warning": "not suitable for infants under 12 months"
+        },
+        "decisive_identity_attributes": {
+          "food_identity": "M&S Collection British Single Apiary Select Farm Honey from exact official retailer-code resolution",
+          "origin": "British",
+          "apiary_scope": "single apiary on an M&S Select Farm from exact official product evidence",
+          "form": "honey",
+          "serving_basis": "per 100 g",
+          "pack_quantity": "250 g from exact official product evidence; not visible in the supplied crops"
+        },
+        "not_visible": [
+          "front product name or Collection branding",
+          "net weight",
+          "apiary or farm identifier",
+          "best-before date or lot code"
+        ],
+        "declared_nutrition": {
+          "per_100_g": {
+            "basis": "per 100 g as printed",
+            "values": [
+              { "key": "energy_consumed", "state": "measured", "value": 307, "unit": "kcal", "source_alternate_value": 1306, "source_alternate_unit": "kJ" },
+              { "key": "fat_total", "state": "bounded", "relation": "less_than", "value": 0.1, "unit": "g" },
+              { "key": "fat_saturated", "state": "bounded", "relation": "less_than", "value": 0.1, "unit": "g" },
+              { "key": "carbohydrates", "state": "measured", "value": 76.4, "unit": "g" },
+              { "key": "sugar", "state": "measured", "value": 76.4, "unit": "g" },
+              { "key": "fiber", "state": "bounded", "relation": "less_than", "value": 0.5, "unit": "g" },
+              { "key": "protein", "state": "measured", "value": 0.4, "unit": "g" },
+              {
+                "source_name": "salt",
+                "state": "measured",
+                "value": 0.03,
+                "unit": "g",
+                "canonical_transform": "salt_to_sodium_v1",
+                "canonical_sodium": { "key": "sodium", "state": "measured", "value": 12, "unit": "mg" }
+              }
+            ]
+          },
+          "remaining_canonical_nutrients": "unknown; generic honey composition does not fill absent micronutrients"
+        },
+        "warnings_status": "retained as package provenance and product-safety labelling, not as an instruction inferred from the user's request"
+      },
+      "public_identity_resolution": {
+        "status": "exact official retailer-code product match",
+        "resolved_name": "M&S Collection British Single Apiary Select Farm Honey",
+        "resolved_pack_facts": {
+          "net_weight_g": 250,
+          "country_identity": "British",
+          "production_scope": "one apiary on an M&S Select Farm"
+        },
+        "sources": [
+          {
+            "publisher": "Marks and Spencer",
+            "url": "https://www.marksandspencer.com/food/british-single-apiary-select-farm-honey/p/fdp60511170",
+            "source_record_id": "marks-and-spencer:29161201",
+            "observation": "Current official page binds product code 29161201 to British Single Apiary Select Farm Honey, 250 g, and reproduces every photographed per-100-g nutrition value and bound."
+          }
+        ]
+      },
+      "public_nutrition_comparison": {
+        "status": "exact match",
+        "resolution": "The current official page corroborates the complete photographed panel. The physical package remains the evidence-scoped measured source and the mutable page does not provide retrospective formulation history."
+      },
+      "quantity_resolution": {
+        "public_exact_code_pack_mass_g": 250,
+        "nutrition_basis": "per 100 g product",
+        "whole_jar_projection_if_all_product_consumed": {
+          "factor": 2.5,
+          "energy_kJ": 3265,
+          "energy_kcal": 767.5,
+          "fat_g": "<0.25",
+          "saturates_g": "<0.25",
+          "carbohydrate_g": 191,
+          "sugars_g": 191,
+          "fiber_g": "<1.25",
+          "protein_g": 1,
+          "salt_g": 0.075,
+          "sodium_mg": 30
+        },
+        "consumed_amount": "unknown; exact jar identity and net weight do not establish that any honey or the whole jar was consumed"
+      },
+      "contract_result": "The namespaced M&S code 29161201 resolves exactly without being treated as a GTIN. The photographed per-100-g panel is measured and fully matches the current official product; less-than fat, saturates and fibre remain bounds rather than zeros, and salt maps to 12 mg sodium. Official evidence supplies the 250 g pack and single-apiary Select Farm identity, enabling a deterministic whole-jar projection only when a log explicitly records the whole jar. It does not establish consumption, apiary location or formulation timing."
+    }
+  ],
+  "interpretation": "These cases demonstrate that barcode identity, manual declarations, physical-package nutrition and mutable public sources require separate provenance. User confirmation can select a manual declaration without converting it into a physical panel. The cottage-cheese package/public conflict demonstrates why product versions and capture evidence must survive retailer staleness or reformulation instead of being silently overwritten. The Lancashire Farm case shows that multi-source public agreement can strengthen a candidate without promoting it to package-measured truth. The Co-op cheese case separates a personal alias from canonical product identity and retains both direct per-slice declarations and deterministic projections when retailer rounding differs. The avocado case shows that exact GTIN does not override seasonal origin or supply missing edible quantity. The raspberry case shows that even one exact-GTIN retailer page may contain incompatible nutrition profiles, which must remain separate instead of being merged field by field. The turkey case supplies a direct reformulation test: exact-GTIN mutable public nutrition cannot replace a conflicting measured package panel, and later re-resolution cannot rewrite the evidence or resolution attached to an earlier log occurrence. The asparagus case shows how reference-intake context can resolve an ambiguous printed unit while retaining the original evidence and the explicit reasoning, and how product-family corroboration remains weaker than an exact public GTIN match. The spinach case preserves two source serving bases and decisive unknown preparation attributes while preventing compatible non-GTIN secondary entries from becoming canonical identity or nutrition. The lemon case requires a namespaced retailer code rather than a false GTIN, rejects an impossible public sodium field and keeps whole-pack, edible-part and per-fruit quantities unresolved. The tomato case demonstrates that generic nutrition similarity cannot resolve variety or product identity and that a different-GTIN near match must be rejected even when several macro values coincide. The milk case preserves an unusual mass basis for a liquid and prevents a serving count or generic category match from inventing volume, density, processing, fortification or absent micronutrients. The sourdough case preserves a direct approximate-slice column alongside a deterministic projection, records their rounding difference and prevents a same-name different-retailer loaf from supplying ingredients, fortification, quantity or nutrients. The canned-mackerel case separates gross can weight, drained nutrition, olive-oil packing medium, possible bones and consumed edible quantity; it also preserves an exact-code retailer salt conflict and retains omega 3 outside the frozen catalogue rather than aliasing it to total polyunsaturated fat. The sardine case supplies the opposite nutrition basis: product as sold rather than drained. It prevents that oil-inclusive profile from being applied to the drained weight, keeps an unlinked boneless product-family claim from resolving bone state and preserves a package-versus-retailer saturates conflict. The chopped-tomato case resolves an otherwise anonymous package from a namespaced retailer code, supports a product-basis whole-can projection without assuming consumption and preserves an exact-code cross-market nutrition conflict as separate version evidence. The black-bean case preserves an explicit drained basis, keeps an unresolved exact UPC separate from same-name public candidates, retains a material public nutrition collision and refuses to infer drained weight from gross pack size or ingredient percentage. The whey-protein case resolves an exact GTIN while preserving direct 100 g and 25 g declarations, amino acids outside the frozen catalogue, a package-versus-current calcium change and contradictory mutable manufacturer Q&A."
+}

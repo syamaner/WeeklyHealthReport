@@ -1,0 +1,152 @@
+{
+  "evidence_date": "2026-09-20",
+  "cohort": "Tesco Grocery 1.0, 2015 Greater London purchases, deterministic legacy sample",
+  "source": {
+    "release_id": "tesco-grocery-1.0-food-categories-v2-e79c86e1247408238d3062c7f78f18ca054d68d8d1e6def92ea70435347e3f15",
+    "license": "CC BY 4.0",
+    "bytes": 1375434,
+    "rows": 67296,
+    "scientific_notation_rows_excluded": 59649,
+    "invalid_check_digit_rows_excluded": 0,
+    "eligible_exact_gtins": 7647,
+    "eligible_categories": 17,
+    "categories_with_fewer_than_three_eligible_gtins": {
+      "poultry": 1
+    }
+  },
+  "selection": {
+    "algorithm": "sha256(source_release_id|category|zero_padded_gtin), ascending",
+    "per_category": 3,
+    "sample_cases": 49,
+    "canonical_private_sample_sha256": "1f7e76b53818b699b8a7488a08741e9258eef599a2ea1c17f41306356bccb945"
+  },
+  "off_observation": {
+    "api": "v3.6 live product read",
+    "read_only": true,
+    "hits": 17,
+    "misses": 32,
+    "uk_country_tag_hits": 9,
+    "category_concordant_hits": 15,
+    "category_contradictory_hits": 1,
+    "category_indeterminate_hits": 1,
+    "independently_adjudicable_exact_variants": 0,
+    "independently_adjudicable_label_freshness": 0,
+    "independently_adjudicable_reformulations": 0,
+    "canonical_response_manifest_sha256": "cac1f4eea3d59fed1d3b35764a0b6e3e59835a76ec25cbb7be12131420768ccc",
+    "hit_case_ids": [
+      "beer-01",
+      "beer-02",
+      "eggs-01",
+      "fruit_veg-01",
+      "grains-02",
+      "grains-03",
+      "meat_red-01",
+      "meat_red-02",
+      "sauces-02",
+      "sauces-03",
+      "soft_drinks-03",
+      "spirits-01",
+      "sweets-03",
+      "tea_coffee-03",
+      "water-01",
+      "water-03",
+      "wine-01"
+    ],
+    "miss_case_ids": [
+      "beer-03",
+      "dairy-01",
+      "dairy-02",
+      "dairy-03",
+      "eggs-02",
+      "eggs-03",
+      "fats_oils-01",
+      "fats_oils-02",
+      "fats_oils-03",
+      "fish-01",
+      "fish-02",
+      "fish-03",
+      "fruit_veg-02",
+      "fruit_veg-03",
+      "grains-01",
+      "meat_red-03",
+      "poultry-01",
+      "readymade-01",
+      "readymade-02",
+      "readymade-03",
+      "sauces-01",
+      "soft_drinks-01",
+      "soft_drinks-02",
+      "spirits-02",
+      "spirits-03",
+      "sweets-01",
+      "sweets-02",
+      "tea_coffee-01",
+      "tea_coffee-02",
+      "water-02",
+      "wine-02",
+      "wine-03"
+    ]
+  },
+  "redacted_category_adjudication": {
+    "method": "Compare the published Tesco top-level category with current OFF product-name and category evidence. Missing or plausibly cross-category evidence is indeterminate.",
+    "concordant_case_ids": [
+      "beer-01",
+      "beer-02",
+      "eggs-01",
+      "fruit_veg-01",
+      "grains-02",
+      "meat_red-01",
+      "sauces-02",
+      "sauces-03",
+      "soft_drinks-03",
+      "spirits-01",
+      "sweets-03",
+      "tea_coffee-03",
+      "water-01",
+      "water-03",
+      "wine-01"
+    ],
+    "contradictory_case_ids": [
+      "meat_red-02"
+    ],
+    "indeterminate_case_ids": [
+      "grains-03"
+    ]
+  },
+  "identity_field_counts_among_17_hits": {
+    "product_name": 17,
+    "brands": 15,
+    "quantity": 12,
+    "packaging": 7,
+    "categories_tags": 13,
+    "serving_size": 6,
+    "nutrition_data_per": 15,
+    "ingredients_text": 11
+  },
+  "contract_nutrient_fields_among_17_hits": {
+    "numeric_cells": 115,
+    "possible_cells": 663,
+    "median_per_hit": 7,
+    "range_per_hit": [0, 20],
+    "per_case_numeric_counts": {
+      "beer-01": 0,
+      "beer-02": 0,
+      "eggs-01": 5,
+      "fruit_veg-01": 7,
+      "grains-02": 0,
+      "grains-03": 8,
+      "meat_red-01": 7,
+      "meat_red-02": 9,
+      "sauces-02": 20,
+      "sauces-03": 8,
+      "soft_drinks-03": 8,
+      "spirits-01": 0,
+      "sweets-03": 20,
+      "tea_coffee-03": 0,
+      "water-01": 7,
+      "water-03": 16,
+      "wine-01": 0
+    }
+  },
+  "interpretation": "This is a deliberately dated legacy coverage result, not current or universal UK pantry coverage. The source contains no product name or label snapshot, so exact variant, reformulation and freshness cannot be independently adjudicated. Raw OFF responses are not committed; the live API is not an immutable source release."
+}

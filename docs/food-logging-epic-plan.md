@@ -27,7 +27,9 @@ The app's local, versioned data and canonical JSON remain the system of record. 
    unresolved conflicts are explicit and have an effective `unknown` value.
 3. Store decisive identity states, including preparation, bone/skin state, drained state, packing medium, fortification, serving basis and edible quantity.
 4. Reuse exact confirmed personal-library entries locally and offline.
-5. Use Open Food Facts only for the bounded identity role that the coverage spike supports.
+5. Do not depend on Open Food Facts in Phase 1; #87 rejected it as an identity or
+   nutrition-resolution dependency. Any later user-invoked candidate suggestion
+   remains untrusted evidence and non-canonical until separately evaluated.
 6. Start generic UK composition from a versioned CoFID release; Phase 1 requires user selection rather than automatic adjudication.
 7. Keep Drive as an explicit backup/export path under narrow `drive.file` consent, not the live database.
 8. Keep the existing app's HealthKit access read-only unless the dedicated plan is ratified and implementation is separately authorised.
@@ -62,11 +64,11 @@ All sixteen tasks are native sub-issues of #86. The checklists in the epic provi
 | Issue | Priority | Readiness | Triage decision |
 |---|---|---|---|
 | #89 | P0 | Complete | Contract freezes the shared domain vocabulary and gates |
-| #87 | P1 | Blocked by #89 | Retain source-selection spike |
-| #90 | P1 | Blocked by #89 | Retain combined local/backup architecture because backup follows the local operation model |
-| #94 | P1 | Blocked by #89, #87, #90 | Retain as phase container; decompose before implementation |
+| #87 | P1 | Complete | CoFID admitted for user-selected generic augmentation; OFF rejected as a Phase 1 dependency on dated legacy-cohort evidence |
+| #90 | P1 | Ready, queued | Retain combined local/backup architecture because backup follows the local operation model |
+| #94 | P1 | Blocked by accepted #87 and #90 | Retain as phase container; decompose before implementation |
 | #88 | P2 | Queued after #89 | Independent printed-panel evaluation; not an MVP blocker |
-| #92 | P2 | Blocked by #89, #87 | Gate for automatic augmentation |
+| #92 | P2 | Blocked by accepted #87 | Gate for automatic augmentation |
 | #93 | P2 | Blocked by #94, #88 | Independently promoted printed OCR delivery |
 | #98 | P2 | Blocked by #94, #92 | Narrowed to initial calibrated augmentation |
 | #91 | P3 | Queued after #89 | Independent handwriting evaluation; not an MVP blocker |
@@ -90,11 +92,12 @@ The remaining stages are the ratified dependency order. Each issue still require
 
 ### Stage A — authority and fixtures
 
-Complete #89 first. Once its contract is accepted, #87 may freeze its representative
-product set and #90 may compare persistence/backup designs using the frozen domain
-model. #88/#91 may then define their corpora without choosing a winner. #92 may
-define labelling and hard-negative policy, but its final source-backed corpus waits
-for #87's versioned source artefacts.
+#89 is complete. #87 admits CoFID only for user-selected generic augmentation and
+rejects OFF as a Phase 1 dependency. Its result is accepted.
+#90 may compare persistence/backup designs using the frozen domain model but remains
+queued until that decision. #88/#91 may define their corpora without choosing a
+winner. #92 may define labelling and hard-negative policy, but its final
+source-backed corpus waits for #87's accepted result.
 
 Stage A exits when schemas, terminology, fixtures, scoring metrics and decision thresholds are fixed before final results are observed.
 
@@ -159,11 +162,9 @@ The epic and its planning tasks authorise repository and public-source planning 
 
 Each later task must identify and obtain the concrete authority it needs, with stop and recovery conditions, before crossing one of those boundaries.
 
-## Next triage consequence after #89
+## Current triage consequence
 
-After local review and a separate commit decision for #89, re-triage #87 and #90 from
-`Blocked by #89` to the next eligible P1 spikes. They may proceed independently:
-#87 measures source artefacts against the frozen contract, while #90 selects storage
-and backup mechanics without changing its domain semantics. #94 remains blocked by
-accepted #87 and #90 outcomes and must still be decomposed before implementation.
-#92 continues to wait for #87's versioned source artefacts.
+#87 and its final review are complete. #90 is the next eligible P1 spike and must
+not begin as part of #87. #94
+remains blocked by accepted #87 and #90 outcomes and must still be decomposed before
+implementation. #92 continues to wait for #87's accepted source decision.
