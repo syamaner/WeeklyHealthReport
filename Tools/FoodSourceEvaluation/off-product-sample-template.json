@@ -1,0 +1,40 @@
+{
+  "sample_id": "replace-with-dated-redacted-sample-id",
+  "captured_on": "YYYY-MM-DD",
+  "sampling_frame": {
+    "target_recurring_personal_packaged_items": 30,
+    "target_ordinary_uk_packaged_foods": 30,
+    "target_ordinary_uk_whole_foods": 20,
+    "actual_recurring_personal_packaged_items": 0,
+    "actual_ordinary_uk_packaged_foods": 0,
+    "actual_ordinary_uk_whole_foods": 0,
+    "notes": "Do not commit barcodes, photographs, account identifiers or other personal evidence. Record only redacted case IDs and adjudicated outcomes."
+  },
+  "cases": [],
+  "case_template": {
+    "case_id": "redacted-001",
+    "cohort": "recurring_personal_packaged_item | ordinary_uk_packaged_food | ordinary_uk_whole_food",
+    "barcode_applicable": true,
+    "off_lookup_performed_on": "YYYY-MM-DD",
+    "hit": false,
+    "exact_variant": false,
+    "reformulation_ambiguity": "unknown",
+    "label_freshness": "unknown",
+    "decisive_identity": {
+      "preparation": "unknown",
+      "bone_skin_state": "unknown",
+      "drained_state": "unknown",
+      "packing_medium": "unknown",
+      "fortification": "unknown",
+      "serving_basis": "unknown",
+      "edible_quantity": "unknown"
+    },
+    "nutrition_fields": {
+      "contract_total": 39,
+      "exact_numeric": 0,
+      "bounded": 0,
+      "unknown": 39
+    },
+    "adjudication_notes": ""
+  }
+}

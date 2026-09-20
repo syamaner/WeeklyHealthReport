@@ -1,0 +1,780 @@
+{
+  "evidence_date": "2026-09-20",
+  "cohort": "Six supplement products selected incrementally from user-supplied current-use names and package panels",
+  "method": {
+    "observation": "Manual read-only inspection of public manufacturer and retailer pages in Safari",
+    "privacy": "The screenshot was used only to select product cases and serving forms. It is not committed, and no intake frequency, schedule or health purpose is retained.",
+    "account_state": "No account was used",
+    "mutations": "None; no basket, order, review, subscription or account action",
+    "promotion_rule": "Public values are resolution candidates, not measured values. Exact current physical-package evidence is required before promotion to measured."
+  },
+  "summary": {
+    "cases": 6,
+    "supplement_cases": 6,
+    "exact_public_product_identity_matches": 4,
+    "brand_and_product_family_matches_with_unresolved_variant": 1,
+    "probable_but_not_exact_identity_matches": 1,
+    "public_pages_with_machine_readable_numeric_candidates": 6,
+    "conflict_free_exact_product_numeric_pages": 4,
+    "pages_with_an_immutable_source_release": 0,
+    "pages_with_a_formulation_effective_date": 0,
+    "currently_unavailable_official_product_pages": 1,
+    "cases_with_user_supplied_label_panels": 5,
+    "label_panels_with_exact_numeric_values": 5,
+    "label_panels_with_evidenced_per_unit_conversion": 2,
+    "cases_with_primary_components_outside_the_frozen_39_nutrients": 2
+  },
+  "cases": [
+    {
+      "case_id": "multivitamin-tablet-01",
+      "captured_product": "Centrum, Multivitamin and Mineral, Advance 50+ Adults",
+      "captured_quantity": "1 tablet",
+      "item_class_candidate": "supplement",
+      "public_identity_status": "exact product-name match",
+      "package_identity_status": "linked to the captured Centrum Advance 50+ tablet entry by user context and matching 24-micronutrient formulation; supplied crops do not show a readable barcode or front product name",
+      "package_label_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:aa65ae927aca5cef083abd2833ec300e6e18c8f5a6d5e54dc55ef547d0e1e7fc",
+        "evidence_bundle_sha256": "aa65ae927aca5cef083abd2833ec300e6e18c8f5a6d5e54dc55ef547d0e1e7fc",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:9b49773ded001bf87802c1b6830c166b16a7ef6b81a3d5e74b177e548114a709",
+            "evidence_sha256": "9b49773ded001bf87802c1b6830c166b16a7ef6b81a3d5e74b177e548114a709",
+            "image_dimensions_pixels": "263 x 114",
+            "contents": "cropped barcode bars without readable digits"
+          },
+          {
+            "evidence_id": "sha256:ebca95474f18a2b6c029fa0d9705e81d5f028ae56e6927d78cbb164ed08678fb",
+            "evidence_sha256": "ebca95474f18a2b6c029fa0d9705e81d5f028ae56e6927d78cbb164ed08678fb",
+            "image_dimensions_pixels": "428 x 471",
+            "contents": "per-tablet vitamins and EU reference-intake percentages"
+          },
+          {
+            "evidence_id": "sha256:dedbd9c9e1b939247fec263f41c8d31b6cb431d6d16fa0e6a5682a2550ddaf60",
+            "evidence_sha256": "dedbd9c9e1b939247fec263f41c8d31b6cb431d6d16fa0e6a5682a2550ddaf60",
+            "image_dimensions_pixels": "367 x 479",
+            "contents": "per-tablet pantothenic acid and minerals with EU reference-intake percentages"
+          }
+        ],
+        "visible_facts": {
+          "declaration_basis": "each tablet contains",
+          "reference_intake_basis": "GB/EU daily reference intake",
+          "barcode_digits": "not visible or reliably decodable from the supplied crop",
+          "declared_nutrient_count": 24
+        },
+        "declared_nutrients": [
+          {
+            "key": "vitamin_a",
+            "source_name": "Vitamin A (RE)",
+            "state": "measured",
+            "value": 800,
+            "unit": "mcg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 100,
+            "source_qualifier": "50% as beta-carotene; RE retained as source equivalence qualifier"
+          },
+          {
+            "key": "vitamin_d",
+            "source_name": "Vitamin D",
+            "state": "measured",
+            "value": 5,
+            "unit": "mcg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 100
+          },
+          {
+            "key": "vitamin_e",
+            "source_name": "Vitamin E (alpha-TE)",
+            "state": "measured",
+            "value": 18,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 150,
+            "source_qualifier": "alpha-tocopherol equivalents retained as source equivalence qualifier"
+          },
+          {
+            "key": "vitamin_k",
+            "source_name": "Vitamin K",
+            "state": "measured",
+            "value": 30,
+            "unit": "mcg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 40
+          },
+          {
+            "key": "vitamin_c",
+            "source_name": "Vitamin C",
+            "state": "measured",
+            "value": 120,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 150
+          },
+          {
+            "key": "thiamin_b1",
+            "source_name": "Thiamin",
+            "state": "measured",
+            "value": 1.7,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 150
+          },
+          {
+            "key": "riboflavin_b2",
+            "source_name": "Riboflavin",
+            "state": "measured",
+            "value": 2.1,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 150
+          },
+          {
+            "key": "niacin_b3",
+            "source_name": "Niacin (NE)",
+            "state": "measured",
+            "value": 24,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 150,
+            "source_qualifier": "niacin equivalents retained as source equivalence qualifier"
+          },
+          {
+            "key": "vitamin_b6",
+            "source_name": "Vitamin B6",
+            "state": "measured",
+            "value": 2.1,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 150
+          },
+          {
+            "key": "folate_b9",
+            "source_name": "Folic Acid",
+            "state": "measured",
+            "value": 300,
+            "unit": "mcg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 150,
+            "source_qualifier": "source chemical form retained; mapped to canonical folate_b9"
+          },
+          {
+            "key": "vitamin_b12",
+            "source_name": "Vitamin B12",
+            "state": "measured",
+            "value": 3,
+            "unit": "mcg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 120
+          },
+          {
+            "key": "biotin_b7",
+            "source_name": "Biotin",
+            "state": "measured",
+            "value": 75,
+            "unit": "mcg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 150
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "source_name": "Pantothenic Acid",
+            "state": "measured",
+            "value": 9,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 150
+          },
+          {
+            "key": "calcium",
+            "source_name": "Calcium",
+            "state": "measured",
+            "value": 162,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 20
+          },
+          {
+            "key": "phosphorus",
+            "source_name": "Phosphorus",
+            "state": "measured",
+            "value": 125,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 18
+          },
+          {
+            "key": "magnesium",
+            "source_name": "Magnesium",
+            "state": "measured",
+            "value": 100,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 27
+          },
+          {
+            "key": "iron",
+            "source_name": "Iron",
+            "state": "measured",
+            "value": 2.1,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 15
+          },
+          {
+            "key": "zinc",
+            "source_name": "Zinc",
+            "state": "measured",
+            "value": 5,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 50
+          },
+          {
+            "key": "copper",
+            "source_name": "Copper",
+            "state": "measured",
+            "value": 0.5,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 50
+          },
+          {
+            "key": "manganese",
+            "source_name": "Manganese",
+            "state": "measured",
+            "value": 2,
+            "unit": "mg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 100
+          },
+          {
+            "key": "selenium",
+            "source_name": "Selenium",
+            "state": "measured",
+            "value": 30,
+            "unit": "mcg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 55
+          },
+          {
+            "key": "chromium",
+            "source_name": "Chromium",
+            "state": "measured",
+            "value": 40,
+            "unit": "mcg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 100
+          },
+          {
+            "key": "molybdenum",
+            "source_name": "Molybdenum",
+            "state": "measured",
+            "value": 50,
+            "unit": "mcg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 100
+          },
+          {
+            "key": "iodine",
+            "source_name": "Iodine",
+            "state": "measured",
+            "value": 100,
+            "unit": "mcg",
+            "basis": "1 tablet",
+            "source_nrv_percent": 67
+          }
+        ],
+        "remaining_canonical_nutrients": "unknown rather than zero; the panel declares 24 micronutrients but does not establish absent macronutrients, chloride, potassium, sodium, water, caffeine or other catalogue values",
+        "identity_fields_not_visible": [
+          "readable barcode digits",
+          "front product name",
+          "tablet count",
+          "ingredient list and nutrient compound forms beyond RE, beta-carotene, alpha-TE, NE and folic acid",
+          "lot and best-before date"
+        ]
+      },
+      "public_sources": [
+        {
+          "publisher": "Centrum UK",
+          "url": "https://centrum.co.uk/products/multivitamins/centrum-advance-50-plus",
+          "observation": "Tablet product described as containing 24 micronutrients; accessible page text does not expose numeric nutrient amounts."
+        },
+        {
+          "publisher": "Ocado",
+          "url": "https://www.ocado.com/products/centrum-advance-50-multivitamins-vitamin-tablets-100s/624095011",
+          "source_record_id": "ocado:624095011",
+          "observation": "100-tablet product with a per-tablet table, but the accessible table is internally inconsistent and incomplete."
+        },
+        {
+          "publisher": "Centrum UK",
+          "url": "https://www.centrum.co.uk/content/dam/cf-consumer-healthcare/bp-wellness-centrum/en-GB/pdf/new/centrum-advance-50plus-ingredient-list.pdf",
+          "source_record_id": "centrum-uk:advance-50-plus:ingredient-list",
+          "observation": "Official per-tablet ingredient list reproduces all 24 photographed amounts and percentages, including thiamin 1.7 mg, vitamin C 120 mg, vitamin E 18 mg and copper 0.5 mg. It exposes no immutable formulation-effective date."
+        },
+        {
+          "publisher": "Haleon HealthPartner UK",
+          "url": "https://www.haleonhealthpartner.com/en-gb/wellness/brands/centrum/products/adult-50/",
+          "source_record_id": "haleon-healthpartner:centrum-advance-50-plus",
+          "observation": "Professional product page publishes the same 24-nutrient profile except thiamine is 1.65 mg rather than the package and Centrum ingredient PDF's 1.7 mg."
+        }
+      ],
+      "serving_basis": {
+        "captured": "1 tablet",
+        "public_candidate": "1 tablet",
+        "status": "aligned"
+      },
+      "numeric_candidates": [
+        "vitamin A 800 mcg/tablet",
+        "vitamin D 5 mcg/tablet",
+        "thiamin 1.7 mg/tablet on the package and official Centrum ingredient PDF; 1.65 mg/tablet on the Haleon professional page",
+        "riboflavin 2.1 mg/tablet",
+        "niacin 24 mg/tablet",
+        "vitamin B6 2.1 mg/tablet",
+        "folic acid 300 mcg/tablet",
+        "vitamin B12 3 mcg/tablet",
+        "pantothenic acid 9 mg/tablet",
+        "calcium 162 mg/tablet",
+        "phosphorus 125 mg/tablet",
+        "iron 2.1 mg/tablet",
+        "magnesium 100 mg/tablet",
+        "zinc 5 mg/tablet",
+        "iodine 100 mcg/tablet",
+        "vitamin K 30 mcg/tablet",
+        "biotin 75 mcg/tablet",
+        "manganese 2 mg/tablet",
+        "selenium 30 mcg/tablet",
+        "chromium 40 mcg/tablet",
+        "molybdenum 50 mcg/tablet"
+      ],
+      "conflicts": [
+        "The photographed package resolves vitamin C as 120 mg and 150% RI. The Ocado row displays vitamin C as 2.1 mg while also displaying 150% NRV, so that retailer amount is rejected.",
+        "The riboflavin row displays 2.1 mg in the NRV column rather than a percentage.",
+        "The Ocado table omits vitamin E and copper; the package resolves them as 18 mg and 0.5 mg per tablet.",
+        "The package and official Centrum ingredient PDF declare thiamin 1.7 mg, while the Haleon professional page and older retailer material use 1.65 mg. Preserve both public assertions, with 1.7 mg measured for this package evidence."
+      ],
+      "contract_result": "The supplied panel measures 24 canonical micronutrients at the direct one-tablet basis and resolves the malformed Ocado rows and omissions for this evidence version. RE, beta-carotene proportion, alpha-TE, NE and folic-acid form remain source qualifiers alongside canonical nutrient keys. The identity link to Centrum Advance 50+ is strong because the earlier captured product and exact 24-value official formulation align, but the cropped barcode has no readable digits and the front name, lot and tablet count are not visible. The package and current official ingredient PDF agree on thiamin 1.7 mg; the 1.65 mg professional-page candidate remains separate rather than overwriting the package. No intake occurrence or schedule is created."
+    },
+    {
+      "case_id": "fish-oil-softgel-01",
+      "captured_product": "Solgar, Triple Strength Omega 3 Fish Oil Softgels",
+      "captured_quantity": "1 softgel",
+      "item_class_candidate": "supplement",
+      "public_identity_status": "exact public UPC and product match",
+      "package_identity_status": "exact UPC-A linkage to the 100-softgel Solgar Triple Strength Omega-3 product",
+      "package_label_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:ae5d165a4d1f65e79d3ed68b420ecec23ae9d2480056d249fd3173fb4a212a73",
+        "evidence_bundle_sha256": "ae5d165a4d1f65e79d3ed68b420ecec23ae9d2480056d249fd3173fb4a212a73",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:636a9f368d94c1014c7929f589df6497fe958ec76e15828325019bd67d955410",
+            "evidence_sha256": "636a9f368d94c1014c7929f589df6497fe958ec76e15828325019bd67d955410",
+            "image_dimensions_pixels": "410 x 150",
+            "contents": "UPC-A barcode"
+          },
+          {
+            "evidence_id": "sha256:3a7083c41c3bef37b2317e47a987c09a28a46b0fd257fa475e20fda12a9edbc1",
+            "evidence_sha256": "3a7083c41c3bef37b2317e47a987c09a28a46b0fd257fa475e20fda12a9edbc1",
+            "image_dimensions_pixels": "412 x 351",
+            "contents": "two-softgel fish-oil, EPA and DHA declaration"
+          }
+        ],
+        "visible_facts": {
+          "gtin_12_upc_a": "033984020580",
+          "normalized_gtin_13": "0033984020580",
+          "gtin_check_digit_valid": true,
+          "declared_serving": "2 softgels",
+          "fish_sources": [
+            "anchovy",
+            "herring",
+            "mackerel",
+            "sardine"
+          ],
+          "epa_and_dha_form": "omega-3 polyunsaturated fatty acids as ethyl esters"
+        },
+        "declared_components_per_two_softgels": [
+          {
+            "source_name": "Cold Water Fish Oil Concentrate",
+            "state": "measured",
+            "value": 2800,
+            "unit": "mg",
+            "catalogue_status": "retained supplement-component identity outside the frozen canonical nutrient catalogue"
+          },
+          {
+            "source_name": "Eicosapentaenoic Acid (EPA)",
+            "state": "measured",
+            "value": 1008,
+            "unit": "mg",
+            "catalogue_status": "retained source component outside the frozen canonical nutrient catalogue; not aliased to total polyunsaturated fat"
+          },
+          {
+            "source_name": "Docosahexaenoic Acid (DHA)",
+            "state": "measured",
+            "value": 756,
+            "unit": "mg",
+            "catalogue_status": "retained source component outside the frozen canonical nutrient catalogue; not aliased to total polyunsaturated fat"
+          }
+        ],
+        "remaining_canonical_nutrients": "unknown; the component declaration does not supply canonical total fat or polyunsaturated fat",
+        "not_visible": [
+          "front product name",
+          "softgel count",
+          "complete ingredients and capsule excipients",
+          "best-before or lot code"
+        ]
+      },
+      "public_sources": [
+        {
+          "publisher": "Solgar UK",
+          "url": "https://solgar.co.uk/products/solgar-triple-strength-omega-3-softgels",
+          "observation": "Public page lists 50- and 100-softgel variants, a suggested two-softgel daily basis and fish-oil sources including anchovy, herring, mackerel and sardine."
+        },
+        {
+          "publisher": "Solgar Benelux",
+          "url": "https://www.solgar.be/producten/omega-3-visolie-triple-strength",
+          "source_record_id": "solgar:2058:033984020580",
+          "observation": "Current official page binds EAN 033984020580 to the 100-softgel product and publishes the equivalent one-softgel values: 1400 mg fish-oil concentrate, 504 mg EPA and 378 mg DHA. Its one-softgel direction is market-specific and does not define user intake."
+        }
+      ],
+      "serving_basis": {
+        "captured": "1 softgel",
+        "package_declaration": "2 softgels",
+        "status": "the package supplies an exact factor of 1/2 conversion from its declaration to the captured quantity"
+      },
+      "captured_quantity_projection": {
+        "transform": "scale the declared two-softgel serving by exact factor 1/2",
+        "components": [
+          {
+            "source_name": "Cold Water Fish Oil Concentrate",
+            "state": "measured",
+            "value": 1400,
+            "unit": "mg"
+          },
+          {
+            "source_name": "Eicosapentaenoic Acid (EPA)",
+            "state": "measured",
+            "value": 504,
+            "unit": "mg"
+          },
+          {
+            "source_name": "Docosahexaenoic Acid (DHA)",
+            "state": "measured",
+            "value": 378,
+            "unit": "mg"
+          }
+        ]
+      },
+      "identity_facts": [
+        "softgel dose form",
+        "cold-water fish-oil concentrate",
+        "anchovy, herring, mackerel and sardine sources",
+        "EPA and DHA as ethyl esters",
+        "bovine gelatin capsule",
+        "mixed tocopherols"
+      ],
+      "catalogue_gap": "Omega-3, EPA and DHA are not nutrient keys in the frozen 39-nutrient catalogue. They must not be silently mapped to total polyunsaturated fat.",
+      "directions_status": "Package or public directions are provenance only; they do not create a schedule or consumed occurrence.",
+      "contract_result": "UPC-A 033984020580 resolves exactly to the 100-softgel Solgar Triple Strength Omega-3 product. The package measures fish-oil concentrate 2800 mg, EPA 1008 mg and DHA 756 mg per two softgels, supporting exact one-softgel projections of 1400 mg, 504 mg and 378 mg for the previously captured quantity. Fish sources and ethyl-ester form survive as identity provenance. Fish oil, EPA and DHA remain outside the frozen 39 nutrients and are not aliased to total fat or polyunsaturated fat. Directions do not establish a regimen or consumption."
+    },
+    {
+      "case_id": "zinc-capsule-01",
+      "captured_product": "Momentous, Zinc Picolinate Capsules",
+      "captured_quantity": "1 capsule",
+      "item_class_candidate": "supplement",
+      "public_identity_status": "exact product-name match",
+      "package_identity_status": "exact package linkage to the previously captured Momentous Zinc Picolinate entry; valid UPC-A is measured but was not independently exposed on the official public page",
+      "package_label_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package-set:sha256:0847dd4aba5def1e1279d9cfdb68e14f4d7a6817e92b9baaa147c2d2f20927b7",
+        "evidence_bundle_sha256": "0847dd4aba5def1e1279d9cfdb68e14f4d7a6817e92b9baaa147c2d2f20927b7",
+        "raw_images_committed": false,
+        "images": [
+          {
+            "evidence_id": "sha256:bc3d74a769cb1a27c6830190654b1b5873607b7ddd194f2d9f3c0862d46b3ce1",
+            "evidence_sha256": "bc3d74a769cb1a27c6830190654b1b5873607b7ddd194f2d9f3c0862d46b3ce1",
+            "image_dimensions_pixels": "223 x 108",
+            "contents": "UPC-A and opaque printed package code"
+          },
+          {
+            "evidence_id": "sha256:076b7db02d5520ef35fbad684bfe1a37a2fb5dd762e3b18bc9456aeb62f17d08",
+            "evidence_sha256": "076b7db02d5520ef35fbad684bfe1a37a2fb5dd762e3b18bc9456aeb62f17d08",
+            "image_dimensions_pixels": "409 x 257",
+            "contents": "one-capsule serving, container count and zinc declaration"
+          }
+        ],
+        "visible_facts": {
+          "gtin_12_upc_a": "850030796172",
+          "normalized_gtin_13": "0850030796172",
+          "gtin_check_digit_valid": true,
+          "printed_package_code": "MMT-Z-60 160925",
+          "printed_package_code_interpretation": "opaque; do not infer product version, lot or date without issuer semantics",
+          "serving_size": "1 capsule",
+          "servings_per_container": 60
+        },
+        "declared_nutrients": [
+          {
+            "key": "zinc",
+            "source_name": "Zinc (as Zinc Picolinate)",
+            "state": "measured",
+            "value": 15,
+            "unit": "mg",
+            "basis": "1 capsule",
+            "source_ri_percent": 150,
+            "source_qualifier": "zinc picolinate compound form retained as identity and provenance; canonical amount is elemental zinc"
+          }
+        ],
+        "remaining_canonical_nutrients": "unknown rather than zero; the supplied crop declares only zinc",
+        "identity_fields_not_visible": [
+          "front product name",
+          "full ingredient list",
+          "issuer semantics for MMT-Z-60 160925",
+          "explicit lot and best-before labels"
+        ]
+      },
+      "public_sources": [
+        {
+          "publisher": "Momentous",
+          "url": "https://www.livemomentous.com/products/zinc-picolinate",
+          "observation": "Public page states 15 mg zinc as zinc picolinate per one-capsule serving and 60 servings per container. The current US-oriented label imagery shows 136% Daily Value, while the supplied GB/EU package prints 150% RI; the amount and serving basis agree, and the regulatory percentages remain source-specific. The page does not expose the supplied UPC as accessible text."
+        }
+      ],
+      "serving_basis": {
+        "captured": "1 capsule",
+        "package_declaration": "1 capsule",
+        "public_candidate": "1 capsule",
+        "status": "aligned; no per-unit conversion is required"
+      },
+      "numeric_candidates": [
+        "zinc 15 mg/capsule"
+      ],
+      "identity_facts": [
+        "capsule dose form",
+        "zinc picolinate compound form"
+      ],
+      "contract_result": "The valid UPC-A, one-capsule serving, 60-serving container and 15 mg zinc declaration are measured package evidence. Zinc maps directly to the canonical zinc key in mg, while picolinate remains compound identity and provenance rather than a separate nutrient. The official page corroborates the amount and serving basis but uses a US 136% Daily Value instead of the package's GB/EU 150% RI; those percentages are not nutrient conflicts or interchangeable semantics. The opaque package code is retained without being guessed as a date or lot. No intake occurrence or schedule is created."
+    },
+    {
+      "case_id": "psyllium-powder-01",
+      "captured_product": "Anthony's, Psyllium Husk Powder",
+      "captured_quantity": "5 g",
+      "item_class_candidate": "supplement",
+      "public_identity_status": "brand and product-family match; exact organic variant not established",
+      "public_sources": [
+        {
+          "publisher": "Anthony's Goods",
+          "url": "https://anthonysgoods.com/products/psyllium-husk-powder-usda-organic-gluten-free-vegan",
+          "observation": "Public page describes a 1.5 lb organic finely ground powder, product of India and packed in California, with directions of one to two teaspoons. The nutrition label is an image and numeric values are not exposed as accessible text."
+        }
+      ],
+      "serving_basis": {
+        "captured": "5 g",
+        "public_candidate": "1 to 2 teaspoons",
+        "status": "not convertible without exact package mass evidence"
+      },
+      "contract_result": "Retain 5 g as captured quantity only. Exact variant and fibre amount remain unknown until the current package panel is verified; do not infer a teaspoon-to-gram conversion from another listing."
+    },
+    {
+      "case_id": "d3-k2-drop-01",
+      "captured_product": "AG, d3+k2, Liquid Dietary Supplement",
+      "captured_quantity": "1 drop",
+      "item_class_candidate": "supplement",
+      "public_identity_status": "probable AG1 D3+K2 product; abbreviation and market variant prevent exact match",
+      "package_identity_status": "exact AG d3+k2 label identity; barcode, lot and market variant not yet linked",
+      "package_label_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package:sha256:740814dd98db4df47405ed8cbfc8d3a54882ee47fc8e4ed34c2605cd68ab257d",
+        "evidence_id": "sha256:740814dd98db4df47405ed8cbfc8d3a54882ee47fc8e4ed34c2605cd68ab257d",
+        "evidence_sha256": "740814dd98db4df47405ed8cbfc8d3a54882ee47fc8e4ed34c2605cd68ab257d",
+        "image_dimensions_pixels": "1806 x 1502",
+        "raw_image_committed": false,
+        "declared_serving": {
+          "drops": 6,
+          "volume_ml": 0.15
+        },
+        "servings_per_container": 200,
+        "declared_nutrients": [
+          {
+            "key": "vitamin_d",
+            "source_name": "Vitamin D",
+            "state": "measured",
+            "value": 25,
+            "unit": "mcg",
+            "basis": "6 drops (0.15 mL)",
+            "source_nrv_percent": 500
+          },
+          {
+            "key": "vitamin_k",
+            "source_name": "Vitamin K",
+            "state": "measured",
+            "value": 100,
+            "unit": "mcg",
+            "basis": "6 drops (0.15 mL)",
+            "source_nrv_percent": 133
+          }
+        ],
+        "ingredient_identity": [
+          "medium-chain triglycerides oil",
+          "vitamin K as menaquinone-7",
+          "vitamin D as cholecalciferol from lanolin",
+          "tocopherol-rich extract antioxidant"
+        ]
+      },
+      "public_sources": [
+        {
+          "publisher": "AG1",
+          "url": "https://drinkag1.com/en-uk/products/vitamin-d3-k2-liquid",
+          "observation": "Likely official product URL returned not found at the observation date."
+        },
+        {
+          "publisher": "AG1",
+          "url": "https://drinkag1.com/blog/post/ag1-d3-k2-vitamin-drops-explained",
+          "observation": "Previously indexed official explainer also returned not found at the observation date. Cached search text mentioned 1,000 IU vitamin D3 and 100 mcg vitamin K2 per drop, but it is not promoted as source truth."
+        }
+      ],
+      "serving_basis": {
+        "captured": "1 drop",
+        "package_declaration": "6 drops (0.15 mL)",
+        "public_candidate": "1 drop in cached text",
+        "status": "package label supplies an exact 1/6 conversion from its declared serving to the captured quantity"
+      },
+      "captured_quantity_projection": {
+        "transform": "scale declared 6-drop serving by exact factor 1/6",
+        "volume_ml": 0.025,
+        "nutrients": [
+          {
+            "key": "vitamin_d",
+            "amount_expression": "25/6 mcg",
+            "decimal_display_mcg": 4.1666666667,
+            "source_state": "measured"
+          },
+          {
+            "key": "vitamin_k",
+            "amount_expression": "100/6 mcg",
+            "decimal_display_mcg": 16.6666666667,
+            "source_state": "measured"
+          }
+        ]
+      },
+      "conflict": "The inaccessible cached public text described the same D3 and K2 amounts per drop, while the supplied label declares them per six drops. The package declaration takes precedence; the cached candidate is retained and rejected for incompatible basis.",
+      "remaining_identity_facts_to_verify": [
+        "barcode or GTIN",
+        "lot or best-before evidence",
+        "market variant"
+      ],
+      "contract_result": "The supplied panel resolves the declaration at a six-drop basis: vitamin D 25 mcg and vitamin K 100 mcg are measured for that exact label evidence. A one-drop log projection scales both by 1/6 and does not rewrite the source declaration. Menaquinone-7, cholecalciferol from lanolin and the MCT-oil carrier remain identity and provenance facts. The removed public page cannot establish retrospective formulation history."
+    },
+    {
+      "case_id": "boots-good-gut-wellthy-psyllium-husk-powder-100g-01",
+      "captured_product": "Boots Good Gut / current Wellthy by Boots Daily Fibre Psyllium Husk Powder",
+      "captured_quantity": "no consumed quantity supplied; package declares a 3.16 g serving",
+      "item_class_candidate": "supplement",
+      "public_identity_status": "exact Boots psyllium-powder product lineage from distinctive verbatim label text and serving declaration; captured front branding and product code are not visible",
+      "package_identity_status": "package panel identifies psyllium husk powder and food-supplement use; exact historical branding remains inferred from matching official and indexed retailer text",
+      "package_label_evidence": {
+        "capture_date": "2026-09-20",
+        "source_kind": "user_verified_panel",
+        "source_id": "physical_package",
+        "source_release_id": "package:sha256:1e1eb58b896db5ba15a9a488200cfa1441b09e22c239959705352fc41b7a317f",
+        "evidence_id": "sha256:1e1eb58b896db5ba15a9a488200cfa1441b09e22c239959705352fc41b7a317f",
+        "evidence_sha256": "1e1eb58b896db5ba15a9a488200cfa1441b09e22c239959705352fc41b7a317f",
+        "image_dimensions_pixels": "768 x 1024",
+        "raw_image_committed": false,
+        "visible_facts": {
+          "product_form": "fine psyllium husk powder",
+          "alternate_name": "ispaghula husk",
+          "source_description": "plant commonly grown in India; powder from the ground outer layer of the seeds",
+          "declared_serving_mass_g": 3.16,
+          "directions_reference_mass_g": "approximately 3 g per level teaspoon",
+          "maximum_directions_reference_mass_g": "up to 6 g per day",
+          "scoop_included": false,
+          "food_supplement_statement": true
+        },
+        "declared_components": {
+          "per_100_g": [
+            {
+              "source_name": "Psyllium Husk",
+              "state": "measured",
+              "value": 95,
+              "unit": "g",
+              "catalogue_status": "retained supplement-component identity outside the frozen canonical nutrient catalogue"
+            },
+            {
+              "key": "fiber",
+              "source_name": "Supplying Fibre",
+              "state": "measured",
+              "value": 82,
+              "unit": "g"
+            }
+          ],
+          "per_3_16_g_serving": [
+            {
+              "source_name": "Psyllium Husk",
+              "state": "measured",
+              "value": 3,
+              "unit": "g",
+              "catalogue_status": "retained supplement-component identity outside the frozen canonical nutrient catalogue"
+            },
+            {
+              "key": "fiber",
+              "source_name": "Supplying Fibre",
+              "state": "measured",
+              "value": 2.46,
+              "unit": "g"
+            }
+          ]
+        },
+        "remaining_canonical_nutrients": "unknown; no energy, macro or micronutrient values beyond fibre are visible",
+        "directions_and_warnings_status": "retained only as package provenance. They are not user instructions, a prescribed regimen or evidence that a serving was consumed.",
+        "not_visible": [
+          "front product name or brand",
+          "barcode or retailer product code",
+          "net weight",
+          "complete ingredient and allergen declaration",
+          "best-before or lot code"
+        ]
+      },
+      "public_sources": [
+        {
+          "publisher": "Boots",
+          "url": "https://www.boots.com/wellness/wellness-new-in/wellthy-by-boots-daily-fibre-psyllium-husk-powder-100g-10382834",
+          "source_record_id": "boots:10382834:9436162",
+          "observation": "Current official page identifies Wellthy by Boots Daily Fibre Psyllium Husk Powder 100 g, product code 9436162, and reproduces the supplied package's distinctive product description, directions and cautions. It lists psyllium husk with mustard, sesame and soy and calls the product suitable for adults, vegetarian and vegan diets."
+        },
+        {
+          "publisher": "Nutracheck",
+          "url": "https://www.nutracheck.co.uk/CaloriesIn/Brand/Boots?page=2",
+          "observation": "Indexed legacy naming links Boots Good Gut Psyllium Husk Powder 100 g to the unusual 3.16 g serving basis; it is corroboration for the historical branding, not package authority."
+        }
+      ],
+      "serving_basis": {
+        "package_declaration": "3.16 g serving containing 3 g psyllium husk and supplying 2.46 g fibre",
+        "package_directions_candidate": "one level teaspoon described separately as approximately 3 g powder",
+        "status": "the direct 3.16 g declaration remains primary; the approximate teaspoon wording is not an exact mass conversion and does not establish consumption"
+      },
+      "public_conflict": {
+        "current_official_claim": "a daily serving of one level teaspoon provides 3 g soluble fibre",
+        "package_declaration": "the 3.16 g serving supplies 2.46 g fibre and contains 3 g psyllium husk",
+        "resolution": "The current page appears to conflate psyllium-husk mass with supplied fibre or reflects changed copy. Preserve 2.46 g fibre as measured package evidence and retain the 3 g public statement separately; do not average or merge them."
+      },
+      "remaining_identity_facts_to_verify": [
+        "front branding and exact package name",
+        "barcode or Boots product code",
+        "net weight",
+        "complete ingredient and allergen panel",
+        "lot or best-before evidence"
+      ],
+      "contract_result": "The photographed table directly measures 95 g psyllium husk and 82 g fibre per 100 g, plus 3 g psyllium husk and 2.46 g fibre per 3.16 g serving. The distinctive text resolves the Boots product lineage, while front branding, barcode and historical package version remain uncaptured. Psyllium husk survives as supplement-component identity and fibre maps canonically; absent nutrients remain unknown. The current official 3 g soluble-fibre claim conflicts with the package's 2.46 g and cannot overwrite it. Directions and cautions are source facts, not a regimen or evidence of intake."
+    }
+  ],
+  "interpretation": "The cohort validates supplement-specific identity, compound, dose-form and serving-basis requirements but does not create intake events or a supplement catalogue. No observed page supplies an immutable release or formulation-effective date. The user-supplied Centrum, Solgar fish oil, Momentous zinc, AG and Boots psyllium labels are evidence-scoped package authority: Centrum directly measures 24 canonical micronutrients per tablet, Solgar measures fish-oil concentrate, EPA and DHA per two softgels and supports an exact one-softgel projection, Momentous measures 15 mg elemental zinc per capsule while retaining picolinate provenance, AG measures its printed six-drop values and supports an exact one-drop projection, and Boots psyllium separates component mass from supplied fibre at a direct 3.16 g basis. Their raw images remain local-only. Public pages may corroborate candidates, but malformed retailer rows, source-specific RI/Daily Value percentages, a 1.7-versus-1.65 mg thiamin difference, image-only labels, removed pages and a public psyllium mass-versus-fibre conflict demonstrate why current package evidence remains authoritative."
+}

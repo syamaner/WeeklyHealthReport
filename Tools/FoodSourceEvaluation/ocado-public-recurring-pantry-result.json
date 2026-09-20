@@ -1,0 +1,218 @@
+{
+  "evidence_date": "2026-09-20",
+  "cohort": "Nine deliberately selected products from a user-supplied recurring Ocado purchase list",
+  "method": {
+    "observation": "Manual read-only inspection of public Ocado product pages in Safari",
+    "selection": "Purposeful contract-edge sample: prepared produce, drained fish, edible bones, canned pulses, processed bread, soda water, raw meat, frozen fish and dairy",
+    "privacy": "The supplied purchase dates, quantities, frequencies and prices were used only to select cases and are not retained in this artefact",
+    "excluded": [
+      "non-food item",
+      "unavailable item that was substituted",
+      "duplicate purchases"
+    ],
+    "account_state": "Not logged in",
+    "mutations": "None; no basket, order, review or account action"
+  },
+  "summary": {
+    "cases": 9,
+    "exact_public_product_pages_found": 9,
+    "ocado_product_ids_present": 9,
+    "nutrition_panels_present": 9,
+    "ingredient_lists_present": 7,
+    "pages_with_a_public_upc_or_gtin": 1,
+    "pages_with_an_immutable_source_release": 0,
+    "pages_with_a_formulation_effective_date": 0,
+    "pages_with_at_least_one_bounded_nutrient": 2,
+    "confirmed_fortified_cases": 0,
+    "supplement_cases": 0,
+    "liquid_packed_cases": 3,
+    "liquid_packed_cases_with_drained_weight": 2,
+    "liquid_packed_cases_with_unambiguous_consumption_basis": 2
+  },
+  "cases": [
+    {
+      "case_id": "prepared-produce-01",
+      "product": "M&S Italian Style Baby Leaf Salad Washed & Ready to Eat",
+      "ocado_product_id": "519557011",
+      "url": "https://www.ocado.com/products/m-s-italian-style-baby-leaf-salad-washed-ready-to-eat/519557011",
+      "pack": "80 g bag",
+      "classification": "food",
+      "identity_facts": [
+        "mixed baby leaf salad",
+        "washed and ready to eat",
+        "not suitable for home freezing",
+        "packed in the United Kingdom from leaves of more than one country"
+      ],
+      "nutrition_basis": "per 100 g",
+      "contract_nutrients_published": 8,
+      "bounded_nutrients": [],
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "drained-fish-01",
+      "product": "M&S Danish Mackerel Fillets in Olive Oil",
+      "ocado_product_id": "518957011",
+      "url": "https://www.ocado.com/products/m-s-danish-mackerel-fillets-in-olive-oil/518957011",
+      "pack": "125 g net; 88 g drained",
+      "classification": "food",
+      "identity_facts": [
+        "mackerel fillets in olive oil (26%)",
+        "nutrition stated per 100 g drained and per half can (44 g)",
+        "may contain bones",
+        "packed in Denmark from mackerel caught in the North East Atlantic"
+      ],
+      "nutrition_basis": "per 100 g drained; serving 44 g",
+      "contract_nutrients_published": 8,
+      "additional_nutrients_published": ["omega-3"],
+      "bounded_nutrients": [],
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "edible-bone-fish-01",
+      "product": "M&S Sardines in Olive Oil",
+      "ocado_product_id": "506010011",
+      "url": "https://www.ocado.com/products/m-s-sardines-in-olive-oil/506010011",
+      "pack": "120 g net; 90 g drained",
+      "classification": "food",
+      "identity_facts": [
+        "sardines in olive oil (29%)",
+        "small soft edible bones explicitly retained",
+        "nutrition stated per 100 g drained",
+        "caught in the Eastern Central Atlantic and packed in Portugal"
+      ],
+      "nutrition_basis": "per 100 g drained",
+      "contract_nutrients_published": 8,
+      "additional_nutrients_published": ["omega-3", "EPA plus DHA"],
+      "bounded_nutrients": [],
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "canned-pulse-01",
+      "product": "Eat Wholesome Organic Black Beans",
+      "ocado_product_id": "430403011",
+      "url": "https://www.ocado.com/products/eat-wholesome-organic-black-beans/430403011",
+      "pack": "400 g can",
+      "classification": "food",
+      "identity_facts": [
+        "ingredients are 60% organic black beans and water",
+        "already cooked and ready to eat",
+        "instructions say to rinse before use",
+        "no drained weight is published on the page"
+      ],
+      "nutrition_basis": "per 100 g; page does not say whether this is drained or undrained",
+      "contract_nutrients_published": 8,
+      "bounded_nutrients": [],
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "processed-bread-01",
+      "product": "Warburtons Seeded Brioche Burger Buns",
+      "ocado_product_id": "694829011",
+      "url": "https://www.ocado.com/products/warburtons-seeded-brioche-burger-buns/694829011",
+      "pack": "4 buns; average bun 62.5 g",
+      "classification": "food",
+      "identity_facts": [
+        "sliced brioche rolls topped with sesame seeds",
+        "marketed as enriched with butter and egg",
+        "the ingredient list does not declare added vitamin or mineral fortification",
+        "suitable for freezing"
+      ],
+      "nutrition_basis": "per 100 g and per average bun (62.5 g)",
+      "contract_nutrients_published": 8,
+      "bounded_nutrients": [],
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "water-drink-01",
+      "product": "M&S Soda Water",
+      "ocado_product_id": "587352011",
+      "url": "https://www.ocado.com/products/m-s-soda-water/587352011",
+      "pack": "1 L plastic bottle; four 250 mL servings",
+      "classification": "water",
+      "identity_facts": [
+        "carbonated water with sodium bicarbonate",
+        "best served chilled",
+        "M&S UPC 29258840"
+      ],
+      "nutrition_basis": "per 100 mL and per 250 mL serving",
+      "contract_nutrients_published": 8,
+      "bounded_nutrients": [
+        "fat <0.1 g/100 mL",
+        "saturates <0.1 g/100 mL",
+        "carbohydrate <0.1 g/100 mL",
+        "sugars <0.1 g/100 mL",
+        "fibre <0.5 g/100 mL",
+        "protein <0.1 g/100 mL"
+      ],
+      "ingredients_present": true,
+      "upc_or_gtin_present": true
+    },
+    {
+      "case_id": "raw-meat-01",
+      "product": "M&S Only 3 Ingredients British Beef Burgers",
+      "ocado_product_id": "679170011",
+      "url": "https://www.ocado.com/products/m-s-only-3-ingredients-british-beef-burgers/679170011",
+      "pack": "340 g; two servings",
+      "classification": "food",
+      "identity_facts": [
+        "98% British beef with sea salt and cracked black pepper",
+        "raw and needs cooking",
+        "suitable for home freezing",
+        "packaged in a protective atmosphere"
+      ],
+      "nutrition_basis": "per 100 g",
+      "contract_nutrients_published": 8,
+      "bounded_nutrients": [
+        "sugars <0.1 g/100 g",
+        "fibre <0.5 g/100 g"
+      ],
+      "ingredients_present": true,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "frozen-fish-01",
+      "product": "M&S Scottish Salmon Portions Frozen",
+      "ocado_product_id": "622249011",
+      "url": "https://www.ocado.com/products/m-s-scottish-salmon-portions-frozen/622249011",
+      "pack": "400 g; minimum four individually packed fillets; four to five servings",
+      "classification": "food",
+      "identity_facts": [
+        "frozen Scottish Atlantic salmon fillets",
+        "raw and needs cooking",
+        "defrost before shallow frying",
+        "may contain bones"
+      ],
+      "nutrition_basis": "per 100 g",
+      "contract_nutrients_published": 8,
+      "additional_nutrients_published": ["omega-3", "EPA plus DHA"],
+      "bounded_nutrients": [],
+      "ingredients_present": false,
+      "upc_or_gtin_present": false
+    },
+    {
+      "case_id": "dairy-01",
+      "product": "Graham's Organic Whole Milk",
+      "ocado_product_id": "600997011",
+      "url": "https://www.ocado.com/products/graham-s-organic-whole-milk/600997011",
+      "pack": "1 L plastic bottle",
+      "classification": "drink",
+      "identity_facts": [
+        "pasteurised unhomogenised organic whole milk",
+        "cream at the top",
+        "UK agriculture"
+      ],
+      "nutrition_basis": "per 100 mL",
+      "contract_nutrients_published": 7,
+      "bounded_nutrients": [],
+      "ingredients_present": false,
+      "upc_or_gtin_present": false,
+      "unknown_example": "calcium is not published on the page and therefore remains unknown rather than zero"
+    }
+  ],
+  "interpretation": "The live pages are useful dated corroborating evidence for exact product and decisive-attribute review, including drained basis, edible bones, preparation state and bounded label values. They are mutable retailer pages, not immutable source releases: no sampled page provides a formulation-effective date, and eight of nine expose no public UPC or GTIN. The observation therefore does not promote Ocado into the canonical Phase 1 source stack and does not independently establish Open Food Facts exact-variant coverage."
+}
