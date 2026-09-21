@@ -1,0 +1,102 @@
+{
+  "contract_version": "printed-nutrition-ocr-evaluation-v1",
+  "corpus": {
+    "country_tag": "en:united-kingdom",
+    "ground_truth_requires_independent_visual_verification": true,
+    "minimum_panels": 100,
+    "minimum_untouched_gate_panels": 40,
+    "permitted_source": "Open Food Facts selected nutrition-panel images",
+    "real_panels_only": true,
+    "required_families": [
+      "bilingual",
+      "bound",
+      "crumpled",
+      "curved",
+      "difficult_crop",
+      "flat",
+      "glossy",
+      "missing_row",
+      "multi_column",
+      "nested_rows",
+      "per_100g",
+      "per_100ml",
+      "per_serving",
+      "salt",
+      "small_font",
+      "sodium"
+    ],
+    "split_algorithm": "sha256(image_sha256 + ':' + panel_id) first byte: 0-152 tuning, 153-255 untouched_gate",
+    "synthetic_panels_permitted": false
+  },
+  "metrics": {
+    "arithmetic_detection_minimum": 1.0,
+    "bound_preservation_minimum": 1.0,
+    "correct_decline_minimum": 0.95,
+    "false_save_maximum": 0.0,
+    "full_table_exact_minimum": 0.75,
+    "numeric_cell_exact_minimum": 0.95,
+    "row_header_binding_minimum": 0.98,
+    "serving_conversion_minimum": 0.98,
+    "unit_and_basis_minimum": 1.0
+  },
+  "policy": {
+    "automatic_save": false,
+    "confidence_can_authorize_persistence": false,
+    "failed_or_unknown_cells_remain_explicit": true,
+    "physical_camera_claims": false,
+    "side_by_side_confirmation_required": true,
+    "untouched_gate_may_be_run_once": true
+  },
+  "arithmetic_faults": {
+    "derived_from_real_ground_truth_only": true,
+    "mutations": [
+      "multiply one per-serving ordinary nutrient by 10",
+      "swap per-100 and per-serving header bindings",
+      "replace one bounded value with an exact value"
+    ],
+    "seed": "printed-nutrition-ocr-arithmetic-v1"
+  },
+  "recognizer": {
+    "engine": "Apple Vision RecognizeTextRequest",
+    "language_correction": true,
+    "recognition_level": "accurate",
+    "recognition_languages": [
+      "en-US"
+    ],
+    "uses_cloud": false
+  },
+  "recommendation": {
+    "bounded_promotion_requires_all_critical_gates": true,
+    "critical_gates": [
+      "false_save",
+      "unit_and_basis",
+      "bound_preservation",
+      "arithmetic_detection"
+    ],
+    "full_promotion_requires_all_metrics": true,
+    "options": [
+      "decline",
+      "bounded_promotion",
+      "promotion_to_93"
+    ]
+  },
+  "schema_version": 1,
+  "scoring": {
+    "basis_values": [
+      "per_100g",
+      "per_100ml",
+      "per_serving",
+      "reference_intake"
+    ],
+    "bound_comparators": [
+      "<",
+      "<="
+    ],
+    "cell_exactness": "comparator, decimal text, unit and bound basis must all match ground truth",
+    "false_save": "any incorrect or unbound proposed table marked ready_for_confirmation without an unresolved warning; automatic persistence remains unavailable",
+    "full_table_exactness": "all expected rows, cells, hierarchy, headers and bases exact with no extra accepted cells",
+    "ground_truth_source": "human visual transcription from the source crop; source OCR and contributor nutriments are hints only",
+    "normalization": "Unicode NFC and whitespace collapse are allowed for labels; numeric decimal text, comparator and unit are not rewritten for exact scoring",
+    "row_header_binding": "canonical nutrient, parent relationship and column header basis must all match"
+  }
+}

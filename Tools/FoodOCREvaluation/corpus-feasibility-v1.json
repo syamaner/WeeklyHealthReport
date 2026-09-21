@@ -1,0 +1,49 @@
+{
+  "contract_version": "printed-nutrition-ocr-evaluation-v1",
+  "decision": {
+    "automatic_save": false,
+    "bounded_promotion": false,
+    "promotion_to_93": false,
+    "recommendation": "decline_for_insufficient_ground_truth",
+    "untouched_gate_opened": false
+  },
+  "public_candidate_corpus": {
+    "aws_key_index_sha256": "520e8dc412f4b6207aad3ae04517714079784274d0452cbebe09e792fe7e5fef",
+    "candidate_manifest_sha256": "3e2b9788ab06117ccc02f8f8affc62385cbcdb52e5af74f782f6deb1eb8be7e1",
+    "distinct_image_hashes": 140,
+    "panels": 140,
+    "source": "Open Food Facts UK-tagged products with selected nutrition images",
+    "splits": {
+      "tuning": 83,
+      "untouched_gate": 57
+    },
+    "status": "images_and_provenance_available_ground_truth_pending"
+  },
+  "reviewed_public_annotation_search": {
+    "checked_50_prefix_candidates": 92,
+    "checked_50_prefix_test_candidates": 5,
+    "dataset": "openfoodfacts/nutrient-detection-layout",
+    "dataset_rows": 3083,
+    "limitation": "Annotated semantic tags are applied to Google OCR tokens; checked does not establish an exact visual character transcription, UK country membership, serving conversion truth or correction time.",
+    "test_rows": 199,
+    "train_rows": 2884
+  },
+  "schema_version": 1,
+  "tuning_observation": {
+    "panels": 83,
+    "proposed_bound_cases": 21,
+    "proposed_cells": 507,
+    "proposed_declines": 77,
+    "proposed_multi_column_cases": 39,
+    "proposed_per_100ml_cases": 7,
+    "proposed_per_serving_cases": 12,
+    "tuning_draft_sha256": "634cbb419f7d17e61377a4de2951311601b176ac3680ebb2bbabb0350ba6d70f",
+    "warning": "These are unscored recognizer/parser observations, not accuracy results or ground truth."
+  },
+  "unmet_evidence": [
+    "independently verified exact visual transcript for at least 100 real UK panels",
+    "verified row/header, basis, serving-conversion and bound relationships for those panels",
+    "an untouched gate whose ground truth was frozen before Apple Vision output was observed",
+    "human correction-time observations for every untouched-gate panel"
+  ]
+}

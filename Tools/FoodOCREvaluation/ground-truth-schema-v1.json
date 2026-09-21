@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/syamaner/WeeklyHealthReport/Tools/FoodOCREvaluation/ground-truth-schema-v1.json",
+  "additionalProperties": false,
+  "properties": {
+    "cells": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "basis": {
+            "enum": [
+              "per_100g",
+              "per_100ml",
+              "per_serving",
+              "reference_intake"
+            ]
+          },
+          "comparator": {
+            "enum": [
+              "<",
+              "<=",
+              null
+            ]
+          },
+          "decimal_text": {
+            "pattern": "^[0-9]+(?:[.,][0-9]+)?$",
+            "type": "string"
+          },
+          "header_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "parent_row_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "printed_text": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "row_id": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "serving_conversion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "unit": {
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "row_id",
+          "parent_row_id",
+          "header_id",
+          "basis",
+          "printed_text",
+          "comparator",
+          "decimal_text",
+          "unit",
+          "serving_conversion"
+        ],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "full_transcript": {
+      "description": "Exact visible nutrition-table characters in reading order, preserving line breaks.",
+      "minLength": 1,
+      "type": "string"
+    },
+    "requires_decline": {
+      "type": "boolean"
+    },
+    "review": {
+      "additionalProperties": false,
+      "properties": {
+        "reviewer": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "verified_against_image_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "type": "string"
+        },
+        "verified_at": {
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "reviewer",
+        "verified_at",
+        "verified_against_image_sha256"
+      ],
+      "type": "object"
+    },
+    "verification_status": {
+      "const": "independently_verified"
+    }
+  },
+  "required": [
+    "verification_status",
+    "full_transcript",
+    "cells",
+    "requires_decline",
+    "review"
+  ],
+  "title": "Printed nutrition-panel ground truth v1",
+  "type": "object"
+}
