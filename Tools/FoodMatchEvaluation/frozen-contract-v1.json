@@ -1,0 +1,48 @@
+{
+  "contract_version": "generic-food-match-evaluation-v1",
+  "fixtures": {
+    "corpus_canonical_sha256": "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445",
+    "corpus_gzip_sha256": "a3f2776903b370397bf5621a293aa66a4cda67823053bcd34c6e13fa597e6f29",
+    "gold_sha256": "3ecfdec9d0003d93220a1434b320b4b244c8098a36e993dda8813d95206dba16"
+  },
+  "gold_set": {
+    "aim_cases": 1000,
+    "minimum_cases": 300,
+    "personal_gate": "deferred",
+    "split_algorithm": "sha256(case_id) first 32 bits modulo 10: 0-5 tuning, 6-7 calibration, 8-9 gate"
+  },
+  "implementation": {
+    "cofid_builder_sha256": "6ad6b06ae98fa75f70be2e180d534fd3dae738508ce7bca7ac83fda74fe28b4e",
+    "gold_builder_sha256": "30151c70b4c569ca0d0e36b72b97fb05c7e34e037ed9bab88eacb350c6a5584a",
+    "matcher_source_sha256": "3d4a40fb06b6bc89c91c7b9af316dc89319e09bc1baf8a3b007b52070e13e517"
+  },
+  "matcher_version": "deterministic-lexical-hard-rules-v1",
+  "metrics": {
+    "automatic_accept_precision_lower_bound": 0.995,
+    "minimum_explicit_selection_success": 0.95,
+    "minimum_retrieval_recall": 0.95,
+    "one_sided_95_z": 1.6448536269514722
+  },
+  "policy": {
+    "automatic_acceptance": false,
+    "candidate_requires_explicit_user_selection": true,
+    "hard_rules_run_before_ranking": true,
+    "personal_case_claims": false
+  },
+  "retrieval": {
+    "candidate_limit": 10,
+    "minimum_score": 0.25,
+    "tie_break": "record_id ascending",
+    "weights": {
+      "candidate_coverage": 0.15,
+      "exact_name": 0.55,
+      "jaccard": 0.1,
+      "query_coverage": 0.2
+    }
+  },
+  "schema_version": 1,
+  "source": {
+    "cofid_artifact_sha256": "436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+    "cofid_release_id": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d"
+  }
+}

@@ -41,6 +41,24 @@ jobs:
       - name: Guard target imports and dependency inventory
         run: bash Packages/FoodLedgerKit/Scripts/check-boundaries.sh
 
+  food-match-evaluation:
+    name: Generic-food matching evaluation
+    runs-on: macos-26
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify frozen fixtures, matcher and report
+        run: |
+          python3 -m unittest discover -s Tools/FoodMatchEvaluation/tests -v
+          python3 Tools/FoodMatchEvaluation/evaluate.py \
+            --contract Tools/FoodMatchEvaluation/frozen-contract-v1.json \
+            --corpus Tools/FoodMatchEvaluation/fixtures/cofid-2021-evaluation-v1.json.gz \
+            --gold Tools/FoodMatchEvaluation/fixtures/gold-set-v1.json \
+            --verify-report Tools/FoodMatchEvaluation/result-v1.json
+
   drive-export-kit-build:
     name: DriveExportKit build
     runs-on: macos-26

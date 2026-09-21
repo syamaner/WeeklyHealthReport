@@ -153,3 +153,18 @@ verifies versions, canonical bytes, member hashes, counts, source releases and
 actor chains before replaying into a fresh protected staging store. Only an
 explicitly accepted staged result can enter the live ledger, where the whole batch
 commits or rolls back in one database transaction.
+
+## Issue #92 generic-match evaluation gate
+
+Issue #92 remains outside the shipping package. `Tools/FoodMatchEvaluation` owns
+the content-addressed CoFID projection, frozen public/synthetic labels,
+deterministic lexical retrieval, hard-rule filtering, metrics and reproducible
+report. It imports no app, persistence, UI, provider or platform framework.
+
+The immutable source release, stable row identity, hard contradictions before
+ranking, fixture/split/implementation hashes, explicit decline and disabled
+automatic acceptance are closed evaluation invariants. Alternative retrieval or
+ranking challengers may consume the same frozen contract and fixtures, but cannot
+change labels, split membership or hard-rule outcomes. Contract tests enforce
+fixture integrity, deterministic ordering, every decisive hard-rule family and
+the user-selection-only boundary; CI replays the committed report byte for byte.
