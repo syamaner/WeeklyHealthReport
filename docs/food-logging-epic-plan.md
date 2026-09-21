@@ -62,7 +62,7 @@ The app's local, versioned data and canonical JSON remain the system of record. 
 | [#90](https://github.com/syamaner/WeeklyHealthReport/issues/90) | Spike | [Local store/versioning and Drive backup/merge decision](food-library-storage-and-backup-decision.md) | Active; persists stable/version IDs and conflict rules; no live Drive work |
 | [#88](https://github.com/syamaner/WeeklyHealthReport/issues/88) | Eval | Printed-panel OCR corpus, harness and promotion result | MVP-critical evidence gate under the accepted UX baseline |
 | [#91](https://github.com/syamaner/WeeklyHealthReport/issues/91) | Eval | Handwriting corpus, harness and promotion result | Separate from printed OCR |
-| [#92](https://github.com/syamaner/WeeklyHealthReport/issues/92) | Eval | Matching, hard-negative and calibration corpus/harness | MVP-critical evidence gate; source releases and labels must be frozen |
+| [#92](https://github.com/syamaner/WeeklyHealthReport/issues/92) | Eval | [Matching, hard-negative and calibration corpus/harness](generic-food-match-evaluation.md) | Complete; accepted deterministic explicit-selection envelope, no automatic acceptance |
 | [#94](https://github.com/syamaner/WeeklyHealthReport/issues/94) | Phase container | Local-first populated capture, shared confirmation, exact library reuse and provenance-rich JSON | #89, #87, local part of #90 and UX re-triage accepted; decompose before implementation |
 | [#93](https://github.com/syamaner/WeeklyHealthReport/issues/93) | Delivery | Verified printed-panel capture | #94 and accepted #88 envelope |
 | [#96](https://github.com/syamaner/WeeklyHealthReport/issues/96) | Delivery | Typed and on-device voice capture | #94 and speech characterisation |
@@ -85,7 +85,7 @@ All sixteen tasks are native sub-issues of #86. The checklists in the epic provi
 | #90 | P1 | Active; decision proposed | SQLite/GRDB local ledger, append-only operations, deterministic backup generations and staged merge; no live Drive work |
 | #94 | P1 | Blocked by accepted #90 and decomposition | Phase container only; decompose around the accepted shared capture and confirmation design |
 | #88 | P1 | Ready, MVP-critical | Printed-label population is a required capture route and gates #93 |
-| #92 | P1 | Ready, MVP-critical | Generic search, closest-match presentation and any automatic subset require a bounded evaluation |
+| #92 | P1 | Complete | Public/synthetic evaluation admits deterministic ranked candidates for explicit selection; automatic acceptance remains disabled and the personal gate is deferred |
 | #93 | P1 | Blocked by #88 and shared foundation | Required label-photo population route represented by the accepted designs |
 | #98 | P1/P2 | Blocked by #92 and shared foundation | Required generic-search population; automatic acceptance remains separately gated within the evaluated envelope |
 | #91 | P3 | Queued after #89 | Independent handwriting evaluation; not an MVP blocker |

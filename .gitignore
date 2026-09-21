@@ -4,6 +4,8 @@ build/
 xcuserdata/
 .DS_Store
 .vscode/
+__pycache__/
+*.pyc
 Config/Signing.local.xcconfig
 Config/DriveOAuth.local.xcconfig
 Tools/SyntheticDriveExport/Config/OAuth.local.xcconfig

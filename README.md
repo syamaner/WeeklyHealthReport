@@ -91,6 +91,11 @@ records all 39 food nutrient states and exact input log-version IDs, and exclude
 raw media and transient capture data. Creating schema v4 does not enable or call a
 provider; local food-archive export/import remains a separate explicit action.
 
+Generic-food matching is currently limited to deterministic local candidate
+ranking followed by explicit user selection or decline. The frozen
+[generic-food evaluation](docs/generic-food-match-evaluation.md) does not promote
+automatic acceptance and contains no personal-food validation.
+
 Each local reporting date has one canonical `health-daily-YYYY-MM-DD.json` file
 in the selected destination. The filename is a convention; the securely stored
 Drive file ID is its identity. A later export for the same date updates that
