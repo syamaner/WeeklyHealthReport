@@ -9,6 +9,44 @@ final class DomainValidationTests: XCTestCase {
         XCTAssertEqual(NutrientKey.allCases.last, .caffeine)
     }
 
+    func testCandidateMatchMetadataRoundTripsAndRejectsChangedSelectionPolicy() throws {
+        let metadata = try CandidateMatchMetadata(
+            methodVersion: LedgerText("deterministic-lexical-hard-rules-v1"),
+            score: 0.75,
+            materialDifferences: [LedgerText("candidate_only_token:cooked")],
+            libraryAliases: [LedgerText("food:name:chicken")]
+        )
+        let encoded = try JSONEncoder().encode(metadata)
+        XCTAssertEqual(try JSONDecoder().decode(CandidateMatchMetadata.self, from: encoded), metadata)
+
+        let changed = String(decoding: encoded, as: UTF8.self)
+            .replacingOccurrences(of: "explicit_user_selection_v1", with: "automatic_acceptance_v1")
+        XCTAssertThrowsError(try JSONDecoder().decode(
+            CandidateMatchMetadata.self,
+            from: Data(changed.utf8)
+        ))
+    }
+
+    func testCandidateWithoutMatchMetadataRemainsArchiveCompatible() throws {
+        let original = try ProviderNeutralCandidate(
+            sourceReleaseID: ExternalIdentifier("fixture:v1"),
+            recordID: ExternalIdentifier("row:1"),
+            identity: identity(drained: .drained),
+            edibleQuantity: .unknown,
+            nutrients: allUnknown()
+        )
+        let encoded = try JSONEncoder().encode(original)
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        )
+        object.removeValue(forKey: "matchMetadata")
+        let data = try JSONSerialization.data(withJSONObject: object, options: [.sortedKeys])
+
+        let candidate = try JSONDecoder().decode(ProviderNeutralCandidate.self, from: data)
+
+        XCTAssertNil(candidate.matchMetadata)
+    }
+
     func testQuantitiesRejectNonFiniteNonPositiveAndInvalidDecodedValues() throws {
         XCTAssertThrowsError(try PositiveQuantity(value: .infinity, unit: .grams))
         XCTAssertThrowsError(try PositiveQuantity(value: 0, unit: .grams))

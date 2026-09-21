@@ -325,6 +325,7 @@ extension NutritionResolutionVersion {
 extension ProviderNeutralCandidate {
     enum CodingKeys: String, CodingKey {
         case sourceReleaseID, recordID, identity, edibleQuantity, nutrients, evidenceIDs
+        case matchMetadata
     }
 
     public init(from decoder: any Decoder) throws {
@@ -335,8 +336,29 @@ extension ProviderNeutralCandidate {
             identity: values.decode(DecisiveIdentity.self, forKey: .identity),
             edibleQuantity: values.decode(EdibleQuantityIdentity.self, forKey: .edibleQuantity),
             nutrients: values.decode(NutrientSet.self, forKey: .nutrients),
-            evidenceIDs: values.decode([EvidenceID].self, forKey: .evidenceIDs)
+            evidenceIDs: values.decode([EvidenceID].self, forKey: .evidenceIDs),
+            matchMetadata: values.decodeIfPresent(CandidateMatchMetadata.self, forKey: .matchMetadata)
         )
+    }
+}
+
+extension CandidateMatchMetadata {
+    enum CodingKeys: String, CodingKey {
+        case methodVersion, score, materialDifferences, selectionPolicy, libraryAliases
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            methodVersion: values.decode(LedgerText.self, forKey: .methodVersion),
+            score: values.decode(Double.self, forKey: .score),
+            materialDifferences: values.decode([LedgerText].self, forKey: .materialDifferences),
+            libraryAliases: values.decodeIfPresent([LedgerText].self, forKey: .libraryAliases) ?? []
+        )
+        let encodedPolicy = try values.decode(LedgerText.self, forKey: .selectionPolicy)
+        guard encodedPolicy == selectionPolicy else {
+            throw FoodLedgerValidationError.invalidProvenance
+        }
     }
 }
 

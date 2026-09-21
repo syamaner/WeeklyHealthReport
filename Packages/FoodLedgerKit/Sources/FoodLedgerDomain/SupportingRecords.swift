@@ -76,6 +76,35 @@ public struct PlateWeightVersion: Codable, Equatable, Sendable {
     }
 }
 
+public struct CandidateMatchMetadata: Codable, Equatable, Sendable {
+    public let methodVersion: LedgerText
+    public let score: Double
+    public let materialDifferences: [LedgerText]
+    public let selectionPolicy: LedgerText
+    public let libraryAliases: [LedgerText]
+
+    public init(
+        methodVersion: LedgerText,
+        score: Double,
+        materialDifferences: [LedgerText],
+        libraryAliases: [LedgerText] = []
+    ) throws {
+        guard score.isFinite else { throw FoodLedgerValidationError.nonFinite("candidate score") }
+        guard (0 ... 1).contains(score) else { throw FoodLedgerValidationError.invalidBasis }
+        guard Set(materialDifferences).count == materialDifferences.count else {
+            throw FoodLedgerValidationError.duplicateValue("candidate differences")
+        }
+        guard Set(libraryAliases).count == libraryAliases.count else {
+            throw FoodLedgerValidationError.duplicateValue("candidate library aliases")
+        }
+        self.methodVersion = methodVersion
+        self.score = score
+        self.materialDifferences = materialDifferences
+        selectionPolicy = try LedgerText("explicit_user_selection_v1")
+        self.libraryAliases = libraryAliases
+    }
+}
+
 public struct ProviderNeutralCandidate: Codable, Equatable, Sendable {
     public let sourceReleaseID: ExternalIdentifier
     public let recordID: ExternalIdentifier
@@ -83,6 +112,7 @@ public struct ProviderNeutralCandidate: Codable, Equatable, Sendable {
     public let edibleQuantity: EdibleQuantityIdentity
     public let nutrients: NutrientSet
     public let evidenceIDs: [EvidenceID]
+    public let matchMetadata: CandidateMatchMetadata?
 
     public init(
         sourceReleaseID: ExternalIdentifier,
@@ -90,7 +120,8 @@ public struct ProviderNeutralCandidate: Codable, Equatable, Sendable {
         identity: DecisiveIdentity,
         edibleQuantity: EdibleQuantityIdentity,
         nutrients: NutrientSet,
-        evidenceIDs: [EvidenceID] = []
+        evidenceIDs: [EvidenceID] = [],
+        matchMetadata: CandidateMatchMetadata? = nil
     ) throws {
         guard Set(evidenceIDs).count == evidenceIDs.count else {
             throw FoodLedgerValidationError.duplicateValue("candidate evidence")
@@ -101,6 +132,7 @@ public struct ProviderNeutralCandidate: Codable, Equatable, Sendable {
         self.edibleQuantity = edibleQuantity
         self.nutrients = nutrients
         self.evidenceIDs = evidenceIDs
+        self.matchMetadata = matchMetadata
     }
 }
 

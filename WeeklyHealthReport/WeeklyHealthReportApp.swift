@@ -26,7 +26,8 @@ struct WeeklyHealthReportApp: App {
                 viewModel: viewModel,
                 dailyExport: dailyExport,
                 navigation: navigation,
-                medicationAccess: MedicationAccessRequest(store: healthStore)
+                medicationAccess: MedicationAccessRequest(store: healthStore),
+                foodLedger: foodLedger
             )
                 .onOpenURL { dailyExport.resumeOAuthRedirect($0) }
                 .onReceive(NotificationCenter.default.publisher(

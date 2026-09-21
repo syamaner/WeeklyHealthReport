@@ -36,7 +36,8 @@ final class WeeklyReportScreenshotTests: XCTestCase {
             viewModel: viewModel,
             dailyExport: dailyExport,
             navigation: WeeklyReportNavigationController(),
-            medicationAccess: MedicationAccessRequest(store: store)
+            medicationAccess: MedicationAccessRequest(store: store),
+            foodLedger: nil
         )
 
         XCTAssertTrue(view.viewModel === viewModel)

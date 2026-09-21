@@ -186,6 +186,22 @@ final class FoodConfirmationReducerTests: XCTestCase {
         XCTAssertNil(state.quantity.conversion)
     }
 
+    func testConsumedQuantityDoesNotRewriteCandidateIdentityQuantity() throws {
+        let store = InMemoryFoodLedgerStore()
+        var state = FoodConfirmationState(input: try fixtureInput())
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(175, .grams))
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+
+        let saved = try makeService(store: store, ids: SequenceIDs()).save(
+            state,
+            operationID: id(903, OperationTag.self)
+        )
+
+        XCTAssertEqual(saved.logItemVersion.edibleQuantity.value, 175)
+        XCTAssertEqual(saved.candidateDecision.outcome, .selected)
+        XCTAssertEqual(saved.candidateDecision.expectedEdibleQuantity, state.input.expectedEdibleQuantity)
+    }
+
     private func makeService(
         store: some LedgerCommandCommitting & LedgerReading & FoodConfirmationReading,
         ids: SequenceIDs

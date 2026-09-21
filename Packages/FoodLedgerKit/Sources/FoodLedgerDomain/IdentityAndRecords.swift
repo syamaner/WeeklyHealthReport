@@ -183,6 +183,7 @@ public struct AttachmentDescriptor: Codable, Hashable, Sendable {
 
 public enum CaptureKind: String, Codable, Sendable {
     case barcode
+    case genericSearch = "generic_search"
     case labelText = "label_text"
     case packageImage = "package_image"
     case manual
