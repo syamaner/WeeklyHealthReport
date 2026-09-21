@@ -95,6 +95,9 @@ Generic-food matching is currently limited to deterministic local candidate
 ranking followed by explicit user selection or decline. The frozen
 [generic-food evaluation](docs/generic-food-match-evaluation.md) does not promote
 automatic acceptance and contains no personal-food validation.
+The delivered [offline generic-food search](docs/generic-food-search-delivery.md)
+uses the same frozen CoFID release and matcher envelope, shows source descriptions
+and lexical differences, and records confirmed exact aliases for offline reuse.
 
 Each local reporting date has one canonical `health-daily-YYYY-MM-DD.json` file
 in the selected destination. The filename is a convention; the securely stored

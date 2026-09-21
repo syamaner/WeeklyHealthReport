@@ -1,13 +1,16 @@
 import FoodLedgerApplication
 import FoodLedgerDomain
+import FoodGenericSearch
 import FoodLedgerGRDB
 import FoodLedgerPresentation
 import Foundation
+import SwiftUI
 
 @MainActor
 final class FoodLedgerCompositionRoot {
     private let store: FoodLedgerGRDBStore
     private let confirmations: FoodConfirmationService
+    private let genericFoodSearch: CoFIDGenericFoodSearch
     private let ids: RandomLedgerIDGenerator
 
     init(
@@ -43,6 +46,10 @@ final class FoodLedgerCompositionRoot {
             clock: clock,
             ids: ids
         )
+        genericFoodSearch = try CoFIDGenericFoodSearch(
+            library: PersonalLibraryGenericFoodSearch(reader: store),
+            ids: ids
+        )
     }
 
     func model(for input: PopulatedFoodConfirmation) -> FoodConfirmationViewModel {
@@ -66,6 +73,13 @@ final class FoodLedgerCompositionRoot {
         }
     }
 
+    func genericFoodSearchModel(locale: Locale = .current) throws -> GenericFoodSearchViewModel {
+        GenericFoodSearchViewModel(
+            searcher: genericFoodSearch,
+            locale: try LedgerText(locale.identifier)
+        )
+    }
+
     private static func actorID(userDefaults: UserDefaults) throws -> ActorID {
         let key = "foodLedger.actorID.v1"
         if let stored = userDefaults.string(forKey: key) {
@@ -74,5 +88,32 @@ final class FoodLedgerCompositionRoot {
         let created = try ActorID(UUID().uuidString.lowercased())
         userDefaults.set(created.rawValue, forKey: key)
         return created
+    }
+}
+
+struct GenericFoodSearchFlowView: View {
+    private let root: FoodLedgerCompositionRoot
+    @StateObject private var searchModel: GenericFoodSearchViewModel
+    @State private var confirmation: PopulatedFoodConfirmation?
+    @State private var showsConfirmation = false
+
+    init?(root: FoodLedgerCompositionRoot) {
+        guard let model = try? root.genericFoodSearchModel() else { return nil }
+        self.root = root
+        _searchModel = StateObject(wrappedValue: model)
+    }
+
+    var body: some View {
+        GenericFoodSearchView(model: searchModel) { input in
+            confirmation = input
+            showsConfirmation = true
+        }
+        .navigationDestination(isPresented: $showsConfirmation) {
+            if let confirmation {
+                FoodConfirmationView(model: root.model(for: confirmation)) {
+                    showsConfirmation = false
+                }
+            }
+        }
     }
 }

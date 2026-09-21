@@ -19,6 +19,7 @@ check_imports() {
 
 check_imports FoodLedgerDomain '^(Foundation)$'
 check_imports FoodLedgerApplication '^(CryptoKit|Foundation|FoodLedgerDomain)$'
+check_imports FoodGenericSearch '^(CryptoKit|Foundation|FoodLedgerApplication|FoodLedgerDomain)$'
 check_imports FoodLedgerPresentation '^(FoodLedgerApplication|FoodLedgerDomain|SwiftUI)$'
 check_imports FoodBarcodeCapture '^(AVFoundation|FoodLedgerApplication|FoodLedgerDomain|SwiftUI|Vision|VisionKit)$'
 check_imports FoodLedgerArchive '^(Foundation|FoodLedgerApplication|FoodLedgerGRDB)$'

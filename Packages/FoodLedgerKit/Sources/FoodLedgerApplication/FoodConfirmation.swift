@@ -363,7 +363,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 candidateDecisionID: ids.makeID(CandidateDecisionTag.self),
                 candidate: selected.candidate,
                 expectedIdentity: identity,
-                expectedEdibleQuantity: .known(edibleQuantity, conversionVersionID: conversion.version?.quantityConversionVersionID),
+                expectedEdibleQuantity: state.input.expectedEdibleQuantity,
                 requestedOutcome: state.correction == nil ? .selected : .rejected,
                 assertionID: assertion?.assertionID,
                 createdAt: now
@@ -414,6 +414,28 @@ public final class FoodConfirmationService: @unchecked Sendable {
             correctionReason: previous == nil ? nil : (state.correction?.reason ?? LedgerText("Confirmation quantity or plate correction")),
             createdAt: now
         )
+        let libraryRecords: (LibraryEntry?, LibraryEntryVersion?)
+        if previous == nil,
+           let aliases = selected.candidate.matchMetadata?.libraryAliases,
+           !aliases.isEmpty {
+            let entry = LibraryEntry(
+                libraryEntryID: try ids.makeID(LibraryEntryTag.self),
+                createdAt: now
+            )
+            let version = try LibraryEntryVersion(
+                libraryEntryVersionID: ids.makeID(LibraryEntryVersionTag.self),
+                libraryEntryID: entry.libraryEntryID,
+                ordinal: VersionOrdinal(1),
+                productVersionID: productVersion.productVersionID,
+                aliases: aliases,
+                reusableQuantity: edibleQuantity,
+                quantityConversionVersionID: conversion.version?.quantityConversionVersionID,
+                createdAt: now
+            )
+            libraryRecords = (entry, version)
+        } else {
+            libraryRecords = (nil, nil)
+        }
 
         let missingReleases = try state.input.sourceReleases.filter {
             try reader.sourceRelease(id: $0.sourceReleaseID) == nil
@@ -423,6 +445,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
             assertions: assertion.map { [$0] } ?? [],
             products: previous == nil ? [product] : [],
             productVersions: changesProduct ? [productVersion] : [],
+            libraryEntries: libraryRecords.0.map { [$0] } ?? [],
+            libraryEntryVersions: libraryRecords.1.map { [$0] } ?? [],
             resolutions: changesProduct ? [resolution] : [],
             resolutionVersions: changesProduct ? [resolutionVersion] : [],
             logItems: previous == nil ? [logItem] : [],

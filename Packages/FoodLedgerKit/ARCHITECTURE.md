@@ -168,3 +168,29 @@ ranking challengers may consume the same frozen contract and fixtures, but canno
 change labels, split membership or hard-rule outcomes. Contract tests enforce
 fixture integrity, deterministic ordering, every decisive hard-rule family and
 the user-selection-only boundary; CI replays the committed report byte for byte.
+
+## Issue #98 generic-search delivery gate
+
+`FoodGenericSearch` is the infrastructure adapter for the hash-verified bundled
+CoFID projection. It depends only on the domain and application capabilities.
+`FoodLedgerApplication` owns the consumer-facing search request/outcome and local
+library port; `FoodLedgerPresentation` owns the ranked candidate, difference,
+explicit-selection and no-result UI. The app composition root wires the adapter
+to the current protected ledger without exposing bundle or search implementation
+types to the domain.
+
+The CoFID release/hash, 2,887-row count, #92 matcher version, weights, 0.25
+threshold, ten-candidate limit, hard rules before ranking, record-ID tie-break,
+39-state provenance, explicit selection and decline are closed invariants.
+Corpus loading fails closed on a byte mismatch. A confirmed candidate stores its
+match method, score, visible differences and explicit-selection policy with the
+candidate decision. Only that explicit confirmation creates versioned exact
+personal-library aliases; later exact reuse is offline and retains the original
+product and resolution version references.
+
+Alternate immutable corpus loaders and personal-library adapters are credible
+extension axes and must satisfy the same behavioural tests. Automatic acceptance,
+provider access and silent unit conversion are not extension points: none exists.
+In particular, CoFID water sourced in grams remains `unknown(missing_conversion)`
+in the canonical millilitre catalogue until a separately versioned density
+conversion is available.

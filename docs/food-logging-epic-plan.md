@@ -67,7 +67,7 @@ The app's local, versioned data and canonical JSON remain the system of record. 
 | [#93](https://github.com/syamaner/WeeklyHealthReport/issues/93) | Delivery | Verified printed-panel capture | #94 and accepted #88 envelope |
 | [#96](https://github.com/syamaner/WeeklyHealthReport/issues/96) | Delivery | Typed and on-device voice capture | #94 and speech characterisation |
 | [#102](https://github.com/syamaner/WeeklyHealthReport/issues/102) | Delivery | Handwritten batch capture | #94 and accepted #91 envelope |
-| [#98](https://github.com/syamaner/WeeklyHealthReport/issues/98) | Delivery | Populated generic-food search and calibrated augmentation | #94 shared foundation and accepted #92 envelope |
+| [#98](https://github.com/syamaner/WeeklyHealthReport/issues/98) | Delivery | [Populated generic-food search and calibrated augmentation](generic-food-search-delivery.md) | Complete; offline, explicit-selection-only CoFID delivery inside the accepted #92 envelope |
 | [#101](https://github.com/syamaner/WeeklyHealthReport/issues/101) | Delivery | Opt-in retrospective re-resolution | #98 and accepted versioning contract |
 | [#97](https://github.com/syamaner/WeeklyHealthReport/issues/97) | Plan | HealthKit-write and richer-export migration contract | Current official Apple research; no writes |
 | [#95](https://github.com/syamaner/WeeklyHealthReport/issues/95) | Eval | Commercial product-data source challengers | #87 baseline; separate commercial authority |
@@ -87,7 +87,7 @@ All sixteen tasks are native sub-issues of #86. The checklists in the epic provi
 | #88 | P1 | Ready, MVP-critical | Printed-label population is a required capture route and gates #93 |
 | #92 | P1 | Complete | Public/synthetic evaluation admits deterministic ranked candidates for explicit selection; automatic acceptance remains disabled and the personal gate is deferred |
 | #93 | P1 | Blocked by #88 and shared foundation | Required label-photo population route represented by the accepted designs |
-| #98 | P1/P2 | Blocked by #92 and shared foundation | Required generic-search population; automatic acceptance remains separately gated within the evaluated envelope |
+| #98 | P1/P2 | Complete | Offline CoFID ranking, hard rules, visible differences, shared confirmation and exact saved-food reuse; no automatic acceptance |
 | #91 | P3 | Queued after #89 | Independent handwriting evaluation; not an MVP blocker |
 | #96 | P3 | Blocked by #94 | Narrowed to typed and on-device voice capture |
 | #102 | P3 | Blocked by #94, #91 | New independent handwriting delivery slice |

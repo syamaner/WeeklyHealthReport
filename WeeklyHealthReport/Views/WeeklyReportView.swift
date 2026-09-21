@@ -3,6 +3,7 @@ import UIKit
 
 enum WeeklyReportRoute: String, Codable, Hashable {
     case dailyExport
+    case genericFoodSearch
     case notes
     case noteEditor
     case diagnostics
@@ -63,6 +64,7 @@ struct WeeklyReportView: View {
     @ObservedObject var dailyExport: DailyDriveSessionController
     @ObservedObject var navigation: WeeklyReportNavigationController
     let medicationAccess: MedicationAccessRequest
+    let foodLedger: FoodLedgerCompositionRoot?
     @StateObject private var presentationState = WeeklyReportPresentationState()
     @StateObject private var screenshotController = WeeklyReportScreenshotController()
     @State private var copied = false
@@ -119,6 +121,15 @@ struct WeeklyReportView: View {
                     Text("Refresh, review and export are separate manual actions.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                }
+
+                if foodLedger != nil {
+                    Section("Food logging") {
+                        NavigationLink("Search Generic Foods", value: WeeklyReportRoute.genericFoodSearch)
+                        Text("Searches the bundled CoFID release offline. No result is selected automatically.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Section {
@@ -217,6 +228,17 @@ struct WeeklyReportView: View {
                 switch route {
                 case .dailyExport:
                     DailyExportView(session: dailyExport)
+                case .genericFoodSearch:
+                    if let foodLedger,
+                       let flow = GenericFoodSearchFlowView(root: foodLedger) {
+                        flow
+                    } else {
+                        ContentUnavailableView(
+                            "Food search unavailable",
+                            systemImage: "exclamationmark.triangle",
+                            description: Text("The local food ledger could not be opened.")
+                        )
+                    }
                 case .notes:
                     DailyNotesView(
                         controller: dailyExport.notes,
@@ -335,6 +357,8 @@ struct WeeklyReportView: View {
         switch destination {
         case .dailyExport:
             return [.dailyExport]
+        case .genericFoodSearch:
+            return [.genericFoodSearch]
         case .notes:
             return [.dailyExport, .notes]
         case .noteEditor:
