@@ -111,6 +111,7 @@ function updateProgress() {
 }
 
 async function save() {
+  if ($("#save").disabled) return;
   const panel = currentPanel();
   const reviewer = $("#reviewer").value.trim();
   localStorage.setItem("issue88-reviewer", reviewer);
@@ -128,19 +129,32 @@ async function save() {
     verification_assertion: $("#verified").checked,
   };
   setStatus("Saving…");
-  const response = await fetch("/api/annotation", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
-  const result = await response.json();
-  if (!response.ok) {
-    setStatus(result.error || "Save failed", true);
-    return;
+  $("#save").disabled = true;
+  let saved = false;
+  try {
+    const response = await fetch("/api/annotation", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    const result = await response.json();
+    if (!response.ok) {
+      setStatus(result.error || "Save failed; your edits are still on this page. Try again.", true);
+      return;
+    }
+    saved = true;
+    state.panels[current].annotation = payload;
+    updateProgress();
+    const refreshed = await fetch("/api/state").then(value => value.json());
+    state = refreshed;
+    setStatus("Saved");
+    const next = state.panels.findIndex((candidate, index) => index > current && !candidate.annotation);
+    if (next >= 0) current = next;
+    else if (current < state.panels.length - 1) current++;
+    render();
+  } catch (error) {
+    setStatus(saved
+      ? "Saved locally, but progress could not reload. Keep this page open and try again after the connection returns. (" + error.message + ")"
+      : "Connection failed; your edits are still on this page. Check the local server, then try Save and next again. (" + error.message + ")", true);
+  } finally {
+    $("#save").disabled = false;
   }
-  const refreshed = await fetch("/api/state").then(value => value.json());
-  state = refreshed;
-  setStatus("Saved");
-  const next = state.panels.findIndex((candidate, index) => index > current && !candidate.annotation);
-  if (next >= 0) current = next;
-  else if (current < state.panels.length - 1) current++;
-  render();
 }
 
 $("#add-cell").addEventListener("click", () => addCell());
