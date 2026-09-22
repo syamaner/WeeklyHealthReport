@@ -68,23 +68,16 @@ family, are present.
 
 ## Current result
 
-`corpus-feasibility-v1.json` records the current evidence boundary. A public
-candidate pool of 140 distinct UK-tagged panel crops is available and the 83
-tuning images have been run through the baseline. The 57-image untouched gate
-has not been opened.
-
-No available public source establishes the required exact visual transcript,
-row/header relationships, conversions and correction time for 100 UK panels.
-The reviewed Open Food Facts layout dataset labels nutrient entities in Google
-OCR tokens; its checked flag is valuable semantic review but is not corrected
-character truth. It contains only 92 checked `50…` barcode candidates before
-UK country verification and only five such candidates in its test split.
-
-Accordingly the reproducible result is **decline for insufficient ground
-truth**. It does not score the baseline, weaken a threshold, consume the
-untouched gate, authorize #93 or claim physical-camera validation. Completing
-the gate requires an independently reviewed annotation pass and timed human
-correction protocol over the hash-pinned images.
+`corpus-feasibility-v1.json` preserves the earlier pre-review assessment. The
+140-image public candidate pool supplied a hash-pinned 100-panel review set.
+After the user-approved review and versioned language replacement,
+`fixtures/ground-truth-v1.json` contains 100 image-bound reviewed annotations:
+60 tuning and 40 untouched-gate panels, 1,389 structured cells and 15 recorded
+declines. Its SHA-256 is
+`c9475cbd7273494a051e18d7f281bf11881affe304be3fe307424031cebafcc0`.
+The fixture passes the closed corpus and family-coverage checks. This is a
+ground-truth freeze, not an OCR accuracy result. The one-time untouched Apple
+Vision gate remains unopened; #93 and automatic saving remain unauthorised.
 
 ## Human review pack
 
@@ -116,14 +109,17 @@ recognition:
 
 ```sh
 python3 Tools/FoodOCREvaluation/finalize_review.py \
-  --selection Tools/FoodOCREvaluation/fixtures/review-selection-v1.json \
+  --selection Tools/FoodOCREvaluation/fixtures/review-selection-v2.json \
+  --candidate-manifest Tools/FoodOCREvaluation/fixtures/candidate-manifest-v1.json \
   --workspace Tools/FoodOCREvaluation/review_workspace \
   --output Tools/FoodOCREvaluation/fixtures/ground-truth-v1.json
 ```
 
-The finalizer fails closed for incomplete reviews, identity/hash mismatches,
-split drift or any missing required family. Only the resulting frozen fixture
-hash may unlock the one-time untouched Apple Vision run.
+The finalizer fails closed for incomplete reviews, identity/hash/provenance
+mismatches, split drift or any missing required family. It carries the
+candidate's pinned public source and UK country tag into the scored fixture.
+Only the resulting frozen fixture hash may unlock the one-time untouched Apple
+Vision run.
 
 ### Source-language replacement before the gate
 

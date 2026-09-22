@@ -20,8 +20,14 @@ class FinalizeReviewTests(unittest.TestCase):
                 "image_url": "https://example.test/image.jpg",
                 "product_code": "1",
                 "product_name": "Example",
+                "image_file": "001.jpg",
             }]
         }
+        candidate_manifest = {"panels": [{
+            "panel_id": "expected", "image_sha256": "a" * 64,
+            "split": "tuning", "country_tag": "en:united-kingdom",
+            "source": {"image_url": "https://example.test/image.jpg", "product_code": "1"},
+        }]}
         annotation = {
             "schema_version": 1,
             "panel_id": "swapped",
@@ -42,7 +48,7 @@ class FinalizeReviewTests(unittest.TestCase):
             annotations = Path(directory)
             (annotations / "001.json").write_text(json.dumps(annotation))
             with self.assertRaisesRegex(ValueError, "identity or image hash mismatch"):
-                finalize(selection, review_manifest, annotations)
+                finalize(selection, review_manifest, annotations, candidate_manifest)
 
 
 if __name__ == "__main__":

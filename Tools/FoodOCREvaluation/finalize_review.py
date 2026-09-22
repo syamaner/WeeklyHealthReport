@@ -17,10 +17,16 @@ def canonical_json(value: Any) -> bytes:
     return (json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n").encode()
 
 
-def finalize(selection: dict[str, Any], review_manifest: dict[str, Any], annotations_dir: Path) -> dict[str, Any]:
+def finalize(
+    selection: dict[str, Any], review_manifest: dict[str, Any],
+    annotations_dir: Path, candidate_manifest: dict[str, Any],
+) -> dict[str, Any]:
     if selection["counts"] != {"tuning": 60, "untouched_gate": 40}:
         raise ValueError("sealed selection is not the frozen 60/40 split")
     sealed_by_id = {panel["panel_id"]: panel for panel in selection["panels"]}
+    candidates_by_id = {panel["panel_id"]: panel for panel in candidate_manifest["panels"]}
+    if len(candidates_by_id) != len(candidate_manifest["panels"]):
+        raise ValueError("candidate manifest contains duplicate panel IDs")
     reviewed = []
     family_counts = {family: 0 for family in FAMILIES}
     split_counts = {"tuning": 0, "untouched_gate": 0}
@@ -33,6 +39,11 @@ def finalize(selection: dict[str, Any], review_manifest: dict[str, Any], annotat
         sealed = sealed_by_id.get(panel["panel_id"])
         if not sealed or sealed["image_sha256"] != panel["image_sha256"]:
             raise ValueError(f"sealed identity mismatch for {panel['panel_id']}")
+        candidate = candidates_by_id.get(panel["panel_id"])
+        if not candidate or candidate["image_sha256"] != panel["image_sha256"] or candidate["split"] != sealed["split"]:
+            raise ValueError(f"candidate provenance mismatch for {panel['panel_id']}")
+        if candidate["source"]["image_url"] != panel["image_url"] or candidate["source"]["product_code"] != panel["product_code"]:
+            raise ValueError(f"review source mismatch for {panel['panel_id']}")
         ground_truth = {
             "verification_status": annotation["verification_status"],
             "full_transcript": annotation["full_transcript"],
@@ -58,6 +69,9 @@ def finalize(selection: dict[str, Any], review_manifest: dict[str, Any], annotat
             "product_code": panel["product_code"],
             "product_name": panel["product_name"],
             "split": sealed["split"],
+            "country_tag": candidate["country_tag"],
+            "source": candidate["source"],
+            "local_image": panel["image_file"],
             "families": annotation["families"],
             "ground_truth": ground_truth,
         })
@@ -79,12 +93,14 @@ def finalize(selection: dict[str, Any], review_manifest: dict[str, Any], annotat
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--selection", required=True, type=Path)
+    parser.add_argument("--candidate-manifest", required=True, type=Path)
     parser.add_argument("--workspace", required=True, type=Path)
     parser.add_argument("--output", required=True, type=Path)
     args = parser.parse_args()
     selection = json.loads(args.selection.read_text())
     review_manifest = json.loads((args.workspace / "review-manifest.json").read_text())
-    result = finalize(selection, review_manifest, args.workspace / "annotations")
+    candidate_manifest = json.loads(args.candidate_manifest.read_text())
+    result = finalize(selection, review_manifest, args.workspace / "annotations", candidate_manifest)
     args.output.write_bytes(canonical_json(result))
     print(f"frozen_ground_truth_sha256={hashlib.sha256(args.output.read_bytes()).hexdigest()}")
 
