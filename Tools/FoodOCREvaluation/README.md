@@ -85,3 +85,42 @@ truth**. It does not score the baseline, weaken a threshold, consume the
 untouched gate, authorize #93 or claim physical-camera validation. Completing
 the gate requires an independently reviewed annotation pass and timed human
 correction protocol over the hash-pinned images.
+
+## Human review pack
+
+`prepare_review.py` deterministically selects 60 tuning and 40 untouched-gate
+panels, then randomises their presentation order so the reviewer is blinded to
+the split. It creates draft transcripts from three local Tesseract layouts.
+Tuning cases may also use already-observed Apple Vision output; untouched cases
+must not. `augment_review_with_off_ocr.py` may improve untouched drafts using
+the public precomputed Open Food Facts OCR sidecar, which is independent of the
+Apple Vision system under test.
+
+The generated images, draft manifest and reviewer annotations live under the
+ignored `review_workspace/`; they are not committed or uploaded. Start the
+localhost-only editor with:
+
+```sh
+python3 Tools/FoodOCREvaluation/review_server.py \
+  --workspace Tools/FoodOCREvaluation/review_workspace \
+  --port 8788
+```
+
+The reviewer corrects the transcript and structured cells against each image,
+tags visible layout families, records necessary declines and checks the visual
+verification assertion. Saves are atomic and correction time is accumulated
+per panel. The UI does not expose split or recognizer provenance.
+
+After all 100 panels are reviewed, freeze the result before running any gate
+recognition:
+
+```sh
+python3 Tools/FoodOCREvaluation/finalize_review.py \
+  --selection Tools/FoodOCREvaluation/fixtures/review-selection-v1.json \
+  --workspace Tools/FoodOCREvaluation/review_workspace \
+  --output Tools/FoodOCREvaluation/fixtures/ground-truth-v1.json
+```
+
+The finalizer fails closed for incomplete reviews, identity/hash mismatches,
+split drift or any missing required family. Only the resulting frozen fixture
+hash may unlock the one-time untouched Apple Vision run.

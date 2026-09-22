@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Issue #88 nutrition-panel review</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header>
+    <div>
+      <p class="eyebrow">WeeklyHealthReport · issue #88</p>
+      <h1>Nutrition-panel ground truth</h1>
+      <p class="lede">Correct the draft against the image. The evaluation split is hidden and the untouched Apple Vision gate remains unopened.</p>
+    </div>
+    <div class="progress-card">
+      <strong id="progress">Loading…</strong>
+      <div class="bar"><span id="progress-bar"></span></div>
+      <button id="show-incomplete" class="secondary">Next incomplete</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="image-pane">
+      <div class="panel-heading">
+        <div>
+          <span id="panel-number" class="badge"></span>
+          <h2 id="product-name"></h2>
+          <p id="product-code" class="muted"></p>
+        </div>
+        <div class="image-controls">
+          <button data-zoom="out" class="secondary">−</button>
+          <button data-zoom="in" class="secondary">+</button>
+          <button data-rotate="left" class="secondary">↺</button>
+          <button data-rotate="right" class="secondary">↻</button>
+          <button id="reset-image" class="secondary">Reset</button>
+        </div>
+      </div>
+      <div id="image-stage" class="image-stage">
+        <img id="panel-image" alt="Nutrition panel under review">
+      </div>
+      <p class="hint">Zoom and rotate until every character is readable. Review the image itself—not the draft.</p>
+    </section>
+
+    <section class="editor-pane">
+      <div class="reviewer-row">
+        <label>Reviewer <input id="reviewer" autocomplete="name" placeholder="Your name"></label>
+        <span id="draft-source" class="badge subtle"></span>
+      </div>
+
+      <label class="block-label" for="transcript">Exact visible nutrition-table transcript</label>
+      <p class="hint">Preserve case, punctuation, decimal separators, bounds and line breaks. Exclude unrelated package copy.</p>
+      <textarea id="transcript" spellcheck="false"></textarea>
+
+      <div class="section-heading">
+        <div>
+          <h3>Numeric cells and relationships</h3>
+          <p class="hint">Record printed numeric cells only. RI constants are not product amounts.</p>
+        </div>
+        <button id="add-cell" class="secondary">Add cell</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Row</th><th>Parent</th><th>Header</th><th>Basis</th><th>Printed</th><th>Bound</th><th>Number</th><th>Unit</th><th>Serving conversion</th><th></th></tr>
+          </thead>
+          <tbody id="cells"></tbody>
+        </table>
+      </div>
+
+      <div class="section-heading"><h3>Observed families</h3><span class="hint">Tag only what is visible.</span></div>
+      <div id="families" class="family-grid"></div>
+
+      <div class="decline-box">
+        <label><input type="checkbox" id="requires-decline"> This panel must decline rather than present a complete table</label>
+        <input id="decline-reason" placeholder="Required if declining: clipped header, unreadable cell, ambiguous basis…">
+      </div>
+
+      <label class="assertion">
+        <input type="checkbox" id="verified">
+        I checked every transcript character, numeric cell, unit, bound, row/parent relationship, header basis and serving conversion against the image.
+      </label>
+
+      <div class="actions">
+        <button id="previous" class="secondary">Previous</button>
+        <span id="status" role="status"></span>
+        <button id="save">Save and next</button>
+      </div>
+    </section>
+  </main>
+
+  <aside class="coverage">
+    <h3>Required-family coverage from saved reviews</h3>
+    <div id="coverage"></div>
+  </aside>
+  <script src="/app.js"></script>
+</body>
+</html>
