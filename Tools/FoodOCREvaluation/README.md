@@ -124,3 +124,21 @@ python3 Tools/FoodOCREvaluation/finalize_review.py \
 The finalizer fails closed for incomplete reviews, identity/hash mismatches,
 split drift or any missing required family. Only the resulting frozen fixture
 hash may unlock the one-time untouched Apple Vision run.
+
+### Source-language replacement before the gate
+
+The reviewer excluded the bilingual KA Sparkling Fruit Punch image at review
+index 3. `review-selection-v1.json` and its source image remain preserved. The
+versioned `review-selection-v2.json` replaces only that untouched-gate slot
+with the next hash-ranked, unused English-language candidate in the same split:
+revision-pinned public Strawberry Milk image
+`off:5000128605717:nutrition_en.10`. Its downloaded bytes match the candidate
+manifest SHA-256. The replacement rule, reason and superseded selection hash
+are recorded in v2; other review indices and their annotations are unchanged.
+
+`replace_review_panel.py` reproduces this pre-gate replacement using the pinned
+candidate manifest, v1 selection, local review workspace and downloaded image.
+Its replacement draft is an assistant candidate, not verified ground truth.
+Finalization must use v2 only after a reviewer has checked and saved index 3
+against the image. No untouched Apple Vision run or promotion is authorised by
+the existing 99 annotations alone.
