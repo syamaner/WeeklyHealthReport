@@ -75,9 +75,11 @@ After the user-approved review and versioned language replacement,
 60 tuning and 40 untouched-gate panels, 1,389 structured cells and 15 recorded
 declines. Its SHA-256 is
 `c9475cbd7273494a051e18d7f281bf11881affe304be3fe307424031cebafcc0`.
-The fixture passes the closed corpus and family-coverage checks. This is a
-ground-truth freeze, not an OCR accuracy result. The one-time untouched Apple
-Vision gate remains unopened; #93 and automatic saving remain unauthorised.
+The fixture passes the closed corpus and family-coverage checks. The one-time
+untouched Apple Vision run has now completed. Its exact-head evidence,
+threshold results, limitations and **decline** recommendation are in
+[`untouched-gate-result-v1.md`](untouched-gate-result-v1.md). This does not
+authorise #93 or automatic saving.
 
 ## Human review pack
 
@@ -118,8 +120,8 @@ python3 Tools/FoodOCREvaluation/finalize_review.py \
 The finalizer fails closed for incomplete reviews, identity/hash/provenance
 mismatches, split drift or any missing required family. It carries the
 candidate's pinned public source and UK country tag into the scored fixture.
-Only the resulting frozen fixture hash may unlock the one-time untouched Apple
-Vision run.
+Only the resulting frozen fixture hash unlocked the one-time untouched Apple
+Vision run; the recorded raw directory must not be reused as a fresh gate.
 
 Before that run, `run_vision.py` verifies all 40 local image hashes, requires
 the exact fixture SHA-256 and refuses a nonempty output directory. It writes a
@@ -149,7 +151,7 @@ are recorded in v2; other review indices and their annotations are unchanged.
 
 `replace_review_panel.py` reproduces this pre-gate replacement using the pinned
 candidate manifest, v1 selection, local review workspace and downloaded image.
-Its replacement draft is an assistant candidate, not verified ground truth.
-Finalization must use v2 only after a reviewer has checked and saved index 3
-against the image. No untouched Apple Vision run or promotion is authorised by
-the existing 99 annotations alone.
+Its replacement draft was an assistant candidate, not ground truth. The
+reviewer checked and saved index 3 against the image before finalization. The
+versioned v2 selection and reviewed fixture, not the earlier 99 annotations
+alone, were used for the one-time gate.
