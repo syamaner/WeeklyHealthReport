@@ -84,6 +84,52 @@ def validate_annotation(value: dict[str, Any], panel: dict[str, Any]) -> dict[st
     return normalized
 
 
+def validate_assistant_draft(value: dict[str, Any], panel: dict[str, Any]) -> dict[str, Any]:
+    """Keep machine-assisted preparation outside the human ground-truth path."""
+    if value.get("panel_id") != panel["panel_id"] or value.get("image_sha256") != panel["image_sha256"]:
+        raise ValueError("panel identity or image hash mismatch")
+    transcript = str(value.get("full_transcript", "")).strip()
+    if not transcript:
+        raise ValueError("transcript is required")
+    cells = value.get("cells", [])
+    if not isinstance(cells, list):
+        raise ValueError("cells must be an array")
+    families = value.get("families", [])
+    if not isinstance(families, list) or not set(families).issubset(FAMILIES):
+        raise ValueError("unknown layout family")
+    seen: set[tuple[str, str]] = set()
+    for cell in cells:
+        if set(cell) != CELL_KEYS:
+            raise ValueError("each cell must contain exactly the frozen fields")
+        if not all(str(cell[key]).strip() for key in ("row_id", "header_id", "printed_text", "decimal_text", "unit")):
+            raise ValueError("incomplete cell")
+        if cell["basis"] not in BASES or cell["comparator"] not in COMPARATORS:
+            raise ValueError("invalid basis or comparator")
+        key = cell["row_id"], cell["header_id"]
+        if key in seen:
+            raise ValueError(f"duplicate row/header cell: {key[0]}/{key[1]}")
+        seen.add(key)
+    requires_decline = bool(value.get("requires_decline"))
+    decline_reason = str(value.get("decline_reason", "")).strip() or None
+    if requires_decline and not decline_reason:
+        raise ValueError("decline reason is required")
+    if not cells and not requires_decline:
+        raise ValueError("record cells or mark the panel as requiring decline")
+    return {
+        "schema_version": 1,
+        "panel_id": panel["panel_id"],
+        "image_sha256": panel["image_sha256"],
+        "review_status": "assistant_candidate_pending_human",
+        "prepared_at": datetime.now(timezone.utc).isoformat(),
+        "full_transcript": transcript,
+        "cells": cells,
+        "families": sorted(set(families)),
+        "requires_decline": requires_decline,
+        "decline_reason": decline_reason,
+        "review_notes": str(value.get("review_notes", "")).strip() or None,
+    }
+
+
 def atomic_write(path: Path, value: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     descriptor, temporary = tempfile.mkstemp(prefix="annotation-", suffix=".json", dir=path.parent)
@@ -94,6 +140,23 @@ def atomic_write(path: Path, value: dict[str, Any]) -> None:
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
+
+
+def review_queue(manifest: dict[str, Any], excluded: dict[str, Any]) -> list[dict[str, Any]]:
+    """Exclude local review items without altering the sealed corpus manifest."""
+    panel_ids = {panel["panel_id"] for panel in manifest["panels"]}
+    exclusions = excluded.get("panels", [])
+    if not isinstance(exclusions, list):
+        raise ValueError("review exclusions must be an array")
+    seen: set[str] = set()
+    for exclusion in exclusions:
+        if not isinstance(exclusion, dict):
+            raise ValueError("invalid review exclusion")
+        panel_id = exclusion.get("panel_id")
+        if panel_id not in panel_ids or panel_id in seen or not str(exclusion.get("reason", "")).strip():
+            raise ValueError("unknown, duplicate or unexplained review exclusion")
+        seen.add(panel_id)
+    return [panel for panel in manifest["panels"] if panel["panel_id"] not in seen]
 
 
 class ReviewHandler(BaseHTTPRequestHandler):
@@ -136,7 +199,8 @@ class ReviewHandler(BaseHTTPRequestHandler):
         self.send_file(target, mimetypes.guess_type(target.name)[0] or "application/octet-stream")
 
     def do_POST(self) -> None:  # noqa: N802
-        if urlparse(self.path).path != "/api/annotation":
+        request_path = urlparse(self.path).path
+        if request_path not in {"/api/annotation", "/api/assistant-draft"}:
             self.send_error(HTTPStatus.NOT_FOUND)
             return
         try:
@@ -147,8 +211,14 @@ class ReviewHandler(BaseHTTPRequestHandler):
             panel = self.review_server.panels_by_id.get(incoming.get("panel_id"))
             if not panel:
                 raise ValueError("unknown panel")
-            annotation = validate_annotation(incoming, panel)
-            atomic_write(self.review_server.annotation_path(panel), annotation)
+            if panel not in self.review_server.review_panels:
+                raise ValueError("panel excluded from local review queue")
+            if request_path == "/api/annotation":
+                annotation = validate_annotation(incoming, panel)
+                atomic_write(self.review_server.annotation_path(panel), annotation)
+            else:
+                candidate = validate_assistant_draft(incoming, panel)
+                atomic_write(self.review_server.assistant_draft_path(panel), candidate)
             self.send_json({"saved": True, "progress": self.review_server.progress()})
         except (ValueError, TypeError, json.JSONDecodeError) as error:
             self.send_json({"saved": False, "error": str(error)}, HTTPStatus.BAD_REQUEST)
@@ -173,28 +243,47 @@ class ReviewServer(ThreadingHTTPServer):
         self.workspace = workspace
         self.manifest = json.loads((workspace / "review-manifest.json").read_text())
         self.panels_by_id = {panel["panel_id"]: panel for panel in self.manifest["panels"]}
+        exclusions_path = workspace / "review-exclusions.json"
+        exclusions = json.loads(exclusions_path.read_text()) if exclusions_path.exists() else {"panels": []}
+        self.review_panels = review_queue(self.manifest, exclusions)
 
     def annotation_path(self, panel: dict[str, Any]) -> Path:
         return self.workspace / "annotations" / f"{panel['review_index']:03d}.json"
+
+    def assistant_draft_path(self, panel: dict[str, Any]) -> Path:
+        return self.workspace / "assistant_drafts" / f"{panel['review_index']:03d}.json"
 
     def annotation(self, panel: dict[str, Any]) -> dict[str, Any] | None:
         path = self.annotation_path(panel)
         return json.loads(path.read_text()) if path.exists() else None
 
+    def assistant_draft(self, panel: dict[str, Any]) -> dict[str, Any] | None:
+        """Load a candidate without treating it as independently verified truth."""
+        path = self.assistant_draft_path(panel)
+        if not path.exists():
+            return None
+        value = json.loads(path.read_text())
+        if (value.get("panel_id") != panel["panel_id"]
+                or value.get("image_sha256") != panel["image_sha256"]
+                or value.get("review_status") != "assistant_candidate_pending_human"):
+            raise ValueError(f"invalid assistant candidate for panel {panel['review_index']}")
+        return value
+
     def progress(self) -> dict[str, int]:
-        reviewed = sum(self.annotation(panel) is not None for panel in self.manifest["panels"])
-        return {"reviewed": reviewed, "total": len(self.manifest["panels"]), "remaining": len(self.manifest["panels"]) - reviewed}
+        reviewed = sum(self.annotation(panel) is not None for panel in self.review_panels)
+        return {"reviewed": reviewed, "total": len(self.review_panels), "remaining": len(self.review_panels) - reviewed}
 
     def state(self) -> dict[str, Any]:
         panels = []
-        for panel in self.manifest["panels"]:
+        for panel in self.review_panels:
             item = dict(panel)
             item.pop("public_ocr_evidence", None)
             item["draft_source"] = "machine-assisted OCR"
             item["annotation"] = self.annotation(panel)
+            item["assistant_draft"] = self.assistant_draft(panel)
             item["image_path"] = f"/api/image/{panel['panel_id']}"
             panels.append(item)
-        return {"schema_version": 1, "blinded": True, "progress": self.progress(), "families": sorted(FAMILIES), "panels": panels}
+        return {"schema_version": 1, "blinded": True, "progress": self.progress(), "frozen_total": len(self.manifest["panels"]), "excluded_count": len(self.manifest["panels"]) - len(self.review_panels), "families": sorted(FAMILIES), "panels": panels}
 
 
 def main() -> None:

@@ -53,6 +53,7 @@ function currentPanel() { return state.panels[current]; }
 
 function draftFor(panel) {
   if (panel.annotation) return panel.annotation;
+  if (panel.assistant_draft) return panel.assistant_draft;
   return {
     reviewer: localStorage.getItem("issue88-reviewer") || "",
     full_transcript: panel.draft_transcript,
@@ -73,10 +74,12 @@ function render() {
   baseSeconds = Number(value.correction_seconds || 0);
   scale = 1;
   rotation = 0;
-  $("#panel-number").textContent = `Panel ${current + 1} of ${state.panels.length}${panel.annotation ? " · reviewed" : ""}`;
+  $("#panel-number").textContent = `Panel ${panel.review_index} of ${state.frozen_total || state.panels.length}${panel.annotation ? " · reviewed" : panel.assistant_draft ? " · assistant candidate" : ""}`;
   $("#product-name").textContent = panel.product_name || "Unnamed product";
   $("#product-code").textContent = `Product ${panel.product_code} · image ${panel.image_sha256.slice(0, 12)}…`;
-  $("#draft-source").textContent = `Draft: ${panel.draft_source}`;
+  $("#draft-source").textContent = panel.assistant_draft && !panel.annotation
+    ? `Draft: assistant candidate, pending your visual confirmation. ${panel.assistant_draft.review_notes || ""}`
+    : `Draft: ${panel.draft_source}`;
   $("#panel-image").src = panel.image_path;
   applyImageTransform();
   $("#reviewer").value = value.reviewer || localStorage.getItem("issue88-reviewer") || "";
@@ -88,7 +91,7 @@ function render() {
   $("#decline-reason").value = value.decline_reason || "";
   $("#verified").checked = Boolean(value.verification_assertion && panel.annotation);
   $("#previous").disabled = current === 0;
-  setStatus(panel.annotation ? "Saved review loaded" : "Unsaved machine draft—verify everything", false);
+  setStatus(panel.annotation ? "Saved review loaded" : panel.assistant_draft ? "Assistant candidate saved separately—not human-verified. Check every value against the image before saving." : "Unsaved machine draft—verify everything", false);
   updateProgress();
 }
 
@@ -103,7 +106,8 @@ function setStatus(message, error = false) {
 
 function updateProgress() {
   const reviewed = state.panels.filter(panel => panel.annotation).length;
-  $("#progress").textContent = `${reviewed} / ${state.panels.length} reviewed`;
+  const prepared = state.panels.filter(panel => panel.assistant_draft && !panel.annotation).length;
+  $("#progress").textContent = `${reviewed} / ${state.panels.length} in review queue · ${prepared} assistant candidates${state.excluded_count ? ` · ${state.excluded_count} excluded from frozen ${state.frozen_total}` : ""}`;
   $("#progress-bar").style.width = `${reviewed / state.panels.length * 100}%`;
   const counts = Object.fromEntries(state.families.map(family => [family, 0]));
   state.panels.forEach(panel => (panel.annotation?.families || []).forEach(family => counts[family]++));
