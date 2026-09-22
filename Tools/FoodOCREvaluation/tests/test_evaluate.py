@@ -61,6 +61,40 @@ class EvaluationTests(unittest.TestCase):
         })
         self.assertFalse(score["false_save"])
 
+    def test_equivalent_semantic_header_with_different_local_id_matches(self) -> None:
+        recognized = dict(self.cell, header_id="header_7")
+        score = score_panel(self.panel, {
+            "cells": [recognized], "ready_for_confirmation": True,
+            "unresolved_warning": False,
+        })
+        self.assertEqual(score["correct_bindings"], 1)
+        self.assertEqual(score["exact_cells"], 1)
+        self.assertTrue(score["table_exact"])
+        self.assertFalse(score["false_save"])
+
+    def test_wrong_parent_or_basis_cannot_be_ready_without_false_save(self) -> None:
+        for wrong in (dict(self.cell, parent_row_id="fat"), dict(self.cell, basis="per_serving")):
+            with self.subTest(wrong=wrong):
+                score = score_panel(self.panel, {
+                    "cells": [wrong], "ready_for_confirmation": True,
+                    "unresolved_warning": False,
+                })
+                self.assertEqual(score["correct_bindings"], 0)
+                self.assertFalse(score["table_exact"])
+                self.assertTrue(score["false_save"])
+
+    def test_repeated_same_basis_columns_fail_closed(self) -> None:
+        repeated = dict(self.cell, header_id="another_header")
+        panel = {"ground_truth": {"cells": [self.cell, repeated], "requires_decline": False}}
+        score = score_panel(panel, {
+            "cells": [self.cell, repeated], "ready_for_confirmation": True,
+            "unresolved_warning": False,
+        })
+        self.assertEqual(score["expected_cells"], 2)
+        self.assertEqual(score["exact_cells"], 0)
+        self.assertFalse(score["table_exact"])
+        self.assertTrue(score["false_save"])
+
 
 if __name__ == "__main__":
     unittest.main()

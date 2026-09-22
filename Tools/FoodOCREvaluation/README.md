@@ -121,6 +121,21 @@ candidate's pinned public source and UK country tag into the scored fixture.
 Only the resulting frozen fixture hash may unlock the one-time untouched Apple
 Vision run.
 
+Before that run, `run_vision.py` verifies all 40 local image hashes, requires
+the exact fixture SHA-256 and refuses a nonempty output directory. It writes a
+run manifest before invoking Vision, so a partial run cannot silently be
+repeated. `build_gate_outcomes.py` accepts only the matching raw run and the
+frozen recognizer configuration. Pure scoring matches nutrient, parent row and
+column basis; independently generated editor/recognizer header IDs do not
+carry semantic identity. Repeated columns with the same row and basis are
+ambiguous and receive no automatic credit.
+
+The frozen arithmetic probes mutate three real untouched labels using the
+contract seed. Their result measures the deterministic consistency policy,
+not OCR recognition. The current policy detects the tenfold serving value and
+swapped basis, but not removal of a printed bound. That miss remains visible
+and cannot be counted as a pass or used to weaken the frozen 100% threshold.
+
 ### Source-language replacement before the gate
 
 The reviewer excluded the bilingual KA Sparkling Fruit Punch image at review

@@ -24,7 +24,20 @@ def file_sha256(path: Path) -> str:
 
 
 def cell_key(cell: dict[str, Any]) -> tuple[str, str]:
-    return cell["row_id"], cell["header_id"]
+    """Match the nutrient and declared column basis, not local editor IDs.
+
+    Reviewer and recognizer header IDs are generated independently. Two
+    columns with the same nutrient and basis are ambiguous and are not matched.
+    """
+    return cell["row_id"], cell["basis"]
+
+
+def unique_cells(cells: list[dict[str, Any]]) -> tuple[dict[tuple[str, str], dict[str, Any]], set[tuple[str, str]]]:
+    grouped: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for cell in cells:
+        grouped.setdefault(cell_key(cell), []).append(cell)
+    ambiguous = {key for key, values in grouped.items() if len(values) != 1}
+    return {key: values[0] for key, values in grouped.items() if len(values) == 1}, ambiguous
 
 
 def semantic_value(cell: dict[str, Any]) -> tuple[Any, ...]:
@@ -33,8 +46,8 @@ def semantic_value(cell: dict[str, Any]) -> tuple[Any, ...]:
 
 def score_panel(panel: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any]:
     truth = panel["ground_truth"]
-    expected = {cell_key(cell): cell for cell in truth["cells"]}
-    actual = {cell_key(cell): cell for cell in outcome.get("cells", [])}
+    expected, expected_ambiguous = unique_cells(truth["cells"])
+    actual, actual_ambiguous = unique_cells(outcome.get("cells", []))
     exact_cells = 0
     correct_bindings = 0
     correct_units_and_bases = 0
@@ -46,7 +59,8 @@ def score_panel(panel: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any
     for key, reference in expected.items():
         candidate = actual.get(key)
         if candidate is not None:
-            correct_bindings += 1
+            if candidate.get("parent_row_id") == reference.get("parent_row_id"):
+                correct_bindings += 1
             if candidate.get("unit") == reference.get("unit") and candidate.get("basis") == reference.get("basis"):
                 correct_units_and_bases += 1
             if semantic_value(candidate) == semantic_value(reference):
@@ -60,18 +74,24 @@ def score_panel(panel: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any
             if candidate is not None and candidate.get("serving_conversion") == reference.get("serving_conversion"):
                 conversion_exact += 1
 
+    # Ambiguous repeated columns still count in the denominator, but cannot
+    # earn credit without a stable semantic header identity.
+    for reference in truth["cells"]:
+        if cell_key(reference) in expected_ambiguous:
+            bound_total += int(reference.get("comparator") is not None)
+            conversion_total += int(reference.get("serving_conversion") is not None)
+
     expected_keys = set(expected)
     actual_keys = set(actual)
-    table_exact = expected_keys == actual_keys and all(
+    table_exact = not expected_ambiguous and not actual_ambiguous and expected_keys == actual_keys and all(
         semantic_value(expected[key]) == semantic_value(actual[key])
-        and expected[key].get("basis") == actual[key].get("basis")
         and expected[key].get("parent_row_id") == actual[key].get("parent_row_id")
         for key in expected_keys
     )
-    wrong_or_unbound = any(
+    wrong_or_unbound = bool(expected_ambiguous or actual_ambiguous) or any(
         key not in expected
         or semantic_value(cell) != semantic_value(expected[key])
-        or cell.get("basis") != expected[key].get("basis")
+        or cell.get("parent_row_id") != expected[key].get("parent_row_id")
         for key, cell in actual.items()
     ) or bool(expected_keys - actual_keys)
     false_save = bool(
@@ -80,7 +100,7 @@ def score_panel(panel: dict[str, Any], outcome: dict[str, Any]) -> dict[str, Any
         and not outcome.get("unresolved_warning")
     )
     return {
-        "expected_cells": len(expected),
+        "expected_cells": len(truth["cells"]),
         "exact_cells": exact_cells,
         "correct_bindings": correct_bindings,
         "correct_units_and_bases": correct_units_and_bases,
@@ -107,6 +127,11 @@ def evaluate(contract: dict[str, Any], manifest: dict[str, Any], outcomes: dict[
     validate_manifest(manifest, contract, require_complete=True)
     if outcomes.get("schema_version") != 1:
         raise ValueError("unsupported outcome schema")
+    fixture_sha256 = hashlib.sha256(canonical_json(manifest)).hexdigest()
+    if outcomes.get("fixture_sha256") != fixture_sha256 or outcomes.get("scope") != "untouched_gate":
+        raise ValueError("outcomes are not tied to the frozen untouched fixture")
+    if len({item["panel_id"] for item in outcomes.get("panels", [])}) != len(outcomes.get("panels", [])):
+        raise ValueError("duplicate outcome panel ID")
     by_id = {item["panel_id"]: item for item in outcomes.get("panels", [])}
     selected = [panel for panel in manifest["panels"] if panel["split"] == "untouched_gate"]
     if set(by_id) != {panel["panel_id"] for panel in selected}:
@@ -160,10 +185,23 @@ def evaluate(contract: dict[str, Any], manifest: dict[str, Any], outcomes: dict[
         decision = "bounded_promotion"
     else:
         decision = "decline"
+    failures = {
+        "numeric_cells_nonexact": totals["expected_cells"] - totals["exact_cells"],
+        "row_header_bindings_incorrect_or_missing": totals["expected_cells"] - totals["correct_bindings"],
+        "unit_or_basis_incorrect_or_missing": totals["expected_cells"] - totals["correct_units_and_bases"],
+        "full_tables_nonexact": len(scores) - totals["table_exact"],
+        "bounds_not_preserved": totals["bound_total"] - totals["bound_exact"],
+        "serving_conversions_nonexact": totals["conversion_total"] - totals["conversion_exact"],
+        "silent_false_saves": totals["false_save"],
+        "required_declines_missed": totals["decline_expected"] - decline_correct,
+        "arithmetic_mutations_undetected": totals["arithmetic_faults"] - totals["arithmetic_faults_detected"],
+    }
     return {
         "schema_version": 1,
         "contract_version": contract["contract_version"],
         "scope": "untouched_gate",
+        "fixture_sha256": fixture_sha256,
+        "arithmetic_mutation_status": outcomes.get("arithmetic_mutation_status"),
         "fixture_counts": {
             "panels": len(scores),
             "numeric_cells": totals["expected_cells"],
@@ -173,6 +211,11 @@ def evaluate(contract: dict[str, Any], manifest: dict[str, Any], outcomes: dict[
             "arithmetic_faults": totals["arithmetic_faults"],
         },
         "metrics": metrics,
+        "failure_breakdown": failures,
+        "per_panel": [
+            {"panel_id": panel["panel_id"], "score": score, "unresolved_reasons": by_id[panel["panel_id"]].get("unresolved_reasons", [])}
+            for panel, score in zip(selected, scores)
+        ],
         "gates": gates,
         "recommendation": {
             "decision": decision,

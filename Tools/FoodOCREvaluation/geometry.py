@@ -6,6 +6,7 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from arithmetic import serving_consistency
 from parser import ParsedValue, classify_basis, normalize_label, parse_value
 
 NUTRIENTS = (
@@ -184,9 +185,13 @@ def bind(raw: dict[str, Any]) -> dict[str, Any]:
             })
     if not cells:
         unresolved.append("no nutrition cells bound")
+    arithmetic = serving_consistency(cells)
+    if arithmetic["status"] == "inconsistent":
+        unresolved.append("inconsistent per-100g/per-serving relationship")
     return {
         "headers": headers,
         "cells": cells,
+        "arithmetic": arithmetic,
         "ready_for_confirmation": bool(cells) and not unresolved,
         "unresolved_warning": bool(unresolved),
         "declined": bool(unresolved),
