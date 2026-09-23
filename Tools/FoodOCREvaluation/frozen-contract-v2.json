@@ -1,0 +1,89 @@
+{
+  "schema_version": 2,
+  "contract_version": "printed-nutrition-ocr-evaluation-v2",
+  "status": "pre_registered_no_v2_gate_run",
+  "corpus": {
+    "permitted_source": "Open Food Facts revision-pinned public nutrition images",
+    "source_licence_url": "https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/tutorials/license-be-on-the-legal-side/",
+    "country_tag": "en:united-kingdom",
+    "real_panels_only": true,
+    "synthetic_panels_permitted": false,
+    "exclude_all_v1_and_v2_development_panel_ids_and_image_hashes": true,
+    "minimum_new_candidates": 140,
+    "minimum_independently_verified_panels": 100,
+    "tuning_panels": 60,
+    "untouched_gate_panels": 40,
+    "minimum_usable_untouched_tables": 30,
+    "minimum_untouched_declines": 5,
+    "minimum_untouched_bounded_cells": 10,
+    "minimum_untouched_serving_conversions": 20,
+    "required_families": [
+      "bilingual", "bound", "crumpled", "curved", "difficult_crop", "flat",
+      "glossy", "missing_row", "multi_column", "nested_rows", "per_100g",
+      "per_100ml", "per_serving", "salt", "small_font", "sodium"
+    ],
+    "ground_truth_requires_independent_image_first_visual_verification": true,
+    "assistant_or_source_ocr_cannot_be_ground_truth": true,
+    "declined_images_remain_in_scoring_denominators": true
+  },
+  "selection": {
+    "algorithm_id": "v2-eligible-100-sha256-order-v1",
+    "algorithm": "On the frozen eligible public inventory, sort by SHA-256 of UTF-8 'printed-panel-v2-gate-v1:' + image_sha256 + ':' + panel_id; select the first 100, assign the first 60 to tuning and the last 40 to untouched_gate. Freeze these identities and assignments before human ground-truth review or v2 recognition.",
+    "candidate_eligibility": "Freeze public image bytes, licence, panel ID and reasoned source-only exclusions before selecting 100. Hash mismatch, non-food or absent nutrition image may be excluded; difficult but valid panels remain as potential declines. If the selected set later misses adequacy minima, invalidate the gate and version a new selection rather than substituting cases.",
+    "freeze_selected_identities_and_split_before_v2_recognition": true,
+    "no_post_outcome_replacement_or_rerun": true,
+    "one_time_untouched_gate": true
+  },
+  "candidate_schema": {
+    "required_top_level_fields": ["schema_version", "image_sha256", "status", "candidates", "unresolved_reasons", "ready_for_confirmation", "unresolved_warning", "declined", "automatic_save"],
+    "required_cell_fields": ["row_id", "parent_row_id", "header_id", "basis", "printed_text", "comparator", "decimal_text", "unit", "serving_conversion", "persistence_authorized", "requires_user_selection"],
+    "required_status": "user_selection_only",
+    "required_ready_for_confirmation": false,
+    "required_automatic_save": false,
+    "required_candidate_persistence_authorized": false,
+    "required_candidate_requires_user_selection": true,
+    "basis_values": ["per_100g", "per_100ml", "per_serving", "reference_intake"],
+    "bound_comparators": ["<", "<="],
+    "unknown_must_remain_explicit": true,
+    "reference_intake_constants_are_not_product_amounts": true,
+    "unprinted_serving_conversion_cannot_be_inferred": true
+  },
+  "scoring": {
+    "match_key": "Canonical nutrient and unambiguous semantic column basis plus header relationship; duplicate same-basis columns require distinct verified semantic headers and never earn credit by list order.",
+    "normalization": "Unicode NFC and collapsed whitespace for labels only; do not rewrite numeric decimal text, comparator, unit, basis or serving conversion for exact scoring.",
+    "numeric_cell_exact_denominator": "Every printed numeric product cell in each usable untouched table; missing candidates remain in the denominator and extra candidates reduce complete-table exactness.",
+    "full_table_exact_denominator": "Every non-declined untouched table; all expected rows, parent relationships, semantic headers, cells, bounds and bases must match with no extra accepted cell.",
+    "bound_denominator": "Every printed bounded product cell, not reference-intake constants; an unbound or exact-valued replacement fails.",
+    "serving_conversion_denominator": "Every printed serving conversion; null, unknown or inferred ratios do not earn exact credit.",
+    "false_ready": "Any incorrect, incomplete, extra or unbound proposed table marked ready_for_confirmation, whether or not a warning is displayed; any automatic persistence is a separate critical failure.",
+    "correct_decline_denominator": "Every human-verified required-decline case in the untouched set; a decline on a usable table is separately reported as a false decline.",
+    "arithmetic_faults": "Pre-registered factor-ten serving mutation, per-100/per-serving header transposition and exact-value replacement of a printed bound; each mutation is generated from real verified truth.",
+    "zero_or_missing_critical_denominator": "Gate invalid; do not report a vacuous pass."
+  },
+  "metrics": {
+    "numeric_cell_exact_minimum": 0.95,
+    "row_header_binding_minimum": 0.98,
+    "full_table_exact_minimum": 0.75,
+    "unit_and_basis_minimum": 1.0,
+    "bound_preservation_minimum": 1.0,
+    "serving_conversion_minimum": 0.98,
+    "false_ready_maximum": 0.0,
+    "correct_decline_minimum": 0.95,
+    "arithmetic_detection_minimum": 1.0
+  },
+  "safety_policy": {
+    "candidate_cells_require_explicit_user_selection": true,
+    "side_by_side_original_image_required": true,
+    "automatic_save": false,
+    "confidence_can_authorize_persistence": false,
+    "failed_or_unknown_cells_remain_explicit": true,
+    "bounds_remain_intervals": true,
+    "physical_camera_claims": false,
+    "personal_case_gate": "deferred"
+  },
+  "recommendation": {
+    "all_metric_and_safety_gates_required_for_93_eligibility": true,
+    "public_gate_cannot_by_itself_close_93_or_promote_automatic_acceptance": true,
+    "options": ["decline", "continue_evaluation_only", "eligible_for_93_manual_selection_review"]
+  }
+}

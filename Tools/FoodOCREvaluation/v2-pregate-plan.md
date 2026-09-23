@@ -1,7 +1,8 @@
 # Printed nutrition OCR v2: pre-gate evidence plan
 
-Status: **development preparation only**. This is not a frozen v2 acceptance
-contract, a ground-truth review, a gate result, or authority to ship OCR.
+Status: **development preparation only**. `frozen-contract-v2.json`
+pre-registers evaluation rules, but no v2 acceptance corpus or gate result
+exists and there is no authority to ship OCR.
 
 ## Evidence boundary
 
@@ -21,7 +22,22 @@ the v2 recognizer runs. If 40 of these are selected for review, there is no
 remaining reserve for exclusions or unreadable images; acquire additional
 public, immutable, no-login images before claiming a robust gate.
 
-## Contract to freeze before seeing new outcomes
+The separate 40-panel local development review has 22 usable-table decisions
+and 18 final declines. Its annotations and assistant drafts are exposed to
+development, so all 40 panel IDs and image hashes are also excluded from a
+fresh v2 gate. The local snapshot is not a substitute for a new acceptance
+corpus.
+
+## Pre-registered contract before new v2 outcomes
+
+`frozen-contract-v2.json` keeps the v1 safety/accuracy floors, adds non-vacuous
+gate denominators, and fixes a deterministic 60-tuning/40-untouched split from
+the first 100 of at least 140 newly eligible, hash-pinned public candidates.
+The split is frozen before visual review or v2 recognition. If the reviewed
+selection misses its adequacy minima, the gate is invalid; cases are not
+replaced after outcomes or rerun as fresh evidence. Check the closed rules
+with `python3 Tools/FoodOCREvaluation/validate_contract_v2.py
+Tools/FoodOCREvaluation/frozen-contract-v2.json`.
 
 - Define the candidate output schema: image identity, exact printed value,
   comparator, unit, nutrient/parent, column basis, explicit serving quantity
