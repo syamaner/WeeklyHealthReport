@@ -17,6 +17,26 @@ class V2ContractTests(unittest.TestCase):
     def setUp(self) -> None:
         self.contract = json.loads((ROOT / "frozen-contract-v2.json").read_text())
 
+    def candidates(self) -> list[dict[str, str]]:
+        result = []
+        for index in range(140):
+            code = str(5000000000000 + index)
+            raw_id = str(index + 1)
+            folder = f"{code[:3]}/{code[3:6]}/{code[6:9]}/{code[9:]}"
+            result.append({
+                "panel_id": f"off:{code}:nutrition_en.1:raw-{raw_id}",
+                "image_sha256": hashlib.sha256(str(index).encode()).hexdigest(),
+                "product_code": code,
+                "selection_revision": "1",
+                "raw_image_id": raw_id,
+                "selected_role": "nutrition_en",
+                "source_provider": "Open Food Facts",
+                "country_tag": self.contract["corpus"]["country_tag"],
+                "source_licence_url": self.contract["corpus"]["source_licence_url"],
+                "raw_image_url": f"{self.contract['corpus']['source_aws_base_url']}{folder}/{raw_id}.jpg",
+            })
+        return result
+
     def test_pre_registered_contract_is_valid(self) -> None:
         validate(self.contract)
         self.assertEqual(self.contract["status"], "pre_registered_no_v2_gate_run")
@@ -42,30 +62,36 @@ class V2ContractTests(unittest.TestCase):
             validate(altered)
 
     def test_selected_split_is_deterministic_and_exactly_sixty_forty(self) -> None:
-        candidates = [
-            {"panel_id": f"public-{index}", "image_sha256": hashlib.sha256(str(index).encode()).hexdigest()}
-            for index in range(140)
-        ]
-        first = select_split(self.contract, candidates, excluded_panel_ids=set(), excluded_image_hashes=set())
+        candidates = self.candidates()
+        first = select_split(self.contract, candidates, excluded_panel_ids=set(), excluded_image_hashes=set(), excluded_product_codes=set())
         self.assertEqual(first, select_split(
-            self.contract, list(reversed(candidates)), excluded_panel_ids=set(), excluded_image_hashes=set(),
+            self.contract, list(reversed(candidates)), excluded_panel_ids=set(), excluded_image_hashes=set(), excluded_product_codes=set(),
         ))
         self.assertEqual(len(first), 100)
         self.assertEqual(list(first.values()).count("tuning"), 60)
         self.assertEqual(list(first.values()).count("untouched_gate"), 40)
 
     def test_split_rejects_duplicate_or_insufficient_candidates(self) -> None:
-        candidates = [
-            {"panel_id": f"public-{index}", "image_sha256": hashlib.sha256(str(index).encode()).hexdigest()}
-            for index in range(140)
-        ]
+        candidates = self.candidates()
         with self.assertRaisesRegex(ValueError, "too few"):
-            select_split(self.contract, candidates[:-1], excluded_panel_ids=set(), excluded_image_hashes=set())
+            select_split(self.contract, candidates[:-1], excluded_panel_ids=set(), excluded_image_hashes=set(), excluded_product_codes=set())
         with self.assertRaisesRegex(ValueError, "reuses exposed"):
-            select_split(self.contract, candidates, excluded_panel_ids={"public-1"}, excluded_image_hashes=set())
+            select_split(self.contract, candidates, excluded_panel_ids={candidates[1]["panel_id"]}, excluded_image_hashes=set(), excluded_product_codes=set())
+        with self.assertRaisesRegex(ValueError, "reuses exposed"):
+            select_split(self.contract, candidates, excluded_panel_ids=set(), excluded_image_hashes=set(), excluded_product_codes={candidates[1]["product_code"]})
         candidates[-1] = candidates[0]
         with self.assertRaisesRegex(ValueError, "duplicate eligible"):
-            select_split(self.contract, candidates, excluded_panel_ids=set(), excluded_image_hashes=set())
+            select_split(self.contract, candidates, excluded_panel_ids=set(), excluded_image_hashes=set(), excluded_product_codes=set())
+
+    def test_split_rejects_missing_or_changed_source_provenance(self) -> None:
+        candidates = self.candidates()
+        candidates[0]["selected_role"] = "ingredients_en"
+        with self.assertRaisesRegex(ValueError, "selected-role source provenance"):
+            select_split(self.contract, candidates, excluded_panel_ids=set(), excluded_image_hashes=set(), excluded_product_codes=set())
+        candidates = self.candidates()
+        candidates[0]["raw_image_url"] += "?transformed=true"
+        with self.assertRaisesRegex(ValueError, "raw image URL"):
+            select_split(self.contract, candidates, excluded_panel_ids=set(), excluded_image_hashes=set(), excluded_product_codes=set())
 
 
 if __name__ == "__main__":

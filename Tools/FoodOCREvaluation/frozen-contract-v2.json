@@ -3,8 +3,13 @@
   "contract_version": "printed-nutrition-ocr-evaluation-v2",
   "status": "pre_registered_no_v2_gate_run",
   "corpus": {
-    "permitted_source": "Open Food Facts revision-pinned public nutrition images",
+    "permitted_source": "Open Food Facts selected nutrition_en raw source images from the public AWS image dataset",
     "source_licence_url": "https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/tutorials/license-be-on-the-legal-side/",
+    "source_aws_base_url": "https://openfoodfacts-images.s3.eu-west-3.amazonaws.com/data/",
+    "selected_nutrition_role": "nutrition_en",
+    "selected_role_revision_and_raw_image_id_required": true,
+    "raw_source_bytes_sha256_required": true,
+    "image_transformation_permitted": false,
     "country_tag": "en:united-kingdom",
     "real_panels_only": true,
     "synthetic_panels_permitted": false,
@@ -29,7 +34,7 @@
   "selection": {
     "algorithm_id": "v2-eligible-100-sha256-order-v1",
     "algorithm": "On the frozen eligible public inventory, sort by SHA-256 of UTF-8 'printed-panel-v2-gate-v1:' + image_sha256 + ':' + panel_id; select the first 100, assign the first 60 to tuning and the last 40 to untouched_gate. Freeze these identities and assignments before human ground-truth review or v2 recognition.",
-    "candidate_eligibility": "Freeze public image bytes, licence, panel ID and reasoned source-only exclusions before selecting 100. Hash mismatch, non-food or absent nutrition image may be excluded; difficult but valid panels remain as potential declines. If the selected set later misses adequacy minima, invalidate the gate and version a new selection rather than substituting cases.",
+    "candidate_eligibility": "Use the Open Food Facts selected nutrition_en role to record its revision and raw imgid, then download the untransformed raw image from the public AWS dataset and freeze its SHA-256, licence and panel ID. Record source-only exclusions before selecting 100. Hash mismatch, non-food or absent nutrition image may be excluded; difficult but valid panels remain as potential declines. If the selected set later misses adequacy minima, invalidate the gate and version a new selection rather than substituting cases.",
     "freeze_selected_identities_and_split_before_v2_recognition": true,
     "no_post_outcome_replacement_or_rerun": true,
     "one_time_untouched_gate": true

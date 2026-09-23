@@ -51,9 +51,14 @@ def validate(contract: dict[str, Any]) -> None:
     if (corpus["minimum_independently_verified_panels"], corpus["tuning_panels"],
             corpus["untouched_gate_panels"]) != (100, 60, 40):
         raise ValueError("the versioned selection rule requires exactly 60/40 of 100")
-    if (corpus.get("permitted_source") != "Open Food Facts revision-pinned public nutrition images"
+    if (corpus.get("permitted_source") != "Open Food Facts selected nutrition_en raw source images from the public AWS image dataset"
             or corpus.get("country_tag") != "en:united-kingdom"
-            or not corpus.get("source_licence_url", "").startswith("https://openfoodfacts.")):
+            or corpus.get("source_licence_url") != "https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/tutorials/license-be-on-the-legal-side/"
+            or corpus.get("source_aws_base_url") != "https://openfoodfacts-images.s3.eu-west-3.amazonaws.com/data/"
+            or corpus.get("selected_nutrition_role") != "nutrition_en"
+            or not corpus.get("selected_role_revision_and_raw_image_id_required")
+            or not corpus.get("raw_source_bytes_sha256_required")
+            or corpus.get("image_transformation_permitted") is not False):
         raise ValueError("unsupported public source or licence")
     if set(corpus["required_families"]) != REQUIRED_FAMILIES or len(corpus["required_families"]) != len(REQUIRED_FAMILIES):
         raise ValueError("required family coverage changed")
@@ -140,16 +145,36 @@ def validate(contract: dict[str, Any]) -> None:
 def select_split(
     contract: dict[str, Any], eligible_panels: list[dict[str, str]], *,
     excluded_panel_ids: set[str], excluded_image_hashes: set[str],
+    excluded_product_codes: set[str],
 ) -> dict[str, str]:
     """Select and split eligible identities before review or v2 recognition."""
     validate(contract)
     if len(eligible_panels) < contract["corpus"]["minimum_new_candidates"]:
         raise ValueError("too few new eligible public candidates")
+    for item in eligible_panels:
+        code = str(item.get("product_code", ""))
+        revision = str(item.get("selection_revision", ""))
+        raw_id = str(item.get("raw_image_id", ""))
+        if (not re.fullmatch(r"[0-9]{8,14}", code)
+                or not revision.isdigit() or not raw_id.isdigit()
+                or item.get("selected_role") != "nutrition_en"
+                or item.get("source_provider") != "Open Food Facts"
+                or item.get("country_tag") != contract["corpus"]["country_tag"]
+                or item.get("source_licence_url") != contract["corpus"]["source_licence_url"]
+                or item.get("panel_id") != f"off:{code}:nutrition_en.{revision}:raw-{raw_id}"):
+            raise ValueError("eligible panel lacks selected-role source provenance")
+        padded = code.zfill(13)
+        folder = f"{padded[:3]}/{padded[3:6]}/{padded[6:9]}/{padded[9:]}"
+        expected_url = f"{contract['corpus']['source_aws_base_url']}{folder}/{raw_id}.jpg"
+        if item.get("raw_image_url") != expected_url:
+            raise ValueError("eligible panel raw image URL is not the public AWS source")
     ids = [item["panel_id"] for item in eligible_panels]
     hashes = [item["image_sha256"] for item in eligible_panels]
-    if len(set(ids)) != len(ids) or len(set(hashes)) != len(hashes):
-        raise ValueError("duplicate eligible panel or image")
-    if set(ids) & excluded_panel_ids or set(hashes) & excluded_image_hashes:
+    codes = [item["product_code"] for item in eligible_panels]
+    if len(set(ids)) != len(ids) or len(set(hashes)) != len(hashes) or len(set(codes)) != len(codes):
+        raise ValueError("duplicate eligible panel, image or product")
+    if (set(ids) & excluded_panel_ids or set(hashes) & excluded_image_hashes
+            or set(codes) & excluded_product_codes):
         raise ValueError("eligible inventory reuses exposed v1 or v2 development evidence")
     if any(not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value) for value in hashes):
         raise ValueError("unverified image SHA-256 identity")

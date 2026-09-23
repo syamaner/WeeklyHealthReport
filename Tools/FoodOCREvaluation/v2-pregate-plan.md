@@ -39,6 +39,21 @@ replaced after outcomes or rerun as fresh evidence. Check the closed rules
 with `python3 Tools/FoodOCREvaluation/validate_contract_v2.py
 Tools/FoodOCREvaluation/frozen-contract-v2.json`.
 
+Eligible images must be the untransformed raw JPEG identified by Open Food
+Facts' selected `nutrition_en` role, including its revision and raw image ID.
+The public search API supplies role metadata; the public AWS image dataset
+supplies the raw bytes. Record the product code, role revision, raw image ID,
+source URL, licence URL and SHA-256 of the actual downloaded bytes. Exclude
+prior development products as well as panel IDs and hashes so a changed image
+revision cannot leak a familiar product into the untouched set. Do not use
+source OCR or product metadata as visual ground truth. The API's published
+search rate limit is 10 requests/minute; acquisition must respect it.
+
+Source guidance: [API and limits](https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/),
+[public AWS image dataset](https://openfoodfacts.github.io/openfoodfacts-server/api/aws-images-dataset/),
+[bulk image download](https://openfoodfacts.github.io/openfoodfacts-server/api/how-to-download-images/),
+[licence guidance](https://openfoodfacts.github.io/documentation/docs/Product-Opener/api/tutorials/license-be-on-the-legal-side/).
+
 - Define the candidate output schema: image identity, exact printed value,
   comparator, unit, nutrient/parent, column basis, explicit serving quantity
   when actually printed, and a distinct `unknown` state. Preserve a bound as
@@ -64,7 +79,7 @@ Tools/FoodOCREvaluation/frozen-contract-v2.json`.
 
 ## Next bounded action
 
-Acquire more public revision-pinned image candidates, verify downloaded bytes
+Acquire more public revision-pinned raw image candidates, verify downloaded bytes
 against their recorded hashes, and prepare a blinded visual-review pack with
 no v2 Vision outputs. A human review must correct and sign off each panel's
 ground truth before freezing and running a separate v2 gate. Until then,
