@@ -116,6 +116,13 @@ class AcquireV2PublicTests(unittest.TestCase):
             self.assertEqual(len(review["panels"]), 100)
             self.assertEqual(review["panels"][0]["draft_transcript"], "")
             self.assertTrue(all("split" not in panel for panel in review["panels"]))
+            selected_image = Path(folder) / frozen["panels"][0]["local_image"]
+            selected_image.write_bytes(b"corrupted")
+            with self.assertRaisesRegex(ValueError, "candidate image SHA-256 mismatch"):
+                freeze(
+                    self.contract, resumed, Path(folder), excluded_ids=set(),
+                    excluded_hashes=set(), excluded_codes={products[0]["code"]},
+                )
 
 
 if __name__ == "__main__":
