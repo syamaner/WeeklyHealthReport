@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Localhost-only annotation server for the blinded issue #88 review pack."""
+"""Localhost-only annotation server for blinded nutrition-panel review packs."""
 
 from __future__ import annotations
 
@@ -283,7 +283,10 @@ class ReviewServer(ThreadingHTTPServer):
             item["assistant_draft"] = self.assistant_draft(panel)
             item["image_path"] = f"/api/image/{panel['panel_id']}"
             panels.append(item)
-        return {"schema_version": 1, "blinded": True, "progress": self.progress(), "frozen_total": len(self.manifest["panels"]), "excluded_count": len(self.manifest["panels"]) - len(self.review_panels), "families": sorted(FAMILIES), "panels": panels}
+        return {"schema_version": 1, "blinded": True,
+                "review_label": self.manifest.get("review_label", "WeeklyHealthReport · issue #88"),
+                "review_description": self.manifest.get("review_description", "Correct the draft against the image. The evaluation split is hidden and the untouched Apple Vision gate remains unopened."),
+                "progress": self.progress(), "frozen_total": len(self.manifest["panels"]), "excluded_count": len(self.manifest["panels"]) - len(self.review_panels), "families": sorted(FAMILIES), "panels": panels}
 
 
 def main() -> None:
@@ -293,7 +296,7 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8788)
     args = parser.parse_args()
     server = ReviewServer(("127.0.0.1", args.port), args.app_dir, args.workspace)
-    print(f"Issue #88 review: http://127.0.0.1:{args.port}", flush=True)
+    print(f"Local nutrition-panel review: http://127.0.0.1:{args.port}", flush=True)
     server.serve_forever()
 
 

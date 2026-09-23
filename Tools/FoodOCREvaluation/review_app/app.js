@@ -70,6 +70,9 @@ function draftFor(panel) {
 function render() {
   const panel = currentPanel();
   const value = draftFor(panel);
+  $("#review-label").textContent = state.review_label;
+  $("#review-description").textContent = state.review_description;
+  document.title = `${state.review_label} · nutrition-panel review`;
   openedAt = Date.now();
   baseSeconds = Number(value.correction_seconds || 0);
   scale = 1;

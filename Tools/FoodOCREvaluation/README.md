@@ -88,6 +88,39 @@ The separate [v2 pre-gate plan](v2-pregate-plan.md) and `pregate_v2.py` audit
 the unreviewed public-image inventory without running recognition or assigning
 new gate status.
 
+### V2 public-panel development review
+
+`prepare_v2_review.py` creates a separate, image-first local review pack from
+the 40 unused, hash-pinned public images. It excludes all selected/reviewed v1
+images by ID and SHA-256, downloads only revision-pinned Open Food Facts image
+URLs, checks every byte hash, and drafts text with local Tesseract only. It
+does **not** run Apple Vision, assign a v2 gate split, or create verified truth.
+The pack builder refuses to overwrite an existing review workspace.
+
+From the repository root, prepare the ignored local workspace and start the
+localhost-only reviewer:
+
+```sh
+python3 Tools/FoodOCREvaluation/prepare_v2_review.py \
+  --candidate Tools/FoodOCREvaluation/fixtures/candidate-manifest-v1.json \
+  --prior-selection Tools/FoodOCREvaluation/fixtures/review-selection-v2.json \
+  --prior-truth Tools/FoodOCREvaluation/fixtures/ground-truth-v1.json \
+  --workspace Tools/FoodOCREvaluation/review_workspace/v2_public_development
+python3 Tools/FoodOCREvaluation/review_server.py \
+  --workspace Tools/FoodOCREvaluation/review_workspace/v2_public_development \
+  --port 8793
+```
+
+Open `http://127.0.0.1:8793/` in a browser on this machine. Port 8788 may
+still host the older #88 review; do not mix the two workspaces. Review the image
+itself, correct every draft character and structured cell, then check the
+visual-verification assertion and save. Saves are local JSON files under
+`annotations/`; reloading the page preserves them. If an image is unreadable
+or the table is incomplete, mark a decline with a reason rather than inventing
+values. These annotations are review inputs, not an accepted v2 evaluation:
+the separate scoring contract and gate still need to be frozen before any
+new gate run. The untouched personal/device case remains deferred.
+
 ## Human review pack
 
 `prepare_review.py` deterministically selects 60 tuning and 40 untouched-gate
