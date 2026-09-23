@@ -25,6 +25,9 @@ contract, runner, binder, scoring inputs and reported result are unchanged.
   values such as `< 0.1 g` and `701 kJ` without joining distant columns.
   A combined `kJ/167` token is split into ordered energy units and values;
   parenthesised ordinary values are parsed without treating brackets as bounds.
+- A nutrient label and value in separate nearby Vision observations may be
+  paired when one label and one explicit column basis are unambiguous. Distant
+  or competing label matches are skipped, not guessed.
 - An energy number without an explicit unit is not offered as a cell. `kJ`
   casing is preserved for a proposed energy cell.
 - Missing core rows, unbound printed bound markers and per-serving headers
@@ -43,7 +46,7 @@ are complete.
 
 The 40 previously exposed v1 gate outputs may now be used as regression
 examples, **not** as a new untouched test. On those same raw Vision outputs,
-v2 proposed 230 cells; the frozen strict cell comparator credited 138/535
+v2 proposed 235 cells; the frozen strict cell comparator credited 141/535
 versus v1's 97/535. Much of that difference is the `kJ` casing correction,
 not improved numeric recognition. V2 still bound only 9/21 printed bounds
 and 0/79 serving conversions. It marked 0/40 tables ready, including the four
