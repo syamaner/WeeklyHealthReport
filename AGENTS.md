@@ -16,6 +16,19 @@ This file applies to the whole repository. Keep it concise; exact metric semanti
 - For a new HealthKit metric, investigate current official Apple documentation and propose the aggregation semantics before implementation.
 - Treat unavailable reads as either no visible data or no access. HealthKit does not disclose read denial, so never report zero or a definite denial without evidence.
 
+## Architecture defaults and gates
+
+- Apply SOLID pragmatically to new features and substantial changes. Separate domain rules, application orchestration, infrastructure adapters and presentation.
+- Before substantial implementation, identify responsibilities, dependency direction, stable invariants, credible extension axes and the contract tests that protect them. Resolve architecture concerns before writing production code.
+- Keep pure domain code independent of SwiftUI, UIKit, HealthKit, databases, filesystems, networks, provider SDKs and concrete clocks or identifier generators.
+- Put extension points at volatile boundaries such as capture mechanisms, providers, persistence adapters, policies and projections. Adding an ordinary adapter must not require modifying settled domain logic.
+- Keep correctness, privacy, identity, provenance, aggregation and schema invariants intentionally closed. Changing one requires an explicit contract or schema version, not a plug-in override.
+- Prefer cohesive, consumer-owned capability protocols over universal repositories, broad service interfaces or protocol-per-method frameworks.
+- Do not expose framework- or persistence-specific types across an abstraction boundary. Wire concrete implementations only at the composition root.
+- Require alternate implementations of a port to pass the same behavioural contract tests. Inject clocks, identifiers, randomness, hashing and external clients when determinism or substitution matters.
+- Enforce important boundaries with Swift target/package dependencies, forbidden-import checks or equivalent compile-time/CI mechanisms where practical; instructions alone are not proof.
+- Avoid speculative abstraction for small or genuinely fixed behaviour. If a requested implementation conflicts with these defaults, explain the concrete trade-off and obtain agreement before proceeding.
+
 ## HealthKit and reporting invariants
 
 - Request read access only. Keep HealthKit authorization `toShare` empty.
