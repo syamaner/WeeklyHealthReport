@@ -217,6 +217,8 @@ class ReviewHandler(BaseHTTPRequestHandler):
                 annotation = validate_annotation(incoming, panel)
                 atomic_write(self.review_server.annotation_path(panel), annotation)
             else:
+                if self.review_server.annotation(panel) is not None:
+                    raise ValueError("verified review exists; assistant draft cannot replace it")
                 candidate = validate_assistant_draft(incoming, panel)
                 atomic_write(self.review_server.assistant_draft_path(panel), candidate)
             self.send_json({"saved": True, "progress": self.review_server.progress()})

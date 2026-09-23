@@ -79,6 +79,9 @@
         <input id="decline-reason" placeholder="Required if declining: clipped header, unreadable cell, ambiguous basis…">
       </div>
 
+      <label class="block-label" for="review-notes">Assistant draft notes for the reviewer</label>
+      <textarea id="review-notes" placeholder="Uncertain characters, columns or cells to check against the image"></textarea>
+
       <label class="assertion">
         <input type="checkbox" id="verified">
         I checked every transcript character, numeric cell, unit, bound, row/parent relationship, header basis and serving conversion against the image.
@@ -86,7 +89,9 @@
 
       <div class="actions">
         <button id="previous" class="secondary">Previous</button>
+        <button id="next" class="secondary">Next</button>
         <span id="status" role="status"></span>
+        <button id="save-draft" class="secondary">Save assistant draft and next</button>
         <button id="save">Save and next</button>
       </div>
     </section>

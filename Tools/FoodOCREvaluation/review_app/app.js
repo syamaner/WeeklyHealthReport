@@ -92,8 +92,10 @@ function render() {
   $("#families").innerHTML = state.families.map(family => `<label><input type="checkbox" value="${family}" ${(value.families || []).includes(family) ? "checked" : ""}> ${family.replaceAll("_", " ")}</label>`).join("");
   $("#requires-decline").checked = Boolean(value.requires_decline);
   $("#decline-reason").value = value.decline_reason || "";
+  $("#review-notes").value = value.review_notes || "";
   $("#verified").checked = Boolean(value.verification_assertion && panel.annotation);
   $("#previous").disabled = current === 0;
+  $("#next").disabled = current === state.panels.length - 1;
   setStatus(panel.annotation ? "Saved review loaded" : panel.assistant_draft ? "Assistant candidate saved separately—not human-verified. Check every value against the image before saving." : "Unsaved machine draft—verify everything", false);
   updateProgress();
 }
@@ -164,9 +166,49 @@ async function save() {
   }
 }
 
+async function saveAssistantDraft() {
+  if ($("#save-draft").disabled) return;
+  const panel = currentPanel();
+  if (panel.annotation) {
+    setStatus("A verified review already exists; assistant drafts cannot replace it.", true);
+    return;
+  }
+  const payload = {
+    panel_id: panel.panel_id,
+    image_sha256: panel.image_sha256,
+    full_transcript: $("#transcript").value,
+    cells: cellsFromForm(),
+    families: [...$("#families").querySelectorAll("input:checked")].map(input => input.value),
+    requires_decline: $("#requires-decline").checked,
+    decline_reason: $("#decline-reason").value,
+    review_notes: $("#review-notes").value,
+  };
+  setStatus("Saving assistant draft…");
+  $("#save-draft").disabled = true;
+  try {
+    const response = await fetch("/api/assistant-draft", {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
+    const result = await response.json();
+    if (!response.ok) {
+      setStatus(result.error || "Assistant draft was not saved; edits remain on this page.", true);
+      return;
+    }
+    state = await fetch("/api/state").then(value => value.json());
+    const next = state.panels.findIndex((candidate, index) => index > current && !candidate.assistant_draft && !candidate.annotation);
+    if (next >= 0) current = next;
+    else if (current < state.panels.length - 1) current++;
+    render();
+  } catch (error) {
+    setStatus(`Assistant draft save could not be confirmed. Check the local server before retrying. (${error.message})`, true);
+  } finally {
+    $("#save-draft").disabled = false;
+  }
+}
+
 $("#add-cell").addEventListener("click", () => addCell());
 $("#save").addEventListener("click", save);
+$("#save-draft").addEventListener("click", saveAssistantDraft);
 $("#previous").addEventListener("click", () => { if (current > 0) { current--; render(); } });
+$("#next").addEventListener("click", () => { if (current < state.panels.length - 1) { current++; render(); } });
 $("#show-incomplete").addEventListener("click", () => {
   const next = state.panels.findIndex(panel => !panel.annotation);
   if (next >= 0) { current = next; render(); }
