@@ -81,6 +81,10 @@ threshold results, limitations and **decline** recommendation are in
 [`untouched-gate-result-v1.md`](untouched-gate-result-v1.md). This does not
 authorise #93 or automatic saving.
 
+An isolated, evaluation-only v2 candidate prototype and its development-only
+regressions are described in [`v2-development-notes.md`](v2-development-notes.md).
+It does not change the frozen v1 result or establish a new acceptance gate.
+
 ## Human review pack
 
 `prepare_review.py` deterministically selects 60 tuning and 40 untouched-gate
