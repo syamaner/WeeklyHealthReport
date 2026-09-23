@@ -96,7 +96,7 @@ function render() {
   $("#verified").checked = Boolean(value.verification_assertion && panel.annotation);
   $("#previous").disabled = current === 0;
   $("#next").disabled = current === state.panels.length - 1;
-  setStatus(panel.annotation ? "Saved review loaded" : panel.assistant_draft ? "Assistant candidate saved separately—not human-verified. Check every value against the image before saving." : "Unsaved machine draft—verify everything", false);
+  setStatus(panel.annotation ? "Saved review loaded" : panel.assistant_draft ? "Assistant candidate saved separately—not human-verified. Check every value against the image before saving." : panel.review_mode === "image_first" ? "Image-first review: no draft or OCR result is provided" : "Unsaved machine draft—verify everything", false);
   updateProgress();
 }
 

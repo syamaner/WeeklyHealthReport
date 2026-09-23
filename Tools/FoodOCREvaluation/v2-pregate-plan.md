@@ -93,3 +93,52 @@ python3 Tools/FoodOCREvaluation/pregate_v2.py \
   --prior-selection Tools/FoodOCREvaluation/fixtures/review-selection-v2.json \
   --prior-truth Tools/FoodOCREvaluation/fixtures/ground-truth-v1.json
 ```
+
+Public raw-image candidate acquisition (no OCR, ground truth, or gate run):
+
+```sh
+python3 Tools/FoodOCREvaluation/acquire_v2_public.py \
+  --contract Tools/FoodOCREvaluation/frozen-contract-v2.json \
+  --output-dir Tools/FoodOCREvaluation/review_workspace/v2_public_candidate_inventory \
+  --exclude-manifest Tools/FoodOCREvaluation/fixtures/candidate-manifest-v1.json \
+  --exclude-manifest Tools/FoodOCREvaluation/review_workspace/v2_public_development/review-manifest.json
+```
+
+The ignored local output includes a resumable inventory, source-only
+exclusions, page-response hashes and original JPEGs. Recheck every JPEG
+against its inventory SHA-256 before any split freeze. The command rejects a
+changed contract or exclusion set on resume and requires at least 140
+eligible candidates. Do not commit image bytes or promote the resulting
+inventory to ground truth.
+
+After recording any visual source probes as development exposures, freeze
+identities and the split once, before image-first review or v2 recognition:
+
+```sh
+python3 Tools/FoodOCREvaluation/freeze_v2_public.py \
+  --contract Tools/FoodOCREvaluation/frozen-contract-v2.json \
+  --inventory Tools/FoodOCREvaluation/review_workspace/v2_public_candidate_inventory/candidate-inventory-v2.json \
+  --exclude-manifest Tools/FoodOCREvaluation/fixtures/candidate-manifest-v1.json \
+  --exclude-manifest Tools/FoodOCREvaluation/review_workspace/v2_public_development/review-manifest.json \
+  --output Tools/FoodOCREvaluation/review_workspace/v2_public_candidate_inventory/frozen-selection-v2.json
+```
+
+The freezer rehashes all candidate JPEGs, enforces the source-provenance and
+exposure exclusions, and refuses to overwrite an existing selection. Its
+60/40 assignments do not constitute a gate run. A separate visual review
+and one-time scoring procedure are still required.
+
+Prepare a blinded, image-first review pack (the review UI is not given split
+assignments or an OCR draft):
+
+```sh
+python3 Tools/FoodOCREvaluation/prepare_v2_public_review.py \
+  --selection Tools/FoodOCREvaluation/review_workspace/v2_public_candidate_inventory/frozen-selection-v2.json \
+  --image-root Tools/FoodOCREvaluation/review_workspace/v2_public_candidate_inventory \
+  --workspace Tools/FoodOCREvaluation/review_workspace/v2_public_image_first_review
+```
+
+The review pack copies the same raw JPEG bytes after rehashing them. The
+reviewer must independently verify the image and all cells; an assistant
+draft, if later supplied separately, remains unverified and cannot become
+ground truth merely by being saved.

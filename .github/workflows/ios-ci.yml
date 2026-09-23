@@ -59,6 +59,21 @@ jobs:
             --gold Tools/FoodMatchEvaluation/fixtures/gold-set-v1.json \
             --verify-report Tools/FoodMatchEvaluation/result-v1.json
 
+  food-ocr-evaluation:
+    name: Food OCR evaluation contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify printed-label evaluation contracts and fixtures
+        run: |
+          python3 -m unittest discover -s Tools/FoodOCREvaluation/tests -v
+          python3 Tools/FoodOCREvaluation/validate_contract_v2.py \
+            Tools/FoodOCREvaluation/frozen-contract-v2.json
+
   drive-export-kit-build:
     name: DriveExportKit build
     runs-on: macos-26
