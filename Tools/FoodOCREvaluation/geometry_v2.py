@@ -11,8 +11,8 @@ import re
 from copy import deepcopy
 from typing import Any
 
-from geometry import bind
-from parser import parse_value
+from geometry import PARENTS, bind, nutrient_for
+from parser import classify_basis, normalize_label, parse_value
 
 UNITS = {"g", "mg", "µg", "ug", "kj", "kcal", "ml", "%"}
 REQUIRED_ROWS = {"fat", "saturates", "carbohydrate", "sugars", "protein", "salt"}
@@ -91,6 +91,113 @@ def join_value_tokens(tokens: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return result
 
 
+def _mid_y(token: dict[str, Any]) -> float:
+    box = token["boundingBox"]
+    return box["y"] + box["height"] / 2
+
+
+def _mid_x(token: dict[str, Any]) -> float:
+    box = token["boundingBox"]
+    return box["x"] + box["width"] / 2
+
+
+def _supplemental_rows(prepared: dict[str, Any], headers: list[dict[str, Any]],
+                       existing: set[tuple[str, str]]) -> tuple[list[dict[str, Any]], set[str]]:
+    """Recover explicit label/value pairs split into nearby observations.
+
+    A value must have one closest label and one unambiguous explicit basis. The
+    extra candidates remain unapproved and are never used to infer coverage.
+    """
+    if not headers:
+        return [], set()
+    observations = prepared.get("observations", [])
+    header_y = [
+        max((_mid_y(token) for token in obs.get("tokens", [])), default=0)
+        for obs in observations
+        if classify_basis(" ".join(token["text"] for token in obs.get("tokens", [])))
+    ]
+    if not header_y:
+        return [], set()
+    table_top = max(header_y) + 0.025
+    boundaries = [
+        max((_mid_y(token) for token in obs.get("tokens", [])), default=0)
+        for obs in observations
+        if normalize_label(" ".join(token["text"] for token in obs.get("tokens", []))).startswith("ingredients")
+    ]
+    table_bottom = max(boundaries) if boundaries else 0
+    labels: list[tuple[float, float, str, str]] = []
+    values: list[dict[str, Any]] = []
+    for obs in observations:
+        tokens = obs.get("tokens", [])
+        if not tokens:
+            continue
+        line_y = sum(_mid_y(token) for token in tokens) / len(tokens)
+        if not table_bottom + 0.01 < line_y < table_top:
+            continue
+        line_text = " ".join(token["text"] for token in tokens)
+        label = nutrient_for(line_text, None)
+        if label:
+            label_tokens = [token for token in tokens if parse_value(token["text"]) is None]
+            if label_tokens:
+                labels.append((line_y, max(_mid_x(token) for token in label_tokens), label, line_text))
+        values.extend(token for token in tokens if parse_value(token["text"]) is not None)
+
+    supplemental: list[dict[str, Any]] = []
+    warnings: set[str] = set()
+    for token in values:
+        parsed = parse_value(token["text"])
+        assert parsed is not None
+        nearest = sorted(
+            (abs(_mid_y(token) - y), row, label_text)
+            for y, label_x, row, label_text in labels
+            if _mid_x(token) > label_x and abs(_mid_y(token) - y) <= 0.045
+        )
+        if not nearest or (len(nearest) > 1 and nearest[1][0] - nearest[0][0] < 0.008):
+            continue
+        _, row, label_text = nearest[0]
+        unit = parsed.unit
+        if row == "energy" and unit is None:
+            normalized = normalize_label(label_text)
+            if "kcal" in normalized:
+                unit = "kcal"
+            elif "kj" in normalized:
+                unit = "kj"
+        if row == "energy":
+            if unit not in ("kj", "kcal"):
+                warnings.add("energy unit is not explicit")
+                continue
+            row = f"energy_{unit}"
+        header_distance = sorted(
+            ((abs(item["x"] - _mid_x(token)), item) for item in headers),
+            key=lambda pair: pair[0],
+        )
+        if len(header_distance) > 1 and header_distance[1][0] - header_distance[0][0] < 0.02:
+            warnings.add(f"ambiguous header binding for {row}")
+            continue
+        header = header_distance[0][1]
+        if sum(item["basis"] == header["basis"] for item in headers) != 1:
+            warnings.add(f"repeated header basis for {row}")
+            continue
+        key = (row, header["basis"])
+        if key in existing:
+            continue
+        existing.add(key)
+        supplemental.append({
+            "row_id": row,
+            "parent_row_id": PARENTS.get(row),
+            "header_id": header["header_id"],
+            "basis": header["basis"],
+            "printed_text": token["text"],
+            "comparator": parsed.comparator,
+            "decimal_text": parsed.decimal_text,
+            "unit": "kJ" if unit == "kj" else unit,
+            "serving_conversion": None,
+            "persistence_authorized": False,
+            "requires_user_selection": True,
+        })
+    return supplemental, warnings
+
+
 def candidate_review(raw: dict[str, Any]) -> dict[str, Any]:
     """Return OCR suggestions, never a complete or savable table."""
     prepared = deepcopy(raw)
@@ -109,6 +216,11 @@ def candidate_review(raw: dict[str, Any]) -> dict[str, Any]:
         item["persistence_authorized"] = False
         item["requires_user_selection"] = True
         candidates.append(item)
+
+    existing = {(cell["row_id"], cell["basis"]) for cell in candidates}
+    extra, extra_warnings = _supplemental_rows(prepared, bound["headers"], existing)
+    candidates.extend(extra)
+    reasons.update(extra_warnings)
 
     found = {cell["row_id"] for cell in candidates}
     if not ({"energy_kj", "energy_kcal"} & found):

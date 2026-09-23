@@ -75,6 +75,27 @@ class GeometryV2Tests(unittest.TestCase):
                          {"energy_kj", "energy_kcal", "saturates"})
         self.assertFalse(result["ready_for_confirmation"])
 
+    def test_nearby_separate_label_and_value_observations_are_suggestions(self) -> None:
+        raw = {"observations": [
+            observation([("Per", 0.58), ("100g", 0.63)], 0.90),
+            observation([("Protein", 0.04)], 0.70),
+            observation([("8g", 0.60)], 0.725),
+        ]}
+        result = candidate_review(raw)
+        self.assertEqual([(cell["row_id"], cell["decimal_text"]) for cell in result["candidates"]],
+                         [("protein", "8")])
+        self.assertFalse(result["ready_for_confirmation"])
+
+    def test_ambiguous_separate_labels_do_not_claim_value(self) -> None:
+        raw = {"observations": [
+            observation([("Per", 0.58), ("100g", 0.63)], 0.90),
+            observation([("Fat", 0.04)], 0.70),
+            observation([("Protein", 0.22)], 0.705),
+            observation([("8g", 0.60)], 0.725),
+        ]}
+        result = candidate_review(raw)
+        self.assertEqual(result["candidates"], [])
+
     def test_unbound_printed_bound_is_reported(self) -> None:
         raw = {"observations": [
             observation([("Per", 0.38), ("100g", 0.43)], 0.90),
