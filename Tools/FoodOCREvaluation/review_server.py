@@ -280,7 +280,7 @@ class ReviewServer(ThreadingHTTPServer):
         for panel in self.review_panels:
             item = dict(panel)
             item.pop("public_ocr_evidence", None)
-            item["draft_source"] = "machine-assisted OCR"
+            item["draft_source"] = panel.get("draft_source", "machine-assisted OCR")
             item["annotation"] = self.annotation(panel)
             item["assistant_draft"] = self.assistant_draft(panel)
             item["image_path"] = f"/api/image/{panel['panel_id']}"
