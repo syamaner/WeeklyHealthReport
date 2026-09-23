@@ -121,6 +121,15 @@ values. These annotations are review inputs, not an accepted v2 evaluation:
 the separate scoring contract and gate still need to be frozen before any
 new gate run. The untouched personal/device case remains deferred.
 
+After the reviewer signs off and separately confirms all recorded declines,
+`freeze_v2_development_review.py` can create a hash-bound, write-once local
+snapshot. Pass the review workspace, a local decline-approval JSON file and a
+new output path. The snapshot preserves the original annotation hashes and
+records any final decline-reason wording separately; it never rewrites signed
+reviews. It is **development-only**: it does not assign a v2 gate split, freeze
+an acceptance contract, run recognition or authorise automatic saving. The
+40-panel pack has no replacement reserve for its declined cases.
+
 ## Human review pack
 
 `prepare_review.py` deterministically selects 60 tuning and 40 untouched-gate
