@@ -84,6 +84,9 @@ authorise #93 or automatic saving.
 An isolated, evaluation-only v2 candidate prototype and its development-only
 regressions are described in [`v2-development-notes.md`](v2-development-notes.md).
 It does not change the frozen v1 result or establish a new acceptance gate.
+The separate [v2 pre-gate plan](v2-pregate-plan.md) and `pregate_v2.py` audit
+the unreviewed public-image inventory without running recognition or assigning
+new gate status.
 
 ## Human review pack
 
