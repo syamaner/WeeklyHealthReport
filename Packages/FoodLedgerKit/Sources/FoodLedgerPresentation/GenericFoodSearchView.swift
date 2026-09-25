@@ -71,13 +71,15 @@ public struct GenericFoodSearchView: View {
     public var body: some View {
         Form {
             if !model.additionalEvidence.isEmpty {
-                Section("Barcode kept with this entry") {
+                Section("Source evidence kept with this entry") {
                     ForEach(model.additionalEvidence, id: \.evidenceID) { evidence in
                         if case let .barcode(value, _) = evidence.originalPayload {
                             Text(value.value).textSelection(.enabled)
+                        } else if evidence.captureMethod.value == "local-inventory-selection" {
+                            Text("Selected from your reviewed local inventory. Product and pack references are retained.")
                         }
                     }
-                    Text("Choose the food that matches your package. The barcode alone does not establish its nutrition.")
+                    Text("Choose the food that matches your item. Capture or inventory evidence alone does not establish consumed quantity or nutrition.")
                         .font(.caption)
                 }
             }

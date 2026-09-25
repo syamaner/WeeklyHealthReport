@@ -4,8 +4,10 @@ import FoodGenericSearch
 import FoodLedgerGRDB
 import FoodLedgerPresentation
 import FoodBarcodeCapture
+import FoodInventoryImport
 import Foundation
 import SwiftUI
+import UniformTypeIdentifiers
 
 @MainActor
 final class FoodLedgerCompositionRoot {
@@ -14,6 +16,9 @@ final class FoodLedgerCompositionRoot {
     private let genericFoodSearch: CoFIDGenericFoodSearch
     private let ids: RandomLedgerIDGenerator
     private var activeFoodList: FoodListImportViewModel?
+    private let inventoryURL: URL
+    private var activeInventory: LocalInventoryViewModel?
+    private var inventoryService: LocalInventoryService?
 
     init(
         fileManager: FileManager = .default,
@@ -29,6 +34,7 @@ final class FoodLedgerCompositionRoot {
             .appendingPathComponent("WeeklyHealthReport", isDirectory: true)
             .appendingPathComponent("FoodLedger", isDirectory: true)
             .appendingPathComponent("v1", isDirectory: true)
+        inventoryURL = applicationSupport.appendingPathComponent("WeeklyHealthReport/Inventory/v1/inventory.sqlite")
         store = try FoodLedgerGRDBStore(
             databaseURL: root.appendingPathComponent("food-ledger.sqlite"),
             attachmentsRoot: root.appendingPathComponent("Attachments", isDirectory: true)
@@ -91,6 +97,23 @@ final class FoodLedgerCompositionRoot {
         ))
     }
 
+    func inventoryModel() throws -> LocalInventoryViewModel {
+        if let activeInventory { return activeInventory }
+        let service = LocalInventoryService(
+            store: try LocalInventoryGRDBStore(databaseURL: inventoryURL),
+            digester: SHA256Digester(), clock: SystemLedgerClock()
+        )
+        let model = try LocalInventoryViewModel(service: service, ids: ids, clock: SystemLedgerClock())
+        inventoryService = service
+        activeInventory = model
+        return model
+    }
+
+    func inventoryEvidence(_ product: InventoryProductVersion) throws -> CaptureEvidence {
+        guard let inventoryService else { throw InventoryStoreError.invalidReference }
+        return try inventoryService.selectionEvidence(for: product, evidenceID: ids.makeID(EvidenceTag.self), locale: LedgerText(Locale.current.identifier))
+    }
+
     func foodListModel(locale: Locale = .current) throws -> FoodListImportViewModel {
         if let activeFoodList { return activeFoodList }
         let model = FoodListImportViewModel(
@@ -134,9 +157,10 @@ struct GenericFoodSearchFlowView: View {
     @State private var confirmation: PopulatedFoodConfirmation?
     @State private var showsConfirmation = false
 
-    init?(root: FoodLedgerCompositionRoot, additionalEvidence: [CaptureEvidence] = []) {
+    init?(root: FoodLedgerCompositionRoot, additionalEvidence: [CaptureEvidence] = [], initialQuery: String = "") {
         guard let model = try? root.genericFoodSearchModel(additionalEvidence: additionalEvidence) else { return nil }
         self.root = root
+        model.query = initialQuery
         _searchModel = StateObject(wrappedValue: model)
     }
 
@@ -150,6 +174,51 @@ struct GenericFoodSearchFlowView: View {
                 FoodConfirmationView(model: root.model(for: confirmation)) {
                     showsConfirmation = false
                 }
+            }
+        }
+    }
+}
+
+struct LocalInventoryFlowView: View {
+    private let root: FoodLedgerCompositionRoot
+    @StateObject private var model: LocalInventoryViewModel
+    @State private var showsFilePicker = false
+    @State private var showsSearch = false
+    @State private var query = ""
+    @State private var evidence: [CaptureEvidence] = []
+
+    init?(root: FoodLedgerCompositionRoot) {
+        guard let model = try? root.inventoryModel() else { return nil }
+        self.root = root
+        _model = StateObject(wrappedValue: model)
+    }
+
+    var body: some View {
+        LocalInventoryView(model: model, chooseFile: { showsFilePicker = true }) { product in
+            do {
+                evidence = [try root.inventoryEvidence(product)]
+                query = product.name
+                showsSearch = true
+            } catch { model.report(error) }
+        }
+        .fileImporter(isPresented: $showsFilePicker, allowedContentTypes: [.plainText, .pdf]) { result in
+            do {
+                let url = try result.get()
+                let scoped = url.startAccessingSecurityScopedResource()
+                defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                let values = try url.resourceValues(forKeys: [.fileSizeKey, .contentTypeKey])
+                guard let size = values.fileSize, size > 0, size <= 5_000_000 else { throw InventoryDocumentError.tooLarge }
+                let bytes = try Data(contentsOf: url)
+                let isPDF = values.contentType?.conforms(to: .pdf) == true || url.pathExtension.lowercased() == "pdf"
+                let document = try LocalInventoryDocumentExtractor().extract(bytes, format: isPDF ? .pdf : .text)
+                model.importDocument(document, name: url.lastPathComponent)
+            } catch let error as CocoaError where error.code == .userCancelled {
+                // Cancelling file selection makes no change.
+            } catch { model.report(error) }
+        }
+        .navigationDestination(isPresented: $showsSearch) {
+            if let flow = GenericFoodSearchFlowView(root: root, additionalEvidence: evidence, initialQuery: query) {
+                flow.id(evidence.map(\.evidenceID))
             }
         }
     }

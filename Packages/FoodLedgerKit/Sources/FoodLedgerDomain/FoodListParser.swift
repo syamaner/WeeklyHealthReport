@@ -78,6 +78,11 @@ public enum FoodListParser {
         return result == query ? nil : result
     }
 
+    /// Shared lexical vocabulary only; callers own their quantity semantics.
+    public static func unitDefinition(_ spelling: String) -> (unit: QuantityUnit, scale: Double)? {
+        units[spelling.lowercased()].map { (unit: $0.0, scale: $0.1) }
+    }
+
     private static let foodSpellings = [
         "avacado": "avocado", "avacados": "avocados", "avacodo": "avocado",
         "brocolli": "broccoli", "poridge": "porridge", "seseme": "sesame",

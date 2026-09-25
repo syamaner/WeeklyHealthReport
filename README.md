@@ -104,6 +104,12 @@ Every saved line still requires explicit candidate confirmation.
 The [barcode entry](docs/barcode-beta-delivery.md) uses the existing exact local
 library and preserves the scan when falling back to generic search. Physical
 camera validation remains deferred; label-photo OCR is not offered in this beta.
+The optional [local receipt review](docs/local-inventory-contract.md) imports pasted
+text or user-selected text-bearing PDFs, keeps original evidence and requires
+explicit product review. Received purchases, dated remaining-stock assertions and
+consumed food stay separate. Google is not required; a Drive importer and fuller
+common-items/favourites management are later features. Inventory has its own local
+store and is not included in existing food-ledger archives or daily health exports.
 
 Each local reporting date has one canonical `health-daily-YYYY-MM-DD.json` file
 in the selected destination. The filename is a convention; the securely stored

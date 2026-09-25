@@ -37,9 +37,11 @@ this beta: its frozen accuracy and corpus gates are not waived, and no further
 user labeling batch is requested. The broader three-route design is a future
 target. Automatic match acceptance remains unpromoted.
 
-Next is [#130](https://github.com/syamaner/WeeklyHealthReport/issues/130), local receipt
-review and searchable inventory. Purchased, remaining and consumed quantities
-have separate meanings. Drive receipt reading is a later scoped adapter. #101 can
+[#130](https://github.com/syamaner/WeeklyHealthReport/issues/130) adds optional local
+receipt review and searchable inventory under the [v1 contract](local-inventory-contract.md).
+Purchased, remaining and consumed quantities have separate meanings. Google import
+is optional; fuller common-items/favourites management is deferred by the user.
+Drive receipt reading is a later scoped adapter. #101 can
 proceed locally against the accepted versioning/search contracts. #96 should reuse
 #127's typed parser and review flow for its remaining on-device speech work.
 Provider/commercial challengers, physical gates and HealthKit writes retain their

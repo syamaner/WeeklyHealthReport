@@ -94,6 +94,7 @@
 		P0000000000000000000000C /* FoodLedgerGRDB in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000C /* FoodLedgerGRDB */; };
 		P0000000000000000000000D /* FoodBarcodeCapture in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000D /* FoodBarcodeCapture */; };
 		P0000000000000000000000E /* FoodGenericSearch in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000E /* FoodGenericSearch */; };
+		P0000000000000000000000F /* FoodInventoryImport in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000F /* FoodInventoryImport */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -207,6 +208,7 @@
 				P0000000000000000000000C /* FoodLedgerGRDB in Frameworks */,
 				P0000000000000000000000D /* FoodBarcodeCapture in Frameworks */,
 				P0000000000000000000000E /* FoodGenericSearch in Frameworks */,
+				P0000000000000000000000F /* FoodInventoryImport in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -441,6 +443,7 @@
 				X0000000000000000000000C /* FoodLedgerGRDB */,
 				X0000000000000000000000D /* FoodBarcodeCapture */,
 				X0000000000000000000000E /* FoodGenericSearch */,
+				X0000000000000000000000F /* FoodInventoryImport */,
 			);
 			productName = WeeklyHealthReport;
 			productReference = B0000000000000000000000C /* WeeklyHealthReport.app */;
@@ -852,6 +855,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
 			productName = FoodGenericSearch;
+		};
+		X0000000000000000000000F /* FoodInventoryImport */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
+			productName = FoodInventoryImport;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
