@@ -13,12 +13,14 @@ import UniformTypeIdentifiers
 final class FoodLedgerCompositionRoot {
     private let store: FoodLedgerGRDBStore
     private let confirmations: FoodConfirmationService
+    private let ledger: FoodLedgerService
     private let genericFoodSearch: CoFIDGenericFoodSearch
     private let ids: RandomLedgerIDGenerator
     private var activeFoodList: FoodListImportViewModel?
     private let inventoryURL: URL
     private var activeInventory: LocalInventoryViewModel?
     private var inventoryService: LocalInventoryService?
+    private var activeReresolution: FoodReresolutionViewModel?
 
     init(
         fileManager: FileManager = .default,
@@ -41,7 +43,7 @@ final class FoodLedgerCompositionRoot {
         )
         ids = RandomLedgerIDGenerator()
         let clock = SystemLedgerClock()
-        let ledger = FoodLedgerService(
+        ledger = FoodLedgerService(
             actorID: try Self.actorID(userDefaults: userDefaults),
             committer: store,
             clock: clock,
@@ -106,6 +108,17 @@ final class FoodLedgerCompositionRoot {
         let model = try LocalInventoryViewModel(service: service, ids: ids, clock: SystemLedgerClock())
         inventoryService = service
         activeInventory = model
+        return model
+    }
+
+    func reresolutionModel() throws -> FoodReresolutionViewModel {
+        if let activeReresolution { return activeReresolution }
+        let service = FoodReresolutionService(
+            ledger: ledger, reader: FoodReresolutionHistory(archive: store, confirmations: store),
+            provider: try CoFIDReresolutionProvider(ids: ids), clock: SystemLedgerClock(), ids: ids
+        )
+        let model = FoodReresolutionViewModel(service: service)
+        activeReresolution = model
         return model
     }
 
@@ -222,6 +235,15 @@ struct LocalInventoryFlowView: View {
             }
         }
     }
+}
+
+struct FoodReresolutionFlowView: View {
+    @StateObject private var model: FoodReresolutionViewModel
+    init?(root: FoodLedgerCompositionRoot) {
+        guard let model = try? root.reresolutionModel() else { return nil }
+        _model = StateObject(wrappedValue: model)
+    }
+    var body: some View { FoodReresolutionView(model: model) }
 }
 
 struct BarcodeFoodFlowView: View {

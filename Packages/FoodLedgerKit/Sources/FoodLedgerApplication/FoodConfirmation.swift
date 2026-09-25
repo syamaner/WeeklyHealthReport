@@ -314,7 +314,9 @@ public final class FoodConfirmationService: @unchecked Sendable {
         }
 
         let selected = state.selectedCandidate
-        let identity = state.correction?.identity ?? selected.candidate.identity
+        // A reopened entry already has a user-confirmed product identity. The
+        // retained source candidate may still contain explicitly asserted gaps.
+        let identity = state.correction?.identity ?? state.reopened?.productVersion.identity ?? selected.candidate.identity
         let unresolved = Self.unresolvedIdentity(identity)
         guard unresolved.isEmpty else {
             throw FoodConfirmationSaveError.unresolvedMandatoryIdentity(unresolved)
