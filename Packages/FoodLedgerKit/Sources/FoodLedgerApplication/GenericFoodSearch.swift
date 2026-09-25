@@ -44,19 +44,22 @@ public struct GenericFoodSearchRequest: Equatable, Sendable {
     public let capturedAt: Date
     public let locale: LedgerText
     public let captureEvidence: CaptureEvidence?
+    public let additionalEvidence: [CaptureEvidence]
 
     public init(
         text: LedgerText,
         identity: GenericFoodIdentityQuery = GenericFoodIdentityQuery(),
         capturedAt: Date,
         locale: LedgerText,
-        captureEvidence: CaptureEvidence? = nil
+        captureEvidence: CaptureEvidence? = nil,
+        additionalEvidence: [CaptureEvidence] = []
     ) {
         self.text = text
         self.identity = identity
         self.capturedAt = capturedAt
         self.locale = locale
         self.captureEvidence = captureEvidence
+        self.additionalEvidence = additionalEvidence
     }
 }
 
@@ -88,11 +91,13 @@ public struct GenericFoodConfirmationRoute: Equatable, Sendable {
 
 public struct GenericFoodNoResultRoute: Equatable, Sendable {
     public let evidence: CaptureEvidence
+    public let retainedEvidence: [CaptureEvidence]
     public let title: String
     public let guidance: String
 
-    public init(evidence: CaptureEvidence) {
+    public init(evidence: CaptureEvidence, additionalEvidence: [CaptureEvidence] = []) {
         self.evidence = evidence
+        retainedEvidence = [evidence] + additionalEvidence
         title = "No compatible generic food found"
         guidance = "Try another food name or leave this item unresolved. Nothing has been selected or saved."
     }

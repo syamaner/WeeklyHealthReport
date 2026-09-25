@@ -11,6 +11,10 @@ public final class VisionKitBarcodeScanner: NSObject, BarcodeScanning {
     public let viewController: DataScannerViewController
     private var continuation: CheckedContinuation<BarcodeScan, any Error>?
 
+    public static func makeIfSupported() -> VisionKitBarcodeScanner? {
+        DataScannerViewController.isSupported ? VisionKitBarcodeScanner() : nil
+    }
+
     public override init() {
         viewController = DataScannerViewController(
             recognizedDataTypes: [.barcode(symbologies: [
@@ -28,18 +32,18 @@ public final class VisionKitBarcodeScanner: NSObject, BarcodeScanning {
     }
 
     public func authorization() async -> BarcodeCameraAuthorization {
-        guard DataScannerViewController.isSupported,
-              DataScannerViewController.isAvailable else { return .unavailable }
+        guard DataScannerViewController.isSupported else { return .unavailable }
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            return .authorised
+            break
         case .notDetermined:
-            return await AVCaptureDevice.requestAccess(for: .video) ? .authorised : .denied
+            guard await AVCaptureDevice.requestAccess(for: .video) else { return .denied }
         case .denied, .restricted:
             return .denied
         @unknown default:
             return .unavailable
         }
+        return DataScannerViewController.isAvailable ? .authorised : .unavailable
     }
 
     public func scan() async throws -> BarcodeScan {

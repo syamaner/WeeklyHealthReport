@@ -3,6 +3,7 @@ import FoodLedgerDomain
 import FoodGenericSearch
 import FoodLedgerGRDB
 import FoodLedgerPresentation
+import FoodBarcodeCapture
 import Foundation
 import SwiftUI
 
@@ -74,11 +75,20 @@ final class FoodLedgerCompositionRoot {
         }
     }
 
-    func genericFoodSearchModel(locale: Locale = .current) throws -> GenericFoodSearchViewModel {
+    func genericFoodSearchModel(
+        locale: Locale = .current, additionalEvidence: [CaptureEvidence] = []
+    ) throws -> GenericFoodSearchViewModel {
         GenericFoodSearchViewModel(
             searcher: genericFoodSearch,
-            locale: try LedgerText(locale.identifier)
+            locale: try LedgerText(locale.identifier),
+            additionalEvidence: additionalEvidence
         )
+    }
+
+    func barcodeModel() -> BarcodeCaptureViewModel {
+        BarcodeCaptureViewModel(coordinator: BarcodeCaptureCoordinator(
+            search: PersonalLibraryBarcodeSearch(reader: store), ids: ids
+        ))
     }
 
     func foodListModel(locale: Locale = .current) throws -> FoodListImportViewModel {
@@ -124,8 +134,8 @@ struct GenericFoodSearchFlowView: View {
     @State private var confirmation: PopulatedFoodConfirmation?
     @State private var showsConfirmation = false
 
-    init?(root: FoodLedgerCompositionRoot) {
-        guard let model = try? root.genericFoodSearchModel() else { return nil }
+    init?(root: FoodLedgerCompositionRoot, additionalEvidence: [CaptureEvidence] = []) {
+        guard let model = try? root.genericFoodSearchModel(additionalEvidence: additionalEvidence) else { return nil }
         self.root = root
         _searchModel = StateObject(wrappedValue: model)
     }
@@ -142,5 +152,110 @@ struct GenericFoodSearchFlowView: View {
                 }
             }
         }
+    }
+}
+
+struct BarcodeFoodFlowView: View {
+    private let root: FoodLedgerCompositionRoot
+    @StateObject private var model: BarcodeCaptureViewModel
+    @State private var scanner: VisionKitBarcodeScanner?
+    @State private var showsScanner = false
+    @State private var showsSearch = false
+    @State private var showsConfirmation = false
+    @State private var evidence: [CaptureEvidence] = []
+    @State private var confirmationModel: FoodConfirmationViewModel?
+
+    init(root: FoodLedgerCompositionRoot) {
+        self.root = root
+        _model = StateObject(wrappedValue: root.barcodeModel())
+    }
+
+    var body: some View {
+        Form {
+            Section("Food barcode") {
+                Text("Scan a barcode to look for a food you have already saved. If there is no exact match, choose a food through search.")
+                Button("Scan barcode") {
+                    guard let next = VisionKitBarcodeScanner.makeIfSupported() else {
+                        model.showUnavailable()
+                        return
+                    }
+                    scanner = next
+                    showsScanner = true
+                }
+                .disabled(showsScanner)
+            }
+            resultSection
+        }
+        .navigationTitle("Scan food barcode")
+        .sheet(isPresented: $showsScanner, onDismiss: stopScanner) {
+            if let scanner {
+                NavigationStack {
+                    VisionKitBarcodeScannerView(scanner: scanner)
+                        .ignoresSafeArea(edges: .bottom)
+                        .navigationTitle("Scan barcode")
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Cancel") { showsScanner = false; stopScanner() }
+                            }
+                        }
+                        .task { await model.capture(using: scanner) }
+                        .onDisappear { scanner.cancel(); model.cancel() }
+                }
+            }
+        }
+        .onChange(of: model.phase) { _, phase in
+            if phase != .capturing { showsScanner = false }
+        }
+        .onDisappear { stopScanner() }
+        .navigationDestination(isPresented: $showsSearch) {
+            if let view = GenericFoodSearchFlowView(root: root, additionalEvidence: evidence) {
+                view.id(evidence.map(\.evidenceID))
+            }
+        }
+        .navigationDestination(isPresented: $showsConfirmation) {
+            if let confirmationModel {
+                FoodConfirmationView(model: confirmationModel) { showsConfirmation = false }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var resultSection: some View {
+        switch model.phase {
+        case .idle, .capturing:
+            EmptyView()
+        case .failed:
+            Section("Scan could not finish") {
+                Text("Try scanning again or use food search. Nothing was saved.")
+                Button("Use generic search") { openSearch(evidence: []) }
+            }
+        case let .result(.permissionGuidance(guidance)):
+            Section {
+                BarcodePermissionGuidanceView(guidance: guidance) { openSearch(evidence: []) }
+            }
+        case let .result(.fallback(route)):
+            Section {
+                BarcodeFallbackGuidanceView(route: route) { openSearch(evidence: [$0]) }
+            }
+        case let .result(.confirmation(route)):
+            Section("Saved food found") {
+                Text(route.confirmation.candidates[0].name.value)
+                Button("Review and confirm") {
+                    confirmationModel = root.model(for: route.confirmation)
+                    showsConfirmation = true
+                }
+            }
+        }
+    }
+
+    private func openSearch(evidence: [CaptureEvidence]) {
+        self.evidence = evidence
+        showsSearch = true
+    }
+
+    private func stopScanner() {
+        scanner?.cancel()
+        scanner = nil
+        model.cancel()
     }
 }

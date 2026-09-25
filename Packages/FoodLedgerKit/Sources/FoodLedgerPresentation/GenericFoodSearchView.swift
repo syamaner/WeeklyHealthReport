@@ -17,14 +17,17 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     private let searcher: any GenericFoodSearching
     private let now: @MainActor () -> Date
     private let locale: LedgerText
+    public let additionalEvidence: [CaptureEvidence]
 
     public init(
         searcher: any GenericFoodSearching,
         locale: LedgerText,
+        additionalEvidence: [CaptureEvidence] = [],
         now: @escaping @MainActor () -> Date = Date.init
     ) {
         self.searcher = searcher
         self.locale = locale
+        self.additionalEvidence = additionalEvidence
         self.now = now
     }
 
@@ -35,7 +38,8 @@ public final class GenericFoodSearchViewModel: ObservableObject {
                 text: text,
                 identity: identity,
                 capturedAt: now(),
-                locale: locale
+                locale: locale,
+                additionalEvidence: additionalEvidence
             )) {
             case let .confirmation(route): phase = .results(route)
             case let .noResult(route): phase = .noResult(route)
@@ -66,6 +70,17 @@ public struct GenericFoodSearchView: View {
 
     public var body: some View {
         Form {
+            if !model.additionalEvidence.isEmpty {
+                Section("Barcode kept with this entry") {
+                    ForEach(model.additionalEvidence, id: \.evidenceID) { evidence in
+                        if case let .barcode(value, _) = evidence.originalPayload {
+                            Text(value.value).textSelection(.enabled)
+                        }
+                    }
+                    Text("Choose the food that matches your package. The barcode alone does not establish its nutrition.")
+                        .font(.caption)
+                }
+            }
             Section("Generic food") {
                 TextField("Food name", text: $model.query)
                     .submitLabel(.search)

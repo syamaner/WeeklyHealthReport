@@ -15,10 +15,36 @@ quantity, preparation, plate-weight and override flows as the interaction baseli
 
 This document turns the research recommendation into an executable issue graph. It is a plan, not implementation evidence and not authority to exercise a provider, device, OAuth account, Drive destination or HealthKit store.
 
-Epic triage was completed on 19 September 2026. #89 and #87 are complete. The
-accepted UX baseline superseded the earlier manual-first MVP assumption. The
-affected live issues were re-triaged on 20 September 2026; #90 is now the active
-architecture decision and #94 remains a container awaiting decomposition.
+Epic triage was completed on 19 September 2026 and updated on 25 September 2026.
+The accepted UX baseline superseded the earlier manual-first MVP assumption.
+The original staged plan below is retained as planning history; the current
+delivery status and scope exception in this section supersede older readiness
+statements. Live child issues hold the executable acceptance criteria.
+
+## Current delivery status — 25 September 2026
+
+The user approved a beta with barcode and offline generic search, plus pasted
+multi-line input through the same search/confirmation route. #108, #109, #110,
+#111 and #98 are delivered. [#127](https://github.com/syamaner/WeeklyHealthReport/issues/127)
+adds the versioned classical-NLP parser and review queue in PR #128.
+[#129](https://github.com/syamaner/WeeklyHealthReport/issues/129) connects the barcode
+component to the app, keeps evidence through generic fallback and removes the
+unavailable label-photo actions. See [barcode beta delivery](barcode-beta-delivery.md)
+and [pasted-list delivery](food-list-import.md) for software evidence and limits.
+
+The user's physical-device test is deferred. #93 remains open and deferred from
+this beta: its frozen accuracy and corpus gates are not waived, and no further
+user labeling batch is requested. The broader three-route design is a future
+target. Automatic match acceptance remains unpromoted.
+
+Next is [#130](https://github.com/syamaner/WeeklyHealthReport/issues/130), local receipt
+review and searchable inventory. Purchased, remaining and consumed quantities
+have separate meanings. Drive receipt reading is a later scoped adapter. #101 can
+proceed locally against the accepted versioning/search contracts. #96 should reuse
+#127's typed parser and review flow for its remaining on-device speech work.
+Provider/commercial challengers, physical gates and HealthKit writes retain their
+separate authority requirements. The user has authorised routine implementation,
+validation, PR delivery and merge for actionable food backlog work.
 
 ## Outcome
 
