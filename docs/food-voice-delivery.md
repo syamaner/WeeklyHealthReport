@@ -60,7 +60,7 @@ and dismissal. Verify that no food saves before explicit confirmation, no audio
 file is retained, and typing works throughout. Record device/iOS/locale and any
 recognition differences; simulator state tests do not establish speech accuracy.
 
-Pre-integration validation: 130 package tests, 257 unsigned simulator tests, Xcode
+Integrated validation after PR #133: 140 package tests, 258 unsigned simulator tests, Xcode
 static analysis, 15 matching-evaluation tool tests and unchanged frozen report
 verification pass. The existing app models/formatting/presentation gate remains
 96.49%; this is not a claim about all voice-UI lines or physical recognition.
