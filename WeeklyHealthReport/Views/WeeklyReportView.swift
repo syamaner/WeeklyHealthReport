@@ -5,6 +5,7 @@ enum WeeklyReportRoute: String, Codable, Hashable {
     case dailyExport
     case genericFoodSearch
     case foodListImport
+    case barcodeFoodCapture
     case notes
     case noteEditor
     case diagnostics
@@ -126,6 +127,7 @@ struct WeeklyReportView: View {
 
                 if foodLedger != nil {
                     Section("Food logging") {
+                        NavigationLink("Scan Food Barcode", value: WeeklyReportRoute.barcodeFoodCapture)
                         NavigationLink("Search Generic Foods", value: WeeklyReportRoute.genericFoodSearch)
                         NavigationLink("Paste Food List", value: WeeklyReportRoute.foodListImport)
                         Text("Searches the bundled CoFID release offline. No result is selected automatically.")
@@ -247,6 +249,9 @@ struct WeeklyReportView: View {
                     } else {
                         ContentUnavailableView("Food list unavailable", systemImage: "exclamationmark.triangle")
                     }
+                case .barcodeFoodCapture:
+                    if let foodLedger { BarcodeFoodFlowView(root: foodLedger) }
+                    else { ContentUnavailableView("Food scanner unavailable", systemImage: "exclamationmark.triangle") }
                 case .notes:
                     DailyNotesView(
                         controller: dailyExport.notes,
@@ -369,6 +374,8 @@ struct WeeklyReportView: View {
             return [.genericFoodSearch]
         case .foodListImport:
             return [.foodListImport]
+        case .barcodeFoodCapture:
+            return [.barcodeFoodCapture]
         case .notes:
             return [.dailyExport, .notes]
         case .noteEditor:

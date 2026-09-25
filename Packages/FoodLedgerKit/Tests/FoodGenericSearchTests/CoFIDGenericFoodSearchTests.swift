@@ -108,8 +108,12 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             library: PersonalLibraryGenericFoodSearch(reader: store),
             ids: ids
         )
-        let first = try search.search(request("Ackee canned drained"))
+        let scan = try barcodeEvidence()
+        let first = try search.search(request("Ackee canned drained", additionalEvidence: [scan]))
         guard case let .confirmation(route) = first else { return XCTFail("Expected CoFID candidate") }
+        XCTAssertEqual(route.confirmation.evidence.count, 2)
+        XCTAssertTrue(route.matches[0].candidate.candidate.evidenceIDs.contains(scan.evidenceID))
+        XCTAssertNil(route.matches[0].candidate.barcode)
         var state = FoodConfirmationState(input: route.confirmation)
         let selected = state.selectedCandidate
         let resolvedIdentity = try DecisiveIdentity(
@@ -136,14 +140,16 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             encoder: FoundationCanonicalJSONEncoder(),
             digester: SHA256Digester()
         )
-        _ = try FoodConfirmationService(
+        let saved = try FoodConfirmationService(
             ledger: ledger,
             reader: store,
             clock: FixedClock(),
             ids: ids
         ).save(state, operationID: try id(901, OperationTag.self))
+        XCTAssertEqual(try store.foodConfirmation(logItemID: saved.logItem.logItemID)?.evidence.last, scan)
+        XCTAssertTrue(try store.exactLibraryEntries(alias: LedgerText("barcode:gtin:04006381333931")).isEmpty)
 
-        let reused = try search.search(request("Ackee canned drained"))
+        let reused = try search.search(request("Ackee canned drained", additionalEvidence: [scan]))
         guard case let .confirmation(savedRoute) = reused else { return XCTFail("Expected saved reuse") }
         XCTAssertNotNil(savedRoute.reuse)
         XCTAssertEqual(
@@ -151,6 +157,8 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             "personal-library-exact-v1"
         )
         XCTAssertEqual(savedRoute.matches[0].candidate.candidate.identity, resolvedIdentity)
+        XCTAssertEqual(savedRoute.confirmation.evidence.last, scan)
+        XCTAssertTrue(savedRoute.matches[0].candidate.candidate.evidenceIDs.contains(scan.evidenceID))
 
         let incompatible = try search.search(request(
             "Ackee canned drained", identity: GenericFoodIdentityQuery(preparation: try PreparationState(kind: .raw))
@@ -159,6 +167,24 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             XCTAssertNil(other.reuse)
             XCTAssertTrue(other.matches.allSatisfy { $0.candidate.candidate.identity.preparation.kind == .raw })
         }
+    }
+
+    func testNoResultRetainsBarcodeAndDuplicateEvidenceIsRejected() throws {
+        let search = try CoFIDGenericFoodSearch(ids: SequenceIDs())
+        let evidence = try barcodeEvidence()
+        guard case let .noResult(route) = try search.search(request("zzzxxxx", additionalEvidence: [evidence])) else {
+            return XCTFail("Expected no result")
+        }
+        XCTAssertEqual(route.retainedEvidence.last, evidence)
+        XCTAssertThrowsError(try search.search(request("rice", additionalEvidence: [evidence, evidence])))
+    }
+
+    private func barcodeEvidence() throws -> CaptureEvidence {
+        try CaptureEvidence(
+            evidenceID: id(800, EvidenceTag.self), kind: .barcode, capturedAt: FixedClock().now(),
+            locale: LedgerText("en_GB"), captureMethod: LedgerText("synthetic"), captureMethodVersion: LedgerText("1"),
+            originalPayload: .barcode(value: LedgerText("4006381333931"), symbology: LedgerText("ean13"))
+        )
     }
 
     func testFoodListSearchPreservesSourceAndNeverUsesDatasetServingAsConsumedAmount() throws {
@@ -198,13 +224,14 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
 
     private func request(
         _ text: String,
-        identity: GenericFoodIdentityQuery = GenericFoodIdentityQuery()
+        identity: GenericFoodIdentityQuery = GenericFoodIdentityQuery(),
+        additionalEvidence: [CaptureEvidence] = []
     ) throws -> GenericFoodSearchRequest {
         GenericFoodSearchRequest(
             text: try LedgerText(text),
             identity: identity,
             capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
-            locale: try LedgerText("en_GB")
+            locale: try LedgerText("en_GB"), additionalEvidence: additionalEvidence
         )
     }
 }

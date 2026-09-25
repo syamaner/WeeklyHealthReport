@@ -95,13 +95,13 @@ public enum BarcodeFallbackReason: Equatable, Sendable {
     case noLocalMatch
     case ambiguousLocalMatches(Int)
     case weakLocalMatch
+    case lookupUnavailable
 }
 
 public struct BarcodeFallbackRoute: Equatable, Sendable {
     public let evidence: CaptureEvidence
     public let identity: BarcodeIdentity?
     public let reason: BarcodeFallbackReason
-    public let labelPhotoTitle: String
     public let guidance: String
 
     public init(
@@ -112,23 +112,22 @@ public struct BarcodeFallbackRoute: Equatable, Sendable {
         self.evidence = evidence
         self.identity = identity
         self.reason = reason
-        labelPhotoTitle = "Photograph the nutrition label"
-        guidance = "The barcode evidence will be kept with the next populated route. You can photograph the label or use generic search; no blank nutrient form will be opened."
+        guidance = reason == .lookupUnavailable
+            ? "Local barcode lookup could not finish. The barcode is kept; retry the scan or continue with generic food search."
+            : "The barcode will be kept with your entry. Use generic food search to choose a compatible food; no blank nutrient form will be opened."
     }
 }
 
 public struct BarcodePermissionGuidance: Equatable, Sendable {
     public let title: String
     public let message: String
-    public let labelPhotoTitle: String
     public let genericSearchTitle: String
 
     public init(unavailable: Bool) {
         title = unavailable ? "Barcode camera unavailable" : "Camera access is off"
         message = unavailable
-            ? "This device cannot scan a barcode here. Use label photography on a supported device or continue with generic search."
-            : "Enable camera access in Settings, or continue with label photography or generic search. Nothing has been captured."
-        labelPhotoTitle = "Use label photography"
+            ? "This device cannot scan a barcode here. You can continue with generic food search."
+            : "Enable camera access in Settings, or continue with generic food search. Nothing has been captured."
         genericSearchTitle = "Use generic search"
     }
 }
@@ -219,7 +218,12 @@ public final class BarcodeCaptureCoordinator: @unchecked Sendable {
             ))
         }
 
-        let matches = try search.matches(alias: identity.lookupAlias)
+        let matches: [BarcodeLibraryMatch]
+        do {
+            matches = try search.matches(alias: identity.lookupAlias)
+        } catch {
+            return .fallback(BarcodeFallbackRoute(evidence: evidence, identity: identity, reason: .lookupUnavailable))
+        }
         let records = matches.filter { $0.strength == .exact }.map(\.record)
         if records.isEmpty, !matches.isEmpty {
             return .fallback(BarcodeFallbackRoute(

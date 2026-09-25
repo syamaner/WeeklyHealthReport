@@ -10,6 +10,13 @@ final class DailyNotesStoreTests: XCTestCase {
         )
     }
 
+    func testNavigationRestoresBarcodeRoute() {
+        XCTAssertEqual(
+            WeeklyReportView.restoredNavigationPath(from: WeeklyReportRoute.barcodeFoodCapture.rawValue, hasDraft: false),
+            [.barcodeFoodCapture]
+        )
+    }
+
     func testNavigationRestoresEditorAfterSettingsWhenDraftExists() {
         XCTAssertEqual(
             WeeklyReportView.restoredNavigationPath(

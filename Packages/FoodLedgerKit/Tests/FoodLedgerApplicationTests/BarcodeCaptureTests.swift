@@ -42,7 +42,7 @@ final class BarcodeCaptureTests: XCTestCase {
         XCTAssertTrue(route.guidance.contains("no blank nutrient form"))
     }
 
-    func testMissPreservesEvidenceForLabelPhotoRouting() throws {
+    func testMissPreservesEvidenceForAvailableGenericSearchRouting() throws {
         let outcome = try BarcodeCaptureCoordinator(
             search: FixedSearch(records: []),
             ids: SequenceIDs()
@@ -51,7 +51,26 @@ final class BarcodeCaptureTests: XCTestCase {
         guard case let .fallback(route) = outcome else { return XCTFail("Expected fallback") }
         XCTAssertEqual(route.reason, .noLocalMatch)
         XCTAssertEqual(route.evidence.kind, .barcode)
-        XCTAssertEqual(route.labelPhotoTitle, "Photograph the nutrition label")
+        XCTAssertTrue(route.guidance.contains("generic food search"))
+        XCTAssertFalse(route.guidance.contains("photograph"))
+    }
+
+    func testPermissionGuidanceOffersOnlyAvailableBetaRoute() {
+        for unavailable in [false, true] {
+            let guidance = BarcodePermissionGuidance(unavailable: unavailable)
+            XCTAssertTrue(guidance.message.contains("generic food search"))
+            XCTAssertFalse(guidance.message.contains("label"))
+        }
+    }
+
+    func testLookupFailureRetainsCapturedBarcodeForRecovery() throws {
+        let coordinator = BarcodeCaptureCoordinator(search: UnavailableSearch(), ids: SequenceIDs())
+        guard case let .fallback(route) = try coordinator.route(scan: Fixtures.gtinScan) else {
+            return XCTFail("Expected recoverable lookup failure")
+        }
+        XCTAssertEqual(route.reason, .lookupUnavailable)
+        XCTAssertEqual(route.evidence.kind, .barcode)
+        XCTAssertTrue(route.guidance.contains("could not finish"))
     }
 
     func testWeakCandidateNeverPopulatesOrSilentlyAccepts() throws {
@@ -101,6 +120,10 @@ final class BarcodeCaptureTests: XCTestCase {
         _ = try BarcodeCaptureCoordinator(search: search, ids: SequenceIDs()).route(scan: scan)
         XCTAssertEqual(search.aliases.map(\.value), ["barcode:local:marks-and-spencer:29161201"])
     }
+}
+
+private struct UnavailableSearch: BarcodeLibrarySearching {
+    func matches(alias: LedgerText) throws -> [BarcodeLibraryMatch] { throw CocoaError(.fileReadUnknown) }
 }
 
 private enum Fixtures {

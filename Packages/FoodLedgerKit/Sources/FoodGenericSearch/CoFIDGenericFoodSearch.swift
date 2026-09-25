@@ -71,22 +71,26 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             captureMethodVersion: LedgerText(Self.matcherVersion),
             originalPayload: .text(request.text)
         )
+        let retainedEvidence = [evidence] + request.additionalEvidence
+        guard Set(retainedEvidence.map(\.evidenceID)).count == retainedEvidence.count else {
+            throw FoodLedgerValidationError.duplicateValue("search evidence")
+        }
         let alias = try LedgerText("food:name:\(Self.normalized(request.text.value))")
         if let saved = try library?.exactMatches(alias: alias), saved.count == 1,
            Self.acceptsSavedIdentity(request.identity, record: saved[0]),
-           let route = try savedRoute(record: saved[0], evidence: evidence) {
+           let route = try savedRoute(record: saved[0], evidence: retainedEvidence) {
             return .confirmation(route)
         }
 
         let ranked = try rankedRecords(for: request)
         guard !ranked.isEmpty else {
-            return .noResult(GenericFoodNoResultRoute(evidence: evidence))
+            return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence))
         }
         let matches = try ranked.map { value in
             GenericFoodMatch(
                 candidate: try populatedCandidate(
                     record: value.record,
-                    evidenceID: evidence.evidenceID,
+                    evidenceIDs: retainedEvidence.map(\.evidenceID),
                     score: value.score,
                     differences: value.differences,
                     queryAlias: alias
@@ -96,7 +100,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         }
         let first = matches[0].candidate.candidate
         let confirmation = try PopulatedFoodConfirmation(
-            evidence: [evidence],
+            evidence: retainedEvidence,
             sourceReleases: [release],
             candidates: matches.map(\.candidate),
             expectedIdentity: first.identity,
@@ -110,7 +114,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
 
     private func savedRoute(
         record: BarcodeLibraryRecord,
-        evidence: CaptureEvidence
+        evidence: [CaptureEvidence]
     ) throws -> GenericFoodConfirmationRoute? {
         guard let sourceRelease = record.sourceReleases.first else { return nil }
         let quantity = record.libraryEntryVersion.reusableQuantity.map {
@@ -132,7 +136,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             identity: record.productVersion.identity,
             edibleQuantity: quantity,
             nutrients: record.resolutionVersion.nutrients,
-            evidenceIDs: [evidence.evidenceID],
+            evidenceIDs: evidence.map(\.evidenceID),
             matchMetadata: metadata
         )
         let populated = try PopulatedFoodCandidate(
@@ -146,7 +150,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         )
         return GenericFoodConfirmationRoute(
             confirmation: try PopulatedFoodConfirmation(
-                evidence: [evidence],
+                evidence: evidence,
                 sourceReleases: record.sourceReleases,
                 candidates: [populated],
                 expectedIdentity: providerCandidate.identity,
@@ -206,7 +210,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
 
     private func populatedCandidate(
         record: CorpusRecord,
-        evidenceID: EvidenceID,
+        evidenceIDs: [EvidenceID],
         score: Double,
         differences: [String],
         queryAlias: LedgerText
@@ -233,7 +237,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             identity: identity,
             edibleQuantity: .known(basisQuantity, conversionVersionID: nil),
             nutrients: try nutrients(record: record, identity: identity),
-            evidenceIDs: [evidenceID],
+            evidenceIDs: evidenceIDs,
             matchMetadata: metadata
         )
         return try PopulatedFoodCandidate(
