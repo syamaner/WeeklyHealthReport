@@ -111,6 +111,12 @@ consumed food stay separate. Google is not required; a Drive importer and fuller
 common-items/favourites management are later features. Inventory has its own local
 store and is not included in existing food-ledger archives or daily health exports.
 
+[Nutrition-update review](docs/food-reresolution-delivery.md) compares saved product
+entries against an explicitly chosen installed source and matcher. It shows all
+39 nutrient states and provenance, requires acceptance and a reason, and appends
+versions without changing original evidence or previous exports. Only the bundled
+CoFID 2021 target is available today; this does not imply a newer dataset exists.
+
 Each local reporting date has one canonical `health-daily-YYYY-MM-DD.json` file
 in the selected destination. The filename is a convention; the securely stored
 Drive file ID is its identity. A later export for the same date updates that

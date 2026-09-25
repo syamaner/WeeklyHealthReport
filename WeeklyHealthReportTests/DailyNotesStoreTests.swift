@@ -21,6 +21,10 @@ final class DailyNotesStoreTests: XCTestCase {
         XCTAssertEqual(WeeklyReportView.restoredNavigationPath(from: WeeklyReportRoute.inventoryReview.rawValue, hasDraft: false), [.inventoryReview])
     }
 
+    func testNavigationRestoresNutritionUpdateReview() {
+        XCTAssertEqual(WeeklyReportView.restoredNavigationPath(from: WeeklyReportRoute.foodReresolution.rawValue, hasDraft: false), [.foodReresolution])
+    }
+
     func testNavigationRestoresEditorAfterSettingsWhenDraftExists() {
         XCTAssertEqual(
             WeeklyReportView.restoredNavigationPath(

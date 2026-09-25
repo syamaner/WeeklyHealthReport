@@ -149,6 +149,19 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
         XCTAssertEqual(try store.foodConfirmation(logItemID: saved.logItem.logItemID)?.evidence.last, scan)
         XCTAssertTrue(try store.exactLibraryEntries(alias: LedgerText("barcode:gtin:04006381333931")).isEmpty)
 
+        let provider = try CoFIDReresolutionProvider(ids: ids)
+        let target = try XCTUnwrap(provider.targets().first)
+        let reresolution = FoodReresolutionService(
+            ledger: ledger, reader: FoodReresolutionHistory(archive: store, confirmations: store),
+            provider: provider, clock: FixedClock(), ids: ids
+        )
+        let proposals = try reresolution.proposals(logItemID: saved.logItem.logItemID, target: target)
+        let sameRecord = try XCTUnwrap(proposals.first { $0.candidate.candidate.recordID == saved.candidateDecision.candidate.recordID })
+        XCTAssertTrue(sameRecord.isNoOp)
+        XCTAssertFalse(sameRecord.identityGaps.isEmpty)
+        XCTAssertEqual(sameRecord.candidate.candidate.matchMetadata?.methodVersion.value, CoFIDGenericFoodSearch.matcherVersion)
+        XCTAssertThrowsError(try provider.candidates(for: saved, target: FoodReresolutionTarget(sourceRelease: target.sourceRelease, methodVersion: LedgerText("not-an-accepted-model")), at: FixedClock().now()))
+
         let reused = try search.search(request("Ackee canned drained", additionalEvidence: [scan]))
         guard case let .confirmation(savedRoute) = reused else { return XCTFail("Expected saved reuse") }
         XCTAssertNotNil(savedRoute.reuse)

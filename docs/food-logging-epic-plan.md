@@ -41,8 +41,10 @@ target. Automatic match acceptance remains unpromoted.
 receipt review and searchable inventory under the [v1 contract](local-inventory-contract.md).
 Purchased, remaining and consumed quantities have separate meanings. Google import
 is optional; fuller common-items/favourites management is deferred by the user.
-Drive receipt reading is a later scoped adapter. #101 can
-proceed locally against the accepted versioning/search contracts. #96 should reuse
+Drive receipt reading is a later scoped adapter. #101 adds
+[explicit nutrition-update review](food-reresolution-delivery.md) against installed
+immutable targets; only CoFID 2021 is currently offered, with newer releases used
+only in synthetic contract tests. #96 should reuse
 #127's typed parser and review flow for its remaining on-device speech work.
 Provider/commercial challengers, physical gates and HealthKit writes retain their
 separate authority requirements. The user has authorised routine implementation,
@@ -119,7 +121,7 @@ All sixteen tasks are native sub-issues of #86. The checklists in the epic provi
 | #91 | P3 | Queued after #89 | Independent handwriting evaluation; not an MVP blocker |
 | #96 | P3 | Blocked by #94 | Narrowed to typed and on-device voice capture |
 | #102 | P3 | Blocked by #94, #91 | New independent handwriting delivery slice |
-| #101 | P3 | Blocked by #98 | New independent retrospective re-resolution slice |
+| #101 | P3 | Local software delivery | Explicit source/candidate review; newer installed targets remain separate acceptance |
 | #97 | P3 | Deferred | Revisit after the canonical MVP JSON contract is accepted |
 | #95 | P3 | Deferred; blocked by #87 | Narrowed to commercial product-data challengers |
 | #99 | P3 | Deferred; blocked by #88/#91 baseline | New independent cloud OCR challenger evaluation |
