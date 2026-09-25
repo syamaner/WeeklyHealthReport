@@ -4,6 +4,7 @@ import UIKit
 enum WeeklyReportRoute: String, Codable, Hashable {
     case dailyExport
     case genericFoodSearch
+    case foodListImport
     case notes
     case noteEditor
     case diagnostics
@@ -126,6 +127,7 @@ struct WeeklyReportView: View {
                 if foodLedger != nil {
                     Section("Food logging") {
                         NavigationLink("Search Generic Foods", value: WeeklyReportRoute.genericFoodSearch)
+                        NavigationLink("Paste Food List", value: WeeklyReportRoute.foodListImport)
                         Text("Searches the bundled CoFID release offline. No result is selected automatically.")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -238,6 +240,12 @@ struct WeeklyReportView: View {
                             systemImage: "exclamationmark.triangle",
                             description: Text("The local food ledger could not be opened.")
                         )
+                    }
+                case .foodListImport:
+                    if let foodLedger, let flow = FoodListImportFlowView(root: foodLedger) {
+                        flow
+                    } else {
+                        ContentUnavailableView("Food list unavailable", systemImage: "exclamationmark.triangle")
                     }
                 case .notes:
                     DailyNotesView(
@@ -359,6 +367,8 @@ struct WeeklyReportView: View {
             return [.dailyExport]
         case .genericFoodSearch:
             return [.genericFoodSearch]
+        case .foodListImport:
+            return [.foodListImport]
         case .notes:
             return [.dailyExport, .notes]
         case .noteEditor:

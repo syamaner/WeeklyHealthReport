@@ -62,7 +62,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
     public var sourceRelease: SourceRelease { release }
 
     public func search(_ request: GenericFoodSearchRequest) throws -> GenericFoodSearchOutcome {
-        let evidence = try CaptureEvidence(
+        let evidence = try request.captureEvidence ?? CaptureEvidence(
             evidenceID: ids.makeID(EvidenceTag.self),
             kind: .genericSearch,
             capturedAt: request.capturedAt,
@@ -73,6 +73,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         )
         let alias = try LedgerText("food:name:\(Self.normalized(request.text.value))")
         if let saved = try library?.exactMatches(alias: alias), saved.count == 1,
+           Self.acceptsSavedIdentity(request.identity, record: saved[0]),
            let route = try savedRoute(record: saved[0], evidence: evidence) {
             return .confirmation(route)
         }
@@ -154,6 +155,23 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             matches: [GenericFoodMatch(candidate: populated, isExactName: true)],
             reuse: BarcodeReuseReference(record: record)
         )
+    }
+
+    private static func acceptsSavedIdentity(
+        _ query: GenericFoodIdentityQuery, record: BarcodeLibraryRecord
+    ) -> Bool {
+        let identity = record.productVersion.identity
+        func accepts<T: Equatable>(_ expected: T?, _ actual: T) -> Bool {
+            expected == nil || expected == actual
+        }
+        return accepts(query.preparation, identity.preparation)
+            && accepts(query.bone, identity.bone)
+            && accepts(query.skin, identity.skin)
+            && accepts(query.drained, identity.drained)
+            && accepts(query.packingMedium, identity.packingMedium)
+            && accepts(query.fortification, identity.fortification)
+            && accepts(query.servingBasis, identity.servingBasis)
+            && query.edibleQuantity == nil && query.saltState == nil && query.formulation == nil
     }
 
     private func rankedRecords(for request: GenericFoodSearchRequest) throws -> [RankedRecord] {

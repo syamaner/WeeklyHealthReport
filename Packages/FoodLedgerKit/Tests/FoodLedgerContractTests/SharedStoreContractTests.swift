@@ -628,8 +628,23 @@ final class SharedStoreContractTests: XCTestCase {
             )
             let saved = try confirmation.save(
                 state,
-                operationID: LedgerFixtures.operationID(150)
+                operationID: LedgerFixtures.operationID(150),
+                idempotencyKey: LedgerText("food-list:test-line-1")
             )
+            // Recreate the service as after a lost response; fresh generated IDs must not duplicate the log.
+            let retryService = FoodConfirmationService(
+                ledger: ledger, reader: harness.reader, clock: LedgerFixtures.clock, ids: ContractSequenceIDs()
+            )
+            var changed = state
+            changed.quantity.value = 200
+            let retried = try retryService.save(
+                changed, operationID: LedgerFixtures.operationID(150), idempotencyKey: LedgerText("food-list:test-line-1")
+            )
+            XCTAssertEqual(retried.logItem.logItemID, saved.logItem.logItemID, harness.name)
+            XCTAssertEqual(retried.logItemVersion.edibleQuantity.value, 100, harness.name)
+            XCTAssertThrowsError(try retryService.save(
+                state, operationID: LedgerFixtures.operationID(150), idempotencyKey: LedgerText("different-line")
+            ), harness.name)
             let reopened = try XCTUnwrap(
                 confirmation.reopen(logItemID: saved.logItem.logItemID),
                 harness.name

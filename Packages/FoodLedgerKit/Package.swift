@@ -79,7 +79,7 @@ let package = Package(
         ),
         .testTarget(
             name: "FoodLedgerPresentationTests",
-            dependencies: ["FoodLedgerDomain", "FoodLedgerApplication", "FoodLedgerPresentation"]
+            dependencies: ["FoodLedgerDomain", "FoodLedgerApplication", "FoodLedgerPresentation", "FoodLedgerTestSupport"]
         ),
         .testTarget(
             name: "FoodLedgerContractTests",

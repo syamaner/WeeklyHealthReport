@@ -98,6 +98,9 @@ automatic acceptance and contains no personal-food validation.
 The delivered [offline generic-food search](docs/generic-food-search-delivery.md)
 uses the same frozen CoFID release and matcher envelope, shows source descriptions
 and lexical differences, and records confirmed exact aliases for offline reuse.
+The [pasted food-list input](docs/food-list-import.md) adds local quantity/unit
+parsing and a per-line review queue under **Food logging → Paste Food List**.
+Every saved line still requires explicit candidate confirmation.
 
 Each local reporting date has one canonical `health-daily-YYYY-MM-DD.json` file
 in the selected destination. The filename is a convention; the securely stored

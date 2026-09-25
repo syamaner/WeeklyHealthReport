@@ -12,6 +12,7 @@ final class FoodLedgerCompositionRoot {
     private let confirmations: FoodConfirmationService
     private let genericFoodSearch: CoFIDGenericFoodSearch
     private let ids: RandomLedgerIDGenerator
+    private var activeFoodList: FoodListImportViewModel?
 
     init(
         fileManager: FileManager = .default,
@@ -80,6 +81,21 @@ final class FoodLedgerCompositionRoot {
         )
     }
 
+    func foodListModel(locale: Locale = .current) throws -> FoodListImportViewModel {
+        if let activeFoodList { return activeFoodList }
+        let model = FoodListImportViewModel(
+            service: FoodListImportService(searcher: genericFoodSearch),
+            locale: try LedgerText(locale.identifier), ids: ids
+        ) { [confirmations] state, operationID in
+            try confirmations.save(
+                state, operationID: operationID,
+                idempotencyKey: LedgerText("food-list:\(operationID.rawValue)")
+            )
+        }
+        activeFoodList = model
+        return model
+    }
+
     private static func actorID(userDefaults: UserDefaults) throws -> ActorID {
         let key = "foodLedger.actorID.v1"
         if let stored = userDefaults.string(forKey: key) {
@@ -89,6 +105,17 @@ final class FoodLedgerCompositionRoot {
         userDefaults.set(created.rawValue, forKey: key)
         return created
     }
+}
+
+struct FoodListImportFlowView: View {
+    @StateObject private var model: FoodListImportViewModel
+
+    init?(root: FoodLedgerCompositionRoot) {
+        guard let model = try? root.foodListModel() else { return nil }
+        _model = StateObject(wrappedValue: model)
+    }
+
+    var body: some View { FoodListImportView(model: model) }
 }
 
 struct GenericFoodSearchFlowView: View {

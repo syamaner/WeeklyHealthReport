@@ -31,7 +31,7 @@ The production matcher is the accepted #92
 Every result remains a candidate. The search view shows exact/closest status,
 source description, score, lexical differences and record ID before routing the
 chosen row into the shared populated confirmation. A miss preserves the typed
-query evidence and offers another search or label photography. There is no blank
+query evidence and offers another search or leaving the item unresolved. There is no blank
 nutrient form and no automatic acceptance path. The main report exposes the
 offline flow under **Food logging → Search Generic Foods**; declining every
 candidate returns to an explicit no-selection state and saves nothing.

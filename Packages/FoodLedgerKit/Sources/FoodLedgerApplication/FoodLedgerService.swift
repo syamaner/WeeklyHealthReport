@@ -40,6 +40,24 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
         )
     }
 
+    /// Recover an already committed confirmation before constructing fresh record IDs on retry.
+    public func confirmedLogItemID(
+        operationID: OperationID, idempotencyKey: LedgerText
+    ) throws -> LogItemID? {
+        guard let operation = try committer.operation(id: operationID) else { return nil }
+        guard operation.actorID == actorID, operation.operationType == .confirmFood,
+              operation.idempotencyKey == idempotencyKey else {
+            throw FoodLedgerStoreError.divergentDuplicateOperation
+        }
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .millisecondsSince1970
+        let mutation = try decoder.decode(LedgerMutation.self, from: operation.payload)
+        guard mutation.logItemVersions.count == 1, let item = mutation.logItemVersions.first else {
+            throw FoodLedgerStoreError.integrityFailure("confirmation retry has no unique log item")
+        }
+        return item.logItemID
+    }
+
     private func commit(
         _ mutation: LedgerMutation,
         type: LedgerOperationType,
