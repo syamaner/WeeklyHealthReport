@@ -61,6 +61,66 @@ final class DailyNoteSpeechCaptureTests: XCTestCase {
         }
     }
 
+    func testFoodVocabularyIsBoundedDeterministicAndCannotEnableNetwork() {
+        let vocabulary = FoodSpeechVocabulary.make(namesAndBrands: [" Example  Oats ", "example oats", "", "barcode:123", String(repeating: "x", count: 81)] + (0..<150).map { "food \($0)" })
+        XCTAssertEqual(vocabulary.count, 100)
+        XCTAssertEqual(vocabulary.first, "gram")
+        XCTAssertEqual(vocabulary.filter { $0.lowercased() == "example oats" }.count, 1)
+        XCTAssertFalse(vocabulary.contains("barcode:123"))
+        let request = SFSpeechAudioBufferRecognitionRequest()
+        OnDeviceSpeechRequestPolicy.configure(request, contextualStrings: vocabulary + ["overflow"])
+        XCTAssertEqual(request.contextualStrings.count, 100)
+        XCTAssertTrue(request.requiresOnDeviceRecognition)
+    }
+
+    func testFoodDraftNeedsExplicitNumericReviewAndEditsInvalidateIt() {
+        let draft = FoodVoiceDraft()
+        XCTAssertNil(draft.append(" 125 ml milk "))
+        XCTAssertEqual(draft.text, "125 ml milk")
+        XCTAssertFalse(draft.canTransfer)
+        draft.checkedNumbersAndUnits = true
+        XCTAssertTrue(draft.canTransfer)
+        XCTAssertNil(draft.append("40 grams oats"))
+        XCTAssertFalse(draft.canTransfer)
+        XCTAssertEqual(draft.text, "125 ml milk\n40 grams oats")
+        let previous = draft.text
+        XCTAssertNotNil(draft.append(String(repeating: "x", count: 30_001)))
+        XCTAssertNotNil(draft.append(" \n"))
+        XCTAssertEqual(draft.text, previous)
+        draft.text = String(repeating: "food\n", count: 200)
+        draft.checkedNumbersAndUnits = true
+        XCTAssertFalse(draft.canTransfer)
+    }
+
+    func testFoodSpeechFinalsOnlyPopulateDraftAndLifecycleRejectsLateCallbacks() async {
+        let capture = FakeSpeechCapture(permission: .authorized)
+        let draft = FoodVoiceDraft()
+        let controller = DailyNoteSpeechController(capture: capture, appendFinalTranscript: { draft.append($0) })
+        await controller.toggle()
+        capture.send(SpeechCaptureUpdate(transcript: "125 ml milk", isFinal: true))
+        XCTAssertEqual(draft.text, "125 ml milk")
+        XCTAssertFalse(draft.canTransfer)
+        await controller.toggle()
+        controller.stopForLifecycle()
+        capture.send(SpeechCaptureUpdate(transcript: "unwanted late result", isFinal: true))
+        XCTAssertEqual(draft.text, "125 ml milk")
+    }
+
+    func testFoodRecognitionFailureRequiresReviewBeforeChangingDraft() async {
+        let capture = FakeSpeechCapture(permission: .authorized)
+        let draft = FoodVoiceDraft()
+        let controller = DailyNoteSpeechController(capture: capture, appendFinalTranscript: { draft.append($0) })
+        await controller.toggle()
+        capture.send(SpeechCaptureUpdate(transcript: "15 grams oats", isFinal: false))
+        capture.fail(.recognitionFailed)
+        XCTAssertTrue(controller.hasReviewTranscript)
+        XCTAssertTrue(draft.text.isEmpty)
+        controller.updateReviewTranscript("50 grams oats")
+        XCTAssertTrue(controller.acceptReviewTranscript())
+        XCTAssertEqual(draft.text, "50 grams oats")
+        XCTAssertFalse(draft.canTransfer)
+    }
+
     func testEveryRecognitionRequestRequiresOnDeviceRecognitionAndPartials() {
         let first = SFSpeechAudioBufferRecognitionRequest()
         let second = SFSpeechAudioBufferRecognitionRequest()

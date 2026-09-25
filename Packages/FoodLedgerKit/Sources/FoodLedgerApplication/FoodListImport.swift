@@ -1,18 +1,25 @@
 import Foundation
 import FoodLedgerDomain
 
+public enum FoodListInputMethod: String, Sendable {
+    case pastedOrTyped = "pasted_food_list_line"
+    case reviewedSpeechText = "reviewed_food_text_with_on_device_speech"
+}
+
 public struct FoodListLineDraft: Equatable, Sendable, Identifiable {
     public var id: OperationID { operationID }
     public let operationID: OperationID
     public let evidenceID: EvidenceID
     public let parsed: ParsedFoodListLine
+    public let inputMethod: FoodListInputMethod
     public var query: String
     public var quantityText: String
     public var unit: QuantityUnit?
     public var preparation: PreparationKind?
 
-    public init(parsed: ParsedFoodListLine, operationID: OperationID, evidenceID: EvidenceID) {
+    public init(parsed: ParsedFoodListLine, operationID: OperationID, evidenceID: EvidenceID, inputMethod: FoodListInputMethod = .pastedOrTyped) {
         self.parsed = parsed
+        self.inputMethod = inputMethod
         self.operationID = operationID
         self.evidenceID = evidenceID
         query = parsed.query
@@ -44,7 +51,7 @@ public struct FoodListImportService: Sendable {
         encoder.outputFormatting = [.sortedKeys]
         let evidence = try CaptureEvidence(
             evidenceID: draft.evidenceID, kind: .manual, capturedAt: date, locale: locale,
-            captureMethod: LedgerText("pasted_food_list_line"),
+            captureMethod: LedgerText(draft.inputMethod.rawValue),
             captureMethodVersion: LedgerText(FoodListParser.version),
             originalPayload: .descriptor(LedgerText(String(decoding: encoder.encode(payload), as: UTF8.self)))
         )

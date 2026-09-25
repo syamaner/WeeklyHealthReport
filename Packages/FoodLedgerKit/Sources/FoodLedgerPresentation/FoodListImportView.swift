@@ -31,6 +31,7 @@ public struct FoodListReviewRow: Identifiable {
 @MainActor
 public final class FoodListImportViewModel: ObservableObject {
     @Published public var input = ""
+    public private(set) var inputMethod: FoodListInputMethod = .pastedOrTyped
     @Published public private(set) var rows: [FoodListReviewRow] = []
     @Published public private(set) var selectedID: OperationID?
     @Published public private(set) var errorMessage: String?
@@ -72,7 +73,7 @@ public final class FoodListImportViewModel: ObservableObject {
             let prepared = try parsed.map {
                 FoodListReviewRow(draft: FoodListLineDraft(
                     parsed: $0, operationID: try ids.makeID(OperationTag.self),
-                    evidenceID: try ids.makeID(EvidenceTag.self)
+                    evidenceID: try ids.makeID(EvidenceTag.self), inputMethod: inputMethod
                 ), status: $0.notices.contains(.contextLine) ? .context : .pending)
             }
             rows = prepared
@@ -85,6 +86,20 @@ public final class FoodListImportViewModel: ObservableObject {
         } catch {
             errorMessage = "The list could not be prepared. Your text is still here."
         }
+    }
+
+    @discardableResult
+    public func appendReviewedSpeech(_ text: String) -> Bool {
+        guard rows.isEmpty else { return false }
+        let combined = input.isEmpty ? text : input + "\n" + text
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              combined.count <= 30_000, combined.components(separatedBy: .newlines).count <= 200 else {
+            errorMessage = "The combined list exceeds the input limits. Your existing text is unchanged."
+            return false
+        }
+        input = combined
+        inputMethod = .reviewedSpeechText
+        return true
     }
 
     public func select(_ id: OperationID) {
@@ -160,6 +175,7 @@ public final class FoodListImportViewModel: ObservableObject {
     public func startNewList() {
         guard confirmation == nil else { return }
         input = ""
+        inputMethod = .pastedOrTyped
         rows = []
         selectedID = nil
         errorMessage = nil

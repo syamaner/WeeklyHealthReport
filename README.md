@@ -101,6 +101,11 @@ and lexical differences, and records confirmed exact aliases for offline reuse.
 The [pasted food-list input](docs/food-list-import.md) adds local quantity/unit
 parsing and a per-line review queue under **Food logging → Paste Food List**.
 Every saved line still requires explicit candidate confirmation.
+The [food-dictation flow](docs/food-voice-delivery.md) adds an optional **Dictate**
+button to that editor. On supported devices it uses on-device speech, then requires
+editable text and numeric/unit review before entering the same food-review queue.
+It does not save audio or automatically log food; physical speech checks remain
+separate from synthetic lifecycle tests.
 The [barcode entry](docs/barcode-beta-delivery.md) uses the existing exact local
 library and preserves the scan when falling back to generic search. Physical
 camera validation remains deferred; label-photo OCR is not offered in this beta.

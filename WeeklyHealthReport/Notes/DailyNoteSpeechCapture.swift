@@ -70,10 +70,11 @@ protocol OnDeviceSpeechCapturing: AnyObject {
 }
 
 enum OnDeviceSpeechRequestPolicy {
-    static func configure(_ request: SFSpeechAudioBufferRecognitionRequest) {
+    static func configure(_ request: SFSpeechAudioBufferRecognitionRequest, contextualStrings: [String] = []) {
         request.requiresOnDeviceRecognition = true
         request.shouldReportPartialResults = true
         request.taskHint = .dictation
+        request.contextualStrings = Array(contextualStrings.prefix(100))
     }
 }
 
@@ -115,13 +116,16 @@ final class SystemOnDeviceSpeechCapture: NSObject, OnDeviceSpeechCapturing {
     private var sessionID: UUID?
     private var interruptionObserver: NSObjectProtocol?
     private var tapInstalled = false
+    private let contextualStrings: [String]
 
     init(
         locale: Locale = .autoupdatingCurrent,
-        audioEngine: AVAudioEngine = AVAudioEngine()
+        audioEngine: AVAudioEngine = AVAudioEngine(),
+        contextualStrings: [String] = []
     ) {
         recognizer = SFSpeechRecognizer(locale: locale)
         self.audioEngine = audioEngine
+        self.contextualStrings = contextualStrings
         super.init()
     }
 
@@ -203,7 +207,7 @@ final class SystemOnDeviceSpeechCapture: NSObject, OnDeviceSpeechCapturing {
         }
 
         let request = SFSpeechAudioBufferRecognitionRequest()
-        OnDeviceSpeechRequestPolicy.configure(request)
+        OnDeviceSpeechRequestPolicy.configure(request, contextualStrings: contextualStrings)
         let sessionID = UUID()
         self.request = request
         self.sessionID = sessionID
