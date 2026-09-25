@@ -291,6 +291,13 @@ public final class FoodConfirmationService: @unchecked Sendable {
         operationID: OperationID,
         idempotencyKey: LedgerText? = nil
     ) throws -> StoredFoodConfirmation {
+        if let idempotencyKey,
+           let logItemID = try ledger.confirmedLogItemID(operationID: operationID, idempotencyKey: idempotencyKey) {
+            guard let stored = try reader.foodConfirmation(logItemID: logItemID) else {
+                throw FoodLedgerStoreError.integrityFailure("committed confirmation could not be recovered")
+            }
+            return stored
+        }
         switch state.decision {
         case .accepted:
             guard state.reopened != nil

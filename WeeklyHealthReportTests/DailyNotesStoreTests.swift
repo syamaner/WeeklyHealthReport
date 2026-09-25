@@ -3,6 +3,13 @@ import XCTest
 
 @MainActor
 final class DailyNotesStoreTests: XCTestCase {
+    func testNavigationRestoresFoodListReviewRoute() {
+        XCTAssertEqual(
+            WeeklyReportView.restoredNavigationPath(from: WeeklyReportRoute.foodListImport.rawValue, hasDraft: false),
+            [.foodListImport]
+        )
+    }
+
     func testNavigationRestoresEditorAfterSettingsWhenDraftExists() {
         XCTAssertEqual(
             WeeklyReportView.restoredNavigationPath(

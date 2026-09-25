@@ -151,6 +151,49 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             "personal-library-exact-v1"
         )
         XCTAssertEqual(savedRoute.matches[0].candidate.candidate.identity, resolvedIdentity)
+
+        let incompatible = try search.search(request(
+            "Ackee canned drained", identity: GenericFoodIdentityQuery(preparation: try PreparationState(kind: .raw))
+        ))
+        if case let .confirmation(other) = incompatible {
+            XCTAssertNil(other.reuse)
+            XCTAssertTrue(other.matches.allSatisfy { $0.candidate.candidate.identity.preparation.kind == .raw })
+        }
+    }
+
+    func testFoodListSearchPreservesSourceAndNeverUsesDatasetServingAsConsumedAmount() throws {
+        let ids = SequenceIDs()
+        let service = FoodListImportService(searcher: try CoFIDGenericFoodSearch(ids: ids))
+        let parsed = try XCTUnwrap(FoodListParser.parse(" 60 gr Ackee canned drained ").first)
+        var draft = FoodListLineDraft(parsed: parsed, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        guard case let .candidates(route) = try service.search(draft, at: FixedClock().now(), locale: LedgerText("en_GB")) else {
+            return XCTFail("Expected candidates")
+        }
+        let state = try service.confirmation(for: draft, route: route, candidateIndex: 0)
+        XCTAssertEqual(state.quantity.value, 60)
+        XCTAssertEqual(state.decision, .undecided)
+        let evidence = try XCTUnwrap(state.input.evidence.first)
+        XCTAssertEqual(evidence.evidenceID, draft.evidenceID)
+        XCTAssertEqual(evidence.captureMethodVersion.value, FoodListParser.version)
+        guard case let .descriptor(payload) = evidence.originalPayload else { return XCTFail("Missing input evidence") }
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(payload.value.utf8)) as? [String: Any])
+        XCTAssertEqual(json["original"] as? String, " 60 gr Ackee canned drained ")
+        XCTAssertEqual(json["lineNumber"] as? Int, 1)
+        draft.quantityText = ""
+        let missing = try service.confirmation(for: draft, route: route, candidateIndex: 0)
+        XCTAssertNil(missing.quantity.value)
+    }
+
+    func testSupplementRecipeAndUnknownFoodStayUnresolved() throws {
+        let ids = SequenceIDs()
+        let service = FoodListImportService(searcher: try CoFIDGenericFoodSearch(ids: ids))
+        for text in ["1 vitamin milk tablet", "80 g homemade rice", "5 g zzzzxxxx"] {
+            let parsed = try XCTUnwrap(FoodListParser.parse(text).first)
+            let draft = FoodListLineDraft(parsed: parsed, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+            guard case .unresolved = try service.search(draft, at: FixedClock().now(), locale: LedgerText("en_GB")) else {
+                return XCTFail("Must remain unresolved: \(text)")
+            }
+        }
     }
 
     private func request(

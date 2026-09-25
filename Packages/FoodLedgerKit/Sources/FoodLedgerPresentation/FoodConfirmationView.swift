@@ -5,6 +5,7 @@ import SwiftUI
 @MainActor
 public final class FoodConfirmationViewModel: ObservableObject {
     @Published public private(set) var state: FoodConfirmationState
+    @Published public private(set) var savedResult: StoredFoodConfirmation?
     private let saveAction: @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
 
     public init(
@@ -25,6 +26,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         send(.beginSaving)
         do {
             let saved = try saveAction(state)
+            savedResult = saved
             send(.saved(saved.logItem.logItemID))
         } catch {
             send(.saveFailed(Self.message(for: error)))
@@ -58,6 +60,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
 public struct FoodConfirmationView: View {
     @ObservedObject private var model: FoodConfirmationViewModel
     private let leave: () -> Void
+    private let context: String?
+    private let completionTitle: String
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var closestExplanation = ""
     @State private var correctionName = ""
@@ -79,19 +83,28 @@ public struct FoodConfirmationView: View {
     @State private var conversionUnit = QuantityUnit.grams
     @State private var conversionMethod = ""
 
-    public init(model: FoodConfirmationViewModel, leave: @escaping () -> Void) {
+    public init(
+        model: FoodConfirmationViewModel, context: String? = nil,
+        completionTitle: String = "Done", leave: @escaping () -> Void
+    ) {
         self.model = model
+        self.context = context
+        self.completionTitle = completionTitle
         self.leave = leave
     }
 
     public var body: some View {
         Form {
-            identitySection
-            candidateSection
-            differencesSection
-            quantitySection
-            nutritionSection
-            correctionSection
+            if let context { Section("From your list") { Text(context) } }
+            Group {
+                identitySection
+                candidateSection
+                differencesSection
+                quantitySection
+                nutritionSection
+                correctionSection
+            }
+            .disabled(model.savedResult != nil)
             recoverySection
             actionSection
         }
@@ -325,21 +338,29 @@ public struct FoodConfirmationView: View {
             Section {
                 Label("Food saved", systemImage: "checkmark.circle.fill")
                     .accessibilityLabel("Food saved successfully")
+                if let saved = model.savedResult {
+                    LabeledContent("Saved food", value: saved.productVersion.name.value)
+                    LabeledContent("Saved amount", value: "\(Self.editableNumber(saved.logItemVersion.edibleQuantity.value)) \(saved.logItemVersion.edibleQuantity.unit.rawValue)")
+                }
             }
         }
     }
 
     private var actionSection: some View {
         Section {
-            Button {
-                model.save()
-            } label: {
-                Label("Save food", systemImage: "checkmark.circle")
-                    .frame(maxWidth: .infinity)
+            if case .saved = model.state.phase {
+                Button(completionTitle, action: leave)
+            } else {
+                Button {
+                    model.save()
+                } label: {
+                    Label("Save food", systemImage: "checkmark.circle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!canSave)
+                Button("Leave without saving", role: .cancel, action: leave)
             }
-            .buttonStyle(.borderedProminent)
-            .disabled(!canSave)
-            Button("Leave without saving", role: .cancel, action: leave)
         }
     }
 
