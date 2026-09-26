@@ -69,7 +69,7 @@ private final class OFFNoRedirects: NSObject, URLSessionTaskDelegate, @unchecked
     }
 }
 
-/// v1 supports explicitly declared per-100-g mass records only. Ambiguous/liquid basis is declined.
+/// v2 supports one explicit packaging input set, or legacy fields, for per-100-g mass records only. Ambiguous/liquid basis is declined.
 public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
     private let transport: any OFFProductTransport
     private let clock: any LedgerClock
@@ -88,16 +88,24 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
         try Task.checkCancellation()
         guard response.body.count <= OFFHTTPSProductTransport.maximumBytes else { throw OFFLookupError.oversizedResponse }
         if response.status == 429 { throw OFFLookupError.rateLimited }
-        guard response.status == 200 else { throw OFFLookupError.unavailable }
+        guard [200, 404].contains(response.status) else { throw OFFLookupError.unavailable }
         guard let document = try JSONSerialization.jsonObject(with: response.body) as? [String: Any],
               let status = document["status"] as? String else { throw OFFLookupError.malformedResponse }
         if status == "failure", (document["result"] as? [String: Any])?["id"] as? String == "product_not_found" { return .notFound }
-        guard status == "success", let product = document["product"] as? [String: Any], let returned = product["code"] as? String,
+        guard response.status == 200 else { throw OFFLookupError.unavailable }
+        let normalizationOnly = status == "success_with_warnings"
+            && (document["warnings"] as? [[String: Any]]).map { warnings in
+                !warnings.isEmpty && warnings.allSatisfy {
+                    ($0["message"] as? [String: Any])?["id"] as? String == "different_normalized_product_code"
+                        && ($0["impact"] as? [String: Any])?["id"] as? String == "none"
+                }
+            } == true
+        guard status == "success" || normalizationOnly, let product = document["product"] as? [String: Any], let returned = product["code"] as? String,
               [8, 12, 13, 14].contains(returned.count), returned.allSatisfy({ $0 >= "0" && $0 <= "9" }) else { throw OFFLookupError.malformedResponse }
         guard String(repeating: "0", count: 14 - returned.count) + returned == gtin.value else { throw OFFLookupError.codeMismatch }
         guard let name = product["product_name"] as? String, !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              product["nutrition_data_per"] as? String == "100g",
-              let nutrients = product["nutriments"] as? [String: Any] else { return .insufficientData }
+              let sourceSet = Self.massNutrients(product) else { return .insufficientData }
+        let nutrients = sourceSet.values
         let pack = product["quantity"] as? String ?? ""
         // OFF uses *_100g for mass or volume. Never turn a liquid declaration into mass.
         guard pack.range(of: #"(?i)\d\s*(g|kg)\b"#, options: .regularExpression) != nil,
@@ -108,8 +116,8 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
         let releaseID = try ExternalIdentifier("off:snapshot:sha256:\(hash):retrieved:\(now.timeIntervalSince1970)")
         let productURL = "https://world.openfoodfacts.org/product/\(returned)"
         let release = try SourceRelease(sourceReleaseID: releaseID, sourceID: ExternalIdentifier("open-food-facts"),
-            releasedAt: now, artifactHash: SHA256Digest(hash), schemaVersion: LedgerText("off-v3.6-mass-candidates-v1"),
-            pipelineVersion: LedgerText("off-product-projection-v1"),
+            releasedAt: now, artifactHash: SHA256Digest(hash), schemaVersion: LedgerText("off-v3.6-mass-candidates-v2"),
+            pipelineVersion: LedgerText("off-product-projection-v2"),
             licence: LedgerText("ODbL 1.0 https://opendatacommons.org/licenses/odbl/1-0/; contents: https://opendatacommons.org/licenses/dbcl/1-0/"),
             attribution: LedgerText("Open Food Facts · \(productURL) · Retrieved \(ISO8601DateFormatter().string(from: now))"), manifestHash: SHA256Digest(hash))
         let fields: [NutrientKey: String] = [.energyConsumed: "energy-kcal", .protein: "proteins", .carbohydrates: "carbohydrates",
@@ -123,11 +131,30 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
             guard nutrients[field + "_unit"] as? String == key.canonicalUnit.rawValue else {
                 return try NutrientEntry(key: key, value: .unknown(.missingConversion))
             }
+            let rawModifier = nutrients[field + "_modifier"]
+            guard rawModifier == nil || rawModifier is String else {
+                return try NutrientEntry(key: key, value: .unknown(.noCompatibleSource))
+            }
+            let modifier = rawModifier as? String ?? ""
+            guard ["", "<", "<=", ">", ">="].contains(modifier) else {
+                return try NutrientEntry(key: key, value: .unknown(.noCompatibleSource))
+            }
             available += 1
             let amount = number.doubleValue
             let source = try SourceExactNutrientValue(amount: amount, unit: LedgerText(key.canonicalUnit.rawValue), basis: .per100Grams)
             let provenance = try NutrientProvenance(sourceKind: .exactProductDataset, sourceID: ExternalIdentifier("open-food-facts"),
-                sourceReleaseID: releaseID, recordID: ExternalIdentifier("off:gtin:\(gtin.value)"), manifestReference: LedgerText("\(productURL)#\(field)_100g"))
+                sourceReleaseID: releaseID, recordID: ExternalIdentifier("off:gtin:\(gtin.value)"), manifestReference: LedgerText("\(productURL)#\(sourceSet.path)/\(sourceSet.path == "nutriments" ? field + "_100g" : field)"))
+            if !modifier.isEmpty {
+                let upper = modifier.hasPrefix("<") ? amount : nil
+                let lower = modifier.hasPrefix(">") ? amount : nil
+                let closed = modifier.hasSuffix("=")
+                let bound = try SourceBoundedNutrientValue(lower: lower, upper: upper,
+                    lowerClosed: lower != nil && closed, upperClosed: upper != nil && closed,
+                    unit: LedgerText(key.canonicalUnit.rawValue), basis: .per100Grams)
+                return try NutrientEntry(key: key, value: .bounded(NutrientBounds(lower: lower, upper: upper,
+                    lowerClosed: bound.lowerClosed, upperClosed: bound.upperClosed, origin: .augmented,
+                    unit: key.canonicalUnit, sourceValue: .bounded(bound), provenance: [provenance])))
+            }
             return try NutrientEntry(key: key, value: .augmented(ExactNutrientValue(amount: amount, unit: key.canonicalUnit,
                 sourceValue: .exact(source), provenance: [provenance])))
         }
@@ -135,7 +162,7 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
         let identity = try DecisiveIdentity(preparation: PreparationState(kind: .unknown), bone: .unknown, skin: .unknown,
             drained: .unknown, packingMedium: .unknown, fortification: .unknown, servingBasis: .per100Grams)
         let quantity = try EdibleQuantityIdentity.known(PositiveQuantity(value: 100, unit: .grams), conversionVersionID: nil)
-        let metadata = try CandidateMatchMetadata(methodVersion: LedgerText("off-product-candidates-v1"), score: 1,
+        let metadata = try CandidateMatchMetadata(methodVersion: LedgerText("off-product-candidates-v2"), score: 1,
             materialDifferences: [LedgerText("Community product data; check name, package and nutrition basis. Missing values remain unknown.")],
             libraryAliases: [request.identity.lookupAlias])
         let candidate = try PopulatedFoodCandidate(candidate: ProviderNeutralCandidate(sourceReleaseID: releaseID,
@@ -146,4 +173,28 @@ public struct OpenFoodFactsLookup: PackagedFoodCandidateLookingUp {
         return .candidate(try PopulatedFoodConfirmation(evidence: [request.evidence], sourceReleases: [release], candidates: [candidate],
             expectedIdentity: identity, expectedEdibleQuantity: quantity))
     }
+    // Choose one source input set. OFF's aggregate may mix packaging, estimates and
+    // preparations, so it is never used to backfill this candidate.
+    private static func massNutrients(_ product: [String: Any]) -> (values: [String: Any], path: String)? {
+        if product["nutrition"] != nil {
+            guard let nutrition = product["nutrition"] as? [String: Any], let sets = nutrition["input_sets"] as? [[String: Any]] else { return nil }
+            let eligible = sets.enumerated().filter {
+                $0.element["source"] as? String == "packaging" && $0.element["per"] as? String == "100g"
+                    && $0.element["preparation"] as? String == "as_sold"
+            }
+            guard eligible.count == 1, let values = eligible[0].element["nutrients"] as? [String: Any] else { return nil }
+            var result: [String: Any] = [:]
+            for (field, raw) in values {
+                guard let value = raw as? [String: Any] else { continue }
+                result[field + "_100g"] = value["value"]
+                result[field + "_unit"] = value["unit"]
+                result[field + "_modifier"] = value["modifier"]
+            }
+            return (result, "nutrition/input_sets/\(eligible[0].offset)/nutrients")
+        }
+        guard product["nutrition_data_per"] as? String == "100g" else { return nil }
+        guard let values = product["nutriments"] as? [String: Any] else { return nil }
+        return (values, "nutriments")
+    }
+
 }
