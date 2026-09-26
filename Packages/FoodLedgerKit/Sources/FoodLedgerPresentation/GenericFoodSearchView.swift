@@ -84,9 +84,12 @@ public struct GenericFoodSearchView: View {
                 }
             }
             Section("Generic food") {
-                TextField("Food name", text: $model.query)
-                    .submitLabel(.search)
-                    .onSubmit { model.search() }
+                VStack(alignment: .leading) {
+                    Text("Food name").font(.caption)
+                    TextField("Food name", text: $model.query)
+                        .submitLabel(.search)
+                        .onSubmit { model.search() }
+                }
                 Button("Search offline") { model.search() }
                     .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -122,22 +125,26 @@ public struct GenericFoodSearchView: View {
                         if let description = match.candidate.variant {
                             Text(description.value).font(.subheadline)
                         }
-                        Text(match.isExactName ? "Exact name" : "Closest lexical candidate")
+                        Text(match.isExactName ? "Exact name" : "Closest name match")
                             .font(.subheadline)
                         if let metadata = match.candidate.candidate.matchMetadata {
-                            Text("Score \(metadata.score, format: .number.precision(.fractionLength(3))) · explicit selection required")
-                                .font(.caption)
                             ForEach(metadata.materialDifferences, id: \.value) { difference in
                                 Text(Self.differenceLabel(difference.value))
                                     .font(.caption)
                             }
                         }
-                        Text(match.candidate.candidate.recordID.value)
-                            .font(.caption2)
-                            .textSelection(.enabled)
+                        DisclosureGroup("Source and matching details") {
+                            if let metadata = match.candidate.candidate.matchMetadata {
+                                Text("Lexical score \(metadata.score, format: .number.precision(.fractionLength(3))); not a probability of correctness.")
+                                    .font(.caption)
+                            }
+                            Text("Source: \(match.candidate.candidate.sourceReleaseID.value)").font(.caption2).textSelection(.enabled)
+                            Text("Record: \(match.candidate.candidate.recordID.value)").font(.caption2).textSelection(.enabled)
+                        }
                         Button(index == 0 ? "Review this candidate" : "Choose and review") {
                             review(Self.select(index: index, from: route.confirmation))
                         }
+                        .buttonStyle(.borderless)
                     }
                     .accessibilityElement(children: .contain)
                 }

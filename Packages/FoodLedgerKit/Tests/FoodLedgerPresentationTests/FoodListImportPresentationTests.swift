@@ -7,6 +7,89 @@ import XCTest
 
 @MainActor
 final class FoodListImportPresentationTests: XCTestCase {
+    func testCommonFoodAddsToExistingReviewWithoutSavingOrSearching() throws {
+        let (model, store, search) = try fixture()
+        model.input = "10 g fixture"
+        model.prepare()
+        let original = model.rows[0].id
+        model.deferLine()
+        try model.addCommonFood(name: "fixture", portion: InventoryAmount(value: 25, unit: .grams))
+        XCTAssertEqual(model.rows.count, 2)
+        XCTAssertEqual(model.rows[0].id, original)
+        XCTAssertEqual(model.rows[0].status, .deferred)
+        XCTAssertEqual(model.selectedRow?.draft.quantityText, "25.0")
+        XCTAssertEqual(model.selectedRow?.draft.unit, .grams)
+        XCTAssertEqual(search.calls, 0)
+        XCTAssertEqual(try store.counts().operations, 0)
+        XCTAssertThrowsError(try model.addCommonFood(name: "oats\nmilk", portion: nil))
+    }
+
+    func testResumeRestoresQueueAndReconcilesCommittedSave() throws {
+        let checkpointStore = MemoryCheckpoint()
+        let (fixture, _, search) = try fixture()
+        let ids = ListIDs()
+        let model = FoodListImportViewModel(service: FoodListImportService(searcher: search), locale: try LedgerText("en_GB"), ids: ids,
+            checkpointStore: checkpointStore) { _, _ in throw FoodLedgerValidationError.invalidProvenance }
+        model.input = "10 g fixture\n20 g fixture"
+        model.prepare()
+        let first = model.rows[0].id
+        let second = model.rows[1].id
+        model.deferLine()
+        var draft = try XCTUnwrap(model.selectedRow?.draft)
+        draft.quantityText = "30"
+        model.edit(draft)
+        let logID = try LogItemID("00000000-0000-0000-0000-000000000999")
+        let resumed = FoodListImportViewModel(service: FoodListImportService(searcher: search), locale: try LedgerText("en_GB"), ids: ids,
+            checkpointStore: checkpointStore, recoveredLogItemID: { $0 == second ? logID : nil }) { _, _ in throw FoodLedgerValidationError.invalidProvenance }
+        XCTAssertEqual(resumed.rows[0].id, first)
+        XCTAssertEqual(resumed.rows[0].status, .deferred)
+        XCTAssertEqual(resumed.rows[1].status, .saved(logID))
+        XCTAssertEqual(resumed.rows[1].draft.quantityText, "30")
+        XCTAssertEqual(resumed.selectedID, second)
+        resumed.search()
+        XCTAssertEqual(search.calls, 0)
+        _ = fixture
+    }
+
+    func testCheckpointFailureKeepsQuickAddVisibleAndRetriesSameRow() throws {
+        let checkpointStore = MemoryCheckpoint()
+        let (_, _, search) = try fixture()
+        let model = FoodListImportViewModel(service: FoodListImportService(searcher: search), locale: try LedgerText("en_GB"), ids: ListIDs(),
+            checkpointStore: checkpointStore) { _, _ in throw FoodLedgerValidationError.invalidProvenance }
+        checkpointStore.failWrites = true
+        try model.addCommonFood(name: "fixture", portion: InventoryAmount(value: 25, unit: .grams))
+        let rowID = try XCTUnwrap(model.selectedID)
+        XCTAssertEqual(model.rows.count, 1)
+        XCTAssertNotNil(model.checkpointErrorMessage)
+        XCTAssertNil(try checkpointStore.load())
+        checkpointStore.failWrites = false
+        model.retryCheckpoint()
+        XCTAssertNil(model.checkpointErrorMessage)
+        XCTAssertEqual(try checkpointStore.load()?.drafts.map(\.id), [rowID])
+    }
+
+    func testUnavailableCheckpointCanResumeAfterRetryWithoutOverwriting() throws {
+        let checkpoint = MemoryCheckpoint()
+        let (_, _, search) = try fixture()
+        let ids = ListIDs()
+        let make = {
+            FoodListImportViewModel(service: FoodListImportService(searcher: search), locale: try LedgerText("en_GB"), ids: ids,
+                checkpointStore: checkpoint) { _, _ in throw FoodLedgerValidationError.invalidProvenance }
+        }
+        let original = try make()
+        original.input = "25 g fixture"; original.prepare()
+        let rowID = original.rows.first?.id
+        checkpoint.failReads = true
+        let resumed = try make()
+        XCTAssertNotNil(resumed.checkpointErrorMessage)
+        resumed.input = "Must not overwrite saved queue"
+        checkpoint.failReads = false
+        resumed.retryCheckpoint()
+        XCTAssertNil(resumed.checkpointErrorMessage)
+        XCTAssertEqual(resumed.input, "25 g fixture")
+        XCTAssertEqual(resumed.rows.first?.id, rowID)
+    }
+
     func testDuplicateLinesSaveIndependentlyAndRetryDoesNotDuplicate() throws {
         let (model, store, search) = try fixture()
         model.input = "25 g fixture\n\n25 g fixture\nunknown product"
@@ -138,6 +221,20 @@ final class FoodListImportPresentationTests: XCTestCase {
         ) { state, operationID in
             try confirmations.save(state, operationID: operationID, idempotencyKey: LedgerText(operationID.rawValue))
         }, store, search)
+    }
+}
+
+private final class MemoryCheckpoint: FoodListCheckpointStoring, @unchecked Sendable {
+    private var value: FoodListCheckpoint?
+    var failWrites = false
+    var failReads = false
+    func load() throws -> FoodListCheckpoint? {
+        if failReads { throw FoodLedgerValidationError.invalidProvenance }
+        return value
+    }
+    func save(_ checkpoint: FoodListCheckpoint) throws {
+        if failWrites { throw FoodLedgerValidationError.invalidProvenance }
+        try checkpoint.validate(); value = checkpoint
     }
 }
 

@@ -7,6 +7,7 @@ enum WeeklyReportRoute: String, Codable, Hashable {
     case foodListImport
     case barcodeFoodCapture
     case inventoryReview
+    case commonFoods
     case foodReresolution
     case notes
     case noteEditor
@@ -133,6 +134,7 @@ struct WeeklyReportView: View {
                         NavigationLink("Search Generic Foods", value: WeeklyReportRoute.genericFoodSearch)
                         NavigationLink("Paste Food List", value: WeeklyReportRoute.foodListImport)
                         NavigationLink("Review Receipts (Optional)", value: WeeklyReportRoute.inventoryReview)
+                        NavigationLink("Common Foods & Favourites", value: WeeklyReportRoute.commonFoods)
                         NavigationLink("Review Nutrition Updates", value: WeeklyReportRoute.foodReresolution)
                         Text("Searches the bundled CoFID release offline. No result is selected automatically.")
                             .font(.caption)
@@ -259,6 +261,9 @@ struct WeeklyReportView: View {
                 case .inventoryReview:
                     if let foodLedger, let flow = LocalInventoryFlowView(root: foodLedger) { flow }
                     else { ContentUnavailableView("Receipt review unavailable", systemImage: "exclamationmark.triangle", description: Text("The local inventory store could not be opened. Food search remains separate.")) }
+                case .commonFoods:
+                    if let foodLedger, let flow = CommonFoodsFlowView(root: foodLedger) { flow }
+                    else { ContentUnavailableView("Common foods unavailable", systemImage: "exclamationmark.triangle", description: Text("Your saved foods could not be opened. Try again after unlocking your device.")) }
                 case .foodReresolution:
                     if let foodLedger, let flow = FoodReresolutionFlowView(root: foodLedger) { flow }
                     else { ContentUnavailableView("Nutrition review unavailable", systemImage: "exclamationmark.triangle") }
@@ -388,6 +393,8 @@ struct WeeklyReportView: View {
             return [.barcodeFoodCapture]
         case .inventoryReview:
             return [.inventoryReview]
+        case .commonFoods:
+            return [.commonFoods]
         case .foodReresolution:
             return [.foodReresolution]
         case .notes:

@@ -36,6 +36,18 @@ public struct LocalInventoryView: View {
                     else { Button("Reload saved inventory (discard unsaved edits)") { model.reload() } }
                 }
             }
+            if let message = model.checkpointMessage {
+                Section("Review progress") {
+                    Text(message)
+                    Button("Retry saving receipt edits") { model.retryCheckpoint() }
+                }
+            }
+            if model.pendingCommand != nil && model.message == nil {
+                Section("Pending save") {
+                    Text("An earlier save needs confirmation. Retry the same change before editing.")
+                    Button("Retry same save") { model.retryPending() }
+                }
+            }
 
             if !model.snapshot.sources.isEmpty {
                 Section("Saved sources") {
@@ -88,7 +100,7 @@ public struct LocalInventoryView: View {
                         Button("Use name in food search") { searchFood(product) }
                     }
                 }
-                Text("Food logging remains a separate confirmation. No automatic stock depletion. Common-items/favourites management is a later feature.").font(.caption)
+                Text("Manage usual portions in Common Foods & Favourites. Food logging remains a separate confirmation; stock is not automatically depleted.").font(.caption)
             }
         }
         .navigationTitle("Receipt review")

@@ -3,9 +3,9 @@
 Issue: #130. This contract governs the local first slice; it grants no Drive access.
 
 User clarification (25 September 2026): Google inventory import is optional,
-never a setup or usage prerequisite. A fuller common-items/favourites management
-UI is a later slice. Current presentation is limited to local import, review,
-correction and searching reviewed entries; it does not require a Google account.
+never a setup or usage prerequisite. The subsequent
+[common-foods slice](food-drafts-and-common-foods.md) adds local favourites, aliases
+and usual portions, and inventory backup format 2. Neither requires a Google account.
 
 ## Architecture gate
 
@@ -70,7 +70,8 @@ Open **Food logging → Review Receipts (Optional)**. Choose receipt or catalogu
 paste text or choose a file, then expand a line to compare its original with the
 proposal. Select a suggested local product or explicitly create one; editing the
 description clears that choice. Select rows individually before batch acceptance.
-Saved sources and decisions survive reopening; uncommitted editor fields do not.
+Saved sources, decisions, receipt edits, selected rows and pending save commands
+survive reopening. A resumed pending save retries the same operation before editing.
 Search reviewed products by name, alias or category and optionally carry their
 name and a minimal versioned product reference into generic food search. Original
 receipt bytes, prices, stock amounts and notes are not copied into that reference.
@@ -78,7 +79,7 @@ receipt bytes, prices, stock amounts and notes are not copied into that referenc
 The parser accepts up to 100,000 characters and 1,000 lines; imports are capped at
 5 MB and PDFs at 100 pages. Every PDF page must have extractable text. The local
 SQLite event store uses iOS complete file protection. No background import,
-network source, stock depletion, favourites or automatic candidate acceptance is
+network source, stock depletion or automatic candidate acceptance is
 implemented. The UI may display all original PDF text lines, including table
 headings; spatial table reconstruction is not claimed.
 

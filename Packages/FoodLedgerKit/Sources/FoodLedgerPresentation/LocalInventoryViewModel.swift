@@ -2,57 +2,73 @@ import FoodLedgerApplication
 import FoodLedgerDomain
 import SwiftUI
 
-public struct InventoryLineDraft: Equatable {
-    public var description: String
-    public var selectedProductID: InventoryProductID?
-    public var createProduct = false
-    public var editProduct = false
-    public var category = ""
-    public var aliases = ""
-    public var packDescription = ""
-    public var productNotes = ""
-    public var purchaseCount = ""
-    public var unitsPerPack = ""
-    public var packAmount = ""
-    public var packUnit: QuantityUnit = .grams
-    public var received = false
-    public var acquisitionCorrection = ""
-    public var note = ""
-    public var remaining = ""
-    public var remainingUnit: QuantityUnit = .grams
-    public var assertionDate = Date(timeIntervalSince1970: 0)
-
-    public init(line: ReceiptLineProposal) {
-        description = line.description
-        purchaseCount = line.purchaseCount.map { String($0) } ?? ""
-        unitsPerPack = line.unitsPerPack.map { String($0) } ?? ""
-        packAmount = line.packAmount.map { String($0) } ?? ""
-        packUnit = line.packUnit ?? .grams
-        packDescription = line.packAmount.map { "\($0) \(line.packUnit?.rawValue ?? "")" } ?? ""
-    }
-}
-
 @MainActor
 public final class LocalInventoryViewModel: ObservableObject {
     @Published public private(set) var snapshot = InventorySnapshot()
-    @Published public var activeSourceID: SHA256Digest?
-    @Published public private(set) var drafts: [String: InventoryLineDraft] = [:]
-    @Published public var selectedLines: Set<String> = []
-    @Published public var paste = ""
-    @Published public var sourceKind: InventorySourceKind = .receipt
+    @Published public var activeSourceID: SHA256Digest? { didSet { persist() } }
+    @Published public private(set) var drafts: [String: InventoryLineDraft] = [:] { didSet { persist() } }
+    @Published public var selectedLines: Set<String> = [] { didSet { persist() } }
+    @Published public var paste = "" { didSet { persist() } }
+    @Published public var sourceKind: InventorySourceKind = .receipt { didSet { persist() } }
     @Published public var searchQuery = ""
     @Published public private(set) var message: String?
-    @Published public private(set) var pendingCommand: InventoryCommand?
+    @Published public private(set) var pendingCommand: InventoryCommand? { didSet { persist() } }
+    @Published public private(set) var checkpointMessage: String?
     private let service: LocalInventoryService
     private let ids: any LedgerIDGenerating
     private let clock: any LedgerClock
+    private let checkpointStore: (any InventoryReviewCheckpointStoring)?
+    private var restoring = true
+    private var unreadableCheckpoint = false
 
-    public init(service: LocalInventoryService, ids: any LedgerIDGenerating, clock: any LedgerClock) throws {
+    public init(service: LocalInventoryService, ids: any LedgerIDGenerating, clock: any LedgerClock, checkpointStore: (any InventoryReviewCheckpointStoring)? = nil) throws {
         self.service = service
         self.ids = ids
         self.clock = clock
+        self.checkpointStore = checkpointStore
         snapshot = try service.store.snapshot()
         activeSourceID = snapshot.sources.last?.contentID
+        do {
+            if let saved = try checkpointStore?.load() {
+                try saved.validate()
+                activeSourceID = saved.activeSourceID
+                drafts = saved.drafts; selectedLines = saved.selectedLines
+                paste = saved.paste; sourceKind = saved.sourceKind; pendingCommand = saved.pendingCommand
+            }
+        } catch {
+            unreadableCheckpoint = true
+            checkpointMessage = "Your saved receipt edits could not be opened. They have been kept unchanged; unlock your device and retry."
+        }
+        restoring = false
+    }
+
+    @discardableResult private func persist() -> Bool {
+        guard !restoring, let checkpointStore else { return true }
+        guard !unreadableCheckpoint else { return false }
+        do {
+            try checkpointStore.save(InventoryReviewCheckpoint(activeSourceID: activeSourceID, drafts: drafts, selectedLines: selectedLines, paste: paste, sourceKind: sourceKind, pendingCommand: pendingCommand))
+            checkpointMessage = nil
+            return true
+        } catch {
+            checkpointMessage = "Your latest receipt edits could not be saved for resume. Keep this screen open and retry."
+            return false
+        }
+    }
+
+    public func retryCheckpoint() {
+        guard unreadableCheckpoint else { persist(); return }
+        do {
+            let current = try service.store.snapshot()
+            if let saved = try checkpointStore?.load() {
+                try saved.validate()
+                restoring = true
+                snapshot = current; activeSourceID = saved.activeSourceID; drafts = saved.drafts
+                selectedLines = saved.selectedLines; paste = saved.paste; sourceKind = saved.sourceKind; pendingCommand = saved.pendingCommand
+                restoring = false
+            }
+            unreadableCheckpoint = false
+            persist()
+        } catch { checkpointMessage = "Your saved receipt edits are still unavailable. They have been kept unchanged; retry when local storage is available." }
     }
 
     public var activeSource: InventorySource? { snapshot.sources.first { $0.contentID == activeSourceID } }
@@ -123,6 +139,7 @@ public final class LocalInventoryViewModel: ObservableObject {
 
     public func importDocument(_ document: ExtractedInventoryDocument, name: String) {
         guard pendingCommand == nil else { return }
+        guard persist() else { return }
         do {
             let source = try service.importDocument(document, kind: sourceKind, name: name, operationID: ids.makeID(OperationTag.self))
             snapshot = try service.store.snapshot()
@@ -135,17 +152,19 @@ public final class LocalInventoryViewModel: ObservableObject {
     public func report(_ error: Error) {
         if error is InventoryDocumentError {
             message = "Could not import this file. Use a UTF-8 text file or a text-bearing PDF under 5 MB (up to 100 pages). Scanned or empty pages are unsupported."
+        } else if let error = error as? InventoryStoreError, error == .conflictingRetry {
+            message = "This backup conflicts with local review history. Your saved inventory has not been changed."
         } else {
             message = "Could not complete the change. Check the values or reload the saved inventory. Nothing is automatically accepted."
         }
     }
 
-    public func reload() {
+    public func reload(keepingDrafts: Bool = false) {
         guard pendingCommand == nil else { return }
         do {
             snapshot = try service.store.snapshot()
-            drafts = [:]
-            message = "Saved inventory reloaded; unsaved edits cleared."
+            if !keepingDrafts { drafts = [:] }
+            message = keepingDrafts ? "Saved inventory reloaded; your draft edits are retained." : "Saved inventory reloaded; unsaved edits cleared."
         } catch { report(error) }
     }
 
@@ -166,7 +185,8 @@ public final class LocalInventoryViewModel: ObservableObject {
                         productID: previous?.productID ?? ids.makeID(InventoryProductTag.self), version: (previous?.version ?? 0) + 1,
                         name: previous?.name ?? draft.description, category: draft.category,
                         aliases: Self.aliases(draft.aliases), packDescription: draft.packDescription,
-                        remaining: remaining, notes: draft.productNotes, updatedAt: clock.now()
+                        remaining: remaining, notes: draft.productNotes, updatedAt: clock.now(),
+                        favourite: previous?.favourite, usualPortion: previous?.usualPortion
                     )
                     product = created
                     mutations.append(.product(created))
@@ -197,6 +217,7 @@ public final class LocalInventoryViewModel: ObservableObject {
     @discardableResult
     public func retryPending() -> Bool {
         guard let pendingCommand else { return false }
+        guard persist() else { return false }
         do {
             snapshot = try service.store.commit(pendingCommand)
             for mutation in pendingCommand.mutations {
@@ -239,6 +260,23 @@ public final class LocalInventoryViewModel: ObservableObject {
             saved += 1
         }
         message = "Saved \(saved) of \(chosen.count) selected rows. \(saved < chosen.count ? "Remaining rows need attention; no failed row was reported as saved." : "No food was logged.")"
+    }
+
+    @discardableResult
+    public func saveCommonFood(previous: InventoryProductVersion? = nil, name: String, aliases: String, portion: String, unit: QuantityUnit, favourite: Bool) -> Bool {
+        guard pendingCommand == nil else { return false }
+        do {
+            guard !name.contains(where: { $0.isNewline }) else { throw FoodLedgerValidationError.invalidProvenance }
+            let product = try InventoryProductVersion(
+                productID: previous?.productID ?? ids.makeID(InventoryProductTag.self), version: (previous?.version ?? 0) + 1,
+                name: name, category: previous?.category ?? "", aliases: Self.aliases(aliases),
+                packDescription: previous?.packDescription ?? "", remaining: previous?.remaining,
+                notes: previous?.notes ?? "", updatedAt: clock.now(), favourite: favourite,
+                usualPortion: Self.amount(portion, unit: unit, allowsZero: false)
+            )
+            pendingCommand = InventoryCommand(operationID: try ids.makeID(OperationTag.self), expectedRevision: snapshot.revision, mutations: [.product(product)])
+            return retryPending()
+        } catch { report(error); return false }
     }
 
     private static func aliases(_ value: String) -> [String] {

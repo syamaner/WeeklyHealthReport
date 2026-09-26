@@ -112,9 +112,12 @@ camera validation remains deferred; label-photo OCR is not offered in this beta.
 The optional [local receipt review](docs/local-inventory-contract.md) imports pasted
 text or user-selected text-bearing PDFs, keeps original evidence and requires
 explicit product review. Received purchases, dated remaining-stock assertions and
-consumed food stay separate. Google is not required; a Drive importer and fuller
-common-items/favourites management are later features. Inventory has its own local
-store and is not included in existing food-ledger archives or daily health exports.
+consumed food stay separate. Google is not required; a Drive importer is a later
+feature. [Common foods and draft recovery](docs/food-drafts-and-common-foods.md)
+provide favourites, aliases, usual portions and quick-add to an explicit review.
+Pasted lists resume after reopening the app. Inventory has its own versioned
+backup, available from the receipt-review Backup menu; existing food-ledger
+archives and daily health exports remain separate.
 
 [Nutrition-update review](docs/food-reresolution-delivery.md) compares saved product
 entries against an explicitly chosen installed source and matcher. It shows all

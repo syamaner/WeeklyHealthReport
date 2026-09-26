@@ -51,7 +51,8 @@ final class LocalInventoryPresentationTests: XCTestCase {
 
     func testLostResponseRetryKeepsSameOperationAndNoDuplicateProduct() throws {
         let store = LostResponseStore()
-        let model = try makeModel(store)
+        let checkpoint = MemoryInventoryCheckpoint()
+        let model = try makeModel(store, checkpoint: checkpoint)
         model.paste = "Sample oats 500 g"
         model.importPaste()
         let line = try XCTUnwrap(model.activeSource?.lines.first)
@@ -65,12 +66,38 @@ final class LocalInventoryPresentationTests: XCTestCase {
         draft.description = "Must not edit uncertain save"
         model.update(draft, line: line)
         XCTAssertNotEqual(model.draft(for: line).description, draft.description)
-        XCTAssertTrue(model.retryPending())
-        XCTAssertNil(model.pendingCommand)
+        let resumed = try makeModel(store, checkpoint: checkpoint)
+        XCTAssertEqual(resumed.pendingCommand?.operationID, pendingID)
+        XCTAssertEqual(resumed.draft(for: line).description, "Sample oats")
+        XCTAssertTrue(resumed.retryPending())
+        XCTAssertNil(resumed.pendingCommand)
         XCTAssertEqual(store.lastOperation, pendingID)
-        XCTAssertEqual(model.snapshot.products.count, 1)
-        XCTAssertEqual(model.snapshot.reviewHistory.count, 1)
-        XCTAssertTrue(model.snapshot.reviewHistory[0].received)
+        XCTAssertEqual(resumed.snapshot.products.count, 1)
+        XCTAssertEqual(resumed.snapshot.reviewHistory.count, 1)
+        XCTAssertTrue(resumed.snapshot.reviewHistory[0].received)
+    }
+
+    func testReceiptDraftAndSelectionResumeWithoutAccepting() throws {
+        let store = InMemoryInventoryStore()
+        let checkpoint = MemoryInventoryCheckpoint()
+        let model = try makeModel(store, checkpoint: checkpoint)
+        model.paste = "Sample oats 500 g"
+        model.importPaste()
+        let source = try XCTUnwrap(model.activeSource)
+        let line = try XCTUnwrap(source.lines.first)
+        var draft = model.draft(for: line)
+        draft.description = "Corrected oats"; draft.purchaseCount = "2"
+        model.update(draft, line: line)
+        draft = model.draft(for: line)
+        draft.createProduct = true
+        model.update(draft, line: line)
+        model.selectedLines = [source.lineKey(line.lineNumber)]
+        let resumed = try makeModel(store, checkpoint: checkpoint)
+        XCTAssertEqual(resumed.draft(for: line), draft)
+        XCTAssertEqual(resumed.selectedLines, model.selectedLines)
+        XCTAssertEqual(resumed.paste, model.paste)
+        XCTAssertTrue(resumed.snapshot.products.isEmpty)
+        XCTAssertTrue(resumed.snapshot.reviewHistory.isEmpty)
     }
 
     func testStaleSnapshotCanReloadWithoutRetryDeadlock() throws {
@@ -147,10 +174,16 @@ final class LocalInventoryPresentationTests: XCTestCase {
         XCTAssertNil(model.snapshot.products[0].remaining)
     }
 
-    private func makeModel(_ store: any InventoryStoring = InMemoryInventoryStore()) throws -> LocalInventoryViewModel {
-        try LocalInventoryViewModel(service: LocalInventoryService(store: store, digester: SHA256Digester(), clock: Clock()), ids: RandomLedgerIDGenerator(), clock: Clock())
+    private func makeModel(_ store: any InventoryStoring = InMemoryInventoryStore(), checkpoint: (any InventoryReviewCheckpointStoring)? = nil) throws -> LocalInventoryViewModel {
+        try LocalInventoryViewModel(service: LocalInventoryService(store: store, digester: SHA256Digester(), clock: Clock()), ids: RandomLedgerIDGenerator(), clock: Clock(), checkpointStore: checkpoint)
     }
     private struct Clock: LedgerClock { func now() -> Date { Date(timeIntervalSince1970: 1_700_000_000) } }
+}
+
+private final class MemoryInventoryCheckpoint: InventoryReviewCheckpointStoring, @unchecked Sendable {
+    private var value: InventoryReviewCheckpoint?
+    func load() throws -> InventoryReviewCheckpoint? { value }
+    func save(_ checkpoint: InventoryReviewCheckpoint) throws { try checkpoint.validate(); value = checkpoint }
 }
 
 private final class LostResponseStore: InventoryStoring, @unchecked Sendable {

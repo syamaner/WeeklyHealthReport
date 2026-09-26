@@ -4,6 +4,41 @@ import XCTest
 
 @MainActor
 final class DailyNoteSpeechCaptureTests: XCTestCase {
+    func testIdleAudioCleanupDoesNotTouchSessionAndRepeatedCleanupIsHarmless() throws {
+        var calls: [Bool] = []
+        let lease = SpeechAudioSessionLease { calls.append($0) }
+        lease.deactivate(); lease.deactivate()
+        XCTAssertTrue(calls.isEmpty)
+        try lease.activate()
+        lease.deactivate(); lease.deactivate()
+        XCTAssertEqual(calls, [true, false])
+    }
+
+    func testFailedAudioActivationStillOwnsCleanup() {
+        var calls: [Bool] = []
+        let lease = SpeechAudioSessionLease { active in
+            calls.append(active)
+            if active { throw SpeechCaptureFailure.audioSessionUnavailable }
+        }
+        XCTAssertThrowsError(try lease.activate())
+        lease.deactivate()
+        XCTAssertEqual(calls, [true, false])
+    }
+
+    func testFailedAudioDeactivationRetainsOwnershipForRetry() throws {
+        var calls: [Bool] = []
+        var fails = true
+        let lease = SpeechAudioSessionLease { active in
+            calls.append(active)
+            if !active && fails { throw SpeechCaptureFailure.audioSessionUnavailable }
+        }
+        try lease.activate()
+        lease.deactivate()
+        fails = false
+        lease.deactivate(); lease.deactivate()
+        XCTAssertEqual(calls, [true, false, false])
+    }
+
     func testPermissionsAreNotRequestedUntilMicrophoneTap() async {
         let capture = FakeSpeechCapture(permission: .notDetermined)
         let controller = makeSpeechController(capture: capture)

@@ -18,6 +18,7 @@ final class FoodLedgerCompositionRoot {
     private let ids: RandomLedgerIDGenerator
     private var activeFoodList: FoodListImportViewModel?
     private let inventoryURL: URL
+    private let draftURL: URL
     private var activeInventory: LocalInventoryViewModel?
     private var inventoryService: LocalInventoryService?
     private var activeReresolution: FoodReresolutionViewModel?
@@ -37,6 +38,7 @@ final class FoodLedgerCompositionRoot {
             .appendingPathComponent("FoodLedger", isDirectory: true)
             .appendingPathComponent("v1", isDirectory: true)
         inventoryURL = applicationSupport.appendingPathComponent("WeeklyHealthReport/Inventory/v1/inventory.sqlite")
+        draftURL = root.appendingPathComponent("food-list-draft.sqlite")
         store = try FoodLedgerGRDBStore(
             databaseURL: root.appendingPathComponent("food-ledger.sqlite"),
             attachmentsRoot: root.appendingPathComponent("Attachments", isDirectory: true)
@@ -105,7 +107,8 @@ final class FoodLedgerCompositionRoot {
             store: try LocalInventoryGRDBStore(databaseURL: inventoryURL),
             digester: SHA256Digester(), clock: SystemLedgerClock()
         )
-        let model = try LocalInventoryViewModel(service: service, ids: ids, clock: SystemLedgerClock())
+        let model = try LocalInventoryViewModel(service: service, ids: ids, clock: SystemLedgerClock(),
+            checkpointStore: InventoryReviewCheckpointGRDBStore(databaseURL: inventoryURL.deletingLastPathComponent().appendingPathComponent("review-draft.sqlite")))
         inventoryService = service
         activeInventory = model
         return model
@@ -127,11 +130,28 @@ final class FoodLedgerCompositionRoot {
         return try inventoryService.selectionEvidence(for: product, evidenceID: ids.makeID(EvidenceTag.self), locale: LedgerText(Locale.current.identifier))
     }
 
+    func inventoryBackup() throws -> Data {
+        _ = try inventoryModel()
+        guard let adapter = inventoryService?.store as? LocalInventoryGRDBStore else { throw InventoryStoreError.invalidReference }
+        return try adapter.exportBackup()
+    }
+
+    func restoreInventoryBackup(_ data: Data) throws {
+        let model = try inventoryModel()
+        guard model.pendingCommand == nil, let adapter = inventoryService?.store as? LocalInventoryGRDBStore else { throw InventoryStoreError.invalidReference }
+        try adapter.restoreBackup(data)
+        model.reload(keepingDrafts: true)
+    }
+
     func foodListModel(locale: Locale = .current) throws -> FoodListImportViewModel {
         if let activeFoodList { return activeFoodList }
         let model = FoodListImportViewModel(
             service: FoodListImportService(searcher: genericFoodSearch),
-            locale: try LedgerText(locale.identifier), ids: ids
+            locale: try LedgerText(locale.identifier), ids: ids,
+            checkpointStore: try FoodListCheckpointGRDBStore(databaseURL: draftURL),
+            recoveredLogItemID: { [ledger] operationID in
+                try ledger.confirmedLogItemID(operationID: operationID, idempotencyKey: LedgerText("food-list:\(operationID.rawValue)"))
+            }
         ) { [confirmations] state, operationID in
             try confirmations.save(
                 state, operationID: operationID,
@@ -242,6 +262,7 @@ struct LocalInventoryFlowView: View {
                 showsSearch = true
             } catch { model.report(error) }
         }
+        .modifier(InventoryBackupControls(root: root, model: model))
         .fileImporter(isPresented: $showsFilePicker, allowedContentTypes: [.plainText, .pdf]) { result in
             do {
                 let url = try result.get()
@@ -262,6 +283,73 @@ struct LocalInventoryFlowView: View {
                 flow.id(evidence.map(\.evidenceID))
             }
         }
+    }
+}
+
+private struct InventoryBackupControls: ViewModifier {
+    let root: FoodLedgerCompositionRoot
+    @ObservedObject var model: LocalInventoryViewModel
+    @State private var showsExport = false
+    @State private var showsImport = false
+    @State private var backup = InventoryBackupDocument()
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                Menu("Backup") {
+                    Text("Includes original receipts and saved review history. Exported files are not encrypted.")
+                    Button("Export inventory backup") {
+                        do { backup = InventoryBackupDocument(data: try root.inventoryBackup()); showsExport = true }
+                        catch { model.report(error) }
+                    }
+                    Button("Restore inventory backup") { showsImport = true }
+                }.disabled(model.pendingCommand != nil)
+            }
+            .fileExporter(isPresented: $showsExport, document: backup, contentType: .json, defaultFilename: "inventory-backup") { result in
+                if case let .failure(error) = result { model.report(error) }
+            }
+            .fileImporter(isPresented: $showsImport, allowedContentTypes: [.json]) { result in
+                do {
+                    let url = try result.get()
+                    let scoped = url.startAccessingSecurityScopedResource()
+                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+                    let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
+                    guard size > 0, size <= InventoryBackupCodec.maximumBytes else { throw InventoryStoreError.corruptStore }
+                    try root.restoreInventoryBackup(Data(contentsOf: url))
+                } catch let error as CocoaError where error.code == .userCancelled { }
+                catch { model.report(error) }
+            }
+    }
+}
+
+struct InventoryBackupDocument: FileDocument {
+    static var readableContentTypes: [UTType] { [.json] }
+    var data = Data()
+    init(data: Data = Data()) { self.data = data }
+    init(configuration: ReadConfiguration) throws {
+        guard let data = configuration.file.regularFileContents else { throw InventoryStoreError.corruptStore }
+        self.data = data
+    }
+    func fileWrapper(configuration: WriteConfiguration) throws -> FileWrapper { FileWrapper(regularFileWithContents: data) }
+}
+
+struct CommonFoodsFlowView: View {
+    private let root: FoodLedgerCompositionRoot
+    @StateObject private var model: LocalInventoryViewModel
+    @State private var showsList = false
+    init?(root: FoodLedgerCompositionRoot) {
+        guard let model = try? root.inventoryModel() else { return nil }
+        self.root = root; _model = StateObject(wrappedValue: model)
+    }
+    var body: some View {
+        CommonFoodsView(model: model) { product in
+            do {
+                try root.foodListModel().addCommonFood(name: product.name, portion: product.usualPortion)
+                showsList = true
+            } catch { model.report(error) }
+        }
+        .modifier(InventoryBackupControls(root: root, model: model))
+        .navigationDestination(isPresented: $showsList) { if let view = FoodListImportFlowView(root: root) { view } }
     }
 }
 

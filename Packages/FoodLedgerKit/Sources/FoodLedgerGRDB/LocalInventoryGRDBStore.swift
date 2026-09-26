@@ -5,7 +5,7 @@ import GRDB
 
 /// Independent local inventory event store; not part of the food archive v1 schema.
 public final class LocalInventoryGRDBStore: InventoryStoring, @unchecked Sendable {
-    public static let schemaVersion = 1
+    public static let schemaVersion = 2
     private static let applicationID = 0x5748_5249 // WHRI
     private let queue: DatabaseQueue
     private let digester: any Digesting
@@ -44,7 +44,10 @@ public final class LocalInventoryGRDBStore: InventoryStoring, @unchecked Sendabl
                 try db.execute(sql: "PRAGMA user_version = \(Self.schemaVersion)")
             } else {
                 guard appID == Self.applicationID else { throw InventoryStoreError.corruptStore }
-                guard version == Self.schemaVersion else { throw InventoryStoreError.unsupportedSchema }
+                guard version == 1 || version == Self.schemaVersion else { throw InventoryStoreError.unsupportedSchema }
+                // v2 adds optional common-food metadata to versioned product events.
+                // Older clients must not replay these events while dropping those fields.
+                if version == 1 { try db.execute(sql: "PRAGMA user_version = \(Self.schemaVersion)") }
             }
         }
         #if os(iOS)
@@ -56,6 +59,30 @@ public final class LocalInventoryGRDBStore: InventoryStoring, @unchecked Sendabl
     public func snapshot() throws -> InventorySnapshot {
         try protectedData.requireAvailable()
         return try queue.read { try replay($0) }
+    }
+
+    /// Includes immutable sources and all review/product versions. Hashes are integrity only.
+    public func exportBackup() throws -> Data {
+        try protectedData.requireAvailable()
+        return try queue.read { db in
+            _ = try replay(db)
+            let commands = try Data.fetchAll(db, sql: "SELECT payload FROM inventory_event ORDER BY sequence").map(Self.decode)
+            return try InventoryBackupCodec(digester: digester, encoder: encoder).encode(commands)
+        }
+    }
+
+    /// Restore only a compatible event history. Never overwrite divergent local reviews.
+    public func restoreBackup(_ bytes: Data) throws {
+        try protectedData.requireAvailable()
+        let codec = InventoryBackupCodec(digester: digester, encoder: encoder)
+        let commands = try codec.decode(bytes)
+        try queue.write { db in
+            _ = try replay(db)
+            let existing = try Data.fetchAll(db, sql: "SELECT payload FROM inventory_event ORDER BY sequence").map(Self.decode)
+            for command in try codec.commandsToAppend(existing: existing, incoming: commands) {
+                try db.execute(sql: "INSERT INTO inventory_event (sequence, operation_id, payload) VALUES (?, ?, ?)", arguments: [command.expectedRevision + 1, command.operationID.rawValue, try encoder.encode(command)])
+            }
+        }
     }
 
     @discardableResult
