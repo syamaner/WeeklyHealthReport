@@ -224,6 +224,14 @@ units, sparse/empty states, source selection/no fallback, DST and additive v4
 meaning. `FoodArchiveContractTests` covers deterministic projections, immutable
 history and atomic import failure. These are prerequisites, **not writer tests**.
 
+The [executable planning specification](../Tools/FoodHealthKitPlanning/README.md)
+adds 10 standard-library-only synthetic tests: all 39 map entries and units,
+exact arithmetic and omission propagation, duplicate/mixed-version rejection,
+source/date filtering, readback equality and strict journal-owned removal
+selection. These are invented-record model/predicate tests, not HealthKit calls,
+real SDK predicates, durable-journal recovery or physical evidence. The reference
+is not linked to the app and cannot save or delete data.
+
 The separately authorised implementation must add a synthetic planner/adapter
 contract suite for:
 
@@ -255,7 +263,8 @@ new v5 projection envelope; and staged implementation/device authority. Until
 ratified, retain this proposal and #97 as open. No production writer, sharing
 permission, live save/readback or deletion test has been implemented or performed.
 
-Planning validation: all 39 identifier/unit rows were mechanically compared with
-the existing Swift read catalogue. This documentation change needs no new app
-build; the writer-specific synthetic suite above is still future work, not a
-claim that the existing read/export tests validate writes.
+Planning validation: all 39 identifier/unit rows match the Swift read catalogue;
+the 10 executable planning tests pass and are checked in CI. No Swift production
+code changed, so no additional local app build was needed. The remaining adapter,
+permission, crash-recovery and schema-v5 tests above are still future work, not a
+claim that a production writer has been implemented or validated.
