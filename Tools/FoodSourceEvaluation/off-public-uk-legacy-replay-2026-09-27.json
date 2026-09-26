@@ -1,0 +1,257 @@
+{
+  "cohort": "Tesco Grocery 1.0; 2015 Greater London public category sample; not current UK coverage",
+  "denominator": 28,
+  "http200": 11,
+  "http404": 17,
+  "independentAccuracyAcceptance": false,
+  "limitations": [
+    "No independent current package/variant or reformulation adjudication",
+    "17 observed HTTP 404 bodies were not retained; not adapter-level notFound evidence",
+    "Only mass, as-sold packaging sets qualify; liquid/ambiguous source records intentionally decline",
+    "No representative current pantry accuracy or physical scanner usability claim"
+  ],
+  "observationStartedAt": "2026-09-26T23:25:05.531247+00:00",
+  "outcomeCounts": {
+    "candidate": 2,
+    "insufficientData": 9,
+    "transportOrHTTPFailure": 17
+  },
+  "requestCount": 28,
+  "responseManifestSHA256": "dbfdc397f3b63a6757dcb9d099171db2dd4bc3f4d8a11ee2c4771db220fcc5b9",
+  "rows": [
+    {
+      "caseID": "beer-01",
+      "category": "beer",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "insufficientData"
+    },
+    {
+      "caseID": "dairy-01",
+      "category": "dairy",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "eggs-01",
+      "category": "eggs",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "insufficientData"
+    },
+    {
+      "caseID": "fats_oils-01",
+      "category": "fats_oils",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "fish-01",
+      "category": "fish",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "fruit_veg-01",
+      "category": "fruit_veg",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "insufficientData"
+    },
+    {
+      "caseID": "grains-01",
+      "category": "grains",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "meat_red-01",
+      "category": "meat_red",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "insufficientData"
+    },
+    {
+      "caseID": "poultry-01",
+      "category": "poultry",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "readymade-01",
+      "category": "readymade",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "sauces-01",
+      "category": "sauces",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "soft_drinks-01",
+      "category": "soft_drinks",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "spirits-01",
+      "category": "spirits",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "insufficientData"
+    },
+    {
+      "caseID": "sweets-01",
+      "category": "sweets",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "tea_coffee-01",
+      "category": "tea_coffee",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "water-01",
+      "category": "water",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "insufficientData"
+    },
+    {
+      "caseID": "wine-01",
+      "category": "wine",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "insufficientData"
+    },
+    {
+      "caseID": "beer-02",
+      "category": "beer",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "insufficientData"
+    },
+    {
+      "caseID": "dairy-02",
+      "category": "dairy",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "eggs-02",
+      "category": "eggs",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "fats_oils-02",
+      "category": "fats_oils",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "fish-02",
+      "category": "fish",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "fruit_veg-02",
+      "category": "fruit_veg",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "caseID": "grains-02",
+      "category": "grains",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "insufficientData"
+    },
+    {
+      "bounded": 0,
+      "caseID": "meat_red-02",
+      "category": "meat_red",
+      "exactVariant": "unadjudicated",
+      "known": 7,
+      "labelFreshness": "unknown",
+      "outcome": "candidate",
+      "unknown": 32
+    },
+    {
+      "caseID": "readymade-02",
+      "category": "readymade",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    },
+    {
+      "bounded": 0,
+      "caseID": "sauces-02",
+      "category": "sauces",
+      "exactVariant": "unadjudicated",
+      "known": 5,
+      "labelFreshness": "unknown",
+      "outcome": "candidate",
+      "unknown": 34
+    },
+    {
+      "caseID": "soft_drinks-02",
+      "category": "soft_drinks",
+      "exactVariant": "unadjudicated",
+      "labelFreshness": "unknown",
+      "outcome": "transportOrHTTPFailure"
+    }
+  ],
+  "selection": "First sample ordinal across all categories, then second ordinal in category order; 28 cases fixed before lookups",
+  "source": {
+    "bytes": 1375434,
+    "eligible_by_category": {
+      "beer": 26,
+      "dairy": 131,
+      "eggs": 16,
+      "fats_oils": 196,
+      "fish": 72,
+      "fruit_veg": 3899,
+      "grains": 496,
+      "meat_red": 49,
+      "poultry": 1,
+      "readymade": 695,
+      "sauces": 104,
+      "soft_drinks": 125,
+      "spirits": 28,
+      "sweets": 1346,
+      "tea_coffee": 258,
+      "water": 58,
+      "wine": 147
+    },
+    "eligible_exact_gtins": 7647,
+    "expected_sha256_match": true,
+    "invalid_check_digit_rows_excluded": 0,
+    "release_id": "tesco-grocery-1.0-food-categories-v2-e79c86e1247408238d3062c7f78f18ca054d68d8d1e6def92ea70435347e3f15",
+    "rows": 67296,
+    "scientific_notation_rows_excluded": 59649,
+    "sha256": "e79c86e1247408238d3062c7f78f18ca054d68d8d1e6def92ea70435347e3f15"
+  },
+  "sourceResponseBodiesFor404Retained": false,
+  "version": "off-public-legacy-development-v2"
+}
