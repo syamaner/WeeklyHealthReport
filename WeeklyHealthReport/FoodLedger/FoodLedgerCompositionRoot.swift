@@ -185,6 +185,10 @@ final class FoodLedgerCompositionRoot {
         return try FoodIntakeProjection(records: store.archiveState().records, reportingDate: formatter.string(from: date))
     }
 
+    func recentIntakeDays(before date: Date, calendar: Calendar = .current) throws -> [FoodIntakeDayPreview] {
+        FoodIntakeDayPreview.pastWeek(records: try store.archiveState().records, now: date, calendar: calendar)
+    }
+
     private static func actorID(userDefaults: UserDefaults) throws -> ActorID {
         let key = "foodLedger.actorID.v1"
         if let stored = userDefaults.string(forKey: key) {
