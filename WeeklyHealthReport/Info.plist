@@ -37,6 +37,8 @@
 	<string>$(GOOGLE_OAUTH_REDIRECT_SCHEME)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Weekly Health Report reads your selected Apple Health data to create on-device reports and previews that you explicitly choose to export.</string>
 	<key>NSCameraUsageDescription</key>
