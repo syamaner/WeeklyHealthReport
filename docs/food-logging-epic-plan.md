@@ -51,6 +51,16 @@ Provider/commercial challengers, physical gates and HealthKit writes retain thei
 separate authority requirements. The user has authorised routine implementation,
 validation, PR delivery and merge for actionable food backlog work.
 
+The [proposed optional HealthKit projection plan](food-healthkit-write-plan.md)
+addresses #97 without implementing a writer or expanding permissions. It remains
+unratified; writer-specific synthetic evidence and any physical run are later gates.
+
+Remaining non-autonomous boundaries are explicit: #91 needs at least 100 consented
+lists from the intended writer(s), not synthetic substitutes; #102 depends on that
+accepted handwriting envelope. #93 remains deferred on its frozen corpus/accuracy
+gates. #95/#99/#100 need separate commercial/provider/model-run authority. No new
+user labelling batch, account access or paid evaluation is requested by this pass.
+
 ## Outcome
 
 Make repeated food logging easier while preserving enough identity and provenance
