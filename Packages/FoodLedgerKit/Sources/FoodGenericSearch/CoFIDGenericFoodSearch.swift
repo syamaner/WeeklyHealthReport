@@ -10,7 +10,7 @@ public enum CoFIDSearchError: Error, Equatable, Sendable {
 }
 
 public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "deterministic-lexical-hard-rules-v1"
+    public static let matcherVersion = "deterministic-lexical-complete-terms-v2"
     public static let corpusCanonicalSHA256 = "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445"
     public static let candidateLimit = 10
     public static let minimumScore = 0.25
@@ -84,7 +84,11 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
 
         let ranked = try rankedRecords(for: request)
         guard !ranked.isEmpty else {
-            return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence))
+            return .noResult(GenericFoodNoResultRoute(
+                evidence: evidence, additionalEvidence: request.additionalEvidence,
+                guidance: Self.noResultGuidance(for: request.text.value),
+                suggestedQueries: Self.suggestedQueries(for: request.text.value)
+            ))
         }
         let matches = try ranked.map { value in
             GenericFoodMatch(
@@ -181,17 +185,22 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
     private func rankedRecords(for request: GenericFoodSearchRequest) throws -> [RankedRecord] {
         let query = Self.normalized(request.text.value)
         let queryTokens = Set(query.split(separator: " ").map(String.init))
+        let meaningfulTokens = GenericFoodSearchTerms.tokens(request.text.value)
+        guard !meaningfulTokens.isEmpty else { return [] }
+        // CoFID has components, not a combined meal. Shop context is not identity.
+        if Self.isFishAndChips(queryTokens) || Self.isRibeye(queryTokens) { return [] }
         guard !queryTokens.isEmpty else { return [] }
         var ranked: [RankedRecord] = []
         for record in corpus.records {
             guard Self.contradictions(query: request.identity, record: record).isEmpty else { continue }
             let candidate = Self.normalized(record.name)
-            let candidateTokens = Set(candidate.split(separator: " ").map(String.init))
-            let intersection = queryTokens.intersection(candidateTokens)
-            let union = queryTokens.union(candidateTokens)
+            let candidateTokens = GenericFoodSearchTerms.tokens(record.name)
+            guard meaningfulTokens.isSubset(of: candidateTokens) else { continue }
+            let intersection = meaningfulTokens.intersection(candidateTokens)
+            let union = meaningfulTokens.union(candidateTokens)
             let exact = query == candidate
             let exactScore: Double = exact ? Self.weights.exactName : 0
-            let queryCoverage = Double(intersection.count) / Double(queryTokens.count)
+            let queryCoverage = Double(intersection.count) / Double(meaningfulTokens.count)
             let candidateCoverage = Double(intersection.count) / Double(candidateTokens.count)
             let jaccard = Double(intersection.count) / Double(union.count)
             let score = exactScore
@@ -199,8 +208,8 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
                 + Self.weights.candidateCoverage * candidateCoverage
                 + Self.weights.jaccard * jaccard
             guard score >= Self.minimumScore else { continue }
-            let differences = candidateTokens.subtracting(queryTokens).sorted().map { "candidate_only_token:\($0)" }
-                + queryTokens.subtracting(candidateTokens).sorted().map { "query_only_token:\($0)" }
+            let differences = candidateTokens.subtracting(meaningfulTokens).sorted().map { "candidate_only_token:\($0)" }
+                + meaningfulTokens.subtracting(candidateTokens).sorted().map { "query_only_token:\($0)" }
             ranked.append(RankedRecord(record: record, score: score, exact: exact, differences: differences))
         }
         return Array(ranked.sorted {
@@ -341,6 +350,39 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         ]
         let tokens = folded.lowercased().split { !$0.isASCII || !$0.isLetter && !$0.isNumber }
         return tokens.map { aliases[String($0)] ?? String($0) }.joined(separator: " ")
+    }
+
+    private static let connectors: Set<String> = ["and", "with", "the", "of", "in", "from", "a", "an"]
+
+    private static func isFishAndChips(_ tokens: Set<String>) -> Bool {
+        (tokens.contains("fish") || tokens.contains("fiash")) && tokens.contains("chips")
+    }
+
+    private static func isRibeye(_ tokens: Set<String>) -> Bool {
+        tokens.contains("ribeye") || (tokens.contains("rib") && tokens.contains("eye"))
+    }
+
+    private static func suggestedQueries(for value: String) -> [String] {
+        let tokens = Set(normalized(value).split(separator: " ").map(String.init))
+        if isFishAndChips(tokens) {
+            return ["Cod in batter", "Potato chips"]
+        }
+        if isRibeye(tokens) {
+            return ["Beef steak"]
+        }
+        return []
+    }
+
+    private static func noResultGuidance(for value: String) -> String {
+        let tokens = Set(normalized(value).split(separator: " ").map(String.init))
+        let suffix = " Nothing has been selected or saved."
+        if isFishAndChips(tokens) {
+            return "This offline catalogue has no combined fish-and-chips meal. Search for the fish (for example, cod in batter) and potato chips separately, then log each portion." + suffix
+        }
+        if isRibeye(tokens) {
+            return "This offline catalogue has no named ribeye entry. Use label evidence for the specific cut, or search beef steak to review broader alternatives. A different cut is not an exact ribeye match." + suffix
+        }
+        return "No suitable catalogue entry was found. Try a simpler name, search meal components separately, or leave this item unresolved." + suffix
     }
 
     private static func makeRelease(source: CorpusSource) throws -> SourceRelease {

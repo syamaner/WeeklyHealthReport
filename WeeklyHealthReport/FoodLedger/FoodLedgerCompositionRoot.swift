@@ -14,7 +14,8 @@ final class FoodLedgerCompositionRoot {
     private let store: FoodLedgerGRDBStore
     private let confirmations: FoodConfirmationService
     private let ledger: FoodLedgerService
-    private let genericFoodSearch: CoFIDGenericFoodSearch
+    private let genericFoodSearch: any GenericFoodSearching
+    private let offLookup: OpenFoodFactsLookup
     private let ids: RandomLedgerIDGenerator
     private var activeFoodList: FoodListImportViewModel?
     private let inventoryURL: URL
@@ -44,6 +45,7 @@ final class FoodLedgerCompositionRoot {
             attachmentsRoot: root.appendingPathComponent("Attachments", isDirectory: true)
         )
         ids = RandomLedgerIDGenerator()
+        offLookup = OpenFoodFactsLookup(transport: OFFHTTPSProductTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)"))
         let clock = SystemLedgerClock()
         ledger = FoodLedgerService(
             actorID: try Self.actorID(userDefaults: userDefaults),
@@ -58,10 +60,10 @@ final class FoodLedgerCompositionRoot {
             clock: clock,
             ids: ids
         )
-        genericFoodSearch = try CoFIDGenericFoodSearch(
-            library: PersonalLibraryGenericFoodSearch(reader: store),
-            ids: ids
-        )
+        genericFoodSearch = try CompositeGenericFoodSearch(sources: [
+            CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
+            USDAGenericFoodSearch(ids: ids)
+        ], ids: ids)
     }
 
     func model(for input: PopulatedFoodConfirmation) -> FoodConfirmationViewModel {
@@ -93,6 +95,11 @@ final class FoodLedgerCompositionRoot {
             locale: try LedgerText(locale.identifier),
             additionalEvidence: additionalEvidence
         )
+    }
+
+    func lookupOFF(_ route: BarcodeFallbackRoute) async throws -> PackagedFoodLookupOutcome {
+        guard let identity = route.identity else { throw OFFLookupError.unsupportedCode }
+        return try await offLookup.lookup(PackagedFoodLookupRequest(identity: identity, evidence: route.evidence))
     }
 
     func barcodeModel() -> BarcodeCaptureViewModel {
@@ -167,6 +174,15 @@ final class FoodLedgerCompositionRoot {
         let superseded = Set(records.productVersions.compactMap(\.supersedesProductVersionID))
         let current = records.productVersions.filter { !superseded.contains($0.productVersionID) }
         return FoodSpeechVocabulary.make(namesAndBrands: current.flatMap { [$0.name.value] + ($0.brand.map { [$0.value] } ?? []) })
+    }
+
+    func intakeProjection(for date: Date, calendar: Calendar = .current) throws -> FoodIntakeProjection {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return try FoodIntakeProjection(records: store.archiveState().records, reportingDate: formatter.string(from: date))
     }
 
     private static func actorID(userDefaults: UserDefaults) throws -> ActorID {
@@ -365,6 +381,13 @@ struct FoodReresolutionFlowView: View {
 struct BarcodeFoodFlowView: View {
     private let root: FoodLedgerCompositionRoot
     @StateObject private var model: BarcodeCaptureViewModel
+    @State private var offTask: Task<Void, Never>?
+    @State private var offMessage: String?
+    @State private var offIsLoading = false
+    @State private var offGeneration = 0
+    @State private var pendingOFFRoute: BarcodeFallbackRoute?
+    @State private var showsOFFDisclosure = false
+    @AppStorage("foodLedger.offBarcodeDisclosure.v1") private var hasSeenOFFDisclosure = false
     @State private var scanner: VisionKitBarcodeScanner?
     @State private var showsScanner = false
     @State private var showsSearch = false
@@ -380,8 +403,10 @@ struct BarcodeFoodFlowView: View {
     var body: some View {
         Form {
             Section("Food barcode") {
-                Text("Scan a barcode to look for a food you have already saved. If there is no exact match, choose a food through search.")
+                Text("Checks your saved foods first. On a miss, you can optionally look up the barcode on Open Food Facts or search generic foods.")
                 Button("Scan barcode") {
+                    cancelOFF()
+                    offMessage = nil
                     guard let next = VisionKitBarcodeScanner.makeIfSupported() else {
                         model.showUnavailable()
                         return
@@ -413,7 +438,17 @@ struct BarcodeFoodFlowView: View {
         .onChange(of: model.phase) { _, phase in
             if phase != .capturing { showsScanner = false }
         }
-        .onDisappear { stopScanner() }
+        .onDisappear { stopScanner(); cancelOFF() }
+        .alert("Look up this barcode?", isPresented: $showsOFFDisclosure) {
+            Button("Cancel", role: .cancel) { pendingOFFRoute = nil }
+            Button("Send barcode and look up") {
+                hasSeenOFFDisclosure = true
+                if let route = pendingOFFRoute { startOFF(route) }
+                pendingOFFRoute = nil
+            }
+        } message: {
+            Text("The barcode will be sent to Open Food Facts. Your food history, quantities, photos and health data stay on this device. Returned community data needs your review. Selected source records retain attribution and licence notices in local records and exports.")
+        }
         .navigationDestination(isPresented: $showsSearch) {
             if let view = GenericFoodSearchFlowView(root: root, additionalEvidence: evidence) {
                 view.id(evidence.map(\.evidenceID))
@@ -443,6 +478,21 @@ struct BarcodeFoodFlowView: View {
         case let .result(.fallback(route)):
             Section {
                 BarcodeFallbackGuidanceView(route: route) { openSearch(evidence: [$0]) }
+                if case .gtin = route.identity {
+                    Text("Optional online lookup sends this barcode to Open Food Facts.").font(.caption)
+                    if offIsLoading {
+                        ProgressView("Looking up product")
+                        Button("Cancel lookup") { cancelOFF() }
+                    } else {
+                        Button("Look up on Open Food Facts") {
+                            if hasSeenOFFDisclosure { startOFF(route) }
+                            else { pendingOFFRoute = route; showsOFFDisclosure = true }
+                        }
+                    }
+                    if let offMessage { Text(offMessage).font(.caption) }
+                    Link("Open Food Facts · data licence", destination: URL(string: "https://openfoodfacts.github.io/openfoodfacts-server/api/tutorials/license-be-on-the-legal-side/")!)
+                        .font(.caption)
+                }
             }
         case let .result(.confirmation(route)):
             Section("Saved food found") {
@@ -451,6 +501,36 @@ struct BarcodeFoodFlowView: View {
                     confirmationModel = root.model(for: route.confirmation)
                     showsConfirmation = true
                 }
+            }
+        }
+    }
+
+    private func cancelOFF() {
+        offGeneration += 1
+        offTask?.cancel(); offTask = nil; offIsLoading = false
+    }
+
+    private func startOFF(_ route: BarcodeFallbackRoute) {
+        cancelOFF()
+        let generation = offGeneration
+        offMessage = nil; offIsLoading = true
+        offTask = Task { @MainActor in
+            defer { if generation == offGeneration { offIsLoading = false; offTask = nil } }
+            do {
+                let outcome = try await root.lookupOFF(route)
+                guard !Task.isCancelled, generation == offGeneration else { return }
+                switch outcome {
+                case let .candidate(confirmation):
+                    confirmationModel = root.model(for: confirmation)
+                    showsConfirmation = true
+                case .notFound: offMessage = "No product found. Your barcode is retained; you can use generic search."
+                case .insufficientData: offMessage = "The product has insufficient nutrition or an ambiguous basis. Use generic search; nothing was selected or saved."
+                }
+            } catch is CancellationError { }
+            catch OFFLookupError.rateLimited {
+                if generation == offGeneration { offMessage = "Lookup is rate-limited. Wait before trying again, or use generic search." }
+            } catch {
+                if !Task.isCancelled, generation == offGeneration { offMessage = "Open Food Facts is unavailable. Your barcode is retained; use generic search or try again later." }
             }
         }
     }

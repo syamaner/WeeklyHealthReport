@@ -94,12 +94,17 @@ public struct GenericFoodNoResultRoute: Equatable, Sendable {
     public let retainedEvidence: [CaptureEvidence]
     public let title: String
     public let guidance: String
+    public let suggestedQueries: [String]
 
-    public init(evidence: CaptureEvidence, additionalEvidence: [CaptureEvidence] = []) {
+    public init(
+        evidence: CaptureEvidence, additionalEvidence: [CaptureEvidence] = [],
+        guidance: String? = nil, suggestedQueries: [String] = []
+    ) {
         self.evidence = evidence
+        self.suggestedQueries = suggestedQueries
         retainedEvidence = [evidence] + additionalEvidence
         title = "No compatible generic food found"
-        guidance = "Try another food name or leave this item unresolved. Nothing has been selected or saved."
+        self.guidance = guidance ?? "Try another food name or leave this item unresolved. Nothing has been selected or saved."
     }
 }
 

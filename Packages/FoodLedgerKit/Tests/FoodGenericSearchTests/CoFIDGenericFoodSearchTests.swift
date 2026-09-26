@@ -32,7 +32,7 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
     func testKnownPreparationHardRuleRunsBeforeRanking() throws {
         let search = try CoFIDGenericFoodSearch(ids: SequenceIDs())
         let outcome = try search.search(request(
-            "Beef braising steak raw lean",
+            "Beef braising steak lean",
             identity: GenericFoodIdentityQuery(preparation: try PreparationState(kind: .cooked))
         ))
         guard case let .confirmation(route) = outcome else { return XCTFail("Expected cooked candidates") }
@@ -231,6 +231,38 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             let draft = FoodListLineDraft(parsed: parsed, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
             guard case .unresolved = try service.search(draft, at: FixedClock().now(), locale: LedgerText("en_GB")) else {
                 return XCTFail("Must remain unresolved: \(text)")
+            }
+        }
+    }
+
+    func testReportedMealAndCutFailuresOfferHonestNextSearches() throws {
+        let search = try CoFIDGenericFoodSearch(ids: SequenceIDs())
+        for query in ["Fish & Chips", "Fish and Chips", "Fiash and Chips"] {
+            guard case let .noResult(route) = try search.search(request(query)) else {
+                return XCTFail("A component or shop description is not the whole meal: \(query)")
+            }
+            XCTAssertEqual(route.suggestedQueries, ["Cod in batter", "Potato chips"])
+            XCTAssertTrue(route.guidance.contains("separately"))
+            for suggestion in route.suggestedQueries {
+                guard case .confirmation = try search.search(request(suggestion)) else {
+                    return XCTFail("Suggested search must retrieve candidates")
+                }
+            }
+        }
+        for query in ["Ribeye", "rib eye", "rib-eye"] {
+            guard case let .noResult(route) = try search.search(request(query)) else {
+                return XCTFail("Do not invent an exact cut match")
+            }
+            XCTAssertEqual(route.suggestedQueries, ["Beef steak"])
+            XCTAssertTrue(route.guidance.contains("different cut"))
+        }
+    }
+
+    func testConnectingWordsAloneCannotRetrieveCandidates() throws {
+        let search = try CoFIDGenericFoodSearch(ids: SequenceIDs())
+        for query in ["and with the", "zzzz and", "in from"] {
+            guard case .noResult = try search.search(request(query)) else {
+                return XCTFail("A conjunction is not a food match: \(query)")
             }
         }
     }

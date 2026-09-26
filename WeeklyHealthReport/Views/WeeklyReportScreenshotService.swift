@@ -14,7 +14,7 @@ enum WeeklyReportScreenshotEligibility {
         navigationPath: [WeeklyReportRoute],
         isTransientUIPresented: Bool
     ) -> Bool {
-        navigationPath.isEmpty && !isTransientUIPresented
+        navigationPath == [.healthReport] && !isTransientUIPresented
     }
 }
 

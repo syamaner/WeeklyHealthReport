@@ -96,6 +96,16 @@ public struct FoodConfirmationView: View {
     public var body: some View {
         Form {
             if let context { Section("From your list") { Text(context) } }
+            if model.state.input.sourceReleases.contains(where: { $0.sourceID.value == "open-food-facts" }) {
+                Section("Open Food Facts source") {
+                    Text("Community product data. Check the package; this is a source estimate.").font(.caption)
+                    ForEach(model.state.input.sourceReleases.filter { $0.sourceID.value == "open-food-facts" }, id: \.sourceReleaseID) { source in
+                        Text(source.attribution.value).font(.caption).textSelection(.enabled)
+                        Text(source.licence.value).font(.caption2).textSelection(.enabled)
+                    }
+                    Link("Open Food Facts data licence", destination: URL(string: "https://openfoodfacts.github.io/openfoodfacts-server/api/tutorials/license-be-on-the-legal-side/")!)
+                }
+            }
             Group {
                 identitySection
                 candidateSection

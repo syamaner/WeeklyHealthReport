@@ -109,13 +109,25 @@ records all 39 food nutrient states and exact input log-version IDs, and exclude
 raw media and transient capture data. Creating schema v4 does not enable or call a
 provider; local food-archive export/import remains a separate explicit action.
 
+The app opens on **Today**, showing confirmed local food intake so far and links to
+**Manage food intake**, **Export health data** and the health report. Food Log supports
+a selected reporting date, source-aware totals, saved-entry review and existing
+food capture routes. The [intake projection contract](docs/intake-home-projection-v1.md)
+keeps unknown/bounded contributions incomplete and current-day food intake separate
+from completed-day HealthKit reporting.
+
 Generic-food matching is currently limited to deterministic local candidate
 ranking followed by explicit user selection or decline. The frozen
 [generic-food evaluation](docs/generic-food-match-evaluation.md) does not promote
 automatic acceptance and contains no personal-food validation.
 The delivered [offline generic-food search](docs/generic-food-search-delivery.md)
-uses the same frozen CoFID release and matcher envelope, shows source descriptions
-and lexical differences, and records confirmed exact aliases for offline reuse.
+uses bundled CoFID and separately labelled USDA US-composition candidates, shows
+source descriptions and differences, and records confirmed exact aliases for offline
+reuse. The [source expansion contract](docs/food-data-source-expansion-proposal-v1.md)
+pins Foundation/SR Legacy snapshots and preserves whole source records. The
+[bounded search repair](docs/food-search-usability-v2.md) provides component suggestions
+for unsupported combined meals. Broader multi-source relevance remains unevaluated;
+the historical frozen evaluation does not establish this new adapter's accuracy.
 The [pasted food-list input](docs/food-list-import.md) adds local quantity/unit
 parsing and a per-line review queue under **Food logging → Paste Food List**.
 Every saved line still requires explicit candidate confirmation.
@@ -124,8 +136,12 @@ button to that editor. On supported devices it uses on-device speech, then requi
 editable text and numeric/unit review before entering the same food-review queue.
 It does not save audio or automatically log food; physical speech checks remain
 separate from synthetic lifecycle tests.
-The [barcode entry](docs/barcode-beta-delivery.md) uses the existing exact local
-library and preserves the scan when falling back to generic search. Physical
+The [barcode entry](docs/barcode-beta-delivery.md) checks the existing exact local
+library first and preserves the scan when falling back to generic search. On a GTIN
+miss, the approved [optional OFF lookup](docs/off-barcode-candidate-plan-v1.md) offers
+a foreground barcode-only request after disclosure, with explicit review before
+saving source-attributed data. Its first mapper supports declared mass products;
+liquid/ambiguous or insufficient records stay unresolved. No OFF login is required. Physical
 camera validation remains deferred; label-photo OCR is not offered in this beta.
 The optional [local receipt review](docs/local-inventory-contract.md) imports pasted
 text or user-selected text-bearing PDFs, keeps original evidence and requires

@@ -13,6 +13,7 @@ public enum GenericFoodSearchPhase: Equatable, Sendable {
 @MainActor
 public final class GenericFoodSearchViewModel: ObservableObject {
     @Published public var query = ""
+    @Published public var preparationFilter: PreparationKind?
     @Published public private(set) var phase: GenericFoodSearchPhase = .idle
     private let searcher: any GenericFoodSearching
     private let now: @MainActor () -> Date
@@ -31,9 +32,12 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         self.now = now
     }
 
-    public func search(identity: GenericFoodIdentityQuery = GenericFoodIdentityQuery()) {
+    public func search(identity: GenericFoodIdentityQuery? = nil) {
         do {
             let text = try LedgerText(query, field: "generic food search")
+            let identity = try identity ?? GenericFoodIdentityQuery(
+                preparation: preparationFilter.map { try PreparationState(kind: $0) }
+            )
             switch try searcher.search(GenericFoodSearchRequest(
                 text: text,
                 identity: identity,
@@ -90,6 +94,12 @@ public struct GenericFoodSearchView: View {
                         .submitLabel(.search)
                         .onSubmit { model.search() }
                 }
+                Picker("Preparation", selection: $model.preparationFilter) {
+                    Text("Any").tag(Optional<PreparationKind>.none)
+                    Text("Raw").tag(Optional(PreparationKind.raw))
+                    Text("Cooked").tag(Optional(PreparationKind.cooked))
+                }
+                .pickerStyle(.segmented)
                 Button("Search offline") { model.search() }
                     .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
@@ -103,7 +113,7 @@ public struct GenericFoodSearchView: View {
         switch model.phase {
         case .idle:
             Section {
-                Text("Searches the bundled, versioned CoFID release. Every result requires your selection.")
+                Text("Searches bundled UK CoFID and US USDA composition estimates offline. Source records remain separate; every result requires your selection.")
                     .font(.caption)
             }
         case let .failed(message):
@@ -111,6 +121,12 @@ public struct GenericFoodSearchView: View {
         case let .noResult(route):
             Section(route.title) {
                 Text(route.guidance)
+                ForEach(route.suggestedQueries, id: \.self) { query in
+                    Button("Search \(query)") {
+                        model.query = query
+                        model.search()
+                    }
+                }
                 Text("Your typed query remains available to edit.").font(.caption)
             }
         case .declined:
@@ -118,23 +134,22 @@ public struct GenericFoodSearchView: View {
                 Text("The candidates were declined. Nothing was saved; edit the query to search again.")
             }
         case let .results(route):
-            Section("Ranked candidates") {
+            Section("Choose a food") {
                 ForEach(Array(route.matches.enumerated()), id: \.offset) { index, match in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(match.candidate.name.value).font(.headline)
                         if let description = match.candidate.variant {
                             Text(description.value).font(.subheadline)
                         }
-                        Text(match.isExactName ? "Exact name" : "Closest name match")
+                        Text(match.isExactName ? "Exact name" : "Food name match")
                             .font(.subheadline)
-                        if let metadata = match.candidate.candidate.matchMetadata {
-                            ForEach(metadata.materialDifferences, id: \.value) { difference in
-                                Text(Self.differenceLabel(difference.value))
-                                    .font(.caption)
-                            }
-                        }
+                        Text("Preparation: \(match.candidate.candidate.identity.preparation.kind.rawValue)")
+                            .font(.caption).foregroundStyle(.secondary)
                         DisclosureGroup("Source and matching details") {
                             if let metadata = match.candidate.candidate.matchMetadata {
+                                ForEach(metadata.materialDifferences, id: \.value) { difference in
+                                    Text(Self.differenceLabel(difference.value)).font(.caption)
+                                }
                                 Text("Lexical score \(metadata.score, format: .number.precision(.fractionLength(3))); not a probability of correctness.")
                                     .font(.caption)
                             }
