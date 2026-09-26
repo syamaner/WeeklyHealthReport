@@ -4,6 +4,7 @@ import FoodLedgerDomain
 /// Versioned backup integrity and compatible-history policy, independent of storage.
 public struct InventoryBackupCodec: Sendable {
     public static let formatVersion = 2
+    public static let maximumBytes = 100_000_000
     private let digester: any Digesting
     private let encoder: any CanonicalEncoding
     private struct Envelope: Codable {
@@ -19,11 +20,13 @@ public struct InventoryBackupCodec: Sendable {
     public func encode(_ commands: [InventoryCommand]) throws -> Data {
         try validate(commands)
         let hash = try digester.sha256(encoder.encode(commands)).value
-        return try encoder.encode(Envelope(formatVersion: Self.formatVersion, commands: commands, sha256: hash))
+        let bytes = try encoder.encode(Envelope(formatVersion: Self.formatVersion, commands: commands, sha256: hash))
+        guard bytes.count <= Self.maximumBytes else { throw InventoryStoreError.corruptStore }
+        return bytes
     }
 
     public func decode(_ bytes: Data) throws -> [InventoryCommand] {
-        guard bytes.count <= 100_000_000 else { throw InventoryStoreError.corruptStore }
+        guard bytes.count <= Self.maximumBytes else { throw InventoryStoreError.corruptStore }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .millisecondsSince1970
         let backup = try decoder.decode(Envelope.self, from: bytes)

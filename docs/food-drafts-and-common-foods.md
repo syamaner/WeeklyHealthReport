@@ -22,7 +22,8 @@ client cannot silently discard favourites and usual portions. Domain rules remai
 independent of SwiftUI, GRDB, file pickers, and platform providers.
 
 Inventory backup format 2 serialises the complete ordered command history and its
-SHA-256 integrity hash. Restore validates every command and source hash before one
+SHA-256 integrity hash. Export and restore both use the same 100 MB limit, so export
+cannot produce a backup that the importer refuses solely for size. Restore validates every command and source hash before one
 atomic transaction. Only identical prefixes can extend a local history. Repeated or
 older compatible backups are harmless; divergent histories fail without overwriting
 local reviews. A backup includes original receipt bytes and text, aliases, favourites,

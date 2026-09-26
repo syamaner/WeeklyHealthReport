@@ -314,7 +314,7 @@ private struct InventoryBackupControls: ViewModifier {
                     let scoped = url.startAccessingSecurityScopedResource()
                     defer { if scoped { url.stopAccessingSecurityScopedResource() } }
                     let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                    guard size > 0, size <= 100_000_000 else { throw InventoryStoreError.corruptStore }
+                    guard size > 0, size <= InventoryBackupCodec.maximumBytes else { throw InventoryStoreError.corruptStore }
                     try root.restoreInventoryBackup(Data(contentsOf: url))
                 } catch let error as CocoaError where error.code == .userCancelled { }
                 catch { model.report(error) }
