@@ -51,6 +51,16 @@ Provider/commercial challengers, physical gates and HealthKit writes retain thei
 separate authority requirements. The user has authorised routine implementation,
 validation, PR delivery and merge for actionable food backlog work.
 
+The [proposed optional HealthKit projection plan](food-healthkit-write-plan.md)
+addresses #97 without implementing a writer or expanding permissions. It remains
+unratified; writer-specific synthetic evidence and any physical run are later gates.
+
+Remaining non-autonomous boundaries are explicit: #91 needs at least 100 consented
+lists from the intended writer(s), not synthetic substitutes; #102 depends on that
+accepted handwriting envelope. #93 remains deferred on its frozen corpus/accuracy
+gates. #95/#99/#100 need separate commercial/provider/model-run authority. No new
+user labelling batch, account access or paid evaluation is requested by this pass.
+
 ## Outcome
 
 Make repeated food logging easier while preserving enough identity and provenance
@@ -107,26 +117,26 @@ The app's local, versioned data and canonical JSON remain the system of record. 
 
 All sixteen tasks are native sub-issues of #86. The checklists in the epic provide a readable fallback and closure view.
 
-## Triage outcome — updated 20 September 2026
+## Triage outcome — updated 26 September 2026
 
 | Issue | Priority | Readiness | Triage decision |
 |---|---|---|---|
 | #89 | P0 | Complete | Contract freezes the shared domain vocabulary and gates |
 | #87 | P1 | Complete | CoFID admitted for user-selected generic augmentation; OFF rejected as a Phase 1 dependency on dated legacy-cohort evidence |
-| #90 | P1 | Active; decision proposed | SQLite/GRDB local ledger, append-only operations, deterministic backup generations and staged merge; no live Drive work |
-| #94 | P1 | Blocked by accepted #90 and decomposition | Phase container only; decompose around the accepted shared capture and confirmation design |
-| #88 | P1 | Ready, MVP-critical | Printed-label population is a required capture route and gates #93 |
+| #90 | P1 | Complete | Accepted SQLite/GRDB ledger and deterministic backup design; no live Drive work |
+| #94 | P1 | Scoped software beta complete | Barcode and generic-search delivery accepted; OCR and physical-device testing deferred |
+| #88 | P1 | Evaluation complete; baseline declined | Printed-label result is not a production promotion; #93 remains gated |
 | #92 | P1 | Complete | Public/synthetic evaluation admits deterministic ranked candidates for explicit selection; automatic acceptance remains disabled and the personal gate is deferred |
-| #93 | P1 | Blocked by #88 and shared foundation | Required label-photo population route represented by the accepted designs |
+| #93 | P1 | Deferred; corpus and accuracy gates unmet | Future label-photo route; frozen untouched gate remains sealed |
 | #98 | P1/P2 | Complete | Offline CoFID ranking, hard rules, visible differences, shared confirmation and exact saved-food reuse; no automatic acceptance |
-| #91 | P3 | Queued after #89 | Independent handwriting evaluation; not an MVP blocker |
-| #96 | P3 | Blocked by #94 | Narrowed to typed and on-device voice capture |
-| #102 | P3 | Blocked by #94, #91 | New independent handwriting delivery slice |
-| #101 | P3 | Local software delivery | Explicit source/candidate review; newer installed targets remain separate acceptance |
-| #97 | P3 | Deferred | Revisit after the canonical MVP JSON contract is accepted |
-| #95 | P3 | Deferred; blocked by #87 | Narrowed to commercial product-data challengers |
-| #99 | P3 | Deferred; blocked by #88/#91 baseline | New independent cloud OCR challenger evaluation |
-| #100 | P3 | Deferred; blocked by #92 baseline | New independent model-adjudication evaluation |
+| #91 | P3 | Corpus blocker | Requires 100 consented intended-writer lists; no new labelling request |
+| #96 | P3 | Complete in PR #134 | Typed parser plus explicitly reviewed on-device speech; physical speech checks deferred |
+| #102 | P3 | Blocked by #91 | No accepted handwriting promotion envelope |
+| #101 | P3 | Complete in PR #133 | Explicit source/candidate review; newer installed targets remain separate acceptance |
+| #97 | P3 | Proposal recorded; awaiting ratification | No writer implementation or permission expansion; writer-specific tests remain required |
+| #95 | P3 | Separate commercial/provider authority | No commercial contact, account, source access or spend under this goal |
+| #99 | P3 | Separate provider/data authority | No cloud calls; the relevant local frozen baseline must also qualify |
+| #100 | P3 | Separate model/provider-run authority | No challenger calls or new model dependency under this goal |
 
 No direct duplicate was found among the repository's existing open issues. Existing note dictation, Drive export and nutrition-read infrastructure provide reusable seams, but none already delivers this food-capture scope.
 
