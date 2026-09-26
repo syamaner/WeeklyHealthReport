@@ -41,6 +41,8 @@
 	<false/>
 	<key>NSHealthShareUsageDescription</key>
 	<string>Weekly Health Report reads your selected Apple Health data to create on-device reports and previews that you explicitly choose to export.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>Weekly Health Report uses Apple Health for read-only reports. This version does not request permission to save or change your Apple Health data.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>Weekly Health Report uses the camera only when you choose to scan a food barcode.</string>
 	<key>NSMicrophoneUsageDescription</key>
