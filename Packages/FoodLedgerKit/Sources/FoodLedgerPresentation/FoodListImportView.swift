@@ -30,11 +30,12 @@ public struct FoodListReviewRow: Identifiable {
 
 @MainActor
 public final class FoodListImportViewModel: ObservableObject {
-    @Published public var input = ""
+    @Published public var input = "" { didSet { persist() } }
     public private(set) var inputMethod: FoodListInputMethod = .pastedOrTyped
-    @Published public private(set) var rows: [FoodListReviewRow] = []
-    @Published public private(set) var selectedID: OperationID?
+    @Published public private(set) var rows: [FoodListReviewRow] = [] { didSet { persist() } }
+    @Published public private(set) var selectedID: OperationID? { didSet { persist() } }
     @Published public private(set) var errorMessage: String?
+    @Published public private(set) var checkpointErrorMessage: String?
     @Published public private(set) var confirmation: FoodConfirmationViewModel?
     private let service: FoodListImportService
     private let locale: LedgerText
@@ -42,10 +43,16 @@ public final class FoodListImportViewModel: ObservableObject {
     private let now: @MainActor () -> Date
     private let saveAction: @MainActor (FoodConfirmationState, OperationID) throws -> StoredFoodConfirmation
     private var confirmationRowID: OperationID?
+    private let checkpointStore: (any FoodListCheckpointStoring)?
+    private var restoring = true
+    private var unreadableCheckpoint = false
+    private let recoveredLogItemID: (@MainActor (OperationID) throws -> LogItemID?)?
 
     public init(
         service: FoodListImportService, locale: LedgerText, ids: any LedgerIDGenerating,
         now: @escaping @MainActor () -> Date = Date.init,
+        checkpointStore: (any FoodListCheckpointStoring)? = nil,
+        recoveredLogItemID: (@MainActor (OperationID) throws -> LogItemID?)? = nil,
         saveAction: @escaping @MainActor (FoodConfirmationState, OperationID) throws -> StoredFoodConfirmation
     ) {
         self.service = service
@@ -53,6 +60,106 @@ public final class FoodListImportViewModel: ObservableObject {
         self.ids = ids
         self.now = now
         self.saveAction = saveAction
+        self.checkpointStore = checkpointStore
+        self.recoveredLogItemID = recoveredLogItemID
+        do {
+            if let saved = try checkpointStore?.load() {
+                try saved.validate()
+                input = saved.input
+                inputMethod = saved.inputMethod
+                rows = try restoredRows(from: saved)
+                selectedID = saved.selectedID
+            }
+        } catch {
+            unreadableCheckpoint = true
+            checkpointErrorMessage = "Your saved list could not be opened. It has been kept unchanged. Unlock your device and retry."
+        }
+        restoring = false
+    }
+
+    private func restoredRows(from saved: FoodListCheckpoint) throws -> [FoodListReviewRow] {
+        try saved.drafts.enumerated().map { index, draft in
+            if let recoveredLogItemID {
+                if let logID = try recoveredLogItemID(draft.operationID) { return FoodListReviewRow(draft: draft, status: .saved(logID)) }
+                if saved.dispositions[index] == "saved" { return FoodListReviewRow(draft: draft, status: .pending) }
+            }
+            let status: FoodListLineStatus
+            switch saved.dispositions[index] {
+            case "saved": status = .saved(saved.savedIDs[index]!)
+            case "declined": status = .declined
+            case "deferred": status = .deferred
+            case "context": status = .context
+            default: status = .pending
+            }
+            return FoodListReviewRow(draft: draft, status: status)
+        }
+    }
+
+    @discardableResult
+    private func persist() -> Bool {
+        guard !restoring, let checkpointStore else { return true }
+        guard !unreadableCheckpoint else { return false }
+        let checkpoint = FoodListCheckpoint(
+            input: input, inputMethod: inputMethod, drafts: rows.map(\.draft),
+            dispositions: rows.map { row in
+                switch row.status {
+                case .saved: "saved"
+                case .declined: "declined"
+                case .deferred: "deferred"
+                case .context: "context"
+                default: "pending"
+                }
+            }, savedIDs: rows.map { if case let .saved(id) = $0.status { id } else { nil } }, selectedID: selectedID
+        )
+        do { try checkpointStore.save(checkpoint); checkpointErrorMessage = nil; return true }
+        catch {
+            checkpointErrorMessage = "Your latest edits could not be saved for resume. Keep this screen open and retry."
+            return false
+        }
+    }
+
+    public func retryCheckpoint() {
+        guard unreadableCheckpoint else { persist(); return }
+        do {
+            if let saved = try checkpointStore?.load() {
+                try saved.validate()
+                let restoredRows = try restoredRows(from: saved)
+                restoring = true
+                input = saved.input; inputMethod = saved.inputMethod; rows = restoredRows; selectedID = saved.selectedID
+                restoring = false
+            }
+            unreadableCheckpoint = false
+            persist()
+        } catch { checkpointErrorMessage = "Your saved list is still unavailable. It has been kept unchanged; retry when local storage is available." }
+    }
+
+    /// A common-food shortcut adds a review line, never a consumed-food record.
+    public func addCommonFood(name: String, portion: InventoryAmount?) throws {
+        guard confirmation == nil, !unreadableCheckpoint, rows.count < 200,
+              !name.contains(where: { $0.isNewline }) else {
+            throw FoodLedgerValidationError.invalidProvenance
+        }
+        if rows.isEmpty, !input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            prepare()
+            guard !rows.isEmpty else { throw FoodLedgerValidationError.invalidProvenance }
+        }
+        let prefix = portion.map { "\($0.value) \($0.unit == .grams ? "g" : $0.unit == .millilitres ? "ml" : "count") " } ?? ""
+        let text = prefix + name
+        let combined = input.isEmpty ? text : input + "\n" + text
+        guard combined.count <= 30_000, combined.components(separatedBy: .newlines).count <= 200 else {
+            throw FoodListParser.ParseError.tooLarge
+        }
+        let parsed = try FoodListParser.parse(combined)
+        guard let last = parsed.last else { throw FoodListParser.ParseError.empty }
+        let draft = FoodListLineDraft(parsed: last, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        restoring = true
+        input = combined
+        rows.append(FoodListReviewRow(draft: draft))
+        selectedID = draft.id
+        restoring = false
+        // Keep the newly added line visible for a same-queue persistence retry.
+        // Do not send the user back to the shortcut where another tap would add it twice.
+        persist()
     }
 
     public var selectedRow: FoodListReviewRow? { rows.first { $0.id == selectedID } }
@@ -79,6 +186,7 @@ public final class FoodListImportViewModel: ObservableObject {
             rows = prepared
             selectedID = rows.first(where: { $0.status != .context })?.id ?? rows.first?.id
             errorMessage = nil
+            persist()
         } catch FoodListParser.ParseError.empty {
             errorMessage = "Paste at least one food or drink line."
         } catch FoodListParser.ParseError.tooLarge {
@@ -99,6 +207,7 @@ public final class FoodListImportViewModel: ObservableObject {
         }
         input = combined
         inputMethod = .reviewedSpeechText
+        persist()
         return true
     }
 
@@ -138,6 +247,7 @@ public final class FoodListImportViewModel: ObservableObject {
             confirmationRowID = row.id
             confirmation = FoodConfirmationViewModel(state: state) { [weak self] state in
                 guard let self else { throw FoodLedgerValidationError.empty("review session") }
+                guard self.persist() else { throw FoodLedgerValidationError.invalidProvenance }
                 do {
                     let saved = try self.saveAction(state, row.id)
                     if let rowIndex = self.rows.firstIndex(where: { $0.id == row.id }) {
@@ -173,12 +283,15 @@ public final class FoodListImportViewModel: ObservableObject {
     }
 
     public func startNewList() {
-        guard confirmation == nil else { return }
+        guard confirmation == nil, !unreadableCheckpoint else { return }
+        restoring = true
         input = ""
         inputMethod = .pastedOrTyped
         rows = []
         selectedID = nil
         errorMessage = nil
+        restoring = false
+        persist()
     }
 
     private var selectedIndex: Int? { rows.firstIndex { $0.id == selectedID } }
@@ -229,13 +342,19 @@ public struct FoodListImportView: View {
                 }
                 if let row = model.selectedRow { editor(row) }
                 Section {
-                    Text("Saved items are kept in your local ledger. Unsaved lines remain in this session while the app is open.")
+                    Text("Your list and review progress are saved on this device. Resume here after reopening the app; matches are refreshed before confirmation.")
                         .font(.caption)
                     Button("Start another list") { confirmsNewList = true }
                 }
             }
             if let message = model.errorMessage {
                 Section { Label(message, systemImage: "exclamationmark.triangle") }
+            }
+            if let message = model.checkpointErrorMessage {
+                Section {
+                    Label(message, systemImage: "exclamationmark.triangle")
+                    Button("Retry saving review progress") { model.retryCheckpoint() }
+                }
             }
         }
         .navigationTitle("Paste food list")
@@ -278,7 +397,10 @@ public struct FoodListImportView: View {
                 ForEach(row.draft.parsed.notices, id: \.rawValue) { notice in
                     Label(notice.message, systemImage: "exclamationmark.triangle").font(.caption)
                 }
-                TextField("Food name and modifiers", text: binding(row, \.query))
+                VStack(alignment: .leading) {
+                    Text("Food name and modifiers").font(.caption)
+                    TextField("Food name and modifiers", text: binding(row, \.query))
+                }
                 if let suggestion = FoodListParser.suggestedQuery(row.draft.query) {
                     Button("Use spelling: \(suggestion)") {
                         var draft = row.draft
@@ -286,7 +408,10 @@ public struct FoodListImportView: View {
                         model.edit(draft)
                     }
                 }
-                TextField("Consumed amount", text: binding(row, \.quantityText))
+                VStack(alignment: .leading) {
+                    Text("Consumed amount").font(.caption)
+                    TextField("Consumed amount", text: binding(row, \.quantityText))
+                }
                 Picker("Unit", selection: binding(row, \.unit)) {
                     Text("Choose unit").tag(Optional<QuantityUnit>.none)
                     Text("g").tag(Optional(QuantityUnit.grams))

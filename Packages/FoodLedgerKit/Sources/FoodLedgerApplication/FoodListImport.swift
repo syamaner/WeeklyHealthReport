@@ -1,12 +1,12 @@
 import Foundation
 import FoodLedgerDomain
 
-public enum FoodListInputMethod: String, Sendable {
+public enum FoodListInputMethod: String, Codable, Sendable {
     case pastedOrTyped = "pasted_food_list_line"
     case reviewedSpeechText = "reviewed_food_text_with_on_device_speech"
 }
 
-public struct FoodListLineDraft: Equatable, Sendable, Identifiable {
+public struct FoodListLineDraft: Codable, Equatable, Sendable, Identifiable {
     public var id: OperationID { operationID }
     public let operationID: OperationID
     public let evidenceID: EvidenceID
@@ -27,6 +27,47 @@ public struct FoodListLineDraft: Equatable, Sendable, Identifiable {
         unit = parsed.unit
         preparation = parsed.preparation
     }
+}
+
+/// A single local review queue. Candidate results are deliberately refreshed on resume.
+public struct FoodListCheckpoint: Codable, Sendable {
+    public static let version = 1
+    public var schemaVersion = version
+    public var input: String
+    public var inputMethod: FoodListInputMethod
+    public var drafts: [FoodListLineDraft]
+    public var dispositions: [String]
+    public var savedIDs: [LogItemID?]
+    public var selectedID: OperationID?
+
+    public init(input: String, inputMethod: FoodListInputMethod, drafts: [FoodListLineDraft], dispositions: [String], savedIDs: [LogItemID?], selectedID: OperationID?) {
+        self.input = input; self.inputMethod = inputMethod; self.drafts = drafts
+        self.dispositions = dispositions; self.savedIDs = savedIDs; self.selectedID = selectedID
+    }
+
+    public func validate() throws {
+        guard schemaVersion == Self.version, input.count <= 30_000,
+              drafts.count <= 200, drafts.count == dispositions.count, drafts.count == savedIDs.count,
+              Set(drafts.map(\.operationID)).count == drafts.count,
+              Set(drafts.map(\.evidenceID)).count == drafts.count,
+              selectedID == nil || drafts.contains(where: { $0.id == selectedID }) else {
+            throw FoodLedgerValidationError.invalidProvenance
+        }
+        for index in drafts.indices {
+            _ = try OperationID(drafts[index].operationID.rawValue)
+            _ = try EvidenceID(drafts[index].evidenceID.rawValue)
+            if let savedID = savedIDs[index] { _ = try LogItemID(savedID.rawValue) }
+            guard ["pending", "saved", "declined", "deferred", "context"].contains(dispositions[index]),
+                  (dispositions[index] == "saved") == (savedIDs[index] != nil) else {
+                throw FoodLedgerValidationError.invalidProvenance
+            }
+        }
+    }
+}
+
+public protocol FoodListCheckpointStoring: Sendable {
+    func load() throws -> FoodListCheckpoint?
+    func save(_ checkpoint: FoodListCheckpoint) throws
 }
 
 public enum FoodListSearchResult: Equatable, Sendable {

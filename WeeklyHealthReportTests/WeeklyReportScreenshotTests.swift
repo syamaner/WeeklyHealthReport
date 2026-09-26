@@ -2,12 +2,70 @@ import CoreGraphics
 import HealthKit
 import PDFKit
 import XCTest
+import SwiftUI
+import UIKit
+import FoodLedgerApplication
+import FoodLedgerDomain
+import FoodLedgerGRDB
+import FoodLedgerPresentation
 @testable import DriveExportKit
 @testable import WeeklyHealthReport
 
 // All health values in this test file are synthetic fixtures.
 @MainActor
 final class WeeklyReportScreenshotTests: XCTestCase {
+    func testFoodRecoveryAndCommonFoodsRenderWithSyntheticData() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let ids = RandomLedgerIDGenerator()
+        let inventory = try LocalInventoryGRDBStore(databaseURL: directory.appendingPathComponent("inventory.sqlite"))
+        let model = try LocalInventoryViewModel(
+            service: LocalInventoryService(store: inventory, digester: SHA256Digester(), clock: SystemLedgerClock()),
+            ids: ids, clock: SystemLedgerClock()
+        )
+        XCTAssertTrue(model.saveCommonFood(name: "Rolled oats", aliases: "breakfast oats", portion: "25", unit: .grams, favourite: true))
+        XCTAssertTrue(model.saveCommonFood(name: "Whole milk", aliases: "milk", portion: "200", unit: .millilitres, favourite: false))
+        renderFoodView(NavigationStack { CommonFoodsView(model: model) { _ in } }, name: "Common foods - standard")
+        renderFoodView(NavigationStack { CommonFoodsView(model: model) { _ in }.environment(\.dynamicTypeSize, .accessibility3) }, name: "Common foods - large text")
+        model.paste = "Meadow oats 500 g £1.00"
+        model.importPaste()
+        renderFoodView(NavigationStack { LocalInventoryView(model: model, chooseFile: {}) { _ in } }, name: "Receipt review - saved source")
+        let queue = FoodListImportViewModel(service: FoodListImportService(searcher: ScreenshotNoFoodSearch()), locale: try LedgerText("en_GB"), ids: ids,
+            checkpointStore: try FoodListCheckpointGRDBStore(databaseURL: directory.appendingPathComponent("draft.sqlite"))) { _, _ in
+                throw FoodLedgerValidationError.invalidProvenance
+            }
+        queue.input = "25 g rolled oats\n200 ml whole milk"
+        queue.prepare()
+        queue.search()
+        renderFoodView(NavigationStack { FoodListImportView(model: queue) }, name: "Food list - unresolved review")
+        queue.deferLine()
+        let resumed = FoodListImportViewModel(service: FoodListImportService(searcher: ScreenshotNoFoodSearch()), locale: try LedgerText("en_GB"), ids: ids,
+            checkpointStore: try FoodListCheckpointGRDBStore(databaseURL: directory.appendingPathComponent("draft.sqlite"))) { _, _ in
+                throw FoodLedgerValidationError.invalidProvenance
+            }
+        XCTAssertEqual(resumed.rows.first?.status, .deferred)
+        XCTAssertEqual(resumed.selectedRow?.draft.query, "whole milk")
+        renderFoodView(NavigationStack { FoodListImportView(model: resumed) }, name: "Food list - resumed review")
+    }
+
+    private func renderFoodView<V: View>(_ content: V, name: String) {
+        let host = UIHostingController(rootView: content)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = host
+        window.isHidden = false
+        host.view.frame = window.bounds
+        host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { context in
+            window.layer.render(in: context.cgContext)
+        }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = name; attachment.lifetime = .keepAlways
+        add(attachment)
+        XCTAssertEqual(image.size.width, 390)
+        window.isHidden = true
+    }
+
     func testReportViewCanBeConstructedWithFakeHealthData() {
         let calendar = testCalendar()
         let viewModel = WeeklyReportViewModel(
@@ -825,6 +883,13 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         case .sleep:
             []
         }
+    }
+}
+
+private struct ScreenshotNoFoodSearch: GenericFoodSearching {
+    func search(_ request: GenericFoodSearchRequest) throws -> GenericFoodSearchOutcome {
+        guard let evidence = request.captureEvidence else { throw FoodLedgerValidationError.invalidProvenance }
+        return .noResult(GenericFoodNoResultRoute(evidence: evidence))
     }
 }
 

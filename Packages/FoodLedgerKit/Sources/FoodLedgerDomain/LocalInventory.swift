@@ -47,11 +47,15 @@ public struct InventoryProductVersion: Codable, Equatable, Sendable {
     public let remaining: InventoryRemainingAssertion?
     public let notes: String
     public let updatedAt: Date
+    public let favourite: Bool?
+    public let usualPortion: InventoryAmount?
+    public var isFavourite: Bool { favourite == true }
 
     public init(
         productID: InventoryProductID, version: Int, name: String, category: String = "",
         aliases: [String] = [], packDescription: String = "",
-        remaining: InventoryRemainingAssertion? = nil, notes: String = "", updatedAt: Date
+        remaining: InventoryRemainingAssertion? = nil, notes: String = "", updatedAt: Date,
+        favourite: Bool? = nil, usualPortion: InventoryAmount? = nil
     ) throws {
         self.productID = productID
         self.version = version
@@ -62,6 +66,8 @@ public struct InventoryProductVersion: Codable, Equatable, Sendable {
         self.remaining = remaining
         self.notes = notes
         self.updatedAt = updatedAt
+        self.favourite = favourite
+        self.usualPortion = usualPortion
         try validate()
     }
 
@@ -71,6 +77,8 @@ public struct InventoryProductVersion: Codable, Equatable, Sendable {
         _ = try LedgerText(name)
         guard updatedAt.timeIntervalSince1970.isFinite else { throw FoodLedgerValidationError.nonFinite("product date") }
         try remaining?.validate()
+        try usualPortion?.validate()
+        if let usualPortion, usualPortion.value <= 0 { throw FoodLedgerValidationError.nonPositive("usual portion") }
         if let remaining, remaining.assertedAt > updatedAt { throw FoodLedgerValidationError.invalidProvenance }
     }
 }

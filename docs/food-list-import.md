@@ -18,9 +18,11 @@ confirmation flow. Each item requires explicit acceptance before saving. The
 confirmation shows the original line, parser notices and the actual saved item
 and amount. Next line advances the queue. Saved rows cannot be saved again.
 
-Unsaved review state survives navigation within the running app through the
-composition root. It is **session-only**: restarting the app discards unsaved
-lines. Saved ledger entries remain durable. Starting another list explicitly
+Unsaved input, edited lines, row dispositions, stable IDs and selection are saved
+locally and resume after restarting the app. Search results and unfinished
+confirmation screens must be reviewed again; ledger reconciliation recognises
+committed saves even if their checkpoint was interrupted. Saved ledger entries
+remain durable. Starting another list explicitly
 confirms discarding the current queue; it never deletes saved food.
 
 ## Architecture gate
