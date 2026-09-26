@@ -1,0 +1,438 @@
+[
+  {
+    "source": "foundation",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_foundation_food_json_2026-04-30.zip",
+    "archiveBytes": 469303,
+    "archiveSHA256": "186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+    "jsonSHA256": "27d1fe3fd89edfbe528ed915da5619320e1d004d4594603a1b19bdb1511590cc",
+    "records": 363,
+    "publishedArrayCount": 395,
+    "invalidRecords": 32,
+    "hits": {
+      "ribeye": [
+        {
+          "fdcId": 2646172,
+          "description": "Beef, ribeye, steak, boneless, choice, raw",
+          "nutrientCount": 22
+        }
+      ],
+      "rib eye": [],
+      "fish and chips": [],
+      "fish, battered": [],
+      "fish, fried": []
+    }
+  },
+  {
+    "source": "legacy",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_sr_legacy_food_json_2018-04.zip",
+    "archiveBytes": 13456312,
+    "archiveSHA256": "0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+    "jsonSHA256": "70d4235ae3a2bdf48a7b9eaa1286a83fa67b6f3270436c9ce8b008213f500129",
+    "records": 7793,
+    "publishedArrayCount": 7793,
+    "invalidRecords": 0,
+    "hits": {
+      "ribeye": [
+        {
+          "fdcId": 171735,
+          "description": "Beef, Australian, imported, grass-fed, rib, ribeye steak/roast lip-on, boneless, separable lean only, raw",
+          "nutrientCount": 77
+        },
+        {
+          "fdcId": 172565,
+          "description": "Game meat, bison, ribeye, separable lean only, trimmed to 0\" fat, raw",
+          "nutrientCount": 63
+        },
+        {
+          "fdcId": 172599,
+          "description": "Game meat, bison, ribeye, separable lean only, 1\" steak, cooked, broiled",
+          "nutrientCount": 87
+        },
+        {
+          "fdcId": 173054,
+          "description": "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, all grades, cooked, grilled",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 173055,
+          "description": "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 173056,
+          "description": "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, select, cooked, grilled",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 173057,
+          "description": "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, all grades, raw",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 173058,
+          "description": "Beef, ribeye petite roast, boneless, separable lean only, trimmed to 0\" fat, all grades, cooked, roasted",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 173059,
+          "description": "Beef, ribeye petite roast, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, roasted",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 173060,
+          "description": "Beef, ribeye petite roast, boneless, separable lean only, trimmed to 0\" fat, select, cooked, roasted",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 173975,
+          "description": "Beef, Australian, imported, grass-fed, rib, ribeye steak/roast lip-on, boneless, separable lean and fat, raw",
+          "nutrientCount": 80
+        },
+        {
+          "fdcId": 174696,
+          "description": "Beef, ribeye  petite roast/filet, boneless, separable lean only, trimmed to 0\" fat, all grades, raw",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 174697,
+          "description": "Beef, ribeye  petite roast/filet, boneless, separable lean only, trimmed to 0\" fat, choice, raw",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 174698,
+          "description": "Beef, ribeye  petite roast/filet, boneless, separable lean only, trimmed to 0\" fat, select, raw",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 174699,
+          "description": "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, choice, raw",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 174700,
+          "description": "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, select, raw",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 174701,
+          "description": "Beef, ribeye filet, boneless, separable lean only, trimmed to 0\" fat, all grades, cooked, grilled",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 174702,
+          "description": "Beef, ribeye filet, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
+          "nutrientCount": 99
+        },
+        {
+          "fdcId": 174703,
+          "description": "Beef, ribeye filet, boneless, separable lean only, trimmed to 0\" fat, select, cooked, grilled",
+          "nutrientCount": 99
+        }
+      ],
+      "rib eye": [
+        {
+          "fdcId": 168621,
+          "description": "Beef, rib eye, small end (ribs 10-12), separable lean only, trimmed to 0\" fat, select, raw",
+          "nutrientCount": 79
+        },
+        {
+          "fdcId": 169556,
+          "description": "Beef, rib eye, small end (ribs 10-12), separable lean and fat, trimmed to 0\" fat, select, cooked, broiled",
+          "nutrientCount": 88
+        },
+        {
+          "fdcId": 169557,
+          "description": "Beef, rib eye, small end (ribs 10-12), separable lean and fat, trimmed to 0\" fat, all grades, cooked, broiled",
+          "nutrientCount": 88
+        },
+        {
+          "fdcId": 170836,
+          "description": "Beef, rib eye roast, bone-in, lip-on, separable lean only, trimmed to 1/8\" fat, all grades, cooked, roasted",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 170837,
+          "description": "Beef, rib eye roast, bone-in, lip-on, separable lean only, trimmed to 1/8\" fat, select, cooked, roasted",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 170838,
+          "description": "Beef, rib eye steak/roast, bone-in, lip-on, separable lean only, trimmed to 1/8\" fat, select, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 170839,
+          "description": "Beef, rib eye steak/roast, boneless, lip-on, separable lean only, trimmed to 1/8\" fat, all grades, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 170840,
+          "description": "Beef, rib eye steak/roast, boneless, lip-on, separable lean only, trimmed to 1/8\" fat, choice, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 170841,
+          "description": "Beef, rib eye steak/roast, boneless, lip-on, separable lean only, trimmed to 1/8\" fat, select, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 170842,
+          "description": "Beef, rib eye roast, boneless, lip-on, separable lean only, trimmed to 1/8\" fat, choice, cooked, roasted",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 171209,
+          "description": "Beef, rib eye steak, boneless, lip-on, separable lean only, trimmed to 1/8\" fat, all grades, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 171210,
+          "description": "Beef, rib eye roast, bone-in, lip-on, separable lean only, trimmed to 1/8\" fat, choice, cooked, roasted",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 171232,
+          "description": "Beef, rib eye steak, boneless, lip-on, separable lean only, trimmed to 1/8\" fat, choice, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 171233,
+          "description": "Beef, rib eye steak, boneless, lip-on, separable lean only, trimmed to 1/8\" fat, select, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 171234,
+          "description": "Beef, rib eye steak/roast, bone-in, lip-on, separable lean only, trimmed to 1/8\" fat, all grades, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 171235,
+          "description": "Beef, rib eye steak/roast, bone-in, lip-on, separable lean only, trimmed to 1/8\" fat, choice, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 171236,
+          "description": "Beef, rib eye steak, bone-in, lip-on, separable lean only, trimmed to 1/8\" fat, all grades, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 171237,
+          "description": "Beef, rib eye steak, bone-in, lip-on, separable lean only, trimmed to 1/8\" fat, choice, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 171238,
+          "description": "Beef, rib eye steak, bone-in, lip-on, separable lean only, trimmed to 1/8\" fat, select, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 171239,
+          "description": "Beef, rib eye roast, boneless, lip-on, separable lean only, trimmed to 1/8\" fat, all grades, cooked, roasted",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 172142,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean only, trimmed to 0\" fat, all grades, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 172143,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean only, trimmed to 0\" fat, all grades, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 172144,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 172149,
+          "description": "Beef, rib eye roast, bone-in, lip-on, separable lean and fat, trimmed to 1/8\" fat, select, cooked, roasted",
+          "nutrientCount": 110
+        },
+        {
+          "fdcId": 172150,
+          "description": "Beef, rib eye roast, bone-in, lip-on, separable lean and fat, trimmed to 1/8\" fat, all grades, cooked, roasted",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 172151,
+          "description": "Beef, rib eye steak/roast, bone-in, lip-on, separable lean and fat, trimmed to 1/8\" fat, all grades, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 172152,
+          "description": "Beef, rib eye steak/roast, bone-in, lip-on, separable lean and fat, trimmed to 1/8\" fat, choice, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 172153,
+          "description": "Beef, rib eye roast, boneless, lip-on, separable lean and fat, trimmed to 1/8\" fat, all grades, cooked, roasted",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 172154,
+          "description": "Beef, rib eye roast, boneless, lip-on, separable lean and fat, trimmed to 1/8\" fat, choice, cooked, roasted",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 172155,
+          "description": "Beef, rib eye roast, boneless, lip-on, separable lean and fat, trimmed to 1/8\" fat, select, cooked, roasted",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 172156,
+          "description": "Beef, rib eye steak/roast, boneless, lip-on, separable lean and fat, trimmed to 1/8\" fat, all grades, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 172164,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, all grades, cooked, grilled",
+          "nutrientCount": 86
+        },
+        {
+          "fdcId": 172165,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, choice, cooked, grilled",
+          "nutrientCount": 86
+        },
+        {
+          "fdcId": 173372,
+          "description": "Beef, rib eye roast, boneless, lip-on, separable lean only, trimmed to 1/8\" fat, select, cooked, roasted",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173380,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean only, trimmed to 0\" fat, choice, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173381,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean only, trimmed to 0\" fat, select, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173382,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean only, trimmed to 0\" fat, select, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173385,
+          "description": "Beef, rib eye steak, bone-in, lip-on, separable lean and fat, trimmed to 1/8\" fat, choice, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173386,
+          "description": "Beef, rib eye steak, bone-in, lip-on, separable lean and fat, trimmed to 1/8\" fat, select, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173387,
+          "description": "Beef, rib eye steak, bone-in, lip-on, separable lean and fat, trimmed to 1/8\" fat, all grades, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173388,
+          "description": "Beef, rib eye roast, bone-in, lip-on, separable lean and fat, trimmed to 1/8\" fat, choice, cooked, roasted",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173389,
+          "description": "Beef, rib eye steak/roast, bone-in, lip-on, separable lean and fat, trimmed to 1/8\" fat, select, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173390,
+          "description": "Beef, rib eye steak, boneless, lip-on, separable lean and fat, trimmed to 1/8\" fat, choice, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173391,
+          "description": "Beef, rib eye steak, boneless, lip-on, separable lean and fat, trimmed to 1/8\" fat, select, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173392,
+          "description": "Beef, rib eye steak, boneless, lip-on, separable lean and fat, trimmed to 1/8\" fat, all grades, cooked, grilled",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173393,
+          "description": "Beef, rib eye steak/roast, boneless, lip-on, separable lean and fat, trimmed to 1/8\" fat, choice, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173394,
+          "description": "Beef, rib eye steak/roast, boneless, lip-on, separable lean and fat, trimmed to 1/8\" fat, select, raw",
+          "nutrientCount": 113
+        },
+        {
+          "fdcId": 173401,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, select, cooked, grilled",
+          "nutrientCount": 86
+        },
+        {
+          "fdcId": 173402,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, all grades, raw",
+          "nutrientCount": 86
+        },
+        {
+          "fdcId": 173403,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, choice, raw",
+          "nutrientCount": 86
+        },
+        {
+          "fdcId": 173404,
+          "description": "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, select, raw",
+          "nutrientCount": 86
+        }
+      ],
+      "fish and chips": [],
+      "fish, battered": [],
+      "fish, fried": []
+    }
+  },
+  {
+    "source": "survey",
+    "url": "https://fdc.nal.usda.gov/fdc-datasets/FoodData_Central_survey_food_json_2024-10-31.zip",
+    "archiveBytes": 3835292,
+    "archiveSHA256": "dfb06ae7ddc397ccd570b91c14b75438ab2ba39f64f22d321f61d4a52a77f3eb",
+    "jsonSHA256": "2e7eb9fda92adf1d4d784dba5eaa3a7fd4418cd86ccff383c7c9294d79e9b808",
+    "records": 5432,
+    "publishedArrayCount": 5432,
+    "invalidRecords": 0,
+    "hits": {
+      "ribeye": [
+        {
+          "fdcId": 2705828,
+          "description": "Beef, steak, ribeye, NS as to fat eaten",
+          "nutrientCount": 65
+        },
+        {
+          "fdcId": 2705829,
+          "description": "Beef, steak, ribeye, lean and fat eaten",
+          "nutrientCount": 65
+        },
+        {
+          "fdcId": 2705830,
+          "description": "Beef, steak, ribeye, lean only eaten",
+          "nutrientCount": 65
+        }
+      ],
+      "rib eye": [],
+      "fish and chips": [],
+      "fish, battered": [],
+      "fish, fried": [
+        {
+          "fdcId": 2706238,
+          "description": "Fish, catfish, fried",
+          "nutrientCount": 65
+        },
+        {
+          "fdcId": 2706347,
+          "description": "Crayfish, fried",
+          "nutrientCount": 65
+        }
+      ]
+    }
+  }
+]

@@ -439,20 +439,18 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         )
     }
 
-    func testOnlyMainReportWithoutTransientUIPresentationIsEligible() {
+    func testOnlyVisibleHealthReportWithoutTransientPresentationIsEligible() {
         XCTAssertTrue(WeeklyReportScreenshotEligibility.isEligible(
-            navigationPath: [],
-            isTransientUIPresented: false
-        ))
+            navigationPath: [.healthReport], isTransientUIPresented: false))
         XCTAssertFalse(WeeklyReportScreenshotEligibility.isEligible(
-            navigationPath: [],
-            isTransientUIPresented: true
-        ))
+            navigationPath: [.healthReport], isTransientUIPresented: true))
+        XCTAssertFalse(WeeklyReportScreenshotEligibility.isEligible(
+            navigationPath: [], isTransientUIPresented: false))
+        XCTAssertFalse(WeeklyReportScreenshotEligibility.isEligible(
+            navigationPath: [.foodLog], isTransientUIPresented: false))
         for route in WeeklyReportRoute.allCasesForScreenshotTesting {
             XCTAssertFalse(WeeklyReportScreenshotEligibility.isEligible(
-                navigationPath: [route],
-                isTransientUIPresented: false
-            ))
+                navigationPath: [route], isTransientUIPresented: false))
         }
     }
 

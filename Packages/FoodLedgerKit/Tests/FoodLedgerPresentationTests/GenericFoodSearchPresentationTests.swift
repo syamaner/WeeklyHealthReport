@@ -18,6 +18,20 @@ final class GenericFoodSearchPresentationTests: XCTestCase {
         XCTAssertEqual(search.callCount, 0)
     }
 
+    func testPreparationFilterIsSentAndExplicitIdentityIsPreserved() throws {
+        let search = SearchSpy()
+        let model = GenericFoodSearchViewModel(searcher: search, locale: try LedgerText("en_GB"))
+        model.query = "Beef"
+        model.preparationFilter = .raw
+        model.search()
+        XCTAssertEqual(search.lastRequest?.identity.preparation?.kind, .raw)
+        model.search(identity: GenericFoodIdentityQuery(preparation: try PreparationState(kind: .cooked)))
+        XCTAssertEqual(search.lastRequest?.identity.preparation?.kind, .cooked)
+        model.preparationFilter = nil
+        model.search()
+        XCTAssertNil(search.lastRequest?.identity.preparation)
+    }
+
     func testDeclineMovesToExplicitNoSelectionState() throws {
         let model = GenericFoodSearchViewModel(
             searcher: SearchSpy(),
@@ -32,8 +46,10 @@ final class GenericFoodSearchPresentationTests: XCTestCase {
 
 private final class SearchSpy: GenericFoodSearching, @unchecked Sendable {
     private(set) var callCount = 0
+    private(set) var lastRequest: GenericFoodSearchRequest?
 
     func search(_ request: GenericFoodSearchRequest) throws -> GenericFoodSearchOutcome {
+        lastRequest = request
         callCount += 1
         throw SearchError.unexpectedCall
     }

@@ -4,6 +4,40 @@ import FoodLedgerTestSupport
 import XCTest
 
 final class FoodConfirmationReducerTests: XCTestCase {
+    func testIntakeProjectionUsesConfirmedHeadsAndRejectsCompetingVersions() throws {
+        let store = InMemoryFoodLedgerStore()
+        let service = makeService(store: store, ids: SequenceIDs())
+        var state = FoodConfirmationState(input: try fixtureInput())
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        _ = try service.save(state, operationID: id(900, OperationTag.self))
+        var records = try store.archiveState().records
+        let first = try XCTUnwrap(records.logItemVersions.first)
+        let projection = try FoodIntakeProjection(records: records, reportingDate: first.reportingDate.value)
+        XCTAssertEqual(projection.rows.count, 1)
+        XCTAssertEqual(projection.summary.itemCount, 1)
+        XCTAssertEqual(try FoodIntakeProjection(records: records, reportingDate: "1900-01-01").rows.count, 0)
+        let competing = try LogItemVersion(logItemVersionID: id(901, LogItemVersionTag.self),
+            logItemID: first.logItemID, ordinal: VersionOrdinal(2), occurredAt: first.occurredAt,
+            reportingDate: first.reportingDate, composition: first.composition, edibleQuantity: first.edibleQuantity,
+            originalResolutionVersionID: first.originalResolutionVersionID,
+            effectiveResolutionVersionID: first.effectiveResolutionVersionID, createdAt: first.createdAt)
+        records.logItemVersions.append(competing)
+        XCTAssertThrowsError(try FoodIntakeProjection(records: records, reportingDate: first.reportingDate.value))
+        let corrected = try LogItemVersion(logItemVersionID: id(902, LogItemVersionTag.self),
+            logItemID: first.logItemID, ordinal: VersionOrdinal(2), supersedesLogItemVersionID: first.logItemVersionID,
+            occurredAt: first.occurredAt, reportingDate: LedgerText("1900-01-01"), composition: first.composition,
+            edibleQuantity: PositiveQuantity(value: 150, unit: .grams),
+            originalResolutionVersionID: first.originalResolutionVersionID,
+            effectiveResolutionVersionID: first.effectiveResolutionVersionID,
+            correctionReason: LedgerText("Date and amount corrected"), createdAt: first.createdAt)
+        records.logItemVersions = [first, corrected]
+        XCTAssertEqual(try FoodIntakeProjection(records: records, reportingDate: first.reportingDate.value).rows.count, 0)
+        let revised = try FoodIntakeProjection(records: records, reportingDate: "1900-01-01")
+        XCTAssertEqual(revised.rows.count, 1)
+        XCTAssertEqual(revised.rows.first?.quantity.value, 150)
+
+    }
+
     func testReducerModelsCandidateChoiceClosestMatchDeclineCorrectionAndFailure() throws {
         var state = FoodConfirmationState(input: try fixtureInput(candidateCount: 2))
         FoodConfirmationReducer.reduce(state: &state, action: .selectCandidate(1))
