@@ -1,0 +1,13 @@
+# Native Today and Food Log design refinement
+
+Issues #142/#143; based on the supplied screen bundle, with intake ahead of Health data as requested. Reference document content is design input, not authorisation for new capabilities.
+
+Architecture gate: existing pure intake summary remains the only arithmetic policy. Application projection exposes each entry's pinned source IDs and nutrient totals using the same summary; presentation formats those plain values and owns navigation. Composition retains storage/calendar adapters. No schema, provider, HealthKit read/write, export transport or deletion policy is changed. Projection contracts protect source provenance and quantity scaling after supersession; existing simulator navigation/screenshot tests protect report/export routes.
+
+The native grouped layout provides four separate nutrient cards, known/incomplete coverage, two prominent home actions and recent entries. Food Log includes previous/next local-calendar day navigation, a date picker bounded by today, return-to-today, dated entry review and labelled source estimates. Accessibility text sizes use a single card column; text wraps, controls have standard touch targets and source/summary labels combine accessibly. Significant time changes, foreground entry, returning from capture/edit and pull-to-refresh reload the projection.
+
+An empty log remains no data. Unknown/bounded nutrients do not become zero and estimates are labelled. No mock metrics, goals, analytics, focused-nutrient screens or photo/OCR actions are introduced. Existing entry review and quantity edits are preserved. The current add-food flows record today, so past-day views explicitly explain that behaviour rather than promising backdated capture. They also explain that changes do not mutate an existing export snapshot. Delete and backdated capture require their own closed/versioned ledger contracts; the broader Food Log acceptance issue remains open.
+
+The visual direction follows the supplied native grouping, cards, typography and day navigation while omitting sample values and unsupported controls. Full visual/device acceptance is separate from compilation and synthetic tests.
+
+Validation: all 175 FoodLedgerKit tests passed, including pinned source and scaled per-entry protein after correction. The full simulator suite and Xcode static analysis passed. Dependency checks and diff hygiene passed. Empty Today was visually inspected on the iPhone 17 Pro simulator; screenshot `/private/tmp/intake-design-today.png`. Populated/Dynamic Type and physical-device acceptance remain separate. No TestFlight upload is included in this merge.

@@ -8,6 +8,8 @@ public struct FoodIntakeLogRow: Sendable {
     public let occurredAt: Date
     public let name: String
     public let quantity: PositiveQuantity
+    public let sourceIDs: [String]
+    public let totals: [FoodIntakeTotal]
 }
 
 public struct FoodIntakeProjection: Sendable {
@@ -30,9 +32,12 @@ public struct FoodIntakeProjection: Sendable {
             }
             let version = records.resolutionVersions.first { $0.resolutionVersionID == log.effectiveResolutionVersionID }
             let resolution = version.flatMap { version in records.resolutions.first { $0.resolutionID == version.resolutionID } }
-            contributions.append(FoodIntakeContribution(quantity: log.edibleQuantity, basis: resolution?.basis ?? .unknown, nutrients: version?.nutrients))
+            let contribution = FoodIntakeContribution(quantity: log.edibleQuantity, basis: resolution?.basis ?? .unknown, nutrients: version?.nutrients)
+            contributions.append(contribution)
+            let sources = Set((version?.nutrients.entries ?? []).flatMap { $0.value.provenance }.map { $0.sourceID.value })
             rows.append(FoodIntakeLogRow(logItemID: log.logItemID, occurredAt: log.occurredAt,
-                                         name: product.name.value, quantity: log.edibleQuantity))
+                                         name: product.name.value, quantity: log.edibleQuantity, sourceIDs: sources.sorted(),
+                                         totals: FoodIntakeSummary(contributions: [contribution]).totals))
         }
         summary = FoodIntakeSummary(contributions: contributions)
         self.rows = rows

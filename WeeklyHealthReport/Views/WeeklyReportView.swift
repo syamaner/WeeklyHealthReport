@@ -469,19 +469,32 @@ private struct FoodIntakeHomeView: View {
     @State private var editModel: FoodConfirmationViewModel?
     @State private var showsEdit = false
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     var body: some View {
         Form {
             Section {
                 if isHome {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(selectedDate, format: .dateTime.weekday(.wide).day().month(.wide))
-                            .foregroundStyle(.secondary)
+                            .font(.subheadline).foregroundStyle(.secondary)
                         Text("Your intake so far").font(.title2.bold())
-                    }
+                        Text("Logged food on this device").font(.subheadline).foregroundStyle(.secondary)
+                    }.padding(.vertical, 6)
                 } else {
-                    DatePicker("Food log date", selection: $selectedDate, displayedComponents: .date)
+                    HStack {
+                        Button { moveDay(-1) } label: { Image(systemName: "chevron.left").frame(minWidth: 44, minHeight: 44) }
+                            .accessibilityLabel("Previous day")
+                        DatePicker("Food log date", selection: $selectedDate, in: ...Date(), displayedComponents: .date)
+                            .labelsHidden().frame(maxWidth: .infinity)
+                            .accessibilityLabel("Food log date")
+                        Button { moveDay(1) } label: { Image(systemName: "chevron.right").frame(minWidth: 44, minHeight: 44) }
+                            .accessibilityLabel("Next day").disabled(Calendar.current.isDateInToday(selectedDate))
+                    }.buttonStyle(.borderless)
+                    if !Calendar.current.isDateInToday(selectedDate) {
+                        Button("Return to today") { selectedDate = Date() }
+                    }
                 }
-                Text("Confirmed food entries on this device.").font(.caption).foregroundStyle(.secondary)
             }
             if let failure {
                 Section("Intake unavailable") {
@@ -489,71 +502,82 @@ private struct FoodIntakeHomeView: View {
                     Button("Try again") { reload() }
                 }
             } else if let projection {
-                Section("\(projection.summary.itemCount) food entries") {
+                Section {
                     if projection.rows.isEmpty {
                         ContentUnavailableView("No food logged", systemImage: "fork.knife",
-                            description: Text("Add your first food to see your intake here."))
+                            description: Text("Logged intake will appear here after you confirm a food. An empty log does not mean no food was eaten."))
                     } else {
-                        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 18) {
+                        LazyVGrid(columns: dynamicTypeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 12) {
                             ForEach([NutrientKey.energyConsumed, .protein, .carbohydrates, .fatTotal], id: \.rawValue) { key in
                                 if let total = projection.summary.totals.first(where: { $0.key == key }) {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(Self.label(key)).font(.caption).foregroundStyle(.secondary)
-                                        Text(Self.amount(total)).font(.title3.bold())
-                                        if total.incompleteContributions > 0 {
-                                            Text("Incomplete · \(total.incompleteContributions) entries unknown or bounded").font(.caption2)
-                                        } else if total.includesEstimates {
-                                            Text("Includes source estimates").font(.caption2)
-                                        }
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        Label(Self.label(key), systemImage: Self.symbol(key))
+                                            .font(.subheadline).foregroundStyle(.secondary)
+                                        Text(Self.amount(total)).font(.title2.weight(.semibold)).monospacedDigit()
+                                            .fixedSize(horizontal: false, vertical: true)
+                                        Text(total.incompleteContributions > 0 ? "\(total.incompleteContributions) entries incomplete" : total.includesEstimates ? "Includes estimates" : "Known values")
+                                            .font(.caption).foregroundStyle(.secondary)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(14)
+                                    .background(Color(uiColor: .secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+                                    .accessibilityElement(children: .combine)
                                 }
                             }
                         }
-                        .padding(.vertical, 8)
+                        .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
+                    }
+                } header: {
+                    Text("Logged intake · \(projection.summary.itemCount) entries")
+                } footer: {
+                    Text("Totals cover known values only. Missing or bounded nutrients are not counted as zero.")
+                }
+                if isHome {
+                    Section {
+                        NavigationLink(value: WeeklyReportRoute.foodLog) {
+                            actionLabel("Manage food intake", subtitle: "Review entries, search foods or scan a barcode", symbol: "fork.knife.circle.fill")
+                        }
+                        NavigationLink(value: WeeklyReportRoute.dailyExport) {
+                            actionLabel("Export health data", subtitle: "Prepare and review your Apple Health export", symbol: "square.and.arrow.up.circle.fill")
+                        }
                     }
                 }
-                if !isHome && !projection.rows.isEmpty {
-                    Section("Food entries") {
-                        ForEach(projection.rows, id: \.logItemID) { row in
-                            Button {
-                                do {
-                                    editModel = try root?.model(reopening: row.logItemID)
-                                    guard editModel != nil else { throw FoodIntakeProjectionError.missingReference }
-                                    showsEdit = true
-                                } catch { failure = "This entry could not be opened. Your saved food is unchanged." }
-                            } label: {
-                                HStack {
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(row.name).foregroundStyle(.primary)
-                                        Text(row.occurredAt, format: .dateTime.hour().minute()).font(.caption).foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Text("\(row.quantity.value.formatted(.number.precision(.fractionLength(0...2)))) \(row.quantity.unit.rawValue)")
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
+                if !projection.rows.isEmpty {
+                    Section(isHome ? "Recent food entries" : "Food entries") {
+                        ForEach(displayedRows(projection), id: \.logItemID) { row in
+                            entryButton(row)
+                        }
+                        if isHome && projection.rows.count > 3 {
+                            NavigationLink("View all \(projection.rows.count) entries", value: WeeklyReportRoute.foodLog)
                         }
                     }
                 }
             } else {
                 Section { ProgressView("Loading intake") }
             }
-            Section(isHome ? "Manage your day" : "Add food") {
-                if isHome {
-                    NavigationLink(value: WeeklyReportRoute.foodLog) { Label("Manage food intake", systemImage: "fork.knife") }
-                } else {
-                    NavigationLink("Search foods", value: WeeklyReportRoute.genericFoodSearch)
-                    NavigationLink("Scan barcode", value: WeeklyReportRoute.barcodeFoodCapture)
-                    NavigationLink("Paste or dictate food list", value: WeeklyReportRoute.foodListImport)
-                    NavigationLink("Common foods & favourites", value: WeeklyReportRoute.commonFoods)
-                    NavigationLink("Review receipts", value: WeeklyReportRoute.inventoryReview)
-                    NavigationLink("Review nutrition updates", value: WeeklyReportRoute.foodReresolution)
+            if !isHome {
+                Section {
+                    NavigationLink(value: WeeklyReportRoute.genericFoodSearch) { Label("Search foods", systemImage: "magnifyingglass") }
+                    NavigationLink(value: WeeklyReportRoute.barcodeFoodCapture) { Label("Scan barcode", systemImage: "barcode.viewfinder") }
+                    NavigationLink(value: WeeklyReportRoute.commonFoods) { Label("Common foods & favourites", systemImage: "star") }
+                    NavigationLink(value: WeeklyReportRoute.foodListImport) { Label("Paste or dictate food list", systemImage: "list.bullet") }
+                } header: { Text("Log food") } footer: {
+                    if !Calendar.current.isDateInToday(selectedDate) {
+                        Text("New foods are logged for today. Existing entries on this day can be reviewed above. Changes do not update an already exported snapshot.")
+                    }
                 }
-            }
-            if isHome {
-                Section("Health data") {
-                    NavigationLink(value: WeeklyReportRoute.dailyExport) { Label("Export health data", systemImage: "square.and.arrow.up") }
+                Section("Review") {
+                    NavigationLink("Receipts and food inventory", value: WeeklyReportRoute.inventoryReview)
+                    NavigationLink("Nutrition updates", value: WeeklyReportRoute.foodReresolution)
+                }
+            } else {
+                if projection == nil || failure != nil {
+                    Section("Manage your day") {
+                        NavigationLink("Manage food intake", value: WeeklyReportRoute.foodLog)
+                        NavigationLink("Export health data", value: WeeklyReportRoute.dailyExport)
+                    }
+                }
+                Section("Review") {
                     NavigationLink(value: WeeklyReportRoute.healthReport) { Label("View health report", systemImage: "heart.text.square") }
                 }
             }
@@ -562,6 +586,8 @@ private struct FoodIntakeHomeView: View {
         .onAppear { reload() }
         .onChange(of: selectedDate) { reload() }
         .onChange(of: scenePhase) { _, phase in if phase == .active { reload() } }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in reload() }
+        .refreshable { reload() }
         .sheet(isPresented: $showsEdit, onDismiss: { reload() }) {
             NavigationStack {
                 if let editModel {
@@ -570,6 +596,71 @@ private struct FoodIntakeHomeView: View {
                 }
             }
         }
+    }
+
+    private func displayedRows(_ projection: FoodIntakeProjection) -> [FoodIntakeLogRow] {
+        isHome ? Array(projection.rows.suffix(3)) : projection.rows
+    }
+
+    private func entryButton(_ row: FoodIntakeLogRow) -> some View {
+Button { open(row) } label: {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    HStack(alignment: .firstTextBaseline) {
+                                        Text(row.name).font(.body.weight(.medium)).foregroundStyle(.primary)
+                                        Spacer(minLength: 8)
+                                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                                    }
+                                    Text(Self.entryDetail(row))
+                                        .font(.subheadline).foregroundStyle(.secondary)
+                                    Text(Self.sourceStatus(row))
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }.padding(.vertical, 4)
+                            }.accessibilityHint("Opens the saved food confirmation")
+    }
+
+    private func moveDay(_ offset: Int) {
+        if let day = Calendar.current.date(byAdding: .day, value: offset, to: selectedDate), day <= Date() { selectedDate = day }
+    }
+
+    private func open(_ row: FoodIntakeLogRow) {
+        do {
+            editModel = try root?.model(reopening: row.logItemID)
+            guard editModel != nil else { throw FoodIntakeProjectionError.missingReference }
+            showsEdit = true
+        } catch { failure = "This entry could not be opened. Your saved food is unchanged." }
+    }
+
+    private func actionLabel(_ title: String, subtitle: String, symbol: String) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Image(systemName: symbol).font(.title2).foregroundStyle(.tint).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title).font(.headline).foregroundStyle(.primary)
+                Text(subtitle).font(.subheadline).foregroundStyle(.secondary)
+            }.padding(.vertical, 6)
+        }.accessibilityElement(children: .combine)
+    }
+
+    private static func entryDetail(_ row: FoodIntakeLogRow) -> String {
+        let time = row.occurredAt.formatted(date: .omitted, time: .shortened)
+        let quantity = row.quantity.value.formatted(.number.precision(.fractionLength(0...2)))
+        return "\(time) · \(quantity) \(row.quantity.unit.rawValue)"
+    }
+
+    private static func sourceStatus(_ row: FoodIntakeLogRow) -> String {
+        let names = row.sourceIDs.map { source in
+            if source == "cofid" { return "UK CoFID" }
+            if source.hasPrefix("usda-") { return "USDA" }
+            if source == "open-food-facts" { return "Open Food Facts" }
+            return "Saved food source"
+        }
+        let source = Array(Set(names)).sorted().joined(separator: " · ")
+        let status = row.totals.contains { $0.includesEstimates } ? "Source estimate" : "Saved nutrition"
+        let incomplete = row.totals.contains { $0.incompleteContributions > 0 } ? " · Incomplete nutrients" : ""
+        return (source.isEmpty ? status : source + " · " + status) + incomplete
+    }
+
+    private static func symbol(_ key: NutrientKey) -> String {
+        switch key { case .energyConsumed: "flame"; case .protein: "p.circle"; case .carbohydrates: "c.circle"; default: "f.circle" }
     }
 
     private func reload() {

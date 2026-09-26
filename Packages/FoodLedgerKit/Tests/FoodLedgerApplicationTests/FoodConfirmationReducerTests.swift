@@ -35,6 +35,8 @@ final class FoodConfirmationReducerTests: XCTestCase {
         let revised = try FoodIntakeProjection(records: records, reportingDate: "1900-01-01")
         XCTAssertEqual(revised.rows.count, 1)
         XCTAssertEqual(revised.rows.first?.quantity.value, 150)
+        XCTAssertEqual(revised.rows.first?.sourceIDs, ["synthetic"])
+        XCTAssertEqual(revised.rows.first?.totals.first { $0.key == .protein }?.knownAmount, 15)
 
     }
 
