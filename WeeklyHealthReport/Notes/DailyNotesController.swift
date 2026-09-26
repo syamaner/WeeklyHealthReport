@@ -12,6 +12,12 @@ final class DailyNotesController: ObservableObject {
 
     @Published private(set) var document = DailyNotesDocument()
     @Published private(set) var currentDayID: DailyNoteDayID
+    private var selectedDay: DailyNoteDayID?
+
+    func selectReportDay(_ day: DailyNoteDayID?) {
+        selectedDay = day
+        activate()
+    }
     @Published private(set) var errorMessage: String?
     @Published private(set) var storageState: StorageState = .available
 
@@ -79,7 +85,7 @@ final class DailyNotesController: ObservableObject {
         }
         flushDraft()
         let previousDayID = currentDayID
-        currentDayID = Self.dayID(at: now(), calendar: calendar)
+        currentDayID = selectedDay ?? Self.dayID(at: now(), calendar: calendar)
         cleanUpVerifiedPriorDays()
         if previousDayID != currentDayID {
             onSavedNotesMutation?(document.snapshot(for: currentDayID))
@@ -343,7 +349,7 @@ final class DailyNotesController: ObservableObject {
     private func cleanUpVerifiedPriorDays() {
         guard storageAvailable else { return }
         var candidate = document
-        let cleaned = candidate.cleanupVerifiedNotes(before: currentDayID)
+        let cleaned = candidate.cleanupVerifiedNotes(before: Self.dayID(at: now(), calendar: calendar))
         guard !cleaned.isEmpty else { return }
         do {
             try store.save(candidate)

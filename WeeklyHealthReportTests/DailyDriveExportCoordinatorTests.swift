@@ -12,6 +12,83 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         refresh ? "refreshed-token" : "initial-token"
     }
 
+    func testHistoricalOrderingRefinementPreservesCutoffAndConflictGuards() throws {
+        let policy = DailyHealthExportIdentityPolicy()
+        let first = try policy.validate(payload: payload(hour: 8, selectedDate: "2026-09-05"), reportDate: "2026-09-05")
+        let later = try policy.validate(payload: payload(hour: 18, selectedDate: "2026-09-05"), reportDate: "2026-09-05")
+        XCTAssertEqual(first.orderingToken, "historical-v2|2026-09-06T00:00:00+01:00|2026-09-06T08:00:01+01:00")
+        XCTAssertEqual(try policy.compare(first.orderingToken, later.orderingToken), .orderedAscending)
+        XCTAssertEqual(try policy.compare(later.orderingToken, first.orderingToken), .orderedDescending)
+        XCTAssertEqual(try policy.compare(first.orderingToken, first.orderingToken), .orderedSame)
+        XCTAssertEqual(try policy.compare(first.orderingToken, "2026-09-06T00:00:00+01:00"), .orderedDescending)
+        XCTAssertEqual(try policy.compare("historical-v2|2026-09-05T00:00:00+01:00|2026-09-20T12:00:00+01:00", first.orderingToken), .orderedAscending)
+        for malformed in ["historical-v3|a|b", "historical-v2|a|b", "historical-v2|2026-09-06T00:00:00+01:00", "historical-v2|2026-09-06T00:00:00+01:00|2026-09-05T00:00:00+01:00"] {
+            XCTAssertThrowsError(try policy.compare(malformed, first.orderingToken))
+        }
+        XCTAssertFalse(DailyDriveExportResult.verified(dataAsOf: first.orderingToken, created: true).verifiedLabel.contains("historical-v2"))
+    }
+
+    func testHistoricalReplacementRejectsOldOrConflictingBytesAndRecoversExactReviewedFile() async throws {
+        let store = MemoryDailyIdentityStore()
+        let server = MockDailyDriveServer()
+        let coordinator = DailyDriveExportCoordinator(transport: server, store: store)
+        let date = "2026-09-05"
+        let first = try payload(hour: 8, selectedDate: date)
+        let later = try payload(hour: 18, selectedDate: date)
+        _ = try await coordinator.export(payload: first, reportDate: date, accountID: accountID, folderID: folderID, tokenProvider: token)
+        await server.enqueueUpdate(.transientAfterCommit)
+        let result = try await coordinator.export(payload: later, reportDate: date, accountID: accountID, folderID: folderID, tokenProvider: token)
+        XCTAssertTrue(result.authorizesNoteCleanup)
+        let identity = try XCTUnwrap(store.snapshot()?.identities.first)
+        var conflicting = try XCTUnwrap(JSONSerialization.jsonObject(with: later) as? [String: Any])
+        var today = try XCTUnwrap(conflicting["today"] as? [String: Any])
+        today["notes"] = ["Different bytes at the identical ordering token"]
+        conflicting["today"] = today
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let changed = try decoder.decode(DailyHealthExportEnvelope.self, from: JSONSerialization.data(withJSONObject: conflicting))
+        for bytes in [first, try DailyHealthExportSerializer.encode(changed)] {
+            do {
+                _ = try await coordinator.export(payload: bytes, reportDate: date, accountID: accountID, folderID: folderID, tokenProvider: token)
+                XCTFail("Older or same-token conflicting snapshots must stay blocked")
+            } catch DailyDriveExportFailure.staleSnapshot {}
+        }
+        let restored = DailyDriveExportCoordinator(transport: server, store: MemoryDailyIdentityStore())
+        _ = try await restored.recover(selectedFileID: identity.fileID, reportDate: date, accountID: accountID, folderID: folderID, tokenProvider: token)
+        let stored = await server.storedContent(id: identity.fileID)
+        XCTAssertEqual(stored, later)
+        let creates = await server.createIDs
+        XCTAssertEqual(creates, [identity.fileID])
+    }
+
+    func testHistoricalDatesCreateIndependentCanonicalIDsAndUpdateOnlyTheirOwnFile() async throws {
+        let store = MemoryDailyIdentityStore()
+        let server = MockDailyDriveServer()
+        let coordinator = DailyDriveExportCoordinator(transport: server, store: store)
+        let dates = ["2026-09-01", "2026-09-05", "2026-09-03", "2026-09-02", "2026-09-04"]
+        for date in dates {
+            _ = try await coordinator.export(payload: payload(hour: 8, selectedDate: date), reportDate: date,
+                                             accountID: accountID, folderID: folderID, tokenProvider: token)
+        }
+        let identities = try XCTUnwrap(store.snapshot()?.identities)
+        XCTAssertEqual(Set(identities.map(\.reportDate)), Set(dates))
+        XCTAssertEqual(Set(identities.map(\.fileID)).count, 5)
+        for date in dates.reversed() {
+            let bytes = try payload(hour: 18, selectedDate: date)
+            _ = try await coordinator.export(payload: bytes, reportDate: date,
+                                             accountID: accountID, folderID: folderID, tokenProvider: token)
+            let id = try XCTUnwrap(identities.first { $0.reportDate == date }?.fileID)
+            let stored = await server.storedContent(id: id)
+            XCTAssertEqual(stored, bytes)
+        }
+        let created = await server.createIDs
+        let updated = await server.updateIDs
+        XCTAssertEqual(created.count, 5)
+        XCTAssertEqual(updated, dates.reversed().compactMap { date in
+            identities.first { $0.reportDate == date }?.fileID
+        })
+    }
+
     func testCreatePersistsGeneratedIDThenUpdatesOneFileByStoredID() async throws {
         let store = MemoryDailyIdentityStore()
         let server = MockDailyDriveServer()
@@ -556,13 +633,15 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         } catch DailyDriveExportFailure.invalidPayload {}
     }
 
-    private func payload(hour: Int) throws -> Data {
+    private func payload(hour: Int, selectedDate: String? = nil) throws -> Data {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/London")!
         let cutoff = calendar.date(from: DateComponents(
             year: 2026, month: 9, day: 6, hour: hour
         ))!
-        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar, selectedDay: selectedDate.map {
+            DailyNoteDayID(reportDate: $0, timeZoneIdentifier: calendar.timeZone.identifier)
+        })
         let emptyGlucose = DailyGlucoseValue(
             day: window.day,
             averageMillimolesPerLiter: nil,

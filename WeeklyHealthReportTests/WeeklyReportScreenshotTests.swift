@@ -15,6 +15,22 @@ import FoodGenericSearch
 // All health values in this test file are synthetic fixtures.
 @MainActor
 final class WeeklyReportScreenshotTests: XCTestCase {
+    func testHistoricalExportAndNotesRenderWithSyntheticData() throws {
+        let calendar = testCalendar()
+        let now = calendar.date(from: DateComponents(year: 2026, month: 9, day: 10, hour: 15))!
+        let store = EmptyDailyNotesStore()
+        let notes = DailyNotesController(store: store, calendar: calendar, now: { now })
+        let session = DailyDriveSessionController(
+            keychain: ScreenshotMemoryDailySessionStore(), drive: DailyDriveAPI(),
+            exportService: DailyHealthExportService(healthData: UnusedDailyHealthDataProvider(), notesStore: store, calendar: calendar, now: { now }),
+            identityStore: ControllerMemoryDailyIdentityStore(),
+            nutritionSourceSelection: EmptyNutritionSourceSelectionStore(), notes: notes
+        )
+        session.selectReportDay(session.availableReportDays[5])
+        XCTAssertEqual(notes.currentDayID.reportDate, "2026-09-05")
+        renderFoodView(NavigationStack { DailyExportView(session: session) }, name: "Historical export - date selection")
+        renderFoodView(NavigationStack { DailyNotesView(controller: notes, openEditor: {}) }, name: "Historical notes - selected date")
+    }
     func testFoodRecoveryAndCommonFoodsRenderWithSyntheticData() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }

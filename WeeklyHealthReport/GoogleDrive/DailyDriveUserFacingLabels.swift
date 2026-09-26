@@ -21,7 +21,7 @@ extension DailyDriveExportResult {
         switch self {
         case .verified(let dataAsOf, _), .unchangedVerified(let dataAsOf),
              .cancelledAfterSubmissionVerified(let dataAsOf, _):
-            "Verified through \(dataAsOf)"
+            "Verified through \(DailyHealthExportIdentityPolicy.displayOrderingToken(dataAsOf))"
         case .cancelledBeforeSubmission:
             "No new verified upload"
         }
@@ -30,13 +30,13 @@ extension DailyDriveExportResult {
     var userFacingLabel: String {
         switch self {
         case .verified(let dataAsOf, _):
-            "Upload metadata and bytes verified remotely for \(dataAsOf)."
+            "Upload metadata and bytes verified remotely for \(DailyHealthExportIdentityPolicy.displayOrderingToken(dataAsOf))."
         case .unchangedVerified(let dataAsOf):
-            "The unchanged \(dataAsOf) snapshot was reverified; no write ran."
+            "The unchanged \(DailyHealthExportIdentityPolicy.displayOrderingToken(dataAsOf)) snapshot was reverified; no write ran."
         case .cancelledBeforeSubmission:
             "Cancelled before submission. The last verified Drive file was preserved."
         case .cancelledAfterSubmissionVerified(let dataAsOf, _):
-            "Cancellation followed submission; reconciliation verified \(dataAsOf)."
+            "Cancellation followed submission; reconciliation verified \(DailyHealthExportIdentityPolicy.displayOrderingToken(dataAsOf))."
         }
     }
 }
@@ -46,18 +46,18 @@ extension DailyDriveRecoveryResult {
         switch self {
         case .recovered(let dataAsOf), .alreadyTracked(let dataAsOf),
              .migrated(let dataAsOf):
-            "Recovered and verified through \(dataAsOf)"
+            "Recovered and verified through \(DailyHealthExportIdentityPolicy.displayOrderingToken(dataAsOf))"
         }
     }
 
     var userFacingLabel: String {
         switch self {
         case .recovered(let dataAsOf):
-            "Explicit recovery verified the selected canonical file through \(dataAsOf)."
+            "Explicit recovery verified the selected canonical file through \(DailyHealthExportIdentityPolicy.displayOrderingToken(dataAsOf))."
         case .alreadyTracked(let dataAsOf):
-            "The selected canonical file was already tracked and reverified through \(dataAsOf)."
+            "The selected canonical file was already tracked and reverified through \(DailyHealthExportIdentityPolicy.displayOrderingToken(dataAsOf))."
         case .migrated(let dataAsOf):
-            "The selected canonical file was safely migrated to this destination and verified through \(dataAsOf)."
+            "The selected canonical file was safely migrated to this destination and verified through \(DailyHealthExportIdentityPolicy.displayOrderingToken(dataAsOf))."
         }
     }
 }

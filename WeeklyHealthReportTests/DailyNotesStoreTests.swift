@@ -3,6 +3,34 @@ import XCTest
 
 @MainActor
 final class DailyNotesStoreTests: XCTestCase {
+    func testHistoricalSelectionKeepsOtherDateDraftAndUnverifiedNotesAcrossMidnight() throws {
+        let store = MemoryDailyNotesStore()
+        var now = londonDate(2026, 9, 10, 10)
+        let controller = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        let today = controller.currentDayID
+        XCTAssertTrue(controller.beginNewDraft())
+        XCTAssertTrue(controller.updateDraftText("Unfinished today"))
+        let historical = DailyNoteDayID(reportDate: "2026-09-05", timeZoneIdentifier: "Europe/London")
+        controller.selectReportDay(historical)
+        XCTAssertEqual(controller.recoverableDraft?.dayID, today)
+        XCTAssertEqual(controller.recoverableDraft?.text, "Unfinished today")
+        XCTAssertNil(controller.currentDraft)
+        XCTAssertFalse(controller.beginOrResumeDraft())
+        XCTAssertTrue(controller.discardDraft())
+        XCTAssertTrue(controller.beginNewDraft())
+        XCTAssertTrue(controller.updateDraftText("Saved historical note"))
+        XCTAssertTrue(controller.saveDraft())
+        now = londonDate(2026, 9, 11, 1)
+        controller.activate()
+        XCTAssertEqual(controller.currentDayID, historical)
+        XCTAssertEqual(controller.notes.map(\.text), ["Saved historical note"])
+        now = londonDate(2026, 9, 25, 1)
+        let relaunched = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertEqual(relaunched.document.savedNotes(for: historical).map(\.text), ["Saved historical note"])
+        controller.selectReportDay(nil)
+        XCTAssertEqual(controller.currentDayID.reportDate, "2026-09-25")
+    }
+
     func testNavigationRestoresFoodListReviewRoute() {
         XCTAssertEqual(
             WeeklyReportView.restoredNavigationPath(from: WeeklyReportRoute.foodListImport.rawValue, hasDraft: false),

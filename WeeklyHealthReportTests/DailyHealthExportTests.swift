@@ -9,6 +9,113 @@ import XCTest
 
 // Every health value in this file is invented. These tests never access HealthKit.
 final class DailyHealthExportTests: XCTestCase {
+    func testRetrospectiveWindowUsesSelectedDayAndHistoricalCutoff() throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let choices = DailyExportWindow.availableDays(at: now, calendar: calendar)
+        XCTAssertEqual(choices.count, 8)
+        XCTAssertEqual(choices.last?.reportDate, "2026-09-03")
+        let window = try DailyExportWindow.capture(at: now, calendar: calendar, selectedDay: choices[5])
+        XCTAssertEqual(window.reportDate, "2026-09-05")
+        XCTAssertEqual(window.day.start, date(2026, 9, 5, 0, calendar: calendar))
+        XCTAssertEqual(window.cutoff, date(2026, 9, 6, 0, calendar: calendar))
+        XCTAssertEqual(window.context.interval.end, window.cutoff)
+        XCTAssertEqual(window.sleep.end, date(2026, 9, 5, 12, calendar: calendar))
+        XCTAssertEqual(window.glucoseHours.count, 24)
+        XCTAssertEqual(try DailyExportWindow.capture(at: now, calendar: calendar, selectedDay: choices[0]).cutoff, now)
+        for invalid in [
+            DailyNoteDayID(reportDate: "2026-09-02", timeZoneIdentifier: "Europe/London"),
+            DailyNoteDayID(reportDate: "2026-09-11", timeZoneIdentifier: "Europe/London"),
+            DailyNoteDayID(reportDate: "2026-09-05", timeZoneIdentifier: "UTC")
+        ] {
+            XCTAssertThrowsError(try DailyExportWindow.capture(at: now, calendar: calendar, selectedDay: invalid))
+        }
+        let nextWeek = date(2026, 9, 13, 0, calendar: calendar)
+        XCTAssertThrowsError(try DailyExportWindow.capture(at: nextWeek, calendar: calendar, selectedDay: choices[5]))
+    }
+
+    func testRetrospectiveDSTHasActualCalendarHours() throws {
+        let calendar = londonCalendar()
+        for (month, day, expected) in [(3, 29, 23), (10, 25, 25)] {
+            let now = date(2026, month, day + 1, 10, calendar: calendar)
+            let selected = DailyExportWindow.availableDays(at: now, calendar: calendar)[1]
+            let window = try DailyExportWindow.capture(at: now, calendar: calendar, selectedDay: selected)
+            XCTAssertEqual(window.glucoseHours.count, expected)
+            XCTAssertEqual(window.day.duration, Double(expected) * 3600)
+            XCTAssertEqual(window.glucoseHours.first?.start, window.day.start)
+            XCTAssertEqual(window.glucoseHours.last?.end, window.cutoff)
+        }
+    }
+
+    func testRetrospectiveServiceExportsFiveDatesInAnyOrderWithoutMovingNotes() async throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let choices = DailyExportWindow.availableDays(at: now, calendar: calendar)
+        let store = MutableDailyNotesStore()
+        var document = DailyNotesDocument()
+        for day in choices {
+            try document.beginDraft(for: day, now: now)
+            try document.updateDraft(text: "Invented note for \(day.reportDate)", now: now)
+            _ = try document.saveDraft(now: now)
+        }
+        store.document = document
+        let original = store.document
+        let provider = RecordingDailyProvider { self.emptyInputs(window: $0) }
+        let service = DailyHealthExportService(healthData: provider, notesStore: store, calendar: calendar, now: { now })
+        for offset in [5, 1, 7, 3, 0] {
+            let result = try await service.refresh(nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier, selectedDay: choices[offset])
+            XCTAssertEqual(result.envelope.reportDate, choices[offset].reportDate)
+            XCTAssertEqual(result.notesSnapshot.notes, ["Invented note for \(choices[offset].reportDate)"])
+            XCTAssertEqual(result.envelope.exportedAt, "2026-09-10T15:00:00+01:00")
+            XCTAssertEqual(store.document, original)
+        }
+        XCTAssertEqual(provider.readAuthorizationCount, 0)
+    }
+
+    func testHistoricalRefreshRejectsOnlyMatchingDateNoteMutation() async throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let selected = DailyExportWindow.availableDays(at: now, calendar: calendar)[5]
+        var first = DailyNotesDocument()
+        try first.beginDraft(for: selected, now: now)
+        try first.updateDraft(text: "Selected historical note", now: now)
+        _ = try first.saveDraft(now: now)
+        for changesSelectedDate in [false, true] {
+            var changed = first
+            let owner = changesSelectedDate ? selected : DailyExportWindow.availableDays(at: now, calendar: calendar)[0]
+            try changed.beginDraft(for: owner, now: now)
+            try changed.updateDraft(text: "Changed note", now: now)
+            _ = try changed.saveDraft(now: now)
+            let store = SequencedDailyNotesStore(documents: [first, changed])
+            let service = DailyHealthExportService(healthData: RecordingDailyProvider { self.emptyInputs(window: $0) }, notesStore: store, calendar: calendar, now: { now })
+            do {
+                let result = try await service.refresh(nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier, selectedDay: selected)
+                XCTAssertFalse(changesSelectedDate)
+                XCTAssertEqual(result.notesSnapshot.notes, ["Selected historical note"])
+            } catch DailyHealthExportError.notesChanged {
+                XCTAssertTrue(changesSelectedDate)
+            }
+        }
+    }
+
+    @MainActor
+    func testDateSelectionInvalidatesPreviewAndBindsNotesWithoutQuery() async throws {
+        let (session, _) = await makePreviewLifecycleSession()
+        XCTAssertNotNil(session.preview)
+        let day = session.availableReportDays[3]
+        session.selectReportDay(day)
+        XCTAssertNil(session.preview)
+        XCTAssertFalse(session.canExport)
+        XCTAssertEqual(session.notes.currentDayID, day)
+        session.notes.activate()
+        XCTAssertEqual(session.notes.currentDayID, day)
+        await session.refreshPreview()
+        XCTAssertEqual(session.preview?.envelope.reportDate, day.reportDate)
+        session.selectReportDay(nil)
+        XCTAssertNil(session.preview)
+        XCTAssertEqual(session.notes.currentDayID, session.availableReportDays.first)
+    }
+
     func testProductionCredentialClassifierUsesOnlySupportedAppAuthEvidence() {
         XCTAssertEqual(
             AppAuthDriveSession.classify(nil),

@@ -15,6 +15,20 @@ struct DailyExportView: View {
 
     var body: some View {
         Form {
+            Section("Report date") {
+                Picker("Local reporting date", selection: Binding(
+                    get: { session.selectedReportDay },
+                    set: { session.selectReportDay($0) }
+                )) {
+                    Text("Today (partial)").tag(Optional<DailyNoteDayID>.none)
+                    ForEach(Array(session.availableReportDays.dropFirst()), id: \.self) { day in
+                        Text(day.reportDate).tag(Optional(day))
+                    }
+                }
+                .disabled(session.busy)
+                Text("Earlier dates include the full local day as currently visible in Apple Health. Changing the date discards the old preview, not saved notes.")
+                    .font(.caption)
+            }
             Section("Private until you export") {
                 Text("Opening this screen restores known choices and prepares a fresh snapshot in memory. Nothing is sent until you choose Export.")
                 Text(session.status)
@@ -188,7 +202,7 @@ struct DailyExportView: View {
     }
 
     private var notesSection: some View {
-        Section("Today’s notes") {
+        Section("Notes for \(notes.currentDayID.reportDate)") {
             LabeledContent("Saved", value: notes.storageAvailable ? notes.noteCountLabel : "Unavailable")
             NavigationLink("Manage notes", value: WeeklyReportRoute.notes)
                 .disabled(!notes.storageAvailable)

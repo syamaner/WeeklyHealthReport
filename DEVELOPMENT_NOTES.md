@@ -1141,3 +1141,54 @@ comparison is **$4.3977712**, rounded **$4.40** when calculated once; summing
 individually rounded ledger rows adds **$4.39**. Earlier rows remain frozen. Tracked
 total becomes **339,231,250 tokens / $207.41**, summing recorded rounded comparison
 amounts.
+
+## 26 September 2026 — retrospective export #104 bounded phase accounting
+
+The user requested accurate accounting during PR #139's initial CI wait. This
+row freezes the implementation/validation/initial-delivery boundary before that
+accounting request; it does not claim an all-inclusive final delivery cost.
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 26 Sep | `codex-phase-accounting` — #104 retrospective export, historical replacement ratification and initial PR delivery — GPT-6 Sol | PR #139 implementation head `827fa76758c11ce5f737f0868a160e20e6883ba8` | 6,793,035 (6,617,088) | 29,795 | 6,822,830 | $3.95 |
+
+Session `01a0c05f-5b5f-7571-813c-7866ea998df2`, rollout
+`/Users/sertanyamaner/.codex/sessions/2026/09/20/rollout-2026-09-20T20-51-09-01a0c05f-5b5f-7571-813c-7866ea998df2.jsonl`.
+The baseline is the complete token-count snapshot at line **23061**, timestamp
+**2026-09-26 15:40:02.725 UTC**, immediately before the explicit release-complete
+handoff into #104 at line 23065: **403,028,625 input / 395,910,144 cached input /
+1,246,328 output**. The frozen end is line **23541**, timestamp
+**2026-09-26 16:06:00.290 UTC**, before the accounting request/inspection:
+**409,821,660 input / 402,527,232 cached input / 1,276,123 output**.
+The governing turn context at line 21826 and subsequent contexts at 23110 and
+23353 identify `gpt-6-sol`; this is not inferred from an earlier model preference.
+
+Reproduce the frozen delta without reading later accounting counters:
+
+```sh
+sed -n '1,23541p' /Users/sertanyamaner/.codex/sessions/2026/09/20/rollout-2026-09-20T20-51-09-01a0c05f-5b5f-7571-813c-7866ea998df2.jsonl |
+  python3 .agents/skills/codex-phase-accounting/scripts/phase_usage.py /dev/stdin \
+    --baseline 403028625 395910144 1246328 \
+    --uncached-input-rate 4 --cached-input-rate 0.40 --output-rate 20 --json
+```
+
+Use the ledger's **historical Sol comparison assumptions**, not a claim about
+current GPT-6 pricing or actual subscription billing: 175,947 uncached input ×
+$4/M + 6,617,088 cached input × $0.40/M + 29,795 output × $20/M =
+**$3.9465232**, rounded **$3.95**. Cached input is a subset of input, not additional
+tokens; reasoning output is already contained in output and is not added again.
+
+Included: #104 inspection/design, the ordering-conflict investigation and user
+ratification discussion, implementation, failed development diagnostics and
+repairs, focused/full synthetic tests, coverage/static analysis/project validation,
+UI rendering/review, documentation, final diff review, implementation commit/push,
+PR creation and the initial CI-wait commands through the frozen end. No subagents,
+reused tasks or hosted reviews were used. Excluded: the preceding internal-release
+phase, this accounting investigation/calculation/ledger edit, subsequent ledger
+commit/push, final CI/merge/cleanup/handoff, every other session and separate
+tool/service charges. Missing/unmeasured usage is not estimated. These counters
+do not measure productivity, quality or provider causation.
+
+Earlier rows remain frozen. Adding this row to the prior recorded subtotal yields
+**346,054,080 tracked tokens / $211.36**, summing recorded rounded comparison
+amounts. This is a tracked-ledger subtotal, not complete account/session usage.

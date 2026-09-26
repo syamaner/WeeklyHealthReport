@@ -12,6 +12,17 @@ enum DailyHealthExportError: Error, Equatable {
 }
 
 struct DailyExportWindow: Equatable {
+    static let retrospectiveDayLimit = 7
+
+    static func availableDays(at now: Date, calendar: Calendar) -> [DailyNoteDayID] {
+        let today = calendar.startOfDay(for: now)
+        return (0...retrospectiveDayLimit).compactMap { offset in
+            calendar.date(byAdding: .day, value: -offset, to: today).map {
+                DailyNoteDayID(reportDate: ExportDateText.date($0, calendar: calendar),
+                               timeZoneIdentifier: calendar.timeZone.identifier)
+            }
+        }
+    }
     let reportDate: String
     let timeZoneIdentifier: String
     let cutoff: Date
@@ -23,7 +34,8 @@ struct DailyExportWindow: Equatable {
 
     static func capture(
         at cutoff: Date,
-        calendar suppliedCalendar: Calendar
+        calendar suppliedCalendar: Calendar,
+        selectedDay: DailyNoteDayID? = nil
     ) throws -> DailyExportWindow {
         var calendar = Calendar(identifier: suppliedCalendar.identifier)
         calendar.timeZone = suppliedCalendar.timeZone
@@ -34,7 +46,20 @@ struct DailyExportWindow: Equatable {
             throw DailyHealthExportError.invalidTimeZone
         }
 
-        let start = calendar.startOfDay(for: cutoff)
+        let today = calendar.startOfDay(for: cutoff)
+        var start = today
+        var cutoff = cutoff
+        if let selectedDay {
+            guard let offset = availableDays(at: cutoff, calendar: calendar).firstIndex(of: selectedDay),
+                  let selectedStart = calendar.date(byAdding: .day, value: -offset, to: today)
+            else { throw DailyHealthExportError.invalidWindow }
+            start = selectedStart
+            if offset > 0 {
+                guard let nextDay = calendar.date(byAdding: .day, value: 1, to: start)
+                else { throw DailyHealthExportError.invalidWindow }
+                cutoff = nextDay
+            }
+        }
         guard start <= cutoff,
               let previousDay = calendar.date(byAdding: .day, value: -1, to: start),
               let sleepStart = calendar.date(
