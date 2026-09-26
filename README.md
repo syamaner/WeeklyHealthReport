@@ -452,3 +452,9 @@ Glucose, blood pressure and other health values are informational. The app provi
 ## Licence
 
 Licensed under the [MIT License](LICENSE).
+
+The subsequent [search-quality v3 development contract](docs/food-search-quality-v3.md)
+prioritises main food names, interleaves separately attributed source records and
+offers explicit typo-search suggestions while retaining the original evidence.
+The [paired development diagnostics](Tools/FoodSearchQuality/README.md) are tuning
+evidence, not independent retrieval-accuracy acceptance.

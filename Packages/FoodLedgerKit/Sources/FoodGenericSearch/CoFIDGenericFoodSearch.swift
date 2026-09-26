@@ -10,7 +10,7 @@ public enum CoFIDSearchError: Error, Equatable, Sendable {
 }
 
 public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "deterministic-lexical-complete-terms-v2"
+    public static let matcherVersion = "deterministic-primary-name-v3"
     public static let corpusCanonicalSHA256 = "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445"
     public static let candidateLimit = 10
     public static let minimumScore = 0.25
@@ -87,7 +87,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             return .noResult(GenericFoodNoResultRoute(
                 evidence: evidence, additionalEvidence: request.additionalEvidence,
                 guidance: Self.noResultGuidance(for: request.text.value),
-                suggestedQueries: Self.suggestedQueries(for: request.text.value)
+                suggestedQueries: recoverySuggestions(for: request.text.value)
             ))
         }
         let matches = try ranked.map { value in
@@ -114,6 +114,11 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             confirmation: confirmation,
             matches: matches
         ))
+    }
+
+    private func recoverySuggestions(for text: String) -> [String] {
+        let existing = Self.suggestedQueries(for: text)
+        return existing.isEmpty ? GenericFoodSearchTerms.suggestions(for: text, names: corpus.records.map(\.name)) : existing
     }
 
     private func savedRoute(
@@ -203,12 +208,14 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             let queryCoverage = Double(intersection.count) / Double(meaningfulTokens.count)
             let candidateCoverage = Double(intersection.count) / Double(candidateTokens.count)
             let jaccard = Double(intersection.count) / Double(union.count)
-            let score = exactScore
+            let primaryNameBonus = GenericFoodSearchTerms.primaryNameMatches(record.name, query: meaningfulTokens) ? 0.15 : 0
+            let rankingScore = primaryNameBonus + exactScore
                 + Self.weights.queryCoverage * queryCoverage
                 + Self.weights.candidateCoverage * candidateCoverage
                 + Self.weights.jaccard * jaccard
-            guard score >= Self.minimumScore else { continue }
-            let differences = candidateTokens.subtracting(meaningfulTokens).sorted().map { "candidate_only_token:\($0)" }
+            guard rankingScore >= Self.minimumScore else { continue }
+            let score = min(1, rankingScore / 1.15) // Clamp floating-point rounding at the schema boundary.
+            let differences = ["Search terms: \(meaningfulTokens.sorted().joined(separator: " ")); spelling equivalents only, original query retained."] + candidateTokens.subtracting(meaningfulTokens).sorted().map { "candidate_only_token:\($0)" }
                 + meaningfulTokens.subtracting(candidateTokens).sorted().map { "query_only_token:\($0)" }
             ranked.append(RankedRecord(record: record, score: score, exact: exact, differences: differences))
         }
