@@ -10,7 +10,7 @@ public enum CoFIDSearchError: Error, Equatable, Sendable {
 }
 
 public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "deterministic-primary-name-v3"
+    public static let matcherVersion = "deterministic-primary-name-v4"
     public static let corpusCanonicalSHA256 = "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445"
     public static let candidateLimit = 10
     public static let minimumScore = 0.25

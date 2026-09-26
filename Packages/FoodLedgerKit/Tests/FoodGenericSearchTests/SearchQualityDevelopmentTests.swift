@@ -52,6 +52,36 @@ final class SearchQualityDevelopmentTests: XCTestCase {
         }
     }
 
+    func testFruitPluralsPreserveCandidatesAndOriginalEvidence() throws {
+        let ids = QualityIDs()
+        let sources: [any GenericFoodSearching] = [
+            try CoFIDGenericFoodSearch(ids: ids), try USDAGenericFoodSearch(ids: ids),
+            try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: ids), USDAGenericFoodSearch(ids: ids)], ids: ids)
+        ]
+        let pairs = [("clementine", "clementines"), ("orange", "oranges"),
+                     ("grape", "grapes"), ("pear", "pears"), ("peach", "peaches"),
+                     ("strawberry", "strawberries"), ("blueberry", "blueberries"),
+                     ("raspberry", "raspberries"), ("blackberry", "blackberries"),
+                     ("cherry", "cherries"), ("plum", "plums"), ("apricot", "apricots"),
+                     ("mandarin", "mandarins"), ("tangerine", "tangerines")]
+        for (index, source) in sources.enumerated() {
+            for (singular, plural) in pairs {
+                let a = try source.search(request(singular)), b = try source.search(request(plural))
+                switch (a, b) {
+                case let (.confirmation(a), .confirmation(b)):
+                    XCTAssertEqual(a.matches.map { $0.candidate.candidate.recordID }, b.matches.map { $0.candidate.candidate.recordID }, singular)
+                    XCTAssertEqual(a.confirmation.evidence.first?.originalPayload, .text(try LedgerText(singular)))
+                    XCTAssertEqual(b.confirmation.evidence.first?.originalPayload, .text(try LedgerText(plural)))
+                case (.noResult, .noResult):
+                    // A lexical equivalent cannot supply a record absent from a source.
+                    XCTAssertFalse(singular == "clementine" && index > 0)
+                default: XCTFail("Inconsistent plural matching: \(singular)")
+                }
+            }
+            guard case .noResult = try source.search(request("clementine beef")) else { return XCTFail("All query terms must match") }
+        }
+    }
+
     func testDevelopmentReport() throws {
         let ids = QualityIDs()
         let search = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: ids), USDAGenericFoodSearch(ids: ids)], ids: ids)
