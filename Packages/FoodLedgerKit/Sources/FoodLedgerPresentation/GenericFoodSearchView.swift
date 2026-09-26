@@ -32,7 +32,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         self.now = now
     }
 
-    public func search(identity: GenericFoodIdentityQuery? = nil) {
+    public func search(identity: GenericFoodIdentityQuery? = nil, retainedEvidence: [CaptureEvidence] = []) {
         do {
             let text = try LedgerText(query, field: "generic food search")
             let identity = try identity ?? GenericFoodIdentityQuery(
@@ -43,7 +43,9 @@ public final class GenericFoodSearchViewModel: ObservableObject {
                 identity: identity,
                 capturedAt: now(),
                 locale: locale,
-                additionalEvidence: additionalEvidence
+                additionalEvidence: additionalEvidence + retainedEvidence.filter { retained in
+                    !additionalEvidence.contains { $0.evidenceID == retained.evidenceID }
+                }
             )) {
             case let .confirmation(route): phase = .results(route)
             case let .noResult(route): phase = .noResult(route)
@@ -53,6 +55,12 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         } catch {
             phase = .failed("Local food search could not be completed. Nothing was selected or saved.")
         }
+    }
+
+    public func searchSuggestion(_ suggestion: String, from route: GenericFoodNoResultRoute) {
+        guard route.suggestedQueries.contains(suggestion) else { return }
+        query = suggestion
+        search(retainedEvidence: route.retainedEvidence)
     }
 
     public func decline() {
@@ -123,8 +131,7 @@ public struct GenericFoodSearchView: View {
                 Text(route.guidance)
                 ForEach(route.suggestedQueries, id: \.self) { query in
                     Button("Search \(query)") {
-                        model.query = query
-                        model.search()
+                        model.searchSuggestion(query, from: route)
                     }
                 }
                 Text("Your typed query remains available to edit.").font(.caption)

@@ -1,0 +1,1988 @@
+{
+  "independentAcceptance" : false,
+  "rows" : [
+    {
+      "names" : [
+        "Apple sauce, homemade",
+        "Apples, eating, dried",
+        "Chutney, apple, homemade",
+        "Crumble, apple, homemade",
+        "Blackberry and apple, stewed with sugar",
+        "Cabbage, red, cooked with apple",
+        "Casserole, pork and apple, homemade",
+        "Mammie apple, flesh only",
+        "Sugar apple, flesh only",
+        "Apple juice concentrate, unsweetened, commerical",
+        "Croissants, apple",
+        "Strudel, apple",
+        "Rose-apples, raw",
+        "Fruit butters, apple",
+        "Babyfood, juice, apple",
+        "Apples, fuji, with skin, raw",
+        "Apples, gala, with skin, raw",
+        "Apples, honeycrisp, with skin, raw",
+        "Babyfood, rice and apples, dry",
+        "Babyfood, juice, apple - cherry"
+      ],
+      "query" : "apple",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0020:ca5f3d2face88408",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0029:c877e7dfa6ae5c70",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0767:3d9ff0e00717f788",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0897:3ff2531c678ea7b0",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0358:a937bf0a569eb281",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0496:a11f3715f7670127",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0556:d8883f03dfe3c1cb",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1606:9d86fff16796a61b",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2631:0a3b45f017400fc5",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0018:f4bdbc4318488649",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174988",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175032",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168171",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168816",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170959",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:1750340",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:1750341",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:1750343",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167728",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167729"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Apple sauce, homemade",
+        "Apples, eating, dried",
+        "Chutney, apple, homemade",
+        "Crumble, apple, homemade",
+        "Blackberry and apple, stewed with sugar",
+        "Cabbage, red, cooked with apple",
+        "Casserole, pork and apple, homemade",
+        "Mammie apple, flesh only",
+        "Sugar apple, flesh only",
+        "Apple juice concentrate, unsweetened, commerical",
+        "Croissants, apple",
+        "Strudel, apple",
+        "Rose-apples, raw",
+        "Fruit butters, apple",
+        "Babyfood, juice, apple",
+        "Apples, fuji, with skin, raw",
+        "Apples, gala, with skin, raw",
+        "Apples, honeycrisp, with skin, raw",
+        "Babyfood, rice and apples, dry",
+        "Babyfood, juice, apple - cherry"
+      ],
+      "query" : "apples",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0020:ca5f3d2face88408",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0029:c877e7dfa6ae5c70",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0767:3d9ff0e00717f788",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0897:3ff2531c678ea7b0",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0358:a937bf0a569eb281",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0496:a11f3715f7670127",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0556:d8883f03dfe3c1cb",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1606:9d86fff16796a61b",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2631:0a3b45f017400fc5",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0018:f4bdbc4318488649",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174988",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175032",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168171",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168816",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170959",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:1750340",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:1750341",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:1750343",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167728",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167729"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Banana bread, homemade",
+        "Banana split, homemade",
+        "Bananas, flesh only",
+        "Milk, flavoured, pasteurised, strawberry, banana",
+        "Bananas, raw",
+        "Bananas, overripe, raw",
+        "Melon, banana (Navajo)",
+        "Snacks, banana chips",
+        "Pepper, banana, raw",
+        "Bananas, ripe and slightly ripe, raw",
+        "Babyfood, juice, orange and banana",
+        "Babyfood, apple-banana juice",
+        "Bananas, dehydrated, or banana powder",
+        "Babyfood, banana no tapioca, strained"
+      ],
+      "query" : "banana",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0098:6631a0c32b226e52",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0099:f5a22ebdab98d540",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0100:2498473b871682ec",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1664:4167f51564a89259",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173944",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:1105073",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167629",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168849",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169394",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:1105314",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170962",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171351",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173945",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167732"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Creme egg",
+        "Custard, egg",
+        "Courgettes with eggs, homemade",
+        "Egg fu yung",
+        "Egg nog, homemade",
+        "Scotch eggs, retail",
+        "Curry, egg and potato, homemade",
+        "Curry, egg, with butter, homemade",
+        "Eggs, chicken, white, boiled",
+        "Eggs, chicken, white, dried",
+        "Bread, egg",
+        "Bagels, egg",
+        "Egg, white, dried",
+        "Egg, whole, dried",
+        "Egg, yolk, dried",
+        "Egg, whole, dried",
+        "Egg, white, dried",
+        "Bread, egg, toasted",
+        "Crackers, matzo, egg",
+        "Potato salad with egg"
+      ],
+      "query" : "eggs",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0892:e7986b9bd445ee24",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1018:303fabea98267a06",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0866:a75d8f3718443a6b",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1085:96f20705c40e4933",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1086:45543914353810d2",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2511:3ee7c9be4d582698",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0956:ad2040b0c7a5d7ec",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0958:12274ffc3a18b06d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1088:7e05033c04d487a1",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1089:52420c68bb7891af",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172673",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174901",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:323793",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:329490",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:329716",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172188",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172204",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172674",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172741",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173343"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Potato rings",
+        "Potatoes, duchesse",
+        "Salad, potato, with mayonnaise",
+        "Scones, potato, homemade",
+        "Sweet potato, baked",
+        "Sweet potato, steamed",
+        "Bhaji, aubergine and potato, homemade",
+        "Bhaji, cauliflower and potato, homemade",
+        "Bhaji, potato and onion, homemade",
+        "Bhaji, spinach and potato, homemade",
+        "Flour, potato",
+        "Bread, potato",
+        "Potato flour",
+        "Potato pancakes",
+        "Snacks, potato sticks",
+        "Potatoes, raw, skin",
+        "Potato salad with egg",
+        "Babyfood, potatoes, toddler",
+        "Potato salad, home-prepared",
+        "Sweet potato leaves, raw"
+      ],
+      "query" : "potatoes",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2216:70cbc3324860c681",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2221:61762b2280b1b66c",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2408:2d986774996b70d5",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2508:37a020bd83f99dae",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2648:cb7559eec78bb8c3",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2651:1c62ee7f0f6d0cd8",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0282:2b47584f21f49976",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0293:affc9c8d66840fc7",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0310:fbfcbe8c37f0683f",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0315:7570ef6d87b60930",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2261422",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167943",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168446",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170092",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168854",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170032",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173343",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173508",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169269",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169303"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Sweet potato, baked",
+        "Sweet potato, steamed",
+        "Fu-fu, sweet potato, homemade",
+        "Sweet potato and onion layer",
+        "Sweet potato, raw, flesh only",
+        "Casserole, sweet potato and green banana, homemade",
+        "Sweet potato, flesh only, boiled in unsalted water",
+        "Sweet potato, wedges, flesh and skin, baked in rapeseed oil",
+        "Sweet potato leaves, raw",
+        "Sweet potato, canned, mashed",
+        "Sweet Potato puffs, frozen, unprepared",
+        "Sweet potato, canned, vacuum pack",
+        "Babyfood, juice, apple-sweet potato",
+        "Babyfood, vegetables, sweet potatoes strained",
+        "Babyfood, vegetables, sweet potatoes, junior",
+        "Babyfood, corn and sweet potatoes, strained",
+        "Snacks, sweet potato chips, unsalted",
+        "Sweet potato, cooked, boiled, without skin"
+      ],
+      "query" : "sweet potato",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2648:cb7559eec78bb8c3",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2651:1c62ee7f0f6d0cd8",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1202:8d17af6ab7aa6ee0",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2647:3783d9cb0858f85d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2650:ae6062e39fcfffb4",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0560:095861c347dcfb8c",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2649:5aeec66ed6296518",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2652:e700c6b52654e583",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169303",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169305",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168016",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168485",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169042",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172276",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172277",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172317",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174783",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168484"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Sweet potato, baked",
+        "Sweet potato, steamed",
+        "Fu-fu, sweet potato, homemade",
+        "Sweet potato and onion layer",
+        "Sweet potato, raw, flesh only",
+        "Casserole, sweet potato and green banana, homemade",
+        "Sweet potato, flesh only, boiled in unsalted water",
+        "Sweet potato, wedges, flesh and skin, baked in rapeseed oil",
+        "Sweet potato leaves, raw",
+        "Sweet potato, canned, mashed",
+        "Sweet Potato puffs, frozen, unprepared",
+        "Sweet potato, canned, vacuum pack",
+        "Babyfood, juice, apple-sweet potato",
+        "Babyfood, vegetables, sweet potatoes strained",
+        "Babyfood, vegetables, sweet potatoes, junior",
+        "Babyfood, corn and sweet potatoes, strained",
+        "Snacks, sweet potato chips, unsalted",
+        "Sweet potato, cooked, boiled, without skin"
+      ],
+      "query" : "sweet potatoes",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2648:cb7559eec78bb8c3",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2651:1c62ee7f0f6d0cd8",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1202:8d17af6ab7aa6ee0",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2647:3783d9cb0858f85d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2650:ae6062e39fcfffb4",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0560:095861c347dcfb8c",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2649:5aeec66ed6296518",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2652:e700c6b52654e583",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169303",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169305",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168016",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168485",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169042",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172276",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172277",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172317",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174783",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168484"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Chutney, tomato",
+        "Tomato juice",
+        "Tomato ketchup",
+        "Tomato puree",
+        "Chutney, tomato, homemade",
+        "Pizza, tomato, homemade",
+        "Relish, tomato based",
+        "Salad, tomato and onion",
+        "Tomato sauce, homemade",
+        "Tomatoes, cherry, raw",
+        "Tomato, roma",
+        "Tomato powder",
+        "Tomatoes, crushed, canned",
+        "Tomato, puree, canned",
+        "Tomatoes, grape, raw",
+        "Tomatoes, sun-dried",
+        "Tomatoes, yellow, raw",
+        "Tomatoes, green, raw",
+        "Tomatoes, crushed, canned",
+        "Tomatoes, orange, raw"
+      ],
+      "query" : "tomatoes",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0769:077f49d4ab25a1ac",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2721:9df6b26ecef25127",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2722:cf53ee713ff84bd9",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2723:e94345e470a89ba9",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0770:7e27fb3ed4df1924",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2059:dcdfc3269d3fdda1",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2324:3bb86755296272e9",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2412:aa827d8e2a111d48",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2724:4da54b26445c3a8c",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2726:3c26698ede99aa23",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:1999634",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170461",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2685581",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2685582",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:321360",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168567",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170096",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170456",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170501",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170502"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Chickpeas, (garbanzo beans, bengal gram), dry",
+        "Chickpeas (garbanzo beans, bengal gram), mature seeds, raw",
+        "Chickpeas (garbanzo beans, bengal gram), canned, sodium added, drained and rinsed",
+        "Chickpeas (garbanzo beans, bengal gram), mature seeds, cooked, boiled, with salt",
+        "Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, drained solids",
+        "Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, solids and liquids",
+        "Chickpeas (garbanzo beans, bengal gram), mature seeds, cooked, boiled, without salt",
+        "Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, drained, rinsed in tap water",
+        "Chickpeas (garbanzo beans, bengal gram), mature seeds, canned, solids and liquids, low sodium"
+      ],
+      "query" : "chickpeas",
+      "records" : [
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2644282",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173756",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2644288",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173799",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173800",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175206",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173757",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173801",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175250"
+      ],
+      "sources" : [
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Curry, chick pea dhal, homemade",
+        "Curry, chick pea, UK type, homemade",
+        "Curry, chick pea, whole and potato, homemade",
+        "Rissoles, chick pea, fried in sunflower oil",
+        "Rissoles, chick pea, fried in vegetable oil",
+        "Beans, chick peas, canned, re-heated, drained",
+        "Beans, chick peas, Kabuli, split, dried, raw",
+        "Beans, chick peas, Kabuli, whole, dried, raw",
+        "Curry, chick pea dahl and spinach, with butter, homemade",
+        "Curry, chick pea, whole, Gujerati type, homemade",
+        "SMART SOUP, Moroccan Chick Pea"
+      ],
+      "query" : "chick peas",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0935:07e246e1b80d78eb",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0936:e85bc323f43b82aa",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0937:85f557263c470abf",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2370:656e134a5bb7e839",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2371:e341cace60dea057",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0136:460444510a686675",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0138:9b498a85634f8dea",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0140:7a994d0f4ce89bef",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0933:3bb454c2b5fb7d0d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0942:ea7fcc9546bca439",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171182"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Lentil pie, homemade",
+        "Lentil roast, homemade",
+        "Soup, lentil, canned",
+        "Soup, lentil, homemade",
+        "Aubergine, stuffed with lentils and vegetables",
+        "Chilli, bean and lentil, homemade",
+        "Flan, lentil and tomato, homemade",
+        "Lentil and nut roast, homemade",
+        "Lentil and potato pie, homemade",
+        "Lentil and rice roast, homemade",
+        "Lentils, dry",
+        "Lentils, raw",
+        "Lentils, sprouted, raw",
+        "SMART SOUP, French Lentil",
+        "Lentils, pink or red, raw",
+        "Lentils, sprouted, cooked, stir-fried, with salt",
+        "Lentils, mature seeds, cooked, boiled, with salt",
+        "Lentils, sprouted, cooked, stir-fried, without salt",
+        "Soup, lentil with ham, canned, ready-to-serve",
+        "Lentils, mature seeds, cooked, boiled, without salt"
+      ],
+      "query" : "lentils",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1549:3fc58e2da99ac83a",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1550:c9649a747c5e0f40",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2567:db438b249eb6c551",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2568:8af2ff8b3fdbcc19",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0060:94f13a865350d38a",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0742:b3e91993d723308e",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1148:5f308c845b3c28d0",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1543:7853f50e207135c7",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1545:a63b6181c82b1bd8",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1546:31b6e1355a5ee94b",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2644283",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172420",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168427",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171577",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174284",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168551",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175254",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168428",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171549",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172421"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Fishcakes, salmon, homemade",
+        "Salmon, smoked (cold-smoked)",
+        "Salmon, smoked (hot-smoked)",
+        "Salmon, wild, baked",
+        "Salmon, wild, grilled",
+        "Salmon, wild, steamed",
+        "Sushi, salmon nigiri",
+        "Rock Salmon\/Dogfish, raw",
+        "Salmon en croute, retail",
+        "Fish fingers, salmon, grilled\/baked",
+        "Fish oil, salmon",
+        "Fish, salmon, chinook, smoked",
+        "Fish, salmon, chinook, raw",
+        "Fish, salmon, chum, raw",
+        "Fish, salmon, sockeye, raw",
+        "Fish, salmon, pink, raw",
+        "Fish, salmon, Atlantic, wild, raw",
+        "Fish, salmon, coho, farmed, raw",
+        "Salmon nuggets, breaded, frozen, heated",
+        "Fish, salmon, coho, wild, raw"
+      ],
+      "query" : "salmon",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1140:b7ee36e004e0fdc6",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2428:ab10bf4f32a10927",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2429:c71fc7a53835f971",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2430:3678cfd85a634ec9",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2432:b51c0573e08936a3",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2433:cd23b98f00993d7b",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2639:e84a4b2bc12d6eae",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2385:51ab6d5a91fa4c90",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2418:2714a3c4e602cf61",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1136:ca592ecea3713734",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172343",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173687",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173688",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173689",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173691",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175138",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173686",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173715",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173721",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175136"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Pate, tuna",
+        "Sushi, tuna nigiri",
+        "Tuna, canned in brine, drained",
+        "Tuna, flesh only, baked",
+        "Tuna, flesh only, raw",
+        "Sandwich, white bread, tuna mayonnaise",
+        "Tuna, canned in sunflower oil, drained",
+        "Fish, tuna salad",
+        "Fish, tuna, fresh, bluefin, raw",
+        "Fish, tuna, fresh, skipjack, raw",
+        "Fish, tuna, fresh, yellowfin, raw",
+        "Tuna, ahi or yellowfin, frozen, wild caught",
+        "Fish, tuna, light, canned in water, drained solids",
+        "Fish, tuna, skipjack, fresh, cooked, dry heat",
+        "Fish, tuna, yellowfin, fresh, cooked, dry heat",
+        "Fish, tuna, fresh, bluefin, cooked, dry heat",
+        "Fish, tuna, light, canned in oil, drained solids"
+      ],
+      "query" : "tuna",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1928:9ea980f3652b6af1",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2640:b06d9ebb98934319",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2761:ba707ec641e5fc3f",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2763:0c8201f85572f3b2",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2764:03c1b0e00193322d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2447:15db77165c09aa3e",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2762:7e8d50211ba2eb84",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175160",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173706",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175156",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175159",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2747673",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:334194",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172005",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172006",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173707",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173708"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Chicken breast\/steak, coated, baked",
+        "Chicken, breast, casseroled, meat and skin",
+        "Chicken, breast, casseroled, meat only",
+        "Chicken, breast, grilled, meat and skin",
+        "Chicken, breast, grilled with skin, meat only",
+        "Chicken, breast, casseroled, meat and skin, weighed with bone",
+        "Chicken, breast, grilled without skin, meat only",
+        "Chicken, breast, strips, stir-fried in corn oil",
+        "Chicken, breast, boneless, skinless, raw",
+        "Chicken, breast, meat and skin, raw",
+        "Chicken breast tenders, breaded, uncooked",
+        "Chicken breast, roll, oven-roasted",
+        "Chicken breast tenders, breaded, cooked, microwaved",
+        "Oscar Mayer, Chicken Breast (honey glazed)",
+        "Chicken, broiler, rotisserie, BBQ, breast, meat and skin",
+        "Chicken, broiler, rotisserie, BBQ, breast, meat only",
+        "Chicken breast, fat-free, mesquite flavor, sliced",
+        "Chicken breast, oven-roasted, fat-free, sliced"
+      ],
+      "query" : "chicken breast",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0659:6b8b2700abc245a9",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0673:edc14eb6022e49ef",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0675:59b9e5afcbeefdbb",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0678:83340804f135e87f",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0676:c4da4a6f3f142524",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0674:e0d231dc19afb6cd",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0677:4c7fb0baa24ffe12",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0679:4ac96c0cca83b7e3",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646170",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2727569",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171515",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174608",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171514",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172945",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171125",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171445",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172962",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172963"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Chicken, breast, boneless, skinless, raw",
+        "Chicken, broiler or fryers, breast, skinless, boneless, meat only, raw",
+        "Chicken, broiler or fryers, breast, skinless, boneless, meat only, cooked, braised",
+        "Chicken, broiler or fryers, breast, skinless, boneless, meat only, cooked, braised",
+        "Chicken, broiler or fryers, breast, skinless, boneless, meat only, cooked, grilled",
+        "Chicken, broilers or fryers, breast, skinless, boneless, meat only, with added solution, raw",
+        "Chicken, broiler or fryers, breast, skinless, boneless, meat only, with added solution, cooked, braised",
+        "Chicken, broiler or fryers, breast, skinless, boneless, meat only, with added solution, cooked, grilled"
+      ],
+      "query" : "skinless chicken breast",
+      "records" : [
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646170",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171077",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:331960",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171140",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171534",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171509",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171535",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171536"
+      ],
+      "sources" : [
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Beef, ribeye, steak, boneless, choice, raw",
+        "Game meat, bison, ribeye, separable lean only, 1\" steak, cooked, broiled",
+        "Game meat, bison, ribeye, separable lean only, trimmed to 0\" fat, raw",
+        "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, choice, raw",
+        "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, select, raw",
+        "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, choice, raw",
+        "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, select, raw",
+        "Beef, ribeye filet, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
+        "Beef, ribeye filet, boneless, separable lean only, trimmed to 0\" fat, select, cooked, grilled",
+        "Beef, rib, eye, small end (ribs 10-12), separable lean and fat, trimmed to 0\" fat, choice, raw"
+      ],
+      "query" : "ribeye",
+      "records" : [
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172599",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172565",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173403",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173404",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174699",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174700",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174702",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174703",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168612"
+      ],
+      "sources" : [
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Beef, ribeye, steak, boneless, choice, raw",
+        "Game meat, bison, ribeye, separable lean only, 1\" steak, cooked, broiled",
+        "Game meat, bison, ribeye, separable lean only, trimmed to 0\" fat, raw",
+        "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, choice, raw",
+        "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, select, raw",
+        "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, choice, raw",
+        "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, select, raw",
+        "Beef, ribeye filet, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
+        "Beef, ribeye filet, boneless, separable lean only, trimmed to 0\" fat, select, cooked, grilled",
+        "Beef, rib, eye, small end (ribs 10-12), separable lean and fat, trimmed to 0\" fat, choice, raw"
+      ],
+      "query" : "rib eye",
+      "records" : [
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172599",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172565",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173403",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173404",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174699",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174700",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174702",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174703",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168612"
+      ],
+      "sources" : [
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Beef, ribeye, steak, boneless, choice, raw",
+        "Game meat, bison, ribeye, separable lean only, 1\" steak, cooked, broiled",
+        "Game meat, bison, ribeye, separable lean only, trimmed to 0\" fat, raw",
+        "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, choice, raw",
+        "Beef, rib eye steak, boneless, lip off, separable lean and fat, trimmed to 0\" fat, select, raw",
+        "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, choice, raw",
+        "Beef, ribeye cap steak, boneless, separable lean only, trimmed to 0\" fat, select, raw",
+        "Beef, ribeye filet, boneless, separable lean only, trimmed to 0\" fat, choice, cooked, grilled",
+        "Beef, ribeye filet, boneless, separable lean only, trimmed to 0\" fat, select, cooked, grilled",
+        "Beef, rib, eye, small end (ribs 10-12), separable lean and fat, trimmed to 0\" fat, choice, raw"
+      ],
+      "query" : "rib-eye",
+      "records" : [
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172599",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172565",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173403",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173404",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174699",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174700",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174702",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174703",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168612"
+      ],
+      "sources" : [
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Beef, sirloin steak, from steakhouse, lean",
+        "Beef, sirloin steak, raw, lean",
+        "Beef, sirloin steak, from steakhouse, lean and fat",
+        "Beef, sirloin steak, grilled rare, lean",
+        "Beef, sirloin steak, raw, lean and fat",
+        "Beef, sirloin steak, fried in corn oil, lean",
+        "Beef, sirloin steak, grilled medium-rare, lean",
+        "Beef, sirloin steak, grilled rare, lean and fat",
+        "Beef, sirloin steak, grilled well-done, lean",
+        "Beef, sirloin steak, fried in corn oil, lean and fat",
+        "Beef, top sirloin steak, raw",
+        "CRACKER BARREL, grilled sirloin steak",
+        "DENNY'S, top sirloin steak",
+        "Restaurant, family style, sirloin steak",
+        "APPLEBEE'S, 9 oz house sirloin steak",
+        "T.G.I. FRIDAY'S, classic sirloin steak (10 oz)",
+        "Game meat , bison, top sirloin, separable lean only, 1\" steak, cooked, broiled",
+        "Beef, top sirloin, steak, separable lean and fat, trimmed to 0\" fat, select, cooked, broiled",
+        "Beef, top sirloin, steak, separable lean and fat, trimmed to 1\/8\" fat, choice, raw",
+        "Beef, top sirloin, steak, separable lean and fat, trimmed to 0\" fat, choice, cooked, broiled"
+      ],
+      "query" : "sirloin steak",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0246:4c90a8fb4d3ec609",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0254:7ec73af31537dfa1",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0247:4ff564cece73dda9",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0250:be5ae9f77edc6fe5",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0255:0751bb1717cfc2c9",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0244:ce76c770d39a3eb0",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0248:9790a443fbd45bc1",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0251:0ec7a9a391c0936d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0252:1df84ec5a794b838",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0245:a5a7a5ad7fc43093",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2727574",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167670",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167673",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169016",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169831",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169014",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174423",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168633",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168728",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169458"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Beef, minced, stewed with onions, extra lean",
+        "Lasagne, homemade, with extra lean minced beef",
+        "Bolognese sauce (with meat), made with extra lean minced beef, homemade"
+      ],
+      "query" : "minced beef",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0222:77f709841609b6f1",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1514:3a6d7f5d785d3bbe",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0371:98f0d69f869c6f93"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Oil, olive",
+        "Sardines, canned in olive oil, drained",
+        "Fat spread, low fat (26-39%), not polyunsaturated, with olive oil",
+        "Fat spread, reduced fat (41-62%), not polyunsaturated, with olive oil",
+        "Oil, olive, extra light",
+        "Oil, olive, extra virgin",
+        "Oil, corn, peanut, and olive",
+        "Oil, olive, salad or cooking",
+        "Mayonnaise, reduced fat, with olive oil",
+        "Anchovies, canned in olive oil, with salt, drained"
+      ],
+      "query" : "olive oil",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1786:844f34830329ed2a",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2450:79c7af9c5a2049aa",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1112:4ac713715d71f4ad",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1115:02cb7d3e0f8eadea",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:1750351",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:748608",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167737",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171413",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171443",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2747652"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Salad, rice, brown",
+        "Rice and pigeon peas, brown rice",
+        "Rice and split peas, brown rice",
+        "Rice, brown, basmati, raw",
+        "Rice, brown, wholegrain, raw",
+        "Risotto, vegetable, brown rice",
+        "Rice and black-eye beans, brown rice",
+        "Rice and red kidney beans, brown rice",
+        "Rice, brown, easy cook, raw",
+        "Pilau, egg and potato, brown rice, homemade",
+        "Flour, rice, brown",
+        "Rice flour, brown",
+        "Babyfood, peas and brown rice",
+        "Snacks, brown rice chips",
+        "Snacks, rice cracker brown rice, plain",
+        "Snacks, rice cakes, brown rice, buckwheat",
+        "Snacks, rice cakes, brown rice, rye",
+        "Snacks, rice cakes, brown rice, corn",
+        "Snacks, rice cakes, brown rice, multigrain",
+        "Babyfood, vegetable and brown rice, strained"
+      ],
+      "query" : "brown rice",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2410:2ff1869d3245d832",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2331:76f03fb25e5b3cf2",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2335:7d517c1caa8d59b2",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2337:2bd75eb1904e0869",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2341:b30d462535e9d530",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2366:4b5a2cfcaae0e65a",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2329:43b08e556ab8cfeb",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2333:cdcee933eff106f8",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2339:3f6b9cc682ed16cb",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2038:b4d16783fede96e0",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:1104812",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168898",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169865",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173155",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167966",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167967",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168855",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169679",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169680",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169864"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Porridge oats, unfortified",
+        "Porridge oats, unfortified, cooked, made up with semi-skimmed milk"
+      ],
+      "query" : "porridge oats",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2178:944d849e2500ccd3",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2179:266305df30db3311"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Porridge oats, unfortified",
+        "Biscuits, digestive, with oats, plain",
+        "Oats, whole grain, steel cut",
+        "Cereals, QUAKER, Quick Oats, Dry",
+        "Oats, whole grain, rolled, old fashioned",
+        "Cereals, oats, instant, fortified, plain, dry",
+        "Cereals, QUAKER, Quick Oats with Iron, Dry",
+        "Cereals, oats, instant, fortified, with cinnamon and spice, dry",
+        "Formulated bar, high fiber, chewy, oats and chocolate",
+        "Cereals, oats, regular and quick, not fortified, dry",
+        "Cereals, oats, instant, fortified, with cinnamon and spice, prepared with water",
+        "Cereals, oats, instant, fortified, with raisins and spice, prepared with water"
+      ],
+      "query" : "oats",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2178:944d849e2500ccd3",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0330:e615ad131730b9e9",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2346397",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172989",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2346396",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171661",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174640",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171664",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173149",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173904",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173906",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173908"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Chocolate, milk",
+        "Coconut milk",
+        "Coconut milk, retail",
+        "Milk bread, homemade",
+        "Milk shake, powder",
+        "Milk, evaporated, light",
+        "Milk, evaporated, whole",
+        "Milk, goats, pasteurised",
+        "Milk, human, colostrum",
+        "Milk, human, mature",
+        "Crackers, milk",
+        "Candies, milk chocolate",
+        "Milk, sheep, fluid",
+        "Milk, buttermilk, dried",
+        "Milk and cereal bar",
+        "Yogurt, plain, whole milk",
+        "Cheese, ricotta, whole milk",
+        "Milk, imitation, non-soy",
+        "Candies, milk chocolate, with almonds",
+        "Cheese, mozzarella, whole milk"
+      ],
+      "query" : "milk",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0759:5675bdbab1c892a7",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0787:5f962ed19a90db12",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0789:e4f9fcfc6b9e9876",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1650:25a26e65f543abb7",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1652:7bfacb2f85764cb8",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1661:ac60f40d0276581c",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1662:f3062a301f2965df",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1665:efad717aa0649f3f",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1666:db3d213a6643597e",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1667:821a6b8971a82968",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174980",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167587",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170882",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171274",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:174650",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2259793",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:746766",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167730",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168754",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170845"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Yogurt, Greek style, fruit",
+        "Yogurt, Greek style, plain",
+        "Yogurt, Greek, plain, nonfat",
+        "Yogurt, Greek, strawberry, nonfat",
+        "Yogurt, Greek, strawberry, nonfat",
+        "Yogurt, Greek, vanilla, nonfat",
+        "Yogurt, Greek, plain, lowfat",
+        "Yogurt, Greek, vanilla, lowfat",
+        "Yogurt, Greek, Blueberry, CHOBANI",
+        "Yogurt, Greek, strawberry, lowfat",
+        "Yogurt, Greek, plain, whole milk",
+        "Yogurt, Greek, fruit, whole milk"
+      ],
+      "query" : "greek yoghurt",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2874:44b416eeae10fa42",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2875:cd25b74963921a01",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:330137",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:330415",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170901",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170902",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170903",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170907",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170914",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171300",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2259794",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170905"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Yogurt, Greek style, fruit",
+        "Yogurt, Greek style, plain",
+        "Yogurt, Greek, plain, nonfat",
+        "Yogurt, Greek, strawberry, nonfat",
+        "Yogurt, Greek, strawberry, nonfat",
+        "Yogurt, Greek, vanilla, nonfat",
+        "Yogurt, Greek, plain, lowfat",
+        "Yogurt, Greek, vanilla, lowfat",
+        "Yogurt, Greek, Blueberry, CHOBANI",
+        "Yogurt, Greek, strawberry, lowfat",
+        "Yogurt, Greek, plain, whole milk",
+        "Yogurt, Greek, fruit, whole milk"
+      ],
+      "query" : "greek yogurt",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2874:44b416eeae10fa42",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2875:cd25b74963921a01",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:330137",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:330415",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170901",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170902",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170903",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170907",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170914",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171300",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2259794",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170905"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Courgette, dried",
+        "Courgette, raw",
+        "Courgette, fried in butter",
+        "Courgette, boiled in unsalted water",
+        "Courgette, fried in corn oil",
+        "Courgette, fried in rapeseed oil",
+        "Courgette, roasted in rapeseed oil",
+        "Curry, courgette and potato, homemade"
+      ],
+      "query" : "courgette",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0860:5f0b7750b19fdb1e",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0864:f27adbb1a7a297f1",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0861:672f19d86d3c62f8",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0859:a02bf89b406c00ee",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0862:220b779d14e7f16e",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0863:947ae3aae840cddb",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0865:6f6efda5be2b3791",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0954:5ffff04224409020"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Squash, zucchini, baby, raw",
+        "Squash, summer, zucchini, italian style, canned",
+        "Squash, summer, zucchini, includes skin, raw",
+        "Squash, summer, green, zucchini, includes skin, raw",
+        "Squash, summer, zucchini, includes skin, frozen, unprepared",
+        "Squash, summer, zucchini, includes skin, cooked, boiled, drained, with salt",
+        "Squash, summer, zucchini, includes skin, cooked, boiled, drained, without salt",
+        "Squash, summer, zucchini, includes skin, frozen, cooked, boiled, drained, with salt",
+        "Squash, summer, zucchini, includes skin, frozen, cooked, boiled, drained, without salt"
+      ],
+      "query" : "zucchini",
+      "records" : [
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168565",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168471",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169291",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2685568",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168469",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170534",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169292",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170535",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168470"
+      ],
+      "sources" : [
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Aubergine, raw",
+        "Aubergine, fried in butter",
+        "Aubergine, stuffed with rice",
+        "Aubergine, fried in corn oil",
+        "Aubergine, fried in rapeseed oil",
+        "Aubergine, stuffed with lentils and vegetables",
+        "Bhaji, aubergine and potato, homemade",
+        "Aubergine, stuffed with vegetables, cheese topping",
+        "Eggplant, raw",
+        "Eggplant, raw",
+        "Eggplant, pickled",
+        "Eggplant, cooked, boiled, drained, with salt",
+        "Eggplant, cooked, boiled, drained, without salt"
+      ],
+      "query" : "aubergine",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0059:df64f82890073299",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0056:9974914f2ddc441f",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0061:e66556a2d37774ea",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0057:17604fd6c676a042",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0058:d3fce7ffb8a5a442",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0060:94f13a865350d38a",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0282:2b47584f21f49976",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0062:9e70e613c14bc10a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2685577",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169228",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169892",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169352",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169229"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Aubergine, raw",
+        "Aubergine, fried in butter",
+        "Aubergine, stuffed with rice",
+        "Aubergine, fried in corn oil",
+        "Aubergine, fried in rapeseed oil",
+        "Aubergine, stuffed with lentils and vegetables",
+        "Bhaji, aubergine and potato, homemade",
+        "Aubergine, stuffed with vegetables, cheese topping",
+        "Eggplant, raw",
+        "Eggplant, raw",
+        "Eggplant, pickled",
+        "Eggplant, cooked, boiled, drained, with salt",
+        "Eggplant, cooked, boiled, drained, without salt"
+      ],
+      "query" : "eggplant",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0059:df64f82890073299",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0056:9974914f2ddc441f",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0061:e66556a2d37774ea",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0057:17604fd6c676a042",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0058:d3fce7ffb8a5a442",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0060:94f13a865350d38a",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0282:2b47584f21f49976",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0062:9e70e613c14bc10a",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2685577",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169228",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169892",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169352",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169229"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Cheese, cottage, plain",
+        "Cheese, cottage, plain, reduced fat",
+        "Cheese, cottage, with vegetables",
+        "Cheese, cottage, creamed, with fruit",
+        "Cheese, cottage, lowfat, 2% milkfat",
+        "Cheese, cottage, lowfat, 2% milkfat",
+        "Cheese, cottage, lowfat, 1% milkfat",
+        "Cheese, cottage, lowfat, 1% milkfat, with vegetables",
+        "Cheese, cottage, lowfat, 1% milkfat, lactose reduced",
+        "Cheese, cottage, creamed, large or small curd",
+        "Cottage cheese, full fat, large or small curd",
+        "Cheese, cottage, lowfat, 1% milkfat, no sodium added"
+      ],
+      "query" : "cottage cheese",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0605:c701f1e4d6589ca1",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0606:992447d01208b48a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169078",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172180",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:328841",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172182",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173417",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167716",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:167703",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172179",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2346384",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168114"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Bread rolls, wholemeal",
+        "Bread, wholemeal, average",
+        "Bread, wholemeal, toasted",
+        "Flour, wheat, wholemeal, bread\/strong"
+      ],
+      "query" : "wholemeal bread",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0388:4cb25eb81c80399b",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0415:bb608345e226858e",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0416:0a2645adca78c1de",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1177:06319c4af77bd7f5"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Baked beans, canned in barbecue sauce",
+        "Baked beans, canned in tomato sauce",
+        "Baked beans, canned in tomato sauce, with pork sausages",
+        "Baked beans, canned in tomato sauce, reduced sugar, reduced salt",
+        "Beans, baked, home prepared",
+        "Beans, baked, canned, with beef",
+        "Beans, baked, canned, with franks",
+        "Beans, baked, canned, with pork",
+        "Beans, baked, canned, no salt added",
+        "Beans, baked, canned, with pork and sweet sauce",
+        "Beans, baked, canned, with pork and tomato sauce",
+        "Beans, baked, canned, plain or vegetarian"
+      ],
+      "query" : "baked beans",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0092:55ee474ff273eca8",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0093:88e94c35844d7edd",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0095:0bcd9946960f08eb",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0094:f8a1cb1a2bc1bff0",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173731",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175183",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175184",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175185",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:168128",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173732",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173733",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:175182"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef",
+        "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+        "Curry, chicken balti, retail",
+        "Curry, chicken korma, homemade",
+        "Curry, chicken vindaloo, homemade",
+        "Curry, chicken, average, takeaway",
+        "Curry, chicken tandoori, retail, reheated",
+        "Curry, chicken, average, retail, reheated",
+        "Curry, chicken, made with cook-in sauce",
+        "Curry, chicken tikka masala, retail, reheated",
+        "Curry, chicken vindaloo, reduced fat, homemade",
+        "Curry, chicken, average, retail, reheated with rice"
+      ],
+      "query" : "chicken curry",
+      "records" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0943:3ebf1772bf21805b",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0944:fe99dcaf3e4fcc95",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0947:edb3eb46257ff869",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0951:0c8228b4d7db5a6c",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0945:f9b4a161c81ac804",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0949:22852e407d31fc82",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0952:2d90350daa177f84",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0946:c9793d13275a0d86",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0948:b7426dc66a607821",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0950:75637d8cd16c14a5"
+      ],
+      "sources" : [
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+        "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d"
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+
+      ],
+      "query" : "Fish & Chips",
+      "records" : [
+
+      ],
+      "sources" : [
+
+      ],
+      "suggestions" : [
+        "Cod in batter",
+        "Potato chips"
+      ]
+    },
+    {
+      "names" : [
+
+      ],
+      "query" : "Fiash and Chips",
+      "records" : [
+
+      ],
+      "sources" : [
+
+      ],
+      "suggestions" : [
+        "Cod in batter",
+        "Potato chips"
+      ]
+    },
+    {
+      "names" : [
+
+      ],
+      "query" : "chiken breast",
+      "records" : [
+
+      ],
+      "sources" : [
+
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+
+      ],
+      "query" : "bananna",
+      "records" : [
+
+      ],
+      "sources" : [
+
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+
+      ],
+      "query" : "yoghrt",
+      "records" : [
+
+      ],
+      "sources" : [
+
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+
+      ],
+      "query" : "salmon chocolate",
+      "records" : [
+
+      ],
+      "sources" : [
+
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+
+      ],
+      "query" : "chicken zzqx",
+      "records" : [
+
+      ],
+      "sources" : [
+
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+
+      ],
+      "query" : "and with the",
+      "records" : [
+
+      ],
+      "sources" : [
+
+      ],
+      "suggestions" : [
+
+      ]
+    },
+    {
+      "names" : [
+
+      ],
+      "query" : "zzzzqqqq",
+      "records" : [
+
+      ],
+      "sources" : [
+
+      ],
+      "suggestions" : [
+
+      ]
+    }
+  ],
+  "version" : "search-development-v3"
+}
