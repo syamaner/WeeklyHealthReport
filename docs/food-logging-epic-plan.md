@@ -130,7 +130,7 @@ All sixteen tasks are native sub-issues of #86. The checklists in the epic provi
 | #93 | P1 | Deferred; corpus and accuracy gates unmet | Future label-photo route; frozen untouched gate remains sealed |
 | #98 | P1/P2 | Complete | Offline CoFID ranking, hard rules, visible differences, shared confirmation and exact saved-food reuse; no automatic acceptance |
 | #91 | P3 | Corpus blocker | Requires 100 consented intended-writer lists; no new labelling request |
-| #96 | P3 | Local checks passed; PR #134 in review | Typed parser plus explicitly reviewed on-device speech; physical speech checks deferred |
+| #96 | P3 | Complete in PR #134 | Typed parser plus explicitly reviewed on-device speech; physical speech checks deferred |
 | #102 | P3 | Blocked by #91 | No accepted handwriting promotion envelope |
 | #101 | P3 | Complete in PR #133 | Explicit source/candidate review; newer installed targets remain separate acceptance |
 | #97 | P3 | Proposal recorded; awaiting ratification | No writer implementation or permission expansion; writer-specific tests remain required |
