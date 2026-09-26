@@ -8,6 +8,7 @@ import FoodLedgerApplication
 import FoodLedgerDomain
 import FoodLedgerGRDB
 import FoodLedgerPresentation
+import FoodGenericSearch
 @testable import DriveExportKit
 @testable import WeeklyHealthReport
 
@@ -30,6 +31,16 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         model.paste = "Meadow oats 500 g £1.00"
         model.importPaste()
         renderFoodView(NavigationStack { LocalInventoryView(model: model, chooseFile: {}) { _ in } }, name: "Receipt review - saved source")
+        let library = try FoodLedgerGRDBStore(databaseURL: directory.appendingPathComponent("food.sqlite"))
+        let search = try CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: library), ids: ids)
+        let searchModel = GenericFoodSearchViewModel(searcher: search, locale: try LedgerText("en_GB"))
+        // Use the published lexical query; modifiers can legitimately fall below
+        // the frozen threshold until a user has confirmed an exact saved alias.
+        searchModel.query = "oats"
+        searchModel.search()
+        guard case .results = searchModel.phase else { return XCTFail("Expected bundled public food candidates") }
+        renderFoodView(NavigationStack { GenericFoodSearchView(model: searchModel) { _ in } }, name: "Search - public CoFID candidates")
+        renderFoodView(FoodVoiceInputView(vocabulary: ["grams", "millilitres"], vocabularyUnavailable: false) { _ in false }, name: "Food dictation - idle without recording")
         let queue = FoodListImportViewModel(service: FoodListImportService(searcher: ScreenshotNoFoodSearch()), locale: try LedgerText("en_GB"), ids: ids,
             checkpointStore: try FoodListCheckpointGRDBStore(databaseURL: directory.appendingPathComponent("draft.sqlite"))) { _, _ in
                 throw FoodLedgerValidationError.invalidProvenance

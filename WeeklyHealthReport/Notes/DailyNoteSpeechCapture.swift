@@ -108,6 +108,30 @@ struct SystemSpeechStopFallbackScheduler: SpeechStopFallbackScheduling {
 }
 
 @MainActor
+final class SpeechAudioSessionLease {
+    private var mayBeActive = false
+    private let setActive: @MainActor (Bool) throws -> Void
+
+    init(setActive: @escaping @MainActor (Bool) throws -> Void) { self.setActive = setActive }
+
+    func activate() throws {
+        // A failed activation can leave uncertain platform state; cleanup still owns it.
+        mayBeActive = true
+        try setActive(true)
+    }
+
+    func deactivate() {
+        guard mayBeActive else { return }
+        do {
+            try setActive(false)
+            mayBeActive = false
+        } catch {
+            // Retain ownership so a later cancellation can retry cleanup.
+        }
+    }
+}
+
+@MainActor
 final class SystemOnDeviceSpeechCapture: NSObject, OnDeviceSpeechCapturing {
     private let recognizer: SFSpeechRecognizer?
     private let audioEngine: AVAudioEngine
@@ -117,6 +141,9 @@ final class SystemOnDeviceSpeechCapture: NSObject, OnDeviceSpeechCapturing {
     private var interruptionObserver: NSObjectProtocol?
     private var tapInstalled = false
     private let contextualStrings: [String]
+    private let audioSessionLease = SpeechAudioSessionLease { active in
+        try AVAudioSession.sharedInstance().setActive(active, options: .notifyOthersOnDeactivation)
+    }
 
     init(
         locale: Locale = .autoupdatingCurrent,
@@ -194,8 +221,9 @@ final class SystemOnDeviceSpeechCapture: NSObject, OnDeviceSpeechCapturing {
         let audioSession = AVAudioSession.sharedInstance()
         do {
             try audioSession.setCategory(.record, mode: .measurement, options: [.duckOthers])
-            try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
+            try audioSessionLease.activate()
         } catch {
+            audioSessionLease.deactivate()
             throw SpeechCaptureFailure.audioSessionUnavailable
         }
 
@@ -313,10 +341,7 @@ final class SystemOnDeviceSpeechCapture: NSObject, OnDeviceSpeechCapturing {
     }
 
     private func deactivateAudioSession() {
-        try? AVAudioSession.sharedInstance().setActive(
-            false,
-            options: .notifyOthersOnDeactivation
-        )
+        audioSessionLease.deactivate()
     }
 }
 

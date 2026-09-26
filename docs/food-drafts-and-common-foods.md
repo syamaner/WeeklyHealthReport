@@ -46,16 +46,26 @@ older-backup preservation, divergent history rejection, tampering and usual port
 Presentation checks cover adding shortcuts to an existing queue, resuming status,
 and recovering a save that committed before checkpoint completion.
 
-Delivery validation: 148 package tests, 259 app simulator tests, Xcode static
+Delivery validation: 148 package tests, 262 app simulator tests, Xcode static
 analysis, target-boundary checks, 15 frozen-matching tests and frozen-report
 verification passed. Backup contracts include original receipt bytes, review
 history, favourites, idempotent restore, compatible extension and rejection of
 tampering/divergence. Receipt retry also resumes across model reconstruction after
 an uncertain committed save without duplicating records.
 
-The autonomous review inspected five simulator renderings from synthetic hosted
+The autonomous review inspected seven simulator renderings from synthetic hosted
 tests: standard and accessibility-size common foods, saved receipt source,
-unresolved list and resumed list. It added permanent name/amount labels, a shorter
-intro, an inline common-food title and independent row buttons. This is rendered
+unresolved list, resumed list, public CoFID search candidates and idle dictation.
+It added permanent name/amount labels, a shorter intro, an inline common-food title,
+independent row buttons and expandable source/score details. The frozen matcher
+and its threshold are unchanged; unmatched modifiers remain unresolved. Untransferred
+dictation text is still explicitly temporary, and no microphone capture was started.
+This is rendered
 screen and synthetic orchestration evidence, not an interactive file-picker or
 physical speech/camera validation, nor personal HealthKit behaviour.
+
+Idle dictation teardown previously tried to deactivate the shared audio session
+even without recording. An injected activation lease now cleans up only owned or
+uncertain activation attempts; failed deactivation retains ownership for retry.
+Three synthetic resource-lifecycle tests cover idle cancellation, failed activation
+and cleanup retry. The final simulator run has no audio-session runtime warning.
