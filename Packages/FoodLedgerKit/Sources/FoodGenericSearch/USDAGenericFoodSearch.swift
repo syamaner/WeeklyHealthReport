@@ -7,7 +7,7 @@ public enum USDASearchError: Error, Equatable { case missingCorpus, hashMismatch
 
 /// Offline, whole-record US-composition alternatives. Never backfills another source.
 public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "usda-primary-name-v3"
+    public static let matcherVersion = "usda-primary-name-v4"
     public static let corpusSHA256 = "70480d2c58bac9fcf9646b3b66c70be00e52398695536cef0af129ea1528e4c7"
     private let corpus: USDACorpus
     private let releases: [String: SourceRelease]

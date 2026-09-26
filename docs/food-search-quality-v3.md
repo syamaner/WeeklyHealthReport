@@ -25,3 +25,9 @@ Suggestion actions retain every original query and upstream capture record, pres
 ## Validation — 26 September 2026
 
 All 175 FoodLedgerKit tests passed (five new development/behavioural tests). Full iPhone 17 Pro simulator suite and Xcode static analysis passed. Dependency boundaries and `git diff --check` passed. The paired report preserves 35/44 queries with candidates, raises candidate-or-guidance recovery from 37/44 to 40/44, moves the eight narrow main-food-first checks from 2/8 to 8/8, and exposes both admitted sources within the first five for 27 queries instead of 7. These are development results on the disclosed tuning sample. No new release, live provider request or physical-device acceptance was performed during this phase.
+
+## Fruit plural repair — retrieval v4
+
+The reported `clementine` miss was caused by the USDA name `Clementines, raw` lacking a retrieval equivalent. Shared lexical policy `food-lexical-terms-v4` explicitly maps common citrus, grape, pear, stone-fruit and berry plurals to their singular terms. Both adapter matcher versions advance to `primary-name-v4`; ranking formulas remain unchanged. Exact saved-alias normalisation, original evidence, source identities and nutrients remain unchanged.
+
+The actual-adapter regression checks 14 singular/plural pairs in each source and the composite, requiring identical ordered record IDs and preserved original query evidence. A source may still lack the fruit, but USDA and the composite must find clementine. `clementine beef` must remain a miss. This is a bounded regression check, not independent accuracy acceptance.
