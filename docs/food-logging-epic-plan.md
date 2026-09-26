@@ -44,8 +44,9 @@ is optional; fuller common-items/favourites management is deferred by the user.
 Drive receipt reading is a later scoped adapter. #101 adds
 [explicit nutrition-update review](food-reresolution-delivery.md) against installed
 immutable targets; only CoFID 2021 is currently offered, with newer releases used
-only in synthetic contract tests. #96 should reuse
-#127's typed parser and review flow for its remaining on-device speech work.
+only in synthetic contract tests. #96 reuses
+#127's typed parser and review flow for [on-device food dictation](food-voice-delivery.md),
+with explicit transcript/numeric review and deferred physical speech validation.
 Provider/commercial challengers, physical gates and HealthKit writes retain their
 separate authority requirements. The user has authorised routine implementation,
 validation, PR delivery and merge for actionable food backlog work.

@@ -88,6 +88,8 @@
 		P00000000000000000000003 /* DriveExportOAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000006 /* DriveExportOAuth */; };
 		P00000000000000000000004 /* DriveExportOAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000007 /* DriveExportOAuth */; };
 		P00000000000000000000008 /* FoodLedgerCompositionRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */; };
+		A96000000000000000000001 /* FoodVoiceCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96000000000000000000001 /* FoodVoiceCapture.swift */; };
+		A96000000000000000000002 /* FoodVoiceInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96000000000000000000002 /* FoodVoiceInputView.swift */; };
 		P00000000000000000000009 /* FoodLedgerDomain in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000009 /* FoodLedgerDomain */; };
 		P0000000000000000000000A /* FoodLedgerApplication in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000A /* FoodLedgerApplication */; };
 		P0000000000000000000000B /* FoodLedgerPresentation in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000B /* FoodLedgerPresentation */; };
@@ -190,6 +192,8 @@
 		B0000000000000000000004F /* ReportPreviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPreviewFixtures.swift; sourceTree = "<group>"; };
 		B00000000000000000000050 /* MetricRowPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricRowPresentation.swift; sourceTree = "<group>"; };
 		B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLedgerCompositionRoot.swift; sourceTree = "<group>"; };
+		B96000000000000000000001 /* FoodVoiceCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodVoiceCapture.swift; sourceTree = "<group>"; };
+		B96000000000000000000002 /* FoodVoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodVoiceInputView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -413,6 +417,8 @@
 			isa = PBXGroup;
 			children = (
 				B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */,
+				B96000000000000000000001 /* FoodVoiceCapture.swift */,
+				B96000000000000000000002 /* FoodVoiceInputView.swift */,
 			);
 			path = FoodLedger;
 			sourceTree = "<group>";
@@ -586,6 +592,8 @@
 				A00000000000000000000037 /* DailyNotesView.swift in Sources */,
 				A0000000000000000000003A /* DailyNoteSpeechCapture.swift in Sources */,
 				P00000000000000000000008 /* FoodLedgerCompositionRoot.swift in Sources */,
+				A96000000000000000000001 /* FoodVoiceCapture.swift in Sources */,
+				A96000000000000000000002 /* FoodVoiceInputView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

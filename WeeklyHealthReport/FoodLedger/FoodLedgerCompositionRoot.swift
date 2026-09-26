@@ -142,6 +142,13 @@ final class FoodLedgerCompositionRoot {
         return model
     }
 
+    func foodSpeechVocabulary() throws -> [String] {
+        let records = try store.archiveState().records
+        let superseded = Set(records.productVersions.compactMap(\.supersedesProductVersionID))
+        let current = records.productVersions.filter { !superseded.contains($0.productVersionID) }
+        return FoodSpeechVocabulary.make(namesAndBrands: current.flatMap { [$0.name.value] + ($0.brand.map { [$0.value] } ?? []) })
+    }
+
     private static func actorID(userDefaults: UserDefaults) throws -> ActorID {
         let key = "foodLedger.actorID.v1"
         if let stored = userDefaults.string(forKey: key) {
@@ -155,13 +162,34 @@ final class FoodLedgerCompositionRoot {
 
 struct FoodListImportFlowView: View {
     @StateObject private var model: FoodListImportViewModel
+    private let root: FoodLedgerCompositionRoot
+    @State private var showsDictation = false
+    @State private var vocabulary: [String] = []
+    @State private var vocabularyUnavailable = false
 
     init?(root: FoodLedgerCompositionRoot) {
         guard let model = try? root.foodListModel() else { return nil }
+        self.root = root
         _model = StateObject(wrappedValue: model)
     }
 
-    var body: some View { FoodListImportView(model: model) }
+    var body: some View {
+        FoodListImportView(model: model)
+            .toolbar {
+                if model.rows.isEmpty {
+                    Button("Dictate") {
+                        do { vocabulary = try root.foodSpeechVocabulary(); vocabularyUnavailable = false }
+                        catch { vocabulary = FoodSpeechVocabulary.make(namesAndBrands: []); vocabularyUnavailable = true }
+                        showsDictation = true
+                    }
+                }
+            }
+            .sheet(isPresented: $showsDictation) {
+                FoodVoiceInputView(vocabulary: vocabulary, vocabularyUnavailable: vocabularyUnavailable) { text in
+                    model.appendReviewedSpeech(text)
+                }
+            }
+    }
 }
 
 struct GenericFoodSearchFlowView: View {

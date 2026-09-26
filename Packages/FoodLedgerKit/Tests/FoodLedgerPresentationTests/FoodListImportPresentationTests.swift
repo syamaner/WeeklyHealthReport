@@ -102,6 +102,27 @@ final class FoodListImportPresentationTests: XCTestCase {
         XCTAssertEqual(model.progress, "0 of 2 saved · 2 not saved · 2 context lines")
     }
 
+    func testReviewedSpeechAppendsWithoutParsingSearchingOrSaving() throws {
+        let (model, store, search) = try fixture()
+        model.input = "25 g fixture"
+        XCTAssertTrue(model.appendReviewedSpeech("125 ml milk"))
+        XCTAssertEqual(model.input, "25 g fixture\n125 ml milk")
+        XCTAssertEqual(model.inputMethod, .reviewedSpeechText)
+        XCTAssertTrue(model.rows.isEmpty)
+        XCTAssertEqual(search.calls, 0)
+        XCTAssertEqual(try store.counts().operations, 0)
+        XCTAssertFalse(model.appendReviewedSpeech(String(repeating: "x", count: 30_001)))
+        model.prepare()
+        XCTAssertEqual(model.rows.map(\.draft.inputMethod), [.reviewedSpeechText, .reviewedSpeechText])
+        model.search()
+        XCTAssertEqual(search.lastEvidence?.captureMethod.value, "reviewed_food_text_with_on_device_speech")
+        XCTAssertEqual(search.lastEvidence?.kind, .manual)
+        XCTAssertEqual(try store.counts().operations, 0)
+        XCTAssertFalse(model.appendReviewedSpeech("late text"))
+        model.startNewList()
+        XCTAssertEqual(model.inputMethod, .pastedOrTyped)
+    }
+
     private func fixture() throws -> (FoodListImportViewModel, InMemoryFoodLedgerStore, ListSearch) {
         let ids = ListIDs()
         let store = InMemoryFoodLedgerStore()
@@ -134,10 +155,12 @@ private final class ListIDs: LedgerIDGenerating, @unchecked Sendable {
 
 private final class ListSearch: GenericFoodSearching, @unchecked Sendable {
     var calls = 0
+    var lastEvidence: CaptureEvidence?
     var returnsNoResult = false
     func search(_ request: GenericFoodSearchRequest) throws -> GenericFoodSearchOutcome {
         calls += 1
         let evidence = try XCTUnwrap(request.captureEvidence)
+        lastEvidence = evidence
         if returnsNoResult { return .noResult(GenericFoodNoResultRoute(evidence: evidence)) }
         let release = SourceRelease(
             sourceReleaseID: try ExternalIdentifier("fixture"), sourceID: try ExternalIdentifier("fixture"),
