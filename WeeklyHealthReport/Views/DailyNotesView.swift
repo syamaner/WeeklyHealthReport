@@ -21,7 +21,7 @@ struct DailyNotesView: View {
                 Section("Draft from \(recoverable.dayID.reportDate)") {
                     Text(recoverable.text.isEmpty ? "Empty draft" : recoverable.text)
                         .lineLimit(3)
-                    Button("Copy draft into today") {
+                    Button("Copy draft into \(controller.currentDayID.reportDate)") {
                         if controller.copyRecoverableDraftToToday() {
                             openEditor()
                         }
@@ -112,7 +112,7 @@ struct DailyNotesView: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("Today’s Notes")
+        .navigationTitle("Notes: \(controller.currentDayID.reportDate)")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {

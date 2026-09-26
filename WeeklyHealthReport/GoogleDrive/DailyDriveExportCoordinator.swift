@@ -2,6 +2,9 @@ import DriveExportKit
 import Foundation
 
 struct DailyHealthExportIdentityPolicy: DrivePayloadIdentityPolicy {
+    // Versioned refinement: cutoff remains primary; only full historical schema-3
+    // snapshots use encoding time to order corrections at an unchanged cutoff.
+    static let historicalOrderingVersion = "historical-v2"
     let ownerPropertyKey = "whrDailyCanonical"
     let orderingPropertyKey = "whrDataAsOf"
 
@@ -46,16 +49,68 @@ struct DailyHealthExportIdentityPolicy: DrivePayloadIdentityPolicy {
                 }
             }
         }
+        let orderingToken: String
+        if envelope.schemaVersion == 3, try isHistorical(envelope) {
+            orderingToken = "\(Self.historicalOrderingVersion)|\(envelope.dataAsOf)|\(envelope.exportedAt)"
+        } else {
+            orderingToken = envelope.dataAsOf
+        }
         return DrivePayloadIdentity(
-            orderingToken: envelope.dataAsOf,
+            orderingToken: orderingToken,
             payloadSHA256: DailyDriveExportCoordinator.sha256(payload)
         )
     }
 
     func compare(_ lhs: String, _ rhs: String) throws -> ComparisonResult {
-        let lhsDate = try timestamp(lhs)
-        let rhsDate = try timestamp(rhs)
-        return lhsDate.compare(rhsDate)
+        let lhsDates = try orderingDates(lhs)
+        let rhsDates = try orderingDates(rhs)
+        let cutoffOrder = lhsDates.cutoff.compare(rhsDates.cutoff)
+        guard cutoffOrder == .orderedSame else { return cutoffOrder }
+        return lhsDates.encoded.compare(rhsDates.encoded)
+    }
+
+    static func displayOrderingToken(_ token: String) -> String {
+        let parts = token.components(separatedBy: "|")
+        guard parts.count == 3, parts[0] == historicalOrderingVersion else { return token }
+        return "\(parts[1]) (snapshot encoded \(parts[2]))"
+    }
+
+    private func orderingDates(_ token: String) throws -> (cutoff: Date, encoded: Date) {
+        let parts = token.components(separatedBy: "|")
+        if parts.count == 1 {
+            let cutoff = try timestamp(token)
+            return (cutoff, cutoff)
+        }
+        guard parts.count == 3, parts[0] == Self.historicalOrderingVersion else {
+            throw DailyDriveExportFailure.invalidPayload
+        }
+        let cutoff = try timestamp(parts[1])
+        let encoded = try timestamp(parts[2])
+        guard encoded >= cutoff else { throw DailyDriveExportFailure.invalidPayload }
+        return (cutoff, encoded)
+    }
+
+    private func isHistorical(_ envelope: DailyHealthExportEnvelope) throws -> Bool {
+        guard let zone = TimeZone(identifier: envelope.timeZone) else {
+            throw DailyDriveExportFailure.invalidPayload
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = zone
+        let cutoff = try timestamp(envelope.dataAsOf)
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = zone
+        formatter.dateFormat = "yyyy-MM-dd"
+        guard formatter.string(from: cutoff) != envelope.reportDate else { return false }
+        let start = try timestamp(envelope.dayWindow.start)
+        guard formatter.string(from: start) == envelope.reportDate,
+              calendar.startOfDay(for: start) == start,
+              calendar.date(byAdding: .day, value: 1, to: start) == cutoff,
+              try timestamp(envelope.dayWindow.end) == cutoff else {
+            throw DailyDriveExportFailure.invalidPayload
+        }
+        return true
     }
 
     func filename(for reportDate: String) -> String {

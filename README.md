@@ -70,7 +70,12 @@ review that snapshot and tap **Export prepared snapshot**.
 3. Authorise and select the exact Apple Health nutrition source whose data should
    be included, then save any date-bound notes you want to export. Draft notes are
    excluded.
-4. Review the report date, data cutoff, nutrition source, note count,
+4. Choose today or one of the previous seven local dates. Today freezes a partial
+   day at refresh; earlier dates use the full local day as currently visible in
+   Apple Health, not a reconstruction of what was visible at the original midnight.
+   Date selection binds notes to that exact date and time zone and clears the old
+   preview. Unverified notes are retained even outside the selectable range.
+   Review the report date, data cutoff, nutrition source, note count,
    completed-day windows and encoded byte count. Use **Review exact JSON** to
    inspect the actual bytes prepared for upload.
 5. Tap **Export prepared snapshot**. Refresh first if a saved note or relevant
@@ -79,11 +84,24 @@ review that snapshot and tap **Export prepared snapshot**.
 
 The normal version 3 JSON envelope records `schema_version`, `report_date`, `time_zone`,
 `data_as_of`, `exported_at` and `day_window`. Its `today` object contains the
-current day's values through the frozen cutoff and an ordered `notes` array.
+selected day's values through the frozen cutoff and an ordered `notes` array.
 `app_context` contains deterministic completed-day summaries and trends.
+Historical corrections replace only that date's canonical file: cutoff remains
+the next local midnight, while later encoding time orders replacements at the
+same cutoff. Identical ordering with different bytes and older cutoffs are still
+rejected. This uses versioned Drive identity metadata, not a JSON schema change;
+use this version or newer for historical-file replacement and recovery.
 Nutrition covers Apple's 39 supported dietary quantity types, restricted to the
 selected HealthKit source; missing or inaccessible values remain explicit states
 rather than becoming zero.
+
+Retrospective device validation remains a separate manual gate: select a prior
+date with known saved notes, compare the preview's daily values against Apple
+Health for that exact date and source, inspect the cutoff and exact JSON, then
+test a real lock/unlock cycle. Only with explicit account/destination approval,
+export two selected dates and correct one; verify distinct canonical file IDs,
+same-ID replacement and the reviewed bytes. Simulator tests do not establish
+historical HealthKit visibility or live Drive behaviour.
 
 An additive schema-v4 form can include a deterministic canonical food document
 and its matching daily food-nutrition summary. It preserves every v3 meaning,

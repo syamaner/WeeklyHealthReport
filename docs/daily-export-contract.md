@@ -40,11 +40,38 @@ recovery, or queues later work.
 
 - Proposed name: `health-daily-YYYY-MM-DD.json` in one user-selected destination folder. Filename is a convention, not proof of uniqueness on Drive.
 - Identity is the reporting date in the configured reporting time zone; export timestamps never change that identity.
-- Capture one time zone, local date and refresh cutoff at refresh start. Query today's data from local midnight through that cutoff. Use explicit inclusive-start/exclusive-end bounds where applicable and document metric-specific exceptions.
+- Capture one time zone, selected local date and refresh cutoff at refresh start.
+  Manual selection permits today and the previous seven local calendar dates only.
+  Today runs from local midnight to the frozen refresh time. A prior date runs
+  from its local midnight to the next local midnight, inclusive start/exclusive
+  end, including 23/25-hour DST days. Sleep stays anchored to the selected wake
+  date; context and latest-measurement lookbacks end at that historical cutoff.
+  `report_date` is selected, `data_as_of` is that cutoff and `exported_at` is the
+  actual encoding time. Historical reads reflect currently visible HealthKit
+  records, not visibility at the original midnight. The existing `today` key
+  means the selected report day; this does not change schema version 3.
+  An identity with another time zone or outside the moving seven-day range is
+  rejected, never relabelled. Changing selection clears the preview and requires
+  a fresh review; upload stays bound to the frozen canonical date and exact bytes.
+- Historical canonical ordering is explicitly versioned as `historical-v2`.
+  Schema-3 full historical-day snapshots use the opaque metadata/registry token
+  `historical-v2|data_as_of|exported_at`. Compare cutoff first, then encoding time
+  only for equal cutoffs. Timestamp-only legacy identities retain their original
+  ordering; when compared with v2 their secondary time is the cutoff. A later
+  reviewed historical snapshot may therefore replace its own canonical file,
+  including corrected notes or newly visible data. Older cutoffs remain stale
+  regardless of encoding time; equal tokens with different bytes remain stale.
+  Exact-byte readback, persisted file ID, account/destination/installation identity
+  and explicit recovery checks remain required. No registry or JSON schema changes
+  are needed: the existing ordering field is opaque transport-policy state, not a
+  replacement for the JSON's unchanged `data_as_of`. Older app versions cannot
+  interpret the v2 token and fail closed rather than overwrite it. Do not downgrade
+  for historical replacement/recovery.
 - A bedtime export for 6 September supplies the 7 September morning plan. It is not delayed until another completed-day reporting cycle.
 - Record actual data cutoff and export time. Do not claim all devices have finished syncing or label the report medically complete.
 - Freeze the snapshot before upload or destination selection. Crossing midnight while consent or a picker is open must not rename yesterday's snapshot as today.
-- A later automation retry must retain its original reporting date. Backfill/date selection and time-zone changes during travel need an explicit policy before automation.
+- A later automation retry must retain its original reporting date. This manual
+  selection policy does not authorise automation or background backfill.
 
 ## JSON envelope
 
@@ -68,7 +95,11 @@ never enter this projection. Schema v4 does not itself authorise Drive transport
 
 - Notes are keyed by the captured local reporting date and time-zone identity. A
   draft crossing into another identity remains recoverable under its original date
-  until the person explicitly copies it into today or discards it.
+  until the person explicitly copies it into the selected date or discards it.
+  Saved notes are keyed by the exact date and time-zone identity; selection never
+  copies or migrates them. Unverified revisions are retained across midnight,
+  relaunch and age beyond the selectable range. Cleanup eligibility uses the
+  actual current local date, not the chosen historical date.
 - The app retains at most 20 saved notes per reporting day, 2,000 Unicode characters
   per note and 20,000 characters across the day. It trims leading and trailing
   whitespace only when saving and never silently truncates input.

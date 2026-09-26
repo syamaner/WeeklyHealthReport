@@ -205,6 +205,20 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     @Published private(set) var destinationLabel = "No destination"
     @Published private(set) var status = "No Health or Google request has run."
     @Published private(set) var preview: DailyHealthExportResult?
+    @Published private(set) var selectedReportDay: DailyNoteDayID?
+    var availableReportDays: [DailyNoteDayID] { exportService.availableReportDays() }
+
+    func selectReportDay(_ day: DailyNoteDayID?) {
+        guard !busy else { return }
+        if let day, !availableReportDays.contains(day) { return }
+        selectedReportDay = day
+        notes.selectReportDay(day)
+        preview = nil
+        destinationCoordinator.clearFileReplacementCandidate(unlessReportDate: day?.reportDate ?? "")
+        mirrorDestinationState()
+        presentationState = .needsAttention(.notesChanged)
+        status = "Report date changed. Refresh and review a new snapshot before exporting."
+    }
     @Published private(set) var lastVerifiedLabel = "No verified Drive upload in this session"
     @Published private(set) var canForgetTrashedDestination = false
     @Published private(set) var fileReplacementReason: FileReplacementReason?
@@ -560,6 +574,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         lastVerifiedLabel = result.verifiedLabel
         status = result.userFacingLabel
         guard result.authorizesNoteCleanup else { return }
+        status += " Report date: \(exportedPreview.envelope.reportDate)."
 
         if !notes.markVerified(
             snapshot: exportedPreview.notesSnapshot,
@@ -795,7 +810,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     func refreshPreviewWithoutAuthorization(bundleIdentifier: String) async throws {
         do {
             let result = try await exportService.refresh(
-                nutritionSourceBundleIdentifier: bundleIdentifier
+                nutritionSourceBundleIdentifier: bundleIdentifier,
+                selectedDay: selectedReportDay
             )
             destinationCoordinator.clearFileReplacementCandidate(
                 unlessReportDate: result.envelope.reportDate
@@ -880,7 +896,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 .compactMap(\.lastVerified)
                 .max { $0.verifiedAt < $1.verifiedAt }
             if let latest {
-                lastVerifiedLabel = "Persisted verification through \(latest.dataAsOf)"
+                lastVerifiedLabel = "Persisted verification through \(DailyHealthExportIdentityPolicy.displayOrderingToken(latest.dataAsOf))"
             } else {
                 lastVerifiedLabel = "No verified Drive upload for this destination"
             }
@@ -943,6 +959,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
 
     private var previewIsCurrent: Bool {
         guard notes.storageAvailable, let preview else { return false }
+        guard preview.notesSnapshot.dayID == (selectedReportDay ?? availableReportDays.first) else { return false }
         return notes.document.snapshot(for: preview.notesSnapshot.dayID) == preview.notesSnapshot
     }
 

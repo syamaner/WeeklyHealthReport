@@ -51,11 +51,16 @@ struct DailyHealthExportService {
         return try await healthData.fetchVisibleNutritionSources()
     }
 
+    func availableReportDays() -> [DailyNoteDayID] {
+        DailyExportWindow.availableDays(at: now(), calendar: calendar)
+    }
+
     func refresh(
-        nutritionSourceBundleIdentifier: String?
+        nutritionSourceBundleIdentifier: String?,
+        selectedDay: DailyNoteDayID? = nil
     ) async throws -> DailyHealthExportResult {
         let cutoff = now()
-        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar, selectedDay: selectedDay)
         let notesSnapshot: DailyNotesSnapshot
         do {
             notesSnapshot = try notesStore.snapshot(for: DailyNoteDayID(window: window))
