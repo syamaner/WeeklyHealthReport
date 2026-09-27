@@ -1,0 +1,53 @@
+{
+  "schema_version": "intake-native-render-checkpoint-v1",
+  "test_identifier": "WeeklyReportScreenshotTests/testIntakeScreensRenderWithIsolatedSyntheticLedger()",
+  "simulator": "iPhone 17 Pro, iOS 26.5",
+  "full_suite": {
+    "passed": 273,
+    "failed": 0,
+    "skipped": 0
+  },
+  "synthetic_only": true,
+  "provider_calls": 0,
+  "pixel_golden_assertion": false,
+  "physical_acceptance": false,
+  "captures": [
+    {
+      "name": "Food Log - retained removed entry - large text",
+      "sha256": "21a4e394ffff3c8a01af1773e2e0cd398cd022b1af1cb1ff0605f0dffcac6a4f"
+    },
+    {
+      "name": "Food Log - populated - accessibility3",
+      "sha256": "21a4e394ffff3c8a01af1773e2e0cd398cd022b1af1cb1ff0605f0dffcac6a4f"
+    },
+    {
+      "name": "Today - populated - accessibility3",
+      "sha256": "b2722f96f87fcef8f961c836d121ccc27dc1ad3a6721145864c7df59c8ac74f5"
+    },
+    {
+      "name": "Food Log - populated - large",
+      "sha256": "e9a89adfa82d08aebc3ab9cb3ee3636559e2ac842c8bb55dbc5d45b0678ab5a2"
+    },
+    {
+      "name": "Today - populated - large",
+      "sha256": "55260053c4a1c8298872ca758e39c2eab4b5706aa78ca5a07d4343624d7bc268"
+    },
+    {
+      "name": "Food Log - empty log",
+      "sha256": "9b4d127b0767c5dd9318b0953ef635964c43d7c42bd692dddb93eddb7f4fcc8b"
+    },
+    {
+      "name": "Today - empty log",
+      "sha256": "1ef380578a58961eb4b1e884b524a2a079afd02ea894030e0d95f445d76683fa"
+    }
+  ],
+  "source_sha256": {
+    "WeeklyHealthReport/Views/WeeklyReportView.swift": "a78c505abb04ffc5e4309eeecd174e2be553da87b42a2df57ced0c3b67a454c2",
+    "WeeklyHealthReportTests/WeeklyReportScreenshotTests.swift": "ab5ac35e6768dd061877cb1ab1ee6f669bad930f84b86767720348c730ee97fa"
+  },
+  "limits": [
+    "Top viewport attachments only; no scrolling acceptance.",
+    "Visual inspection supplements assertions; captures are not pixel goldens.",
+    "Keyboard, VoiceOver, navigation interaction and device checks remain manual."
+  ]
+}
