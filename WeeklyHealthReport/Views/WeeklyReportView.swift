@@ -468,6 +468,7 @@ private struct FoodIntakeHomeView: View {
     @State private var failure: String?
     @State private var editModel: FoodConfirmationViewModel?
     @State private var showsEdit = false
+    @State private var recentDays: [FoodIntakeDayPreview] = []
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -496,6 +497,18 @@ private struct FoodIntakeHomeView: View {
                     }
                 }
             }
+            if !isHome {
+                Section {
+                    NavigationLink(value: WeeklyReportRoute.genericFoodSearch) { Label("Search foods", systemImage: "magnifyingglass") }
+                    NavigationLink(value: WeeklyReportRoute.barcodeFoodCapture) { Label("Scan barcode", systemImage: "barcode.viewfinder") }
+                    NavigationLink(value: WeeklyReportRoute.commonFoods) { Label("Common foods & favourites", systemImage: "star") }
+                    NavigationLink(value: WeeklyReportRoute.foodListImport) { Label("Paste or dictate food list", systemImage: "list.bullet") }
+                } header: { Text("Log food") } footer: {
+                    if !Calendar.current.isDateInToday(selectedDate) {
+                        Text("New foods are logged for today. Existing entries on this day can be reviewed below. Changes do not update an already exported snapshot.")
+                    }
+                }
+            }
             if let failure {
                 Section("Intake unavailable") {
                     Label(failure, systemImage: "exclamationmark.triangle")
@@ -508,7 +521,7 @@ private struct FoodIntakeHomeView: View {
                             description: Text("Logged intake will appear here after you confirm a food. An empty log does not mean no food was eaten."))
                     } else {
                         LazyVGrid(columns: dynamicTypeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 12) {
-                            ForEach([NutrientKey.energyConsumed, .protein, .carbohydrates, .fatTotal], id: \.rawValue) { key in
+                            ForEach(summaryKeys, id: \.rawValue) { key in
                                 if let total = projection.summary.totals.first(where: { $0.key == key }) {
                                     VStack(alignment: .leading, spacing: 8) {
                                         Label(Self.label(key), systemImage: Self.symbol(key))
@@ -556,14 +569,27 @@ private struct FoodIntakeHomeView: View {
                 Section { ProgressView("Loading intake") }
             }
             if !isHome {
-                Section {
-                    NavigationLink(value: WeeklyReportRoute.genericFoodSearch) { Label("Search foods", systemImage: "magnifyingglass") }
-                    NavigationLink(value: WeeklyReportRoute.barcodeFoodCapture) { Label("Scan barcode", systemImage: "barcode.viewfinder") }
-                    NavigationLink(value: WeeklyReportRoute.commonFoods) { Label("Common foods & favourites", systemImage: "star") }
-                    NavigationLink(value: WeeklyReportRoute.foodListImport) { Label("Paste or dictate food list", systemImage: "list.bullet") }
-                } header: { Text("Log food") } footer: {
-                    if !Calendar.current.isDateInToday(selectedDate) {
-                        Text("New foods are logged for today. Existing entries on this day can be reviewed above. Changes do not update an already exported snapshot.")
+                Section("Past 7 days") {
+                    ForEach(recentDays, id: \.date) { day in
+                        Button { selectedDate = day.date } label: {
+                            HStack {
+                                Text(day.date, format: .dateTime.weekday(.abbreviated).day().month(.abbreviated))
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                                if let summary = day.summary {
+                                    VStack(alignment: .trailing, spacing: 4) {
+                                        Text(summary.itemCount == 0 ? "No entries" : "\(summary.itemCount) entries")
+                                        if summary.itemCount > 0,
+                                           let energy = summary.totals.first(where: { $0.key == .energyConsumed }) {
+                                            Text(Self.amount(energy)).font(.caption)
+                                        }
+                                    }.foregroundStyle(.secondary)
+                                } else {
+                                    Text("Unavailable").foregroundStyle(.secondary)
+                                }
+                                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                            }.padding(.vertical, 4)
+                        }.accessibilityHint("Shows this day's food log")
                     }
                 }
                 Section("Review") {
@@ -598,24 +624,33 @@ private struct FoodIntakeHomeView: View {
         }
     }
 
+    private var summaryKeys: [NutrientKey] {
+        isHome ? [.energyConsumed, .protein, .carbohydrates, .fatTotal]
+            : [.energyConsumed, .protein, .carbohydrates, .fatTotal, .fiber]
+    }
+
     private func displayedRows(_ projection: FoodIntakeProjection) -> [FoodIntakeLogRow] {
         isHome ? Array(projection.rows.suffix(3)) : projection.rows
     }
 
     private func entryButton(_ row: FoodIntakeLogRow) -> some View {
-Button { open(row) } label: {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    HStack(alignment: .firstTextBaseline) {
-                                        Text(row.name).font(.body.weight(.medium)).foregroundStyle(.primary)
-                                        Spacer(minLength: 8)
-                                        Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-                                    }
-                                    Text(Self.entryDetail(row))
-                                        .font(.subheadline).foregroundStyle(.secondary)
-                                    Text(Self.sourceStatus(row))
-                                        .font(.caption).foregroundStyle(.secondary)
-                                }.padding(.vertical, 4)
-                            }.accessibilityHint("Opens the saved food confirmation")
+        Button { open(row) } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(row.name).font(.body.weight(.medium)).foregroundStyle(.primary)
+                    Spacer(minLength: 8)
+                    if let energy = row.totals.first(where: { $0.key == .energyConsumed }) {
+                        Text(Self.amount(energy)).font(.subheadline).monospacedDigit()
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                Text(Self.entryDetail(row)).font(.subheadline).foregroundStyle(.secondary)
+                Text(Self.sourceStatus(row)).font(.caption).foregroundStyle(.secondary)
+            }.padding(.vertical, 4)
+        }.accessibilityHint("Opens the saved food confirmation")
     }
 
     private func moveDay(_ offset: Int) {
@@ -668,6 +703,7 @@ Button { open(row) } label: {
         do {
             guard let root else { throw FoodIntakeProjectionError.missingReference }
             projection = try root.intakeProjection(for: selectedDate)
+            if !isHome { recentDays = try root.recentIntakeDays(before: Date()) }
             failure = nil
         } catch FoodIntakeProjectionError.competingVersions {
             projection = nil; failure = "Conflicting food versions need review before an intake total can be shown."
@@ -679,7 +715,7 @@ Button { open(row) } label: {
     }
 
     private static func label(_ key: NutrientKey) -> String {
-        switch key { case .energyConsumed: "Energy"; case .protein: "Protein"; case .carbohydrates: "Carbohydrates"; default: "Fat" }
+        switch key { case .energyConsumed: "Energy"; case .protein: "Protein"; case .carbohydrates: "Carbohydrates"; case .fiber: "Fibre"; default: "Fat" }
     }
 
     private static func amount(_ total: FoodIntakeTotal) -> String {
