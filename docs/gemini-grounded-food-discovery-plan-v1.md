@@ -1,6 +1,6 @@
 # Gemini BYOK food-source discovery v1
 
-Status: implemented for [#100](https://github.com/syamaner/WeeklyHealthReport/issues/100), 28 September 2026. The user authorised a user-key-only, explicit-tap source-discovery flow. This is separate from #100's frozen-candidate matching challenger. No provider call, personal-data evaluation, model-quality claim or TestFlight acceptance is implied by implementation.
+Status: implemented for [#172](https://github.com/syamaner/WeeklyHealthReport/issues/172), 28 September 2026. The user authorised a user-key-only, explicit-tap source-discovery flow. This is separate from [#100](https://github.com/syamaner/WeeklyHealthReport/issues/100)'s frozen-candidate matching challenger. No provider call, personal-data evaluation, model-quality claim or TestFlight acceptance is implied by implementation.
 
 ## Contract and architecture gate
 
