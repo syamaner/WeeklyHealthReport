@@ -206,7 +206,7 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
                 throw FoodLedgerStoreError.integrityFailure("incomplete food confirmation aggregate")
             }
             let evidence = decision.candidate.evidenceIDs.compactMap { state.evidence[$0.rawValue] }
-            let releases = resolutionVersion.sourceReleaseIDs.compactMap { state.sourceReleases[$0.value] }
+            var releases = resolutionVersion.sourceReleaseIDs.compactMap { state.sourceReleases[$0.value] }
             let assertionIDs = Set(productVersion.assertionIDs + resolutionVersion.assertionIDs)
             let assertions = assertionIDs.compactMap { state.assertions[$0.rawValue] }
             guard evidence.count == decision.candidate.evidenceIDs.count,
@@ -216,6 +216,13 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
             }
             let conversion = logVersion.quantityConversionVersionID.flatMap {
                 state.quantityConversions[$0.rawValue]
+            }
+            if let sourceID = conversion?.sourceReleaseID,
+               !releases.contains(where: { $0.sourceReleaseID == sourceID }) {
+                guard let source = state.sourceReleases[sourceID.value] else {
+                    throw FoodLedgerStoreError.integrityFailure("missing quantity conversion source")
+                }
+                releases.append(source)
             }
             let plateVersion = logVersion.plateWeightVersionID.flatMap {
                 state.plateWeightVersions[$0.rawValue]

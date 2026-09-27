@@ -15,6 +15,7 @@ final class FoodLedgerCompositionRoot {
     private let confirmations: FoodConfirmationService
     private let ledger: FoodLedgerService
     private let genericFoodSearch: any GenericFoodSearching
+    private let milkVolumeConversion: CoFIDWholeMilkVolumeConversion
     private let offLookup: OpenFoodFactsLookup
     private let ids: RandomLedgerIDGenerator
     private var activeFoodList: FoodListImportViewModel?
@@ -64,11 +65,13 @@ final class FoodLedgerCompositionRoot {
             CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
             USDAGenericFoodSearch(ids: ids)
         ], ids: ids)
+        milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }
 
     func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil) -> FoodConfirmationViewModel {
-        let state = FoodConfirmationState(input: input, queryQuantity: queryQuantity)
-        return FoodConfirmationViewModel(state: state) { [confirmations, ids] state in
+        let (prepared, offering) = withMilkVolumeSource(input)
+        let state = FoodConfirmationState(input: prepared, queryQuantity: queryQuantity)
+        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering) { [confirmations, ids] state in
             try confirmations.save(
                 state,
                 operationID: ids.makeID(OperationTag.self),
@@ -77,9 +80,33 @@ final class FoodLedgerCompositionRoot {
         }
     }
 
+    private func withMilkVolumeSource(_ input: PopulatedFoodConfirmation)
+        -> (PopulatedFoodConfirmation, (any FoodVolumeConversionOffering)?) {
+        var prepared = input
+        var offering: (any FoodVolumeConversionOffering)?
+        if input.candidates.contains(where: milkVolumeConversion.applies(to:)) {
+            let release = milkVolumeConversion.sourceRelease
+            let releases = input.sourceReleases.contains(where: { $0.sourceReleaseID == release.sourceReleaseID })
+                ? input.sourceReleases : input.sourceReleases + [release]
+            if let enriched = try? PopulatedFoodConfirmation(
+                evidence: input.evidence, sourceReleases: releases, candidates: input.candidates,
+                expectedIdentity: input.expectedIdentity, expectedEdibleQuantity: input.expectedEdibleQuantity
+            ) {
+                prepared = enriched
+                offering = milkVolumeConversion
+            }
+        }
+        return (prepared, offering)
+    }
+
     func model(reopening logItemID: LogItemID) throws -> FoodConfirmationViewModel? {
-        guard let state = try confirmations.reopen(logItemID: logItemID) else { return nil }
-        return FoodConfirmationViewModel(state: state) { [confirmations, ids] state in
+        guard var state = try confirmations.reopen(logItemID: logItemID) else { return nil }
+        let (prepared, offering) = withMilkVolumeSource(state.input)
+        if prepared != state.input {
+            state = FoodConfirmationState(input: prepared, reopened: state.reopened)
+            state.decision = .accepted
+        }
+        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering) { [confirmations, ids] state in
             try confirmations.save(
                 state,
                 operationID: ids.makeID(OperationTag.self),

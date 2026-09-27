@@ -5,6 +5,98 @@ import FoodLedgerDomain
 import XCTest
 
 final class SharedStoreContractTests: XCTestCase {
+    func testMilkVolumeConversionRetainsIndependentSourceAcrossBothStores() throws {
+        try forEachStore { harness, ledger in
+            let policy = try CoFIDWholeMilkVolumeConversion()
+            let search = try CoFIDGenericFoodSearch(ids: ContractSequenceIDs())
+            let request = GenericFoodSearchRequest(
+                text: try LedgerText("Milk, whole, pasteurised, average"),
+                identity: GenericFoodIdentityQuery(), capturedAt: LedgerFixtures.date,
+                locale: try LedgerText("en_GB")
+            )
+            guard case let .confirmation(route) = try search.search(request),
+                  let milk = route.matches.map(\.candidate).first(where: policy.applies(to:)) else {
+                return XCTFail("Expected exact CoFID milk")
+            }
+            let input = try PopulatedFoodConfirmation(
+                evidence: route.confirmation.evidence,
+                sourceReleases: route.confirmation.sourceReleases + [policy.sourceRelease],
+                candidates: [milk], expectedIdentity: milk.candidate.identity,
+                expectedEdibleQuantity: milk.candidate.edibleQuantity
+            )
+            var state = FoodConfirmationState(input: input)
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(200, .millilitres))
+            let offer = try XCTUnwrap(policy.offer(
+                for: milk, original: PositiveQuantity(value: 200, unit: .millilitres)))
+            FoodConfirmationReducer.reduce(state: &state, action: .setConversion(offer))
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            let service = FoodConfirmationService(
+                ledger: ledger, reader: harness.reader,
+                clock: LedgerFixtures.clock, ids: ContractSequenceIDs()
+            )
+            let saved = try service.save(state, operationID: LedgerFixtures.operationID(215))
+            let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+            XCTAssertEqual(reopened.quantity.conversion, offer, harness.name)
+            XCTAssertTrue(reopened.input.sourceReleases.contains(policy.sourceRelease), harness.name)
+            let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
+            let records = try archive.archiveState().records
+            XCTAssertTrue(records.sourceReleases.contains(policy.sourceRelease), harness.name)
+            XCTAssertEqual(records.quantityConversions.first?.sourceReleaseID,
+                policy.sourceRelease.sourceReleaseID, harness.name)
+        }
+    }
+
+    func testPreviouslySavedUnsupportedMilkVolumeCanGainSourcedEstimate() throws {
+        try forEachStore { harness, ledger in
+            let policy = try CoFIDWholeMilkVolumeConversion()
+            let search = try CoFIDGenericFoodSearch(ids: ContractSequenceIDs())
+            let request = GenericFoodSearchRequest(
+                text: try LedgerText("Milk, whole, pasteurised, average"),
+                identity: GenericFoodIdentityQuery(), capturedAt: LedgerFixtures.date,
+                locale: try LedgerText("en_GB")
+            )
+            guard case let .confirmation(route) = try search.search(request),
+                  let milk = route.matches.map(\.candidate).first(where: policy.applies(to:)) else {
+                return XCTFail("Expected CoFID milk")
+            }
+            let originalInput = try PopulatedFoodConfirmation(
+                evidence: route.confirmation.evidence, sourceReleases: route.confirmation.sourceReleases,
+                candidates: [milk], expectedIdentity: milk.candidate.identity,
+                expectedEdibleQuantity: milk.candidate.edibleQuantity
+            )
+            let service = FoodConfirmationService(
+                ledger: ledger, reader: harness.reader,
+                clock: LedgerFixtures.clock, ids: ContractSequenceIDs()
+            )
+            var original = FoodConfirmationState(input: originalInput)
+            FoodConfirmationReducer.reduce(state: &original, action: .setQuantity(200, .millilitres))
+            FoodConfirmationReducer.reduce(state: &original, action: .accept)
+            let saved = try service.save(original, operationID: LedgerFixtures.operationID(216))
+            XCTAssertNil(saved.quantityConversion)
+
+            let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+            let enriched = try PopulatedFoodConfirmation(
+                evidence: reopened.input.evidence,
+                sourceReleases: reopened.input.sourceReleases + [policy.sourceRelease],
+                candidates: reopened.input.candidates,
+                expectedIdentity: reopened.input.expectedIdentity,
+                expectedEdibleQuantity: reopened.input.expectedEdibleQuantity
+            )
+            var revised = FoodConfirmationState(input: enriched, reopened: reopened.reopened)
+            revised.decision = .accepted
+            let offer = try XCTUnwrap(policy.offer(
+                for: revised.selectedCandidate,
+                original: PositiveQuantity(value: 200, unit: .millilitres)))
+            FoodConfirmationReducer.reduce(state: &revised, action: .setConversion(offer))
+            let updated = try service.save(revised, operationID: LedgerFixtures.operationID(217))
+            XCTAssertEqual(updated.logItem.logItemID, saved.logItem.logItemID, harness.name)
+            XCTAssertEqual(updated.logItemVersion.edibleQuantity.value, 206, harness.name)
+            XCTAssertTrue(updated.sourceReleases.contains(policy.sourceRelease), harness.name)
+            XCTAssertTrue(try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+                .input.sourceReleases.contains(policy.sourceRelease), harness.name)
+        }
+    }
+
     func testAtomicCommitAndStatePreservingReadback() throws {
         try forEachStore { harness, service in
             let outcome = try service.commit(

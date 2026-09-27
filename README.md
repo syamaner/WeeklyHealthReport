@@ -126,7 +126,10 @@ uses bundled CoFID and separately labelled USDA US-composition candidates, shows
 source descriptions and differences, and records confirmed exact aliases for offline
 reuse. The [source expansion contract](docs/food-data-source-expansion-proposal-v1.md)
 pins Foundation/SR Legacy snapshots and preserves whole source records. The
-[bounded search repair](docs/food-search-usability-v2.md) provides component suggestions
+[narrow whole-milk volume rule](docs/cofid-whole-milk-volume-admission-v1.md)
+offers a separately sourced 1.03 estimate only for the selected CoFID whole
+pasteurised milk record after an explicit tap; other volume gaps remain unavailable.
+The [bounded search repair](docs/food-search-usability-v2.md) provides component suggestions
 for unsupported combined meals. Broader multi-source relevance remains unevaluated;
 the historical frozen evaluation does not establish this new adapter's accuracy.
 The [pasted food-list input](docs/food-list-import.md) adds local quantity/unit
