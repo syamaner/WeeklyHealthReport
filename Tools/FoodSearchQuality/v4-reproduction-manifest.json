@@ -1,0 +1,32 @@
+{
+  "comparisonArtifact": "paired-development-v3.json",
+  "comparisonSHA256": "35f0cdf07a84076fcba8049003de05b7f884d4d66728e1a3d700a349ff6162a7",
+  "currentAdapterReportSHA256": "065324e9d4c539b45dfff04f37f121212cf22ac5e5357e7a7f25b7ea0819131b",
+  "date": "2026-09-27",
+  "independentAcceptance": false,
+  "limitations": "Disclosed 44-query development/tuning diagnostics; no independent relevance, nutrition identity or device accuracy acceptance.",
+  "networkRequests": 0,
+  "queryCount": 44,
+  "reportSchema": "search-development-v3",
+  "retrievalPolicies": [
+    "food-lexical-terms-v4",
+    "deterministic-primary-name-v4",
+    "usda-primary-name-v4",
+    "composite-interleaved-search-v2"
+  ],
+  "sourceSHA256": {
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/CoFIDGenericFoodSearch.swift": "421f497eb843e1767a5d50f398ec243ff14b975874595bd01b70bd1e6784c15b",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/GenericFoodSearchTerms.swift": "2a9087627ce9efd5c0d842c985ce8b733b6565812fa095f60a81f5434266fac7",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/USDAGenericFoodSearch.swift": "dc6af0bfaf996ae951e525693c7c7a97af31d9ecdb3da84068cc809822a56af3",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/CompositeGenericFoodSearch.swift": "783ab742a9817e77f4a00b0c1ff40542c424e5ddf042c7eee90d26cb7e096558"
+  },
+  "summary": {
+    "bothSourcesInFirstFive": 27,
+    "primaryFoodAtFirst": 8,
+    "primaryFoodJudgedQueries": 8,
+    "queriesWithActionableRecovery": 40,
+    "queriesWithCandidates": 35,
+    "queryCount": 44
+  },
+  "version": "search-quality-v4-reproduction-v1"
+}

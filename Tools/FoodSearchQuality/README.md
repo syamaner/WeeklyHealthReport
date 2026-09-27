@@ -10,3 +10,5 @@ python3 Tools/FoodSearchQuality/compare.py Tools/FoodSearchQuality/before-v2.jso
 ```
 
 The baseline was generated from merged PR #149 (`d3c3361`, retrieval v2). Compare the same 44 queries with the v3 development implementation. Eight main-food judgements check the first result for an explicit food-family prefix; these deliberately narrow lexical checks do not judge cut, fat, preparation, region, recipe equivalence or nutrient accuracy. Both-source exposure is a visibility metric, not relevance. Report each failure family separately, and use device feedback and independently reviewed labels before making quality acceptance claims.
+
+The 27 September v4 reproduction is bound by `v4-reproduction-manifest.json`. Its paired comparison is byte-identical to `paired-development-v3.json`; the report schema is unchanged while the manifest records retrieval-policy v4 and exact source hashes. This does not promote the tuning sample into independent acceptance.
