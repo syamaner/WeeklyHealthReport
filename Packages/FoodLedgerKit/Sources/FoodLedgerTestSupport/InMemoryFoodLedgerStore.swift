@@ -44,7 +44,7 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
     public init(
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV1
+        operationRegistry: LedgerOperationRegistry = .builtInV2
     ) {
         verifier = OperationVerifier(
             encoder: encoder,
@@ -192,6 +192,7 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
             guard let logVersion = state.logItemVersions.values
                 .filter({ $0.logItemID == logItemID })
                 .max(by: { $0.ordinal.value < $1.ordinal.value }) else { return nil }
+            if case .removed = logVersion.composition { return nil }
             guard let logItem = state.logItems[logItemID.rawValue],
                   case let .product(productVersionID) = logVersion.composition,
                   let productVersion = state.productVersions[productVersionID.rawValue],
@@ -497,6 +498,11 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
                       predecessor.ordinal.value < version.ordinal.value else {
                     throw FoodLedgerStoreError.integrityFailure("invalid lineage log_item_version")
                 }
+                let removedOriginal: LogItemVersion?
+                if case let .removed(reference) = predecessor.composition {
+                    removedOriginal = state.logItemVersions[reference.rawValue]
+                } else { removedOriginal = nil }
+                try version.validateRemovalTransition(predecessor: predecessor, removedOriginal: removedOriginal)
                 let competitors = state.logItemVersions.values.filter {
                     $0.supersedesLogItemVersionID == ancestor
                 }
@@ -520,6 +526,7 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
                 guard state.productVersions[productVersionID.rawValue] != nil else {
                     throw FoodLedgerStoreError.missingReference(productVersionID.rawValue)
                 }
+            case .removed: break // The predecessor and retained fields were checked above.
             case let .mixture(componentIDs):
                 guard componentIDs.allSatisfy({ state.logItemVersions[$0.rawValue] != nil }) else {
                     throw FoodLedgerStoreError.missingReference(version.logItemVersionID.rawValue)

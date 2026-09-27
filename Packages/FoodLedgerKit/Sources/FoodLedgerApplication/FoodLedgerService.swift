@@ -15,7 +15,7 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
         clock: any LedgerClock,
         encoder: any CanonicalEncoding,
         digester: any Digesting,
-        operationRegistry: LedgerOperationRegistry = .builtInV1
+        operationRegistry: LedgerOperationRegistry = .builtInV2
     ) {
         self.actorID = actorID
         self.committer = committer

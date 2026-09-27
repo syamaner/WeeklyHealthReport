@@ -472,6 +472,7 @@ public struct NutritionResolutionVersion: Codable, Equatable, Sendable {
 public enum LogComposition: Codable, Equatable, Sendable {
     case product(ProductVersionID)
     case mixture([LogItemVersionID])
+    case removed(LogItemVersionID)
 }
 
 public struct LogItem: Codable, Equatable, Sendable {
@@ -522,6 +523,11 @@ public struct LogItemVersion: Codable, Equatable, Sendable {
         if supersedesLogItemVersionID != nil, correctionReason == nil {
             throw FoodLedgerValidationError.empty("correction reason")
         }
+        if case let .removed(original) = composition {
+            guard supersedesLogItemVersionID == original, ordinal.value > 1 else {
+                throw FoodLedgerValidationError.invalidLogRemoval
+            }
+        }
         self.logItemVersionID = logItemVersionID
         self.logItemID = logItemID
         self.ordinal = ordinal
@@ -536,5 +542,34 @@ public struct LogItemVersion: Codable, Equatable, Sendable {
         self.effectiveResolutionVersionID = effectiveResolutionVersionID
         self.correctionReason = correctionReason
         self.createdAt = createdAt
+    }
+}
+
+public extension LogItemVersion {
+    /// Closed removal/restoration invariant shared by all persistence adapters.
+    func validateRemovalTransition(predecessor: LogItemVersion, removedOriginal: LogItemVersion? = nil) throws {
+        let original: LogItemVersion
+        switch (composition, predecessor.composition) {
+        case (.removed(let reference), .product):
+            guard reference == predecessor.logItemVersionID else { throw FoodLedgerValidationError.invalidLogRemoval }
+            original = predecessor
+        case (.product, .removed(let reference)):
+            guard let removedOriginal, removedOriginal.logItemVersionID == reference,
+                  composition == removedOriginal.composition else { throw FoodLedgerValidationError.invalidLogRemoval }
+            original = removedOriginal
+        case (.removed, _), (_, .removed):
+            throw FoodLedgerValidationError.invalidLogRemoval
+        default: return
+        }
+        guard supersedesLogItemVersionID == predecessor.logItemVersionID,
+              logItemID == original.logItemID, logItemID == predecessor.logItemID,
+              ordinal.value == predecessor.ordinal.value + 1,
+              occurredAt == original.occurredAt, reportingDate == original.reportingDate,
+              edibleQuantity == original.edibleQuantity,
+              quantityConversionVersionID == original.quantityConversionVersionID,
+              plateWeightVersionID == original.plateWeightVersionID,
+              originalResolutionVersionID == original.originalResolutionVersionID,
+              effectiveResolutionVersionID == original.effectiveResolutionVersionID,
+              correctionReason != nil else { throw FoodLedgerValidationError.invalidLogRemoval }
     }
 }

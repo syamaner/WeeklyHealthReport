@@ -6,13 +6,17 @@ extension FoodLedgerGRDBStore {
         var migrator = DatabaseMigrator()
         migrator.registerMigration("v1_create_food_ledger") { db in
             try db.execute(sql: "PRAGMA application_id = \(applicationID)")
-            try db.execute(sql: "PRAGMA user_version = \(schemaVersion)")
+            try db.execute(sql: "PRAGMA user_version = 1")
             try db.execute(sql: schemaSQL)
             try db.execute(
                 sql: "INSERT INTO ledger_metadata(key, value) VALUES ('schema_identity', 'food-ledger-v1')"
             )
             try installLineageTriggers(db)
             try installImmutableTriggers(db)
+        }
+        migrator.registerMigration("v2_log_removal") { db in
+            try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v2' WHERE key = 'schema_identity'")
+            try db.execute(sql: "PRAGMA user_version = 2")
         }
         return migrator
     }

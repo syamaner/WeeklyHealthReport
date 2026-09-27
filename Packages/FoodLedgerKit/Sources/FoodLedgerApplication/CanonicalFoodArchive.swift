@@ -37,7 +37,7 @@ public struct CanonicalFoodNutritionSummary: Codable, Equatable, Sendable {
 }
 
 public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
-    public static let foodContractVersion = 1
+    public static let foodContractVersion = 2
     public static let dailySchemaVersion = 4
 
     public let foodContractVersion: Int
@@ -48,9 +48,14 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
     public init(
         records: LedgerMutation,
         summaries: [CanonicalFoodNutritionSummary] = [],
+        foodContractVersion: Int = Self.foodContractVersion,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder()
     ) throws {
-        foodContractVersion = Self.foodContractVersion
+        guard (1...Self.foodContractVersion).contains(foodContractVersion),
+              foodContractVersion > 1 || !records.logItemVersions.contains(where: {
+                  if case .removed = $0.composition { return true }; return false
+              }) else { throw FoodArchiveError.unsupportedFoodContract(foodContractVersion) }
+        self.foodContractVersion = foodContractVersion
         dailySchemaVersion = Self.dailySchemaVersion
         self.records = try Self.sorted(records, encoder: encoder)
         self.summaries = try Self.sort(summaries, encoder: encoder)
@@ -188,16 +193,21 @@ public struct FoodArchiveManifest: Codable, Equatable, Sendable {
         watermarks: [FoodArchiveWatermark],
         recordCount: Int,
         operationCount: Int,
-        members: [FoodArchiveMember]
+        members: [FoodArchiveMember],
+        foodContractVersion: Int = CanonicalFoodProjection.foodContractVersion
     ) throws {
         backupFormatVersion = Self.currentBackupFormatVersion
-        foodContractVersion = CanonicalFoodProjection.foodContractVersion
+        guard (1...CanonicalFoodProjection.foodContractVersion).contains(foodContractVersion) else {
+            throw FoodArchiveError.unsupportedFoodContract(foodContractVersion)
+        }
+        self.foodContractVersion = foodContractVersion
         dailySchemaVersion = CanonicalFoodProjection.dailySchemaVersion
         self.ledgerID = ledgerID
         self.snapshotID = snapshotID
         self.createdAt = createdAt
         self.creatingActorID = creatingActorID
-        migrationIdentifiers = [try LedgerText("food-ledger-v1")]
+        migrationIdentifiers = foodContractVersion == 1 ? [try LedgerText("food-ledger-v1")]
+            : [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2")]
         self.sourceReleaseIDs = sourceReleaseIDs.sorted { $0.value < $1.value }
         self.watermarks = watermarks.sorted { $0.actorID.rawValue < $1.actorID.rawValue }
         self.recordCount = recordCount
@@ -323,7 +333,7 @@ public struct FoodArchiveVerifier: Sendable {
     public init(
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV1
+        operationRegistry: LedgerOperationRegistry = .builtInV2
     ) {
         self.encoder = encoder
         self.digester = digester
@@ -342,7 +352,7 @@ public struct FoodArchiveVerifier: Sendable {
         guard manifest.backupFormatVersion == FoodArchiveManifest.currentBackupFormatVersion else {
             throw FoodArchiveError.unsupportedBackupFormat(manifest.backupFormatVersion)
         }
-        guard manifest.foodContractVersion == CanonicalFoodProjection.foodContractVersion else {
+        guard (1...CanonicalFoodProjection.foodContractVersion).contains(manifest.foodContractVersion) else {
             throw FoodArchiveError.unsupportedFoodContract(manifest.foodContractVersion)
         }
         guard manifest.dailySchemaVersion == CanonicalFoodProjection.dailySchemaVersion else {
@@ -362,8 +372,7 @@ public struct FoodArchiveVerifier: Sendable {
         let document: CanonicalFoodDocument
         do { document = try decoder.decode(CanonicalFoodDocument.self, from: bundle.snapshot) }
         catch { throw FoodArchiveError.malformedArchive("snapshot") }
-        guard document.projection.foodContractVersion
-                == CanonicalFoodProjection.foodContractVersion else {
+        guard document.projection.foodContractVersion == manifest.foodContractVersion else {
             throw FoodArchiveError.unsupportedFoodContract(
                 document.projection.foodContractVersion
             )
@@ -374,6 +383,10 @@ public struct FoodArchiveVerifier: Sendable {
                 document.projection.dailySchemaVersion
             )
         }
+        if manifest.foodContractVersion == 1,
+           document.projection.records.logItemVersions.contains(where: {
+               if case .removed = $0.composition { return true }; return false
+           }) { throw FoodArchiveError.unsupportedFoodContract(1) }
         let expectedDocument = try CanonicalFoodDocument(
             projection: document.projection,
             encoder: encoder,
@@ -403,6 +416,13 @@ public struct FoodArchiveVerifier: Sendable {
             try operationVerifier.verify(transaction)
             return transaction
         }
+        if manifest.foodContractVersion == 1,
+           transactions.contains(where: { transaction in
+               [.removeLogItem, .restoreLogItem].contains(transaction.operation.operationType)
+                   || transaction.mutation.logItemVersions.contains(where: {
+                       if case .removed = $0.composition { return true }; return false
+                   })
+           }) { throw FoodArchiveError.unsupportedFoodContract(1) }
         try verifyActorChains(operations, watermarks: manifest.watermarks)
         return VerifiedFoodArchive(manifest: manifest, document: document, transactions: transactions)
     }
@@ -513,6 +533,7 @@ public struct FoodArchiveImportService: Sendable {
         let stagedProjection = try CanonicalFoodProjection(
             records: stagedState.records,
             summaries: verified.document.projection.summaries,
+            foodContractVersion: verified.document.projection.foodContractVersion,
             encoder: encoder
         )
         guard try encoder.encode(stagedProjection) == encoder.encode(verified.document.projection) else {

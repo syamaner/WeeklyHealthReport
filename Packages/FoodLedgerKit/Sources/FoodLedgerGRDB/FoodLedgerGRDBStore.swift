@@ -20,7 +20,7 @@ public struct ProtectedDataAvailability: Sendable {
 public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, FoodConfirmationReading,
     EvidenceAttachmentStoring, FoodArchiveLedgerAccess, @unchecked Sendable
 {
-    public static let schemaVersion = 1
+    public static let schemaVersion = 2
     public static let applicationID = 0x5748_5246 // WHRF
 
     private let databaseQueue: DatabaseQueue
@@ -38,7 +38,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         protectedData: ProtectedDataAvailability = .available,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV1
+        operationRegistry: LedgerOperationRegistry = .builtInV2
     ) throws {
         try protectedData.requireAvailable()
         self.encoder = encoder
@@ -89,7 +89,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         protectedData: ProtectedDataAvailability = .available,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV1
+        operationRegistry: LedgerOperationRegistry = .builtInV2
     ) throws -> FoodLedgerGRDBStore {
         try FoodLedgerGRDBStore(
             databaseURL: directory.appendingPathComponent("food-ledger-v1.sqlite"),
@@ -395,6 +395,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                 arguments: [logItemID.rawValue]
             ) else { return nil }
             let logVersion = try decoder.decode(LogItemVersion.self, from: data)
+            if case .removed = logVersion.composition { return nil }
             guard let logItem: LogItem = try decode(LogItem.self, table: "log_item", column: "log_item_id", id: logItemID.rawValue),
                   case let .product(productVersionID) = logVersion.composition,
                   let productVersion: ProductVersion = try decode(ProductVersion.self, table: "product_version", column: "version_id", id: productVersionID.rawValue),
@@ -811,10 +812,28 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
             [$0.logItemID.rawValue]
         }
         for value in mutation.logItemVersions {
+            if let predecessorID = value.supersedesLogItemVersionID {
+                guard let bytes = try Data.fetchOne(db,
+                    sql: "SELECT payload FROM log_item_version WHERE version_id = ?",
+                    arguments: [predecessorID.rawValue]) else {
+                    throw FoodLedgerStoreError.missingReference(predecessorID.rawValue)
+                }
+                let predecessor = try decoder.decode(LogItemVersion.self, from: bytes)
+                var original: LogItemVersion?
+                if case let .removed(reference) = predecessor.composition {
+                    guard let originalBytes = try Data.fetchOne(db,
+                        sql: "SELECT payload FROM log_item_version WHERE version_id = ?",
+                        arguments: [reference.rawValue]) else {
+                        throw FoodLedgerStoreError.missingReference(reference.rawValue)
+                    }
+                    original = try decoder.decode(LogItemVersion.self, from: originalBytes)
+                }
+                try value.validateRemovalTransition(predecessor: predecessor, removedOriginal: original)
+            }
             let productVersionID: String?
             switch value.composition {
             case let .product(id): productVersionID = id.rawValue
-            case .mixture: productVersionID = nil
+            case .mixture, .removed: productVersionID = nil
             }
             try requireRecordedConflict(
                 db: db,
@@ -1101,7 +1120,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                   synchronous == 2,
                   application == applicationID,
                   version == schemaVersion,
-                  metadata == "food-ledger-v1",
+                  metadata == "food-ledger-v2",
                   check == "ok",
                   foreignKeyFailures.isEmpty else {
                 throw FoodLedgerStoreError.integrityFailure("database open policy")

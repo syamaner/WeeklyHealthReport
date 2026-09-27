@@ -7,6 +7,38 @@ import FoodLedgerTestSupport
 import XCTest
 
 final class FoodArchiveContractTests: XCTestCase {
+    func testV1ArchiveRemainsCanonicalAndImportsUnderV2Contract() throws {
+        let current = try baseBundle(operationID: 290)
+        let currentVerified = try FoodArchiveVerifier().verify(current)
+        let projection = try CanonicalFoodProjection(records: currentVerified.document.projection.records,
+            summaries: currentVerified.document.projection.summaries, foodContractVersion: 1)
+        let document = try CanonicalFoodDocument(projection: projection,
+            encoder: LedgerFixtures.encoder, digester: LedgerFixtures.digester)
+        let snapshot = try LedgerFixtures.encoder.encode(document)
+        let manifest = try FoodArchiveManifest(ledgerID: currentVerified.manifest.ledgerID,
+            snapshotID: document.snapshotID, createdAt: currentVerified.manifest.createdAt,
+            creatingActorID: currentVerified.manifest.creatingActorID,
+            sourceReleaseIDs: currentVerified.manifest.sourceReleaseIDs,
+            watermarks: currentVerified.manifest.watermarks, recordCount: currentVerified.manifest.recordCount,
+            operationCount: currentVerified.manifest.operationCount,
+            members: [FoodArchiveMember(filename: LedgerText("snapshot.json"), bytes: snapshot, digester: LedgerFixtures.digester),
+                      FoodArchiveMember(filename: LedgerText("operations.ndjson"), bytes: current.operations, digester: LedgerFixtures.digester)],
+            foodContractVersion: 1)
+        let legacy = FoodArchiveBundle(manifest: try LedgerFixtures.encoder.encode(manifest),
+            snapshot: snapshot, operations: current.operations)
+        let verified = try FoodArchiveVerifier().verify(legacy)
+        XCTAssertEqual(verified.document.projection.foodContractVersion, 1)
+        XCTAssertEqual(try LedgerFixtures.encoder.encode(verified.document), snapshot)
+        XCTAssertEqual(verified.manifest.migrationIdentifiers, [try LedgerText("food-ledger-v1")])
+        let live = InMemoryFoodLedgerStore()
+        let importer = FoodArchiveImportService(live: live, staging: InMemoryFoodArchiveStaging())
+        let staged = try importer.dryRun(legacy)
+        _ = try importer.apply(staged)
+        XCTAssertEqual(try live.counts().operations, manifest.operationCount)
+        XCTAssertThrowsError(try LedgerOperationRegistry.builtInV1.requireSupported(.removeLogItem))
+        XCTAssertThrowsError(try LedgerOperationRegistry.builtInV1.requireSupported(.restoreLogItem))
+    }
+
     func testGenerationIsByteDeterministicAndRoundTripPreservesCanonicalProjection() throws {
         let source = InMemoryFoodLedgerStore()
         _ = try LedgerFixtures.service(source).commit(
