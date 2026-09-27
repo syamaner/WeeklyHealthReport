@@ -342,36 +342,39 @@ final class DailyHealthExportTests: XCTestCase {
             inputLogItemVersionIDs: [],
             hasUnknownContribution: true
         )
-        let projection = try CanonicalFoodProjection(
-            records: LedgerMutation(),
-            summaries: [summary]
-        )
-        let document = try CanonicalFoodDocument(projection: projection)
-        let schemaV4 = try DailyHealthExportBuilder.addingFoodProjection(
-            document,
-            summary: summary,
-            to: schemaV3
-        )
-
-        XCTAssertEqual(schemaV3.schemaVersion, 3)
-        XCTAssertNil(schemaV3.today.foodLog)
-        XCTAssertNil(schemaV3.today.foodNutritionSummary)
-        XCTAssertEqual(schemaV4.schemaVersion, 4)
-        XCTAssertEqual(schemaV4.today.foodLog, document)
-        XCTAssertEqual(schemaV4.today.foodNutritionSummary?.nutrients.entries.count, 39)
-        let schemaV4Bytes = try DailyHealthExportSerializer.encode(schemaV4)
-        let text = try XCTUnwrap(String(data: schemaV4Bytes, encoding: .utf8))
-        XCTAssertTrue(text.contains("\"schema_version\":4"))
-        XCTAssertTrue(text.contains("\"food_contract_version\":1"))
-        XCTAssertTrue(text.contains("\"food_log\":"))
-        XCTAssertTrue(text.contains("\"food_nutrition_summary\":"))
-        XCTAssertThrowsError(
-            try DailyHealthExportIdentityPolicy().validate(
-                payload: schemaV4Bytes,
-                reportDate: "2026-09-06"
+        for version in [1, 2] {
+            let projection = try CanonicalFoodProjection(
+                records: LedgerMutation(),
+                summaries: [summary],
+                foodContractVersion: version
             )
-        ) { error in
-            XCTAssertEqual(error as? DailyDriveExportFailure, .invalidPayload)
+            let document = try CanonicalFoodDocument(projection: projection)
+            let schemaV4 = try DailyHealthExportBuilder.addingFoodProjection(
+                document,
+                summary: summary,
+                to: schemaV3
+            )
+
+            XCTAssertEqual(schemaV3.schemaVersion, 3)
+            XCTAssertNil(schemaV3.today.foodLog)
+            XCTAssertNil(schemaV3.today.foodNutritionSummary)
+            XCTAssertEqual(schemaV4.schemaVersion, 4)
+            XCTAssertEqual(schemaV4.today.foodLog, document)
+            XCTAssertEqual(schemaV4.today.foodNutritionSummary?.nutrients.entries.count, 39)
+            let schemaV4Bytes = try DailyHealthExportSerializer.encode(schemaV4)
+            let text = try XCTUnwrap(String(data: schemaV4Bytes, encoding: .utf8))
+            XCTAssertTrue(text.contains("\"schema_version\":4"))
+            XCTAssertTrue(text.contains("\"food_contract_version\":\(version)"))
+            XCTAssertTrue(text.contains("\"food_log\":"))
+            XCTAssertTrue(text.contains("\"food_nutrition_summary\":"))
+            XCTAssertThrowsError(
+                try DailyHealthExportIdentityPolicy().validate(
+                    payload: schemaV4Bytes,
+                    reportDate: "2026-09-06"
+                )
+            ) { error in
+                XCTAssertEqual(error as? DailyDriveExportFailure, .invalidPayload)
+            }
         }
         try assertGolden(
             try DailyHealthExportSerializer.encode(schemaV3),

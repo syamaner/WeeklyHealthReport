@@ -8,6 +8,7 @@ public enum FoodLedgerValidationError: Error, Equatable, Sendable {
     case negative(String)
     case invalidDigest
     case invalidOrdinal
+    case invalidLogRemoval
     case invalidUnit
     case invalidBasis
     case malformedBounds

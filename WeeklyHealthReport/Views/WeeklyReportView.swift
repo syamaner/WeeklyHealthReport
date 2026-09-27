@@ -469,6 +469,9 @@ private struct FoodIntakeHomeView: View {
     @State private var editModel: FoodConfirmationViewModel?
     @State private var showsEdit = false
     @State private var recentDays: [FoodIntakeDayPreview] = []
+    @State private var pendingRemoval: FoodIntakeLogRow?
+    @State private var confirmsRemoval = false
+    @State private var managementFailure: String?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -559,10 +562,39 @@ private struct FoodIntakeHomeView: View {
                     Section(isHome ? "Recent food entries" : "Food entries") {
                         ForEach(displayedRows(projection), id: \.logItemID) { row in
                             entryButton(row)
+                                .swipeActions(allowsFullSwipe: false) {
+                                    if !isHome {
+                                        Button("Remove", role: .destructive) {
+                                            pendingRemoval = row; confirmsRemoval = true
+                                        }
+                                    }
+                                }
+                                .contextMenu {
+                                    if !isHome {
+                                        Button("Remove from log", role: .destructive) {
+                                            pendingRemoval = row; confirmsRemoval = true
+                                        }
+                                    }
+                                }
                         }
                         if isHome && projection.rows.count > 3 {
                             NavigationLink("View all \(projection.rows.count) entries", value: WeeklyReportRoute.foodLog)
                         }
+                    }
+                }
+                if !isHome && !projection.removedRows.isEmpty {
+                    Section {
+                        ForEach(projection.removedRows, id: \.logItemID) { row in
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(row.name).font(.body.weight(.medium))
+                                Text(Self.entryDetail(row)).font(.subheadline).foregroundStyle(.secondary)
+                                Button("Restore entry") { changeEntry(row, restoring: true) }
+                                    .frame(minHeight: 44)
+                                    .accessibilityLabel("Restore \(row.name)")
+                            }.padding(.vertical, 4)
+                        }
+                    } header: { Text("Removed entries") } footer: {
+                        Text("Excluded from this day's totals. Saved evidence and history are retained. Restoring does not change an already exported snapshot.")
                     }
                 }
             } else {
@@ -614,6 +646,19 @@ private struct FoodIntakeHomeView: View {
         .onChange(of: scenePhase) { _, phase in if phase == .active { reload() } }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in reload() }
         .refreshable { reload() }
+        .confirmationDialog("Remove this food entry?", isPresented: $confirmsRemoval, titleVisibility: .visible) {
+            Button("Remove entry", role: .destructive) {
+                if let pendingRemoval { changeEntry(pendingRemoval, restoring: false) }
+                pendingRemoval = nil
+            }
+            Button("Cancel", role: .cancel) { pendingRemoval = nil }
+        } message: {
+            Text("The entry will leave this day's totals. You can restore it from Removed entries; its saved evidence and history remain.")
+        }
+        .alert("Entry unchanged", isPresented: Binding(get: { managementFailure != nil },
+                                                     set: { if !$0 { managementFailure = nil } })) {
+            Button("OK") { managementFailure = nil }
+        } message: { Text(managementFailure ?? "") }
         .sheet(isPresented: $showsEdit, onDismiss: { reload() }) {
             NavigationStack {
                 if let editModel {
@@ -651,6 +696,16 @@ private struct FoodIntakeHomeView: View {
                 Text(Self.sourceStatus(row)).font(.caption).foregroundStyle(.secondary)
             }.padding(.vertical, 4)
         }.accessibilityHint("Opens the saved food confirmation")
+    }
+
+    private func changeEntry(_ row: FoodIntakeLogRow, restoring: Bool) {
+        do {
+            guard let root else { throw FoodIntakeProjectionError.missingReference }
+            try root.changeLogEntry(row, restoring: restoring)
+            reload()
+        } catch {
+            managementFailure = "The entry could not be changed. Refresh the log and try again."
+        }
     }
 
     private func moveDay(_ offset: Int) {

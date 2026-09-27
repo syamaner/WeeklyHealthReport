@@ -185,6 +185,20 @@ final class FoodLedgerCompositionRoot {
         return try FoodIntakeProjection(records: store.archiveState().records, reportingDate: formatter.string(from: date))
     }
 
+    func changeLogEntry(_ row: FoodIntakeLogRow, restoring: Bool) throws {
+        let management = FoodLogManagementService(ledger: ledger,
+            reader: ArchiveFoodLogHistoryReader(archive: store), clock: SystemLedgerClock(), ids: ids)
+        let operationID = try ids.makeID(OperationTag.self)
+        let reason = try LedgerText(restoring ? "Restored by user from Food Log" : "Removed by user from Food Log")
+        if restoring {
+            try management.restore(logItemID: row.logItemID, expectedVersion: row.logItemVersionID,
+                                   reason: reason, operationID: operationID)
+        } else {
+            try management.remove(logItemID: row.logItemID, expectedVersion: row.logItemVersionID,
+                                  reason: reason, operationID: operationID)
+        }
+    }
+
     func recentIntakeDays(before date: Date, calendar: Calendar = .current) throws -> [FoodIntakeDayPreview] {
         FoodIntakeDayPreview.pastWeek(records: try store.archiveState().records, now: date, calendar: calendar)
     }

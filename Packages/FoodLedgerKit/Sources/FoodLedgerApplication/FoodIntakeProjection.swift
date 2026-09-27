@@ -5,6 +5,7 @@ public enum FoodIntakeProjectionError: Error { case competingVersions, unsupport
 
 public struct FoodIntakeLogRow: Sendable {
     public let logItemID: LogItemID
+    public let logItemVersionID: LogItemVersionID
     public let occurredAt: Date
     public let name: String
     public let quantity: PositiveQuantity
@@ -15,6 +16,7 @@ public struct FoodIntakeLogRow: Sendable {
 public struct FoodIntakeProjection: Sendable {
     public let summary: FoodIntakeSummary
     public let rows: [FoodIntakeLogRow]
+    public let removedRows: [FoodIntakeLogRow]
 
     public init(records: LedgerMutation, reportingDate: String) throws {
         let superseded = Set(records.logItemVersions.compactMap(\.supersedesLogItemVersionID))
@@ -25,7 +27,17 @@ public struct FoodIntakeProjection: Sendable {
             .sorted { $0.occurredAt == $1.occurredAt ? $0.logItemID.rawValue < $1.logItemID.rawValue : $0.occurredAt < $1.occurredAt }
         var contributions: [FoodIntakeContribution] = []
         var rows: [FoodIntakeLogRow] = []
-        for log in current {
+        var removedRows: [FoodIntakeLogRow] = []
+        for head in current {
+            let log: LogItemVersion
+            let removed: Bool
+            if case let .removed(reference) = head.composition {
+                guard let original = records.logItemVersions.first(where: { $0.logItemVersionID == reference }) else {
+                    throw FoodIntakeProjectionError.missingReference
+                }
+                try head.validateRemovalTransition(predecessor: original)
+                log = original; removed = true
+            } else { log = head; removed = false }
             guard case let .product(productID) = log.composition else { throw FoodIntakeProjectionError.unsupportedMixture }
             guard let product = records.productVersions.first(where: { $0.productVersionID == productID }) else {
                 throw FoodIntakeProjectionError.missingReference
@@ -33,14 +45,16 @@ public struct FoodIntakeProjection: Sendable {
             let version = records.resolutionVersions.first { $0.resolutionVersionID == log.effectiveResolutionVersionID }
             let resolution = version.flatMap { version in records.resolutions.first { $0.resolutionID == version.resolutionID } }
             let contribution = FoodIntakeContribution(quantity: log.edibleQuantity, basis: resolution?.basis ?? .unknown, nutrients: version?.nutrients)
-            contributions.append(contribution)
+            if !removed { contributions.append(contribution) }
             let sources = Set((version?.nutrients.entries ?? []).flatMap { $0.value.provenance }.map { $0.sourceID.value })
-            rows.append(FoodIntakeLogRow(logItemID: log.logItemID, occurredAt: log.occurredAt,
+            let row = FoodIntakeLogRow(logItemID: log.logItemID, logItemVersionID: head.logItemVersionID, occurredAt: log.occurredAt,
                                          name: product.name.value, quantity: log.edibleQuantity, sourceIDs: sources.sorted(),
-                                         totals: FoodIntakeSummary(contributions: [contribution]).totals))
+                                         totals: FoodIntakeSummary(contributions: [contribution]).totals)
+            if removed { removedRows.append(row) } else { rows.append(row) }
         }
         summary = FoodIntakeSummary(contributions: contributions)
         self.rows = rows
+        self.removedRows = removedRows
     }
 }
 

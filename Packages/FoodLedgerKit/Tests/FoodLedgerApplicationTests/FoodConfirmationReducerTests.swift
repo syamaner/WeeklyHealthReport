@@ -4,6 +4,51 @@ import FoodLedgerTestSupport
 import XCTest
 
 final class FoodConfirmationReducerTests: XCTestCase {
+    func testRemoveRestoreRetainsHistoryRejectsStaleHeadsAndRecoversRetries() throws {
+        let store = InMemoryFoodLedgerStore()
+        let ids = SequenceIDs()
+        let confirmations = makeService(store: store, ids: ids)
+        var state = FoodConfirmationState(input: try fixtureInput())
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        let saved = try confirmations.save(state, operationID: id(910, OperationTag.self))
+        let original = saved.logItemVersion
+        let before = try store.archiveState().records
+        let ledger = FoodLedgerService(actorID: try id(999, ActorTag.self), committer: store,
+            clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+        let management = FoodLogManagementService(ledger: ledger,
+            reader: ArchiveFoodLogHistoryReader(archive: store), clock: FixedClock(), ids: ids)
+        let reason = try LedgerText("Mistaken entry")
+        let operationID: OperationID = try id(911, OperationTag.self)
+        let removed = try management.remove(logItemID: original.logItemID,
+            expectedVersion: original.logItemVersionID, reason: reason, operationID: operationID)
+        XCTAssertEqual(removed.composition, .removed(original.logItemVersionID))
+        XCTAssertNil(try confirmations.reopen(logItemID: original.logItemID))
+        let empty = try FoodIntakeProjection(records: store.archiveState().records, reportingDate: original.reportingDate.value)
+        XCTAssertEqual(empty.summary.itemCount, 0)
+        XCTAssertEqual(empty.removedRows.count, 1)
+        XCTAssertEqual(empty.removedRows.first?.logItemVersionID, removed.logItemVersionID)
+        XCTAssertEqual(try management.remove(logItemID: original.logItemID,
+            expectedVersion: original.logItemVersionID, reason: reason, operationID: operationID), removed)
+        XCTAssertThrowsError(try management.remove(logItemID: original.logItemID,
+            expectedVersion: original.logItemVersionID, reason: reason, operationID: id(912, OperationTag.self)))
+        let restored = try management.restore(logItemID: original.logItemID,
+            expectedVersion: removed.logItemVersionID, reason: LedgerText("Restore mistake"),
+            operationID: id(913, OperationTag.self))
+        XCTAssertEqual(restored.composition, original.composition)
+        XCTAssertEqual(restored.occurredAt, original.occurredAt)
+        XCTAssertEqual(restored.reportingDate, original.reportingDate)
+        XCTAssertEqual(restored.edibleQuantity, original.edibleQuantity)
+        let after = try store.archiveState().records
+        XCTAssertEqual(after.evidence, before.evidence)
+        XCTAssertEqual(after.productVersions, before.productVersions)
+        XCTAssertEqual(after.resolutionVersions, before.resolutionVersions)
+        XCTAssertEqual(after.logItemVersions.count, 3)
+        let restoredDay = try FoodIntakeProjection(records: after, reportingDate: original.reportingDate.value)
+        XCTAssertEqual(restoredDay.summary.itemCount, 1)
+        XCTAssertEqual(restoredDay.removedRows.count, 0)
+        XCTAssertEqual(restoredDay.summary, try FoodIntakeProjection(records: before, reportingDate: original.reportingDate.value).summary)
+    }
+
     func testIntakeProjectionUsesConfirmedHeadsAndRejectsCompetingVersions() throws {
         let store = InMemoryFoodLedgerStore()
         let service = makeService(store: store, ids: SequenceIDs())

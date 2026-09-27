@@ -140,6 +140,8 @@ public struct LedgerOperationType: RawRepresentable, Codable, Hashable, Sendable
     public static let correctResolution = Self(rawValue: "correct_resolution_v1")!
     public static let saveLibraryEntry = Self(rawValue: "save_library_entry_v1")!
     public static let recordLogItem = Self(rawValue: "record_log_item_v1")!
+    public static let removeLogItem = Self(rawValue: "remove_log_item_v1")!
+    public static let restoreLogItem = Self(rawValue: "restore_log_item_v1")!
     public static let correctLogItem = Self(rawValue: "correct_log_item_v1")!
     public static let recordQuantityConversion = Self(rawValue: "record_quantity_conversion_v1")!
     public static let recordPlateWeight = Self(rawValue: "record_plate_weight_v1")!
@@ -169,6 +171,7 @@ public struct LedgerOperationRegistry: Sendable {
     }
 
     public static let builtInV1 = LedgerOperationRegistry(supported: LedgerOperationType.builtInV1)
+    public static let builtInV2 = LedgerOperationRegistry(supported: LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem]))
 }
 
 public struct ActorHead: Codable, Equatable, Sendable {
@@ -387,7 +390,7 @@ public struct OperationVerifier: Sendable {
     public init(
         encoder: any CanonicalEncoding,
         digester: any Digesting,
-        operationRegistry: LedgerOperationRegistry = .builtInV1
+        operationRegistry: LedgerOperationRegistry = .builtInV2
     ) {
         self.encoder = encoder
         self.digester = digester
