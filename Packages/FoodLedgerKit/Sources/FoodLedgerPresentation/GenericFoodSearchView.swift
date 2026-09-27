@@ -110,13 +110,16 @@ public final class GenericFoodSearchViewModel: ObservableObject {
 
 public struct GenericFoodSearchView: View {
     @ObservedObject private var model: GenericFoodSearchViewModel
+    private let webDiscovery: FoodWebDiscoveryViewModel?
     private let review: (PopulatedFoodConfirmation) -> Void
 
     public init(
         model: GenericFoodSearchViewModel,
+        webDiscovery: FoodWebDiscoveryViewModel? = nil,
         review: @escaping (PopulatedFoodConfirmation) -> Void
     ) {
         self.model = model
+        self.webDiscovery = webDiscovery
         self.review = review
     }
 
@@ -152,6 +155,12 @@ public struct GenericFoodSearchView: View {
                     .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             resultSection
+            if let webDiscovery {
+                Section("Beyond the bundled catalogues") {
+                    NavigationLink("Search the web") { FoodWebDiscoveryView(model: webDiscovery) }
+                    Text("Optional Gemini source leads with your own API key. No food is selected or saved.").font(.caption)
+                }
+            }
         }
         .navigationTitle("Search foods")
     }

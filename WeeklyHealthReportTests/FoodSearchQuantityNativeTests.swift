@@ -7,6 +7,7 @@ import FoodLedgerPresentation
 import SwiftUI
 import UIKit
 import XCTest
+import WebKit
 
 @MainActor
 final class FoodSearchQuantityNativeTests: XCTestCase {
@@ -151,6 +152,58 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         }
     }
 
+    func testGeminiSetupRendersSecureEntryAndDoesNotCallProvider() async throws {
+        let provider = NativeWebDiscoverySpy()
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: NativeEmptyWebKeys())
+        let host = NativeHostingController(rootView: NavigationStack { FoodWebDiscoveryView(model: model) })
+        let scene = try testScene()
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 430, height: 932)
+        window.rootViewController = host; window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        try await waitForHostAppearance(host, window: window)
+        var field: UITextField?
+        for _ in 0..<30 {
+            try await Task.sleep(for: .milliseconds(100))
+            host.view.layoutIfNeeded()
+            field = descendants(host.view).compactMap { $0 as? UITextField }.first { $0.isSecureTextEntry }
+            if field != nil { break }
+            if let scroll = descendants(host.view).compactMap({ $0 as? UIScrollView }).first {
+                scroll.setContentOffset(CGPoint(x: 0, y: min(scroll.contentOffset.y + 250,
+                    max(0, scroll.contentSize.height - scroll.bounds.height))), animated: false)
+            }
+        }
+        XCTAssertNotNil(field, "API key entry must be a native secure field")
+        XCTAssertFalse(model.canSearch)
+        let calls = await provider.calls
+        XCTAssertEqual(calls, 0)
+    }
+
+    func testGeminiSuggestionsRenderWithoutScriptsOrPersistentStorage() async throws {
+        let html = "<div id='suggestions'>Synthetic Google suggestions</div><script>document.body.dataset.executed='yes'</script>"
+        let host = NativeHostingController(rootView: FoodWebSearchSuggestions(html: html))
+        let scene = try testScene()
+        let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 430, height: 600)
+        window.rootViewController = host; window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        try await waitForHostAppearance(host, window: window)
+        let webView = try XCTUnwrap(descendants(host.view).compactMap { $0 as? WKWebView }.first)
+        XCTAssertFalse(webView.configuration.websiteDataStore.isPersistent)
+        XCTAssertFalse(webView.configuration.defaultWebpagePreferences.allowsContentJavaScript)
+        var text = ""
+        for _ in 0..<50 {
+            try await Task.sleep(for: .milliseconds(100))
+            text = (try? await webView.evaluateJavaScript("document.body.innerText")) as? String ?? ""
+            if text.contains("Synthetic Google suggestions") { break }
+        }
+        XCTAssertTrue(text.contains("Synthetic Google suggestions"))
+        let ran = try await webView.evaluateJavaScript("document.body.dataset.executed || 'no'") as? String
+        XCTAssertEqual(ran, "no")
+    }
+
     private func testScene() throws -> UIWindowScene {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         return try XCTUnwrap(scenes.first { $0.activationState == .foregroundActive } ?? scenes.first)
@@ -256,4 +309,18 @@ private final class NativeHostingController<Content: View>: UIHostingController<
         super.viewDidAppear(animated)
         hasAppeared = true
     }
+}
+
+private actor NativeWebDiscoverySpy: FoodWebDiscovering {
+    private(set) var calls = 0
+    func validate(key: String) async throws { calls += 1 }
+    func discover(foodTerms: String, key: String) async throws -> FoodWebDiscoveryResult {
+        calls += 1
+        return FoodWebDiscoveryResult(leads: [], searchSuggestionsHTML: nil)
+    }
+}
+private struct NativeEmptyWebKeys: FoodWebKeyStoring {
+    func load() throws -> String? { nil }
+    func save(_ key: String) throws {}
+    func delete() throws {}
 }

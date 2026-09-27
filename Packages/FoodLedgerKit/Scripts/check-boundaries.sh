@@ -19,9 +19,9 @@ check_imports() {
 
 check_imports FoodLedgerDomain '^(Foundation)$'
 check_imports FoodLedgerApplication '^(CryptoKit|Foundation|FoodLedgerDomain)$'
-check_imports FoodGenericSearch '^(CryptoKit|Foundation|FoodLedgerApplication|FoodLedgerDomain)$'
+check_imports FoodGenericSearch '^(CryptoKit|Foundation|Security|FoodLedgerApplication|FoodLedgerDomain)$'
 check_imports FoodInventoryImport '^(Foundation|PDFKit|FoodLedgerApplication|FoodLedgerDomain)$'
-check_imports FoodLedgerPresentation '^(FoodLedgerApplication|FoodLedgerDomain|SwiftUI)$'
+check_imports FoodLedgerPresentation '^(FoodLedgerApplication|FoodLedgerDomain|SwiftUI|WebKit)$'
 check_imports FoodBarcodeCapture '^(AVFoundation|FoodLedgerApplication|FoodLedgerDomain|SwiftUI|Vision|VisionKit)$'
 check_imports FoodLedgerArchive '^(Foundation|FoodLedgerApplication|FoodLedgerGRDB)$'
 check_imports FoodLedgerTestSupport '^(Foundation|FoodLedgerApplication|FoodLedgerDomain)$'
@@ -41,3 +41,11 @@ fi
 
 grep -q 'exact: "7.11.1"' "$package_root/Package.swift"
 grep -q 'Licence: MIT' "$package_root/DEPENDENCIES.md"
+
+# Keep platform capabilities restricted to their concrete adapters.
+if grep -l '^import Security$' "$package_root"/Sources/FoodGenericSearch/*.swift | grep -v '/GeminiKeychainStore.swift$'; then
+  echo "Security belongs only in the keychain adapter" >&2; exit 1
+fi
+if grep -l '^import WebKit$' "$package_root"/Sources/FoodLedgerPresentation/*.swift | grep -v '/FoodWebSearchSuggestions.swift$'; then
+  echo "WebKit belongs only in the search-suggestion renderer" >&2; exit 1
+fi

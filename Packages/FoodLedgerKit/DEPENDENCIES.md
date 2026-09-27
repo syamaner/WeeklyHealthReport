@@ -15,3 +15,11 @@
   transactions. SQL records and database handles do not cross the adapter.
 
 No SQLCipher product, provider SDK, networking library or UI framework is added.
+
+## Optional Gemini BYOK discovery
+
+No third-party provider SDK is linked. The existing infrastructure target uses
+Foundation HTTPS and Apple's Security framework for a user-owned Keychain item;
+presentation uses Apple's WebKit only for isolated Google Search suggestions.
+The API route, model, retention and acceptance boundary are documented in
+`../../docs/gemini-grounded-food-discovery-plan-v1.md`.

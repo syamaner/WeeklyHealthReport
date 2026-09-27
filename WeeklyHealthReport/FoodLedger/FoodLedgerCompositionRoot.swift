@@ -272,6 +272,7 @@ struct FoodListImportFlowView: View {
 
 struct GenericFoodSearchFlowView: View {
     private let root: FoodLedgerCompositionRoot
+    @StateObject private var webDiscovery: FoodWebDiscoveryViewModel
     @StateObject private var searchModel: GenericFoodSearchViewModel
     @State private var confirmationModel: FoodConfirmationViewModel?
     @State private var showsConfirmation = false
@@ -281,10 +282,11 @@ struct GenericFoodSearchFlowView: View {
         self.root = root
         model.query = initialQuery
         _searchModel = StateObject(wrappedValue: model)
+        _webDiscovery = StateObject(wrappedValue: FoodWebDiscoveryViewModel(provider: GeminiFoodWebDiscovery(), keys: GeminiKeychainStore()))
     }
 
     var body: some View {
-        GenericFoodSearchView(model: searchModel) { input in
+        GenericFoodSearchView(model: searchModel, webDiscovery: webDiscovery) { input in
             // Snapshot selection and parsed quantity once; navigation renders reuse this model.
             confirmationModel = root.model(for: input, queryQuantity: searchModel.parsedQuery?.quantity)
             showsConfirmation = true
