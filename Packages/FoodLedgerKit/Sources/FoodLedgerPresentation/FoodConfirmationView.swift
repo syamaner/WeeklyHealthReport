@@ -27,6 +27,49 @@ public final class FoodConfirmationViewModel: ObservableObject {
         return nil
     }
 
+    public static func nutrientLabel(_ value: NutrientKey) -> String {
+        value == .energyConsumed ? "Energy" : value.rawValue.replacingOccurrences(of: "_", with: " ").capitalized
+    }
+
+    public var nutritionReferenceTitle: String {
+        "Reference nutrition — \(FoodConfirmationView.basisLabel(state.selectedCandidate.candidate.identity.servingBasis))"
+    }
+
+    public var consumedNutritionBasisLabel: String {
+        let basis = (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis
+        let prefix = state.correction == nil ? "Calculation basis" : "User-corrected calculation basis"
+        return "\(prefix): \(FoodConfirmationView.basisLabel(basis))"
+    }
+
+    public var consumedNutrition: [FoodIntakeTotal] {
+        let draft = state.quantity
+        var quantity: PositiveQuantity?
+        if let value = draft.value, let entered = try? PositiveQuantity(value: value, unit: draft.unit) {
+            switch draft.plateChoice {
+            case .foodOnly:
+                if let conversion = draft.conversion {
+                    // Saving rejects an identity conversion; preview must do the same.
+                    if conversion.convertedQuantity != entered { quantity = conversion.convertedQuantity }
+                } else if entered.unit != .count {
+                    quantity = entered
+                }
+            case .missing: break
+            case let .saved(plate):
+                quantity = try? FoodQuantityCalculator.subtractPlate(total: entered, emptyPlate: plate)
+            case let .new(emptyWeight, _):
+                if entered.unit == .grams && emptyWeight.unit == .grams {
+                    quantity = try? PositiveQuantity(value: entered.value - emptyWeight.value, unit: .grams)
+                }
+            }
+        }
+        guard let quantity else { return [] }
+        return FoodIntakeSummary(contributions: [FoodIntakeContribution(
+            quantity: quantity,
+            basis: (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis,
+            nutrients: state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients
+        )]).totals
+    }
+
     /// Guidance uses the same unresolved-identity rule as the save service.
     public var saveRequirements: [String] {
         var result: [String] = []
@@ -342,13 +385,27 @@ public struct FoodConfirmationView: View {
     }
 
     private var nutritionSection: some View {
-        Section("Nutrition and provenance") {
-            ForEach(model.state.selectedCandidate.candidate.nutrients.entries, id: \.key.rawValue) { entry in
-                LabeledContent(Self.nutrientLabel(entry.key), value: Self.nutrientValue(entry))
-                    .accessibilityLabel("\(Self.nutrientLabel(entry.key)), \(Self.nutrientValue(entry))")
+        let totals = model.consumedNutrition
+        return Group {
+            Section(model.nutritionReferenceTitle) {
+                Text("Source reference values, not the amount eaten. Provenance and bounds are preserved.")
+                    .font(.caption)
+                ForEach(model.state.selectedCandidate.candidate.nutrients.entries, id: \.key.rawValue) { entry in
+                    LabeledContent(Self.nutrientLabel(entry.key), value: Self.nutrientValue(entry))
+                        .accessibilityLabel("\(Self.nutrientLabel(entry.key)), \(Self.nutrientValue(entry))")
+                }
             }
-            Text("Unknown values remain unknown. Bounds remain intervals and are never shown as exact amounts.")
-                .font(.caption)
+            Section("Consumed nutrition for the amount eaten") {
+                Text(model.consumedNutritionBasisLabel).font(.caption)
+                ForEach(model.state.selectedCandidate.candidate.nutrients.entries, id: \.key.rawValue) { entry in
+                    let total = totals.first { $0.key == entry.key }
+                    LabeledContent(Self.nutrientLabel(entry.key), value: total?.knownAmount.map {
+                        "\(Self.number($0)) \(entry.key.canonicalUnit.rawValue)\(total?.includesEstimates == true ? " estimated" : "")"
+                    } ?? "Unavailable")
+                }
+                Text("Unknown values remain unknown. Bounds remain intervals and are never shown as exact amounts. Unavailable consumed values require a supported amount conversion and an exact source value.")
+                    .font(.caption)
+            }
         }
     }
 
@@ -535,7 +592,7 @@ public struct FoodConfirmationView: View {
     }
 
     private static func label(_ value: IdentityContradiction) -> String {
-        value.rawValue.replacingOccurrences(of: "_", with: " ").capitalized
+         value.rawValue.replacingOccurrences(of: "_", with: " ").capitalized
     }
 
     private static func label(_ value: String) -> String {
@@ -608,7 +665,7 @@ public struct FoodConfirmationView: View {
         switch value { case let .named(text): text.value; case .unknown: "Unknown" }
     }
 
-    private static func basisLabel(_ value: ResolutionBasis) -> String {
+    fileprivate static func basisLabel(_ value: ResolutionBasis) -> String {
         switch value {
         case .per100Grams: "Per 100 g"
         case .per100Millilitres: "Per 100 mL"
@@ -620,7 +677,7 @@ public struct FoodConfirmationView: View {
     }
 
     private static func nutrientLabel(_ value: NutrientKey) -> String {
-        value.rawValue.replacingOccurrences(of: "_", with: " ").capitalized
+        FoodConfirmationViewModel.nutrientLabel(value)
     }
 
     private static func nutrientValue(_ entry: NutrientEntry) -> String {

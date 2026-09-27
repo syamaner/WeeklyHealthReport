@@ -88,7 +88,93 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertTrue(message.contains("Review or correct food details"))
     }
 
-    private func fixtureState() throws -> FoodConfirmationState {
+    func testReferenceBasisAndConsumedPreviewNeverInferDensity() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        XCTAssertEqual(model.nutritionReferenceTitle, "Reference nutrition — Per 100 g")
+        XCTAssertEqual(FoodConfirmationViewModel.nutrientLabel(.energyConsumed), "Energy")
+        model.send(.setQuantity(200, .millilitres))
+        XCTAssertTrue(model.consumedNutrition.allSatisfy { $0.knownAmount == nil })
+        XCTAssertNotNil(model.quantityBasisWarning)
+        model.send(.setQuantity(200, .grams))
+        XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, 16)
+        XCTAssertTrue(model.consumedNutrition.first { $0.key == .protein }?.includesEstimates == true)
+        XCTAssertNil(model.consumedNutrition.first { $0.key == .energyConsumed }?.knownAmount)
+        model.send(.setQuantity(2, .count))
+        XCTAssertTrue(model.consumedNutrition.isEmpty)
+        model.send(.setConversion(QuantityConversionDraft(
+            convertedQuantity: try PositiveQuantity(value: 150, unit: .grams),
+            methodVersion: try LedgerText("user-measured-v1"))))
+        XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, 12)
+    }
+
+    func testVolumeReferenceScalesOnlySupportedVolume() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(basis: .per100Millilitres, knownProtein: true)) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        XCTAssertEqual(model.nutritionReferenceTitle, "Reference nutrition — Per 100 mL")
+        model.send(.setQuantity(200, .millilitres))
+        XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, 16)
+        model.send(.setQuantity(200, .grams))
+        XCTAssertTrue(model.consumedNutrition.allSatisfy { $0.knownAmount == nil })
+    }
+
+    func testBoundedSourceRemainsVisibleAndIsNotAnExactConsumedTotal() throws {
+        let state = try fixtureState(boundedProtein: true)
+        let model = FoodConfirmationViewModel(state: state) { _ in throw CocoaError(.fileWriteUnknown) }
+        model.send(.setQuantity(200, .grams))
+        XCTAssertNil(model.consumedNutrition.first { $0.key == .protein }?.knownAmount)
+        XCTAssertEqual(model.state.selectedCandidate.candidate.nutrients, state.selectedCandidate.candidate.nutrients)
+        guard case .bounded = model.state.selectedCandidate.candidate.nutrients.entries.first(where: { $0.key == .protein })?.value else {
+            return XCTFail("Source bounds must remain intact")
+        }
+    }
+
+    func testPlatePreviewUsesSameSubtractionAsSavingAndInvalidAmountsStayUnavailable() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        let plate = try PlateWeightVersion(
+            plateWeightVersionID: PlateWeightVersionID("00000000-0000-0000-0000-000000000002"),
+            plateID: PlateID("00000000-0000-0000-0000-000000000003"), ordinal: VersionOrdinal(1),
+            emptyWeight: PositiveQuantity(value: 50, unit: .grams), createdAt: Date(timeIntervalSince1970: 0))
+        model.send(.setQuantity(250, .grams))
+        let edible = try FoodQuantityCalculator.subtractPlate(
+            total: PositiveQuantity(value: 250, unit: .grams), emptyPlate: plate)
+        for choice in [PlateWeightChoice.saved(plate), .new(emptyWeight: plate.emptyWeight, superseding: nil)] {
+            model.send(.setPlateChoice(choice))
+            XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, edible.value * 8 / 100)
+        }
+        for value in [0.0, -1, 50, Double.nan, Double.infinity] {
+            model.send(.setQuantity(value, .grams))
+            XCTAssertTrue(model.consumedNutrition.isEmpty)
+        }
+        model.send(.setQuantity(250, .millilitres))
+        XCTAssertTrue(model.consumedNutrition.isEmpty)
+        model.send(.setPlateChoice(.missing))
+        XCTAssertTrue(model.consumedNutrition.isEmpty)
+    }
+
+    func testConversionInvalidationAndCorrectionBasisAreExplicit() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        model.send(.setQuantity(2, .count))
+        model.send(.setConversion(QuantityConversionDraft(
+            convertedQuantity: try PositiveQuantity(value: 150, unit: .grams), methodVersion: try LedgerText("measured-v1"))))
+        model.send(.setQuantity(200, .millilitres))
+        XCTAssertNil(model.state.quantity.conversion)
+        XCTAssertTrue(model.consumedNutrition.allSatisfy { $0.knownAmount == nil })
+        let corrected = try fixtureState(basis: .per100Millilitres, knownProtein: true).selectedCandidate
+        model.send(.applyCorrection(FoodCorrection(name: corrected.name, brand: nil, variant: nil,
+            identity: corrected.candidate.identity, nutrients: corrected.candidate.nutrients, reason: try LedgerText("Synthetic basis correction"))))
+        XCTAssertEqual(model.nutritionReferenceTitle, "Reference nutrition — Per 100 g")
+        XCTAssertEqual(model.consumedNutritionBasisLabel, "User-corrected calculation basis: Per 100 mL")
+        XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, 16)
+    }
+
+    private func fixtureState(basis: ResolutionBasis = .per100Grams, knownProtein: Bool = false, boundedProtein: Bool = false) throws -> FoodConfirmationState {
         let evidenceID = try EvidenceID("00000000-0000-0000-0000-000000000001")
         let releaseID = try ExternalIdentifier("synthetic:presentation-v1")
         let date = Date(timeIntervalSince1970: 1_700_000_000)
@@ -119,10 +205,18 @@ final class FoodConfirmationPresentationTests: XCTestCase {
             drained: .notApplicable,
             packingMedium: .named(LedgerText("none")),
             fortification: .unfortified,
-            servingBasis: .per100Grams
+            servingBasis: basis
         )
+        let protein = try ExactNutrientValue(amount: 8, unit: .grams,
+            sourceValue: .exact(SourceExactNutrientValue(amount: 8, unit: LedgerText("g"), basis: basis)),
+            provenance: [NutrientProvenance(sourceKind: .genericCompositionDataset,
+                sourceID: ExternalIdentifier("synthetic"), sourceReleaseID: releaseID, recordID: ExternalIdentifier("record:1"))])
+        let bounds = try NutrientBounds(lower: 1, upper: 2, lowerClosed: true, upperClosed: false,
+            origin: .augmented, unit: .grams,
+            sourceValue: .bounded(SourceBoundedNutrientValue(lower: 1, upper: 2, lowerClosed: true, upperClosed: false,
+                unit: LedgerText("g"), basis: basis)), provenance: protein.provenance)
         let nutrients = try NutrientSet(entries: NutrientKey.allCases.map {
-            try NutrientEntry(key: $0, value: .unknown(.notDeclared))
+            try NutrientEntry(key: $0, value: $0 == .protein && boundedProtein ? .bounded(bounds) : knownProtein && $0 == .protein ? .augmented(protein) : .unknown(.notDeclared))
         })
         let quantity = try PositiveQuantity(value: 100, unit: .grams)
         let candidate = try PopulatedFoodCandidate(
