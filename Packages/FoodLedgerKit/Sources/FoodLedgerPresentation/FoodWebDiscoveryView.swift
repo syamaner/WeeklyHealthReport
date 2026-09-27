@@ -21,7 +21,7 @@ public struct FoodWebDiscoveryView: View {
                 Link("Manage your API keys", destination: URL(string: "https://aistudio.google.com/api-keys")!)
             }
             Section("Your Gemini API key") {
-                Text(model.keyIsUsable ? "Saved key available" : "Web search needs a validated key")
+                Text(model.keyIsUsable ? "Saved key validated" : model.hasSavedKey ? "Saved key needs revalidation" : "Web search needs a validated key")
                 SecureField("Paste API key", text: $model.keyEntry)
                     .autocorrectionDisabled()
                     #if os(iOS)
@@ -32,6 +32,10 @@ public struct FoodWebDiscoveryView: View {
                     Task { await model.validateAndSaveKey() }
                 }
                 .disabled(model.isValidating || model.keyEntry.isEmpty)
+                if model.hasSavedKey && !model.keyIsUsable {
+                    Button("Revalidate saved key") { Task { await model.revalidateSavedKey() } }
+                        .disabled(model.isValidating)
+                }
                 if model.isValidating { ProgressView("Checking model access") }
                 if model.hasSavedKey || model.isValidating || !model.keyIsUsable {
                     Button("Remove key", role: .destructive) { model.removeKey() }
@@ -57,6 +61,9 @@ public struct FoodWebDiscoveryView: View {
                             Link(destination: lead.url) {
                                 VStack(alignment: .leading) {
                                     Text(lead.title)
+                                    if let citedText = lead.citedText {
+                                        Text("Cited passage: \(citedText)").font(.caption)
+                                    }
                                     Text(lead.url.host ?? "Source website").font(.caption)
                                 }
                             }

@@ -16,6 +16,12 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     @Published public private(set) var parsedQuery: ParsedFoodQuery?
     @Published public var preparationFilter: PreparationKind? { didSet { if preparationFilter != oldValue { invalidateSearch() } } }
     @Published public private(set) var phase: GenericFoodSearchPhase = .idle
+    public var canOfferWebDiscovery: Bool {
+        switch phase {
+        case .results, .noResult: true
+        case .idle, .declined, .failed: false
+        }
+    }
     private let searcher: any GenericFoodSearching
     private let now: @MainActor () -> Date
     private let locale: LedgerText
@@ -155,9 +161,12 @@ public struct GenericFoodSearchView: View {
                     .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
             resultSection
-            if let webDiscovery {
+            if let webDiscovery, model.canOfferWebDiscovery {
                 Section("Beyond the bundled catalogues") {
-                    NavigationLink("Search the web") { FoodWebDiscoveryView(model: webDiscovery) }
+                    NavigationLink("Search the web") {
+                        FoodWebDiscoveryView(model: webDiscovery)
+                            .onAppear { webDiscovery.foodTerms = model.query }
+                    }
                     Text("Optional Gemini source leads with your own API key. No food is selected or saved.").font(.caption)
                 }
             }

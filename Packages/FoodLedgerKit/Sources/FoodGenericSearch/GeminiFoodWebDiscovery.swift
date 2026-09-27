@@ -40,14 +40,20 @@ public struct GeminiFoodWebDiscovery: FoodWebDiscovering {
         guard !content.compactMap(\.text).contains(where: { $0.contains(key) }) else {
             throw FoodWebDiscoveryError.invalidResponse
         }
-        let leads = try content.flatMap { $0.annotations ?? [] }.filter { $0.type == "url_citation" }
-            .map { citation -> FoodWebLead in
-                guard let rawURL = citation.url, let url = URL(string: rawURL), FoodWebLinkPolicy.isAllowed(url),
+        let leads = try content.flatMap { block -> [FoodWebLead] in
+            try (block.annotations ?? []).filter { $0.type == "url_citation" }.map { citation in
+                guard let responseText = block.text,
+                      let start = citation.start_index, let end = citation.end_index,
+                      start >= 0, end > start, end <= responseText.utf8.count,
+                      let citedText = String(bytes: Array(responseText.utf8)[start..<end], encoding: .utf8),
+                      !citedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                      let rawURL = citation.url, let url = URL(string: rawURL), FoodWebLinkPolicy.isAllowed(url),
                       !rawURL.contains(key), !(citation.title?.contains(key) ?? false) else {
                     throw FoodWebDiscoveryError.invalidResponse
                 }
-                return FoodWebLead(title: citation.title ?? rawURL, url: url)
+                return FoodWebLead(title: citation.title ?? rawURL, url: url, citedText: citedText)
             }
+        }
         // Keep every supplied suggestion block, including a no-citation response.
         let suggestions = decoded.steps.filter { $0.type == "google_search_result" }
             .flatMap { $0.result ?? [] }.compactMap(\.search_suggestions)
@@ -127,7 +133,13 @@ public struct GeminiFoodWebDiscovery: FoodWebDiscovering {
         let result: [SearchResult]?
     }
     private struct Content: Decodable { let type: String; let text: String?; let annotations: [Citation]? }
-    private struct Citation: Decodable { let type: String; let url: String?; let title: String? }
+    private struct Citation: Decodable {
+        let type: String
+        let url: String?
+        let title: String?
+        let start_index: Int?
+        let end_index: Int?
+    }
     private struct SearchResult: Decodable { let search_suggestions: String? }
     private struct ErrorReply: Decodable { let error: APIError }
     private struct APIError: Decodable { let details: [Detail]? }

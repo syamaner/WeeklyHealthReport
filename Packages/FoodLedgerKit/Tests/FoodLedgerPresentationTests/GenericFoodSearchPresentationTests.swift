@@ -6,6 +6,27 @@ import XCTest
 
 @MainActor
 final class GenericFoodSearchPresentationTests: XCTestCase {
+    func testWebDiscoveryIsOfferedOnlyAfterCompletedOfflineSearch() throws {
+        let search = SearchSpy()
+        let model = GenericFoodSearchViewModel(searcher: search, locale: try LedgerText("en_GB"))
+        XCTAssertFalse(model.canOfferWebDiscovery)
+        model.query = "Greek yoghurt 10% fat"
+        XCTAssertFalse(model.canOfferWebDiscovery)
+        let evidence = try CaptureEvidence(evidenceID: LedgerID("00000000-0000-0000-0000-000000000011"),
+            kind: .genericSearch, capturedAt: Date(), locale: LedgerText("en_GB"),
+            captureMethod: LedgerText("typed_generic_food_search"), captureMethodVersion: LedgerText("test-v1"),
+            originalPayload: .text(LedgerText(model.query)))
+        search.outcome = .noResult(GenericFoodNoResultRoute(evidence: evidence, suggestedQueries: []))
+        model.search()
+        XCTAssertTrue(model.canOfferWebDiscovery)
+        model.query = "whole milk"
+        XCTAssertFalse(model.canOfferWebDiscovery)
+        model.search()
+        XCTAssertTrue(model.canOfferWebDiscovery)
+        model.decline()
+        XCTAssertFalse(model.canOfferWebDiscovery)
+    }
+
     func testParsedQuantityRetainsOriginalAndAmbiguityDoesNotCallSearcher() throws {
         let search = SearchSpy()
         let model = GenericFoodSearchViewModel(searcher: search, locale: try LedgerText("en_GB"))

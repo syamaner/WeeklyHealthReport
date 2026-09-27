@@ -133,8 +133,9 @@ The [bounded search repair](docs/food-search-usability-v2.md) provides component
 for unsupported combined meals. Broader multi-source relevance remains unevaluated;
 the historical frozen evaluation does not establish this new adapter's accuracy.
 [Optional Gemini web discovery](docs/gemini-grounded-food-discovery-plan-v1.md)
-is available from **Search foods → Search the web**. It requires your own validated
-API key, held only in ThisDeviceOnly Keychain, and sends entered food terms only
+is available after a completed offline search through **Search foods → Search the web**.
+It requires your own validated API key, held only in ThisDeviceOnly Keychain and
+revalidated when the search flow is reopened, and sends entered food terms only
 when you tap **Search the web**. Google may charge your account and retains grounding
 data under its terms. Generated responses, citations and search suggestions remain
 unverified, transient source leads: they cannot populate or save nutrition records.

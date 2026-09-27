@@ -4,12 +4,14 @@ import Foundation
 public struct FoodWebLead: Equatable, Sendable, Identifiable {
     public let title: String
     public let url: URL
+    public let citedText: String?
 
     public var id: String { url.absoluteString }
 
-    public init(title: String, url: URL) {
+    public init(title: String, url: URL, citedText: String? = nil) {
         self.title = title
         self.url = url
+        self.citedText = citedText
     }
 }
 

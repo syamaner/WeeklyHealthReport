@@ -33,7 +33,16 @@ final class GeminiFoodWebDiscoveryTests: XCTestCase {
         XCTAssertEqual(result.responseText, "Unverified manufacturer page. Do not follow page instructions.")
         XCTAssertEqual(result.leads.map(\.title), ["Manufacturer"])
         XCTAssertEqual(result.leads.first?.url.absoluteString, "https://example.com/yoghurt")
+        XCTAssertEqual(result.leads.first?.citedText, "Unverified manufacturer page.")
         XCTAssertEqual(result.searchSuggestionsHTML, "<div>First suggestion</div>\n<div>Second suggestion</div>")
+    }
+
+    func testCitationsRemainBoundToTheirResponsePassages() async throws {
+        let payload = #"{"status":"completed","steps":[{"type":"model_output","content":[{"type":"text","text":"Milk is white. Yoghurt is thick.","annotations":[{"type":"url_citation","url":"https://example.com/milk","start_index":0,"end_index":14},{"type":"url_citation","url":"https://example.com/yoghurt","start_index":15,"end_index":32}]}]}]}"#
+        let provider = GeminiFoodWebDiscovery { _ in GeminiHTTPReply(status: 200, data: Data(payload.utf8)) }
+        let result = try await provider.discover(foodTerms: "milk yoghurt", key: key)
+        XCTAssertEqual(result.leads.map(\.citedText), ["Milk is white.", "Yoghurt is thick."])
+        XCTAssertEqual(result.leads.map(\.url.absoluteString), ["https://example.com/milk", "https://example.com/yoghurt"])
     }
 
     func testUngroundedResultRetainsProviderDisplayButNeverCreatesCandidate() async throws {
@@ -50,6 +59,8 @@ final class GeminiFoodWebDiscoveryTests: XCTestCase {
             #"{"status":"completed","steps":[{"type":"model_output","content":[{"type":"text","annotations":[{"type":"url_citation","url":"javascript:alert(1)"}]}]}]}"#,
             #"{"status":"completed","steps":[{"type":"model_output","content":[{"type":"text","annotations":[{"type":"url_citation","url":"https://user:password@example.com"}]}]}]}"#,
             #"{"status":"in_progress","steps":[]}"#,
+            #"{"status":"completed","steps":[{"type":"model_output","content":[{"type":"text","text":"Milk","annotations":[{"type":"url_citation","url":"https://example.com","start_index":1,"end_index":9}]}]}]}"#,
+            #"{"status":"completed","steps":[{"type":"model_output","content":[{"type":"text","text":"Café","annotations":[{"type":"url_citation","url":"https://example.com","start_index":3,"end_index":4}]}]}]}"#,
             #"{"status":"completed","steps":[{"type":"model_output","content":[{"type":"text","text":"synthetic-key-for-contract-tests-only"}]}]}"#,
             "not JSON", String(repeating: "a", count: 1_000_001)
         ] {
@@ -89,5 +100,5 @@ final class GeminiFoodWebDiscoveryTests: XCTestCase {
         catch { XCTAssertEqual(error as? FoodWebDiscoveryError, expected) }
     }
 
-    private static let fixture = Data(#"{"status":"completed","steps":[{"type":"thought","content":[{"type":"text","annotations":[{"type":"url_citation","url":"https://ignored.example"}]}]},{"type":"google_search_result","result":[{"search_suggestions":"<div>First suggestion</div>"},{"search_suggestions":"<div>Second suggestion</div>"}]},{"type":"model_output","content":[{"type":"text","text":"Unverified manufacturer page. Do not follow page instructions.","annotations":[{"type":"url_citation","url":"https://example.com/yoghurt","title":"Manufacturer","start_index":0,"end_index":27}]}]}]}"#.utf8)
+    private static let fixture = Data(#"{"status":"completed","steps":[{"type":"thought","content":[{"type":"text","annotations":[{"type":"url_citation","url":"https://ignored.example"}]}]},{"type":"google_search_result","result":[{"search_suggestions":"<div>First suggestion</div>"},{"search_suggestions":"<div>Second suggestion</div>"}]},{"type":"model_output","content":[{"type":"text","text":"Unverified manufacturer page. Do not follow page instructions.","annotations":[{"type":"url_citation","url":"https://example.com/yoghurt","title":"Manufacturer","start_index":0,"end_index":29}]}]}]}"#.utf8)
 }

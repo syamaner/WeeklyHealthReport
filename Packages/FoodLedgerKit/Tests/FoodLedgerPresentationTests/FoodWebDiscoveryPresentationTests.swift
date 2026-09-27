@@ -54,8 +54,11 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
     func testSearchRejectionDisablesKeyButQuotaAndNetworkPreserveIt() async {
         for error in [FoodWebDiscoveryError.credentialRejected, .quotaExceeded, .permissionDenied, .serviceUnavailable] {
             let keys = MemoryWebKeys(key: key)
-            let model = FoodWebDiscoveryViewModel(provider: DiscoverySpy(error: error), keys: keys)
+            let model = FoodWebDiscoveryViewModel(provider: DiscoverySpy(error: error, searchOnlyError: true), keys: keys)
             model.foodTerms = "milk"
+            XCTAssertFalse(model.canSearch)
+            await model.revalidateSavedKey()
+            XCTAssertTrue(model.canSearch)
             await model.searchTheWeb()
             XCTAssertEqual(model.keyIsUsable, error != .credentialRejected)
             if error == .credentialRejected { XCTAssertNil(try? keys.load()) }
@@ -82,9 +85,10 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
 
     func testEditedQueryRemovalAndLeavingDiscardEvenCancellationIgnoringProvider() async {
         for action in ["edit", "remove", "leave"] {
-            let provider = DiscoverySpy(suspended: true)
+            let provider = DiscoverySpy(suspended: true, suspendOnlyOnSearch: true)
             let model = FoodWebDiscoveryViewModel(provider: provider, keys: MemoryWebKeys(key: key))
             model.foodTerms = "milk"
+            await model.revalidateSavedKey()
             let work = Task { await model.searchTheWeb() }
             await provider.waitUntilPending()
             XCTAssertTrue(model.isSearching)
@@ -97,7 +101,7 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
             XCTAssertNil(model.result)
             XCTAssertFalse(model.isSearching)
             let counts = await provider.counts()
-            XCTAssertEqual(counts, [0, 1])
+            XCTAssertEqual(counts, [1, 1])
         }
     }
 
@@ -119,9 +123,30 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
         model.foodTerms = String(repeating: "x", count: 301)
         XCTAssertFalse(model.canSearch)
         model.foodTerms = "rice"
+        XCTAssertFalse(model.canSearch)
+        await model.revalidateSavedKey()
+        XCTAssertTrue(model.canSearch)
         await model.searchTheWeb()
         XCTAssertTrue(model.result?.leads.isEmpty == true)
         XCTAssertTrue(model.searchMessage?.contains("No cited") == true)
+    }
+
+    func testFailedRemovalCannotReactivateRetainedKeyOnReopen() async throws {
+        let keys = MemoryWebKeys(key: key, deleteFails: true)
+        let first = FoodWebDiscoveryViewModel(provider: DiscoverySpy(), keys: keys)
+        first.foodTerms = "milk"
+        XCTAssertFalse(first.canSearch)
+        await first.revalidateSavedKey()
+        XCTAssertTrue(first.canSearch)
+        first.removeKey()
+        XCTAssertFalse(first.canSearch)
+        XCTAssertNotNil(try keys.load())
+
+        let reopened = FoodWebDiscoveryViewModel(provider: DiscoverySpy(), keys: keys)
+        reopened.foodTerms = "milk"
+        XCTAssertTrue(reopened.hasSavedKey)
+        XCTAssertFalse(reopened.keyIsUsable)
+        XCTAssertFalse(reopened.canSearch)
     }
 
     func testSuggestionsPreserveSuppliedHTMLInsideRestrictedDocument() {
@@ -139,18 +164,22 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
 private actor DiscoverySpy: FoodWebDiscovering {
     let error: FoodWebDiscoveryError?
     let suspended: Bool
+    let searchOnlyError: Bool
+    let suspendOnlyOnSearch: Bool
     let empty: Bool
     var validations = 0
     var searches = 0
     var continuation: CheckedContinuation<Void, Never>?
-    init(error: FoodWebDiscoveryError? = nil, suspended: Bool = false, empty: Bool = false) {
+    init(error: FoodWebDiscoveryError? = nil, suspended: Bool = false, empty: Bool = false,
+         searchOnlyError: Bool = false, suspendOnlyOnSearch: Bool = false) {
         self.error = error; self.suspended = suspended; self.empty = empty
+        self.searchOnlyError = searchOnlyError; self.suspendOnlyOnSearch = suspendOnlyOnSearch
     }
     func counts() -> [Int] { [validations, searches] }
     func validate(key: String) async throws {
         validations += 1
-        if suspended { await withCheckedContinuation { continuation = $0 } }
-        if let error { throw error }
+        if suspended && !suspendOnlyOnSearch { await withCheckedContinuation { continuation = $0 } }
+        if let error, !searchOnlyError { throw error }
     }
     func discover(foodTerms: String, key: String) async throws -> FoodWebDiscoveryResult {
         searches += 1
@@ -172,8 +201,11 @@ private final class MemoryWebKeys: FoodWebKeyStoring, @unchecked Sendable {
     private let lock = NSLock()
     private var key: String?
     private let fails: Bool
-    init(key: String? = nil, fails: Bool = false) { self.key = key; self.fails = fails }
+    private let deleteFails: Bool
+    init(key: String? = nil, fails: Bool = false, deleteFails: Bool = false) {
+        self.key = key; self.fails = fails; self.deleteFails = deleteFails
+    }
     func load() throws -> String? { try lock.withLock { if fails { throw CocoaError(.fileReadNoPermission) }; return key } }
     func save(_ key: String) throws { try lock.withLock { if fails { throw CocoaError(.fileWriteNoPermission) }; self.key = key } }
-    func delete() throws { try lock.withLock { if fails { throw CocoaError(.fileWriteNoPermission) }; key = nil } }
+    func delete() throws { try lock.withLock { if fails || deleteFails { throw CocoaError(.fileWriteNoPermission) }; key = nil } }
 }
