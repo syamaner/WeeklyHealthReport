@@ -39,6 +39,11 @@ public struct GenericFoodIdentityQuery: Equatable, Sendable {
 }
 
 public struct GenericFoodSearchRequest: Equatable, Sendable {
+    public var parsedQuery: ParsedFoodQuery { FoodQueryParser.parse(text.value) }
+    public var retrievalText: String {
+        let parsed = parsedQuery
+        return parsed.route == .search ? (parsed.food ?? text.value) : text.value
+    }
     public let text: LedgerText
     public let identity: GenericFoodIdentityQuery
     public let capturedAt: Date

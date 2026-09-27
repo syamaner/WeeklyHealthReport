@@ -1,0 +1,334 @@
+{
+  "fixture_sha256": "6cf8f5c9250b8d71b0e4826532c5d345ad37dea34d4bc80348b904803be5ba3c",
+  "cases": 262,
+  "correct_fields": {
+    "food": 231,
+    "attributes": 256,
+    "quantity": 262,
+    "route": 262,
+    "exact": 228
+  },
+  "search_cases": 212,
+  "search_correct_fields": {
+    "food": 212,
+    "attributes": 212,
+    "quantity": 212,
+    "route": 212,
+    "exact": 212
+  },
+  "families": {
+    "spelling": {
+      "cases": 5,
+      "exact": 5
+    },
+    "fat_variant": {
+      "cases": 3,
+      "exact": 3
+    },
+    "quantity_and_variant": {
+      "cases": 3,
+      "exact": 3
+    },
+    "quantity": {
+      "cases": 10,
+      "exact": 10
+    },
+    "identity": {
+      "cases": 14,
+      "exact": 14
+    },
+    "ambiguous_quantity": {
+      "cases": 7,
+      "exact": 0
+    },
+    "ambiguity": {
+      "cases": 8,
+      "exact": 0
+    },
+    "invalid": {
+      "cases": 10,
+      "exact": 7
+    },
+    "pattern_prefix_compact": {
+      "cases": 30,
+      "exact": 30
+    },
+    "pattern_prefix_spaced": {
+      "cases": 30,
+      "exact": 30
+    },
+    "pattern_suffix": {
+      "cases": 30,
+      "exact": 30
+    },
+    "pattern_grams": {
+      "cases": 30,
+      "exact": 30
+    },
+    "pattern_kilograms": {
+      "cases": 30,
+      "exact": 30
+    },
+    "note_patterns": {
+      "cases": 20,
+      "exact": 20
+    },
+    "note_ambiguity": {
+      "cases": 30,
+      "exact": 14
+    },
+    "paired_spelling_variant": {
+      "cases": 2,
+      "exact": 2
+    }
+  },
+  "failures": [
+    {
+      "id": "nlp-036",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-037",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-038",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-039",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-040",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-041",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-042",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-043",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-044",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-045",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-046",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-047",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-048",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-049",
+      "family": "ambiguity",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-050",
+      "family": "ambiguity",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-053",
+      "family": "invalid",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-054",
+      "family": "invalid",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-057",
+      "family": "invalid",
+      "fields": [
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-231",
+      "family": "note_ambiguity",
+      "fields": [
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-232",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-233",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-234",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-235",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-236",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-237",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-238",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-239",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-240",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-241",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-242",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-244",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-257",
+      "family": "note_ambiguity",
+      "fields": [
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-259",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-260",
+      "family": "note_ambiguity",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    }
+  ],
+  "independent_acceptance": false,
+  "notes": [
+    "Development fixture scores only; correlated template variants.",
+    "Reason strings are diagnostics, not scored.",
+    "Unsafe prefill counts draft clarify/reject examples returning quantities."
+  ]
+}

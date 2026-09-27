@@ -82,6 +82,20 @@ final class SearchQualityDevelopmentTests: XCTestCase {
         }
     }
 
+    func testQuantityAndFatVariantDoNotEliminateYoghurtAndRetainEvidence() throws {
+        let ids = QualityIDs()
+        let source = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: ids), USDAGenericFoodSearch(ids: ids)], ids: ids)
+        for query in ["Greek yoghurt", "Greek yoghurt 10% fat", "200g Greek youghurt 10% fat"] {
+            guard case let .confirmation(route) = try source.search(request(query)) else { return XCTFail(query) }
+            XCTAssertFalse(route.matches.isEmpty)
+            XCTAssertEqual(route.confirmation.evidence.first?.originalPayload, .text(try LedgerText(query)))
+            XCTAssertTrue(route.matches.allSatisfy { $0.candidate.name.value.lowercased().contains("yogh") || $0.candidate.name.value.lowercased().contains("yogurt") })
+            if query.contains("10%") {
+                XCTAssertTrue(route.matches.allSatisfy { FoodQueryCandidateAssessment.note(query: FoodQueryParser.parse(query), candidate: $0.candidate) != nil })
+            }
+        }
+    }
+
     func testDevelopmentReport() throws {
         let ids = QualityIDs()
         let search = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: ids), USDAGenericFoodSearch(ids: ids)], ids: ids)

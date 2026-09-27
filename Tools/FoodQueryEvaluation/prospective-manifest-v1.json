@@ -1,0 +1,5 @@
+{
+  "sha256": "7ea36951f02aa9cb02f81ae7a63e7c7debc332bf4b7f4bbe296923ff592f4375",
+  "cases": 36,
+  "purpose": "Frozen before first parser run; same-author scenarios, not independent acceptance"
+}

@@ -10,7 +10,7 @@ public enum CoFIDSearchError: Error, Equatable, Sendable {
 }
 
 public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "deterministic-primary-name-v4"
+    public static let matcherVersion = "deterministic-parsed-query-v5"
     public static let corpusCanonicalSHA256 = "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445"
     public static let candidateLimit = 10
     public static let minimumScore = 0.25
@@ -190,7 +190,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
     private func rankedRecords(for request: GenericFoodSearchRequest) throws -> [RankedRecord] {
         let query = Self.normalized(request.text.value)
         let queryTokens = Set(query.split(separator: " ").map(String.init))
-        let meaningfulTokens = GenericFoodSearchTerms.tokens(request.text.value)
+        let meaningfulTokens = GenericFoodSearchTerms.tokens(request.retrievalText)
         guard !meaningfulTokens.isEmpty else { return [] }
         // CoFID has components, not a combined meal. Shop context is not identity.
         if Self.isFishAndChips(queryTokens) || Self.isRibeye(queryTokens) { return [] }
@@ -215,7 +215,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
                 + Self.weights.jaccard * jaccard
             guard rankingScore >= Self.minimumScore else { continue }
             let score = min(1, rankingScore / 1.15) // Clamp floating-point rounding at the schema boundary.
-            let differences = ["Search terms: \(meaningfulTokens.sorted().joined(separator: " ")); spelling equivalents only, original query retained."] + candidateTokens.subtracting(meaningfulTokens).sorted().map { "candidate_only_token:\($0)" }
+            let differences = ["Search terms: \(meaningfulTokens.sorted().joined(separator: " ")); parsed food terms; requested attributes need review; original query retained."] + candidateTokens.subtracting(meaningfulTokens).sorted().map { "candidate_only_token:\($0)" }
                 + meaningfulTokens.subtracting(candidateTokens).sorted().map { "query_only_token:\($0)" }
             ranked.append(RankedRecord(record: record, score: score, exact: exact, differences: differences))
         }

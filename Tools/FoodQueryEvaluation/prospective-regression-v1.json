@@ -1,0 +1,504 @@
+{
+  "schema_version": 1,
+  "status": "author_visible_prospective_regression",
+  "locale": "en-GB",
+  "independent_holdout": false,
+  "cases": [
+    {
+      "id": "prospective-001",
+      "family": "prospective_regression",
+      "query": "73g spinach",
+      "expected": {
+        "food": "spinach",
+        "quantity": {
+          "value": 73,
+          "unit": "g"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-002",
+      "family": "prospective_regression",
+      "query": "quinoa 91 grams",
+      "expected": {
+        "food": "quinoa",
+        "quantity": {
+          "value": 91,
+          "unit": "g"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-003",
+      "family": "prospective_regression",
+      "query": "0.42kg lentils",
+      "expected": {
+        "food": "lentils",
+        "quantity": {
+          "value": 420,
+          "unit": "g"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-004",
+      "family": "prospective_regression",
+      "query": "0.6 litres kefir",
+      "expected": {
+        "food": "kefir",
+        "quantity": {
+          "value": 600,
+          "unit": "ml"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-005",
+      "family": "prospective_regression",
+      "query": "180 milliliters oat milk",
+      "expected": {
+        "food": "oat milk",
+        "quantity": {
+          "value": 180,
+          "unit": "ml"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-006",
+      "family": "prospective_regression",
+      "query": "97g cheddar cheese",
+      "expected": {
+        "food": "cheddar cheese",
+        "quantity": {
+          "value": 97,
+          "unit": "g"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-007",
+      "family": "prospective_regression",
+      "query": "12g tahini",
+      "expected": {
+        "food": "tahini",
+        "quantity": {
+          "value": 12,
+          "unit": "g"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-008",
+      "family": "prospective_regression",
+      "query": "240g baked potato",
+      "expected": {
+        "food": "baked potato",
+        "quantity": {
+          "value": 240,
+          "unit": "g"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-009",
+      "family": "prospective_regression",
+      "query": "buckwheat 85g",
+      "expected": {
+        "food": "buckwheat",
+        "quantity": {
+          "value": 85,
+          "unit": "g"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-010",
+      "family": "prospective_regression",
+      "query": "31g hazelnuts",
+      "expected": {
+        "food": "hazelnuts",
+        "quantity": {
+          "value": 31,
+          "unit": "g"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-011",
+      "family": "prospective_regression",
+      "query": "95g couscous",
+      "expected": {
+        "food": "couscous",
+        "quantity": {
+          "value": 95,
+          "unit": "g"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-012",
+      "family": "prospective_regression",
+      "query": "118g tofu",
+      "expected": {
+        "food": "tofu",
+        "quantity": {
+          "value": 118,
+          "unit": "g"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-013",
+      "family": "prospective_regression",
+      "query": "84g raw courgette",
+      "expected": {
+        "food": "courgette",
+        "quantity": {
+          "value": 84,
+          "unit": "g"
+        },
+        "attributes": {
+          "preparation": "raw"
+        },
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-014",
+      "family": "prospective_regression",
+      "query": "chickpeas canned 67g",
+      "expected": {
+        "food": "chickpeas",
+        "quantity": {
+          "value": 67,
+          "unit": "g"
+        },
+        "attributes": {
+          "preservation": "canned"
+        },
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-015",
+      "family": "prospective_regression",
+      "query": "230ml unsweetened almond milk",
+      "expected": {
+        "food": "almond milk",
+        "quantity": {
+          "value": 230,
+          "unit": "ml"
+        },
+        "attributes": {
+          "sweetening": "unsweetened"
+        },
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-016",
+      "family": "prospective_regression",
+      "query": "135g yoghurt 4% fat",
+      "expected": {
+        "food": "yoghurt",
+        "quantity": {
+          "value": 135,
+          "unit": "g"
+        },
+        "attributes": {
+          "fat_percent": 4
+        },
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-017",
+      "family": "prospective_regression",
+      "query": "1.5 bananas",
+      "expected": {
+        "food": "banana",
+        "quantity": {
+          "value": 1.5,
+          "unit": "count"
+        },
+        "attributes": {},
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-018",
+      "family": "prospective_regression",
+      "query": "one boiled egg",
+      "expected": {
+        "food": "egg",
+        "quantity": {
+          "value": 1,
+          "unit": "count"
+        },
+        "attributes": {
+          "preparation": "boiled"
+        },
+        "route": "search",
+        "reason": null
+      }
+    },
+    {
+      "id": "prospective-019",
+      "family": "prospective_regression",
+      "query": "a scoop of protein powder",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-020",
+      "family": "prospective_regression",
+      "query": "one pot kefir",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-021",
+      "family": "prospective_regression",
+      "query": "half a roast turkey",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-022",
+      "family": "prospective_regression",
+      "query": "250g pasta and 30g pesto",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-023",
+      "family": "prospective_regression",
+      "query": "rice 100g 80g",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-024",
+      "family": "prospective_regression",
+      "query": "milk 200ml or 300ml",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-025",
+      "family": "prospective_regression",
+      "query": "low-fat full-fat yoghurt",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-026",
+      "family": "prospective_regression",
+      "query": "raw cooked salmon",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-027",
+      "family": "prospective_regression",
+      "query": "one egg 60g",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-028",
+      "family": "prospective_regression",
+      "query": "1 cup quinoa",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-029",
+      "family": "prospective_regression",
+      "query": "11:45",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-030",
+      "family": "prospective_regression",
+      "query": "1 zinc capsule",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-031",
+      "family": "prospective_regression",
+      "query": "homemade smoothie 300ml",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "clarify",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-032",
+      "family": "prospective_regression",
+      "query": "-40g oats",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "reject",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-033",
+      "family": "prospective_regression",
+      "query": "0ml kefir",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "reject",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-034",
+      "family": "prospective_regression",
+      "query": "NaN g rice",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "reject",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-035",
+      "family": "prospective_regression",
+      "query": "200g",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "reject",
+        "reason": "review_required"
+      }
+    },
+    {
+      "id": "prospective-036",
+      "family": "prospective_regression",
+      "query": "101% fat yoghurt",
+      "expected": {
+        "food": null,
+        "quantity": null,
+        "attributes": {},
+        "route": "reject",
+        "reason": "review_required"
+      }
+    }
+  ]
+}

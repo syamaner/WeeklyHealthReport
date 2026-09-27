@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "fixture": "synthetic-v3.json",
+  "sha256": "74b9d6bdbc31e9967de38574277087fcd85decd3e24a0af3316f9b0e941153c4",
+  "case_count": 429,
+  "new_case_count": 167,
+  "new_families": {
+    "unseen_food_formatting": 72,
+    "attribute_and_unit_challenge": 23,
+    "desired_quantity_syntax": 10,
+    "ambiguity_and_scope_challenge": 46,
+    "invalid_and_control_challenge": 16
+  },
+  "new_scenario_groups": 119,
+  "provider_calls": 0,
+  "independent_holdout": false,
+  "parser_sha256_before_first_run": "94a287da49e74fc56cc42b6516409084a5a961e721973122083ea451edfe2cd4"
+}

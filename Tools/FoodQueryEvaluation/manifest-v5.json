@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "fixture": "synthetic-v5.json",
+  "sha256": "9e668248df72a42ca0f5ec039d6a7fdcb09221b61230ec62addd258996aff035",
+  "case_count": 511,
+  "new_case_count": 16,
+  "expectation_revisions": [
+    "nlp-444"
+  ],
+  "independent_holdout": false,
+  "parser_sha256_before_first_run": "376590d2e678a916948db61d75d6f1343006374342a2f5783a6caeba91c43342"
+}

@@ -6,6 +6,21 @@ import XCTest
 
 @MainActor
 final class GenericFoodSearchPresentationTests: XCTestCase {
+    func testParsedQuantityRetainsOriginalAndAmbiguityDoesNotCallSearcher() throws {
+        let search = SearchSpy()
+        let model = GenericFoodSearchViewModel(searcher: search, locale: try LedgerText("en_GB"))
+        model.query = "200g Greek youghurt 10% fat"
+        model.search()
+        XCTAssertEqual(search.lastRequest?.text.value, model.query)
+        XCTAssertEqual(search.lastRequest?.retrievalText, "greek yoghurt")
+        XCTAssertEqual(model.parsedQuery?.quantity?.value, 200)
+        let calls = search.callCount
+        model.query = "one mug coffee 15g grounds"
+        model.search()
+        XCTAssertEqual(search.callCount, calls)
+        XCTAssertNil(model.parsedQuery?.quantity)
+    }
+
     func testBlankQueryFailsWithoutCallingSearch() throws {
         let search = SearchSpy()
         let model = GenericFoodSearchViewModel(

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "fixture": "synthetic-v1.json",
+  "sha256": "5779ab7533343c7d2f4959ab0897b2284656a9660385f017859c025b4d45ecd1",
+  "case_count": 60,
+  "provider_calls": 0,
+  "parser_evaluated": false,
+  "independent_holdout": false
+}
