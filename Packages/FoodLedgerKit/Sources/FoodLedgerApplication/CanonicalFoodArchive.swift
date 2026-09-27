@@ -52,13 +52,18 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder()
     ) throws {
         guard (1...Self.foodContractVersion).contains(foodContractVersion),
-              foodContractVersion > 1 || !records.logItemVersions.contains(where: {
-                  if case .removed = $0.composition { return true }; return false
-              }) else { throw FoodArchiveError.unsupportedFoodContract(foodContractVersion) }
+              foodContractVersion >= Self.minimumContractVersion(for: records) else { throw FoodArchiveError.unsupportedFoodContract(foodContractVersion) }
         self.foodContractVersion = foodContractVersion
         dailySchemaVersion = Self.dailySchemaVersion
         self.records = try Self.sorted(records, encoder: encoder)
         self.summaries = try Self.sort(summaries, encoder: encoder)
+    }
+
+    public static func minimumContractVersion(for records: LedgerMutation) -> Int {
+        records.logItemVersions.contains { log in
+            if case .removed = log.composition { return true }
+            return log.plateWeightVersionID != nil
+        } ? 2 : 1
     }
 
     private static func sorted(
@@ -383,10 +388,8 @@ public struct FoodArchiveVerifier: Sendable {
                 document.projection.dailySchemaVersion
             )
         }
-        if manifest.foodContractVersion == 1,
-           document.projection.records.logItemVersions.contains(where: {
-               if case .removed = $0.composition { return true }; return false
-           }) { throw FoodArchiveError.unsupportedFoodContract(1) }
+        guard manifest.foodContractVersion >= CanonicalFoodProjection.minimumContractVersion(for: document.projection.records)
+        else { throw FoodArchiveError.unsupportedFoodContract(manifest.foodContractVersion) }
         let expectedDocument = try CanonicalFoodDocument(
             projection: document.projection,
             encoder: encoder,
@@ -419,9 +422,7 @@ public struct FoodArchiveVerifier: Sendable {
         if manifest.foodContractVersion == 1,
            transactions.contains(where: { transaction in
                [.removeLogItem, .restoreLogItem].contains(transaction.operation.operationType)
-                   || transaction.mutation.logItemVersions.contains(where: {
-                       if case .removed = $0.composition { return true }; return false
-                   })
+                   || CanonicalFoodProjection.minimumContractVersion(for: transaction.mutation) > 1
            }) { throw FoodArchiveError.unsupportedFoodContract(1) }
         try verifyActorChains(operations, watermarks: manifest.watermarks)
         return VerifiedFoodArchive(manifest: manifest, document: document, transactions: transactions)

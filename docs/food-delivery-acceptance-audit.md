@@ -18,3 +18,7 @@ Build 7 is the released internal testing build and does not contain #153/#154/#1
 ## Simulator visual checkpoint
 
 The empty Food Log was inspected on iPhone 17 Pro after launching the validated app. Capture appears before the intake section; current-date navigation and all four admitted capture routes are visible. The empty state explicitly avoids a zero-consumption claim. Screenshot: `/private/tmp/intake-removal-foodlog-empty.png`. The native computer-use surface cannot bind Simulator, so interactive populated/scroll/Dynamic Type inspection is not proved by this checkpoint. Simulator suite success is recorded separately and cannot replace this gap or physical-device checks.
+
+## Follow-up contract repairs
+
+The final audit identified two gaps beyond #155's initial slice: Today/recent-day lookup could use a non-Gregorian display year while saves used a Gregorian ledger key; log payload CodingKeys omitted the existing optional plate-weight reference. The follow-up uses one injected local-date policy and retains future plate links in v2 payloads. Original dates and old payloads remain unchanged; a missing historical plate link is not reconstructed. Focused regression tests cover non-Gregorian/local-midnight round trips, literal v1 log bytes, both storage adapters, competing removed/active heads and archive replay. These repairs require their own validated merge before #142/#143 completion.

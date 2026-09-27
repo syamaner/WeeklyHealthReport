@@ -548,9 +548,7 @@ enum DailyHealthExportBuilder {
               (1...CanonicalFoodProjection.foodContractVersion).contains(foodLog.projection.foodContractVersion),
               foodLog.projection.dailySchemaVersion == CanonicalFoodProjection.dailySchemaVersion,
               foodLog.projection.summaries.contains(summary),
-              foodLog.projection.foodContractVersion > 1 || !foodLog.projection.records.logItemVersions.contains(where: {
-                  if case .removed = $0.composition { return true }; return false
-              }) else {
+              foodLog.projection.foodContractVersion >= CanonicalFoodProjection.minimumContractVersion(for: foodLog.projection.records) else {
             throw DailyHealthExportError.invalidMetricValue
         }
         var today = schemaV3Envelope.today

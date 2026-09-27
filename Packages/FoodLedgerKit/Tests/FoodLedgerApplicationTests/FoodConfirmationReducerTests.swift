@@ -4,6 +4,25 @@ import FoodLedgerTestSupport
 import XCTest
 
 final class FoodConfirmationReducerTests: XCTestCase {
+    func testSaveAndProjectionShareCanonicalLocalDateWithNonGregorianDisplayCalendar() throws {
+        var calendar = Calendar(identifier: .buddhist)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Pacific/Auckland"))
+        let store = InMemoryFoodLedgerStore()
+        let service = makeService(store: store, ids: SequenceIDs(), calendar: calendar)
+        var state = FoodConfirmationState(input: try fixtureInput())
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        let saved = try service.save(state, operationID: id(920, OperationTag.self))
+        let dateKey = FoodReportingDay.key(for: FixedClock.date, calendar: calendar)
+        XCTAssertEqual(dateKey, "2023-11-15")
+        XCTAssertEqual(saved.logItemVersion.reportingDate.value, dateKey)
+        let records = try store.archiveState().records
+        XCTAssertEqual(try FoodIntakeProjection(records: records, reportingDate: dateKey).summary.itemCount, 1)
+        let tomorrow = try XCTUnwrap(calendar.date(byAdding: .day, value: 1, to: FixedClock.date))
+        let pastDays = FoodIntakeDayPreview.pastWeek(records: records, now: tomorrow, calendar: calendar)
+        XCTAssertEqual(pastDays.first?.summary?.itemCount, 1)
+        XCTAssertEqual(FoodReportingDay.key(for: try XCTUnwrap(pastDays.first?.date), calendar: calendar), dateKey)
+    }
+
     func testRemoveRestoreRetainsHistoryRejectsStaleHeadsAndRecoversRetries() throws {
         let store = InMemoryFoodLedgerStore()
         let ids = SequenceIDs()
@@ -285,7 +304,8 @@ final class FoodConfirmationReducerTests: XCTestCase {
 
     private func makeService(
         store: some LedgerCommandCommitting & LedgerReading & FoodConfirmationReading,
-        ids: SequenceIDs
+        ids: SequenceIDs,
+        calendar: Calendar = .autoupdatingCurrent
     ) -> FoodConfirmationService {
         let clock = FixedClock()
         let ledger = FoodLedgerService(
@@ -295,7 +315,7 @@ final class FoodConfirmationReducerTests: XCTestCase {
             encoder: FoundationCanonicalJSONEncoder(),
             digester: SHA256Digester()
         )
-        return FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids)
+        return FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids, calendar: calendar)
     }
 
     private func fixtureInput(candidateCount: Int = 1, kind: CaptureKind = .synthetic) throws -> PopulatedFoodConfirmation {
