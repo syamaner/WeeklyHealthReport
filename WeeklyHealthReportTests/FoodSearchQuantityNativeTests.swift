@@ -1,5 +1,7 @@
 import FoodGenericSearch
 import FoodLedgerApplication
+import FoodLedgerGRDB
+@testable import WeeklyHealthReport
 import FoodLedgerDomain
 import FoodLedgerPresentation
 import SwiftUI
@@ -21,7 +23,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
                 saves += 1;throw CocoaError(.fileWriteUnknown)
             }
             let host=UIHostingController(rootView:NavigationStack { FoodConfirmationView(model:model,leave:{}) })
-            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.first as? UIWindowScene)
+            let scene = try testScene()
             let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
             let window=UIWindow(windowScene:scene);window.frame=CGRect(x:0,y:0,width:430,height:932);window.rootViewController=host
             window.makeKeyAndVisible()
@@ -51,11 +53,155 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             XCTAssertEqual(saves,0);XCTAssertEqual(model.state.decision,.undecided)
         }
     }
+    func testSavedEntrySessionMissingFailureAndRetry() throws {
+        let id = try NativeQuantityIDs().makeID(LogItemTag.self)
+        var attempts = 0
+        let session = SavedFoodEntrySession(id: id) {
+            attempts += 1
+            if attempts == 1 { throw CocoaError(.fileReadUnknown) }
+            return nil
+        }
+        guard case .loading = session.phase else { return XCTFail("Initial loading state") }
+        session.load()
+        guard case .failed = session.phase else { return XCTFail("Visible failure state") }
+        session.load()
+        guard case .missing = session.phase else { return XCTFail("Missing record is distinct from failure") }
+        XCTAssertEqual(attempts, 2)
+    }
+
+    func testMissingAndFailedSavedEntriesRenderRecoveryAndDismiss() async throws {
+        let scene = try testScene()
+        let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
+        let driver = SavedSheetDriver()
+        let host = UIHostingController(rootView: SavedSheetHarness(driver: driver))
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 430, height: 932); window.rootViewController = host
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; previousKeyWindow?.makeKey() }
+        for missing in [true, false] {
+            driver.session = SavedFoodEntrySession(id: try NativeQuantityIDs().makeID(LogItemTag.self)) {
+                if missing { return nil }
+                throw CocoaError(.fileReadUnknown)
+            }
+            let title = missing ? "Saved entry unavailable" : "Could not open saved food"
+            try await waitForPresentation(host, title: title)
+            let presented = try XCTUnwrap(host.presentedViewController)
+            XCTAssertTrue(nativeText(presented.view).contains(title))
+            if missing {
+                guard case .missing = driver.session?.phase else { return XCTFail("Expected missing state") }
+            } else {
+                guard case .failed = driver.session?.phase else { return XCTFail("Expected failure state") }
+            }
+            driver.session = nil
+            try await waitForDismissal(host)
+            XCTAssertNil(host.presentedViewController)
+        }
+    }
+
+    func testSyntheticSavedGramAndVolumeEntriesPresentDismissAndReopen() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try await exerciseStoredSavedEntries(directory: directory)
+    }
+
+    private func exerciseStoredSavedEntries(directory: URL) async throws {
+        let ids = NativeQuantityIDs()
+        let store = try FoodLedgerGRDBStore(databaseURL: directory.appendingPathComponent("ledger.sqlite"),
+                                           attachmentsRoot: directory.appendingPathComponent("attachments"))
+        let clock = SystemLedgerClock()
+        let ledger = FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store,
+                                       clock: clock, encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids)
+        let searcher = try CoFIDGenericFoodSearch(ids: ids)
+        for query in ["200g whole milk", "200ml whole milk"] {
+            let search = try GenericFoodSearchViewModel(searcher: searcher, locale: LedgerText("en_GB"))
+            search.query = query; search.search()
+            let input = try XCTUnwrap(search.confirmation(at: 0))
+            var state = FoodConfirmationState(input: input, queryQuantity: search.parsedQuery?.quantity)
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            let saved = try service.save(state, operationID: ids.makeID(OperationTag.self))
+            let scene = try testScene()
+            let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
+            let driver = SavedSheetDriver()
+            let host = UIHostingController(rootView: SavedSheetHarness(driver: driver))
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 430, height: 932); window.rootViewController = host
+            window.makeKeyAndVisible()
+            defer { window.isHidden = true; previousKeyWindow?.makeKey() }
+            for _ in 0..<2 {
+                driver.session = SavedFoodEntrySession(id: saved.logItem.logItemID) {
+                    guard let reopened = try service.reopen(logItemID: saved.logItem.logItemID) else { return nil }
+                    XCTAssertEqual(reopened.quantity.value, 200)
+                    XCTAssertEqual(reopened.quantity.unit, state.quantity.unit)
+                    XCTAssertEqual(reopened.selectedCandidate.candidate.nutrients, state.selectedCandidate.candidate.nutrients)
+                    return FoodConfirmationViewModel(state: reopened) { _ in throw CocoaError(.fileWriteUnknown) }
+                }
+                try await waitForPresentation(host, title: "Confirm food")
+                let presented = try XCTUnwrap(host.presentedViewController, query)
+                let labels = nativeText(presented.view)
+                XCTAssertTrue(labels.contains("Confirm food"), "Native sheet must contain confirmation: \(labels)")
+                guard case .loaded = driver.session?.phase else { return XCTFail("Saved record did not load") }
+                driver.session = nil
+                try await waitForDismissal(host)
+                XCTAssertNil(host.presentedViewController)
+            }
+        }
+    }
+
+    private func testScene() throws -> UIWindowScene {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        return try XCTUnwrap(scenes.first { $0.activationState == .foregroundActive } ?? scenes.first)
+    }
+
+    private func waitForPresentation(_ host: UIViewController, title: String) async throws {
+        try await waitForNativeState("Sheet should render \(title)") {
+            host.view.layoutIfNeeded()
+            guard let presented = host.presentedViewController,
+                  !presented.isBeingPresented, !presented.isBeingDismissed else { return false }
+            presented.view.layoutIfNeeded()
+            return self.nativeText(presented.view).contains(title)
+        }
+    }
+
+    private func waitForDismissal(_ host: UIViewController) async throws {
+        try await waitForNativeState("Sheet should finish dismissal before reopening") {
+            host.presentedViewController == nil
+        }
+    }
+
+    private func waitForNativeState(_ message: String, condition: () -> Bool) async throws {
+        // Let the main actor process UIKit transitions; slow hosted simulators need
+        // readiness checks rather than an assumed animation duration.
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(8))
+        while !condition() && clock.now < deadline {
+            try await Task.sleep(for: .milliseconds(100))
+        }
+        XCTAssertTrue(condition(), message)
+    }
+
+    private func nativeText(_ view: UIView) -> [String] {
+        descendants(view).compactMap { ($0 as? UILabel)?.text }
+    }
     private func descendants(_ view:UIView)->[UIView] { [view]+view.subviews.flatMap(descendants) }
 }
 private final class NativeQuantityIDs:LedgerIDGenerating,@unchecked Sendable {
     private var value=1
     func makeID<Tag>(_ tag:Tag.Type)throws->LedgerID<Tag> {
         defer { value += 1 };return try LedgerID(String(format:"00000000-0000-0000-0000-%012x",value))
+    }
+}
+
+@MainActor
+private final class SavedSheetDriver: ObservableObject {
+    @Published var session: SavedFoodEntrySession?
+}
+private struct SavedSheetHarness: View {
+    @ObservedObject var driver: SavedSheetDriver
+    var body: some View {
+        Text("Synthetic food log")
+            .sheet(item: $driver.session) { session in
+                SavedFoodEntrySheet(session: session) { driver.session = nil }
+            }
     }
 }
