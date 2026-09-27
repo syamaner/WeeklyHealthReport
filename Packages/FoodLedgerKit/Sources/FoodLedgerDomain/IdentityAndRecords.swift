@@ -494,6 +494,7 @@ public struct LogItemVersion: Codable, Equatable, Sendable {
     public let reportingDate: LedgerText
     public let composition: LogComposition
     public let edibleQuantity: PositiveQuantity
+    public let weightDeclaration: EdibleWeightDeclaration?
     public let quantityConversionVersionID: QuantityConversionVersionID?
     public let plateWeightVersionID: PlateWeightVersionID?
     public let originalResolutionVersionID: ResolutionVersionID
@@ -510,6 +511,7 @@ public struct LogItemVersion: Codable, Equatable, Sendable {
         reportingDate: LedgerText,
         composition: LogComposition,
         edibleQuantity: PositiveQuantity,
+        weightDeclaration: EdibleWeightDeclaration? = nil,
         quantityConversionVersionID: QuantityConversionVersionID? = nil,
         plateWeightVersionID: PlateWeightVersionID? = nil,
         originalResolutionVersionID: ResolutionVersionID,
@@ -535,7 +537,16 @@ public struct LogItemVersion: Codable, Equatable, Sendable {
         self.occurredAt = occurredAt
         self.reportingDate = reportingDate
         self.composition = composition
+        if let weightDeclaration {
+            guard edibleQuantity.unit == .grams, quantityConversionVersionID == nil else {
+                throw FoodLedgerValidationError.invalidUnit
+            }
+            if plateWeightVersionID == nil, weightDeclaration.total != edibleQuantity {
+                throw FoodLedgerValidationError.invalidBasis
+            }
+        }
         self.edibleQuantity = edibleQuantity
+        self.weightDeclaration = weightDeclaration
         self.quantityConversionVersionID = quantityConversionVersionID
         self.plateWeightVersionID = plateWeightVersionID
         self.originalResolutionVersionID = originalResolutionVersionID
@@ -566,10 +577,26 @@ public extension LogItemVersion {
               ordinal.value == predecessor.ordinal.value + 1,
               occurredAt == original.occurredAt, reportingDate == original.reportingDate,
               edibleQuantity == original.edibleQuantity,
+              weightDeclaration == original.weightDeclaration,
               quantityConversionVersionID == original.quantityConversionVersionID,
               plateWeightVersionID == original.plateWeightVersionID,
               originalResolutionVersionID == original.originalResolutionVersionID,
               effectiveResolutionVersionID == original.effectiveResolutionVersionID,
               correctionReason != nil else { throw FoodLedgerValidationError.invalidLogRemoval }
+    }
+}
+
+public extension LogItemVersion {
+    func validateWeightDeclaration(emptyPlate: PlateWeightVersion?) throws {
+        guard let weightDeclaration else { return }
+        guard quantityConversionVersionID == nil else { throw FoodLedgerValidationError.invalidBasis }
+        let expected: PositiveQuantity
+        if let plateWeightVersionID {
+            guard emptyPlate?.plateWeightVersionID == plateWeightVersionID else {
+                throw FoodLedgerValidationError.invalidBasis
+            }
+            expected = try FoodQuantityCalculator.subtractPlate(total: weightDeclaration.total, emptyPlate: emptyPlate)
+        } else { expected = weightDeclaration.total }
+        guard edibleQuantity == expected else { throw FoodLedgerValidationError.invalidBasis }
     }
 }

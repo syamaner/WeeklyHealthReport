@@ -4,8 +4,9 @@ public struct FoodIntakeContribution: Sendable {
     public let quantity: PositiveQuantity
     public let basis: ResolutionBasis
     public let nutrients: NutrientSet?
-    public init(quantity: PositiveQuantity, basis: ResolutionBasis, nutrients: NutrientSet?) {
-        self.quantity = quantity; self.basis = basis; self.nutrients = nutrients
+    public let quantityIsEstimate: Bool
+    public init(quantity: PositiveQuantity, basis: ResolutionBasis, nutrients: NutrientSet?, quantityIsEstimate: Bool = false) {
+        self.quantity = quantity; self.basis = basis; self.nutrients = nutrients; self.quantityIsEstimate = quantityIsEstimate
     }
 }
 
@@ -17,7 +18,7 @@ public struct FoodIntakeTotal: Equatable, Sendable {
 }
 
 public struct FoodIntakeSummary: Equatable, Sendable {
-    public static let version = "food-intake-summary-v1"
+    public static let version = "food-intake-summary-v2"
     public let itemCount: Int
     public let totals: [FoodIntakeTotal]
 
@@ -31,6 +32,7 @@ public struct FoodIntakeSummary: Equatable, Sendable {
                       let entry = contribution.nutrients?.entries.first(where: { $0.key == key }) else {
                     missing += 1; continue
                 }
+                estimated = estimated || contribution.quantityIsEstimate
                 let amount: Double
                 switch entry.value {
                 case let .measured(value): amount = value.amount

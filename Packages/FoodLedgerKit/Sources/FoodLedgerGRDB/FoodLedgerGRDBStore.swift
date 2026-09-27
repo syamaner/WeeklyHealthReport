@@ -20,7 +20,7 @@ public struct ProtectedDataAvailability: Sendable {
 public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, FoodConfirmationReading,
     EvidenceAttachmentStoring, FoodArchiveLedgerAccess, @unchecked Sendable
 {
-    public static let schemaVersion = 2
+    public static let schemaVersion = 3
     public static let applicationID = 0x5748_5246 // WHRF
 
     private let databaseQueue: DatabaseQueue
@@ -38,7 +38,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         protectedData: ProtectedDataAvailability = .available,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV2
+        operationRegistry: LedgerOperationRegistry = .builtInV3
     ) throws {
         try protectedData.requireAvailable()
         self.encoder = encoder
@@ -89,7 +89,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         protectedData: ProtectedDataAvailability = .available,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV2
+        operationRegistry: LedgerOperationRegistry = .builtInV3
     ) throws -> FoodLedgerGRDBStore {
         try FoodLedgerGRDBStore(
             databaseURL: directory.appendingPathComponent("food-ledger-v1.sqlite"),
@@ -150,6 +150,11 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                 db,
                 sql: "SELECT * FROM ledger_operation ORDER BY actor_id, actor_sequence, operation_id"
             )
+            let logs = try values(LogItemVersion.self, table: "log_item_version")
+            let plateWeights = try values(PlateWeightVersion.self, table: "plate_weight_version")
+            for log in logs {
+                try log.validateWeightDeclaration(emptyPlate: plateWeights.first { $0.plateWeightVersionID == log.plateWeightVersionID })
+            }
             return FoodArchiveState(
                 records: LedgerMutation(
                     evidence: try values(CaptureEvidence.self, table: "capture_evidence"),
@@ -161,10 +166,10 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                     resolutions: try values(NutritionResolution.self, table: "resolution"),
                     resolutionVersions: try values(NutritionResolutionVersion.self, table: "resolution_version"),
                     logItems: try values(LogItem.self, table: "log_item"),
-                    logItemVersions: try values(LogItemVersion.self, table: "log_item_version"),
+                    logItemVersions: logs,
                     quantityConversions: try values(QuantityConversionVersion.self, table: "quantity_conversion_version"),
                     plates: try values(Plate.self, table: "plate"),
-                    plateWeightVersions: try values(PlateWeightVersion.self, table: "plate_weight_version"),
+                    plateWeightVersions: plateWeights,
                     candidateDecisions: try values(CandidateDecision.self, table: "candidate_decision"),
                     conflicts: try values(LedgerConflict.self, table: "conflict"),
                     sourceReleases: try values(SourceRelease.self, table: "source_release"),
@@ -430,6 +435,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
             let plate: Plate? = try plateVersion.flatMap {
                 try decode(Plate.self, table: "plate", column: "plate_id", id: $0.plateID.rawValue)
             }
+            try logVersion.validateWeightDeclaration(emptyPlate: plateVersion)
             return StoredFoodConfirmation(
                 evidence: evidence,
                 sourceReleases: releases,
@@ -520,6 +526,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         guard result == "ok" else {
             throw FoodLedgerStoreError.integrityFailure(result ?? "no integrity result")
         }
+        try validateStoredLedger()
     }
 
     private func validateStoredLedger() throws {
@@ -540,6 +547,14 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
             try validatePayloads(LogItemVersion.self, table: "log_item_version", db: db)
             try validatePayloads(Plate.self, table: "plate", db: db)
             try validatePayloads(PlateWeightVersion.self, table: "plate_weight_version", db: db)
+            for bytes in try Data.fetchAll(db, sql: "SELECT payload FROM log_item_version") {
+                let log = try decoder.decode(LogItemVersion.self, from: bytes)
+                let plate: PlateWeightVersion? = try log.plateWeightVersionID.flatMap { id in
+                    guard let bytes = try Data.fetchOne(db, sql: "SELECT payload FROM plate_weight_version WHERE version_id = ?", arguments: [id.rawValue]) else { return nil }
+                    return try decoder.decode(PlateWeightVersion.self, from: bytes)
+                }
+                try log.validateWeightDeclaration(emptyPlate: plate)
+            }
             try validatePayloads(CandidateDecision.self, table: "candidate_decision", db: db)
             try validatePayloads(LedgerConflict.self, table: "conflict", db: db)
             try validatePayloads(SourceRelease.self, table: "source_release", db: db)
@@ -812,6 +827,12 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
             [$0.logItemID.rawValue]
         }
         for value in mutation.logItemVersions {
+            let plate: PlateWeightVersion? = try value.plateWeightVersionID.flatMap { id in
+                if let fresh = mutation.plateWeightVersions.first(where: { $0.plateWeightVersionID == id }) { return fresh }
+                guard let bytes = try Data.fetchOne(db, sql: "SELECT payload FROM plate_weight_version WHERE version_id = ?", arguments: [id.rawValue]) else { return nil }
+                return try decoder.decode(PlateWeightVersion.self, from: bytes)
+            }
+            try value.validateWeightDeclaration(emptyPlate: plate)
             if let predecessorID = value.supersedesLogItemVersionID {
                 guard let bytes = try Data.fetchOne(db,
                     sql: "SELECT payload FROM log_item_version WHERE version_id = ?",
@@ -1120,7 +1141,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                   synchronous == 2,
                   application == applicationID,
                   version == schemaVersion,
-                  metadata == "food-ledger-v2",
+                  metadata == "food-ledger-v3",
                   check == "ok",
                   foreignKeyFailures.isEmpty else {
                 throw FoodLedgerStoreError.integrityFailure("database open policy")

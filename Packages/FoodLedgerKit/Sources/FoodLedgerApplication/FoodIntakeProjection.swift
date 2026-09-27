@@ -44,7 +44,7 @@ public struct FoodIntakeProjection: Sendable {
             }
             let version = records.resolutionVersions.first { $0.resolutionVersionID == log.effectiveResolutionVersionID }
             let resolution = version.flatMap { version in records.resolutions.first { $0.resolutionID == version.resolutionID } }
-            let contribution = FoodIntakeContribution(quantity: log.edibleQuantity, basis: resolution?.basis ?? .unknown, nutrients: version?.nutrients)
+            let contribution = FoodIntakeContribution(quantity: log.edibleQuantity, basis: resolution?.basis ?? .unknown, nutrients: version?.nutrients, quantityIsEstimate: log.weightDeclaration?.basis == .estimated)
             if !removed { contributions.append(contribution) }
             let sources = Set((version?.nutrients.entries ?? []).flatMap { $0.value.provenance }.map { $0.sourceID.value })
             let row = FoodIntakeLogRow(logItemID: log.logItemID, logItemVersionID: head.logItemVersionID, occurredAt: log.occurredAt,

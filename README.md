@@ -115,6 +115,7 @@ a selected reporting date, source-aware totals, saved-entry review and existing
 food capture routes. The [intake projection contract](docs/intake-home-projection-v1.md)
 keeps unknown/bounded contributions incomplete and current-day food intake separate
 from completed-day HealthKit reporting.
+Direct [edible-weight entry](docs/direct-edible-weight-contract-v1.md) keeps original input separate from an explicitly declared measured or estimated gram total, with legacy archive compatibility.
 
 Generic-food matching is currently limited to deterministic local candidate
 ranking followed by explicit user selection or decline. The frozen

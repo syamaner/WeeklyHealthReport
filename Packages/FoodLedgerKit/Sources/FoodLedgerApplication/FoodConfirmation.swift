@@ -67,22 +67,35 @@ public enum PlateWeightChoice: Codable, Equatable, Sendable {
     case new(emptyWeight: PositiveQuantity, superseding: PlateWeightVersion?)
 }
 
+public struct DirectWeightDraft: Codable, Equatable, Sendable {
+    public var totalGrams: Double?
+    public var basis: UserWeightBasis?
+    public var needsReconfirmation: Bool
+    public init(totalGrams: Double? = nil, basis: UserWeightBasis? = nil, needsReconfirmation: Bool = false) {
+        self.totalGrams = totalGrams; self.basis = basis; self.needsReconfirmation = needsReconfirmation
+    }
+}
+
 public struct FoodQuantityDraft: Codable, Equatable, Sendable {
     public var value: Double?
     public var unit: QuantityUnit
     public var conversion: QuantityConversionDraft?
     public var plateChoice: PlateWeightChoice
+    public var directWeight: DirectWeightDraft?
+    public var invalidOriginalAmountText: Bool?
 
     public init(
         value: Double? = nil,
         unit: QuantityUnit = .grams,
         conversion: QuantityConversionDraft? = nil,
-        plateChoice: PlateWeightChoice = .foodOnly
+        plateChoice: PlateWeightChoice = .foodOnly,
+        directWeight: DirectWeightDraft? = nil
     ) {
         self.value = value
         self.unit = unit
         self.conversion = conversion
         self.plateChoice = plateChoice
+        self.directWeight = directWeight
     }
 }
 
@@ -155,7 +168,12 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
         decision = .undecided
         correction = nil
         if let reopened {
-            if let conversion = reopened.quantityConversion {
+            if let declaration = reopened.logItemVersion.weightDeclaration {
+                quantity = FoodQuantityDraft(value: declaration.originalInput?.value,
+                    unit: declaration.originalInput?.unit ?? .grams,
+                    plateChoice: reopened.plateWeightVersion.map(PlateWeightChoice.saved) ?? .foodOnly,
+                    directWeight: DirectWeightDraft(totalGrams: declaration.total.value, basis: declaration.basis))
+            } else if let conversion = reopened.quantityConversion {
                 quantity = FoodQuantityDraft(
                     value: conversion.sourceQuantity.value,
                     unit: conversion.sourceQuantity.unit,
@@ -239,6 +257,11 @@ public enum FoodConfirmationAction: Sendable {
     case acceptClosestMatch(LedgerText)
     case decline
     case applyCorrection(FoodCorrection)
+    case beginDirectWeight
+    case endDirectWeight
+    case setDirectWeight(Double?)
+    case setWeightBasis(UserWeightBasis?)
+    case setQuantityText(String)
     case setQuantity(Double?, QuantityUnit)
     case setConversion(QuantityConversionDraft?)
     case setPlateChoice(PlateWeightChoice)
@@ -252,24 +275,51 @@ public enum FoodConfirmationReducer {
         switch action {
         case let .selectCandidate(index):
             guard state.input.candidates.indices.contains(index) else { return }
+            if state.selectedCandidateIndex != index, state.quantity.directWeight != nil {
+                state.quantity.directWeight?.needsReconfirmation = true
+            }
             state.selectedCandidateIndex = index
             state.decision = .undecided
             state.correction = nil
             state.phase = .editing
         case .accept:
+            state.quantity.directWeight?.needsReconfirmation = false
             state.decision = .accepted
             state.phase = .editing
         case let .acceptClosestMatch(explanation):
+            state.quantity.directWeight?.needsReconfirmation = false
             state.decision = .acceptedClosestMatch(explanation: explanation)
             state.phase = .editing
         case .decline:
             state.decision = .declined
             state.phase = .editing
         case let .applyCorrection(correction):
+            let previousIdentity = state.correction?.identity ?? state.reopened?.productVersion.identity ?? state.selectedCandidate.candidate.identity
             state.correction = correction
             state.decision = .accepted
+            if state.quantity.directWeight != nil, previousIdentity != correction.identity {
+                state.quantity.directWeight?.needsReconfirmation = true
+                state.decision = .undecided
+            }
             state.phase = .editing
+        case .beginDirectWeight:
+            if state.quantity.directWeight == nil { state.quantity.directWeight = DirectWeightDraft() }
+            state.phase = .editing
+        case .endDirectWeight:
+            state.quantity.directWeight = nil
+            state.phase = .editing
+        case let .setDirectWeight(value):
+            state.quantity.directWeight?.totalGrams = value
+            state.phase = .editing
+        case let .setWeightBasis(basis):
+            state.quantity.directWeight?.basis = basis
+            state.phase = .editing
+        case let .setQuantityText(text):
+            let value = Double(text)
+            reduce(state: &state, action: .setQuantity(value, state.quantity.unit))
+            state.quantity.invalidOriginalAmountText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && value == nil
         case let .setQuantity(value, unit):
+            state.quantity.invalidOriginalAmountText = nil
             let previousUnit = state.quantity.unit
             state.quantity.value = value
             state.quantity.unit = unit
@@ -331,6 +381,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
             guard let stored = try reader.foodConfirmation(logItemID: logItemID) else {
                 throw FoodLedgerStoreError.integrityFailure("committed confirmation could not be recovered")
             }
+            try stored.logItemVersion.validateWeightDeclaration(emptyPlate: stored.plateWeightVersion)
             return stored
         }
         switch state.decision {
@@ -358,19 +409,13 @@ public final class FoodConfirmationService: @unchecked Sendable {
         }
         let now = clock.now()
         let previous = state.reopened
-        let entered = try Self.enteredQuantity(state.quantity)
-        let conversion = try makeConversion(state.quantity, entered: entered, previous: previous, at: now)
+        let declaration = try state.quantity.declaration()
+        let entered = try state.quantity.calculationInput()
+        let conversion = declaration == nil
+            ? try makeConversion(state.quantity, entered: entered, previous: previous, at: now)
+            : (version: nil, isNew: false)
         let plate = try makePlate(state.quantity.plateChoice, previous: previous, at: now)
-        let edibleQuantity: PositiveQuantity
-        switch state.quantity.plateChoice {
-        case .foodOnly:
-            edibleQuantity = try FoodQuantityCalculator.direct(entered: entered, conversion: conversion.version)
-        case .missing, .saved, .new:
-            edibleQuantity = try FoodQuantityCalculator.subtractPlate(
-                total: entered,
-                emptyPlate: plate.version
-            )
-        }
+        let edibleQuantity = try state.quantity.calculatedEdibleQuantity()
 
         let changesProduct = previous == nil || state.correction != nil
         let assertion = changesProduct
@@ -455,6 +500,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
             reportingDate: previous?.logItemVersion.reportingDate ?? LedgerText(FoodReportingDay.key(for: now, calendar: calendar)),
             composition: .product(productVersion.productVersionID),
             edibleQuantity: edibleQuantity,
+            weightDeclaration: declaration,
             quantityConversionVersionID: conversion.version?.quantityConversionVersionID,
             plateWeightVersionID: plate.version?.plateWeightVersionID,
             originalResolutionVersionID: previous?.logItemVersion.originalResolutionVersionID ?? resolutionVersion.resolutionVersionID,
@@ -507,7 +553,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         )
         _ = try ledger.commit(
             mutation,
-            type: .confirmFood,
+            type: declaration == nil ? .confirmFood : .confirmFoodV2,
             operationID: operationID,
             idempotencyKey: idempotencyKey
         )
@@ -530,6 +576,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
 
     public func reopen(logItemID: LogItemID) throws -> FoodConfirmationState? {
         guard let saved = try reader.foodConfirmation(logItemID: logItemID) else { return nil }
+        try saved.logItemVersion.validateWeightDeclaration(emptyPlate: saved.plateWeightVersion)
         let populated = try PopulatedFoodCandidate(
             candidate: saved.candidateDecision.candidate,
             name: saved.productVersion.name,
@@ -552,12 +599,6 @@ public final class FoodConfirmationService: @unchecked Sendable {
         var state = FoodConfirmationState(input: input, reopened: saved)
         state.decision = .accepted
         return state
-    }
-
-    private static func enteredQuantity(_ draft: FoodQuantityDraft) throws -> PositiveQuantity {
-        guard let value = draft.value else { throw FoodConfirmationSaveError.invalidQuantity }
-        do { return try PositiveQuantity(value: value, unit: draft.unit) }
-        catch { throw FoodConfirmationSaveError.invalidQuantity }
     }
 
     private func makeConversion(

@@ -44,7 +44,7 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
     public init(
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV2
+        operationRegistry: LedgerOperationRegistry = .builtInV3
     ) {
         verifier = OperationVerifier(
             encoder: encoder,
@@ -485,6 +485,10 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
         }
 
         for version in mutation.logItemVersions {
+            let plate = version.plateWeightVersionID.flatMap { id in
+                state.plateWeightVersions[id.rawValue] ?? mutation.plateWeightVersions.first { $0.plateWeightVersionID == id }
+            }
+            try version.validateWeightDeclaration(emptyPlate: plate)
             guard state.logItems[version.logItemID.rawValue] != nil,
                   state.resolutionVersions[version.originalResolutionVersionID.rawValue] != nil,
                   state.resolutionVersions[version.effectiveResolutionVersionID.rawValue] != nil else {

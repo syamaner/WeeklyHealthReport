@@ -107,9 +107,13 @@ public enum FoodQuantityCalculator {
         total: PositiveQuantity,
         emptyPlate: PlateWeightVersion?
     ) throws -> PositiveQuantity {
-        guard total.unit == .grams else { throw FoodQuantityValidationError.invalidPlateUnit }
         guard let emptyPlate else { throw FoodQuantityValidationError.missingPlateWeight }
-        let edible = total.value - emptyPlate.emptyWeight.value
+        return try subtractPlate(total: total, emptyWeight: emptyPlate.emptyWeight)
+    }
+
+    public static func subtractPlate(total: PositiveQuantity, emptyWeight: PositiveQuantity) throws -> PositiveQuantity {
+        guard total.unit == .grams, emptyWeight.unit == .grams else { throw FoodQuantityValidationError.invalidPlateUnit }
+        let edible = total.value - emptyWeight.value
         guard edible > 0 else { throw FoodQuantityValidationError.nonPositiveEdibleQuantity }
         return try PositiveQuantity(value: edible, unit: .grams)
     }

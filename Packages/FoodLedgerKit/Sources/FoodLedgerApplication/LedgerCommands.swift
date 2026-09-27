@@ -149,6 +149,18 @@ public struct LedgerOperationType: RawRepresentable, Codable, Hashable, Sendable
     public static let preserveConflict = Self(rawValue: "preserve_conflict_v1")!
     public static let installSourceRelease = Self(rawValue: "install_source_release_v1")!
     public static let confirmFood = Self(rawValue: "confirm_food_v1")!
+    public static let confirmFoodV2 = Self(rawValue: "confirm_food_v2")!
+    public static let recordLogItemV2 = Self(rawValue: "record_log_item_v2")!
+    public static let correctLogItemV2 = Self(rawValue: "correct_log_item_v2")!
+    public static let correctResolutionV2 = Self(rawValue: "correct_resolution_v2")!
+    public static let removeLogItemV2 = Self(rawValue: "remove_log_item_v2")!
+    public static let restoreLogItemV2 = Self(rawValue: "restore_log_item_v2")!
+    public static let compositeV2 = Self(rawValue: "composite_v2")!
+    public static let declaredQuantityTypes: Set<Self> = [
+        .confirmFoodV2, .recordLogItemV2, .correctLogItemV2, .correctResolutionV2,
+        .removeLogItemV2, .restoreLogItemV2, .compositeV2
+    ]
+
     public static let composite = Self(rawValue: "composite_v1")!
 
     public static let builtInV1: Set<Self> = [
@@ -169,6 +181,18 @@ public struct LedgerOperationRegistry: Sendable {
     public func requireSupported(_ type: LedgerOperationType) throws {
         guard supported.contains(type) else { throw FoodLedgerStoreError.unsupportedOperation }
     }
+
+    public func requireSupported(_ type: LedgerOperationType, mutation: LedgerMutation) throws {
+        try requireSupported(type)
+        if mutation.logItemVersions.contains(where: { $0.weightDeclaration != nil }),
+           !LedgerOperationType.declaredQuantityTypes.contains(type) {
+            throw FoodLedgerStoreError.unsupportedOperation
+        }
+    }
+
+    public static let builtInV3 = LedgerOperationRegistry(supported:
+        LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem])
+            .union(LedgerOperationType.declaredQuantityTypes))
 
     public static let builtInV1 = LedgerOperationRegistry(supported: LedgerOperationType.builtInV1)
     public static let builtInV2 = LedgerOperationRegistry(supported: LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem]))
@@ -390,7 +414,7 @@ public struct OperationVerifier: Sendable {
     public init(
         encoder: any CanonicalEncoding,
         digester: any Digesting,
-        operationRegistry: LedgerOperationRegistry = .builtInV2
+        operationRegistry: LedgerOperationRegistry = .builtInV3
     ) {
         self.encoder = encoder
         self.digester = digester
@@ -398,6 +422,7 @@ public struct OperationVerifier: Sendable {
     }
 
     public func verify(_ transaction: LedgerTransaction) throws {
+        try operationRegistry.requireSupported(transaction.operation.operationType, mutation: transaction.mutation)
         let payload = try encoder.encode(transaction.mutation)
         guard payload == transaction.operation.payload,
               transaction.mutation.affectedIDs == transaction.operation.affectedIDs else {
@@ -408,6 +433,15 @@ public struct OperationVerifier: Sendable {
 
     public func verifyStored(_ operation: LedgerOperation) throws {
         try operationRegistry.requireSupported(operation.operationType)
+        // Built-in payload contracts carry mutations. Explicitly registered external
+        // operation types retain their opaque payload/hash contract on store reopen.
+        let mutationTypes = LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem])
+            .union(LedgerOperationType.declaredQuantityTypes)
+        if mutationTypes.contains(operation.operationType) {
+            let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .millisecondsSince1970
+            let mutation = try decoder.decode(LedgerMutation.self, from: operation.payload)
+            try operationRegistry.requireSupported(operation.operationType, mutation: mutation)
+        }
         guard operation.actorSequence > 0 else {
             throw FoodLedgerStoreError.actorSequenceMismatch
         }
