@@ -84,7 +84,7 @@ final class FoodLogManagementContractTests: XCTestCase {
                 ledgerID: LedgerText("removal-contract"), createdAt: LedgerFixtures.date,
                 creatingActorID: LedgerFixtures.id(900, ActorTag.self))
             let verified = try FoodArchiveVerifier().verify(bundle)
-            XCTAssertEqual(verified.document.projection.foodContractVersion, 2)
+            XCTAssertEqual(verified.document.projection.foodContractVersion, CanonicalFoodProjection.foodContractVersion)
             let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
             defer { try? FileManager.default.removeItem(at: directory) }
             let staged = try ProtectedGRDBFoodArchiveStaging(root: directory).validate(verified.transactions)

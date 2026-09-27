@@ -18,6 +18,11 @@ extension FoodLedgerGRDBStore {
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v2' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 2")
         }
+        migrator.registerMigration("v3_weight_declaration") { db in
+            // Payload/operation contract upgrade only: no immutable bytes are rewritten.
+            try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v3' WHERE key = 'schema_identity'")
+            try db.execute(sql: "PRAGMA user_version = 3")
+        }
         return migrator
     }
 

@@ -1,0 +1,25 @@
+{
+  "originating_commit": "30d7fafd7f8fc03a36be69c56ca776d90c7e24b5",
+  "synthetic_only": true,
+  "post_export_version_rewriting": false,
+  "food_contract_version": 1,
+  "record_count": 11,
+  "operation_count": 2,
+  "content": "LedgerFixtures.baseMutation: synthetic physical-package source; asSold preparation; 39 nutrient fields preserving measured protein, bounded sugar and unknowns. Logs: 150 g direct; 1 count with synthetic label conversion 42 g. Actor 900 sequences 1 and 2, create_product_v1 and composite_v1.",
+  "verification": "Old LocalFoodArchiveStore.read and FoodArchiveVerifier.verify passed; old dryRun/apply importer restores a canonically byte-identical archive and identical operations sorted by actor sequence. Separate process regenerates identical frozen bundle members. Final reproduction test passes.",
+  "files": {
+    "manifest.json": {
+      "sha256": "d9cf73dc7c4d2826d3b8d4a1df66c6a8f266df880e59f48385d73aefadb9f1c7",
+      "bytes": 898
+    },
+    "snapshot.json": {
+      "sha256": "d13b051956f6602b3e49c3ab799c4e8bc4d3977ecb1109320199bf66f5bf6499",
+      "bytes": 8530
+    },
+    "operations.ndjson": {
+      "sha256": "530ba82d7106eb9e351e90e45345f10f6bb36d700df1c83456b4785043d9e8e6",
+      "bytes": 12847
+    }
+  },
+  "generator_sha256": "459f92e153186845a8dd6b8bd51c68833e12bf75acdc4fc8bcf13b52a6b9eb11"
+}

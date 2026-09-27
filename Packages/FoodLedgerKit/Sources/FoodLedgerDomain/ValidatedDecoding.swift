@@ -365,7 +365,7 @@ extension CandidateMatchMetadata {
 extension LogItemVersion {
     enum CodingKeys: String, CodingKey {
         case logItemVersionID, logItemID, ordinal, supersedesLogItemVersionID, occurredAt
-        case reportingDate, composition, edibleQuantity, quantityConversionVersionID, plateWeightVersionID
+        case reportingDate, composition, edibleQuantity, weightDeclaration, quantityConversionVersionID, plateWeightVersionID
         case originalResolutionVersionID, effectiveResolutionVersionID, correctionReason, createdAt
     }
 
@@ -380,6 +380,7 @@ extension LogItemVersion {
             reportingDate: values.decode(LedgerText.self, forKey: .reportingDate),
             composition: values.decode(LogComposition.self, forKey: .composition),
             edibleQuantity: values.decode(PositiveQuantity.self, forKey: .edibleQuantity),
+            weightDeclaration: values.decodeIfPresent(EdibleWeightDeclaration.self, forKey: .weightDeclaration),
             quantityConversionVersionID: values.decodeIfPresent(QuantityConversionVersionID.self, forKey: .quantityConversionVersionID),
             plateWeightVersionID: values.decodeIfPresent(PlateWeightVersionID.self, forKey: .plateWeightVersionID),
             originalResolutionVersionID: values.decode(ResolutionVersionID.self, forKey: .originalResolutionVersionID),

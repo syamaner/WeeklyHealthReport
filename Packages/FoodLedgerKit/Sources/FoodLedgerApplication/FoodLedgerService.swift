@@ -15,7 +15,7 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
         clock: any LedgerClock,
         encoder: any CanonicalEncoding,
         digester: any Digesting,
-        operationRegistry: LedgerOperationRegistry = .builtInV2
+        operationRegistry: LedgerOperationRegistry = .builtInV3
     ) {
         self.actorID = actorID
         self.committer = committer
@@ -45,7 +45,7 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
         operationID: OperationID, idempotencyKey: LedgerText
     ) throws -> LogItemID? {
         guard let operation = try committer.operation(id: operationID) else { return nil }
-        guard operation.actorID == actorID, operation.operationType == .confirmFood,
+        guard operation.actorID == actorID, [.confirmFood, .confirmFoodV2].contains(operation.operationType),
               operation.idempotencyKey == idempotencyKey else {
             throw FoodLedgerStoreError.divergentDuplicateOperation
         }
@@ -70,7 +70,7 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
         guard referencedAttachments.isSubset(of: persistedAttachments) else {
             throw FoodLedgerStoreError.attachmentFailure("uncoordinated attachment reference")
         }
-        try operationRegistry.requireSupported(type)
+        try operationRegistry.requireSupported(type, mutation: mutation)
         let payload = try encoder.encode(mutation)
         let payloadHash = try digester.sha256(payload)
 

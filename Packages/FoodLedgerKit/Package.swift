@@ -94,7 +94,8 @@ let package = Package(
                 "FoodInventoryImport",
                 "FoodLedgerTestSupport",
                 .product(name: "GRDB", package: "GRDB.swift")
-            ]
+            ],
+            resources: [.copy("Fixtures")]
         )
     ],
     swiftLanguageModes: [.v6]

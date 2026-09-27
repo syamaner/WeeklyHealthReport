@@ -338,6 +338,92 @@ final class FoodConfirmationReducerTests: XCTestCase {
         XCTAssertThrowsError(try guide.estimate(for: other, count: 2))
     }
 
+    func testDirectWeightRequiresSeparateGramsAndExplicitBasisAndPreservesOriginalInput() throws {
+        for (original, unit) in [(2.0, QuantityUnit.count), (200, .millilitres), (150, .grams)] {
+            let store = InMemoryFoodLedgerStore()
+            let service = makeService(store: store, ids: SequenceIDs())
+            var state = FoodConfirmationState(input: try fixtureInput())
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(original, unit))
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            FoodConfirmationReducer.reduce(state: &state, action: .beginDirectWeight)
+            XCTAssertNil(state.quantity.directWeight?.totalGrams)
+            XCTAssertNil(state.quantity.directWeight?.basis)
+            XCTAssertThrowsError(try service.save(state, operationID: id(940, OperationTag.self)))
+            FoodConfirmationReducer.reduce(state: &state, action: .setDirectWeight(125))
+            XCTAssertThrowsError(try service.save(state, operationID: id(940, OperationTag.self)))
+            FoodConfirmationReducer.reduce(state: &state, action: .setWeightBasis(.measured))
+            let preview = try state.quantity.calculatedEdibleQuantity()
+            let selected = state.selectedCandidate
+            let saved = try service.save(state, operationID: id(940, OperationTag.self))
+            XCTAssertEqual(saved.logItemVersion.edibleQuantity, preview)
+            XCTAssertEqual(saved.logItemVersion.weightDeclaration?.basis, .measured)
+            XCTAssertEqual(saved.logItemVersion.weightDeclaration?.originalInput, try PositiveQuantity(value: original, unit: unit))
+            XCTAssertEqual(saved.productVersion.identity, selected.candidate.identity)
+            XCTAssertEqual(saved.resolutionVersion.nutrients, selected.candidate.nutrients)
+            let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+            XCTAssertEqual(reopened.quantity.directWeight?.totalGrams, 125)
+            XCTAssertEqual(reopened.quantity.directWeight?.basis, .measured)
+            XCTAssertEqual(reopened.quantity.value, original)
+            XCTAssertEqual(reopened.quantity.unit, unit)
+            XCTAssertEqual(try reopened.quantity.calculatedEdibleQuantity(), preview)
+        }
+    }
+
+    func testDirectWeightCountEditsAndCandidateChangesRequireCoherentReconfirmation() throws {
+        var state = FoodConfirmationState(input: try fixtureInput(candidateCount: 2))
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(2, .count))
+        FoodConfirmationReducer.reduce(state: &state, action: .beginDirectWeight)
+        FoodConfirmationReducer.reduce(state: &state, action: .setDirectWeight(120))
+        FoodConfirmationReducer.reduce(state: &state, action: .setWeightBasis(.estimated))
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(3, .count))
+        XCTAssertEqual(state.quantity.directWeight?.totalGrams, 120)
+        XCTAssertEqual(try state.quantity.calculatedEdibleQuantity().value, 120)
+        FoodConfirmationReducer.reduce(state: &state, action: .selectCandidate(1))
+        XCTAssertEqual(state.decision, .undecided)
+        XCTAssertEqual(state.quantity.directWeight?.totalGrams, 120)
+        XCTAssertTrue(state.quantity.directWeight?.needsReconfirmation == true)
+        XCTAssertThrowsError(try state.quantity.declaration())
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        XCTAssertEqual(try state.quantity.declaration()?.originalInput?.value, 3)
+        var changed = state.selectedCandidate.candidate.identity
+        changed = try DecisiveIdentity(preparation: PreparationState(kind: .cooked), bone: changed.bone,
+            skin: changed.skin, drained: changed.drained, packingMedium: changed.packingMedium,
+            fortification: changed.fortification, servingBasis: changed.servingBasis)
+        FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(FoodCorrection(
+            name: state.selectedCandidate.name, brand: nil, variant: nil, identity: changed,
+            nutrients: state.selectedCandidate.candidate.nutrients, reason: try LedgerText("Prepared as cooked"))))
+        XCTAssertEqual(state.decision, .undecided)
+        XCTAssertThrowsError(try state.quantity.declaration())
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        XCTAssertEqual(try state.quantity.declaration()?.total.value, 120)
+    }
+
+    func testInvalidDirectTotalsAndPlatePreviewSaveAgreement() throws {
+        let store = InMemoryFoodLedgerStore()
+        let service = makeService(store: store, ids: SequenceIDs())
+        var state = FoodConfirmationState(input: try fixtureInput())
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        FoodConfirmationReducer.reduce(state: &state, action: .beginDirectWeight)
+        FoodConfirmationReducer.reduce(state: &state, action: .setWeightBasis(.estimated))
+        for invalid in [0.0, -1, Double.nan, Double.infinity] {
+            FoodConfirmationReducer.reduce(state: &state, action: .setDirectWeight(invalid))
+            XCTAssertThrowsError(try service.save(state, operationID: id(941, OperationTag.self)))
+            XCTAssertThrowsError(try state.quantity.calculatedEdibleQuantity())
+        }
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(2, .count))
+        FoodConfirmationReducer.reduce(state: &state, action: .setDirectWeight(250))
+        FoodConfirmationReducer.reduce(state: &state, action: .setPlateChoice(.new(
+            emptyWeight: try PositiveQuantity(value: 50, unit: .grams), superseding: nil)))
+        XCTAssertEqual(try state.quantity.calculatedEdibleQuantity().value, 200)
+        let saved = try service.save(state, operationID: id(941, OperationTag.self))
+        XCTAssertEqual(saved.logItemVersion.edibleQuantity.value, 200)
+        XCTAssertEqual(saved.logItemVersion.weightDeclaration?.total.value, 250)
+        let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+        XCTAssertEqual(try reopened.quantity.calculatedEdibleQuantity(), saved.logItemVersion.edibleQuantity)
+        XCTAssertEqual(reopened.quantity.directWeight?.basis, .estimated)
+    }
+
     private func makeService(
         store: some LedgerCommandCommitting & LedgerReading & FoodConfirmationReading,
         ids: SequenceIDs,

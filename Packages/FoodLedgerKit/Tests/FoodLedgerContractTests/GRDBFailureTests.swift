@@ -105,36 +105,39 @@ final class GRDBFailureTests: XCTestCase {
         XCTAssertEqual(columns, ["wrong"])
     }
 
-    func testV1MigrationPreservesEveryCanonicalRecordAndOperationHash() throws {
-        let directory = try temporaryDirectory()
-        defer { try? FileManager.default.removeItem(at: directory) }
-        let database = directory.appendingPathComponent("food-ledger-v1.sqlite")
-        let before: FoodArchiveState
-        do {
-            let store = try FoodLedgerGRDBStore.temporary(directory: directory)
-            _ = try LedgerFixtures.service(store).commit(LedgerFixtures.baseMutation(),
-                type: .createProduct, operationID: LedgerFixtures.operationID(880))
-            before = try store.archiveState()
-        }
-        // v2 adds only the schema identity marker; this reconstructs the v1
-        // schema with its original payloads, triggers and migration record.
-        do {
-            let queue = try DatabaseQueue(path: database.path)
-            try queue.write { db in
-                try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v2_log_removal'")
-                try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v1' WHERE key = 'schema_identity'")
-                try db.execute(sql: "PRAGMA user_version = 1")
+    func testHistoricalMigrationsPreserveEveryCanonicalRecordAndOperationHash() throws {
+        for oldVersion in [1, 2] {
+            let directory = try temporaryDirectory()
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let database = directory.appendingPathComponent("food-ledger-v1.sqlite")
+            let before: FoodArchiveState
+            do {
+                let store = try FoodLedgerGRDBStore.temporary(directory: directory)
+                _ = try LedgerFixtures.service(store).commit(LedgerFixtures.baseMutation(),
+                    type: .createProduct, operationID: LedgerFixtures.operationID(880))
+                before = try store.archiveState()
             }
+            // Historical upgrades only added identity markers; reconstruct each old
+            // schema with its unchanged payloads, triggers and migration records.
+            do {
+                let queue = try DatabaseQueue(path: database.path)
+                try queue.write { db in
+                    if oldVersion == 1 { try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v2_log_removal'") }
+                    try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v3_weight_declaration'")
+                    try db.execute(sql: "UPDATE ledger_metadata SET value = ? WHERE key = 'schema_identity'", arguments: ["food-ledger-v\(oldVersion)"])
+                    try db.execute(sql: "PRAGMA user_version = \(oldVersion)")
+                }
+            }
+            let migrated = try FoodLedgerGRDBStore.temporary(directory: directory)
+            let after = try migrated.archiveState()
+            XCTAssertEqual(try LedgerFixtures.encoder.encode(before.records), try LedgerFixtures.encoder.encode(after.records))
+            XCTAssertEqual(before.operations, after.operations)
+            try migrated.verifyIntegrity()
+            let queue = try DatabaseQueue(path: database.path)
+            try queue.read { db in
+                XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), FoodLedgerGRDBStore.schemaVersion)
+                XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v3")
         }
-        let migrated = try FoodLedgerGRDBStore.temporary(directory: directory)
-        let after = try migrated.archiveState()
-        XCTAssertEqual(try LedgerFixtures.encoder.encode(before.records), try LedgerFixtures.encoder.encode(after.records))
-        XCTAssertEqual(before.operations, after.operations)
-        try migrated.verifyIntegrity()
-        let queue = try DatabaseQueue(path: database.path)
-        try queue.read { db in
-            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 2)
-            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v2")
         }
     }
 

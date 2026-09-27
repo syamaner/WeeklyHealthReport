@@ -50,7 +50,7 @@ public struct FoodLogManagementService: Sendable {
         if let operation = try reader.change(operationID: operationID) {
             let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .millisecondsSince1970
             let mutation = try decoder.decode(LedgerMutation.self, from: operation.payload)
-            guard operation.operationType == type, mutation.logItemVersions.count == 1,
+            guard [type, restoring ? .restoreLogItemV2 : .removeLogItemV2].contains(operation.operationType), mutation.logItemVersions.count == 1,
                   let saved = mutation.logItemVersions.first, saved.logItemID == logItemID,
                   saved.supersedesLogItemVersionID == expectedVersion,
                   saved.correctionReason == reason else { throw FoodLogManagementError.invalidTransition }
@@ -78,13 +78,14 @@ public struct FoodLogManagementService: Sendable {
             supersedesLogItemVersionID: head.logItemVersionID,
             occurredAt: original.occurredAt, reportingDate: original.reportingDate,
             composition: composition, edibleQuantity: original.edibleQuantity,
+            weightDeclaration: original.weightDeclaration,
             quantityConversionVersionID: original.quantityConversionVersionID,
             plateWeightVersionID: original.plateWeightVersionID,
             originalResolutionVersionID: original.originalResolutionVersionID,
             effectiveResolutionVersionID: original.effectiveResolutionVersionID,
             correctionReason: reason, createdAt: clock.now())
         try next.validateRemovalTransition(predecessor: head, removedOriginal: restoring ? original : nil)
-        _ = try ledger.commit(LedgerMutation(logItemVersions: [next]), type: type, operationID: operationID)
+        _ = try ledger.commit(LedgerMutation(logItemVersions: [next]), type: original.weightDeclaration == nil ? type : (restoring ? .restoreLogItemV2 : .removeLogItemV2), operationID: operationID)
         return next
     }
 }

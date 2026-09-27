@@ -156,7 +156,7 @@ public final class FoodReresolutionService: Sendable {
             logItemVersionID: ids.makeID(LogItemVersionTag.self), logItemID: old.logItemID,
             ordinal: VersionOrdinal(old.ordinal.value + 1), supersedesLogItemVersionID: old.logItemVersionID,
             occurredAt: old.occurredAt, reportingDate: old.reportingDate, composition: old.composition,
-            edibleQuantity: old.edibleQuantity, quantityConversionVersionID: old.quantityConversionVersionID,
+            edibleQuantity: old.edibleQuantity, weightDeclaration: old.weightDeclaration, quantityConversionVersionID: old.quantityConversionVersionID,
             plateWeightVersionID: old.plateWeightVersionID, originalResolutionVersionID: old.originalResolutionVersionID,
             effectiveResolutionVersionID: resolution.resolutionVersionID,
             correctionReason: LedgerText("Opt-in nutrition re-resolution: \(reason.value)"), createdAt: now
@@ -188,7 +188,7 @@ public final class FoodReresolutionService: Sendable {
         }
         // Existing store lineage/conflict guards reject concurrent competing
         // successors atomically; this operation never manufactures a conflict.
-        return try ledger.commit(prepared.mutation, type: .correctResolution, operationID: prepared.operationID, idempotencyKey: prepared.idempotencyKey)
+        return try ledger.commit(prepared.mutation, type: prepared.mutation.logItemVersions.contains { $0.weightDeclaration != nil } ? .correctResolutionV2 : .correctResolution, operationID: prepared.operationID, idempotencyKey: prepared.idempotencyKey)
     }
 
     private func validateCurrent(_ before: StoredFoodConfirmation, target: FoodReresolutionTarget) throws {

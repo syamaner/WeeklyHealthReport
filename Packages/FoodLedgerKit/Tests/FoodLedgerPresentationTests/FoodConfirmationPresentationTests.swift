@@ -174,6 +174,33 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, 16)
     }
 
+    func testDirectWeightFieldRequirementsAndEstimatedConsumedPreview() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in throw CocoaError(.fileWriteUnknown) }
+        model.send(.setQuantity(200, .millilitres))
+        model.send(.beginDirectWeight)
+        XCTAssertNil(model.state.quantity.directWeight?.totalGrams)
+        XCTAssertEqual(model.directWeightRequirements.count, 2)
+        model.send(.setDirectWeight(150))
+        XCTAssertEqual(model.directWeightRequirements.count, 1)
+        model.send(.setWeightBasis(.estimated))
+        model.send(.accept)
+        XCTAssertTrue(model.saveRequirements.isEmpty)
+        XCTAssertNil(model.quantityBasisWarning)
+        XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, 12)
+        XCTAssertTrue(model.consumedNutrition.first { $0.key == .protein }?.includesEstimates == true)
+        model.send(.setQuantityText("abc"))
+        XCTAssertTrue(model.originalAmountRequirement?.contains("clear") == true)
+        XCTAssertFalse(model.saveRequirements.isEmpty)
+        XCTAssertTrue(model.consumedNutrition.isEmpty)
+        model.send(.setQuantityText(""))
+        XCTAssertNil(model.originalAmountRequirement)
+        XCTAssertTrue(model.saveRequirements.isEmpty)
+        XCTAssertEqual(model.state.quantity.directWeight?.totalGrams, 150)
+        model.send(.setWeightBasis(.measured))
+        XCTAssertTrue(model.consumedNutrition.first { $0.key == .protein }?.includesEstimates == true,
+            "Measured quantity must not upgrade augmented source nutrients")
+    }
+
     private func fixtureState(basis: ResolutionBasis = .per100Grams, knownProtein: Bool = false, boundedProtein: Bool = false) throws -> FoodConfirmationState {
         let evidenceID = try EvidenceID("00000000-0000-0000-0000-000000000001")
         let releaseID = try ExternalIdentifier("synthetic:presentation-v1")
