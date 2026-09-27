@@ -3,7 +3,7 @@ import Foundation
 /// Retrieval-only spelling equivalents. Original evidence and identity are unchanged.
 /// Complete token coverage is required; these terms never infer a recipe or a cut.
 enum GenericFoodSearchTerms {
-    static let version = "food-lexical-terms-v4"
+    static let version = "food-lexical-terms-v5"
     private static let connectors: Set<String> = ["and", "with", "the", "of", "in", "from", "a", "an"]
     private static let equivalents = [
         "clementines": "clementine", "oranges": "orange", "mandarins": "mandarin",
@@ -35,6 +35,19 @@ enum GenericFoodSearchTerms {
     static func primaryNameMatches(_ name: String, query: Set<String>) -> Bool {
         let head = tokens(String(name.split(separator: ",", maxSplits: 1).first ?? ""))
         return !head.isEmpty && head.isSubset(of: query)
+    }
+
+    /// An unflavoured yoghurt query prefers plain records; this never filters alternatives.
+    static func plainYoghurtMatches(_ name: String, query: Set<String>) -> Bool {
+        query.contains("yoghurt") && query.isSubset(of: ["yoghurt", "greek", "style"])
+            && tokens(name).contains("plain")
+    }
+
+    /// Ranking convention for an unspecified ribeye query, not a species identity assertion.
+    /// Explicit species terms disable this preference; alternative whole records remain visible.
+    static func defaultBeefRibeyeMatches(_ name: String, query: Set<String>) -> Bool {
+        query.contains("ribeye") && query.isSubset(of: ["ribeye", "steak"])
+            && tokens(String(name.split(separator: ",", maxSplits: 1).first ?? "")) == ["beef"]
     }
 
     static func suggestions(for text: String, names: [String]) -> [String] {

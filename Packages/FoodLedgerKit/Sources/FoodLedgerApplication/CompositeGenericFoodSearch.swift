@@ -14,7 +14,7 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
         let evidence = try request.captureEvidence ?? CaptureEvidence(
             evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch, capturedAt: request.capturedAt,
             locale: request.locale, captureMethod: LedgerText("typed_generic_food_search"),
-            captureMethodVersion: LedgerText("composite-parsed-query-v3"), originalPayload: .text(request.text)
+            captureMethodVersion: LedgerText("composite-ranked-variants-v4"), originalPayload: .text(request.text)
         )
         let shared = GenericFoodSearchRequest(text: request.text, identity: request.identity, capturedAt: request.capturedAt,
                                              locale: request.locale, captureEvidence: evidence, additionalEvidence: request.additionalEvidence)

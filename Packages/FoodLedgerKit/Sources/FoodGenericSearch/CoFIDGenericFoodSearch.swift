@@ -10,7 +10,7 @@ public enum CoFIDSearchError: Error, Equatable, Sendable {
 }
 
 public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "deterministic-parsed-query-v5"
+    public static let matcherVersion = "cofid-ranked-variants-v6"
     public static let corpusCanonicalSHA256 = "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445"
     public static let candidateLimit = 10
     public static let minimumScore = 0.25
@@ -190,6 +190,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
     private func rankedRecords(for request: GenericFoodSearchRequest) throws -> [RankedRecord] {
         let query = Self.normalized(request.text.value)
         let queryTokens = Set(query.split(separator: " ").map(String.init))
+        let parsedQuery = request.parsedQuery
         let meaningfulTokens = GenericFoodSearchTerms.tokens(request.retrievalText)
         guard !meaningfulTokens.isEmpty else { return [] }
         // CoFID has components, not a combined meal. Shop context is not identity.
@@ -209,7 +210,8 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             let candidateCoverage = Double(intersection.count) / Double(candidateTokens.count)
             let jaccard = Double(intersection.count) / Double(union.count)
             let primaryNameBonus = GenericFoodSearchTerms.primaryNameMatches(record.name, query: meaningfulTokens) ? 0.15 : 0
-            let rankingScore = primaryNameBonus + exactScore
+            let plainBonus = GenericFoodSearchTerms.plainYoghurtMatches(record.name, query: meaningfulTokens) ? 0.15 : 0
+            let rankingScore = primaryNameBonus + plainBonus + exactScore
                 + Self.weights.queryCoverage * queryCoverage
                 + Self.weights.candidateCoverage * candidateCoverage
                 + Self.weights.jaccard * jaccard
@@ -219,8 +221,16 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
                 + meaningfulTokens.subtracting(candidateTokens).sorted().map { "query_only_token:\($0)" }
             ranked.append(RankedRecord(record: record, score: score, exact: exact, differences: differences))
         }
+        func agrees(_ value: RankedRecord) -> Bool {
+            let nutrient = value.record.nutrients[NutrientKey.fatTotal.rawValue]
+            let fat = value.record.identity.servingBasis == "per_100_g"
+                && nutrient?.state == "numeric" && nutrient?.sourceUnit == "g"
+                ? nutrient?.value.flatMap(Double.init) : nil
+            return FoodQueryCandidateAssessment.matchesFat(query: parsedQuery, fatPer100Grams: fat)
+        }
         return Array(ranked.sorted {
-            $0.score == $1.score ? $0.record.recordID < $1.record.recordID : $0.score > $1.score
+            if agrees($0) != agrees($1) { return agrees($0) }
+            return $0.score == $1.score ? $0.record.recordID < $1.record.recordID : $0.score > $1.score
         }.prefix(Self.candidateLimit))
     }
 
