@@ -1,0 +1,410 @@
+{
+  "audit_version": 1,
+  "scope": "complete bundled projections, lexical name predicates; no network or ranking simulation",
+  "sources": [
+    {
+      "file": "cofid-2021-generic-search-v1.json",
+      "sha256": "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445",
+      "records": 2887,
+      "yoghurt_name_hits": 17,
+      "greek_yoghurt_name_hits": 2,
+      "greek_yoghurt_records": [
+        {
+          "id": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2874:44b416eeae10fa42",
+          "name": "Yogurt, Greek style, fruit",
+          "description": "6 samples, 4 brands, including peach, apricot, strawberry and blackcurrant, made with whole milk",
+          "basis": "per_100_g",
+          "fat": {
+            "canonical_unit": "g",
+            "source_unit": "g",
+            "state": "numeric",
+            "value": "8.4"
+          }
+        },
+        {
+          "id": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:2875:cd25b74963921a01",
+          "name": "Yogurt, Greek style, plain",
+          "description": "7 samples, 6 brands, made with whole milk",
+          "basis": "per_100_g",
+          "fat": {
+            "canonical_unit": "g",
+            "source_unit": "g",
+            "state": "numeric",
+            "value": "10.2"
+          }
+        }
+      ],
+      "yoghurt_numeric_10g_fat_hits": [],
+      "milk_name_hits": 132,
+      "milk_volume_basis_records": [],
+      "selected_whole_milk": [
+        {
+          "id": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+          "name": "Milk, whole, pasteurised, average",
+          "description": "Average of summer/autumn and winter/spring standardised milk. Analytical data, 1995-1996; and industry data",
+          "basis": "per_100_g",
+          "fat": {
+            "canonical_unit": "g",
+            "source_unit": "g",
+            "state": "numeric",
+            "value": "3.6"
+          }
+        }
+      ]
+    },
+    {
+      "file": "usda-generic-v1.json",
+      "sha256": "70480d2c58bac9fcf9646b3b66c70be00e52398695536cef0af129ea1528e4c7",
+      "records": 8156,
+      "yoghurt_name_hits": 91,
+      "greek_yoghurt_name_hits": 31,
+      "greek_yoghurt_records": [
+        {
+          "id": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:330137",
+          "name": "Yogurt, Greek, plain, nonfat",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.37,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:330415",
+          "name": "Yogurt, Greek, strawberry, nonfat",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.15,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2259794",
+          "name": "Yogurt, Greek, plain, whole milk",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 4.39,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170864",
+          "name": "Yogurt, Greek, 2% fat, apricot, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 1.71,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170891",
+          "name": "Yogurt, Greek, 2% fat,mixed berry blend, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 1.83,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170894",
+          "name": "Yogurt, Greek, plain, nonfat (Includes foods for USDA's Food Distribution Program)",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.39,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170901",
+          "name": "Yogurt, Greek, strawberry, nonfat",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.15,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170902",
+          "name": "Yogurt, Greek, vanilla, nonfat",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.18,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170903",
+          "name": "Yogurt, Greek, plain, lowfat",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 1.92,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170905",
+          "name": "Yogurt, Greek, fruit, whole milk",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 3.0,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170907",
+          "name": "Yogurt, Greek, vanilla, lowfat",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 2.5,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170909",
+          "name": "Yogurt, Greek, 2% fat, pineapple, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 1.82,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170912",
+          "name": "Yogurt, Greek, 2% fat, strawberry banana, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 1.71,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170913",
+          "name": "Yogurt, Greek, nonfat, Fruit on Bottom, Pomegranate, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.18,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170914",
+          "name": "Yogurt, Greek, Blueberry, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.24,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170915",
+          "name": "Yogurt, Greek, nonfat, Fruit on Bottom, Strawberry, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.23,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:170916",
+          "name": "Yogurt, Greek, nonfat, Fruit on Bottom, Blackberry, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.37,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171260",
+          "name": "Yogurt, Greek, 2%fat, coconut blend, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 1.71,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171296",
+          "name": "Yogurt, Greek, nonfat, vanilla, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.22,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171297",
+          "name": "Yogurt, Greek, strawberry, DANNON OIKOS",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 2.92,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171298",
+          "name": "Yogurt, Greek, nonfat, vanilla, DANNON OIKOS",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.14,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171299",
+          "name": "Yogurt, Greek, nonfat, strawberry, DANNON OIKOS",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.22,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171300",
+          "name": "Yogurt, Greek, strawberry, lowfat",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 2.57,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171304",
+          "name": "Yogurt, Greek, plain, whole milk",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 5.0,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171309",
+          "name": "Yogurt, Greek, whole, plain, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 4.01,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171310",
+          "name": "Yogurt, Greek, nonfat, lemon blend, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.15,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171311",
+          "name": "Yogurt, Greek, nonfat, peach, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.11,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171312",
+          "name": "Yogurt, Greek, nonfat, plain, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.24,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:171313",
+          "name": "Yogurt, Greek, nonfat, raspberry, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 0.22,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172199",
+          "name": "Yogurt, Greek, 2% fat, mango, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 1.69,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        },
+        {
+          "id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:173434",
+          "name": "Yogurt, Greek, 2% fat, key lime blend, CHOBANI",
+          "description": null,
+          "basis": "per_100_g",
+          "fat": {
+            "amount": 1.47,
+            "nutrientID": 1004,
+            "unit": "g"
+          }
+        }
+      ],
+      "yoghurt_numeric_10g_fat_hits": [],
+      "milk_name_hits": 291,
+      "milk_volume_basis_records": [],
+      "selected_whole_milk": []
+    }
+  ]
+}
