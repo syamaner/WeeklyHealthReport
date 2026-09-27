@@ -177,12 +177,8 @@ final class FoodLedgerCompositionRoot {
     }
 
     func intakeProjection(for date: Date, calendar: Calendar = .current) throws -> FoodIntakeProjection {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
-        return try FoodIntakeProjection(records: store.archiveState().records, reportingDate: formatter.string(from: date))
+        try FoodIntakeProjection(records: store.archiveState().records,
+            reportingDate: FoodReportingDay.key(for: date, calendar: calendar))
     }
 
     func changeLogEntry(_ row: FoodIntakeLogRow, restoring: Bool) throws {

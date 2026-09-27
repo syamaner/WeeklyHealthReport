@@ -273,17 +273,20 @@ public final class FoodConfirmationService: @unchecked Sendable {
     private let reader: any FoodConfirmationReading
     private let clock: any LedgerClock
     private let ids: any LedgerIDGenerating
+    private let calendar: Calendar
 
     public init(
         ledger: FoodLedgerService,
         reader: any FoodConfirmationReading,
         clock: any LedgerClock,
-        ids: any LedgerIDGenerating
+        ids: any LedgerIDGenerating,
+        calendar: Calendar = .autoupdatingCurrent
     ) {
         self.ledger = ledger
         self.reader = reader
         self.clock = clock
         self.ids = ids
+        self.calendar = calendar
     }
 
     public func save(
@@ -413,7 +416,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
             ordinal: VersionOrdinal((previous?.logItemVersion.ordinal.value ?? 0) + 1),
             supersedesLogItemVersionID: previous?.logItemVersion.logItemVersionID,
             occurredAt: previous?.logItemVersion.occurredAt ?? now,
-            reportingDate: previous?.logItemVersion.reportingDate ?? LedgerText(Self.reportingDate(now)),
+            reportingDate: previous?.logItemVersion.reportingDate ?? LedgerText(FoodReportingDay.key(for: now, calendar: calendar)),
             composition: .product(productVersion.productVersionID),
             edibleQuantity: edibleQuantity,
             quantityConversionVersionID: conversion.version?.quantityConversionVersionID,
@@ -625,14 +628,5 @@ public final class FoodConfirmationService: @unchecked Sendable {
         if value.fortification == .unknown { result.append(.fortification) }
         if value.servingBasis == .unknown { result.append(.servingBasis) }
         return result
-    }
-
-    private static func reportingDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.calendar = Calendar(identifier: .iso8601)
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.timeZone = .current
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter.string(from: date)
     }
 }

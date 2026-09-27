@@ -63,6 +63,7 @@ jobs:
       - name: Verify frozen fixtures, matcher and report
         run: |
           python3 -m unittest discover -s Tools/FoodMatchEvaluation/tests -v
+          python3 -m unittest discover -s Tools/FoodModelChallenger/tests -v
           python3 Tools/FoodMatchEvaluation/evaluate.py \
             --contract Tools/FoodMatchEvaluation/frozen-contract-v1.json \
             --corpus Tools/FoodMatchEvaluation/fixtures/cofid-2021-evaluation-v1.json.gz \

@@ -65,15 +65,10 @@ public struct FoodIntakeDayPreview: Sendable {
     public let summary: FoodIntakeSummary?
 
     public static func pastWeek(records: LedgerMutation, now: Date, calendar: Calendar) -> [Self] {
-        let formatter = DateFormatter()
-        formatter.calendar = calendar
-        formatter.timeZone = calendar.timeZone
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "yyyy-MM-dd"
         let today = calendar.startOfDay(for: now)
         return (1...7).compactMap { offset in
             guard let day = calendar.date(byAdding: .day, value: -offset, to: today) else { return nil }
-            let projection = try? FoodIntakeProjection(records: records, reportingDate: formatter.string(from: day))
+            let projection = try? FoodIntakeProjection(records: records, reportingDate: FoodReportingDay.key(for: day, calendar: calendar))
             return Self(date: day, summary: projection?.summary)
         }
     }
