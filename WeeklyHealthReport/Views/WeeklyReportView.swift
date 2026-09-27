@@ -589,6 +589,7 @@ private struct FoodIntakeHomeView: View {
                                 Text(row.name).font(.body.weight(.medium))
                                 Text(Self.entryDetail(row)).font(.subheadline).foregroundStyle(.secondary)
                                 Button("Restore entry") { changeEntry(row, restoring: true) }
+                                    .frame(minHeight: 44)
                                     .accessibilityLabel("Restore \(row.name)")
                             }.padding(.vertical, 4)
                         }
