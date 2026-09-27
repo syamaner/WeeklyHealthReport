@@ -459,7 +459,7 @@ struct WeeklyReportView: View {
 }
 
 /// Current-day food intake is separate from completed-day HealthKit reporting.
-private struct FoodIntakeHomeView: View {
+struct FoodIntakeHomeView: View {
     let root: FoodLedgerCompositionRoot?
     var isHome = true
     @Environment(\.scenePhase) private var scenePhase
