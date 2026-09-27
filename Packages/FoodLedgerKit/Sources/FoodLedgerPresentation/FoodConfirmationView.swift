@@ -7,19 +7,60 @@ public final class FoodConfirmationViewModel: ObservableObject {
     @Published public private(set) var state: FoodConfirmationState
     @Published public private(set) var savedResult: StoredFoodConfirmation?
     private let saveAction: @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
+    private let volumeConversionOffering: (any FoodVolumeConversionOffering)?
 
     public init(
         state: FoodConfirmationState,
+        volumeConversionOffering: (any FoodVolumeConversionOffering)? = nil,
         saveAction: @escaping @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
     ) {
         self.state = state
+        self.volumeConversionOffering = volumeConversionOffering
         self.saveAction = saveAction
+    }
+
+    public var availableVolumeConversion: QuantityConversionDraft? {
+        guard state.correction == nil, state.quantity.directWeight == nil,
+              state.quantity.conversion == nil,
+              let value = state.quantity.value,
+              let original = try? PositiveQuantity(value: value, unit: state.quantity.unit),
+              let offering = volumeConversionOffering else { return nil }
+        return try? offering.offer(for: state.selectedCandidate, original: original)
+    }
+
+    public func applyAvailableVolumeConversion() {
+        guard let conversion = availableVolumeConversion,
+              state.input.sourceReleases.contains(where: { $0.sourceReleaseID == conversion.sourceReleaseID }) else { return }
+        send(.setConversion(conversion))
+    }
+
+    public func removeOfferedVolumeConversion() {
+        guard usesOfferedVolumeEstimate else { return }
+        send(.setConversion(nil))
+    }
+
+    public var volumeConversionSourceURL: URL? {
+        guard let sourceID = state.quantity.conversion?.sourceReleaseID,
+              sourceID == volumeConversionOffering?.sourceRelease.sourceReleaseID else { return nil }
+        return volumeConversionOffering?.sourceURL
+    }
+
+    private var usesOfferedVolumeEstimate: Bool {
+        guard let sourceID = state.quantity.conversion?.sourceReleaseID,
+              let offering = volumeConversionOffering else { return false }
+        return sourceID == offering.sourceRelease.sourceReleaseID
     }
 
     public var quantityBasisWarning: String? {
         let basis = (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis
         let unit = (try? state.quantity.calculationInput().unit) ?? state.quantity.unit
         if basis == .per100Grams && unit == .millilitres {
+            if let conversion = state.quantity.conversion, usesOfferedVolumeEstimate {
+                return "Estimated edible mass: \(conversion.convertedQuantity.value.formatted()) g from the entered volume. This uses a separately sourced volume factor, not a measured weight or CoFID density field."
+            }
+            if let conversion = state.quantity.conversion {
+                return "Converted edible amount: \(conversion.convertedQuantity.value.formatted()) \(conversion.convertedQuantity.unit.rawValue) using the recorded method. Check that the conversion describes the food as eaten."
+            }
             return "This source is per 100 g. Choose a source per 100 mL or enter a measured gram amount; no density is inferred. Nutrient totals are unavailable for this unit."
         }
         if basis == .per100Millilitres && unit == .grams {
@@ -48,7 +89,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
             quantity: quantity,
             basis: (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis,
             nutrients: state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients,
-            quantityIsEstimate: state.quantity.directWeight?.basis == .estimated
+            quantityIsEstimate: state.quantity.directWeight?.basis == .estimated || usesOfferedVolumeEstimate
         )]).totals
     }
 
@@ -387,9 +428,26 @@ public struct FoodConfirmationView: View {
             if let warning = model.quantityBasisWarning {
                 Label(warning, systemImage: "exclamationmark.triangle").font(.caption)
             }
+            if let offer = model.availableVolumeConversion {
+                Button("Use sourced whole-milk volume estimate") { model.applyAvailableVolumeConversion() }
+                Text("\(model.state.quantity.value?.formatted() ?? "") mL gives about \(offer.convertedQuantity.value.formatted()) g. This estimate applies only to the selected UK CoFID whole pasteurised milk record. Check the food before using it; measured edible grams remain an alternative.")
+                    .font(.caption)
+            }
             if let conversion = model.state.quantity.conversion {
                 LabeledContent("Weight or volume method", value: conversion.methodVersion.value)
                     .accessibilityLabel("Conversion version \(conversion.methodVersion.value)")
+                if let url = model.volumeConversionSourceURL,
+                   let sourceID = conversion.sourceReleaseID,
+                   let source = model.state.input.sourceReleases.first(where: { $0.sourceReleaseID == sourceID }) {
+                    DisclosureGroup("Volume estimate source") {
+                        Text(source.attribution.value).font(.caption).textSelection(.enabled)
+                        Text(source.licence.value).font(.caption2).textSelection(.enabled)
+                        Link("Open conversion source", destination: url)
+                    }
+                }
+                if model.volumeConversionSourceURL != nil {
+                    Button("Remove volume estimate") { model.removeOfferedVolumeConversion() }
+                }
             }
             if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil {
                 Text("No source-backed size guide is available for this food. Enter the total edible weight, excluding shell, bone or other parts you did not eat.").font(.caption)

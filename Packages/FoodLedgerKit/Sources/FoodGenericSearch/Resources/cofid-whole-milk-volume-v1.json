@@ -1,0 +1,11 @@
+{
+  "rule_id": "cofid-whole-pasteurised-milk-volume-v1",
+  "nutrition_release_id": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d",
+  "nutrition_record_id": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+  "millilitres_to_grams": 1.03,
+  "factor_source": "Public Health England, Annex A to The 2018 review of the UK Nutrient Profiling Model, printed page 95, Table 4, whole milk specific gravity; cites McCance and Widdowson seventh summary edition",
+  "factor_url": "https://assets.publishing.service.gov.uk/media/5ab8bd9f40f0b67d67479854/Annex__A_the_2018_review_of_the_UK_nutrient_profiling_model.pdf",
+  "factor_artifact_sha256": "0abf60c447ac94a075e4d2a8065061e64e8d2fd8278959b3fc284ee858510e1b",
+  "licence": "Open Government Licence v3.0; cited MW7 publication has OGL v2.0 permission notice",
+  "estimate_note": "Generic 1.03 whole-milk factor, not a measured density or a value in CoFID row 1681. Scale only the selected CoFID record's own per-100-g nutrients."
+}

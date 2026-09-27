@@ -275,8 +275,9 @@ public enum FoodConfirmationReducer {
         switch action {
         case let .selectCandidate(index):
             guard state.input.candidates.indices.contains(index) else { return }
-            if state.selectedCandidateIndex != index, state.quantity.directWeight != nil {
+            if state.selectedCandidateIndex != index {
                 state.quantity.directWeight?.needsReconfirmation = true
+                state.quantity.conversion = nil
             }
             state.selectedCandidateIndex = index
             state.decision = .undecided
@@ -297,6 +298,7 @@ public enum FoodConfirmationReducer {
             let previousIdentity = state.correction?.identity ?? state.reopened?.productVersion.identity ?? state.selectedCandidate.candidate.identity
             state.correction = correction
             state.decision = .accepted
+            state.quantity.conversion = nil
             if state.quantity.directWeight != nil, previousIdentity != correction.identity {
                 state.quantity.directWeight?.needsReconfirmation = true
                 state.decision = .undecided
@@ -304,6 +306,7 @@ public enum FoodConfirmationReducer {
             state.phase = .editing
         case .beginDirectWeight:
             if state.quantity.directWeight == nil { state.quantity.directWeight = DirectWeightDraft() }
+            state.quantity.conversion = nil
             state.phase = .editing
         case .endDirectWeight:
             state.quantity.directWeight = nil
@@ -321,9 +324,10 @@ public enum FoodConfirmationReducer {
         case let .setQuantity(value, unit):
             state.quantity.invalidOriginalAmountText = nil
             let previousUnit = state.quantity.unit
+            let previousValue = state.quantity.value
             state.quantity.value = value
             state.quantity.unit = unit
-            if unit != .count || previousUnit != unit {
+            if (previousValue != value || previousUnit != unit) && (unit != .count || previousUnit != unit) {
                 state.quantity.conversion = nil
             }
             state.phase = .editing
@@ -557,9 +561,12 @@ public final class FoodConfirmationService: @unchecked Sendable {
             operationID: operationID,
             idempotencyKey: idempotencyKey
         )
+        let returnedReleases = (previous?.sourceReleases ?? []) + state.input.sourceReleases.filter { source in
+            !(previous?.sourceReleases.contains { $0.sourceReleaseID == source.sourceReleaseID } ?? false)
+        }
         return StoredFoodConfirmation(
             evidence: previous?.evidence ?? state.input.evidence,
-            sourceReleases: previous?.sourceReleases ?? state.input.sourceReleases,
+            sourceReleases: returnedReleases,
             product: product,
             productVersion: productVersion,
             resolution: resolution,

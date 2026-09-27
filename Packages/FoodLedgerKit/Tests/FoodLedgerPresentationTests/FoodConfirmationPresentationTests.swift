@@ -2,11 +2,50 @@ import Foundation
 import FoodLedgerApplication
 import FoodLedgerDomain
 import FoodLedgerPresentation
+import FoodGenericSearch
 import SwiftUI
 import XCTest
 
 @MainActor
 final class FoodConfirmationPresentationTests: XCTestCase {
+    func testDocumentedMilkVolumeEstimateRequiresExplicitTapAndClearsOnEdit() throws {
+        let policy = try CoFIDWholeMilkVolumeConversion()
+        let search = try CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator())
+        let request = GenericFoodSearchRequest(
+            text: try LedgerText("Milk, whole, pasteurised, average"),
+            identity: GenericFoodIdentityQuery(), capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            locale: try LedgerText("en_GB")
+        )
+        guard case let .confirmation(route) = try search.search(request),
+              let milk = route.matches.map(\.candidate).first(where: policy.applies(to:)) else {
+            return XCTFail("Expected CoFID milk")
+        }
+        let input = try PopulatedFoodConfirmation(
+            evidence: route.confirmation.evidence,
+            sourceReleases: route.confirmation.sourceReleases + [policy.sourceRelease],
+            candidates: [milk], expectedIdentity: milk.candidate.identity,
+            expectedEdibleQuantity: milk.candidate.edibleQuantity
+        )
+        let model = FoodConfirmationViewModel(
+            state: FoodConfirmationState(input: input), volumeConversionOffering: policy
+        ) { _ in throw CocoaError(.fileWriteUnknown) }
+        model.send(.setQuantity(200, .millilitres))
+        XCTAssertNotNil(model.availableVolumeConversion)
+        XCTAssertNil(model.state.quantity.conversion)
+        XCTAssertTrue(model.consumedNutrition.allSatisfy { $0.knownAmount == nil })
+        model.applyAvailableVolumeConversion()
+        XCTAssertEqual(model.state.quantity.conversion?.convertedQuantity.value, 206)
+        XCTAssertTrue(model.quantityBasisWarning?.contains("Estimated edible mass") == true)
+        XCTAssertEqual(try XCTUnwrap(model.consumedNutrition.first { $0.key == .energyConsumed }?.knownAmount), 129.78, accuracy: 0.0001)
+        XCTAssertTrue(model.consumedNutrition.first { $0.key == .energyConsumed }?.includesEstimates == true)
+        model.removeOfferedVolumeConversion()
+        XCTAssertNil(model.state.quantity.conversion)
+        model.applyAvailableVolumeConversion()
+        model.send(.setQuantity(250, .millilitres))
+        XCTAssertNil(model.state.quantity.conversion)
+        XCTAssertTrue(model.consumedNutrition.allSatisfy { $0.knownAmount == nil })
+    }
+
     func testArchiveGuidanceStatesIntegrityAndIndependentDeletionBoundaries() {
         XCTAssertTrue(FoodArchiveGuidance.integrity.contains("check integrity"))
         XCTAssertTrue(FoodArchiveGuidance.integrity.contains("do not encrypt or anonymise"))

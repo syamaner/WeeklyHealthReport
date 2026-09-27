@@ -414,7 +414,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
             let evidence: [CaptureEvidence] = try decision.candidate.evidenceIDs.compactMap {
                 try decode(CaptureEvidence.self, table: "capture_evidence", column: "evidence_id", id: $0.rawValue)
             }
-            let releases: [SourceRelease] = try resolutionVersion.sourceReleaseIDs.compactMap {
+            var releases: [SourceRelease] = try resolutionVersion.sourceReleaseIDs.compactMap {
                 try decode(SourceRelease.self, table: "source_release", column: "source_release_id", id: $0.value)
             }
             let assertionIDs = Set(productVersion.assertionIDs + resolutionVersion.assertionIDs)
@@ -428,6 +428,13 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
             }
             let conversion: QuantityConversionVersion? = try logVersion.quantityConversionVersionID.flatMap {
                 try decode(QuantityConversionVersion.self, table: "quantity_conversion_version", column: "version_id", id: $0.rawValue)
+            }
+            if let sourceID = conversion?.sourceReleaseID,
+               !releases.contains(where: { $0.sourceReleaseID == sourceID }) {
+                guard let source: SourceRelease = try decode(SourceRelease.self, table: "source_release", column: "source_release_id", id: sourceID.value) else {
+                    throw FoodLedgerStoreError.integrityFailure("missing quantity conversion source")
+                }
+                releases.append(source)
             }
             let plateVersion: PlateWeightVersion? = try logVersion.plateWeightVersionID.flatMap {
                 try decode(PlateWeightVersion.self, table: "plate_weight_version", column: "version_id", id: $0.rawValue)

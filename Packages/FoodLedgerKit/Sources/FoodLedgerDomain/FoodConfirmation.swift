@@ -84,6 +84,13 @@ public enum FoodQuantityValidationError: Error, Equatable, Sendable {
 }
 
 public enum FoodQuantityCalculator {
+    public static func estimatedMass(volume: PositiveQuantity, gramsPerMillilitre: Double) throws -> PositiveQuantity {
+        guard volume.unit == .millilitres, gramsPerMillilitre.isFinite, gramsPerMillilitre > 0 else {
+            throw FoodLedgerValidationError.invalidUnit
+        }
+        return try PositiveQuantity(value: volume.value * gramsPerMillilitre, unit: .grams)
+    }
+
     public static func direct(
         entered: PositiveQuantity,
         conversion: QuantityConversionVersion?

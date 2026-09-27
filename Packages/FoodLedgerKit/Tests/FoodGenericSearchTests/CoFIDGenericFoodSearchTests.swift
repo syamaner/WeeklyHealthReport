@@ -5,6 +5,53 @@ import FoodLedgerTestSupport
 import XCTest
 
 final class CoFIDGenericFoodSearchTests: XCTestCase {
+    func testWholeMilkVolumeEstimateIsRecordBoundAndSurvivesSaveReopen() throws {
+        let ids = SequenceIDs()
+        let search = try CoFIDGenericFoodSearch(ids: ids)
+        let policy = try CoFIDWholeMilkVolumeConversion()
+        guard case let .confirmation(route) = try search.search(request("Milk, whole, pasteurised, average")),
+              let milk = route.matches.map(\.candidate).first(where: policy.applies(to:)) else {
+            return XCTFail("Expected exact CoFID whole pasteurised milk")
+        }
+        let volume = try PositiveQuantity(value: 200, unit: .millilitres)
+        let offer = try XCTUnwrap(policy.offer(for: milk, original: volume))
+        XCTAssertEqual(offer.convertedQuantity, try PositiveQuantity(value: 206, unit: .grams))
+        XCTAssertEqual(offer.sourceReleaseID, policy.sourceRelease.sourceReleaseID)
+        XCTAssertNil(try policy.offer(for: milk, original: PositiveQuantity(value: 200, unit: .grams)))
+        guard case let .confirmation(uhtRoute) = try search.search(request("Milk, whole, UHT")) else {
+            return XCTFail("Expected UHT control")
+        }
+        XCTAssertNil(try policy.offer(for: uhtRoute.matches[0].candidate, original: volume))
+
+        let input = try PopulatedFoodConfirmation(
+            evidence: route.confirmation.evidence,
+            sourceReleases: route.confirmation.sourceReleases + [policy.sourceRelease],
+            candidates: [milk],
+            expectedIdentity: milk.candidate.identity,
+            expectedEdibleQuantity: milk.candidate.edibleQuantity
+        )
+        var state = FoodConfirmationState(input: input)
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(200, .millilitres))
+        FoodConfirmationReducer.reduce(state: &state, action: .setConversion(offer))
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        let store = InMemoryFoodLedgerStore()
+        let service = FoodConfirmationService(
+            ledger: FoodLedgerService(actorID: try id(919, ActorTag.self), committer: store,
+                clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()),
+            reader: store, clock: FixedClock(), ids: ids
+        )
+        let saved = try service.save(state, operationID: id(920, OperationTag.self))
+        XCTAssertEqual(saved.logItemVersion.edibleQuantity.value, 206)
+        XCTAssertEqual(saved.quantityConversion?.sourceQuantity, volume)
+        XCTAssertEqual(saved.quantityConversion?.sourceReleaseID, policy.sourceRelease.sourceReleaseID)
+        let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+        XCTAssertEqual(reopened.quantity.conversion, offer)
+        XCTAssertTrue(reopened.input.sourceReleases.contains(policy.sourceRelease))
+        var changed = reopened
+        FoodConfirmationReducer.reduce(state: &changed, action: .setQuantity(250, .millilitres))
+        XCTAssertNil(changed.quantity.conversion)
+    }
+
     func testBundledCorpusIsHashVerifiedCompleteAndExactSearchRequiresSelection() throws {
         let search = try CoFIDGenericFoodSearch(ids: SequenceIDs())
         XCTAssertEqual(search.recordCount, 2_887)
