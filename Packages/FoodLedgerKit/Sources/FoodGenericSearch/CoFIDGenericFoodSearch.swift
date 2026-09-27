@@ -10,7 +10,7 @@ public enum CoFIDSearchError: Error, Equatable, Sendable {
 }
 
 public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "cofid-generic-ranking-v6"
+    public static let matcherVersion = "cofid-generic-ranking-v7"
     public static let corpusCanonicalSHA256 = "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445"
     public static let candidateLimit = 10
     public static let minimumScore = 0.25
@@ -125,7 +125,10 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         record: BarcodeLibraryRecord,
         evidence: [CaptureEvidence]
     ) throws -> GenericFoodConfirmationRoute? {
-        guard let sourceRelease = record.sourceReleases.first else { return nil }
+        // An asserted generic estimate with unknown fields is not an exact library identity.
+        // Rediscover the bundled source snapshot and require a fresh explicit confirmation.
+        guard FoodConfirmationPolicy.unresolvedIdentity(record.productVersion.identity, allowingEstimate: false).isEmpty,
+              let sourceRelease = record.sourceReleases.first else { return nil }
         let quantity = record.libraryEntryVersion.reusableQuantity.map {
             EdibleQuantityIdentity.known(
                 $0,

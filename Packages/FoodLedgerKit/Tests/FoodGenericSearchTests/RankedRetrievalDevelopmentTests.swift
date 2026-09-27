@@ -39,6 +39,32 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         XCTAssertTrue(route.matches.allSatisfy { $0.candidate.candidate.identity.preparation.kind == .cooked })
     }
 
+    func testWholeEggPreferencePreservesExplicitWhitesAndGreekStyleNames() throws {
+        let ids = ReplayIDs()
+        let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
+        for (sourceIndex, source) in [cofid as any GenericFoodSearching, usda as any GenericFoodSearching,
+                       CompositeGenericFoodSearch(sources: [cofid, usda], ids: ids)].enumerated() {
+            for text in ["2 eggs", "egg white", "Greek yoghurt", "Greek-style yoghurt"] {
+                let request = GenericFoodSearchRequest(text: try LedgerText(text), capturedAt: Date(timeIntervalSince1970: 1700000000), locale: try LedgerText("en_GB"))
+                guard case let .confirmation(route) = try source.search(request) else {
+                    // USDA has Greek yoghurt, but no Greek-style record; never substitute the type.
+                    XCTAssertEqual(text, "Greek-style yoghurt")
+                    XCTAssertEqual(sourceIndex, 1)
+                    continue
+                }
+                let name = try XCTUnwrap(route.matches.first).candidate.name.value.lowercased()
+                if text == "2 eggs" { XCTAssertFalse(name.contains("white"), name); XCTAssertTrue(name.contains("whole"), name) }
+                if text == "egg white" { XCTAssertTrue(name.contains("white"), name) }
+                if text == "Greek-style yoghurt" { XCTAssertTrue(name.contains("style"), name) }
+                if text == "Greek yoghurt" {
+                    for match in route.matches where match.candidate.name.value.lowercased().contains("style") {
+                        XCTAssertTrue(try XCTUnwrap(FoodQueryCandidateAssessment.note(query: request.parsedQuery, candidate: match.candidate)).contains("Tentative alternative"))
+                    }
+                }
+            }
+        }
+    }
+
     func testReplay() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()

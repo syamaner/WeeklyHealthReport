@@ -198,13 +198,38 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
         input.candidates[selectedCandidateIndex]
     }
 
+    public var isGenericEstimate: Bool {
+        FoodConfirmationPolicy.isGenericEstimate(input, candidate: selectedCandidate)
+    }
+
+    public var unresolvedIdentity: [IdentityContradiction] {
+        FoodConfirmationPolicy.unresolvedIdentity(
+            correction?.identity ?? reopened?.productVersion.identity ?? selectedCandidate.candidate.identity,
+            allowingEstimate: isGenericEstimate
+        )
+    }
+
     public var materialDifferences: [IdentityContradiction] {
-        IdentityCompatibility.contradictions(
+        let differences = IdentityCompatibility.contradictions(
             between: input.expectedIdentity,
             and: selectedCandidate.candidate.identity,
             expectedEdibleQuantity: input.expectedEdibleQuantity,
             candidateEdibleQuantity: selectedCandidate.candidate.edibleQuantity
         )
+        guard isGenericEstimate else { return differences }
+        let expected = input.expectedIdentity, candidate = selectedCandidate.candidate.identity
+        return differences.filter {
+            switch $0 {
+            case .preparation: expected.preparation != candidate.preparation
+            case .bone: expected.bone != candidate.bone
+            case .skin: expected.skin != candidate.skin
+            case .drained: expected.drained != candidate.drained
+            case .packingMedium: expected.packingMedium != candidate.packingMedium
+            case .fortification: expected.fortification != candidate.fortification
+            case .servingBasis: expected.servingBasis != candidate.servingBasis
+            case .edibleQuantity: input.expectedEdibleQuantity != selectedCandidate.candidate.edibleQuantity
+            }
+        }
     }
 }
 
@@ -327,7 +352,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         // A reopened entry already has a user-confirmed product identity. The
         // retained source candidate may still contain explicitly asserted gaps.
         let identity = state.correction?.identity ?? state.reopened?.productVersion.identity ?? selected.candidate.identity
-        let unresolved = Self.unresolvedIdentity(identity)
+        let unresolved = state.unresolvedIdentity
         guard unresolved.isEmpty else {
             throw FoodConfirmationSaveError.unresolvedMandatoryIdentity(unresolved)
         }
@@ -383,7 +408,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 candidate: selected.candidate,
                 expectedIdentity: identity,
                 expectedEdibleQuantity: state.input.expectedEdibleQuantity,
-                requestedOutcome: state.correction == nil ? .selected : .rejected,
+                requestedOutcome: state.correction == nil && (!state.isGenericEstimate || IdentityCompatibility.contradictions(
+                    between: identity, and: selected.candidate.identity,
+                    expectedEdibleQuantity: state.input.expectedEdibleQuantity,
+                    candidateEdibleQuantity: selected.candidate.edibleQuantity
+                ).isEmpty) ? .selected : .rejected,
                 assertionID: assertion?.assertionID,
                 createdAt: now
             )
@@ -397,7 +426,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 resolutionVersionID: ids.makeID(ResolutionVersionTag.self),
                 resolutionID: resolution.resolutionID,
                 ordinal: VersionOrdinal(1),
-                methodVersion: LedgerText("food_confirmation_v1"),
+                methodVersion: LedgerText(FoodConfirmationPolicy.version),
                 sourceReleaseIDs: [selected.candidate.sourceReleaseID],
                 nutrients: state.correction?.nutrients ?? selected.candidate.nutrients,
                 decisionIDs: [decision.candidateDecisionID],
@@ -611,6 +640,9 @@ public final class FoodConfirmationService: @unchecked Sendable {
         } else if previous != nil {
             reason = try LedgerText("Updated confirmed quantity")
             claim = try LedgerText("Created a new immutable confirmation version")
+        } else if state.isGenericEstimate {
+            reason = try LedgerText("Explicitly accepted generic composition estimate; unknown source details remain unknown")
+            claim = try LedgerText("Accepted estimate under \(FoodConfirmationPolicy.version); not verified product identity")
         } else {
             return nil
         }
@@ -625,15 +657,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         )
     }
 
-    private static func unresolvedIdentity(_ value: DecisiveIdentity) -> [IdentityContradiction] {
-        var result: [IdentityContradiction] = []
-        if value.preparation.kind == .unknown { result.append(.preparation) }
-        if value.bone == .unknown { result.append(.bone) }
-        if value.skin == .unknown { result.append(.skin) }
-        if value.drained == .unknown { result.append(.drained) }
-        if value.packingMedium == .unknown { result.append(.packingMedium) }
-        if value.fortification == .unknown { result.append(.fortification) }
-        if value.servingBasis == .unknown { result.append(.servingBasis) }
-        return result
+    public static func unresolvedIdentity(_ value: DecisiveIdentity) -> [IdentityContradiction] {
+        FoodConfirmationPolicy.unresolvedIdentity(value, allowingEstimate: false)
     }
 }
