@@ -13,6 +13,7 @@ public enum GenericFoodSearchPhase: Equatable, Sendable {
 @MainActor
 public final class GenericFoodSearchViewModel: ObservableObject {
     @Published public var query = ""
+    @Published public private(set) var parsedQuery: ParsedFoodQuery?
     @Published public var preparationFilter: PreparationKind?
     @Published public private(set) var phase: GenericFoodSearchPhase = .idle
     private let searcher: any GenericFoodSearching
@@ -34,9 +35,20 @@ public final class GenericFoodSearchViewModel: ObservableObject {
 
     public func search(identity: GenericFoodIdentityQuery? = nil, retainedEvidence: [CaptureEvidence] = []) {
         do {
+            let parsed = FoodQueryParser.parse(query)
+            parsedQuery = parsed
+            guard parsed.route == .search else {
+                phase = .failed(parsed.reasons.contains("empty_query") ? "Enter a food name before searching." : parsed.route == .reject ? "Enter a valid food and a positive quantity, if supplied." : Self.clarificationMessage(parsed))
+                return
+            }
             let text = try LedgerText(query, field: "generic food search")
+            let parsedPreparation = parsed.attributes["preparation"].flatMap(PreparationKind.init(rawValue:))
+            if let preparationFilter, let parsedPreparation, preparationFilter != parsedPreparation {
+                phase = .failed("The preparation in your query conflicts with the selected filter. Please choose one.")
+                return
+            }
             let identity = try identity ?? GenericFoodIdentityQuery(
-                preparation: preparationFilter.map { try PreparationState(kind: $0) }
+                preparation: (preparationFilter ?? parsedPreparation).map { try PreparationState(kind: $0) }
             )
             switch try searcher.search(GenericFoodSearchRequest(
                 text: text,
@@ -55,6 +67,16 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         } catch {
             phase = .failed("Local food search could not be completed. Nothing was selected or saved.")
         }
+    }
+
+    private static func clarificationMessage(_ parsed: ParsedFoodQuery) -> String {
+        if parsed.reasons.contains("grounds_are_not_drink_weight") {
+            return "Enter the amount of brewed coffee separately from the dry grounds. Your input is kept; nothing was saved."
+        }
+        if parsed.reasons.contains("portion_requires_confirmation") || parsed.reasons.contains("fraction_requires_portion_confirmation") {
+            return "Please specify the portion in grams or millilitres, or choose a food with a defined serving. Your input is kept; nothing was saved."
+        }
+        return "Please search one food at a time and resolve any conflicting amounts or descriptions. Your input is kept; nothing was saved."
     }
 
     public func searchSuggestion(_ suggestion: String, from route: GenericFoodNoResultRoute) {
@@ -98,7 +120,7 @@ public struct GenericFoodSearchView: View {
             Section("Generic food") {
                 VStack(alignment: .leading) {
                     Text("Food name").font(.caption)
-                    TextField("Food name", text: $model.query)
+                    TextField("e.g. 200g Greek yoghurt 10% fat", text: $model.query)
                         .submitLabel(.search)
                         .onSubmit { model.search() }
                 }
@@ -142,6 +164,10 @@ public struct GenericFoodSearchView: View {
             }
         case let .results(route):
             Section("Choose a food") {
+                if let parsed = model.parsedQuery, !parsed.attributes.isEmpty {
+                    Text("Requested: " + parsed.attributes.sorted { $0.key < $1.key }.map { $0.key.replacingOccurrences(of: "_", with: " ") + ": " + $0.value }.joined(separator: "; "))
+                    Text("These are food-name candidates. The requested variant is not verified; compare the source details before accepting an alternative.").font(.caption)
+                }
                 ForEach(Array(route.matches.enumerated()), id: \.offset) { index, match in
                     VStack(alignment: .leading, spacing: 6) {
                         Text(match.candidate.name.value).font(.headline)
@@ -150,6 +176,9 @@ public struct GenericFoodSearchView: View {
                         }
                         Text(match.isExactName ? "Exact name" : "Food name match")
                             .font(.subheadline)
+                        if let parsed = model.parsedQuery, let note = FoodQueryCandidateAssessment.note(query: parsed, candidate: match.candidate) {
+                            Text(note).font(.caption)
+                        }
                         Text("Preparation: \(match.candidate.candidate.identity.preparation.kind.rawValue)")
                             .font(.caption).foregroundStyle(.secondary)
                         DisclosureGroup("Source and matching details") {

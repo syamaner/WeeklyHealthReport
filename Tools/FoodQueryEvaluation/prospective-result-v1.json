@@ -1,0 +1,134 @@
+{
+  "fixture_sha256": "7ea36951f02aa9cb02f81ae7a63e7c7debc332bf4b7f4bbe296923ff592f4375",
+  "cases": 36,
+  "correct_fields": {
+    "food": 22,
+    "attributes": 34,
+    "quantity": 36,
+    "route": 35,
+    "exact": 22
+  },
+  "search_cases": 18,
+  "search_correct_fields": {
+    "food": 18,
+    "attributes": 18,
+    "quantity": 18,
+    "route": 18,
+    "exact": 18
+  },
+  "families": {
+    "prospective_regression": {
+      "cases": 36,
+      "exact": 22
+    }
+  },
+  "failures": [
+    {
+      "id": "prospective-019",
+      "family": "prospective_regression",
+      "fields": [
+        "food",
+        "route"
+      ]
+    },
+    {
+      "id": "prospective-020",
+      "family": "prospective_regression",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "prospective-021",
+      "family": "prospective_regression",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "prospective-022",
+      "family": "prospective_regression",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "prospective-023",
+      "family": "prospective_regression",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "prospective-024",
+      "family": "prospective_regression",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "prospective-025",
+      "family": "prospective_regression",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "prospective-026",
+      "family": "prospective_regression",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "prospective-027",
+      "family": "prospective_regression",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "prospective-028",
+      "family": "prospective_regression",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "prospective-031",
+      "family": "prospective_regression",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "prospective-032",
+      "family": "prospective_regression",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "prospective-033",
+      "family": "prospective_regression",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "prospective-036",
+      "family": "prospective_regression",
+      "fields": [
+        "food"
+      ]
+    }
+  ],
+  "independent_acceptance": false,
+  "notes": [
+    "Development fixture scores only; correlated template variants.",
+    "Reason strings are diagnostics, not scored.",
+    "Unsafe prefill counts draft clarify/reject examples returning quantities."
+  ]
+}

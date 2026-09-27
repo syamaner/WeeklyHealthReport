@@ -7,7 +7,7 @@ public enum USDASearchError: Error, Equatable { case missingCorpus, hashMismatch
 
 /// Offline, whole-record US-composition alternatives. Never backfills another source.
 public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "usda-primary-name-v4"
+    public static let matcherVersion = "usda-parsed-query-v5"
     public static let corpusSHA256 = "70480d2c58bac9fcf9646b3b66c70be00e52398695536cef0af129ea1528e4c7"
     private let corpus: USDACorpus
     private let releases: [String: SourceRelease]
@@ -56,7 +56,7 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         guard Set(evidenceList.map(\.evidenceID)).count == evidenceList.count else {
             throw FoodLedgerValidationError.duplicateValue("search evidence")
         }
-        let tokens = Self.tokens(request.text.value)
+        let tokens = Self.tokens(request.retrievalText)
         guard !tokens.isEmpty else { return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence)) }
         let ranked = try corpus.records.compactMap { record -> (USDARecord, Double)? in
             let candidateTokens = Self.tokens(record.name)
@@ -69,7 +69,7 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         guard !ranked.isEmpty else { return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence, suggestedQueries: GenericFoodSearchTerms.suggestions(for: request.text.value, names: corpus.records.map(\.name)))) }
         let matches = try ranked.map { record, score in
             GenericFoodMatch(candidate: try candidate(record, score: score, evidence: evidenceList, query: request.text),
-                             isExactName: CoFIDGenericFoodSearch.normalized(record.name) == CoFIDGenericFoodSearch.normalized(request.text.value))
+                             isExactName: CoFIDGenericFoodSearch.normalized(record.name) == CoFIDGenericFoodSearch.normalized(request.retrievalText))
         }
         let sourceIDs = Set(matches.map { $0.candidate.candidate.sourceReleaseID.value })
         let first = matches[0].candidate.candidate
@@ -103,7 +103,7 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         let alias = try LedgerText("food:name:\(CoFIDGenericFoodSearch.normalized(query.value))")
         let metadata = try CandidateMatchMetadata(
             methodVersion: LedgerText(Self.matcherVersion), score: score,
-            materialDifferences: [LedgerText("Search terms: \(Self.tokens(query.value).sorted().joined(separator: " ")); spelling equivalents only, original query retained."), LedgerText("US composition estimate; review cut, grade, fat and preparation."),
+            materialDifferences: [LedgerText("Search terms: \(Self.tokens(query.value).sorted().joined(separator: " ")); original query tokens retained; parsed food terms used for retrieval; attributes need review."), LedgerText("US composition estimate; review cut, grade, fat and preparation."),
                                  LedgerText("US carbohydrate by difference includes fibre; vitamin A RAE is not substituted." )],
             libraryAliases: [alias]
         )

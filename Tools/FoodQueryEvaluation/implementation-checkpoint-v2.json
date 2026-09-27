@@ -1,0 +1,22 @@
+{
+  "schema_version": 2,
+  "parser_version": "food-query-parser-v2",
+  "parser_sha256": "47b5e8791601105f48e35269982934533166dd53de476e5570046e38c2fa16c3",
+  "fixture_sha256": "9e668248df72a42ca0f5ec039d6a7fdcb09221b61230ec62addd258996aff035",
+  "scorer_sha256": "e6894bc55640a1ae6a88a875e60d2152d8ba20f4ad6065ea8f40f0246d9af782",
+  "metric_schema_version": 2,
+  "development_cases": 511,
+  "package_tests_executed": 196,
+  "package_tests_skipped": 1,
+  "package_failures": 0,
+  "metric_unit_tests": 6,
+  "simulator_tests_passed": 273,
+  "simulator_failures": 0,
+  "simulator_skipped": 0,
+  "static_analysis": "passed",
+  "development_regression_gate": "passed",
+  "device_acceptance": false,
+  "independent_acceptance": false,
+  "provider_calls": 0,
+  "released": false
+}

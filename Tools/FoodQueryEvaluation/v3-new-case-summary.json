@@ -1,0 +1,63 @@
+{
+  "new_cases": 167,
+  "new_quantity_correct": 152,
+  "new_route_correct": 143,
+  "unexpected_prefills": [
+    {
+      "id": "nlp-389",
+      "query": "about 200g chicken",
+      "actual_quantity": {
+        "unit": "g",
+        "value": 200
+      },
+      "expected_reason": "approximate_quantity"
+    },
+    {
+      "id": "nlp-390",
+      "query": "up to 150g tofu",
+      "actual_quantity": {
+        "unit": "g",
+        "value": 150
+      },
+      "expected_reason": "quantity_limit"
+    },
+    {
+      "id": "nlp-404",
+      "query": "150g dairy-free yoghurt",
+      "actual_quantity": {
+        "unit": "g",
+        "value": 150
+      },
+      "expected_reason": "variant_needs_supported_identity"
+    },
+    {
+      "id": "nlp-405",
+      "query": "whole milk skimmed 250ml",
+      "actual_quantity": {
+        "unit": "ml",
+        "value": 250
+      },
+      "expected_reason": "conflicting_variants"
+    },
+    {
+      "id": "nlp-406",
+      "query": "plant-based chicken breast 100g",
+      "actual_quantity": {
+        "unit": "g",
+        "value": 100
+      },
+      "expected_reason": "food_identity_not_meat"
+    },
+    {
+      "id": "nlp-415",
+      "query": "\u22125g rice",
+      "actual_quantity": {
+        "unit": "g",
+        "value": 5
+      },
+      "expected_reason": "negative_quantity"
+    }
+  ],
+  "parser_changed": false,
+  "independent_acceptance": false
+}

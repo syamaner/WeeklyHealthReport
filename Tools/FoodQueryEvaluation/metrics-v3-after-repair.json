@@ -1,0 +1,879 @@
+{
+  "metric_schema_version": 2,
+  "cases": 429,
+  "correct_fields": {
+    "food": 347,
+    "attributes": 413,
+    "quantity": 429,
+    "route": 429,
+    "exact": 343
+  },
+  "field_accuracy": {
+    "food": 0.8088578088578089,
+    "attributes": 0.9627039627039627,
+    "quantity": 1.0,
+    "route": 1.0,
+    "exact": 0.7995337995337995
+  },
+  "search_cases": 317,
+  "search_correct_fields": {
+    "food": 316,
+    "attributes": 316,
+    "quantity": 317,
+    "route": 317,
+    "exact": 316
+  },
+  "route_metrics": {
+    "labels": [
+      "search",
+      "clarify",
+      "reject"
+    ],
+    "orientation": "rows=expected; columns=predicted",
+    "confusion_matrix": {
+      "search": {
+        "search": 317,
+        "clarify": 0,
+        "reject": 0
+      },
+      "clarify": {
+        "search": 0,
+        "clarify": 86,
+        "reject": 0
+      },
+      "reject": {
+        "search": 0,
+        "clarify": 0,
+        "reject": 26
+      }
+    },
+    "per_class": {
+      "search": {
+        "support": 317,
+        "predicted": 317,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "clarify": {
+        "support": 86,
+        "predicted": 86,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      },
+      "reject": {
+        "support": 26,
+        "predicted": 26,
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0
+      }
+    },
+    "accuracy": 1.0,
+    "macro_f1_supported_classes": 1.0,
+    "balanced_accuracy": 1.0,
+    "weighted_f1": 1.0
+  },
+  "attribute_metrics": {
+    "true_positive_pairs": 162,
+    "false_positive_pairs": 18,
+    "false_negative_pairs": 0,
+    "micro_precision": 0.9,
+    "micro_recall": 1.0,
+    "micro_f1": 0.9473684210526315
+  },
+  "quantity_metrics": {
+    "expected_present": 295,
+    "presence_precision": 1.0,
+    "presence_recall": 1.0,
+    "presence_f1": 1.0,
+    "present_exact_accuracy": 1.0,
+    "missing": 0,
+    "unexpected": 0,
+    "unit_confusion_matrix": {
+      "g": {
+        "g": 266
+      },
+      "ml": {
+        "ml": 10
+      },
+      "count": {
+        "count": 19
+      }
+    },
+    "unit_errors": 0,
+    "value_errors_comparable_units": 0,
+    "comparable_pairs": 295,
+    "mean_absolute_relative_error_comparable_pairs": 0.0,
+    "max_absolute_relative_error_comparable_pairs": 0.0
+  },
+  "safety_metrics": {
+    "nonsearch_cases": 112,
+    "false_search_eligible": 0,
+    "false_search_eligible_rate": 0.0,
+    "unexpected_prefill_ids": [],
+    "unexpected_prefill_count": 0,
+    "unexpected_prefill_rate": 0.0,
+    "original_query_preservation": 1.0
+  },
+  "families": {
+    "spelling": {
+      "cases": 5,
+      "exact": 5,
+      "route_correct": 5,
+      "quantity_correct": 5
+    },
+    "fat_variant": {
+      "cases": 3,
+      "exact": 3,
+      "route_correct": 3,
+      "quantity_correct": 3
+    },
+    "quantity_and_variant": {
+      "cases": 3,
+      "exact": 3,
+      "route_correct": 3,
+      "quantity_correct": 3
+    },
+    "quantity": {
+      "cases": 10,
+      "exact": 10,
+      "route_correct": 10,
+      "quantity_correct": 10
+    },
+    "identity": {
+      "cases": 14,
+      "exact": 14,
+      "route_correct": 14,
+      "quantity_correct": 14
+    },
+    "ambiguous_quantity": {
+      "cases": 7,
+      "exact": 0,
+      "route_correct": 7,
+      "quantity_correct": 7
+    },
+    "ambiguity": {
+      "cases": 8,
+      "exact": 0,
+      "route_correct": 8,
+      "quantity_correct": 8
+    },
+    "invalid": {
+      "cases": 10,
+      "exact": 7,
+      "route_correct": 10,
+      "quantity_correct": 10
+    },
+    "pattern_prefix_compact": {
+      "cases": 30,
+      "exact": 30,
+      "route_correct": 30,
+      "quantity_correct": 30
+    },
+    "pattern_prefix_spaced": {
+      "cases": 30,
+      "exact": 30,
+      "route_correct": 30,
+      "quantity_correct": 30
+    },
+    "pattern_suffix": {
+      "cases": 30,
+      "exact": 30,
+      "route_correct": 30,
+      "quantity_correct": 30
+    },
+    "pattern_grams": {
+      "cases": 30,
+      "exact": 30,
+      "route_correct": 30,
+      "quantity_correct": 30
+    },
+    "pattern_kilograms": {
+      "cases": 30,
+      "exact": 30,
+      "route_correct": 30,
+      "quantity_correct": 30
+    },
+    "note_patterns": {
+      "cases": 20,
+      "exact": 20,
+      "route_correct": 20,
+      "quantity_correct": 20
+    },
+    "note_ambiguity": {
+      "cases": 30,
+      "exact": 13,
+      "route_correct": 30,
+      "quantity_correct": 30
+    },
+    "paired_spelling_variant": {
+      "cases": 2,
+      "exact": 2,
+      "route_correct": 2,
+      "quantity_correct": 2
+    },
+    "unseen_food_formatting": {
+      "cases": 72,
+      "exact": 72,
+      "route_correct": 72,
+      "quantity_correct": 72
+    },
+    "attribute_and_unit_challenge": {
+      "cases": 23,
+      "exact": 23,
+      "route_correct": 23,
+      "quantity_correct": 23
+    },
+    "desired_quantity_syntax": {
+      "cases": 10,
+      "exact": 10,
+      "route_correct": 10,
+      "quantity_correct": 10
+    },
+    "ambiguity_and_scope_challenge": {
+      "cases": 46,
+      "exact": 3,
+      "route_correct": 46,
+      "quantity_correct": 46
+    },
+    "invalid_and_control_challenge": {
+      "cases": 16,
+      "exact": 8,
+      "route_correct": 16,
+      "quantity_correct": 16
+    }
+  },
+  "scenario_group_metrics": {
+    "groups": 381,
+    "macro_exact": 0.7742782152230971,
+    "macro_route_accuracy": 1.0
+  },
+  "failures": [
+    {
+      "id": "nlp-036",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-037",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-038",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-039",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-040",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-041",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-042",
+      "family": "ambiguous_quantity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-043",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-044",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-045",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-046",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-047",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-048",
+      "family": "ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-049",
+      "family": "ambiguity",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-050",
+      "family": "ambiguity",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-053",
+      "family": "invalid",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-054",
+      "family": "invalid",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-057",
+      "family": "invalid",
+      "fields": [
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-231",
+      "family": "note_ambiguity",
+      "fields": [
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-232",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-233",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-234",
+      "family": "note_ambiguity",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-235",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-236",
+      "family": "note_ambiguity",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-237",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-238",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-239",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-240",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-241",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-242",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-244",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-253",
+      "family": "note_ambiguity",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-257",
+      "family": "note_ambiguity",
+      "fields": [
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-259",
+      "family": "note_ambiguity",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-260",
+      "family": "note_ambiguity",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-368",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-369",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-370",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-371",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-372",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-373",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-374",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-375",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-376",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-377",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-378",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-379",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-380",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-381",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-382",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-383",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-384",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-385",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-386",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-387",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-388",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-389",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-390",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-391",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-392",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-393",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-394",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-395",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-396",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-397",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-398",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-399",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-402",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-403",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-404",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-405",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-406",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-407",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-408",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-409",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-410",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-412",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-413",
+      "family": "ambiguity_and_scope_challenge",
+      "fields": [
+        "food",
+        "attributes"
+      ]
+    },
+    {
+      "id": "nlp-414",
+      "family": "invalid_and_control_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-415",
+      "family": "invalid_and_control_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-416",
+      "family": "invalid_and_control_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-417",
+      "family": "invalid_and_control_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-418",
+      "family": "invalid_and_control_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-419",
+      "family": "invalid_and_control_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-420",
+      "family": "invalid_and_control_challenge",
+      "fields": [
+        "food"
+      ]
+    },
+    {
+      "id": "nlp-425",
+      "family": "invalid_and_control_challenge",
+      "fields": [
+        "attributes"
+      ]
+    }
+  ],
+  "independent_acceptance": false,
+  "notes": [
+    "Same-author synthetic development cases; correlated variants, not population estimates.",
+    "Food/attributes on clarify/reject are tentative; strict field scores retain those disagreements.",
+    "Reason strings not scored. Undefined denominators are null.",
+    "Magnitude errors compare identical units only; no mean mixing grams, ml and counts.",
+    "Scenario groups fall back to case IDs where historical grouping is unavailable."
+  ],
+  "fixture_sha256": "74b9d6bdbc31e9967de38574277087fcd85decd3e24a0af3316f9b0e941153c4",
+  "predictions_sha256": "7ca857dbb4548180779ed6660f2c9b787ca40f8a89477138df7fe687fe2470d7"
+}

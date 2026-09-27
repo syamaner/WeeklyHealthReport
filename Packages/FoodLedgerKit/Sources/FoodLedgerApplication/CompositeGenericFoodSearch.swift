@@ -14,7 +14,7 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
         let evidence = try request.captureEvidence ?? CaptureEvidence(
             evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch, capturedAt: request.capturedAt,
             locale: request.locale, captureMethod: LedgerText("typed_generic_food_search"),
-            captureMethodVersion: LedgerText("composite-interleaved-search-v2"), originalPayload: .text(request.text)
+            captureMethodVersion: LedgerText("composite-parsed-query-v3"), originalPayload: .text(request.text)
         )
         let shared = GenericFoodSearchRequest(text: request.text, identity: request.identity, capturedAt: request.capturedAt,
                                              locale: request.locale, captureEvidence: evidence, additionalEvidence: request.additionalEvidence)
@@ -38,7 +38,8 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
         for rank in 0..<(routes.map { $0.matches.count }.max() ?? 0) {
             for route in routes where rank < route.matches.count { interleaved.append(route.matches[rank]) }
         }
-        let matches = interleaved.filter(\.isExactName) + interleaved.filter { !$0.isExactName }
+        let lexical = interleaved.filter(\.isExactName) + interleaved.filter { !$0.isExactName }
+        let matches = lexical.filter { FoodQueryCandidateAssessment.matchesFat(query: request.parsedQuery, candidate: $0.candidate) } + lexical.filter { !FoodQueryCandidateAssessment.matchesFat(query: request.parsedQuery, candidate: $0.candidate) }
         var releases: [SourceRelease] = []
         for release in routes.flatMap({ $0.confirmation.sourceReleases }) {
             if let existing = releases.first(where: { $0.sourceReleaseID == release.sourceReleaseID }) {

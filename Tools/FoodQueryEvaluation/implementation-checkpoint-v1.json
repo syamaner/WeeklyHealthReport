@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "parser_sha256": "94a287da49e74fc56cc42b6516409084a5a961e721973122083ea451edfe2cd4",
+  "package_tests_executed": 194,
+  "package_tests_skipped": 1,
+  "package_failures": 0,
+  "simulator_tests_passed": 273,
+  "simulator_failures": 0,
+  "simulator_skipped": 0,
+  "static_analysis": "passed",
+  "development_regression_gate": "passed",
+  "negative_gate_check": "wrong quantity rejected",
+  "device_acceptance": false,
+  "independent_acceptance": false,
+  "provider_calls": 0,
+  "released": false
+}

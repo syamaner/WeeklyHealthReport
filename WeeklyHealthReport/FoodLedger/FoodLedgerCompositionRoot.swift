@@ -66,8 +66,12 @@ final class FoodLedgerCompositionRoot {
         ], ids: ids)
     }
 
-    func model(for input: PopulatedFoodConfirmation) -> FoodConfirmationViewModel {
-        FoodConfirmationViewModel(state: FoodConfirmationState(input: input)) { [confirmations, ids] state in
+    func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil) -> FoodConfirmationViewModel {
+        var state = FoodConfirmationState(input: input)
+        if let queryQuantity, let unit = QuantityUnit(rawValue: queryQuantity.unit == "ml" ? "mL" : queryQuantity.unit) {
+            state.quantity = FoodQuantityDraft(value: queryQuantity.value, unit: unit)
+        }
+        return FoodConfirmationViewModel(state: state) { [confirmations, ids] state in
             try confirmations.save(
                 state,
                 operationID: ids.makeID(OperationTag.self),
@@ -262,7 +266,7 @@ struct GenericFoodSearchFlowView: View {
         }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmation {
-                FoodConfirmationView(model: root.model(for: confirmation)) {
+                FoodConfirmationView(model: root.model(for: confirmation, queryQuantity: searchModel.parsedQuery?.quantity)) {
                     showsConfirmation = false
                 }
             }
