@@ -14,52 +14,36 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         let candidates: [PopulatedFoodCandidate]; let releases: [SourceRelease]
         let notes: [String?]; let suggestions: [String]
     }
-    func testPlainYoghurtAndFatAgreementRankBeforeSourceLimits() throws {
+    func testGenericRepresentationPreferenceRunsBeforeTruncationAndAcrossSources() throws {
         let ids = ReplayIDs()
         let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
-        let sources: [any GenericFoodSearching] = [cofid, usda,
-            CompositeGenericFoodSearch(sources: [cofid, usda], ids: ids)]
-        for search in sources {
-            let request = GenericFoodSearchRequest(text: try LedgerText("200g Greek youghurt"),
-                capturedAt: Date(timeIntervalSince1970: 1700000000), locale: try LedgerText("en_GB"))
-            guard case let .confirmation(route) = try search.search(request) else { return XCTFail("Missing yoghurt") }
-            XCTAssertTrue(try XCTUnwrap(route.matches.first).candidate.name.value.lowercased().contains("plain"))
-            XCTAssertEqual(route.confirmation.evidence.first?.originalPayload, .text(request.text))
-        }
-        for (search, fat) in [(cofid as any GenericFoodSearching, "10.2"), (usda as any GenericFoodSearching, "5"),
-                            (sources[2], "5"), (sources[2], "10.2")] {
-            let request = GenericFoodSearchRequest(text: try LedgerText("200g Greek yoghurt \(fat)% fat"),
-                capturedAt: Date(timeIntervalSince1970: 1700000000), locale: try LedgerText("en_GB"))
-            guard case let .confirmation(route) = try search.search(request) else { return XCTFail("Missing yoghurt") }
-            let first = try XCTUnwrap(route.matches.first).candidate
-            XCTAssertTrue(FoodQueryCandidateAssessment.matchesFat(query: request.parsedQuery, candidate: first))
-            XCTAssertEqual(route.confirmation.expectedIdentity, first.candidate.identity)
-            XCTAssertEqual(route.confirmation.expectedEdibleQuantity, first.candidate.edibleQuantity)
-            XCTAssertTrue(try XCTUnwrap(FoodQueryCandidateAssessment.note(query: request.parsedQuery, candidate: first)).contains("still needs review"))
-            for match in route.matches where !FoodQueryCandidateAssessment.matchesFat(query: request.parsedQuery, candidate: match.candidate) {
-                XCTAssertTrue(try XCTUnwrap(FoodQueryCandidateAssessment.note(query: request.parsedQuery, candidate: match.candidate)).contains("Alternative:"))
+        for source in [cofid as any GenericFoodSearching, usda as any GenericFoodSearching,
+            CompositeGenericFoodSearch(sources: [cofid, usda], ids: ids)] {
+            for (query, preferred) in [("Greek yoghurt", "plain"), ("200ml milk", "whole"), ("0.25kg rice", "white")] {
+                let request = GenericFoodSearchRequest(text: try LedgerText(query), capturedAt: Date(timeIntervalSince1970: 1700000000), locale: try LedgerText("en_GB"))
+                guard case let .confirmation(route) = try source.search(request) else { return XCTFail(query) }
+                XCTAssertTrue(try XCTUnwrap(route.matches.first).candidate.name.value.lowercased().contains(preferred), query)
+                XCTAssertEqual(route.confirmation.evidence.first?.originalPayload, .text(request.text))
             }
         }
     }
-
-    func testRibeyeSpeciesPreferenceDoesNotOverrideExplicitSpeciesOrPreparation() throws {
+    func testExplicitQualifiersAndHardPreparationRemainAuthoritative() throws {
         let search = try USDAGenericFoodSearch(ids: ReplayIDs())
-        for (text, species) in [("cooked ribeye", "beef"), ("200g cooked rib-eye", "beef"), ("bison ribeye", "game meat")] {
-            let request = GenericFoodSearchRequest(text: try LedgerText(text),
-                identity: GenericFoodIdentityQuery(preparation: try PreparationState(kind: .cooked)),
-                capturedAt: Date(timeIntervalSince1970: 1700000000), locale: try LedgerText("en_GB"))
+        for (text, required) in [("red rice", "red"), ("sheep milk", "sheep"), ("bison ribeye", "bison"), ("strawberry Greek yoghurt", "strawberry")] {
+            let request = GenericFoodSearchRequest(text: try LedgerText(text), capturedAt: Date(timeIntervalSince1970: 1700000000), locale: try LedgerText("en_GB"))
             guard case let .confirmation(route) = try search.search(request) else { return XCTFail(text) }
-            XCTAssertTrue(try XCTUnwrap(route.matches.first).candidate.name.value.lowercased().hasPrefix(species))
-            XCTAssertTrue(route.matches.allSatisfy { $0.candidate.candidate.identity.preparation.kind == .cooked })
-            if species == "game meat" { XCTAssertTrue(route.matches.allSatisfy { $0.candidate.name.value.lowercased().contains("bison") }) }
+            XCTAssertTrue(route.matches.allSatisfy { $0.candidate.name.value.lowercased().contains(required) })
         }
+        let request = GenericFoodSearchRequest(text: try LedgerText("ribeye"), identity: GenericFoodIdentityQuery(preparation: try PreparationState(kind: .cooked)), capturedAt: Date(timeIntervalSince1970: 1700000000), locale: try LedgerText("en_GB"))
+        guard case let .confirmation(route) = try search.search(request) else { return XCTFail("ribeye") }
+        XCTAssertTrue(route.matches.allSatisfy { $0.candidate.candidate.identity.preparation.kind == .cooked })
     }
 
     func testReplay() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
-        let path = root.appendingPathComponent("Tools/FoodSearchQuality/retrieval-scenarios-v2.json")
+        let path = root.appendingPathComponent("Tools/FoodSearchQuality/retrieval-scenarios-v3.json")
         let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: path))
         let ids = ReplayIDs()
         let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)

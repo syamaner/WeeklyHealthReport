@@ -44,9 +44,9 @@ jobs:
           swift test --package-path Packages/FoodLedgerKit
           python3 -m unittest discover -s Tools/FoodSearchQuality/tests -v
           python3 Tools/FoodSearchQuality/score_retrieval.py \
-            Tools/FoodSearchQuality/retrieval-scenarios-v2.json \
+            Tools/FoodSearchQuality/retrieval-scenarios-v3.json \
             "$WHR_RETRIEVAL_REPORT" "$RUNNER_TEMP/retrieval-metrics.json" \
-            --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-v2.json
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-v3.json
 
   food-ledger-kit-isolation:
     name: FoodLedgerKit boundaries

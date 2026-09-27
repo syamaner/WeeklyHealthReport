@@ -14,12 +14,8 @@ public enum FoodQueryCandidateAssessment {
         }
     }
     public static func matchesFat(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate) -> Bool {
-        matchesFat(query: query, fatPer100Grams: fatPer100Grams(candidate))
-    }
-    /// Adapter ranking may use a declared value before constructing bounded candidates.
-    public static func matchesFat(query: ParsedFoodQuery, fatPer100Grams actual: Double?) -> Bool {
         guard let requested = query.attributes["fat_percent"].flatMap(Double.init),
-              let actual else { return false }
+              let actual = fatPer100Grams(candidate) else { return false }
         return abs(actual - requested) < 0.000001
     }
     public static func note(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate) -> String? {

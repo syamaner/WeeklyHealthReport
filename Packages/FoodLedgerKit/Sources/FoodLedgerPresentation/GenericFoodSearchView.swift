@@ -70,6 +70,9 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     }
 
     private static func clarificationMessage(_ parsed: ParsedFoodQuery) -> String {
+        if parsed.reasons.contains("quantity_is_not_exact") {
+            return "Enter the actual consumed amount. A bound or approximate quantity cannot prefill an exact amount. Your input is kept; nothing was saved."
+        }
         if parsed.reasons.contains("grounds_are_not_drink_weight") {
             return "Enter the amount of brewed coffee separately from the dry grounds. Your input is kept; nothing was saved."
         }
@@ -83,6 +86,16 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         guard route.suggestedQueries.contains(suggestion) else { return }
         query = suggestion
         search(retainedEvidence: route.retainedEvidence)
+    }
+
+    /// Snapshot the explicitly chosen candidate; invalid indices never fall back to another food.
+    public func confirmation(at index: Int) -> PopulatedFoodConfirmation? {
+        guard case let .results(route) = phase, route.confirmation.candidates.indices.contains(index) else { return nil }
+        let input = route.confirmation
+        let chosen = input.candidates[index]
+        return try? PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: input.sourceReleases,
+            candidates: [chosen] + input.candidates.indices.filter { $0 != index }.map { input.candidates[$0] },
+            expectedIdentity: chosen.candidate.identity, expectedEdibleQuantity: chosen.candidate.edibleQuantity)
     }
 
     public func decline() {
@@ -147,7 +160,7 @@ public struct GenericFoodSearchView: View {
                     .font(.caption)
             }
         case let .failed(message):
-            Section("Search unavailable") { Label(message, systemImage: "exclamationmark.triangle") }
+            Section(model.parsedQuery?.route == .clarify ? "Clarification needed" : "Search unavailable") { Label(message, systemImage: "exclamationmark.triangle") }
         case let .noResult(route):
             Section(route.title) {
                 Text(route.guidance)
@@ -193,7 +206,7 @@ public struct GenericFoodSearchView: View {
                             Text("Record: \(match.candidate.candidate.recordID.value)").font(.caption2).textSelection(.enabled)
                         }
                         Button(index == 0 ? "Review this candidate" : "Choose and review") {
-                            review(Self.select(index: index, from: route.confirmation))
+                            if let confirmation = model.confirmation(at: index) { review(confirmation) }
                         }
                         .buttonStyle(.borderless)
                     }
@@ -206,22 +219,6 @@ public struct GenericFoodSearchView: View {
                 }
             }
         }
-    }
-
-    private static func select(
-        index: Int,
-        from confirmation: PopulatedFoodConfirmation
-    ) -> PopulatedFoodConfirmation {
-        guard confirmation.candidates.indices.contains(index) else { return confirmation }
-        let reordered = [confirmation.candidates[index]]
-            + confirmation.candidates.indices.filter { $0 != index }.map { confirmation.candidates[$0] }
-        return (try? PopulatedFoodConfirmation(
-            evidence: confirmation.evidence,
-            sourceReleases: confirmation.sourceReleases,
-            candidates: reordered,
-            expectedIdentity: confirmation.candidates[index].candidate.identity,
-            expectedEdibleQuantity: confirmation.candidates[index].candidate.edibleQuantity
-        )) ?? confirmation
     }
 
     private static func differenceLabel(_ value: String) -> String {

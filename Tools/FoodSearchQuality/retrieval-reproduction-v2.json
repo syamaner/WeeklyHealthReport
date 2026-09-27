@@ -11,6 +11,7 @@
     "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift": "47b5e8791601105f48e35269982934533166dd53de476e5570046e38c2fa16c3"
   },
   "commonWholeRecordsUnchanged": 28,
+  "implementationCommit": "8a69363a7d42929ac575921abd88348e904d0d6f",
   "independentAcceptance": false,
   "sha256": {
     ".github/workflows/ios-ci.yml": "76a6b964d54e6e0612b596dcebf3546be1eb35e836d59535d2dab2c6a4adeb2f",

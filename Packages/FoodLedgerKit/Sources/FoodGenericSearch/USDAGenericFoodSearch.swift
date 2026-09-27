@@ -7,7 +7,7 @@ public enum USDASearchError: Error, Equatable { case missingCorpus, hashMismatch
 
 /// Offline, whole-record US-composition alternatives. Never backfills another source.
 public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "usda-ranked-variants-v6"
+    public static let matcherVersion = "usda-generic-ranking-v6"
     public static let corpusSHA256 = "70480d2c58bac9fcf9646b3b66c70be00e52398695536cef0af129ea1528e4c7"
     private let corpus: USDACorpus
     private let releases: [String: SourceRelease]
@@ -56,21 +56,17 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         guard Set(evidenceList.map(\.evidenceID)).count == evidenceList.count else {
             throw FoodLedgerValidationError.duplicateValue("search evidence")
         }
-        let parsedQuery = request.parsedQuery
-        let tokens = Self.tokens(request.retrievalText)
+        let food = request.retrievalText
+        let tokens = Self.tokens(food)
         guard !tokens.isEmpty else { return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence)) }
-        let ranked = try corpus.records.compactMap { record -> (USDARecord, Double, Bool)? in
+        let ranked = try corpus.records.compactMap { record -> (USDARecord, Double, GenericFoodRankingPolicy.Preference)? in
             let candidateTokens = Self.tokens(record.name)
             guard tokens.isSubset(of: candidateTokens), try Self.accepts(request.identity, identity: Self.identity(record)) else { return nil }
             let primaryBonus = GenericFoodSearchTerms.primaryNameMatches(record.name, query: tokens) ? 0.3 : 0
-            let plainBonus = GenericFoodSearchTerms.plainYoghurtMatches(record.name, query: tokens) ? 0.3 : 0
-            let beefBonus = GenericFoodSearchTerms.defaultBeefRibeyeMatches(record.name, query: tokens) ? 0.3 : 0
-            let fat = record.nutrients[NutrientKey.fatTotal.rawValue]
-            let agrees = FoodQueryCandidateAssessment.matchesFat(query: parsedQuery,
-                fatPer100Grams: fat?.unit == "g" ? fat?.amount : nil)
-            return (record, min(1, (Double(tokens.count) / Double(candidateTokens.count) + primaryBonus + plainBonus + beefBonus) / 1.3), agrees)
+            return (record, (Double(tokens.count) / Double(candidateTokens.count) + primaryBonus) / 1.3,
+                GenericFoodRankingPolicy.preference(name: record.name, food: food, requestedText: request.text.value))
         }.sorted { lhs, rhs in
-            if lhs.2 != rhs.2 { return lhs.2 }
+            if lhs.2 != rhs.2 { return GenericFoodRankingPolicy.prefers(lhs.2, over: rhs.2) }
             return lhs.1 == rhs.1 ? lhs.0.id < rhs.0.id : lhs.1 > rhs.1
         }.prefix(10)
         guard !ranked.isEmpty else { return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence, suggestedQueries: GenericFoodSearchTerms.suggestions(for: request.text.value, names: corpus.records.map(\.name)))) }

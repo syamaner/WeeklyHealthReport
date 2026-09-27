@@ -14,7 +14,7 @@ The baseline was generated from merged PR #149 (`d3c3361`, retrieval v2). Compar
 The 27 September v4 reproduction is bound by `v4-reproduction-manifest.json`. Its paired comparison is byte-identical to `paired-development-v3.json`; the report schema is unchanged while the manifest records retrieval-policy v4 and exact source hashes. This does not promote the tuning sample into independent acceptance.
 
 
-## Record-level ranked retrieval v2
+## Historical record-level ranked retrieval v2 (superseded by issue #160)
 
 See [retrieval-report-v2.md](retrieval-report-v2.md), [retrieval-contract-v1.md](retrieval-contract-v1.md) and the visible pre-tuning [judgement corrections](judgement-revisions.md). Both historical v1 and corrected v2 labels are retained. Reproduce the actual bundled adapters and composite:
 
@@ -25,3 +25,15 @@ python3 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/retri
 ```
 
 Score the preserved baseline with the same corrected labels by replacing the replay argument with `Tools/FoodSearchQuality/retrieval-before-v1.json.gz`. The v1 replay name denotes its capture before tuning, not use of erroneous v1 labels. No provider access is required. Full candidates include source nutrition provenance; quantity queries do not infer portion weights or density.
+
+
+## Current generic retrieval v3 / issue #160
+
+See [retrieval-report-v3.md](retrieval-report-v3.md), [generic contract](retrieval-contract-v2.md) and [device retest](device-retest-v3.md). V3 supersedes narrow food-specific bonuses and defers detailed numeric variants. The build 9 baseline and final run use identical 72-scenario generic labels.
+
+```sh
+WHR_RETRIEVAL_REPORT=/private/tmp/retrieval-current.json swift test --package-path Packages/FoodLedgerKit
+python3 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/retrieval-scenarios-v3.json /private/tmp/retrieval-current.json /private/tmp/retrieval-metrics.json --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-v3.json
+```
+
+Replay the preserved baseline using `retrieval-build9-v3.json.gz`. The current reproduction manifest binds source, judgement and result hashes; archived v2 hashes refer to its historical implementation commit.

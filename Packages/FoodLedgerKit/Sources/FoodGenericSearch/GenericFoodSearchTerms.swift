@@ -1,53 +1,18 @@
 import Foundation
+import FoodLedgerApplication
 
 /// Retrieval-only spelling equivalents. Original evidence and identity are unchanged.
 /// Complete token coverage is required; these terms never infer a recipe or a cut.
 enum GenericFoodSearchTerms {
-    static let version = "food-lexical-terms-v5"
-    private static let connectors: Set<String> = ["and", "with", "the", "of", "in", "from", "a", "an"]
-    private static let equivalents = [
-        "clementines": "clementine", "oranges": "orange", "mandarins": "mandarin",
-        "tangerines": "tangerine", "grapes": "grape", "pears": "pear",
-        "peaches": "peach", "plums": "plum", "apricots": "apricot",
-        "strawberries": "strawberry", "raspberries": "raspberry",
-        "blueberries": "blueberry", "blackberries": "blackberry", "cherries": "cherry",
-        "apples": "apple", "bananas": "banana", "eggs": "egg",
-        "potatoes": "potato", "tomatoes": "tomato", "carrots": "carrot",
-        "onions": "onion", "beans": "bean", "peas": "pea", "lentils": "lentil",
-        "chickpeas": "chickpea", "zucchini": "courgette", "courgettes": "courgette"
-    ]
-
+    static let version = "food-lexical-terms-v4"
     static func tokens(_ text: String) -> Set<String> { Set(terms(text)) }
-
-    private static func terms(_ text: String) -> [String] {
-        let normalized = CoFIDGenericFoodSearch.normalized(text)
-            .replacingOccurrences(of: "rib eye", with: "ribeye")
-            .replacingOccurrences(of: "chick peas", with: "chickpea")
-            .replacingOccurrences(of: "chick pea", with: "chickpea")
-            .replacingOccurrences(of: "peas chick", with: "chickpea")
-            .replacingOccurrences(of: "pea chick", with: "chickpea")
-        return normalized.split(separator: " ").map(String.init)
-            .filter { !connectors.contains($0) }.map { equivalents[$0] ?? $0 }
-    }
+    private static func terms(_ text: String) -> [String] { GenericFoodRankingPolicy.terms(text) }
 
     /// The comma-delimited primary name must be wholly contained in the query.
     /// Ingredient mentions in chocolate, milk or banana bread do not earn this bonus.
     static func primaryNameMatches(_ name: String, query: Set<String>) -> Bool {
         let head = tokens(String(name.split(separator: ",", maxSplits: 1).first ?? ""))
         return !head.isEmpty && head.isSubset(of: query)
-    }
-
-    /// An unflavoured yoghurt query prefers plain records; this never filters alternatives.
-    static func plainYoghurtMatches(_ name: String, query: Set<String>) -> Bool {
-        query.contains("yoghurt") && query.isSubset(of: ["yoghurt", "greek", "style"])
-            && tokens(name).contains("plain")
-    }
-
-    /// Ranking convention for an unspecified ribeye query, not a species identity assertion.
-    /// Explicit species terms disable this preference; alternative whole records remain visible.
-    static func defaultBeefRibeyeMatches(_ name: String, query: Set<String>) -> Bool {
-        query.contains("ribeye") && query.isSubset(of: ["ribeye", "steak"])
-            && tokens(String(name.split(separator: ",", maxSplits: 1).first ?? "")) == ["beef"]
     }
 
     static func suggestions(for text: String, names: [String]) -> [String] {

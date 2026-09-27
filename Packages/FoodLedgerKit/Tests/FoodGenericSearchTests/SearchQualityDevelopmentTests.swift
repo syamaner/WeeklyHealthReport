@@ -43,8 +43,8 @@ final class SearchQualityDevelopmentTests: XCTestCase {
         let ids = QualityIDs()
         let source = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: ids), USDAGenericFoodSearch(ids: ids)], ids: ids)
         guard case let .confirmation(route) = try source.search(request("apple")) else { return XCTFail("apple") }
-        XCTAssertEqual(route.matches[0].candidate.candidate.sourceReleaseID.value.hasPrefix("cofid"), true)
-        XCTAssertEqual(route.matches[1].candidate.candidate.sourceReleaseID.value.hasPrefix("usda"), true)
+        XCTAssertTrue(route.matches.contains { $0.candidate.candidate.sourceReleaseID.value.hasPrefix("cofid") })
+        XCTAssertTrue(route.matches.contains { $0.candidate.candidate.sourceReleaseID.value.hasPrefix("usda") })
         XCTAssertEqual(route.confirmation.expectedIdentity, route.matches[0].candidate.candidate.identity)
         for pair in [("chickpeas", "chick peas"), ("courgette", "zucchini")] {
             guard case let .confirmation(a) = try source.search(request(pair.0)), case let .confirmation(b) = try source.search(request(pair.1)) else { return XCTFail("Missing equivalent") }
