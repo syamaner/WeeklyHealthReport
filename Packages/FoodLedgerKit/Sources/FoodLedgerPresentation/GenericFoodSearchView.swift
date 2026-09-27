@@ -12,9 +12,9 @@ public enum GenericFoodSearchPhase: Equatable, Sendable {
 
 @MainActor
 public final class GenericFoodSearchViewModel: ObservableObject {
-    @Published public var query = ""
+    @Published public var query = "" { didSet { if query != oldValue { invalidateSearch() } } }
     @Published public private(set) var parsedQuery: ParsedFoodQuery?
-    @Published public var preparationFilter: PreparationKind?
+    @Published public var preparationFilter: PreparationKind? { didSet { if preparationFilter != oldValue { invalidateSearch() } } }
     @Published public private(set) var phase: GenericFoodSearchPhase = .idle
     private let searcher: any GenericFoodSearching
     private let now: @MainActor () -> Date
@@ -31,6 +31,11 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         self.locale = locale
         self.additionalEvidence = additionalEvidence
         self.now = now
+    }
+
+    private func invalidateSearch() {
+        parsedQuery = nil
+        phase = .idle
     }
 
     public func search(identity: GenericFoodIdentityQuery? = nil, retainedEvidence: [CaptureEvidence] = []) {
@@ -83,7 +88,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     }
 
     public func searchSuggestion(_ suggestion: String, from route: GenericFoodNoResultRoute) {
-        guard route.suggestedQueries.contains(suggestion) else { return }
+        guard case let .noResult(current) = phase, current == route, route.suggestedQueries.contains(suggestion) else { return }
         query = suggestion
         search(retainedEvidence: route.retainedEvidence)
     }

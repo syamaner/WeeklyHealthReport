@@ -302,6 +302,42 @@ final class FoodConfirmationReducerTests: XCTestCase {
         XCTAssertEqual(saved.candidateDecision.expectedEdibleQuantity, state.input.expectedEdibleQuantity)
     }
 
+    func testExactProductUnknownsStillBlockEvenWithGenericCaptureAndExplanation() throws {
+        let unknown = try DecisiveIdentity(preparation: PreparationState(kind: .unknown),
+            bone: .unknown, skin: .unknown, drained: .unknown, packingMedium: .unknown,
+            fortification: .unknown, servingBasis: .per100Grams)
+        var state = FoodConfirmationState(input: try fixtureInput(kind: .genericSearch, identityOverride: unknown))
+        XCTAssertFalse(state.isGenericEstimate)
+        FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("I choose this")))
+        let store = InMemoryFoodLedgerStore()
+        XCTAssertThrowsError(try makeService(store: store, ids: SequenceIDs()).save(state, operationID: id(904, OperationTag.self))) { error in
+            XCTAssertEqual(error as? FoodConfirmationSaveError, .unresolvedMandatoryIdentity([
+                .preparation, .bone, .skin, .drained, .packingMedium, .fortification]))
+        }
+        XCTAssertEqual(try store.counts().logItemVersions, 0)
+        XCTAssertEqual(FoodConfirmationPolicy.unresolvedIdentity(unknown, allowingEstimate: true), [])
+    }
+
+    func testGuidePreviewKeepsCountEvidenceEstimateAndMeasuredOverrideSeparate() throws {
+        let candidate = try fixtureInput().candidates[0]
+        let guide = try FoodEdibleWeightGuide(foodRecordID: candidate.candidate.recordID,
+            foodSourceReleaseID: candidate.candidate.sourceReleaseID, guideID: ExternalIdentifier("synthetic:guide"),
+            guideVersion: LedgerText("test-v1"), size: LedgerText("Synthetic size"), edibleGramsPerPiece: 40,
+            sourceReleaseID: ExternalIdentifier("synthetic:portion-source"), evidenceID: id(1, EvidenceTag.self))
+        let preview = try guide.estimate(for: candidate, count: 2,
+            measuredOverride: PositiveQuantity(value: 85, unit: .grams))
+        XCTAssertEqual(preview.count.value, 2)
+        XCTAssertEqual(preview.guide, guide)
+        XCTAssertEqual(preview.estimatedEdibleWeight.value, 80)
+        XCTAssertEqual(preview.finalEdibleWeight.value, 85)
+        XCTAssertThrowsError(try guide.estimate(for: candidate, count: 0))
+        XCTAssertThrowsError(try guide.estimate(for: candidate, count: .infinity))
+        XCTAssertThrowsError(try guide.estimate(for: candidate, count: 2,
+            measuredOverride: PositiveQuantity(value: 85, unit: .millilitres)))
+        let other = try fixtureInput(candidateCount: 2).candidates[1]
+        XCTAssertThrowsError(try guide.estimate(for: other, count: 2))
+    }
+
     private func makeService(
         store: some LedgerCommandCommitting & LedgerReading & FoodConfirmationReading,
         ids: SequenceIDs,
@@ -318,7 +354,7 @@ final class FoodConfirmationReducerTests: XCTestCase {
         return FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids, calendar: calendar)
     }
 
-    private func fixtureInput(candidateCount: Int = 1, kind: CaptureKind = .synthetic) throws -> PopulatedFoodConfirmation {
+    private func fixtureInput(candidateCount: Int = 1, kind: CaptureKind = .synthetic, identityOverride: DecisiveIdentity? = nil) throws -> PopulatedFoodConfirmation {
         let evidenceID: EvidenceID = try id(1, EvidenceTag.self)
         let release = SourceRelease(
             sourceReleaseID: try ExternalIdentifier("synthetic:food-v1"),
@@ -340,7 +376,7 @@ final class FoodConfirmationReducerTests: XCTestCase {
             captureMethodVersion: LedgerText("v1"),
             originalPayload: .text(LedgerText("populated evidence"))
         )
-        let identity = try DecisiveIdentity(
+        let identity = try identityOverride ?? DecisiveIdentity(
             preparation: PreparationState(kind: .asSold),
             bone: .notApplicable,
             skin: .notApplicable,

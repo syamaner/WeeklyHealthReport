@@ -37,3 +37,10 @@ python3 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/retri
 ```
 
 Replay the preserved baseline using `retrieval-build9-v3.json.gz`. The current reproduction manifest binds source, judgement and result hashes; archived v2 hashes refer to its historical implementation commit.
+
+## Issue #161 current replay
+
+[Confirmation/ranking v4](retrieval-report-v4.md) preserves the historical v3
+replay and judgements. Current CI compares the same scenarios with
+`retrieval-metrics-final-v4.json`; v3 reproduction commands above apply to its
+historical implementation. Egg-size guide data and device acceptance stay deferred.

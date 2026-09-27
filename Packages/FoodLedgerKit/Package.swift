@@ -86,6 +86,7 @@ let package = Package(
         .testTarget(
             name: "FoodLedgerContractTests",
             dependencies: [
+                "FoodGenericSearch",
                 "FoodLedgerDomain",
                 "FoodLedgerApplication",
                 "FoodLedgerArchive",

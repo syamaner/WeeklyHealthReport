@@ -61,6 +61,33 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertTrue(message.contains("try again"))
     }
 
+    func testSaveGuidanceExplainsAcceptanceAndQuantityBeforeSaving() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState()) { _ in
+            XCTFail("Guidance must not save")
+            throw CocoaError(.fileWriteUnknown)
+        }
+        XCTAssertTrue(model.saveRequirements.contains { $0.contains("Accept this match") })
+        model.send(.accept)
+        model.send(.setQuantity(nil, .grams))
+        XCTAssertTrue(model.saveRequirements.contains { $0.contains("Amount eaten") })
+        model.send(.setQuantity(100, .grams))
+        XCTAssertTrue(model.saveRequirements.isEmpty)
+        model.send(.setQuantity(2, .count))
+        XCTAssertTrue(model.saveRequirements.contains { $0.contains("measured total") })
+        model.send(.setQuantity(100, .grams))
+        model.send(.setPlateChoice(.missing))
+        XCTAssertTrue(model.saveRequirements.contains { $0.contains("empty plate") })
+    }
+
+    func testMissingIdentityErrorNamesSpecificFields() {
+        let message = FoodConfirmationViewModel.message(
+            for: FoodConfirmationSaveError.unresolvedMandatoryIdentity([.preparation, .packingMedium])
+        )
+        XCTAssertTrue(message.contains("raw/cooked preparation"))
+        XCTAssertTrue(message.contains("packing liquid or none"))
+        XCTAssertTrue(message.contains("Review or correct food details"))
+    }
+
     private func fixtureState() throws -> FoodConfirmationState {
         let evidenceID = try EvidenceID("00000000-0000-0000-0000-000000000001")
         let releaseID = try ExternalIdentifier("synthetic:presentation-v1")

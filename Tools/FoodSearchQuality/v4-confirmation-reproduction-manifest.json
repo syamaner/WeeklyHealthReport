@@ -1,0 +1,17 @@
+{
+  "baselineCommit": "70b38827763798394f386d43ea69600926f68213",
+  "cofidMatcher": "cofid-generic-ranking-v7",
+  "compositeCapture": "composite-generic-ranking-v6",
+  "files": {
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/cofid-2021-generic-search-v1.json": "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/usda-generic-v1.json": "70480d2c58bac9fcf9646b3b66c70be00e52398695536cef0af129ea1528e4c7",
+    "Tools/FoodSearchQuality/retrieval-final-v3.json.gz": "eafddcedea7f2aa39efbe03ed94a444984dab245664bcf0ba64734292d300012",
+    "Tools/FoodSearchQuality/retrieval-final-v4.json.gz": "760e377fe02b4562606890374bda6e9ace0fa89291e9ff7ac6131cacf2167913",
+    "Tools/FoodSearchQuality/retrieval-metrics-final-v4.json": "c101c691ca4e285550481b0ecc57a2da81009082d4a210c17f467739b7f05822",
+    "Tools/FoodSearchQuality/retrieval-scenarios-v3.json": "93771a450b5fa0374e247b743ceb3333e4dfdd8bfd7376e27000ca2fa6f41922"
+  },
+  "independentAcceptance": false,
+  "issue": 161,
+  "rankingPolicy": "generic-representation-ranking-v2",
+  "usdaMatcher": "usda-generic-ranking-v7"
+}

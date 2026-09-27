@@ -121,6 +121,11 @@ row. Its consumed-nutrient projection is the deterministic interval-preserving s
 of the components' scaled resolutions. An unknown component contribution keeps the
 mixture contribution unknown for that nutrient.
 
+The explicit user-confirmation estimate path is versioned separately in
+[food-confirmation-contract-v2.md](food-confirmation-contract-v2.md). It preserves
+strict provider compatibility and unknown source attributes; it does not make a
+generic catalogue record an exact product identity.
+
 ## 3. Evidence, assertions and decisive identity
 
 `capture_evidence` records what was obtained, not what the system concluded. Each

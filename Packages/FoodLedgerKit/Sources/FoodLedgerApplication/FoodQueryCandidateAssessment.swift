@@ -19,7 +19,12 @@ public enum FoodQueryCandidateAssessment {
         return abs(actual - requested) < 0.000001
     }
     public static func note(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate) -> String? {
-        guard let requested = query.attributes["fat_percent"] else { return nil }
+        let requestedTerms = Set(GenericFoodRankingPolicy.terms(query.food ?? query.original))
+        let candidateTerms = Set(GenericFoodRankingPolicy.terms(candidate.name.value))
+        let typeNote: String? = requestedTerms.contains("greek") && requestedTerms.contains("style") != candidateTerms.contains("style")
+            ? "Tentative alternative: Greek yoghurt and Greek-style yoghurt are different types. Compare the catalogue name before accepting." : nil
+        guard let requested = query.attributes["fat_percent"] else { return typeNote }
+        if let typeNote { return typeNote + " Requested \(requested)% fat is not an exact product-variant match." }
         guard let actual = fatPer100Grams(candidate) else {
             return "Requested \(requested)% fat; source fat on a 100g basis is unavailable. Variant not verified."
         }

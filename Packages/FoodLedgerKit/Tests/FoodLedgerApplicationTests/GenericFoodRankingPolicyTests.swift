@@ -2,6 +2,13 @@ import FoodLedgerApplication
 import XCTest
 
 final class GenericFoodRankingPolicyTests: XCTestCase {
+    func testWholeRepresentationPreferenceIsSourceAndFoodNeutral() {
+        for food in ["egg", "milk", "grain"] {
+            let whole = GenericFoodRankingPolicy.preference(name: "\(food), whole", food: food, requestedText: food)
+            let partial = GenericFoodRankingPolicy.preference(name: "\(food), white", food: food, requestedText: food)
+            XCTAssertTrue(GenericFoodRankingPolicy.prefers(whole, over: partial))
+        }
+    }
     func testRepresentationPreferenceAppliesIdenticallyAcrossFoodNames() {
         for food in ["oats", "lentils", "potato", "beans", "bread", "beef", "fish", "tomato"] {
             let ordinary = GenericFoodRankingPolicy.preference(name: "\(food), plain, average", food: food, requestedText: food)

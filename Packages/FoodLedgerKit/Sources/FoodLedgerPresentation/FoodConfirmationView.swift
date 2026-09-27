@@ -27,6 +27,64 @@ public final class FoodConfirmationViewModel: ObservableObject {
         return nil
     }
 
+    /// Guidance uses the same unresolved-identity rule as the save service.
+    public var saveRequirements: [String] {
+        var result: [String] = []
+        switch state.decision {
+        case .undecided, .declined:
+            result.append("Confirm that this is the food you want using ‘Accept this match’.")
+        case .accepted:
+            if state.reopened == nil && state.correction == nil && !state.materialDifferences.isEmpty {
+                result.append("Explain why the closest match is acceptable, or correct the food details before saving.")
+            }
+        case .acceptedClosestMatch: break
+        }
+        let missing = state.unresolvedIdentity
+        if !missing.isEmpty {
+            result.append("Food details still needed: \(Self.detailNames(missing)). Open ‘Review or correct food details’, enter only what you know, and apply the correction. You can also choose another match.")
+        }
+        if let amount = state.quantity.value, amount.isFinite, amount > 0 {} else {
+            result.append("Enter an amount greater than zero in ‘Amount eaten’.")
+        }
+        if state.quantity.unit == .count && state.quantity.conversion == nil {
+            result.append("For a count, enter the measured total edible weight or volume and how it was measured, or change the amount to g or mL.")
+        }
+        if case .missing = state.quantity.plateChoice {
+            result.append("Enter the empty plate weight, or choose ‘Food only / tared’.")
+        }
+        switch state.quantity.plateChoice {
+        case .foodOnly, .missing: break
+        case let .saved(plate):
+            appendPlateRequirements(emptyWeight: plate.emptyWeight.value, to: &result)
+        case let .new(emptyWeight, _):
+            appendPlateRequirements(emptyWeight: emptyWeight.value, to: &result)
+        }
+        return result
+    }
+
+    private func appendPlateRequirements(emptyWeight: Double, to result: inout [String]) {
+        if state.quantity.unit != .grams {
+            result.append("Plate subtraction needs a total weight in grams. Choose g or use ‘Food only / tared’.")
+        } else if let total = state.quantity.value, total <= emptyWeight {
+            result.append("The total weight must be greater than the empty plate weight.")
+        }
+    }
+
+    private static func detailNames(_ details: [IdentityContradiction]) -> String {
+        details.map { detail in
+            switch detail {
+            case .preparation: "raw/cooked preparation"
+            case .bone: "bone"
+            case .skin: "skin"
+            case .drained: "drained state"
+            case .packingMedium: "packing liquid or none"
+            case .fortification: "fortification"
+            case .servingBasis: "nutrition basis"
+            case .edibleQuantity: "edible amount"
+            }
+        }.joined(separator: ", ")
+    }
+
     public func send(_ action: FoodConfirmationAction) {
         FoodConfirmationReducer.reduce(state: &state, action: action)
     }
@@ -58,8 +116,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
             "Plate subtraction is available for gram weights only."
         case FoodQuantityValidationError.nonPositiveEdibleQuantity:
             "The total must be greater than the empty plate weight."
-        case FoodConfirmationSaveError.unresolvedMandatoryIdentity:
-            "Resolve every highlighted identity difference before saving."
+        case let FoodConfirmationSaveError.unresolvedMandatoryIdentity(details):
+            "Food details still needed: \(detailNames(details)). Open ‘Review or correct food details’ or choose another match."
         case FoodConfirmationSaveError.unexplainedMaterialDifferences:
             "Explain the highlighted differences or apply a correction before saving."
         default:
@@ -123,12 +181,18 @@ public struct FoodConfirmationView: View {
                 candidateSection
                 differencesSection
                 quantitySection
-                nutritionSection
-                correctionSection
             }
             .disabled(model.savedResult != nil)
             recoverySection
             actionSection
+            Section {
+                DisclosureGroup("Nutrition and source details") {
+                    nutritionSection
+                    sourceDetails
+                }
+                DisclosureGroup("Review or correct food details") { correctionSection }
+                    .disabled(model.savedResult != nil)
+            }
         }
         .navigationTitle("Confirm food")
         .animation(reduceMotion ? nil : .default, value: model.state.selectedCandidateIndex)
@@ -155,20 +219,26 @@ public struct FoodConfirmationView: View {
             if let variant = model.state.selectedCandidate.variant {
                 LabeledContent("Variant", value: variant.value)
             }
-            LabeledContent("Source release", value: model.state.selectedCandidate.candidate.sourceReleaseID.value)
-            LabeledContent("Source record", value: model.state.selectedCandidate.candidate.recordID.value)
-            LabeledContent("Evidence", value: "\(model.state.selectedCandidate.candidate.evidenceIDs.count) retained item(s)")
             let identity = model.state.selectedCandidate.candidate.identity
             LabeledContent("Preparation", value: Self.preparationLabel(identity.preparation))
+            LabeledContent("Nutrition basis", value: Self.basisLabel(identity.servingBasis))
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Populated product identity and source evidence")
+    }
+
+    private var sourceDetails: some View {
+        Group {
+            let identity = model.state.selectedCandidate.candidate.identity
             LabeledContent("Bone", value: Self.label(identity.bone.rawValue))
             LabeledContent("Skin", value: Self.label(identity.skin.rawValue))
             LabeledContent("Drained", value: Self.label(identity.drained.rawValue))
             LabeledContent("Packing medium", value: Self.packingLabel(identity.packingMedium))
             LabeledContent("Fortification", value: Self.label(identity.fortification.rawValue))
-            LabeledContent("Nutrition basis", value: Self.basisLabel(identity.servingBasis))
+            LabeledContent("Source release", value: model.state.selectedCandidate.candidate.sourceReleaseID.value)
+            LabeledContent("Source record", value: model.state.selectedCandidate.candidate.recordID.value)
+            LabeledContent("Evidence", value: "\(model.state.selectedCandidate.candidate.evidenceIDs.count) retained item(s)")
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Populated product identity and source evidence")
     }
 
     private var candidateSection: some View {
@@ -177,6 +247,9 @@ public struct FoodConfirmationView: View {
                 ForEach(model.state.input.candidates.indices, id: \.self) { index in
                     Text(model.state.input.candidates[index].name.value).tag(index)
                 }
+            }
+            if model.state.isGenericEstimate {
+                Text("Generic composition estimate. Missing source details remain unknown; accepting does not verify them.").font(.caption)
             }
             Button("Accept this match") { model.send(.accept) }
                 .disabled(!model.state.materialDifferences.isEmpty)
@@ -197,7 +270,7 @@ public struct FoodConfirmationView: View {
     }
 
     private var differencesSection: some View {
-        Section("Material match differences") {
+        Section("Details to review") {
             if model.state.materialDifferences.isEmpty {
                 Label("No material differences", systemImage: "checkmark.circle")
             } else {
@@ -212,7 +285,7 @@ public struct FoodConfirmationView: View {
     }
 
     private var quantitySection: some View {
-        Section("Edible quantity") {
+        Section("Amount eaten") {
             TextField("Quantity", text: $totalText)
                 .onChange(of: totalText) { _, value in
                     model.send(.setQuantity(Double(value), model.state.quantity.unit))
@@ -227,10 +300,11 @@ public struct FoodConfirmationView: View {
                 Label(warning, systemImage: "exclamationmark.triangle").font(.caption)
             }
             if let conversion = model.state.quantity.conversion {
-                LabeledContent("Immutable conversion", value: conversion.methodVersion.value)
+                LabeledContent("Weight or volume method", value: conversion.methodVersion.value)
                     .accessibilityLabel("Conversion version \(conversion.methodVersion.value)")
             }
             if model.state.quantity.unit == .count {
+                Text("No source-backed size guide is available for this food. Enter the total edible weight, excluding shell, bone or other parts you did not eat.").font(.caption)
                 TextField("Converted edible amount", text: $conversionText)
                     .onChange(of: conversionText) { _, _ in updateConversion() }
                 Picker("Converted unit", selection: $conversionUnit) {
@@ -238,11 +312,11 @@ public struct FoodConfirmationView: View {
                     Text("mL").tag(QuantityUnit.millilitres)
                 }
                 .onChange(of: conversionUnit) { _, _ in updateConversion() }
-                TextField("Conversion method/version", text: $conversionMethod)
+                TextField("How was this weight or volume measured?", text: $conversionMethod)
                     .onChange(of: conversionMethod) { _, _ in updateConversion() }
                     .accessibilityHint("Required provenance for a count or portion conversion")
                 if model.state.quantity.conversion == nil {
-                    Label("A count conversion and method version are required", systemImage: "exclamationmark.triangle")
+                    Label("Enter the total edible weight or volume and how you measured it", systemImage: "exclamationmark.triangle")
                 }
             }
             Picker("Weighing method", selection: plateModeBinding) {
@@ -279,7 +353,7 @@ public struct FoodConfirmationView: View {
     }
 
     private var correctionSection: some View {
-        Section("Correct populated result") {
+        Section("Food details") {
             TextField("Product name", text: $correctionName)
             TextField("Brand (optional)", text: $correctionBrand)
             TextField("Variant (optional)", text: $correctionVariant)
@@ -344,9 +418,9 @@ public struct FoodConfirmationView: View {
                 correctionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
                     || correctionReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             )
-            Text("Corrections add an assertion and immutable version; original evidence is retained.")
+            Text("Corrections keep your reason and the original source evidence.")
                 .font(.caption)
-            Text("Unknown decisive identity values cannot be saved. Fortified identity must use the fortified-food item class.")
+            Text("Enter only details you know. Missing catalogue facts remain unknown. Fortified identity must use the fortified-food item class.")
                 .font(.caption)
         }
     }
@@ -357,7 +431,7 @@ public struct FoodConfirmationView: View {
             Section("Save needs attention") {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
                     .accessibilityLabel("Save failed. \(message)")
-                Button("Try saving again") { model.save() }
+                Button("Try saving again") { model.save() }.disabled(!canSave)
             }
         } else if case .saved = model.state.phase {
             Section {
@@ -376,6 +450,9 @@ public struct FoodConfirmationView: View {
             if case .saved = model.state.phase {
                 Button(completionTitle, action: leave)
             } else {
+                ForEach(model.saveRequirements, id: \.self) { requirement in
+                    Text(requirement).font(.caption)
+                }
                 Button {
                     model.save()
                 } label: {
@@ -415,12 +492,11 @@ public struct FoodConfirmationView: View {
             model.send(.setConversion(nil))
             return
         }
-        let selected = model.state.selectedCandidate.candidate
         model.send(.setConversion(QuantityConversionDraft(
             convertedQuantity: quantity,
             methodVersion: method,
-            sourceReleaseID: selected.sourceReleaseID,
-            evidenceID: selected.evidenceIDs.first
+            sourceReleaseID: nil,
+            evidenceID: nil
         )))
     }
 
@@ -448,7 +524,8 @@ public struct FoodConfirmationView: View {
     }
 
     private var canSave: Bool {
-        switch (model.state.decision, model.state.phase) {
+        guard model.saveRequirements.isEmpty else { return false }
+        return switch (model.state.decision, model.state.phase) {
         case (.accepted, .editing), (.acceptedClosestMatch, .editing),
              (.accepted, .saveFailed), (.acceptedClosestMatch, .saveFailed):
             true

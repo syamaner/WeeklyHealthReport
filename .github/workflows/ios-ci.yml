@@ -46,7 +46,7 @@ jobs:
           python3 Tools/FoodSearchQuality/score_retrieval.py \
             Tools/FoodSearchQuality/retrieval-scenarios-v3.json \
             "$WHR_RETRIEVAL_REPORT" "$RUNNER_TEMP/retrieval-metrics.json" \
-            --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-v3.json
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-v4.json
 
   food-ledger-kit-isolation:
     name: FoodLedgerKit boundaries

@@ -1,4 +1,5 @@
 import Foundation
+import FoodGenericSearch
 import FoodLedgerApplication
 import FoodLedgerDomain
 import XCTest
@@ -652,6 +653,33 @@ final class SharedStoreContractTests: XCTestCase {
             XCTAssertEqual(reopened.selectedCandidate.name.value, "Fixture food", harness.name)
             XCTAssertEqual(reopened.quantity.value, 100, harness.name)
             XCTAssertEqual(try harness.reader.counts().operations, 1, harness.name)
+        }
+    }
+
+    func testGenericEstimateUnknownIdentityPersistsThroughBothAdapters() throws {
+        try forEachStore { harness, ledger in
+            let ids = ContractSequenceIDs()
+            let search = try CoFIDGenericFoodSearch(ids: ids)
+            let request = GenericFoodSearchRequest(text: try LedgerText("rice"),
+                capturedAt: LedgerFixtures.date, locale: try LedgerText("en_GB"))
+            guard case let .confirmation(route) = try search.search(request) else { return XCTFail("rice") }
+            var state = FoodConfirmationState(input: route.confirmation)
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(100, .grams))
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            let confirmation = FoodConfirmationService(ledger: ledger, reader: harness.reader,
+                clock: LedgerFixtures.clock, ids: ids)
+            let saved = try confirmation.save(state, operationID: LedgerFixtures.operationID(152))
+            XCTAssertEqual(saved.productVersion.identity, route.matches[0].candidate.candidate.identity, harness.name)
+            XCTAssertEqual(saved.resolutionVersion.nutrients, route.matches[0].candidate.candidate.nutrients, harness.name)
+            XCTAssertEqual(saved.candidateDecision.outcome, .rejected, harness.name)
+            XCTAssertEqual(saved.resolutionVersion.methodVersion.value, FoodConfirmationPolicy.version, harness.name)
+            let reopened = try XCTUnwrap(confirmation.reopen(logItemID: saved.logItem.logItemID))
+            XCTAssertEqual(reopened.reopened?.assertions, saved.assertions, harness.name)
+            XCTAssertEqual(reopened.reopened?.candidateDecision, saved.candidateDecision, harness.name)
+            XCTAssertTrue(reopened.unresolvedIdentity.isEmpty, harness.name)
+            let next = try confirmation.save(reopened, operationID: LedgerFixtures.operationID(153))
+            XCTAssertEqual(next.resolutionVersion, saved.resolutionVersion, harness.name)
+            XCTAssertEqual(next.productVersion, saved.productVersion, harness.name)
         }
     }
 
