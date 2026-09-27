@@ -22,12 +22,13 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             let model=FoodConfirmationViewModel(state:FoodConfirmationState(input:input,queryQuantity:search.parsedQuery?.quantity)) { _ in
                 saves += 1;throw CocoaError(.fileWriteUnknown)
             }
-            let host=UIHostingController(rootView:NavigationStack { FoodConfirmationView(model:model,leave:{}) })
+            let host=NativeHostingController(rootView:NavigationStack { FoodConfirmationView(model:model,leave:{}) })
             let scene = try testScene()
             let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
             let window=UIWindow(windowScene:scene);window.frame=CGRect(x:0,y:0,width:430,height:932);window.rootViewController=host
             window.makeKeyAndVisible()
             defer { window.isHidden=true; previousKeyWindow?.makeKey() }
+            try await waitForHostAppearance(host, window: window)
             host.view.layoutIfNeeded()
             var field:UITextField?
             for _ in 0..<24 {
@@ -73,18 +74,19 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         let scene = try testScene()
         let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
         let driver = SavedSheetDriver()
-        let host = UIHostingController(rootView: SavedSheetHarness(driver: driver))
+        let host = NativeHostingController(rootView: SavedSheetHarness(driver: driver))
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: 430, height: 932); window.rootViewController = host
         window.makeKeyAndVisible()
         defer { window.isHidden = true; previousKeyWindow?.makeKey() }
         for missing in [true, false] {
+            try await waitForHostAppearance(host, window: window, driver: driver)
             driver.session = SavedFoodEntrySession(id: try NativeQuantityIDs().makeID(LogItemTag.self)) {
                 if missing { return nil }
                 throw CocoaError(.fileReadUnknown)
             }
             let title = missing ? "Saved entry unavailable" : "Could not open saved food"
-            try await waitForPresentation(host, title: title)
+            try await waitForPresentation(host, title: title, window: window, driver: driver)
             let presented = try XCTUnwrap(host.presentedViewController)
             XCTAssertTrue(nativeText(presented.view).contains(title))
             if missing {
@@ -93,7 +95,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
                 guard case .failed = driver.session?.phase else { return XCTFail("Expected failure state") }
             }
             driver.session = nil
-            try await waitForDismissal(host)
+            try await waitForDismissal(host, window: window, driver: driver)
             XCTAssertNil(host.presentedViewController)
         }
     }
@@ -123,12 +125,13 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             let scene = try testScene()
             let previousKeyWindow = scene.windows.first(where: \.isKeyWindow)
             let driver = SavedSheetDriver()
-            let host = UIHostingController(rootView: SavedSheetHarness(driver: driver))
+            let host = NativeHostingController(rootView: SavedSheetHarness(driver: driver))
             let window = UIWindow(windowScene: scene)
             window.frame = CGRect(x: 0, y: 0, width: 430, height: 932); window.rootViewController = host
             window.makeKeyAndVisible()
             defer { window.isHidden = true; previousKeyWindow?.makeKey() }
             for _ in 0..<2 {
+                try await waitForHostAppearance(host, window: window, driver: driver)
                 driver.session = SavedFoodEntrySession(id: saved.logItem.logItemID) {
                     guard let reopened = try service.reopen(logItemID: saved.logItem.logItemID) else { return nil }
                     XCTAssertEqual(reopened.quantity.value, 200)
@@ -136,13 +139,13 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
                     XCTAssertEqual(reopened.selectedCandidate.candidate.nutrients, state.selectedCandidate.candidate.nutrients)
                     return FoodConfirmationViewModel(state: reopened) { _ in throw CocoaError(.fileWriteUnknown) }
                 }
-                try await waitForPresentation(host, title: "Confirm food")
+                try await waitForPresentation(host, title: "Confirm food", window: window, driver: driver)
                 let presented = try XCTUnwrap(host.presentedViewController, query)
                 let labels = nativeText(presented.view)
                 XCTAssertTrue(labels.contains("Confirm food"), "Native sheet must contain confirmation: \(labels)")
                 guard case .loaded = driver.session?.phase else { return XCTFail("Saved record did not load") }
                 driver.session = nil
-                try await waitForDismissal(host)
+                try await waitForDismissal(host, window: window, driver: driver)
                 XCTAssertNil(host.presentedViewController)
             }
         }
@@ -153,8 +156,22 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         return try XCTUnwrap(scenes.first { $0.activationState == .foregroundActive } ?? scenes.first)
     }
 
-    private func waitForPresentation(_ host: UIViewController, title: String) async throws {
-        try await waitForNativeState("Sheet should render \(title)") {
+    private func waitForHostAppearance<Content: View>(
+        _ host: NativeHostingController<Content>, window: UIWindow, driver: SavedSheetDriver? = nil
+    ) async throws {
+        try await waitForNativeState("Host should appear in its owned active window before presentation",
+            diagnostics: { self.nativeSnapshot(host, window: window, driver: driver) }) {
+            host.view.layoutIfNeeded()
+            return host.hasAppeared && host.view.window === window && !window.isHidden && window.isKeyWindow
+                && window.windowScene?.activationState == .foregroundActive
+                && !host.isBeingPresented && !host.isBeingDismissed && host.presentedViewController == nil
+        }
+    }
+
+    private func waitForPresentation(_ host: UIViewController, title: String,
+                                     window: UIWindow, driver: SavedSheetDriver) async throws {
+        try await waitForNativeState("Sheet should render \(title)",
+            diagnostics: { self.nativeSnapshot(host, window: window, driver: driver) }) {
             host.view.layoutIfNeeded()
             guard let presented = host.presentedViewController,
                   !presented.isBeingPresented, !presented.isBeingDismissed else { return false }
@@ -163,13 +180,16 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         }
     }
 
-    private func waitForDismissal(_ host: UIViewController) async throws {
-        try await waitForNativeState("Sheet should finish dismissal before reopening") {
+    private func waitForDismissal(_ host: UIViewController,
+                                  window: UIWindow, driver: SavedSheetDriver) async throws {
+        try await waitForNativeState("Sheet should finish dismissal before reopening",
+            diagnostics: { self.nativeSnapshot(host, window: window, driver: driver) }) {
             host.presentedViewController == nil
         }
     }
 
-    private func waitForNativeState(_ message: String, condition: () -> Bool) async throws {
+    private func waitForNativeState(_ message: String, diagnostics: () -> String,
+                                    condition: () -> Bool) async throws {
         // Let the main actor process UIKit transitions; slow hosted simulators need
         // readiness checks rather than an assumed animation duration.
         let clock = ContinuousClock()
@@ -177,7 +197,30 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         while !condition() && clock.now < deadline {
             try await Task.sleep(for: .milliseconds(100))
         }
-        XCTAssertTrue(condition(), message)
+        let ready = condition()
+        XCTAssertTrue(ready, ready ? message : "\(message). Timeout snapshot: \(diagnostics())")
+    }
+
+    private func nativeSnapshot(_ host: UIViewController, window: UIWindow,
+                                driver: SavedSheetDriver?) -> String {
+        let phase: String
+        switch driver?.session?.phase {
+        case .none: phase = "no session"
+        case .some(.loading): phase = "loading"
+        case .some(.loaded): phase = "loaded"
+        case .some(.missing): phase = "missing"
+        case .some(.failed): phase = "failed"
+        }
+        let presented = host.presentedViewController
+        let hostTitles = host.isViewLoaded ? nativeText(host.view) : []
+        let sheetTitles = presented?.isViewLoaded == true ? nativeText(presented!.view) : []
+        return "phase=\(phase); hostTitles=\(hostTitles); sheetTitles=\(sheetTitles); "
+            + "hostPresenting=\(host.isBeingPresented); hostDismissing=\(host.isBeingDismissed); "
+            + "sheetPresenting=\(presented?.isBeingPresented.description ?? "nil"); "
+            + "sheetDismissing=\(presented?.isBeingDismissed.description ?? "nil"); "
+            + "ownedWindow=\(host.isViewLoaded && host.view.window === window); "
+            + "windowHidden=\(window.isHidden); windowKey=\(window.isKeyWindow); "
+            + "sceneState=\(window.windowScene?.activationState.rawValue.description ?? "nil")"
     }
 
     private func nativeText(_ view: UIView) -> [String] {
@@ -203,5 +246,14 @@ private struct SavedSheetHarness: View {
             .sheet(item: $driver.session) { session in
                 SavedFoodEntrySheet(session: session) { driver.session = nil }
             }
+    }
+}
+
+@MainActor
+private final class NativeHostingController<Content: View>: UIHostingController<Content> {
+    private(set) var hasAppeared = false
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        hasAppeared = true
     }
 }
