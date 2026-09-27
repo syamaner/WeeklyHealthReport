@@ -16,6 +16,17 @@ public final class FoodConfirmationViewModel: ObservableObject {
         self.saveAction = saveAction
     }
 
+    public var quantityBasisWarning: String? {
+        let basis = (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis
+        if basis == .per100Grams && state.quantity.unit == .millilitres {
+            return "This source is per 100 g. Choose a source per 100 mL or enter a measured gram amount; no density is inferred. Nutrient totals are unavailable for this unit."
+        }
+        if basis == .per100Millilitres && state.quantity.unit == .grams {
+            return "This source is per 100 mL. Choose a source per 100 g or enter a measured volume; no density is inferred. Nutrient totals are unavailable for this unit."
+        }
+        return nil
+    }
+
     public func send(_ action: FoodConfirmationAction) {
         FoodConfirmationReducer.reduce(state: &state, action: action)
     }
@@ -91,6 +102,7 @@ public struct FoodConfirmationView: View {
         self.context = context
         self.completionTitle = completionTitle
         self.leave = leave
+        _totalText = State(initialValue: model.state.quantity.value.map(Self.editableNumber) ?? "")
     }
 
     public var body: some View {
@@ -210,6 +222,9 @@ public struct FoodConfirmationView: View {
                 Text("g").tag(QuantityUnit.grams)
                 Text("mL").tag(QuantityUnit.millilitres)
                 Text("count").tag(QuantityUnit.count)
+            }
+            if let warning = model.quantityBasisWarning {
+                Label(warning, systemImage: "exclamationmark.triangle").font(.caption)
             }
             if let conversion = model.state.quantity.conversion {
                 LabeledContent("Immutable conversion", value: conversion.methodVersion.value)

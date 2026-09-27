@@ -71,6 +71,7 @@
 		A0000000000000000000003C /* ReportDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000042 /* ReportDocument.swift */; };
 		A0000000000000000000003D /* WeeklyReportPDFView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000043 /* WeeklyReportPDFView.swift */; };
 		A0000000000000000000003E /* WeeklyReportScreenshotService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000044 /* WeeklyReportScreenshotService.swift */; };
+		A00000000000000000000300 /* FoodSearchQuantityNativeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000300 /* FoodSearchQuantityNativeTests.swift */; };
 		A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */; };
 		A00000000000000000000040 /* DailyHealthExportGoldenSnapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000046 /* DailyHealthExportGoldenSnapshots.swift */; };
 		A00000000000000000000041 /* FixtureClock.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000047 /* FixtureClock.swift */; };
@@ -179,6 +180,7 @@
 		B00000000000000000000042 /* ReportDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDocument.swift; sourceTree = "<group>"; };
 		B00000000000000000000043 /* WeeklyReportPDFView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportPDFView.swift; sourceTree = "<group>"; };
 		B00000000000000000000044 /* WeeklyReportScreenshotService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshotService.swift; sourceTree = "<group>"; };
+		B00000000000000000000300 /* FoodSearchQuantityNativeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodSearchQuantityNativeTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportScreenshotTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000046 /* DailyHealthExportGoldenSnapshots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyHealthExportGoldenSnapshots.swift; sourceTree = "<group>"; };
 		B00000000000000000000047 /* FixtureClock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureClock.swift; sourceTree = "<group>"; };
@@ -338,6 +340,7 @@
 				B0000000000000000000003E /* DailyNotesTests.swift */,
 				B0000000000000000000003F /* DailyNotesStoreTests.swift */,
 				B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */,
+				B00000000000000000000300 /* FoodSearchQuantityNativeTests.swift */,
 				B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */,
 				B00000000000000000000046 /* DailyHealthExportGoldenSnapshots.swift */,
 			);
@@ -621,6 +624,7 @@
 				A00000000000000000000038 /* DailyNotesTests.swift in Sources */,
 				A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */,
 				A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */,
+				A00000000000000000000300 /* FoodSearchQuantityNativeTests.swift in Sources */,
 				A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */,
 				A00000000000000000000040 /* DailyHealthExportGoldenSnapshots.swift in Sources */,
 				A00000000000000000000041 /* FixtureClock.swift in Sources */,

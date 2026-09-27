@@ -1,0 +1,43 @@
+{
+  "baselineCommit": "b18482b6ee4fe6fb2ebb2d2c325926adaafbbacf",
+  "baselineSourceSHA256": {
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/CoFIDGenericFoodSearch.swift": "2a7d55524ce7f94725402eb8f63d4dc9b3ca10db8479cc4da32c29d8a7a916e4",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/CoFIDReresolutionProvider.swift": "f68c7761df3b87f16ea3d461f5ee8878dbaad0e62eb2fedb30ac4d29cdbc202f",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/GenericFoodSearchTerms.swift": "2a9087627ce9efd5c0d842c985ce8b733b6565812fa095f60a81f5434266fac7",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/OpenFoodFactsLookup.swift": "8fa4cae524dff8a9b385a12a7477ab8cf925bf25f02d23f11134169cfca78a18",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/USDAGenericFoodSearch.swift": "62e384f1e83379491036f60a1cb9de9a7f0ea382182493c9a3595265f9dc8dbc",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/CompositeGenericFoodSearch.swift": "cc4a8b49b5911d0ea2f90ba5594b08c546489ffee3eecffabbaca459bc192b49",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryCandidateAssessment.swift": "21ce6d08ed33b2e4b81cb37506e970b8051ae364381a7320e4df407359c65df8",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift": "47b5e8791601105f48e35269982934533166dd53de476e5570046e38c2fa16c3"
+  },
+  "commonWholeRecordsUnchanged": 28,
+  "implementationCommit": "8a69363a7d42929ac575921abd88348e904d0d6f",
+  "independentAcceptance": false,
+  "sha256": {
+    ".github/workflows/ios-ci.yml": "76a6b964d54e6e0612b596dcebf3546be1eb35e836d59535d2dab2c6a4adeb2f",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/CoFIDGenericFoodSearch.swift": "62c7312b9bebec9f79e7b6f3ec8b60f95e93e035c03f374ca0c3c9045a113883",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/CoFIDReresolutionProvider.swift": "f68c7761df3b87f16ea3d461f5ee8878dbaad0e62eb2fedb30ac4d29cdbc202f",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/GenericFoodSearchTerms.swift": "29c6800048892d5f5c8fca3895245d3eae51261e6ce48f6dc855411380d16686",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/OpenFoodFactsLookup.swift": "8fa4cae524dff8a9b385a12a7477ab8cf925bf25f02d23f11134169cfca78a18",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/USDAGenericFoodSearch.swift": "f6cc8c374c2aeece535250047b15435d811755c5b708a87af275b12245a94a45",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/CompositeGenericFoodSearch.swift": "af6f9ff1dc7aea351848c1ce795b8d19bd43f7d178899a4bc871d239187b99ab",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryCandidateAssessment.swift": "91685b4f8e7a0978625698c0b931ebaa06832d265cc5ccd633f1ddb56a7fd6c7",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift": "47b5e8791601105f48e35269982934533166dd53de476e5570046e38c2fa16c3",
+    "Packages/FoodLedgerKit/Tests/FoodGenericSearchTests/RankedRetrievalDevelopmentTests.swift": "703bfdcb0ff5af63f622c5109519eaaa9ded7db65376c67919b9d4e23ef20c40",
+    "Tools/FoodSearchQuality/judgement-revisions.md": "0095fed0f5cc12cb9b4173a145d86200e7d520e06ebcaa10780c6b9b7dbd10da",
+    "Tools/FoodSearchQuality/retrieval-before-v1.json.gz": "cb73d57d33b20ae9aca3a56ccf26173a06bb5b2a246088e1d68697abad8322af",
+    "Tools/FoodSearchQuality/retrieval-contract-v1.md": "696d7afe2334b3d046f03be45e807254d0926cca74036b033f0aaf3b6852ed1d",
+    "Tools/FoodSearchQuality/retrieval-final-v2.json.gz": "51aed7be23c1c301b69c092f424a064a4f733d2c40474394704df14162032705",
+    "Tools/FoodSearchQuality/retrieval-intermediate-v2.json.gz": "ecd4cf1e97e4ff9c5d9180e865d6fafa142f70c14624614d4c22b9b56144ae74",
+    "Tools/FoodSearchQuality/retrieval-metrics-after-v2.json": "fb9109d33e27a4d10b85d0ea54b2c52ac4968e6ef89964f8b850085a88e74279",
+    "Tools/FoodSearchQuality/retrieval-metrics-before-v1.json": "9fb6130a2d8914fe8f37a439d9b7637795979581855d509435455175d847dcba",
+    "Tools/FoodSearchQuality/retrieval-metrics-before-v2.json": "578650c916e4c171d42bcc4c22f7bea38580495c136d66728600980200d2ba9f",
+    "Tools/FoodSearchQuality/retrieval-metrics-final-v2.json": "4ac087e6e1a864e70db25ba466cf96569fd697a39bd9bf9baedd209e70c8e8b3",
+    "Tools/FoodSearchQuality/retrieval-report-v2.md": "f9a945e3f20376055ea54410576b02d18fce190ed25d3cd1edf0d89b4a283ee6",
+    "Tools/FoodSearchQuality/retrieval-scenarios-v1.json": "4372bd404a2d1485bbbf5e5e8db93ff0159c305f5cf0ddc2f81f721308ba809e",
+    "Tools/FoodSearchQuality/retrieval-scenarios-v2.json": "22457aea32b22cb36171b82036053ecaa7e704ddb7d62447e3c9c0f95dab3ec6",
+    "Tools/FoodSearchQuality/score_retrieval.py": "90969bb74009935e879a803f7ae048781635799106e25cc3b418ac192b6250ef",
+    "Tools/FoodSearchQuality/tests/test_retrieval_score.py": "0718d80c808f4ff897cc65488b9b286c21723fc9f75799580a8b3cbc0165d9ae"
+  },
+  "version": "retrieval-reproduction-v2"
+}

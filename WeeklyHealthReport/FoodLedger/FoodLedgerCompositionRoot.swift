@@ -67,10 +67,7 @@ final class FoodLedgerCompositionRoot {
     }
 
     func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil) -> FoodConfirmationViewModel {
-        var state = FoodConfirmationState(input: input)
-        if let queryQuantity, let unit = QuantityUnit(rawValue: queryQuantity.unit == "ml" ? "mL" : queryQuantity.unit) {
-            state.quantity = FoodQuantityDraft(value: queryQuantity.value, unit: unit)
-        }
+        let state = FoodConfirmationState(input: input, queryQuantity: queryQuantity)
         return FoodConfirmationViewModel(state: state) { [confirmations, ids] state in
             try confirmations.save(
                 state,
@@ -249,7 +246,7 @@ struct FoodListImportFlowView: View {
 struct GenericFoodSearchFlowView: View {
     private let root: FoodLedgerCompositionRoot
     @StateObject private var searchModel: GenericFoodSearchViewModel
-    @State private var confirmation: PopulatedFoodConfirmation?
+    @State private var confirmationModel: FoodConfirmationViewModel?
     @State private var showsConfirmation = false
 
     init?(root: FoodLedgerCompositionRoot, additionalEvidence: [CaptureEvidence] = [], initialQuery: String = "") {
@@ -261,12 +258,13 @@ struct GenericFoodSearchFlowView: View {
 
     var body: some View {
         GenericFoodSearchView(model: searchModel) { input in
-            confirmation = input
+            // Snapshot selection and parsed quantity once; navigation renders reuse this model.
+            confirmationModel = root.model(for: input, queryQuantity: searchModel.parsedQuery?.quantity)
             showsConfirmation = true
         }
         .navigationDestination(isPresented: $showsConfirmation) {
-            if let confirmation {
-                FoodConfirmationView(model: root.model(for: confirmation, queryQuantity: searchModel.parsedQuery?.quantity)) {
+            if let confirmationModel {
+                FoodConfirmationView(model: confirmationModel) {
                     showsConfirmation = false
                 }
             }

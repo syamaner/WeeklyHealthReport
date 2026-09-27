@@ -10,7 +10,7 @@ public enum CoFIDSearchError: Error, Equatable, Sendable {
 }
 
 public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "deterministic-parsed-query-v5"
+    public static let matcherVersion = "cofid-generic-ranking-v6"
     public static let corpusCanonicalSHA256 = "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445"
     public static let candidateLimit = 10
     public static let minimumScore = 0.25
@@ -190,7 +190,8 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
     private func rankedRecords(for request: GenericFoodSearchRequest) throws -> [RankedRecord] {
         let query = Self.normalized(request.text.value)
         let queryTokens = Set(query.split(separator: " ").map(String.init))
-        let meaningfulTokens = GenericFoodSearchTerms.tokens(request.retrievalText)
+        let food = request.retrievalText
+        let meaningfulTokens = GenericFoodSearchTerms.tokens(food)
         guard !meaningfulTokens.isEmpty else { return [] }
         // CoFID has components, not a combined meal. Shop context is not identity.
         if Self.isFishAndChips(queryTokens) || Self.isRibeye(queryTokens) { return [] }
@@ -217,10 +218,13 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             let score = min(1, rankingScore / 1.15) // Clamp floating-point rounding at the schema boundary.
             let differences = ["Search terms: \(meaningfulTokens.sorted().joined(separator: " ")); parsed food terms; requested attributes need review; original query retained."] + candidateTokens.subtracting(meaningfulTokens).sorted().map { "candidate_only_token:\($0)" }
                 + meaningfulTokens.subtracting(candidateTokens).sorted().map { "query_only_token:\($0)" }
-            ranked.append(RankedRecord(record: record, score: score, exact: exact, differences: differences))
+            ranked.append(RankedRecord(record: record, score: score, exact: exact, differences: differences,
+                preference: GenericFoodRankingPolicy.preference(name: record.name, food: food, requestedText: request.text.value)))
         }
         return Array(ranked.sorted {
-            $0.score == $1.score ? $0.record.recordID < $1.record.recordID : $0.score > $1.score
+            if $0.exact != $1.exact { return $0.exact }
+            if $0.preference != $1.preference { return GenericFoodRankingPolicy.prefers($0.preference, over: $1.preference) }
+            return $0.score == $1.score ? $0.record.recordID < $1.record.recordID : $0.score > $1.score
         }.prefix(Self.candidateLimit))
     }
 
@@ -412,6 +416,7 @@ private struct RankedRecord {
     let score: Double
     let exact: Bool
     let differences: [String]
+    let preference: GenericFoodRankingPolicy.Preference
 }
 
 private struct Corpus: Decodable {

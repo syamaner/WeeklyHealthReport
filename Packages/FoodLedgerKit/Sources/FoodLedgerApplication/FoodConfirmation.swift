@@ -148,7 +148,8 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     public var phase: FoodConfirmationPhase
     public let reopened: StoredFoodConfirmation?
 
-    public init(input: PopulatedFoodConfirmation, reopened: StoredFoodConfirmation? = nil) {
+    public init(input: PopulatedFoodConfirmation, reopened: StoredFoodConfirmation? = nil,
+                queryQuantity: ParsedFoodQuery.Quantity? = nil) {
         self.input = input
         selectedCandidateIndex = 0
         decision = .undecided
@@ -182,6 +183,12 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
             quantity = FoodQuantityDraft(value: value.value, unit: value.unit)
         } else {
             quantity = FoodQuantityDraft()
+        }
+        // A parsed exact amount is consumed quantity, distinct from the source's 100-unit basis.
+        // No conversion or portion weight is inferred here; count/cross-basis saving stays explicit.
+        if reopened == nil, let queryQuantity, queryQuantity.value.isFinite, queryQuantity.value > 0,
+           let unit = QuantityUnit(rawValue: queryQuantity.unit == "ml" ? "mL" : queryQuantity.unit) {
+            quantity = FoodQuantityDraft(value: queryQuantity.value, unit: unit)
         }
         phase = .editing
         self.reopened = reopened

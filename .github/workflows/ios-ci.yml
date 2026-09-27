@@ -36,8 +36,17 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Build and test FoodLedgerKit
-        run: swift test --package-path Packages/FoodLedgerKit
+      - name: Build and test FoodLedgerKit and replay ranked retrieval
+        env:
+          WHR_RETRIEVAL_REPORT: ${{ runner.temp }}/retrieval-current.json
+        run: |
+          set -euo pipefail
+          swift test --package-path Packages/FoodLedgerKit
+          python3 -m unittest discover -s Tools/FoodSearchQuality/tests -v
+          python3 Tools/FoodSearchQuality/score_retrieval.py \
+            Tools/FoodSearchQuality/retrieval-scenarios-v3.json \
+            "$WHR_RETRIEVAL_REPORT" "$RUNNER_TEMP/retrieval-metrics.json" \
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-v3.json
 
   food-ledger-kit-isolation:
     name: FoodLedgerKit boundaries
