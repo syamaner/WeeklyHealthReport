@@ -94,6 +94,9 @@ jobs:
           python3 Tools/GeminiGroundingEvaluation/evaluate.py \
             --contract Tools/GeminiGroundingEvaluation/frozen-contract-v1.json \
             --validate-cases Tools/GeminiGroundingEvaluation/cases-v1.json
+          python3 Tools/GeminiGroundingEvaluation/evaluate.py \
+            --contract Tools/GeminiGroundingEvaluation/frozen-contract-v2.json \
+            --validate-cases Tools/GeminiGroundingEvaluation/cases-v2.json
           python3 -m unittest discover -s Tools/GeminiGroundingEvaluation/tests -v
 
   food-ocr-evaluation:

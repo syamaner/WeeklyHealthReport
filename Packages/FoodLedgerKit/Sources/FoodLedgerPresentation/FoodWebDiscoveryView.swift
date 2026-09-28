@@ -53,20 +53,45 @@ public struct FoodWebDiscoveryView: View {
                 if let message = model.searchMessage { Text(message) }
             }
             if let result = model.result {
-                Section("Unverified source leads") {
-                    Text("Check the original page, exact product and preparation. A citation does not verify nutrients, identity or quantity basis.").font(.caption)
-                    if !result.responseText.isEmpty { Text(verbatim: result.responseText) }
+                Section("Google-cited pages (unverified)") {
+                    Text("These links come from Google's citation annotations. Gemini may write different links or claims in its answer. Check each page's food, preparation and quantity basis yourself; a citation does not verify nutrition.")
+                        .font(.caption)
+                    if result.leads.isEmpty { Text("Google supplied no cited pages for this answer.") }
                     ForEach(Array(result.leads.enumerated()), id: \.offset) { _, lead in
                         if FoodWebLinkPolicy.isAllowed(lead.url) {
-                            Link(destination: lead.url) {
-                                VStack(alignment: .leading) {
-                                    Text(lead.title)
-                                    if let citedText = lead.citedText {
-                                        Text("Cited passage: \(citedText)").font(.caption)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(lead.title).font(.headline)
+                                Text("Google citation URL: \(lead.url.host ?? "Source website")")
+                                    .font(.caption)
+                                Link("Open Google-cited page", destination: lead.url)
+                                switch FoodWebCitationLinkPolicy.relationship(for: lead) {
+                                case .conflictingHost:
+                                    Text("Gemini wrote a link to a different website in this cited passage. Check Google's citation page directly.")
+                                        .font(.caption)
+                                case .multipleWrittenHosts:
+                                    Text("This citation spans links to more than one website. Check Google's citation page directly.")
+                                        .font(.caption)
+                                case .unknownDestination:
+                                    Text("The written link uses an opaque redirect or has no comparable source host. Check Google's citation page directly.")
+                                        .font(.caption)
+                                case .matchingHost, .noWrittenLink:
+                                    EmptyView()
+                                }
+                                if let citedText = lead.citedText {
+                                    DisclosureGroup("Gemini text attached to this citation") {
+                                        Text(verbatim: citedText).font(.caption)
                                     }
-                                    Text(lead.url.host ?? "Source website").font(.caption)
                                 }
                             }
+                        }
+                    }
+                }
+                if !result.responseText.isEmpty {
+                    Section("Gemini's generated answer") {
+                        Text("This is unverified model-written text. Its links and claims may differ from Google's citations; it cannot be used to save nutrition.")
+                            .font(.caption)
+                        DisclosureGroup("Read full unverified answer") {
+                            Text(verbatim: result.responseText)
                         }
                     }
                 }
