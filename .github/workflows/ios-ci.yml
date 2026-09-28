@@ -79,6 +79,23 @@ jobs:
             --gold Tools/FoodMatchEvaluation/fixtures/gold-set-v1.json \
             --verify-report Tools/FoodMatchEvaluation/result-v1.json
 
+  gemini-grounding-evaluation:
+    name: Gemini grounding offline evaluation contracts
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Verify frozen cases and replay scorer
+        run: |
+          set -euo pipefail
+          python3 Tools/GeminiGroundingEvaluation/evaluate.py \
+            --contract Tools/GeminiGroundingEvaluation/frozen-contract-v1.json \
+            --validate-cases Tools/GeminiGroundingEvaluation/cases-v1.json
+          python3 -m unittest discover -s Tools/GeminiGroundingEvaluation/tests -v
+
   food-ocr-evaluation:
     name: Food OCR evaluation contracts
     runs-on: ubuntu-latest

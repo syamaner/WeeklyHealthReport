@@ -12,6 +12,8 @@ This is a frozen, public/synthetic evaluation set for [#172](https://github.com/
 
 The development split has 12 cases and the holdout split has four. Do not inspect holdout results while changing the app or prompt. Freeze a new version if cases, grading rules or split change; preserve v1 for paired comparison. The source examples in the case file are leads for independent review, not an exhaustive URL allowlist and not licensed nutrition data. A reviewer can credit a different original source when the evidence supports it.
 
+CI runs the frozen-hash validation and scorer tests as a separate offline job. It does not contact Gemini or review any real response.
+
 ## Reproduce offline
 
 ```sh
