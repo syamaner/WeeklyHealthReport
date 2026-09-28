@@ -160,7 +160,6 @@ public struct GenericFoodSearchView: View {
                 Button("Search offline") { model.search() }
                     .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
-            resultSection
             if let webDiscovery, model.canOfferWebDiscovery {
                 Section("Beyond the bundled catalogues") {
                     NavigationLink("Search the web") {
@@ -170,6 +169,7 @@ public struct GenericFoodSearchView: View {
                     Text("Optional Gemini source leads with your own API key. No food is selected or saved.").font(.caption)
                 }
             }
+            resultSection
         }
         .navigationTitle("Search foods")
     }
