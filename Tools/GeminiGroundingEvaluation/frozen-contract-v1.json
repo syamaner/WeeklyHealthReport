@@ -1,0 +1,11 @@
+{
+  "schema_version": "gemini-grounding-contract-v1",
+  "frozen_on": "2026-09-28",
+  "case_file": "cases-v1.json",
+  "cases_sha256": "611eadcfbea4b2200b5c8ae770a7016d14c90bd4cb435785c08760a90f0d705c",
+  "development_count": 12,
+  "holdout_count": 4,
+  "rubric": "README.md#judgement-rubric",
+  "projection": "FoodWebDiscoveryResult response text, leads and suggestion-presence only",
+  "source_admission": false
+}

@@ -1,0 +1,9 @@
+{
+  "schema_version": "gemini-grounding-judgements-v1",
+  "run_id": "same-local-run-id-as-replay",
+  "reviewer": "independent-reviewer-id",
+  "reviewed_on": "YYYY-MM-DD",
+  "results": [
+    {"case_id":"g01","distinctions_preserved":false,"promotes_unverified_nutrition":false,"answer_note":"Describe the full-answer judgement and evidence.","leads":[{"grade":"unverified","supports_cited_text":"unverified","evidence_note":"Record page and scope checked, or why inaccessible."}]}
+  ]
+}

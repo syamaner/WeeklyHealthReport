@@ -1,5 +1,11 @@
 # Food data source expansion: reviewable proposal v1
 
+## Final disposition — 28 September 2026
+
+#144's broad source decision and first delivery are complete. CoFID remains the UK generic baseline. Foundation Foods and SR Legacy are shipped as **labelled, whole-record USDA alternatives** requiring explicit selection; FNDDS remains deferred. Open Food Facts is shipped only as an optional, user-invoked, read-only barcode candidate path with source/rights notices, unknown-value handling and no promise of exact product identity. Its 28-code historical UK replay produced two populated candidates; that is **not** a present-day UK coverage rate or label-accuracy result. The next current-UK frame, variant/pack and label-freshness evaluation is [#174](https://github.com/syamaner/WeeklyHealthReport/issues/174), while commercial challengers remain [#95](https://github.com/syamaner/WeeklyHealthReport/issues/95).
+
+The user accepts CoFID's 10.2 g fat/100 g plain Greek-**style** yoghurt as a close, visibly labelled alternative to a 10% Greek yoghurt query; it is not an exact-product record. The narrow 1.03 g/mL estimate for the exact CoFID whole-cow's-milk record is separately admitted in [the milk decision](cofid-whole-milk-volume-admission-v1.md). Generic retrieval and ranking remain [#148](https://github.com/syamaner/WeeklyHealthReport/issues/148) and [#160](https://github.com/syamaner/WeeklyHealthReport/issues/160). Explicit-tap Gemini BYOK [#172](https://github.com/syamaner/WeeklyHealthReport/issues/172) can discover web **leads** only; its offline evaluation is in `Tools/GeminiGroundingEvaluation/`. Neither a model response nor a web page can silently become admitted nutrition. Signed-device and current-label acceptance are still separate from this source decision.
+
 Date: 26 September 2026. Issue: #144. The user approved labelled USDA whole-record candidates and bounded OFF registration/staging evaluation on this date. The optional read-only OFF app flow was subsequently approved; representative production coverage and independent search-quality acceptance remain open.
 
 ## Recommended decision

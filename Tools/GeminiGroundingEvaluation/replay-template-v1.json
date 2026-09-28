@@ -1,0 +1,10 @@
+{
+  "schema_version": "gemini-grounding-replay-v1",
+  "run_id": "replace-with-local-run-id",
+  "provider": "gemini",
+  "model": "record-exact-model-id",
+  "captured_on": "YYYY-MM-DD",
+  "results": [
+    {"case_id":"g01","response_text":"Replace with the app's displayed response text.","leads":[{"title":"Source title","url":"https://example.org/source","cited_text":"An exact nonempty passage from response_text"}],"suggestions_present":false}
+  ]
+}
