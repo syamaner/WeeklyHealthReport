@@ -26,10 +26,30 @@ public struct FoodSearchStageFailure: Equatable, Sendable {
     public let reason: FoodSearchEnrichmentError
 }
 
+/// Facts about an accepted stage, after validation and deduplication. No relevance scores.
+public struct FoodSearchStageReport: Equatable, Sendable {
+    public let stage: FoodSearchStage
+    public let addedCandidateIDs: [FoodSearchCandidateID]
+    public let failure: FoodSearchEnrichmentError?
+    public let sourceReviewFailure: FoodSourceReviewFailure?
+    public let hasSourceLinks: Bool
+    public init(stage: FoodSearchStage, addedCandidateIDs: [FoodSearchCandidateID] = [],
+                failure: FoodSearchEnrichmentError? = nil, sourceReviewFailure: FoodSourceReviewFailure? = nil,
+                hasSourceLinks: Bool = false) {
+        self.stage = stage; self.addedCandidateIDs = addedCandidateIDs; self.failure = failure
+        self.sourceReviewFailure = sourceReviewFailure; self.hasSourceLinks = hasSourceLinks
+    }
+}
+
 public struct ProgressiveFoodSearchSnapshot: Equatable, Sendable {
     public let outcome: GenericFoodSearchOutcome?
     public let pending: FoodSearchStage?
     public let failures: [FoodSearchStageFailure]
+    public let reports: [FoodSearchStageReport]
+    public init(outcome: GenericFoodSearchOutcome?, pending: FoodSearchStage?, failures: [FoodSearchStageFailure],
+                reports: [FoodSearchStageReport] = []) {
+        self.outcome = outcome; self.pending = pending; self.failures = failures; self.reports = reports
+    }
 }
 
 /// Owns task lifecycle on the same executor as its consumer, without a UI dependency.
@@ -110,7 +130,7 @@ public final class ProgressiveFoodSearchCoordinator {
         task = nil
         request = nil
         fallbackEvidence = nil
-        snapshot = ProgressiveFoodSearchSnapshot(outcome: snapshot.outcome, pending: nil, failures: snapshot.failures)
+        snapshot = ProgressiveFoodSearchSnapshot(outcome: snapshot.outcome, pending: nil, failures: snapshot.failures, reports: snapshot.reports)
     }
 
     public func setServices(_ services: FoodSearchServiceAvailability) {
@@ -133,7 +153,18 @@ public final class ProgressiveFoodSearchCoordinator {
             let merged = try FoodSearchResultMerger.merge(snapshot.outcome ?? (token.stage == .local ? nil : fallbackEvidence), incoming)
             let coverage = assessment.assess(merged, for: request)
             guard case let .accepted(next) = session.complete(token, candidates: coverage) else { return }
-            snapshot = ProgressiveFoodSearchSnapshot(outcome: merged, pending: next?.stage, failures: snapshot.failures)
+            let priorIDs = Set(Self.candidateIDs(snapshot.outcome))
+            let added = Self.candidateIDs(merged).filter { !priorIDs.contains($0) }
+            let discovery: FoodWebDiscoveryResult?
+            let reviewFailure: FoodSourceReviewFailure?
+            switch incoming {
+            case let .confirmation(route): discovery = route.sourceDiscovery; reviewFailure = route.sourceReviewFailure
+            case let .noResult(route): discovery = route.sourceDiscovery; reviewFailure = route.sourceReviewFailure
+            }
+            let report = FoodSearchStageReport(stage: token.stage, addedCandidateIDs: added,
+                sourceReviewFailure: reviewFailure, hasSourceLinks: discovery?.leads.isEmpty == false)
+            snapshot = ProgressiveFoodSearchSnapshot(outcome: merged, pending: next?.stage, failures: snapshot.failures,
+                reports: snapshot.reports + [report])
             onUpdate?(snapshot)
             if let next { launch(next) }
         } catch { fail(token, error: error) }
@@ -150,9 +181,15 @@ public final class ProgressiveFoodSearchCoordinator {
             }
         }
         snapshot = ProgressiveFoodSearchSnapshot(outcome: snapshot.outcome, pending: next?.stage,
-            failures: snapshot.failures + [.init(stage: token.stage, reason: reason)])
+            failures: snapshot.failures + [.init(stage: token.stage, reason: reason)],
+            reports: snapshot.reports + [.init(stage: token.stage, failure: reason)])
         onUpdate?(snapshot)
         if let next { launch(next) }
+    }
+
+    private static func candidateIDs(_ outcome: GenericFoodSearchOutcome?) -> [FoodSearchCandidateID] {
+        if case let .confirmation(route) = outcome { return route.matches.map(\.searchID) }
+        return []
     }
 
     private func launch(_ token: FoodSearchStageToken) {

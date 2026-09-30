@@ -55,7 +55,7 @@ final class FoodLedgerCompositionRoot {
         searchPreferences = FoodSearchUserDefaultsPreferences(defaults: userDefaults)
         let discovery = GeminiFoodWebDiscovery()
         webDiscovery = FoodWebDiscoveryViewModel(provider: discovery, keys: GeminiKeychainStore())
-        let contentHosts = ManufacturerSourceCandidateAdmission.contentHosts
+        let contentHosts = GroundedFoodSourceCandidateAdmission.contentHosts
         let sourceAcquirer = try HTTPSFoodSourcePageAcquirer(
             allowedHosts: contentHosts.union([GeminiGroundedSourceReview.citationResolverHost]),
             userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)")
@@ -137,7 +137,7 @@ final class FoodLedgerCompositionRoot {
             additionalEvidence: additionalEvidence,
             database: OpenFoodFactsSearch(transport: offSearchTransport, locale: try LedgerText(locale.identifier), ids: ids),
             gemini: GeminiFoodSearch(credentials: webDiscovery, reviewer: geminiSourceReview,
-                admission: ManufacturerSourceCandidateAdmission(), locale: try LedgerText(locale.identifier), ids: ids),
+                admission: GroundedFoodSourceCandidateAdmission(), locale: try LedgerText(locale.identifier), ids: ids),
             preferences: searchPreferences, geminiCredentialReady: webDiscovery.keyIsUsable
         )
     }

@@ -7,7 +7,7 @@ public enum USDASearchError: Error, Equatable { case missingCorpus, hashMismatch
 
 /// Offline, whole-record US-composition alternatives. Never backfills another source.
 public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "usda-generic-ranking-v10"
+    public static let matcherVersion = "usda-generic-ranking-v11"
     public static let corpusSHA256 = "6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4"
     private let corpus: USDACorpus
     private let releases: [String: SourceRelease]
@@ -63,7 +63,8 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         guard !tokens.isEmpty else { return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence)) }
         let ranked = try corpus.records.compactMap { record -> (USDARecord, Double, GenericFoodRankingPolicy.Preference)? in
             let candidateTokens = Self.tokens(record.name)
-            guard tokens.isSubset(of: candidateTokens), try Self.accepts(request.identity, identity: Self.identity(record), name: record.name, parsed: parsed) else { return nil }
+            guard tokens.isSubset(of: candidateTokens),
+                  GenericFoodSearchTerms.acceptsFoodForm(name: record.name, query: tokens), try Self.accepts(request.identity, identity: Self.identity(record), name: record.name, parsed: parsed) else { return nil }
             let primaryBonus = GenericFoodSearchTerms.primaryNameMatches(record.name, query: tokens) ? 0.3 : 0
             return (record, (Double(tokens.count) / Double(candidateTokens.count) + primaryBonus) / 1.3,
                 GenericFoodRankingPolicy.preference(name: record.name, food: food, requestedText: request.text.value))

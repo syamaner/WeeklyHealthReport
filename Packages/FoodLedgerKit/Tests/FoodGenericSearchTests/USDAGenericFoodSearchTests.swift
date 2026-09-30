@@ -31,6 +31,30 @@ final class USDAGenericFoodSearchTests: XCTestCase {
         }
     }
 
+    func testBothAdaptersKeepPancakePluralIdentityAndExcludeUnrequestedSyrupOrMix() throws {
+        for source in [try CoFIDGenericFoodSearch(ids: USDASequenceIDs()) as any GenericFoodSearching,
+                       try USDAGenericFoodSearch(ids: USDASequenceIDs()) as any GenericFoodSearching] {
+            guard case let .confirmation(singular) = try source.search(request("pancake")),
+                  case let .confirmation(plural) = try source.search(request("pancakes")) else {
+                return XCTFail("Both bundled sources contain pancake records")
+            }
+            XCTAssertEqual(singular.matches.map { $0.candidate.candidate.recordID }, plural.matches.map { $0.candidate.candidate.recordID })
+            XCTAssertFalse(singular.matches.isEmpty)
+            for match in singular.matches {
+                let name = match.candidate.name.value.lowercased()
+                XCTAssertTrue(name.contains("pancake"))
+                XCTAssertFalse(name.contains("syrup") || name.contains("mix") || name.contains("batter"), name)
+            }
+            for text in ["蛋餅 cheese", "蔥油餅 pancake", "scallion pancake", "scallion pancakes"] {
+                guard case let .noResult(miss) = try source.search(request(text)) else { return XCTFail("Do not drop unmatched identity: \(text)") }
+                XCTAssertEqual(miss.evidence.originalPayload, .text(try LedgerText(text)))
+            }
+        }
+        let usda = try USDAGenericFoodSearch(ids: USDASequenceIDs())
+        guard case let .confirmation(syrup) = try usda.search(request("pancake syrups")) else { return XCTFail("Explicit syrup query remains supported") }
+        XCTAssertTrue(syrup.matches.allSatisfy { $0.candidate.name.value.lowercased().contains("syrup") })
+    }
+
     private func request(_ text: String, identity: GenericFoodIdentityQuery = GenericFoodIdentityQuery()) throws -> GenericFoodSearchRequest {
         GenericFoodSearchRequest(text: try LedgerText(text), identity: identity, capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: try LedgerText("en_GB"))
     }

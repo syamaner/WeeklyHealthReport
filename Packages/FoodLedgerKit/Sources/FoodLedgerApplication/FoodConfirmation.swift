@@ -202,9 +202,13 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
         } else {
             quantity = FoodQuantityDraft()
         }
+        if reopened == nil, FoodNamedServingPolicy.applies(input, candidate: input.candidates[0]) {
+            quantity = FoodQuantityDraft(unit: .count)
+        }
         // A parsed exact amount is consumed quantity, distinct from the source's 100-unit basis.
         // No conversion or portion weight is inferred here; count/cross-basis saving stays explicit.
-        if reopened == nil, let queryQuantity, queryQuantity.value.isFinite, queryQuantity.value > 0,
+        if reopened == nil, !FoodNamedServingPolicy.applies(input, candidate: input.candidates[0]),
+           let queryQuantity, queryQuantity.value.isFinite, queryQuantity.value > 0,
            let unit = QuantityUnit(rawValue: queryQuantity.unit == "ml" ? "mL" : queryQuantity.unit) {
             quantity = FoodQuantityDraft(value: queryQuantity.value, unit: unit)
         }
@@ -236,7 +240,7 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
         )
         guard isGenericEstimate else { return differences }
         let expected = input.expectedIdentity, candidate = selectedCandidate.candidate.identity
-        return differences.filter {
+        var filtered = differences.filter {
             switch $0 {
             case .preparation: expected.preparation != candidate.preparation
             case .bone: expected.bone != candidate.bone
@@ -248,6 +252,8 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
             case .edibleQuantity: input.expectedEdibleQuantity != selectedCandidate.candidate.edibleQuantity
             }
         }
+        if isSourceRecipe && reopened == nil && !filtered.contains(.edibleQuantity) { filtered.append(.edibleQuantity) }
+        return filtered
     }
 }
 
@@ -275,11 +281,16 @@ public enum FoodConfirmationReducer {
         switch action {
         case let .selectCandidate(index):
             guard state.input.candidates.indices.contains(index) else { return }
-            if state.selectedCandidateIndex != index {
+            let changed = state.selectedCandidateIndex != index
+            let wasRecipe = state.isSourceRecipe
+            if changed {
                 state.quantity.directWeight?.needsReconfirmation = true
                 state.quantity.conversion = nil
             }
             state.selectedCandidateIndex = index
+            if changed && (wasRecipe || state.isSourceRecipe) {
+                state.quantity = FoodQuantityDraft(unit: state.isSourceRecipe ? .count : .grams)
+            }
             state.decision = .undecided
             state.correction = nil
             state.phase = .editing
@@ -416,10 +427,10 @@ public final class FoodConfirmationService: @unchecked Sendable {
         let declaration = try state.quantity.declaration()
         let entered = try state.quantity.calculationInput()
         let conversion = declaration == nil
-            ? try makeConversion(state.quantity, entered: entered, previous: previous, at: now)
+            ? try makeConversion(state.quantity, entered: entered, previous: previous, at: now, sourceRecipe: state.isSourceRecipe)
             : (version: nil, isNew: false)
         let plate = try makePlate(state.quantity.plateChoice, previous: previous, at: now)
-        let edibleQuantity = try state.quantity.calculatedEdibleQuantity()
+        let edibleQuantity = try state.calculatedEdibleQuantity()
 
         let changesProduct = previous == nil || state.correction != nil
         let assertion = changesProduct
@@ -621,10 +632,10 @@ public final class FoodConfirmationService: @unchecked Sendable {
         _ draft: FoodQuantityDraft,
         entered: PositiveQuantity,
         previous: StoredFoodConfirmation?,
-        at date: Date
+        at date: Date, sourceRecipe: Bool = false
     ) throws -> (version: QuantityConversionVersion?, isNew: Bool) {
         guard let value = draft.conversion else {
-            if entered.unit == .count { throw FoodQuantityValidationError.missingConversion }
+            if entered.unit == .count && !sourceRecipe { throw FoodQuantityValidationError.missingConversion }
             return (nil, false)
         }
         if let old = previous?.quantityConversion,

@@ -24,6 +24,29 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     }
     @Published public private(set) var activeEnrichmentStage: FoodSearchStage?
     @Published public private(set) var enrichmentMessage: String?
+    @Published public private(set) var stageReports: [FoodSearchStageReport] = []
+    @Published public private(set) var searchWasStopped = false
+    private var stoppedSearchStage: FoodSearchStage?
+    public var searchStatus: FoodSearchStatusPresentation? {
+        if case .failed = phase { return nil }
+        if case .declined = phase { return nil }
+        guard activeEnrichmentStage != nil || !stageReports.isEmpty || stoppedSearchStage != nil else { return nil }
+        return FoodSearchStatusPresentation(reports: stageReports, pending: activeEnrichmentStage ?? stoppedSearchStage, stopped: searchWasStopped)
+    }
+    public var onlineAddedIDs: [FoodSearchCandidateID] {
+        stageReports.filter { $0.stage != .local }.flatMap(\.addedCandidateIDs)
+    }
+    public func sourceLabel(for match: GenericFoodMatch) -> String {
+        guard case let .results(route) = phase,
+              let release = route.confirmation.sourceReleases.first(where: { $0.sourceReleaseID == match.candidate.candidate.sourceReleaseID }) else { return "Food source" }
+        let id = release.sourceID.value.lowercased()
+        if id.contains("cofid") { return "CoFID · on device" }
+        if id.contains("usda") { return "USDA · on device" }
+        if id.contains("openfoodfacts") || id.contains("open-food-facts") { return "Open Food Facts · online" }
+        if stageReports.contains(where: { $0.stage == .gemini && $0.addedCandidateIDs.contains(match.searchID) }) { return "Web source" }
+        if stageReports.contains(where: { $0.stage == .onlineDatabase && $0.addedCandidateIDs.contains(match.searchID) }) { return "Online food database" }
+        return "Saved or on-device food"
+    }
     @Published public private(set) var onlineDatabaseEnabled: Bool
     public let onlineDatabaseAvailable: Bool
     public let geminiAvailable: Bool
@@ -93,6 +116,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     private func invalidateSearch() {
         stopEnrichment()
         enrichmentMessage = nil
+        stageReports = []; searchWasStopped = false; stoppedSearchStage = nil
         parsedQuery = nil
         phase = .idle
     }
@@ -101,6 +125,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         stopEnrichment()
         phase = .idle
         enrichmentMessage = nil
+        stageReports = []; searchWasStopped = false; stoppedSearchStage = nil
         do {
             let parsed = FoodQueryParser.parse(query)
             parsedQuery = parsed
@@ -117,6 +142,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
             let identity = try identity ?? GenericFoodIdentityQuery(
                 preparation: (preparationFilter ?? parsedPreparation).map { try PreparationState(kind: $0) }
             )
+            activeEnrichmentStage = .local
             coordinator.search(GenericFoodSearchRequest(
                 text: text,
                 identity: identity,
@@ -134,6 +160,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     }
 
     private func receive(_ snapshot: ProgressiveFoodSearchSnapshot) {
+        stageReports = snapshot.reports
         activeEnrichmentStage = snapshot.pending
         enrichmentMessage = snapshot.failures.isEmpty ? nil : "Some sources could not be checked. Available results are kept."
         switch snapshot.outcome {
@@ -145,12 +172,15 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     }
 
     public func stopEnrichment() {
+        if let activeEnrichmentStage { searchWasStopped = true; stoppedSearchStage = activeEnrichmentStage }
         coordinator.cancel()
         activeEnrichmentStage = nil
     }
 
     /// Settings changes stop the current run; another submitted search uses the new access.
     public func setServices(_ services: FoodSearchServiceAvailability) {
+        guard self.services != services else { return }
+        stopEnrichment()
         self.services = services
         coordinator.setServices(services)
     }
@@ -227,89 +257,103 @@ public struct GenericFoodSearchView: View {
     @ObservedObject private var model: GenericFoodSearchViewModel
     @AppStorage("foodSearchDeveloperToolsEnabled") private var developerToolsEnabled = false
     @State private var showsServices = false
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private let webDiscovery: FoodWebDiscoveryViewModel?
     private let review: (PopulatedFoodConfirmation) -> Void
 
-    public init(
-        model: GenericFoodSearchViewModel,
-        webDiscovery: FoodWebDiscoveryViewModel? = nil,
-        review: @escaping (PopulatedFoodConfirmation) -> Void
-    ) {
-        self.model = model
-        self.webDiscovery = webDiscovery
-        self.review = review
+    public init(model: GenericFoodSearchViewModel, webDiscovery: FoodWebDiscoveryViewModel? = nil,
+                review: @escaping (PopulatedFoodConfirmation) -> Void) {
+        self.model = model; self.webDiscovery = webDiscovery; self.review = review
     }
 
     public var body: some View {
-        Form {
-            if !model.additionalEvidence.isEmpty {
-                Section("Source evidence kept with this entry") {
-                    ForEach(model.additionalEvidence, id: \.evidenceID) { evidence in
-                        if case let .barcode(value, _) = evidence.originalPayload {
-                            Text(value.value).textSelection(.enabled)
-                        } else if evidence.captureMethod.value == "local-inventory-selection" {
-                            Text("Selected from your reviewed local inventory. Product and pack references are retained.")
-                        }
-                    }
-                    Text("Choose the food that matches your item. Capture or inventory evidence alone does not establish consumed quantity or nutrition.")
-                        .font(.caption)
-                }
-            }
-            Section("Food search") {
-                VStack(alignment: .leading) {
-                    Text("Food name").font(.caption)
-                    TextField("e.g. 200g Greek yoghurt 10% fat", text: $model.query)
-                        .submitLabel(.search)
-                        .onSubmit { model.search() }
-                }
-                Picker("Preparation", selection: $model.preparationFilter) {
-                    Text("Any").tag(Optional<PreparationKind>.none)
-                    Text("Raw").tag(Optional(PreparationKind.raw))
-                    Text("Cooked").tag(Optional(PreparationKind.cooked))
-                }
-                .pickerStyle(.segmented)
-                Button("Search") { model.search() }
-                    .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-            }
-            if let message = model.parsedQuery?.discoveryReviewMessage {
-                Section { Text(message).font(.caption) }
-            }
-            resultSection
-            if activeEnrichment {
+        ScrollViewReader { proxy in
+            Form {
                 Section {
-                    ProgressView("Checking more sources…")
-                    Text("You can choose an available result now.").font(.caption)
+                    TextField("Food name, e.g. 200g Greek yoghurt", text: $model.query)
+                        .accessibilityLabel("Food to search")
+                        .submitLabel(.search)
+                        .onSubmit { if model.activeEnrichmentStage == nil { model.search() } }
+                    DisclosureGroup(model.preparationFilter.map { "Preparation: \($0.rawValue.capitalized)" } ?? "Preparation") {
+                        Picker("Preparation", selection: $model.preparationFilter) {
+                            Text("Any").tag(Optional<PreparationKind>.none)
+                            Text("Raw").tag(Optional(PreparationKind.raw))
+                            Text("Cooked").tag(Optional(PreparationKind.cooked))
+                        }.pickerStyle(.segmented)
+                    }
+                    Button("Search") { model.search() }
+                        .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity)
+                        .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.searchStatus?.isSearching == true)
                 }
-            }
-            if let message = model.enrichmentMessage {
-                Section { Text(message).font(.caption) }
-            }
-            if let discovery = model.sourceDiscovery {
-                Section("Web source discovery") {
-                    if let message = model.sourceReviewMessage { Text(message).font(.caption) }
-                    Text("These are discovery links. Nutrition is added only after a supported source page passes verification.").font(.caption)
-                    DisclosureGroup("Source pages") {
-                        ForEach(Array(discovery.leads.enumerated()), id: \.offset) { _, lead in
-                            if FoodWebLinkPolicy.isAllowed(lead.url) { Link(lead.title, destination: lead.url) }
+                resultSection
+                if let discovery = model.sourceDiscovery {
+                    Section {
+                        NavigationLink("Web sources") {
+                            Form {
+                                Section("Source pages") {
+                                    if let message = model.sourceReviewMessage { Text(message).font(.caption) }
+                                    ForEach(Array(discovery.leads.enumerated()), id: \.offset) { _, lead in
+                                        if FoodWebLinkPolicy.isAllowed(lead.url) { Link(lead.title, destination: lead.url) }
+                                    }
+                                }
+                                if let html = discovery.searchSuggestionsHTML {
+                                    Section("Google Search suggestions") {
+                                        FoodWebSearchSuggestions(html: html).frame(minHeight: 200, idealHeight: 240, maxHeight: 320)
+                                    }
+                                }
+                            }.navigationTitle("Web sources")
                         }
                     }
-                    if let html = discovery.searchSuggestionsHTML {
-                        FoodWebSearchSuggestions(html: html)
-                            .frame(minHeight: 200, idealHeight: 240, maxHeight: 320)
+                }
+                if !model.additionalEvidence.isEmpty {
+                    Section {
+                        DisclosureGroup("Entry source") {
+                            ForEach(model.additionalEvidence, id: \.evidenceID) { evidence in
+                                if case let .barcode(value, _) = evidence.originalPayload {
+                                    Text(value.value).textSelection(.enabled)
+                                } else if evidence.captureMethod.value == "local-inventory-selection" {
+                                    Text("Selected from your reviewed inventory.")
+                                }
+                            }
+                        }
                     }
                 }
             }
-            if developerToolsEnabled, let webDiscovery, model.canOfferWebDiscovery {
-                Section("Developer tools") {
-                    NavigationLink("Debug Gemini source discovery") {
-                        FoodWebDiscoveryView(model: webDiscovery)
-                            .onAppear { webDiscovery.foodTerms = model.query }
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if let status = model.searchStatus {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack {
+                            if status.isSearching { ProgressView().accessibilityHidden(true) }
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(status.title).font(.subheadline.weight(.semibold))
+                                Text(status.summary).font(.caption).foregroundStyle(.secondary)
+                            }.accessibilityElement(children: .combine)
+                            Spacer(minLength: 8)
+                            if status.isSearching {
+                                Button("Stop") { model.stopEnrichment() }.frame(minHeight: 44).accessibilityLabel("Stop searching more sources")
+                            }
+                        }
+                        let layout = dynamicTypeSize.isAccessibilitySize
+                            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
+                            : AnyLayout(HStackLayout(alignment: .top))
+                        layout {
+                            DisclosureGroup("Search details") {
+                                ForEach(status.details, id: \.self) { Text($0).font(.caption) }
+                            }.font(.caption).frame(minHeight: 44)
+                            if let id = model.onlineAddedIDs.first {
+                                Button("See added matches") { proxy.scrollTo(id, anchor: .center) }
+                                    .font(.caption).fixedSize(horizontal: false, vertical: true).frame(minHeight: 44)
+                            }
+                        }
                     }
-                    Text("Manual citation-only discovery. These leads cannot populate nutrition.").font(.caption)
+                    .padding(.horizontal).padding(.vertical, 10)
+                    .background(.bar)
+                    .overlay(alignment: .bottom) { Divider() }
                 }
             }
         }
-        .navigationTitle("Search foods")
+        .navigationTitle("Find a food")
         .sheet(isPresented: $showsServices) {
             NavigationStack {
                 Form {
@@ -324,7 +368,7 @@ public struct GenericFoodSearchView: View {
                         Toggle("Automatic Gemini search", isOn: Binding(get: { model.geminiEnabled }, set: { model.setGeminiEnabled($0) }))
                             .disabled(!model.geminiAvailable)
                         Text("When other results need more evidence, a submitted search can send the displayed food terms to Google and check one cited source page. Your HealthKit data, food log and saved-food history are not sent.")
-                        Text("Your Google account may be charged. Verified nutrition currently supports compatible Alpro, Arla and Oatly UK product pages. Unsupported pages cannot add nutrition. Existing keys do not enable this setting.").font(.caption)
+                        Text("Your Google account may be charged. Nutrition is added only from supported source pages. Adding a key does not enable automatic search.").font(.caption)
                         if let webDiscovery {
                             NavigationLink("Gemini API key and privacy") {
                                 FoodWebDiscoveryView(model: webDiscovery, showsManualSearch: false)
@@ -332,111 +376,94 @@ public struct GenericFoodSearchView: View {
                         }
                         Text(model.geminiCredentialReady ? "Validated key available for this session." : "Add or revalidate your key before automatic Gemini search is available.").font(.caption)
                     }
+                    Section("Advanced") {
+                        Toggle("Developer tools", isOn: $developerToolsEnabled)
+                    }
+                    if developerToolsEnabled {
+                        Section("Developer tools") {
+                            if case let .results(route) = model.phase {
+                                DisclosureGroup("Search diagnostics") {
+                                    ForEach(route.matches, id: \.searchID) { match in
+                                        Text(match.candidate.name.value)
+                                        if let metadata = match.candidate.candidate.matchMetadata {
+                                            Text("Lexical score \(metadata.score.formatted()); not a probability.").font(.caption)
+                                            ForEach(metadata.materialDifferences, id: \.value) { Text($0.value).font(.caption) }
+                                        }
+                                        Text("Source: \(match.candidate.candidate.sourceReleaseID.value)").font(.caption)
+                                        Text("Record: \(match.candidate.candidate.recordID.value)").font(.caption)
+                                    }
+                                }
+                            }
+                            if let webDiscovery, model.canOfferWebDiscovery {
+                                NavigationLink("Debug Gemini source discovery") {
+                                    FoodWebDiscoveryView(model: webDiscovery).onAppear { webDiscovery.foodTerms = model.query }
+                                }
+                            }
+                        }
+                    }
                 }
-                .navigationTitle("Search services")
+                .navigationTitle("Search settings")
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showsServices = false } } }
             }
         }
         .toolbar {
             ToolbarItem {
-                ProgressView()
-                    .opacity(activeEnrichment ? 1 : 0)
-                    .accessibilityLabel("Checking more sources")
-                    .accessibilityHidden(!activeEnrichment)
-            }
-            ToolbarItem {
-                Menu {
-                    Button("Search services") {
-                        model.stopEnrichment()
-                        showsServices = true
-                    }
-                    Toggle("Developer tools", isOn: $developerToolsEnabled)
-                } label: {
-                    Image(systemName: "ellipsis.circle")
-                }
-                .accessibilityLabel("Search options")
+                Button { model.stopEnrichment(); showsServices = true } label: { Image(systemName: "gearshape") }
+                    .accessibilityLabel("Search settings")
             }
         }
         .onDisappear { model.stopEnrichment() }
     }
 
-    private var activeEnrichment: Bool {
-        model.activeEnrichmentStage == .onlineDatabase || model.activeEnrichmentStage == .gemini
-    }
-
-    @ViewBuilder
-    private var resultSection: some View {
+    @ViewBuilder private var resultSection: some View {
         switch model.phase {
-        case .idle:
-            Section {
-                Text("Searches bundled UK CoFID and US USDA composition estimates offline. Source records remain separate; every result requires your selection.")
-                    .font(.caption)
-            }
+        case .idle: EmptyView()
         case let .failed(message):
-            Section(model.parsedQuery?.route == .clarify ? "Clarification needed" : "Search unavailable") { Label(message, systemImage: "exclamationmark.triangle") }
+            Section(model.parsedQuery?.route == .clarify ? "Check your description" : "Search unavailable") {
+                Label(message, systemImage: "exclamationmark.triangle")
+            }
         case let .noResult(route):
-            Section(route.title) {
-                Text(route.guidance)
-                ForEach(route.suggestedQueries, id: \.self) { query in
-                    Button("Search \(query)") {
-                        model.searchSuggestion(query, from: route)
+            Section(model.activeEnrichmentStage == nil ? "No match found" : "No matches yet") {
+                if model.activeEnrichmentStage == nil {
+                    Text(route.suggestedQueries.isEmpty ? "Try a different food name or leave this entry unselected." : route.guidance)
+                    ForEach(route.suggestedQueries, id: \.self) { query in
+                        Button("Search \(query)") { model.searchSuggestion(query, from: route) }
                     }
                 }
-                Text("Your typed query remains available to edit.").font(.caption)
             }
         case .declined:
-            Section("No food selected") {
-                Text("The candidates were declined. Nothing was saved; edit the query to search again.")
-            }
+            Section("No food selected") { Text("Change the description to try again.") }
         case let .results(route):
-            Section("Choose a food") {
-                if let parsed = model.parsedQuery, !parsed.attributes.isEmpty {
-                    Text("Requested: " + parsed.attributes.sorted { $0.key < $1.key }.map { $0.key.replacingOccurrences(of: "_", with: " ") + ": " + $0.value }.joined(separator: "; "))
-                    Text("These are food-name candidates. The requested variant is not verified; compare the source details before accepting an alternative.").font(.caption)
-                }
-                ForEach(Array(route.matches.enumerated()), id: \.element.searchID) { index, match in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(match.candidate.name.value).font(.headline)
-                        if let brand = match.candidate.brand { Text(brand.value).font(.subheadline) }
-                        if let description = match.candidate.variant {
-                            Text(description.value).font(.subheadline)
-                        }
-                        Text(match.isExactName ? "Exact name" : "Food name match")
-                            .font(.subheadline)
-                        if let parsed = model.parsedQuery, let note = FoodQueryCandidateAssessment.note(query: parsed, candidate: match.candidate, requestedPreparation: model.preparationFilter) {
-                            Text(note).font(.caption)
-                        }
-                        Text("Preparation: \(match.candidate.candidate.identity.preparation.kind.rawValue)")
-                            .font(.caption).foregroundStyle(.secondary)
-                        DisclosureGroup("Source and matching details") {
-                            if let metadata = match.candidate.candidate.matchMetadata {
-                                ForEach(metadata.materialDifferences, id: \.value) { difference in
-                                    Text(Self.differenceLabel(difference.value)).font(.caption)
+            Section("Choose a match") {
+                ForEach(route.matches, id: \.searchID) { match in
+                    Button {
+                        if let confirmation = model.confirmation(id: match.searchID) { review(confirmation) }
+                    } label: {
+                        HStack(alignment: .center, spacing: 12) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(match.candidate.name.value).font(.headline)
+                                if let brand = match.candidate.brand { Text(brand.value).font(.subheadline) }
+                                Text(model.sourceLabel(for: match) + " · " + FoodSearchResultText.basisLabel(match.candidate.candidate.identity.servingBasis))
+                                    .font(.caption).foregroundStyle(.secondary)
+                                if let note = FoodSearchResultText.caution(query: model.parsedQuery, candidate: match.candidate,
+                                    requestedPreparation: model.preparationFilter,
+                                    isRecipe: FoodNamedServingPolicy.applies(route.confirmation, candidate: match.candidate)) {
+                                    Text(note).font(.caption).foregroundStyle(.secondary)
                                 }
-                                Text("Lexical score \(metadata.score, format: .number.precision(.fractionLength(3))); not a probability of correctness.")
-                                    .font(.caption)
+                                if model.onlineAddedIDs.contains(match.searchID) {
+                                    Text("Added online").font(.caption).foregroundStyle(.secondary)
+                                }
                             }
-                            Text("Source: \(match.candidate.candidate.sourceReleaseID.value)").font(.caption2).textSelection(.enabled)
-                            Text("Record: \(match.candidate.candidate.recordID.value)").font(.caption2).textSelection(.enabled)
-                        }
-                        Button(index == 0 ? "Review this candidate" : "Choose and review") {
-                            if let confirmation = model.confirmation(id: match.searchID) { review(confirmation) }
-                        }
-                        .buttonStyle(.borderless)
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
+                        }.foregroundStyle(.primary).frame(minHeight: 44)
                     }
-                    .accessibilityElement(children: .contain)
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Review this food and the amount before saving")
+                    .id(match.searchID)
                 }
-                Text("No candidate is accepted automatically. Review identity, preparation, basis, quantity and all nutrient provenance before saving.")
-                    .font(.caption)
-                Button("None of these", role: .cancel) {
-                    model.decline()
-                }
+                Button("None of these", role: .cancel) { model.decline() }
             }
         }
-    }
-
-    private static func differenceLabel(_ value: String) -> String {
-        value.replacingOccurrences(of: "candidate_only_token:", with: "Candidate adds: ")
-            .replacingOccurrences(of: "query_only_token:", with: "Query adds: ")
     }
 }

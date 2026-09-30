@@ -51,7 +51,7 @@ if grep -l '^import WebKit$' "$package_root"/Sources/FoodLedgerPresentation/*.sw
 fi
 
 # HTML parsing and JSON Boolean discrimination stay in concrete source adapters.
-if grep -l '^import SwiftSoup$' "$package_root"/Sources/FoodGenericSearch/*.swift | grep -Ev '/(HTMLFoodSourceTableProjector|ManufacturerSourcePageIdentity|AlproSourceCandidateAdmission|ArlaSourceCandidateAdmission|OatlySourceCandidateAdmission)\.swift$'; then
+if grep -l '^import SwiftSoup$' "$package_root"/Sources/FoodGenericSearch/*.swift | grep -Ev '/(HTMLFoodSourceTableProjector|ManufacturerSourcePageIdentity|AlproSourceCandidateAdmission|ArlaSourceCandidateAdmission|OatlySourceCandidateAdmission|WPRecipeSourceParser)\.swift$'; then
   echo "SwiftSoup belongs only in the reviewed source HTML adapters" >&2; exit 1
 fi
 if grep -l '^import CoreFoundation$' "$package_root"/Sources/FoodGenericSearch/*.swift | grep -v '/OFFHTTPSearchTransport.swift$'; then

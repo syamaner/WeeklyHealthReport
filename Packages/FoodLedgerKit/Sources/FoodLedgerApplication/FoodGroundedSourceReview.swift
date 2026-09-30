@@ -13,8 +13,9 @@ public struct FoodReviewedSource: Equatable, Sendable {
     public let citation: FoodWebLead
     public let page: AcquiredFoodSourcePage
     public let panels: [FoodSourceNutritionPanel]
-    public init(citation: FoodWebLead, page: AcquiredFoodSourcePage, panels: [FoodSourceNutritionPanel]) {
-        self.citation = citation; self.page = page; self.panels = panels
+    public let recipes: [FoodSourceRecipeProfile]
+    public init(citation: FoodWebLead, page: AcquiredFoodSourcePage, panels: [FoodSourceNutritionPanel], recipes: [FoodSourceRecipeProfile] = []) {
+        self.citation = citation; self.page = page; self.panels = panels; self.recipes = recipes
     }
 }
 

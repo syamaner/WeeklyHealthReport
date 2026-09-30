@@ -7,6 +7,32 @@ import XCTest
 final class ProgressiveFoodSearchCoordinatorTests: XCTestCase {
     private let enabled = FoodSearchServiceAvailability(onlineDatabase: .ready, gemini: .ready)
 
+    func testTravelMealReachesEnabledLayersWithOriginalContextWithoutInventingNutrition() async throws {
+        for text in ["Taiwanese breakfast scallion n pancake with eggs and sliced cheese", "steak with noodles and fried egg", "500ml bubble tea with pearls"] {
+            let databaseStarted = expectation(description: "database")
+            let geminiStarted = expectation(description: "gemini")
+            let finished = expectation(description: "finished")
+            let database = SuspendedSearch(started: databaseStarted)
+            let gemini = SuspendedSearch(started: geminiStarted)
+            let empty = try GenericFoodSearchOutcome.noResult(GenericFoodNoResultRoute(evidence: SearchFixture.evidence()))
+            let coordinator = ProgressiveFoodSearchCoordinator(local: FixedFoodSearch(empty), database: database, gemini: gemini, services: enabled)
+            coordinator.onUpdate = { if $0.pending == nil { finished.fulfill() } }
+            coordinator.search(try SearchFixture.request(text))
+            await fulfillment(of: [databaseStarted], timeout: 2)
+            let databaseTerms = await database.queries.map(\.foodTerms)
+            XCTAssertEqual(databaseTerms, [text])
+            await database.release(.success(empty))
+            await fulfillment(of: [geminiStarted], timeout: 2)
+            let geminiTerms = await gemini.queries.map(\.foodTerms)
+            XCTAssertEqual(geminiTerms, [text])
+            await gemini.release(.success(empty))
+            await fulfillment(of: [finished], timeout: 2)
+            XCTAssertEqual(SearchFixture.records(coordinator.snapshot.outcome), [])
+            XCTAssertTrue(coordinator.snapshot.failures.isEmpty)
+            XCTAssertNil(FoodQueryParser.parse(text).quantity)
+        }
+    }
+
     func testNamedDishSearchKeepsOriginalOutboundContextAndRequiresQuantityInput() async throws {
         let started = expectation(description: "remote"); let finished = expectation(description: "finished")
         let provider = SuspendedSearch(started: started)

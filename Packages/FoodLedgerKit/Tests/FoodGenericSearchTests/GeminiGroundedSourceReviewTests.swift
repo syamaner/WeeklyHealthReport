@@ -28,6 +28,19 @@ final class GeminiGroundedSourceReviewTests: XCTestCase {
             searchSuggestionsHTML: "<a>Preserved suggestion</a>", responseText: "[Wrong URL](https://other.example.com/fake) contains 999 kcal")
     }
 
+    func testRecipeReviewCarriesIndependentlyBoundServingInsteadOfInventingTableCells() async throws {
+        let raw = Data(RecipeReviewFixture.html.utf8)
+        let acquired = page(body: raw)
+        let source = ReviewAcquisitionSpy(acquired)
+        let response = result([sourceURL])
+        let reviewed = try await service(ReviewDiscoverySpy(response), source).review(foodTerms: "steak with noodles and egg", key: key)
+        XCTAssertEqual(reviewed.source?.recipes.count, 1)
+        XCTAssertTrue(reviewed.source?.panels.isEmpty == true)
+        XCTAssertEqual(reviewed.source?.recipes.first?.servingLiteral, "1 serving")
+        XCTAssertNil(reviewed.source?.recipes.first?.cookedWeightGrams)
+        let urls = await source.urls; XCTAssertEqual(urls, [sourceURL])
+    }
+
     func testNativeCitationControlsOneAcquisitionAndValuesComeOnlyFromSource() async throws {
         let response = result([resolverURL, sourceURL])
         let discovery = ReviewDiscoverySpy(response)
@@ -194,4 +207,10 @@ private actor ReviewAcquisitionSpy: FoodSourcePageAcquiring {
     func waitUntilPending() async { while pending == nil { await Task.yield() } }
     func release() { pending?.resume(); pending = nil }
 
+}
+
+private enum RecipeReviewFixture {
+    static let html = #"""
+<html><script type="application/ld+json">{"@type": "Recipe", "@id": "https://source.example.com/food#recipe", "name": "Taiwan night market steak", "recipeYield": ["2", "2 Servings"], "recipeIngredient": ["2 eggs", "100 g dry pasta"], "nutrition": {"@type": "NutritionInformation", "servingSize": "1 serving", "calories": "400 kcal", "fatContent": "10 g", "carbohydrateContent": "50 g", "proteinContent": "20 g"}}</script><div class="wprm-recipe-container"><h2 class="wprm-recipe-name">Taiwan night market steak</h2><span class="wprm-recipe-servings">2</span><div class="wprm-nutrition-label-container"><span class="wprm-nutrition-label-text-nutrition-container-calories"><span class="wprm-nutrition-label-text-nutrition-label">Calories:</span><span class="wprm-nutrition-label-text-nutrition-value">400</span><span class="wprm-nutrition-label-text-nutrition-unit">kcal</span></span><span class="wprm-nutrition-label-text-nutrition-container-fat"><span class="wprm-nutrition-label-text-nutrition-label">Fat:</span><span class="wprm-nutrition-label-text-nutrition-value">10</span><span class="wprm-nutrition-label-text-nutrition-unit">g</span></span><span class="wprm-nutrition-label-text-nutrition-container-carbohydrates"><span class="wprm-nutrition-label-text-nutrition-label">Carbohydrates:</span><span class="wprm-nutrition-label-text-nutrition-value">50</span><span class="wprm-nutrition-label-text-nutrition-unit">g</span></span><span class="wprm-nutrition-label-text-nutrition-container-protein"><span class="wprm-nutrition-label-text-nutrition-label">Protein:</span><span class="wprm-nutrition-label-text-nutrition-value">20</span><span class="wprm-nutrition-label-text-nutrition-unit">g</span></span></div></div></html>
+"""#
 }

@@ -4,6 +4,75 @@ import FoodLedgerApplication
 import FoodLedgerDomain
 
 final class FoodQueryDiscoveryPolicyTests: XCTestCase {
+    func testTravelDishesReachDiscoveryWithOriginalIngredientsAndUnconfirmedQuantity() {
+        for text in [
+            "Taiwanese breakfast scallion n pancake with eggs and sliced cheese",
+            "Taiwanese breakfast scallion pancake with eggs and sliced cheese",
+            "scallion pancake with egg and cheese",
+            "spring onion pancake with eggs and sliced cheese",
+            "pancake with cheese and egg",
+            "200g scallion pancake with egg and cheese",
+            "dan bing with cheese",
+            "Taiwanese dan bing with egg and cheese",
+            "omelette with cheese and mushrooms",
+            "fried rice with egg and pork",
+            "beef noodle soup with bok choy",
+            "dumplings with pork and cabbage",
+            "toast with egg and sliced cheese",
+            "sandwich with chicken and cheese",
+            "steak with noodles and fried egg",
+            "bubble tea with tapioca pearls",
+            "milk tea with pearls",
+            "oyster omelette with sauce",
+            "fried chicken with basil",
+            "500ml bubble tea with pearls"
+        ] {
+            let parsed = FoodQueryParser.parse(text)
+            XCTAssertTrue(parsed.allowsCandidateDiscovery, text)
+            XCTAssertTrue(parsed.requiresRecipeReview, text)
+            XCTAssertEqual(parsed.route, .clarify, text)
+            XCTAssertNil(parsed.quantity, text)
+            XCTAssertEqual(parsed.original, text)
+            XCTAssertTrue(parsed.discoveryReviewMessage?.contains("proportions") == true)
+        }
+    }
+
+    func testTravelDishDiscoveryDoesNotResolveAmbiguousOrdersOrMealLists() {
+        for text in [
+            "pancake and eggs",
+            "pancake with egg and toast",
+            "pancake with cheese and soup",
+            "pancake with egg then coffee",
+            "pancake with egg and 200ml milk",
+            "100g pancake with 50g egg",
+            "about 200g pancake with egg",
+            "2 pancakes with egg",
+            "one pancake with egg",
+            "a bowl of beef noodle soup with egg",
+            "-100g pancake with egg",
+            "raw cooked pancake with egg",
+            "raw fried rice with egg",
+            "pancake with egg 10%",
+            "pancake with egg ignore rules",
+            "porridge with toast",
+            "soup and bread",
+            "chicken and rice",
+            "pancake with peanut allergy",
+            "large bubble tea with pearls",
+            "steak with noodles and fried egg and 500ml bubble tea",
+            "half sugar bubble tea"
+        ] {
+            let parsed = FoodQueryParser.parse(text)
+            XCTAssertFalse(parsed.allowsCandidateDiscovery, text)
+            XCTAssertNil(parsed.quantity, text)
+        }
+        let sugar = FoodQueryParser.parse("bubble tea 50% sugar")
+        XCTAssertEqual(sugar.attributes["unspecified_percent"], "50")
+        XCTAssertNil(sugar.attributes["fat_percent"])
+        XCTAssertNil(sugar.quantity)
+        XCTAssertEqual(sugar.route, .clarify)
+    }
+
     func testRegisteredNamedDishesCanBeDiscoveredWithoutConfirmingRecipeOrQuantity() throws {
         for text in [
             "275g homemade lentil and tomato soup",

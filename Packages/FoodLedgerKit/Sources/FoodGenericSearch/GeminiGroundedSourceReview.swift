@@ -4,7 +4,7 @@ import FoodLedgerApplication
 
 /// One discovery call, one native-cited source job, no model-written URL or numeric admission.
 public actor GeminiGroundedSourceReview: FoodGroundedSourceReviewing {
-    public static let version = "gemini-grounded-source-review-v2"
+    public static let version = "gemini-grounded-source-review-v3"
     public static let deadline: Duration = .seconds(50)
     public static let citationResolverHost = "vertexaisearch.cloud.google.com"
     private let discovery: any FoodWebDiscovering
@@ -56,13 +56,18 @@ public actor GeminiGroundedSourceReview: FoodGroundedSourceReviewing {
             let page = try await acquisition.acquire(selected.url)
             try Self.check(expires)
             try validate(page, selected: selected)
-            let projection = try HTMLFoodSourceTableProjector.project(page.html)
-            try Self.check(expires)
-            let panels = try FoodSourceDocumentPanelReader.panels(projection,
-                documentID: "sha256:" + page.sha256, recordID: page.finalURL.absoluteString)
+            let recipe = try? WPRecipeSourceParser.profile(page.html, sourceURL: page.finalURL)
+            var panels: [FoodSourceNutritionPanel] = []
+            do {
+                let projection = try HTMLFoodSourceTableProjector.project(page.html)
+                panels = try FoodSourceDocumentPanelReader.panels(projection,
+                    documentID: "sha256:" + page.sha256, recordID: page.finalURL.absoluteString)
+            } catch {
+                if recipe == nil { throw error }
+            }
             try Self.check(expires)
             return FoodGroundedSourceReview(discovery: result,
-                source: FoodReviewedSource(citation: selected, page: page, panels: panels))
+                source: FoodReviewedSource(citation: selected, page: page, panels: panels, recipes: recipe.map { [$0] } ?? []))
         } catch {
             try Self.check(expires)
             if error is CancellationError { throw error }
