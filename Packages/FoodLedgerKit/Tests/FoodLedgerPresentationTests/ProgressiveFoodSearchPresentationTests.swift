@@ -25,7 +25,7 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
     func testNamedDishDiscoveryReachesRealLocalSourcesButKeepsAmountAndRecipeUnconfirmed() throws {
         let local = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()), USDAGenericFoodSearch(ids: RandomLedgerIDGenerator())], ids: RandomLedgerIDGenerator())
         let model = try GenericFoodSearchViewModel(searcher: local, locale: LedgerText("en_GB"))
-        for query in ["200g cooked porridge made with water", "200g porridge made with milk", "275g homemade lentil and tomato soup", "180g Baxters lentil and tomato soup"] {
+        for query in ["200g cooked porridge made with water", "200g porridge made with milk", "275g homemade lentil and tomato soup", "180g Baxters lentil and tomato soup", "Taiwanese breakfast scallion n pancake with eggs and sliced cheese", "steak with noodles and fried egg", "500ml bubble tea with pearls"] {
             model.query = query; model.search()
             XCTAssertEqual(model.parsedQuery?.route, .clarify)
             XCTAssertNil(model.parsedQuery?.quantity)
@@ -368,6 +368,98 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
         XCTAssertTrue(model.sourceReviewMessage?.contains("not supported") == true)
     }
 
+
+    func testSearchStatusTracksActualStagesAndUniqueAdditionsThroughCompletion() async throws {
+        let dbStarted = expectation(description: "online starts")
+        let dbReturned = expectation(description: "online returns")
+        let webStarted = expectation(description: "web starts")
+        let webReturned = expectation(description: "web returns")
+        let db = HeldFoodEnrichment(started: dbStarted, returned: dbReturned)
+        let web = HeldFoodEnrichment(started: webStarted, returned: webReturned)
+        let model = try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()),
+            locale: LedgerText("en_GB"), database: db, gemini: web,
+            services: .init(onlineDatabase: .ready, gemini: .ready), assessment: UXNeedsMoreEvidence())
+        model.query = "milk"; model.search()
+        await fulfillment(of: [dbStarted], timeout: 2)
+        XCTAssertEqual(model.searchStatus?.title, "Searching Open Food Facts…")
+        XCTAssertEqual(model.stageReports.map(\.stage), [.local])
+        let localIDs = model.stageReports[0].addedCandidateIDs
+        XCTAssertFalse(localIDs.isEmpty)
+        let online = try remoteMilk()
+        await db.release(online)
+        await fulfillment(of: [dbReturned, webStarted], timeout: 2)
+        XCTAssertEqual(model.searchStatus?.title, "Checking web nutrition with Gemini…")
+        XCTAssertFalse(model.onlineAddedIDs.isEmpty)
+        let added = model.onlineAddedIDs
+        await web.release(online)
+        await fulfillment(of: [webReturned], timeout: 2)
+        for _ in 0..<20 where model.activeEnrichmentStage != nil { await Task.yield() }
+        XCTAssertNil(model.activeEnrichmentStage)
+        XCTAssertEqual(model.stageReports.map(\.stage), [.local, .onlineDatabase, .gemini])
+        XCTAssertEqual(model.stageReports[2].addedCandidateIDs, [])
+        XCTAssertEqual(model.onlineAddedIDs, added, "Duplicate source rows are not new matches")
+        XCTAssertEqual(model.searchStatus?.title, "Search finished")
+        XCTAssertTrue(model.searchStatus?.summary.contains("No extra matches from Gemini") == true)
+        guard case let .results(route) = model.phase else { return XCTFail() }
+        XCTAssertEqual(Array(route.matches.prefix(localIDs.count)).map(\.searchID), localIDs)
+    }
+
+    func testLocalOnlyStatusDoesNotClaimAnOnlineSearchAndEditClearsHistory() throws {
+        let model = try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()), locale: LedgerText("en_GB"))
+        model.query = "milk"; model.search()
+        XCTAssertEqual(model.stageReports.map(\.stage), [.local])
+        XCTAssertEqual(model.searchStatus?.title, "Search finished")
+        XCTAssertTrue(model.searchStatus?.details.contains("Open Food Facts: Not searched") == true)
+        XCTAssertTrue(model.searchStatus?.details.contains("Gemini: Not searched") == true)
+        XCTAssertEqual(model.onlineAddedIDs, [])
+        model.query = "rice"
+        XCTAssertNil(model.searchStatus)
+        XCTAssertEqual(model.stageReports, [])
+        XCTAssertEqual(model.phase, .idle)
+    }
+
+    func testStopRetainsRealSearchHistoryAndRejectsLateStatusAndRows() async throws {
+        let started = expectation(description: "source starts")
+        let returned = expectation(description: "source returns")
+        let remote = HeldFoodEnrichment(started: started, returned: returned)
+        let model = try makeModel(remote)
+        model.query = "milk"; model.search()
+        await fulfillment(of: [started], timeout: 2)
+        let rows = model.phase
+        model.stopEnrichment()
+        XCTAssertEqual(model.searchStatus?.title, "Search stopped")
+        XCTAssertTrue(model.searchStatus?.details.contains("Open Food Facts: Stopped") == true)
+        let status = model.searchStatus
+        await remote.release(try remoteMilk())
+        await fulfillment(of: [returned], timeout: 2); await Task.yield()
+        XCTAssertEqual(model.phase, rows)
+        XCTAssertEqual(model.searchStatus, status)
+        XCTAssertEqual(model.onlineAddedIDs, [])
+    }
+
+    func testUnavailableDatabaseAndUnsupportedWebNutritionStayDistinct() async throws {
+        let started = expectation(description: "web starts after unavailable online database")
+        let returned = expectation(description: "unsupported source returns")
+        let web = HeldFoodEnrichment(started: started, returned: returned)
+        let model = try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()),
+            locale: LedgerText("en_GB"), database: UXUnavailableSource(), gemini: web,
+            services: .init(onlineDatabase: .ready, gemini: .ready), assessment: UXNeedsMoreEvidence())
+        model.query = "milk"; model.search()
+        await fulfillment(of: [started], timeout: 2)
+        XCTAssertEqual(model.searchStatus?.title, "Checking web nutrition with Gemini…")
+        guard case let .confirmation(other) = try remoteMilk() else { return XCTFail() }
+        let discovery = FoodWebDiscoveryResult(leads: [.init(title: "Nutrition source", url: URL(string: "https://source.example.com/milk")!)], searchSuggestionsHTML: nil)
+        await web.release(.noResult(GenericFoodNoResultRoute(evidence: other.confirmation.evidence[0],
+            sourceDiscovery: discovery, sourceReviewFailure: .unsupportedSource)))
+        await fulfillment(of: [returned], timeout: 2)
+        for _ in 0..<20 where model.activeEnrichmentStage != nil { await Task.yield() }
+        XCTAssertEqual(model.searchStatus?.title, "Search finished")
+        XCTAssertTrue(model.searchStatus?.summary.contains("Open Food Facts unavailable") == true)
+        XCTAssertTrue(model.searchStatus?.details.contains("Gemini: Source found; nutrition format unsupported") == true)
+        XCTAssertEqual(model.sourceDiscovery, discovery)
+        XCTAssertEqual(model.onlineAddedIDs, [])
+    }
+
     private func makeModel(_ remote: HeldFoodEnrichment) throws -> GenericFoodSearchViewModel {
         try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()), locale: LedgerText("en_GB"),
             database: remote, services: .init(onlineDatabase: .ready, gemini: .disabled))
@@ -419,4 +511,13 @@ private actor PreparationGateEnrichment: FoodSearchEnriching {
         calls += 1
         throw FoodSearchEnrichmentError.unavailable
     }
+}
+
+
+private struct UXNeedsMoreEvidence: FoodSearchCoverageAssessing {
+    func assess(_ outcome: GenericFoodSearchOutcome, for request: GenericFoodSearchRequest) -> [FoodSearchCandidateCoverage] { [] }
+}
+
+private struct UXUnavailableSource: FoodSearchEnriching {
+    func enrich(_ query: FoodSearchRemoteQuery) async throws -> GenericFoodSearchOutcome { throw FoodSearchEnrichmentError.unavailable }
 }

@@ -54,6 +54,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public var quantityBasisWarning: String? {
         let basis = (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis
         let unit = (try? state.quantity.calculationInput().unit) ?? state.quantity.unit
+        if state.isSourceRecipe && unit != .count {
+            return "This recipe declares nutrition per source serving. Its cooked gram weight is unknown, so grams or mL cannot be converted to servings. Choose recipe servings or a source with a measured weight basis."
+        }
         if basis == .per100Grams && unit == .millilitres {
             if let conversion = state.quantity.conversion, usesOfferedVolumeEstimate {
                 return "Estimated edible mass: \(conversion.convertedQuantity.value.formatted()) g from the entered volume. This uses a separately sourced volume factor, not a measured weight or CoFID density field."
@@ -84,7 +87,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     public var consumedNutrition: [FoodIntakeTotal] {
-        guard let quantity = try? state.quantity.calculatedEdibleQuantity() else { return [] }
+        guard let quantity = try? state.calculatedEdibleQuantity() else { return [] }
         return FoodIntakeSummary(contributions: [FoodIntakeContribution(
             quantity: quantity,
             basis: (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis,
@@ -156,8 +159,11 @@ public final class FoodConfirmationViewModel: ObservableObject {
                 result.append("Enter an amount greater than zero in ‘Amount eaten’.")
             }
         }
+        if state.isSourceRecipe && (state.quantity.unit != .count || state.quantity.directWeight != nil || state.quantity.conversion != nil || state.quantity.plateChoice != .foodOnly) {
+            result.append("Enter the number of source recipe servings eaten. A weighed portion cannot be converted because cooked serving weight is unknown.")
+        }
         result += directWeightRequirements
-        if state.quantity.directWeight == nil && state.quantity.unit == .count && state.quantity.conversion == nil {
+        if state.quantity.directWeight == nil && state.quantity.unit == .count && state.quantity.conversion == nil && !state.isSourceRecipe {
             result.append("For a count, enter the measured total edible weight or volume and how it was measured, or change the amount to g or mL.")
         }
         result += plateRequirements
@@ -351,7 +357,12 @@ public struct FoodConfirmationView: View {
                     Text(model.state.input.candidates[index].name.value).tag(index)
                 }
             }
-            if model.state.isGenericEstimate {
+            if model.state.isSourceRecipe {
+                Text("Representative recipe estimate. Review the source ingredients and explain why this recipe is acceptable for your meal. A recipe serving is not a measured gram amount.").font(.caption)
+                if let metadata = model.state.selectedCandidate.candidate.matchMetadata {
+                    ForEach(metadata.materialDifferences, id: \.value) { Text($0.value).font(.caption) }
+                }
+            } else if model.state.isGenericEstimate {
                 Text("Generic composition estimate. Missing source details remain unknown; accepting does not verify them.").font(.caption)
             }
             if model.state.quantity.directWeight?.needsReconfirmation == true {
@@ -395,8 +406,11 @@ public struct FoodConfirmationView: View {
 
     private var quantitySection: some View {
         Section("Amount eaten") {
+            if model.state.isSourceRecipe {
+                Text("Representative recipe: enter how many servings of this source recipe you ate, for example 0.5. Check the source recipe yield in the reference details; a vendor’s plate may differ. Cooked serving weight is unknown.").font(.caption)
+            }
             Button("Enter measured weight") { model.send(.beginDirectWeight); directWeightText = "" }
-                .disabled(model.state.quantity.directWeight != nil)
+                .disabled(model.state.quantity.directWeight != nil || model.state.isSourceRecipe)
             if model.state.quantity.directWeight != nil {
                 Text("Enter the total edible grams for the selected preparation, as eaten: for example, an egg after peeling and boiling or frying. Exclude shell, peel, bone and other uneaten parts. Added or absorbed oil is not inferred.").font(.caption)
                 TextField(usesPlate ? "Total food and plate weight (g)" : "Total edible weight (g)", text: $directWeightText)
@@ -414,7 +428,7 @@ public struct FoodConfirmationView: View {
                 Text("Original amount below is retained separately; changing a count does not replace your gram total.").font(.caption)
                 Button("Use original amount instead") { model.send(.endDirectWeight) }
             }
-            TextField(model.state.quantity.directWeight == nil ? "Quantity" : "Original amount (optional)", text: $totalText)
+            TextField(model.state.isSourceRecipe ? "Recipe servings eaten" : model.state.quantity.directWeight == nil ? "Quantity" : "Original amount (optional)", text: $totalText)
                 .onChange(of: totalText) { _, value in
                     model.send(.setQuantityText(value))
                 }
@@ -422,7 +436,7 @@ public struct FoodConfirmationView: View {
             Picker("Unit", selection: quantityUnitBinding) {
                 Text("g").tag(QuantityUnit.grams)
                 Text("mL").tag(QuantityUnit.millilitres)
-                Text("count").tag(QuantityUnit.count)
+                Text(model.state.isSourceRecipe ? "recipe servings" : "count").tag(QuantityUnit.count)
             }
             if let requirement = model.originalAmountRequirement { Text(requirement).font(.caption) }
             if let warning = model.quantityBasisWarning {
@@ -449,7 +463,7 @@ public struct FoodConfirmationView: View {
                     Button("Remove volume estimate") { model.removeOfferedVolumeConversion() }
                 }
             }
-            if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil {
+            if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil && !model.state.isSourceRecipe {
                 Text("No source-backed size guide is available for this food. Enter the total edible weight, excluding shell, bone or other parts you did not eat.").font(.caption)
                 TextField("Converted edible amount", text: $conversionText)
                     .onChange(of: conversionText) { _, _ in updateConversion() }
@@ -630,6 +644,9 @@ public struct FoodConfirmationView: View {
     private var candidateBinding: Binding<Int> {
         Binding(get: { model.state.selectedCandidateIndex }, set: {
             model.send(.selectCandidate($0))
+            totalText = model.state.quantity.value.map(Self.editableNumber) ?? ""
+            directWeightText = model.state.quantity.directWeight?.totalGrams.map(Self.editableNumber) ?? ""
+            conversionText = model.state.quantity.conversion.map { Self.editableNumber($0.convertedQuantity.value) } ?? ""
             let selected = model.state.selectedCandidate
             correctionName = selected.name.value
             correctionBrand = selected.brand?.value ?? ""

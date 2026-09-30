@@ -20,6 +20,23 @@ final class OpenFoodFactsSearchTests: XCTestCase {
             .enrich(FoodSearchRemoteQuery(foodTerms: terms))
     }
 
+    func testTravelDishAdmissionRequiresAllIngredientsAndKeepsSourceUnknowns() async throws {
+        let terms = "200g scallion pancake with egg and cheese"
+        for name in ["Scallion pancake", "Scallion pancake with egg", "Cheese", "Pancake syrup", "Scallion pancake with egg and cheese dry mix"] {
+            guard case .noResult = try await search([product { $0["product_name"] = name }], terms: terms) else { return XCTFail("Incomplete/different food admitted: \(name)") }
+        }
+        guard case let .confirmation(route) = try await search([product { $0["product_name"] = "Scallion pancake with egg and cheese" }], terms: terms) else { return XCTFail() }
+        XCTAssertNil(FoodQueryParser.parse(terms).quantity)
+        XCTAssertEqual(route.matches[0].candidate.candidate.identity.preparation.kind, .unknown)
+        XCTAssertEqual(FoodConfirmationState(input: route.confirmation).decision, .undecided)
+        XCTAssertEqual(route.confirmation.evidence[0].originalPayload, .text(try LedgerText(terms)))
+        for query in ["pancake", "pancakes", "蛋餅 pancake"] {
+            guard case .noResult = try await search([product { $0["product_name"] = "Pancake syrup" }], terms: query) else { return XCTFail(query) }
+        }
+        guard case .confirmation = try await search([product { $0["product_name"] = "Pancake syrup" }], terms: "pancake syrup") else { return XCTFail("Explicit syrup remains eligible") }
+        guard case .noResult = try await search([product { $0["product_name"] = "Cheese" }], terms: "蛋餅 cheese") else { return XCTFail("Do not drop Chinese identity") }
+    }
+
     func testNamedDishUsesWholeProductWithoutRecipeOrAmountInference() async throws {
         let original = "180g Baxters lentil and tomato soup"
         let transport = SearchFixture(response: .init(status: 200, body: try JSONSerialization.data(withJSONObject: ["products": [product { $0["product_name"] = "Baxters lentil and tomato soup" }]])))
@@ -272,7 +289,7 @@ final class OpenFoodFactsSearchTests: XCTestCase {
         let original = "140g Greek yoghurt 10% fat"
         guard case let .confirmation(route) = try await search([product()], terms: original) else { return XCTFail() }
         XCTAssertEqual(route.confirmation.evidence[0].originalPayload, .text(try LedgerText(original)))
-        XCTAssertEqual(route.confirmation.evidence[0].captureMethodVersion.value, "off-search-candidates-v5")
+        XCTAssertEqual(route.confirmation.evidence[0].captureMethodVersion.value, "off-search-candidates-v6")
         let candidate = route.matches[0].candidate
         let parsed = FoodQueryParser.parse(original)
         XCTAssertFalse(FoodQueryCandidateAssessment.matchesFat(query: parsed, candidate: candidate))

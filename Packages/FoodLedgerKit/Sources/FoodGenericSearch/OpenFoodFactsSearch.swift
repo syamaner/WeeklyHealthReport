@@ -39,7 +39,7 @@ public struct OpenFoodFactsSearch: FoodSearchEnriching {
         let now = clock.now()
         let evidence = try CaptureEvidence(evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch,
             capturedAt: now, locale: locale, captureMethod: LedgerText("off_text_search"),
-            captureMethodVersion: LedgerText("off-search-candidates-v5"), originalPayload: .text(LedgerText(query.foodTerms)))
+            captureMethodVersion: LedgerText("off-search-candidates-v6"), originalPayload: .text(LedgerText(query.foodTerms)))
         var result: GenericFoodSearchOutcome = .noResult(GenericFoodNoResultRoute(evidence: evidence))
         var seen: [String: Data] = [:]
         for product in products {
@@ -52,7 +52,8 @@ public struct OpenFoodFactsSearch: FoodSearchEnriching {
                 continue
             }
             seen[gtin.value] = artifact
-            guard let name = product["product_name"] as? String else { continue }
+            guard let name = product["product_name"] as? String,
+                  GenericFoodSearchTerms.acceptsFoodForm(name: name, query: terms) else { continue }
             let candidateTerms = GenericFoodSearchTerms.tokens(name + " " + (product["brands"] as? String ?? ""))
             if let literal = parsed.attributes["unspecified_percent"] {
                 let named = FoodQueryParser.parse(name)

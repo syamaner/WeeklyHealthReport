@@ -4,7 +4,7 @@ import FoodLedgerApplication
 /// Retrieval-only spelling equivalents. Original evidence and identity are unchanged.
 /// Complete token coverage is required; these terms never infer a recipe or a cut.
 enum GenericFoodSearchTerms {
-    static let version = "food-lexical-terms-v5"
+    static let version = "food-lexical-terms-v6"
     static func tokens(_ text: String) -> Set<String> { Set(terms(text)) }
     private static func terms(_ text: String) -> [String] { GenericFoodRankingPolicy.terms(text) }
 
@@ -13,6 +13,16 @@ enum GenericFoodSearchTerms {
     static func primaryNameMatches(_ name: String, query: Set<String>) -> Bool {
         let head = tokens(String(name.split(separator: ",", maxSplits: 1).first ?? ""))
         return !head.isEmpty && head.isSubset(of: query)
+    }
+
+    /// A use/serving suggestion does not identify the requested food. This bounded
+    /// pancake rule distinguishes the finished food from syrup and uncooked products.
+    /// Explicit searches for those products remain eligible; no source facts change.
+    static func acceptsFoodForm(name: String, query: Set<String>) -> Bool {
+        guard query.contains("pancake") else { return true }
+        let candidate = tokens(name)
+        let productForms: [Set<String>] = [["syrup", "syrups"], ["mix", "mixes"], ["batter"]]
+        return productForms.allSatisfy { candidate.isDisjoint(with: $0) || !query.isDisjoint(with: $0) }
     }
 
     static func suggestions(for text: String, names: [String]) -> [String] {

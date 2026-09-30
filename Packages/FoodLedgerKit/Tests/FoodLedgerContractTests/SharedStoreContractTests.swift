@@ -859,6 +859,43 @@ final class SharedStoreContractTests: XCTestCase {
         }
     }
 
+    func testRecipeServingRequiresExplicitAlternativeAndPreservesBasisAcrossBothStores() throws {
+        try forEachStore { harness, ledger in
+            let route = try XCTUnwrap(RecipeAdmissionFixtures.route())
+            var state = FoodConfirmationState(input: route.confirmation)
+            let service = FoodConfirmationService(ledger: ledger, reader: harness.reader,
+                clock: LedgerFixtures.clock, ids: ContractSequenceIDs())
+            XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(530)))
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(0.5, .count))
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(531)))
+            XCTAssertEqual(try harness.reader.counts().operations, 0)
+            FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("I chose half a source recipe serving as a representative estimate; my vendor's sauce and cut may differ.")))
+            var weighed = state
+            FoodConfirmationReducer.reduce(state: &weighed, action: .setQuantity(250, .grams))
+            XCTAssertThrowsError(try service.save(weighed, operationID: LedgerFixtures.operationID(532)))
+            let saved = try service.save(state, operationID: LedgerFixtures.operationID(533))
+            XCTAssertEqual(saved.logItemVersion.edibleQuantity, try PositiveQuantity(value: 0.5, unit: .count))
+            XCTAssertNil(saved.quantityConversion)
+            XCTAssertEqual(saved.productVersion.identity.servingBasis, FoodSourceRecipeProfile.basis)
+            XCTAssertEqual(saved.resolutionVersion.nutrients, route.matches[0].candidate.candidate.nutrients)
+            XCTAssertEqual(saved.resolutionVersion.methodVersion.value, FoodConfirmationPolicy.version)
+            let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+            XCTAssertTrue(reopened.isSourceRecipe)
+            XCTAssertEqual(reopened.quantity.value, 0.5)
+            XCTAssertEqual(reopened.quantity.unit, .count)
+            XCTAssertEqual(reopened.input.sourceReleases, route.confirmation.sourceReleases)
+            XCTAssertEqual(reopened.reopened?.assertions, saved.assertions)
+            XCTAssertEqual(try reopened.calculatedEdibleQuantity().unit, .count)
+            var edited = reopened
+            FoodConfirmationReducer.reduce(state: &edited, action: .setQuantity(1.5, .count))
+            let next = try service.save(edited, operationID: LedgerFixtures.operationID(534))
+            XCTAssertEqual(next.productVersion, saved.productVersion)
+            XCTAssertEqual(next.resolutionVersion, saved.resolutionVersion)
+            XCTAssertEqual(next.logItemVersion.edibleQuantity.value, 1.5)
+        }
+    }
+
     private func forEachStore(
         _ body: (TestHarness, FoodLedgerService) throws -> Void
     ) throws {

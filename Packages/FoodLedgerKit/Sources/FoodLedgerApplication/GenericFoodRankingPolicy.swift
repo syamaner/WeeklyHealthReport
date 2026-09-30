@@ -3,7 +3,7 @@ import Foundation
 /// Shared, source-neutral presentation preferences. These never establish food identity.
 /// Explicit selection, preparation and nutrition contracts remain separate.
 public enum GenericFoodRankingPolicy {
-    public static let version = "generic-representation-ranking-v3"
+    public static let version = "generic-representation-ranking-v4"
     public struct Preference: Equatable, Sendable {
         let primaryFood: Bool
         let parentheticalOnlyTerms: Int
@@ -63,7 +63,7 @@ public enum GenericFoodRankingPolicy {
         let folded = text.folding(options: [.diacriticInsensitive, .widthInsensitive], locale: Locale(identifier: "en_US_POSIX"))
         let aliases = ["aubergines": "aubergine", "eggplant": "aubergine", "eggplants": "aubergine",
             "garbanzo": "chickpea", "garbanzos": "chickpea", "yogurt": "yoghurt", "yogurts": "yoghurt"]
-        let words = folded.lowercased().split { !$0.isASCII || !$0.isLetter && !$0.isNumber }
+        let words = folded.lowercased().split { !$0.isLetter && !$0.isNumber }
         let normalized = words.map { aliases[String($0)] ?? String($0) }.joined(separator: " ")
             .replacingOccurrences(of: "rib eye", with: "ribeye")
             .replacingOccurrences(of: "chick peas", with: "chickpea")
@@ -71,7 +71,7 @@ public enum GenericFoodRankingPolicy {
             .replacingOccurrences(of: "peas chick", with: "chickpea")
             .replacingOccurrences(of: "pea chick", with: "chickpea")
         let equivalents = [
-        "clementines": "clementine", "oranges": "orange", "mandarins": "mandarin",
+        "syrups": "syrup", "pancakes": "pancake", "clementines": "clementine", "oranges": "orange", "mandarins": "mandarin",
         "tangerines": "tangerine", "grapes": "grape", "pears": "pear",
         "peaches": "peach", "plums": "plum", "apricots": "apricot",
         "strawberries": "strawberry", "raspberries": "raspberry",

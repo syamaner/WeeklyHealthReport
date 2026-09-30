@@ -474,3 +474,7 @@ Primary-checkout `Tools/LocalHybridSearchEvaluation/v71` records the 30 preregis
 Source-declared compatible preparation ranks ahead of unknown alternatives, including across local sources and fat preferences. Unknown rows retain their source values and show that the requested preparation is not established. Coverage remains uncertain, with preparation basis unknown and amount needing user input. Explicit confirmation and manually entered quantities are required; no source identity, nutrient value, density or recipe proportions are inferred. Matchers advance to CoFID v9, USDA v10 and composed ranking v7. Domain/source schemas are unchanged.
 
 The primary-checkout v72 offline evaluation measures alternatives separately from proven preparation matches and keeps the earlier frozen evidence.
+
+## English street-food discovery extension
+
+The versioned discovery-v3 and lexical/ranking changes, preserved invariants, synthetic contracts and remaining Taiwan food coverage gaps are documented in [English street-food input v1](english-street-food-input-v1.md). This extends lookup eligibility without confirming a recipe or amount. No new nutrition source or live-provider evaluation is implied.
