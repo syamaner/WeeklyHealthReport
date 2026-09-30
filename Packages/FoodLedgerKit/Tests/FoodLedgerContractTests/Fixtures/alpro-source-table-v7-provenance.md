@@ -1,0 +1,1 @@
+Captured factual table projection from LocalHybridSearchEvaluation v36/results/documents/t05-0.json. Original SHA-256: 1f23cce170b3a5f57bc2fdb6f4f7e3568042c0051d5f9cca25023e5387cb6a3a. Only the version and tables were retained; no table cells were altered. This is historical source-content correspondence evidence, not current product truth or pack identity.

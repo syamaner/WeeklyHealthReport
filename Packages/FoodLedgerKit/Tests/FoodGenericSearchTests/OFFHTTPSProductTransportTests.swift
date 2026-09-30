@@ -83,3 +83,65 @@ private final class OFFTestProtocol: URLProtocol, @unchecked Sendable {
     }
     override func stopLoading() { }
 }
+
+final class OFFHTTPSearchTransportTests: XCTestCase {
+    private func transport(clock: OFFTransportClock) -> OFFHTTPSearchTransport {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [OFFTestProtocol.self]
+        configuration.httpAdditionalHeaders = ["Authorization": "must-be-cleared", "Cookie": "must-be-cleared"]
+        return OFFHTTPSearchTransport(userAgent: "SyntheticOFFTests/1 (public@example.invalid)", clock: clock, configuration: configuration)
+    }
+
+    func testMinimalEncodedRequestCooldownAndFailureWithoutRetry() async throws {
+        OFFTestProtocol.store.reset(status: 200, body: Data("{\"timed_out\":false,\"hits\":[]}".utf8))
+        let clock = OFFTransportClock()
+        let transport = transport(clock: clock)
+        _ = try await transport.search(foodTerms: "yoghurt & json=0")
+        do { _ = try await transport.search(foodTerms: "milk"); XCTFail() }
+        catch { XCTAssertEqual(error as? FoodSearchEnrichmentError, .quotaExceeded) }
+        let request = try XCTUnwrap(OFFTestProtocol.store.requests.first)
+        XCTAssertEqual(request.url?.host, "search.openfoodfacts.org")
+        XCTAssertEqual(request.url?.path, "/search")
+        XCTAssertEqual(request.httpMethod, "POST")
+        var data = request.httpBody
+        if data == nil, let stream = request.httpBodyStream {
+            stream.open(); defer { stream.close() }
+            var buffer = [UInt8](repeating: 0, count: 4096); var bytes = Data()
+            while stream.hasBytesAvailable {
+                let count = stream.read(&buffer, maxLength: buffer.count)
+                guard count > 0 else { break }; bytes.append(contentsOf: buffer.prefix(count))
+            }
+            data = bytes
+        }
+        let body = try XCTUnwrap(try JSONSerialization.jsonObject(with: XCTUnwrap(data)) as? [String: Any])
+        XCTAssertEqual(Set(body.keys), ["q", "langs", "page_size", "page"])
+        XCTAssertEqual(body["page_size"] as? Int, 10)
+        XCTAssertEqual(body["page"] as? Int, 1)
+        XCTAssertEqual(body["langs"] as? [String], ["en"])
+        XCTAssertEqual(body["q"] as? String, #"yoghurt \& json=0"#)
+        XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+        XCTAssertNil(request.value(forHTTPHeaderField: "Cookie"))
+        XCTAssertEqual(OFFTestProtocol.store.requests.count, 1)
+        clock.advance(7)
+        OFFTestProtocol.store.change(status: 503, body: Data())
+        let response = try await transport.search(foodTerms: "milk")
+        XCTAssertEqual(response.status, 503)
+        XCTAssertEqual(OFFTestProtocol.store.requests.count, 2)
+    }
+
+    func testInvalidTermsSizeLimitAndTimeout() async throws {
+        OFFTestProtocol.store.reset(status: 200, body: Data(repeating: 0, count: 500_001))
+        let clock = OFFTransportClock()
+        let transport = transport(clock: clock)
+        do { _ = try await transport.search(foodTerms: " "); XCTFail() }
+        catch { XCTAssertEqual(error as? FoodSearchEnrichmentError, .invalidQuery) }
+        XCTAssertTrue(OFFTestProtocol.store.requests.isEmpty)
+        do { _ = try await transport.search(foodTerms: "milk"); XCTFail() }
+        catch { XCTAssertEqual(error as? FoodSearchEnrichmentError, .invalidResponse) }
+        clock.advance(7)
+        OFFTestProtocol.store.change(status: 200, body: Data(), error: URLError(.timedOut))
+        do { _ = try await transport.search(foodTerms: "milk"); XCTFail() }
+        catch { XCTAssertEqual((error as? URLError)?.code, .timedOut) }
+        XCTAssertEqual(OFFTestProtocol.store.requests.count, 2)
+    }
+}

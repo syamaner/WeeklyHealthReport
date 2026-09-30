@@ -6,6 +6,31 @@ import FoodLedgerTestSupport
 import XCTest
 
 final class USDAGenericFoodSearchTests: XCTestCase {
+    func testCookedQuinoaNeverIncludesUncookedSourceAndNutrientsRemainLiteral() throws {
+        let search = try USDAGenericFoodSearch(ids: USDASequenceIDs())
+        for (state, suffix, energy) in [(PreparationKind.cooked, ":fdc:168917", 120.0), (.raw, ":fdc:168874", 368.0)] {
+            guard case let .confirmation(route) = try search.search(request("quinoa", identity: GenericFoodIdentityQuery(preparation: try PreparationState(kind: state)))) else {
+                return XCTFail("Expected preparation-matched quinoa")
+            }
+            if state == .cooked {
+                XCTAssertFalse(route.matches.contains { $0.candidate.name.value.lowercased().contains("uncooked") })
+            }
+            let candidate = try XCTUnwrap(route.matches.first { $0.candidate.candidate.recordID.value.hasSuffix(suffix) }?.candidate.candidate)
+            XCTAssertEqual(candidate.identity.preparation.kind, state)
+            guard case let .augmented(value) = candidate.nutrients.entries.first(where: { $0.key == .energyConsumed })?.value else {
+                return XCTFail("Missing declared energy")
+            }
+            XCTAssertEqual(value.amount, energy)
+            let release = try XCTUnwrap(route.confirmation.sourceReleases.first { $0.sourceReleaseID == candidate.sourceReleaseID })
+            let archiveReleaseID = String(candidate.recordID.value.components(separatedBy: ":fdc:")[0])
+            XCTAssertNotEqual(release.sourceReleaseID.value, archiveReleaseID)
+            XCTAssertEqual(release.sourceReleaseID.value, "\(archiveReleaseID):projection:\(USDAGenericFoodSearch.corpusSHA256)")
+            XCTAssertEqual(release.manifestHash.value, USDAGenericFoodSearch.corpusSHA256)
+            XCTAssertTrue(value.provenance.allSatisfy { $0.sourceReleaseID == release.sourceReleaseID && $0.recordID == candidate.recordID })
+            XCTAssertTrue(route.confirmation.sourceReleases.allSatisfy { $0.pipelineVersion.value == "usda-projection-v2" })
+        }
+    }
+
     private func request(_ text: String, identity: GenericFoodIdentityQuery = GenericFoodIdentityQuery()) throws -> GenericFoodSearchRequest {
         GenericFoodSearchRequest(text: try LedgerText(text), identity: identity, capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: try LedgerText("en_GB"))
     }

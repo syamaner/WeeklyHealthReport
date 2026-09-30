@@ -7,6 +7,33 @@ import XCTest
 final class FoodWebDiscoveryPresentationTests: XCTestCase {
     private let key = "synthetic-key-for-contract-tests-only"
 
+    func testAutomaticCredentialGrantsAreExactTransientAndEditorClosePreservesValidation() async throws {
+        let keys = MemoryWebKeys(key: key)
+        let provider = DiscoverySpy()
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        XCTAssertThrowsError(try model.credentialForRequest())
+        await model.revalidateSavedKey()
+        let old = try model.credentialForRequest()
+        XCTAssertTrue(model.isCurrent(old))
+        XCTAssertFalse(String(describing: old).contains(key))
+        XCTAssertFalse(String(reflecting: old).contains(key))
+        model.closeCredentialEditor()
+        XCTAssertTrue(model.keyIsUsable)
+        XCTAssertFalse(model.isCurrent(old))
+        let current = try model.credentialForRequest()
+        XCTAssertTrue(model.isCurrent(current))
+        model.reject(old)
+        XCTAssertEqual(try keys.load(), key)
+        let replacement = "replacement-synthetic-key-for-tests"
+        try keys.save(replacement)
+        model.reject(current)
+        XCTAssertEqual(try keys.load(), replacement)
+        XCTAssertFalse(model.keyIsUsable)
+        XCTAssertThrowsError(try model.credentialForRequest())
+        let counts = await provider.counts()
+        XCTAssertEqual(counts, [1, 0])
+    }
+
     func testAbsentKeyAndTypingNeverCallProviderThenSaveAndExplicitSearch() async throws {
         let provider = DiscoverySpy()
         let keys = MemoryWebKeys()
@@ -147,6 +174,58 @@ final class FoodWebDiscoveryPresentationTests: XCTestCase {
         XCTAssertTrue(reopened.hasSavedKey)
         XCTAssertFalse(reopened.keyIsUsable)
         XCTAssertFalse(reopened.canSearch)
+    }
+
+    func testReplacementKeyCannotInheritEarlierValidation() async throws {
+        let provider = DiscoverySpy(); let keys = MemoryWebKeys(key: key)
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        model.foodTerms = "milk"; await model.revalidateSavedKey()
+        let replacement = "different-synthetic-key-for-tests"
+        try keys.save(replacement)
+        await model.searchTheWeb()
+        XCTAssertFalse(model.keyIsUsable); XCTAssertNil(model.result)
+        XCTAssertEqual(try keys.load(), replacement)
+        let counts = await provider.counts(); XCTAssertEqual(counts, [1, 0])
+    }
+
+    func testLateSuccessOrFailureCannotPublishForOrDeleteReplacementKey() async throws {
+        for error: FoodWebDiscoveryError? in [nil, .credentialRejected, .quotaExceeded, .permissionDenied, .serviceUnavailable] {
+            let provider = DiscoverySpy(error: error, suspended: true, searchOnlyError: true, suspendOnlyOnSearch: true)
+            let keys = MemoryWebKeys(key: key)
+            let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+            model.foodTerms = "milk"; await model.revalidateSavedKey()
+            let work = Task { await model.searchTheWeb() }
+            await provider.waitUntilPending()
+            let replacement = "different-synthetic-key-for-tests"
+            try keys.save(replacement)
+            await provider.release(); await work.value
+            XCTAssertEqual(try keys.load(), replacement)
+            XCTAssertTrue(model.hasSavedKey); XCTAssertFalse(model.keyIsUsable); XCTAssertNil(model.result)
+        }
+    }
+
+    func testReplacementDuringRevalidationIsNotMarkedValid() async throws {
+        let provider = DiscoverySpy(suspended: true); let keys = MemoryWebKeys(key: key)
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        let work = Task { await model.revalidateSavedKey() }
+        await provider.waitUntilPending()
+        let replacement = "different-synthetic-key-for-tests"
+        try keys.save(replacement)
+        await provider.release(); await work.value
+        XCTAssertEqual(try keys.load(), replacement)
+        XCTAssertFalse(model.keyIsUsable); XCTAssertFalse(model.isValidating)
+    }
+
+    func testLeavingRequiresFreshValidationAndInvalidReplacementDoesNotReuseOldFlag() async throws {
+        let provider = DiscoverySpy(); let keys = MemoryWebKeys(key: key)
+        let model = FoodWebDiscoveryViewModel(provider: provider, keys: keys)
+        model.foodTerms = "milk"; await model.revalidateSavedKey()
+        model.cancelPending(); await model.searchTheWeb()
+        XCTAssertFalse(model.keyIsUsable)
+        await model.revalidateSavedKey(); XCTAssertTrue(model.keyIsUsable)
+        model.keyEntry = "bad"; await model.validateAndSaveKey()
+        XCTAssertFalse(model.keyIsUsable); XCTAssertEqual(try keys.load(), key)
+        let counts = await provider.counts(); XCTAssertEqual(counts, [2, 0])
     }
 
     func testSuggestionsPreserveSuppliedHTMLInsideRestrictedDocument() {

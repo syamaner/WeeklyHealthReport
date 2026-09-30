@@ -10,7 +10,7 @@ public enum CoFIDSearchError: Error, Equatable, Sendable {
 }
 
 public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "cofid-generic-ranking-v7"
+    public static let matcherVersion = "cofid-generic-ranking-v9"
     public static let corpusCanonicalSHA256 = "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445"
     public static let candidateLimit = 10
     public static let minimumScore = 0.25
@@ -194,6 +194,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         let query = Self.normalized(request.text.value)
         let queryTokens = Set(query.split(separator: " ").map(String.init))
         let food = request.retrievalText
+        let parsed = request.parsedQuery
         let meaningfulTokens = GenericFoodSearchTerms.tokens(food)
         guard !meaningfulTokens.isEmpty else { return [] }
         // CoFID has components, not a combined meal. Shop context is not identity.
@@ -201,10 +202,10 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         guard !queryTokens.isEmpty else { return [] }
         var ranked: [RankedRecord] = []
         for record in corpus.records {
-            guard Self.contradictions(query: request.identity, record: record).isEmpty else { continue }
             let candidate = Self.normalized(record.name)
             let candidateTokens = GenericFoodSearchTerms.tokens(record.name)
-            guard meaningfulTokens.isSubset(of: candidateTokens) else { continue }
+            guard meaningfulTokens.isSubset(of: candidateTokens),
+                  Self.contradictions(query: request.identity, record: record, parsed: parsed).isEmpty else { continue }
             let intersection = meaningfulTokens.intersection(candidateTokens)
             let union = meaningfulTokens.union(candidateTokens)
             let exact = query == candidate
@@ -217,7 +218,15 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
                 + Self.weights.queryCoverage * queryCoverage
                 + Self.weights.candidateCoverage * candidateCoverage
                 + Self.weights.jaccard * jaccard
-            guard rankingScore >= Self.minimumScore else { continue }
+            // CoFID names put a directly named cut/type in the second comma field.
+            // Keep the existing floor for ingredient/recipe mentions; only this explicit
+            // short name component can rescue a longer, fully token-covered source name.
+            let component = record.name.split(separator: ",").dropFirst().first.map(String.init) ?? ""
+            let componentTokens = GenericFoodSearchTerms.tokens(component)
+            let hasDirectComponent = !component.contains("(") && !component.contains(")")
+                && !component.lowercased().split(separator: " ").contains(where: { ["with", "in", "on", "made"].contains(String($0)) })
+                && meaningfulTokens.isSubset(of: componentTokens)
+            guard rankingScore >= Self.minimumScore || hasDirectComponent else { continue }
             let score = min(1, rankingScore / 1.15) // Clamp floating-point rounding at the schema boundary.
             let differences = ["Search terms: \(meaningfulTokens.sorted().joined(separator: " ")); parsed food terms; requested attributes need review; original query retained."] + candidateTokens.subtracting(meaningfulTokens).sorted().map { "candidate_only_token:\($0)" }
                 + meaningfulTokens.subtracting(candidateTokens).sorted().map { "query_only_token:\($0)" }
@@ -225,6 +234,11 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
                 preference: GenericFoodRankingPolicy.preference(name: record.name, food: food, requestedText: request.text.value)))
         }
         return Array(ranked.sorted {
+            let a = FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation,
+                actual: PreparationKind(rawValue: $0.record.identity.preparation) ?? .unknown)
+            let b = FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation,
+                actual: PreparationKind(rawValue: $1.record.identity.preparation) ?? .unknown)
+            if a != b { return !a }
             if $0.exact != $1.exact { return $0.exact }
             if $0.preference != $1.preference { return GenericFoodRankingPolicy.prefers($0.preference, over: $1.preference) }
             return $0.score == $1.score ? $0.record.recordID < $1.record.recordID : $0.score > $1.score
@@ -333,14 +347,18 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
 
     private static func contradictions(
         query: GenericFoodIdentityQuery,
-        record: CorpusRecord
+        record: CorpusRecord, parsed: ParsedFoodQuery
     ) -> [String] {
         var values: [String] = []
         func require<Value: Equatable>(_ expected: Value?, _ actual: Value?, _ field: String) {
             guard let expected else { return }
             if actual == nil || actual != expected { values.append(field) }
         }
-        require(query.preparation, try? PreparationState(kind: PreparationKind(rawValue: record.identity.preparation) ?? .unknown), "preparation")
+        if let actual = try? PreparationState(kind: PreparationKind(rawValue: record.identity.preparation) ?? .unknown) {
+            if !FoodPreparationDiscoveryPolicy.accepts(requested: query.preparation, actual: actual, sourceName: record.name, query: parsed) {
+                values.append("preparation")
+            }
+        } else if query.preparation != nil { values.append("preparation") }
         require(query.bone, BoneState(rawValue: record.identity.bone), "bone")
         require(query.skin, SkinState(rawValue: record.identity.skin), "skin")
         require(query.drained, DrainedState(rawValue: record.identity.drained), "drained")
@@ -376,7 +394,16 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
         tokens.contains("ribeye") || (tokens.contains("rib") && tokens.contains("eye"))
     }
 
+    /// An explicit broader search, never a species alias or automatic candidate admission.
+    private static func broaderWholeMilkQuery(_ value: String) -> String? {
+        let parsed = FoodQueryParser.parse(value)
+        guard parsed.route == .search, parsed.attributes == ["fat_descriptor": "whole"],
+              let food = parsed.food,
+              ["cow s milk", "cows milk", "cow milk"].contains(normalized(food)) else { return nil }
+        return value.replacingOccurrences(of: #"\bcow(?:['’]s|s)?\s+"#, with: "", options: [.regularExpression, .caseInsensitive])
+    }
     private static func suggestedQueries(for value: String) -> [String] {
+        if let broader = broaderWholeMilkQuery(value) { return [broader] }
         let tokens = Set(normalized(value).split(separator: " ").map(String.init))
         if isFishAndChips(tokens) {
             return ["Cod in batter", "Potato chips"]
@@ -388,6 +415,9 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
     }
 
     private static func noResultGuidance(for value: String) -> String {
+        if broaderWholeMilkQuery(value) != nil {
+            return "No source name matches the cow-specific wording. Try the broader whole-milk search and review the source description before choosing. Nothing has been selected or saved."
+        }
         let tokens = Set(normalized(value).split(separator: " ").map(String.init))
         let suffix = " Nothing has been selected or saved."
         if isFishAndChips(tokens) {

@@ -19,7 +19,7 @@ check_imports() {
 
 check_imports FoodLedgerDomain '^(Foundation)$'
 check_imports FoodLedgerApplication '^(CryptoKit|Foundation|FoodLedgerDomain)$'
-check_imports FoodGenericSearch '^(CryptoKit|Foundation|Security|FoodLedgerApplication|FoodLedgerDomain)$'
+check_imports FoodGenericSearch '^(CoreFoundation|CryptoKit|Foundation|Security|SwiftSoup|FoodLedgerApplication|FoodLedgerDomain)$'
 check_imports FoodInventoryImport '^(Foundation|PDFKit|FoodLedgerApplication|FoodLedgerDomain)$'
 check_imports FoodLedgerPresentation '^(FoodLedgerApplication|FoodLedgerDomain|SwiftUI|WebKit)$'
 check_imports FoodBarcodeCapture '^(AVFoundation|FoodLedgerApplication|FoodLedgerDomain|SwiftUI|Vision|VisionKit)$'
@@ -49,3 +49,14 @@ fi
 if grep -l '^import WebKit$' "$package_root"/Sources/FoodLedgerPresentation/*.swift | grep -v '/FoodWebSearchSuggestions.swift$'; then
   echo "WebKit belongs only in the search-suggestion renderer" >&2; exit 1
 fi
+
+# HTML parsing and JSON Boolean discrimination stay in concrete source adapters.
+if grep -l '^import SwiftSoup$' "$package_root"/Sources/FoodGenericSearch/*.swift | grep -Ev '/(HTMLFoodSourceTableProjector|ManufacturerSourcePageIdentity|AlproSourceCandidateAdmission|ArlaSourceCandidateAdmission|OatlySourceCandidateAdmission)\.swift$'; then
+  echo "SwiftSoup belongs only in the reviewed source HTML adapters" >&2; exit 1
+fi
+if grep -l '^import CoreFoundation$' "$package_root"/Sources/FoodGenericSearch/*.swift | grep -v '/OFFHTTPSearchTransport.swift$'; then
+  echo "CoreFoundation belongs only in the OFF JSON transport adapter" >&2; exit 1
+fi
+grep -q 'exact: "2.13.9"' "$package_root/Package.swift"
+grep -q '## SwiftSoup 2.13.9' "$package_root/DEPENDENCIES.md"
+test -s "$package_root/Sources/FoodGenericSearch/Resources/SwiftSoup-LICENSE.txt"

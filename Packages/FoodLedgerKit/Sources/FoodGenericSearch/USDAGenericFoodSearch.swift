@@ -7,8 +7,8 @@ public enum USDASearchError: Error, Equatable { case missingCorpus, hashMismatch
 
 /// Offline, whole-record US-composition alternatives. Never backfills another source.
 public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "usda-generic-ranking-v7"
-    public static let corpusSHA256 = "70480d2c58bac9fcf9646b3b66c70be00e52398695536cef0af129ea1528e4c7"
+    public static let matcherVersion = "usda-generic-ranking-v10"
+    public static let corpusSHA256 = "6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4"
     private let corpus: USDACorpus
     private let releases: [String: SourceRelease]
     private let ids: any LedgerIDGenerating
@@ -25,15 +25,16 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         let hash = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
         guard hash == Self.corpusSHA256 else { throw USDASearchError.hashMismatch }
         corpus = try JSONDecoder().decode(USDACorpus.self, from: data)
-        guard corpus.version == 1, Set(corpus.records.map(\.id)).count == corpus.records.count,
+        guard corpus.version == 1, corpus.preparationPolicy == "usda-preparation-words-v2", Set(corpus.records.map(\.id)).count == corpus.records.count,
               Set(corpus.sources.map(\.id)).count == corpus.sources.count else { throw USDASearchError.invalidCorpus }
         var sources: [String: SourceRelease] = [:]
         for source in corpus.sources {
             guard let date = ISO8601DateFormatter().date(from: source.date + "T00:00:00Z") else { throw USDASearchError.invalidCorpus }
             sources[source.id] = SourceRelease(
-                sourceReleaseID: try ExternalIdentifier(source.id), sourceID: try ExternalIdentifier(source.sourceID),
+                // A corrected projection must coexist with immutable releases in older saves.
+                sourceReleaseID: try ExternalIdentifier("\(source.id):projection:\(Self.corpusSHA256)"), sourceID: try ExternalIdentifier(source.sourceID),
                 releasedAt: date, artifactHash: try SHA256Digest(source.archiveHash),
-                schemaVersion: try LedgerText("usda-generic-v1"), pipelineVersion: try LedgerText("usda-projection-v1"),
+                schemaVersion: try LedgerText("usda-generic-v1"), pipelineVersion: try LedgerText("usda-projection-v2"),
                 licence: try LedgerText("CC0 1.0"),
                 attribution: try LedgerText("US Department of Agriculture, Agricultural Research Service. FoodData Central. US composition estimates."),
                 manifestHash: try SHA256Digest(Self.corpusSHA256)
@@ -57,15 +58,21 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
             throw FoodLedgerValidationError.duplicateValue("search evidence")
         }
         let food = request.retrievalText
+        let parsed = request.parsedQuery
         let tokens = Self.tokens(food)
         guard !tokens.isEmpty else { return .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence)) }
         let ranked = try corpus.records.compactMap { record -> (USDARecord, Double, GenericFoodRankingPolicy.Preference)? in
             let candidateTokens = Self.tokens(record.name)
-            guard tokens.isSubset(of: candidateTokens), try Self.accepts(request.identity, identity: Self.identity(record)) else { return nil }
+            guard tokens.isSubset(of: candidateTokens), try Self.accepts(request.identity, identity: Self.identity(record), name: record.name, parsed: parsed) else { return nil }
             let primaryBonus = GenericFoodSearchTerms.primaryNameMatches(record.name, query: tokens) ? 0.3 : 0
             return (record, (Double(tokens.count) / Double(candidateTokens.count) + primaryBonus) / 1.3,
                 GenericFoodRankingPolicy.preference(name: record.name, food: food, requestedText: request.text.value))
         }.sorted { lhs, rhs in
+            let a = FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation,
+                actual: PreparationKind(rawValue: lhs.0.preparation) ?? .unknown)
+            let b = FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation,
+                actual: PreparationKind(rawValue: rhs.0.preparation) ?? .unknown)
+            if a != b { return !a }
             if lhs.2 != rhs.2 { return GenericFoodRankingPolicy.prefers(lhs.2, over: rhs.2) }
             return lhs.1 == rhs.1 ? lhs.0.id < rhs.0.id : lhs.1 > rhs.1
         }.prefix(10)
@@ -78,7 +85,8 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         let first = matches[0].candidate.candidate
         return .confirmation(GenericFoodConfirmationRoute(
             confirmation: try PopulatedFoodConfirmation(
-                evidence: evidenceList, sourceReleases: sourceIDs.sorted().compactMap { releases[$0] },
+                evidence: evidenceList, sourceReleases: releases.values.filter { sourceIDs.contains($0.sourceReleaseID.value) }
+                    .sorted { $0.sourceReleaseID.value < $1.sourceReleaseID.value },
                 candidates: matches.map(\.candidate), expectedIdentity: first.identity, expectedEdibleQuantity: first.edibleQuantity
             ), matches: matches
         ))
@@ -129,9 +137,10 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
                             packingMedium: .unknown, fortification: .unknown, servingBasis: .per100Grams)
     }
 
-    private static func accepts(_ query: GenericFoodIdentityQuery, identity: DecisiveIdentity) -> Bool {
+    private static func accepts(_ query: GenericFoodIdentityQuery, identity: DecisiveIdentity, name: String, parsed: ParsedFoodQuery) -> Bool {
         func accepts<T: Equatable>(_ expected: T?, _ actual: T) -> Bool { expected == nil || expected == actual }
-        return accepts(query.preparation, identity.preparation) && accepts(query.bone, identity.bone)
+        return FoodPreparationDiscoveryPolicy.accepts(requested: query.preparation, actual: identity.preparation, sourceName: name, query: parsed)
+            && accepts(query.bone, identity.bone)
             && accepts(query.skin, identity.skin) && accepts(query.drained, identity.drained)
             && accepts(query.packingMedium, identity.packingMedium) && accepts(query.fortification, identity.fortification)
             && accepts(query.servingBasis, identity.servingBasis)
@@ -139,7 +148,7 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
     }
 }
 
-private struct USDACorpus: Decodable { let version: Int; let sources: [USDASource]; let records: [USDARecord] }
+private struct USDACorpus: Decodable { let version: Int; let preparationPolicy: String; let sources: [USDASource]; let records: [USDARecord] }
 private struct USDASource: Decodable { let id: String; let sourceID: String; let date: String; let archiveHash: String }
 private struct USDARecord: Decodable { let id: String; let releaseID: String; let name: String; let preparation: String; let bone: String; let nutrients: [String: USDANutrient] }
 private struct USDANutrient: Decodable { let amount: Double; let unit: String; let nutrientID: Int }

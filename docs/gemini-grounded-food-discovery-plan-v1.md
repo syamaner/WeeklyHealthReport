@@ -2,6 +2,12 @@
 
 Status: implemented for [#172](https://github.com/syamaner/WeeklyHealthReport/issues/172), 28 September 2026. The user authorised a user-key-only, explicit-tap source-discovery flow. This is separate from [#100](https://github.com/syamaner/WeeklyHealthReport/issues/100)'s frozen-candidate matching challenger. No provider call, personal-data evaluation, model-quality claim or TestFlight acceptance is implied by implementation.
 
+The [unified search contract v1](unified-food-search-contract-v1.md) supersedes
+the explicit-tap requirement as of 29 September 2026. Automatic enrichment is the
+new target; this document records the historical citation-only implementation.
+The manual route is now under **Search options → Developer tools → Debug Gemini
+source discovery**. It remains citation-only. As of 30 September, the normal flow separately composes default-off automatic Gemini with exact validated-key grants and source-verified Alpro UK nutrition admission. Broader coverage and live/device acceptance remain pending; see the unified contract.
+
 ## Contract and architecture gate
 
 The app's bundled CoFID/USDA search remains independent. **Search foods → run offline search → Search the web** opens a separate flow with an editable food-terms field prefilled from the completed offline query; no HealthKit data, diary, saved food, capture evidence or inventory is attached. Changing the offline query hides the web route until offline search runs again. The screen explains the exact outbound terms, fixed source-finding instruction, Google account charges, retention and key exposure before key entry. Key validation sends a model-metadata request only; food discovery requires a separate **Search the web** tap.

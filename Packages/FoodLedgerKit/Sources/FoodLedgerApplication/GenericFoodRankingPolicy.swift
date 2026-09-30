@@ -3,9 +3,10 @@ import Foundation
 /// Shared, source-neutral presentation preferences. These never establish food identity.
 /// Explicit selection, preparation and nutrition contracts remain separate.
 public enum GenericFoodRankingPolicy {
-    public static let version = "generic-representation-ranking-v2"
+    public static let version = "generic-representation-ranking-v3"
     public struct Preference: Equatable, Sendable {
         let primaryFood: Bool
+        let parentheticalOnlyTerms: Int
         let unrequestedSpecialisations: Int
         let ordinaryRepresentation: Int
         let additionalTerms: Int
@@ -23,13 +24,18 @@ public enum GenericFoodRankingPolicy {
         let query = tokens(food), requested = tokens(requestedText), candidate = tokens(name)
         let head = tokens(String(name.split(separator: ",", maxSplits: 1).first ?? ""))
         let extras = candidate.subtracting(requested)
+        let direct = tokens(outsideParentheses(name))
         return Preference(primaryFood: !head.isEmpty && head.isSubset(of: query),
+            parentheticalOnlyTerms: query.intersection(candidate).subtracting(direct).count,
             unrequestedSpecialisations: extras.intersection(specialised).count,
             ordinaryRepresentation: candidate.intersection(ordinary).count + (candidate.contains("whole") ? 1 : 0),
             additionalTerms: extras.subtracting(preparation).count)
     }
     public static func prefers(_ lhs: Preference, over rhs: Preference) -> Bool {
         if lhs.primaryFood != rhs.primaryFood { return lhs.primaryFood }
+        if lhs.parentheticalOnlyTerms != rhs.parentheticalOnlyTerms {
+            return lhs.parentheticalOnlyTerms < rhs.parentheticalOnlyTerms
+        }
         if lhs.unrequestedSpecialisations != rhs.unrequestedSpecialisations {
             return lhs.unrequestedSpecialisations < rhs.unrequestedSpecialisations
         }
@@ -37,6 +43,18 @@ public enum GenericFoodRankingPolicy {
             return lhs.ordinaryRepresentation > rhs.ordinaryRepresentation
         }
         return lhs.additionalTerms < rhs.additionalTerms
+    }
+    // Parenthetical mentions remain eligible, but do not outrank directly named food/cuts.
+    // This is lexical presentation only; it does not infer species or change source facts.
+    private static func outsideParentheses(_ text: String) -> String {
+        var depth = 0
+        var result = ""
+        for character in text {
+            if character == "(" { depth += 1; result.append(" ") }
+            else if character == ")" { depth = max(0, depth - 1); result.append(" ") }
+            else if depth == 0 { result.append(character) }
+        }
+        return result
     }
     private static func tokens(_ text: String) -> Set<String> { Set(terms(text)) }
 

@@ -20,7 +20,8 @@ let package = Package(
         .library(name: "FoodLedgerTestSupport", targets: ["FoodLedgerTestSupport"])
     ],
     dependencies: [
-        .package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1")
+        .package(url: "https://github.com/groue/GRDB.swift.git", exact: "7.11.1"),
+        .package(url: "https://github.com/scinfu/SwiftSoup.git", exact: "2.13.9")
     ],
     targets: [
         .target(name: "FoodLedgerDomain"),
@@ -34,7 +35,7 @@ let package = Package(
         ),
         .target(
             name: "FoodGenericSearch",
-            dependencies: ["FoodLedgerDomain", "FoodLedgerApplication"],
+            dependencies: ["FoodLedgerDomain", "FoodLedgerApplication", .product(name: "SwiftSoup", package: "SwiftSoup")],
             resources: [.copy("Resources")]
         ),
         .target(

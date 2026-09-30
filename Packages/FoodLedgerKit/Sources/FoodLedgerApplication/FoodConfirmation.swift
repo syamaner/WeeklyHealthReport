@@ -584,13 +584,22 @@ public final class FoodConfirmationService: @unchecked Sendable {
     public func reopen(logItemID: LogItemID) throws -> FoodConfirmationState? {
         guard let saved = try reader.foodConfirmation(logItemID: logItemID) else { return nil }
         try saved.logItemVersion.validateWeightDeclaration(emptyPlate: saved.plateWeightVersion)
+        // The immutable source candidate and the user-corrected saved product are distinct.
+        // A corrected fortified category cannot be paired with an originally unknown source identity.
+        let original = saved.candidateDecision.candidate
+        let sourceItemClass: ItemClass
+        if original.identity.fortification == .fortified {
+            sourceItemClass = saved.productVersion.itemClass == .supplement ? .supplement : .fortifiedFood
+        } else {
+            sourceItemClass = saved.productVersion.itemClass == .fortifiedFood ? .food : saved.productVersion.itemClass
+        }
         let populated = try PopulatedFoodCandidate(
-            candidate: saved.candidateDecision.candidate,
+            candidate: original,
             name: saved.productVersion.name,
             brand: saved.productVersion.brand,
             variant: saved.productVersion.variant,
             barcode: saved.productVersion.barcode,
-            itemClass: saved.productVersion.itemClass,
+            itemClass: sourceItemClass,
             packFacts: saved.productVersion.packFacts
         )
         let input = try PopulatedFoodConfirmation(

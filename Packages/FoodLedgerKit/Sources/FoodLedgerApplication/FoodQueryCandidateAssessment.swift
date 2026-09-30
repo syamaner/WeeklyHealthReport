@@ -18,7 +18,21 @@ public enum FoodQueryCandidateAssessment {
               let actual = fatPer100Grams(candidate) else { return false }
         return abs(actual - requested) < 0.000001
     }
-    public static func note(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate) -> String? {
+    public static func note(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate,
+                            requestedPreparation: PreparationKind? = nil) -> String? {
+        let kind = requestedPreparation ?? FoodQueryPreparationPolicy.kind(for: query)
+        let preparationNote: String?
+        if let kind, kind != .unknown, candidate.candidate.identity.preparation.kind == .unknown {
+            preparationNote = "Source preparation is unknown; your requested \(kind.rawValue) state is not established. Review before choosing."
+        } else { preparationNote = nil }
+        let notes = [preparationNote, variantNote(query: query, candidate: candidate)].compactMap { $0 }
+        return notes.isEmpty ? nil : notes.joined(separator: " ")
+    }
+
+    private static func variantNote(query: ParsedFoodQuery, candidate: PopulatedFoodCandidate) -> String? {
+        if let literal = query.attributes["unspecified_percent"] {
+            return "Requested \(literal)%: its meaning is not verified. Compare the product and enter the consumed amount during review."
+        }
         let requestedTerms = Set(GenericFoodRankingPolicy.terms(query.food ?? query.original))
         let candidateTerms = Set(GenericFoodRankingPolicy.terms(candidate.name.value))
         let typeNote: String? = requestedTerms.contains("greek") && requestedTerms.contains("style") != candidateTerms.contains("style")

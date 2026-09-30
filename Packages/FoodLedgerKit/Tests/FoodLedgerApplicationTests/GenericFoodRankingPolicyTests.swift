@@ -2,6 +2,20 @@ import FoodLedgerApplication
 import XCTest
 
 final class GenericFoodRankingPolicyTests: XCTestCase {
+    func testDirectNamesBeatParentheticalOnlyMentionsWithoutAssumingFoodOrSpecies() {
+        for term in ["sirloin", "shank", "apple", "lentil"] {
+            let direct = GenericFoodRankingPolicy.preference(name: "Named food, \(term), cooked", food: term, requestedText: term)
+            let incidental = GenericFoodRankingPolicy.preference(name: "Another food, whole (includes \(term)), cooked", food: term, requestedText: term)
+            XCTAssertTrue(GenericFoodRankingPolicy.prefers(direct, over: incidental))
+            XCTAssertFalse(GenericFoodRankingPolicy.prefers(incidental, over: direct))
+            let nested = GenericFoodRankingPolicy.preference(name: "Another food, whole (includes (part of) \(term)), cooked", food: term, requestedText: term)
+            XCTAssertTrue(GenericFoodRankingPolicy.prefers(direct, over: nested))
+        }
+        let repeated = GenericFoodRankingPolicy.preference(name: "Named food, sirloin (sirloin), cooked", food: "sirloin", requestedText: "sirloin")
+        let plain = GenericFoodRankingPolicy.preference(name: "Named food, sirloin, cooked", food: "sirloin", requestedText: "sirloin")
+        XCTAssertEqual(repeated, plain)
+    }
+
     func testWholeRepresentationPreferenceIsSourceAndFoodNeutral() {
         for food in ["egg", "milk", "grain"] {
             let whole = GenericFoodRankingPolicy.preference(name: "\(food), whole", food: food, requestedText: food)

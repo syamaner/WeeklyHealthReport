@@ -42,7 +42,8 @@ public struct GenericFoodSearchRequest: Equatable, Sendable {
     public var parsedQuery: ParsedFoodQuery { FoodQueryParser.parse(text.value) }
     public var retrievalText: String {
         let parsed = parsedQuery
-        return parsed.route == .search ? (parsed.food ?? text.value) : text.value
+        return parsed.route == .search || parsed.requiresRecipeReview
+            ? FoodQueryPreparationPolicy.foodTerms(for: parsed) : text.value
     }
     public let text: LedgerText
     public let identity: GenericFoodIdentityQuery
@@ -60,7 +61,14 @@ public struct GenericFoodSearchRequest: Equatable, Sendable {
         additionalEvidence: [CaptureEvidence] = []
     ) {
         self.text = text
-        self.identity = identity
+        if (identity.preparation == nil || identity.preparation?.kind == .unknown),
+           let kind = FoodQueryPreparationPolicy.kind(for: FoodQueryParser.parse(text.value)),
+           let preparation = try? PreparationState(kind: kind) {
+            self.identity = GenericFoodIdentityQuery(preparation: preparation, bone: identity.bone,
+                skin: identity.skin, drained: identity.drained, packingMedium: identity.packingMedium,
+                fortification: identity.fortification, servingBasis: identity.servingBasis,
+                edibleQuantity: identity.edibleQuantity, saltState: identity.saltState, formulation: identity.formulation)
+        } else { self.identity = identity }
         self.capturedAt = capturedAt
         self.locale = locale
         self.captureEvidence = captureEvidence
@@ -82,15 +90,19 @@ public struct GenericFoodConfirmationRoute: Equatable, Sendable {
     public let confirmation: PopulatedFoodConfirmation
     public let matches: [GenericFoodMatch]
     public let reuse: BarcodeReuseReference?
+    public let sourceDiscovery: FoodWebDiscoveryResult?
+    public let sourceReviewFailure: FoodSourceReviewFailure?
 
     public init(
         confirmation: PopulatedFoodConfirmation,
         matches: [GenericFoodMatch],
-        reuse: BarcodeReuseReference? = nil
+        reuse: BarcodeReuseReference? = nil, sourceDiscovery: FoodWebDiscoveryResult? = nil, sourceReviewFailure: FoodSourceReviewFailure? = nil
     ) {
         self.confirmation = confirmation
         self.matches = matches
         self.reuse = reuse
+        self.sourceDiscovery = sourceDiscovery
+        self.sourceReviewFailure = sourceReviewFailure
     }
 }
 
@@ -100,13 +112,17 @@ public struct GenericFoodNoResultRoute: Equatable, Sendable {
     public let title: String
     public let guidance: String
     public let suggestedQueries: [String]
+    public let sourceDiscovery: FoodWebDiscoveryResult?
+    public let sourceReviewFailure: FoodSourceReviewFailure?
 
     public init(
         evidence: CaptureEvidence, additionalEvidence: [CaptureEvidence] = [],
-        guidance: String? = nil, suggestedQueries: [String] = []
+        guidance: String? = nil, suggestedQueries: [String] = [], sourceDiscovery: FoodWebDiscoveryResult? = nil, sourceReviewFailure: FoodSourceReviewFailure? = nil
     ) {
         self.evidence = evidence
         self.suggestedQueries = suggestedQueries
+        self.sourceDiscovery = sourceDiscovery
+        self.sourceReviewFailure = sourceReviewFailure
         retainedEvidence = [evidence] + additionalEvidence
         title = "No compatible generic food found"
         self.guidance = guidance ?? "Try another food name or leave this item unresolved. Nothing has been selected or saved."

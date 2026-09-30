@@ -130,17 +130,68 @@ pins Foundation/SR Legacy snapshots and preserves whole source records. The
 offers a separately sourced 1.03 estimate only for the selected CoFID whole
 pasteurised milk record after an explicit tap; other volume gaps remain unavailable.
 The [bounded search repair](docs/food-search-usability-v2.md) provides component suggestions
-for unsupported combined meals. Broader multi-source relevance remains unevaluated;
-the historical frozen evaluation does not establish this new adapter's accuracy.
-[Optional Gemini web discovery](docs/gemini-grounded-food-discovery-plan-v1.md)
-is available after a completed offline search through **Search foods → Search the web**.
-It requires your own validated API key, held only in ThisDeviceOnly Keychain and
-revalidated when the search flow is reopened, and sends entered food terms only
-when you tap **Search the web**. Google may charge your account and retains grounding
-data under its terms. Generated responses, citations and search suggestions remain
-unverified, transient source leads: they cannot populate or save nutrition records.
-Bundled offline search remains independent. Live-key, device and TestFlight acceptance
-are still required; synthetic tests do not establish provider quality or cost.
+for unsupported combined meals. Captured multi-source replays exercise the actual app coordinator; they do not
+establish fresh live retrieval accuracy or independent acceptance.
+The [unified search contract](docs/unified-food-search-contract-v1.md) now has an
+application coordinator and progressive search UI: one **Search** action, stable
+candidate rows, explicit selection or **None of these**, and cancellation when the
+query, preparation, selection, navigation or service availability changes. Eligible
+admitted providers can append results without replacing a selected food. Under
+**Search options (ellipsis) → Search services**, enable **Open Food Facts** to add
+packaged-food alternatives automatically when local matches need more evidence.
+It defaults off, needs no key, and sends only displayed food terms on a submitted
+search. Changing the setting cancels the current enrichment and applies on the next
+search. Each OFF stage uses at most one Search-a-licious request and two product-detail
+reads, spaced at least seven seconds apart and capped at 20 seconds overall. There
+are no automatic retries, pagination or search-as-you-type calls. Search-index
+nutrients are not admitted; product details must supply the source evidence.
+
+OFF results require an explicit package unit and one matching packaging panel: per
+100 g for mass or per 100 ml for volume. No density, serving-size conversion or
+cross-panel backfill is inferred. Ambiguous or unsupported records are omitted.
+A literal percentage can find candidates without establishing what it means or
+prefilling an intake quantity. Category-supported matches display the source type
+for review, including Greek versus Greek-style distinctions.
+Community records retain exact-product provenance, licences and unknown fields.
+Missing exact-product identity still blocks saving until resolved; a text match does
+not turn a branded product into a generic estimate. Runtime quality and device checks remain pending.
+
+**Search services → Automatic Gemini search** is also off by default. It requires
+a separately enabled setting and the exact key validated in this app session.
+Add or revalidate the key under **Gemini API key and privacy**; closing that editor
+keeps completed validation for the session. A stored key alone does not enable
+requests. A submitted search may use Gemini after the earlier stages still need
+evidence. One grounded-discovery request can fetch one native-cited page, with at
+most three HTTPS attempts including redirects and a 50-second combined ceiling.
+Only source-verified Alpro, Arla and Oatly UK product pages currently become nutrition
+candidates. The selected product and table must pass the manufacturer-specific
+identity checks. Arla milk declared per 100 g stays mass-based: entering millilitres
+does not supply a density or make nutrient totals available.
+Model-written nutrition is never admitted; unknown identity still requires review
+and correction before saving. Native citations and supplied search suggestions are
+retained with completed discovery results. Unsupported or failed source acquisition
+keeps the completed discovery links and explains why no nutrition was added.
+Cancellation or an expired whole request still discards the response. No live quality or
+TestFlight acceptance is implied by this local implementation.
+
+The [delivery readiness and device checklist](docs/unified-food-search-delivery-readiness-v1.md)
+separates local evidence from live acceptance. Named sirloin cuts rank before incidental
+parenthetical mentions. Whole-cow's-milk wording offers an explicit broader milk
+search. A narrow lentil/tomato-soup and porridge-with-water/milk grammar can search
+without inventing a recipe or quantity. Unknown preparation is a labelled alternative
+only for these named-dish reviews; known compatible preparation ranks first. Current
+local data supplies porridge alternatives, but the four evaluated soup descriptions
+still have no local nutrition match.
+
+The existing [Gemini citation discovery](docs/gemini-grounded-food-discovery-plan-v1.md)
+is retained under **Search foods → Search options (ellipsis) → Developer tools →
+Debug Gemini source discovery**, after a completed search. It requires your own
+validated API key, held only in ThisDeviceOnly Keychain and revalidated when the
+search flow is reopened. This debug action sends entered food terms when you tap
+**Search the web**; it does not enable automatic nutrition enrichment. Google may
+charge your account and retains grounding data under its terms. Generated responses,
+citations and search suggestions remain unverified source leads and cannot populate
+or save nutrition. Live provider, device and TestFlight acceptance remain separate.
 
 The [pasted food-list input](docs/food-list-import.md) adds local quantity/unit
 parsing and a per-line review queue under **Food logging → Paste Food List**.
@@ -154,8 +205,8 @@ The [barcode entry](docs/barcode-beta-delivery.md) checks the existing exact loc
 library first and preserves the scan when falling back to generic search. On a GTIN
 miss, the approved [optional OFF lookup](docs/off-barcode-candidate-plan-v1.md) offers
 a foreground barcode-only request after disclosure, with explicit review before
-saving source-attributed data. Its first mapper supports declared mass products;
-liquid/ambiguous or insufficient records stay unresolved. No OFF login is required. Physical
+saving source-attributed data. Its shared mapper supports declared mass and
+explicit modern volume panels; ambiguous or insufficient records stay unresolved. No OFF login is required. Physical
 camera validation remains deferred; label-photo OCR is not offered in this beta.
 The optional [local receipt review](docs/local-inventory-contract.md) imports pasted
 text or user-selected text-bearing PDFs, keeps original evidence and requires

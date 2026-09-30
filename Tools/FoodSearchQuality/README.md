@@ -41,6 +41,19 @@ Replay the preserved baseline using `retrieval-build9-v3.json.gz`. The current r
 ## Issue #161 current replay
 
 [Confirmation/ranking v4](retrieval-report-v4.md) preserves the historical v3
-replay and judgements. Current CI compares the same scenarios with
+replay and judgements. At that checkpoint CI compared the same scenarios with
 `retrieval-metrics-final-v4.json`; v3 reproduction commands above apply to its
 historical implementation. Egg-size guide data and device acceptance stay deferred.
+
+## Current CI replay: v5 (30 September 2026)
+
+CI uses `retrieval-metrics-final-v5.json` with the unchanged v3 scenario labels and
+scorer. v4 remains historical evidence. The current 72-query, three-source replay
+changes only r059/r060 (banana/100g banana), each in CoFID and composite: the existing
+labelled grade-1 row `1664:4167f51564a89259` now appears at rank 6 and 16 respectively.
+The added candidate is flavoured milk (strawberry/banana), already labelled as a
+low-relevance alternative; it is not a new correct top match. All top-five
+metrics, all aggregate summaries and the other 212 scored rows are exactly unchanged.
+This reconciles the existing named-food retrieval changes with the CI snapshot;
+it does not relabel results, change production matching or establish independent
+acceptance. v73 preserves the failing v4 comparison and the full current replay.

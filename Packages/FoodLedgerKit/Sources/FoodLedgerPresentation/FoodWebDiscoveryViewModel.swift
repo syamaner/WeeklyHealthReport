@@ -2,7 +2,7 @@ import FoodLedgerApplication
 import SwiftUI
 
 @MainActor
-public final class FoodWebDiscoveryViewModel: ObservableObject {
+public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentialAuthorizing {
     @Published public var keyEntry = ""
     @Published public var foodTerms = "" { didSet { if foodTerms != oldValue { cancelSearch() } } }
     @Published public private(set) var hasSavedKey = false
@@ -14,6 +14,8 @@ public final class FoodWebDiscoveryViewModel: ObservableObject {
     @Published public private(set) var result: FoodWebDiscoveryResult?
     private let provider: any FoodWebDiscovering
     private let keys: any FoodWebKeyStoring
+    // Transient identity of the credential that actually passed validation; never persisted or displayed.
+    private var validatedKey: String?
     private var generation = 0
     private var searchGeneration = 0
     private var validation: Task<Void, Error>?
@@ -52,13 +54,13 @@ public final class FoodWebDiscoveryViewModel: ObservableObject {
         do {
             guard let saved = try keys.load() else {
                 hasSavedKey = false
-                keyIsUsable = false
+                invalidateUsability()
                 keyMessage = "No saved key is available. Add and validate one first."
                 return
             }
             key = saved
         } catch {
-            keyIsUsable = false
+            invalidateUsability()
             keyMessage = "The device Keychain is unavailable. Unlock your device and retry."
             return
         }
@@ -68,6 +70,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject {
     private func validate(key: String, saveNewKey: Bool) async {
         guard !isValidating else { return }
         cancelSearch()
+        invalidateUsability()
         guard FoodWebKeySyntax.isValid(key) else {
             keyMessage = "Enter a valid API key without spaces or line breaks. Web search remains unavailable."
             return
@@ -90,7 +93,15 @@ public final class FoodWebDiscoveryViewModel: ObservableObject {
                     return
                 }
             }
+            guard (try? keys.load()) == key else {
+                hasSavedKey = (try? keys.load()) != nil
+                keyMessage = "The saved key changed during validation. Revalidate the current key before searching."
+                isValidating = false
+                validation = nil
+                return
+            }
             hasSavedKey = true
+            validatedKey = key
             keyIsUsable = true
             keyMessage = saveNewKey
                 ? "Key validated and saved on this device. Search access and quota are checked when you search."
@@ -98,7 +109,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject {
         } catch {
             guard generation == current else { return }
             if error as? FoodWebDiscoveryError == .credentialRejected, (try? keys.load()) == key {
-                invalidateRejectedKey()
+                invalidateRejectedKey(expectedKey: key)
             }
             keyMessage = Self.message(for: error) + (saveNewKey ? " The new key was not saved." : "")
         }
@@ -112,13 +123,20 @@ public final class FoodWebDiscoveryViewModel: ObservableObject {
         let key: String
         do {
             guard let saved = try keys.load(), FoodWebKeySyntax.isValid(saved) else {
-                keyIsUsable = false
+                invalidateUsability()
                 searchMessage = "Add and validate your Gemini API key first."
+                return
+            }
+            guard saved == validatedKey else {
+                cancelSearch()
+                invalidateUsability()
+                hasSavedKey = true
+                searchMessage = "The saved key changed. Revalidate it before searching the web."
                 return
             }
             key = saved
         } catch {
-            keyIsUsable = false
+            invalidateUsability()
             searchMessage = "The device Keychain is unavailable. Offline search is still available."
             return
         }
@@ -131,21 +149,81 @@ public final class FoodWebDiscoveryViewModel: ObservableObject {
         do {
             let reply = try await task.value
             guard searchGeneration == current else { return }
+            guard (try? keys.load()) == key else {
+                invalidateUsability()
+                hasSavedKey = (try? keys.load()) != nil
+                searchMessage = "The saved key changed during the request. Revalidate it before searching again."
+                isSearching = false
+                search = nil
+                return
+            }
             result = reply
             if reply.leads.isEmpty { searchMessage = "No cited source leads were returned. Try different food terms or use offline search." }
         } catch {
             guard searchGeneration == current else { return }
-            if error as? FoodWebDiscoveryError == .credentialRejected { invalidateRejectedKey() }
+            if error as? FoodWebDiscoveryError == .credentialRejected {
+                invalidateRejectedKey(expectedKey: key)
+            } else if (try? keys.load()) != key {
+                invalidateUsability()
+                hasSavedKey = (try? keys.load()) != nil
+            }
             searchMessage = Self.message(for: error)
         }
         isSearching = false
         search = nil
     }
 
-    private func invalidateRejectedKey() {
+    public func credentialForRequest() throws -> FoodWebRequestCredential {
+        guard keyIsUsable, !isValidating, let key = validatedKey else { throw FoodSearchEnrichmentError.unavailable }
+        guard (try? keys.load()) == key else {
+            invalidateUsability()
+            keyMessage = "The saved key changed or is unavailable. Revalidate it before searching."
+            throw FoodSearchEnrichmentError.unavailable
+        }
+        return FoodWebRequestCredential(key: key, generation: generation)
+    }
+
+    public func isCurrent(_ credential: FoodWebRequestCredential) -> Bool {
+        guard generation == credential.generation, keyIsUsable, !isValidating else { return false }
+        guard validatedKey == credential.key, (try? keys.load()) == credential.key else {
+            invalidateUsability()
+            keyMessage = "The saved key changed or is unavailable. Revalidate it before searching."
+            return false
+        }
+        return true
+    }
+
+    public func reject(_ credential: FoodWebRequestCredential) {
+        guard generation == credential.generation else { return }
+        invalidateRejectedKey(expectedKey: credential.key)
+    }
+
+    /// Leaving normal key settings keeps completed validation for this in-memory search session.
+    /// Unfinished validation/discovery is cancelled and earlier request grants become stale.
+    public func closeCredentialEditor() {
+        generation += 1
+        validation?.cancel(); validation = nil; isValidating = false
+        keyEntry = ""
+        cancelSearch()
+    }
+
+    private func invalidateUsability() {
+        validatedKey = nil
         keyIsUsable = false
-        do { try keys.delete(); hasSavedKey = false }
-        catch { keyMessage = "The rejected key could not be removed. Unlock your device and retry Remove key." }
+    }
+
+    private func invalidateRejectedKey(expectedKey: String) {
+        invalidateUsability()
+        do {
+            let current = try keys.load()
+            guard current == expectedKey else {
+                hasSavedKey = current != nil
+                keyMessage = "The saved key changed. Revalidate the current key before searching."
+                return
+            }
+            try keys.delete()
+            hasSavedKey = false
+        } catch { keyMessage = "The rejected key could not be removed. Unlock your device and retry Remove key." }
     }
 
     public func removeKey() {
@@ -161,6 +239,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject {
     }
 
     public func cancelPending() {
+        invalidateUsability()
         generation += 1
         validation?.cancel()
         validation = nil
