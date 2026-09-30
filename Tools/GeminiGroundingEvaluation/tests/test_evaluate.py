@@ -45,6 +45,61 @@ class GroundingEvaluationTests(unittest.TestCase):
         self.assertEqual(total["unsupported_citations"], 1)
         self.assertEqual(report["groups"]["split:holdout"]["useful_at_3"], 0)
 
+    def test_v2_scores_distinct_reviewed_pages_and_keeps_citation_support_separate(self):
+        replay = deepcopy(self.replay)
+        review = deepcopy(self.judgements)
+        replay["results"][0]["response_text"] = "A source. Another claim. A different source."
+        replay["results"][0]["leads"] = [
+            {"title": "Manufacturer", "url": "https://redirect.example/a",
+             "cited_text": "A source"},
+            {"title": "Manufacturer", "url": "https://redirect.example/b",
+             "cited_text": "Another claim"},
+            {"title": "Government", "url": "https://redirect.example/c",
+             "cited_text": "A different source"},
+        ]
+        review["schema_version"] = "gemini-grounding-judgements-v2"
+        for row in review["results"]:
+            row["quotes_unrequested_nutrition"] = False
+            row["misreads_consumed_amount_as_pack"] = False
+        review["results"][0]["quotes_unrequested_nutrition"] = True
+        review["results"][0]["leads"] = [
+            {"resolved_url": "https://manufacturer.example/yoghurt", "grade": "exact_primary",
+             "supports_cited_text": "yes", "evidence_note": "Product page supports first claim"},
+            {"resolved_url": "https://manufacturer.example/yoghurt", "grade": "exact_primary",
+             "supports_cited_text": "no", "evidence_note": "Same page does not support second claim"},
+            {"resolved_url": "https://government.example/record", "grade": "useful_related",
+             "supports_cited_text": "yes", "evidence_note": "A related government record"},
+        ]
+        review["results"][1]["leads"][0]["resolved_url"] = None
+        review["results"][1]["leads"][0]["grade"] = "unverified"
+        review["results"][1]["leads"][0]["supports_cited_text"] = "unverified"
+        report = evaluate(self.cases, replay, review)
+        self.assertEqual(report["schema_version"], "gemini-grounding-report-v2")
+        self.assertEqual(report["scoring_unit"], "reviewed_source_page")
+        dairy = report["groups"]["family:dairy"]
+        self.assertEqual(dairy["citation_annotations"], 3)
+        self.assertEqual(dairy["source_pages"], 2)
+        self.assertEqual(dairy["duplicate_citation_annotations"], 1)
+        self.assertEqual(dairy["page_precision_at_3"], 1)
+        self.assertEqual(dairy["unsupported_citations"], 1)
+        self.assertEqual(dairy["unrequested_nutrition_cases"], 1)
+        self.assertEqual(dairy["primary_at_3"], 1)
+        self.assertEqual(report["cases"][0]["useful_pages_at_3"], 2)
+
+    def test_v2_unresolved_page_cannot_be_credited(self):
+        review = deepcopy(self.judgements)
+        review["schema_version"] = "gemini-grounding-judgements-v2"
+        for row in review["results"]:
+            row["quotes_unrequested_nutrition"] = False
+            row["misreads_consumed_amount_as_pack"] = False
+        review["results"][0]["leads"][0]["resolved_url"] = None
+        review["results"][1]["leads"][0]["resolved_url"] = None
+        with self.assertRaisesRegex(EvaluationError, "unresolved page"):
+            evaluate(self.cases, self.replay, review)
+        review["results"][0]["leads"][0]["grade"] = "unverified"
+        with self.assertRaisesRegex(EvaluationError, "unresolved page cannot support a citation"):
+            evaluate(self.cases, self.replay, review)
+
     def test_missing_case_or_independent_review_fails_closed(self):
         replay = deepcopy(self.replay)
         replay["results"].pop()
@@ -101,6 +156,32 @@ class GroundingEvaluationTests(unittest.TestCase):
             altered.write_text(json.dumps(document), encoding="utf-8")
             with self.assertRaisesRegex(EvaluationError, "hash changed"):
                 verify_frozen_contract(altered, contract)
+
+    def test_v2_preserves_observed_cases_and_adds_fresh_holdout(self):
+        root = Path(__file__).resolve().parents[1]
+        v1 = verify_frozen_contract(root / "cases-v1.json", root / "frozen-contract-v1.json")
+        v2 = verify_frozen_contract(root / "cases-v2.json", root / "frozen-contract-v2.json")
+        self.assertEqual(len(v2), 40)
+        self.assertEqual(sum(case["split"] == "holdout" for case in v2), 12)
+        self.assertEqual({case["id"] for case in v2 if case["split"] == "holdout"},
+                         {f"h{i:02d}" for i in range(1, 13)})
+        for previous, current in zip(v1, v2[:len(v1)]):
+            self.assertEqual({key: value for key, value in previous.items() if key != "split"},
+                             {key: value for key, value in current.items() if key != "split"})
+            self.assertEqual(current["split"], "development")
+
+    def test_v2_pre_review_cannot_change_after_freeze(self):
+        root = Path(__file__).resolve().parents[1]
+        with tempfile.TemporaryDirectory() as directory:
+            copy_root = Path(directory)
+            for name in ("cases-v2.json", "frozen-contract-v2.json", "holdout-evidence-v2.md"):
+                (copy_root / name).write_bytes((root / name).read_bytes())
+            evidence = copy_root / "holdout-evidence-v2.md"
+            evidence.write_text(evidence.read_text(encoding="utf-8") + "Altered after freeze.\n",
+                                encoding="utf-8")
+            with self.assertRaisesRegex(EvaluationError, "pre-review hash changed"):
+                verify_frozen_contract(copy_root / "cases-v2.json",
+                                       copy_root / "frozen-contract-v2.json")
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 
 CASE_VERSION = "gemini-grounding-cases-v1"
 REPLAY_VERSION = "gemini-grounding-replay-v1"
-JUDGEMENT_VERSION = "gemini-grounding-judgements-v1"
+JUDGEMENT_VERSIONS = {"gemini-grounding-judgements-v1", "gemini-grounding-judgements-v2"}
 GRADES = {"exact_primary", "useful_related", "irrelevant", "severe_mismatch", "unverified"}
 SUPPORT = {"yes", "no", "unverified"}
 
@@ -70,6 +70,16 @@ def verify_frozen_contract(case_path, contract_path):
     require(contract.get("case_file") == case_path.name, "contract names another case file")
     digest = hashlib.sha256(case_path.read_bytes()).hexdigest()
     require(digest == contract.get("cases_sha256"), "frozen case hash changed")
+    pre_review_name = contract.get("pre_review_file")
+    pre_review_digest = contract.get("pre_review_sha256")
+    require((pre_review_name is None) == (pre_review_digest is None),
+            "incomplete pre-review contract")
+    if pre_review_name is not None:
+        require(isinstance(pre_review_name, str) and pre_review_name not in {"", ".", ".."}
+                and Path(pre_review_name).name == pre_review_name,
+                "invalid pre-review file")
+        actual = hashlib.sha256((contract_path.parent / pre_review_name).read_bytes()).hexdigest()
+        require(actual == pre_review_digest, "frozen pre-review hash changed")
     cases = validate_cases(load(case_path))
     for split in ("development", "holdout"):
         require(sum(case["split"] == split for case in cases) == contract.get(f"{split}_count"),
@@ -102,7 +112,10 @@ def evaluate(case_document, replay, judgements):
     require(isinstance(judgements.get("reviewer"), str) and judgements["reviewer"].strip(), "missing reviewer")
     require(isinstance(judgements.get("reviewed_on"), str) and judgements["reviewed_on"].strip(), "missing review date")
     responses = indexed_rows(replay, REPLAY_VERSION, "replay", case_ids)
-    reviews = indexed_rows(judgements, JUDGEMENT_VERSION, "judgement", case_ids)
+    judgement_version = judgements.get("schema_version")
+    require(judgement_version in JUDGEMENT_VERSIONS, "unsupported judgement schema")
+    page_review = judgement_version == "gemini-grounding-judgements-v2"
+    reviews = indexed_rows(judgements, judgement_version, "judgement", case_ids)
     per_case = []
     for case in cases:
         case_id = case["id"]
@@ -117,6 +130,9 @@ def evaluate(case_document, replay, judgements):
         require(type(response.get("suggestions_present")) is bool, f"{case_id}: missing suggestion status")
         for flag in ("distinctions_preserved", "promotes_unverified_nutrition"):
             require(type(review.get(flag)) is bool, f"{case_id}: missing {flag} review")
+        if page_review:
+            for flag in ("quotes_unrequested_nutrition", "misreads_consumed_amount_as_pack"):
+                require(type(review.get(flag)) is bool, f"{case_id}: missing {flag} review")
         require(isinstance(review.get("answer_note"), str) and review["answer_note"].strip(),
                 f"{case_id}: missing answer evidence note")
         for ordinal, (lead, judgement) in enumerate(zip(leads, labelled_leads), start=1):
@@ -131,10 +147,38 @@ def evaluate(case_document, replay, judgements):
                     f"{case_id} lead {ordinal}: invalid citation review")
             require(isinstance(judgement.get("evidence_note"), str) and judgement["evidence_note"].strip(),
                     f"{case_id} lead {ordinal}: missing page evidence note")
-        top = labelled_leads[:3]
+            if page_review:
+                resolved = judgement.get("resolved_url")
+                require(resolved is None or safe_url(resolved),
+                        f"{case_id} lead {ordinal}: invalid resolved URL")
+                require(resolved is not None or judgement["grade"] == "unverified",
+                        f"{case_id} lead {ordinal}: unresolved page cannot receive a relevance grade")
+                require(resolved is not None or judgement["supports_cited_text"] == "unverified",
+                        f"{case_id} lead {ordinal}: unresolved page cannot support a citation")
+        if page_review:
+            pages = {}
+            for lead, judgement in zip(leads, labelled_leads):
+                identity = judgement["resolved_url"] or lead["url"]
+                pages.setdefault(identity, []).append(judgement)
+            top = []
+            for citations in list(pages.values())[:3]:
+                grades = {citation["grade"] for citation in citations}
+                supported = any(citation["supports_cited_text"] == "yes" for citation in citations)
+                if "severe_mismatch" in grades:
+                    grade = "severe_mismatch"
+                elif supported and grades == {"exact_primary"}:
+                    grade = "exact_primary"
+                elif supported and grades <= {"exact_primary", "useful_related"}:
+                    grade = "useful_related"
+                else:
+                    grade = "unverified"
+                top.append({"grade": grade})
+        else:
+            top = labelled_leads[:3]
         per_case.append({
             "case_id": case_id, "split": case["split"], "family": case["family"],
-            "lead_count": len(leads), "suggestions_present": response["suggestions_present"],
+            "lead_count": len(leads), "page_count": len(pages) if page_review else None,
+            "suggestions_present": response["suggestions_present"],
             "useful_at_3": any(lead["grade"] in {"exact_primary", "useful_related"} for lead in top),
             "primary_at_3": any(lead["grade"] == "exact_primary" for lead in top),
             "useful_leads_at_3": sum(lead["grade"] in {"exact_primary", "useful_related"} for lead in top),
@@ -146,6 +190,9 @@ def evaluate(case_document, replay, judgements):
             "distinctions_preserved": review["distinctions_preserved"],
             "promotes_unverified_nutrition": review["promotes_unverified_nutrition"],
         })
+        if page_review:
+            per_case[-1]["quotes_unrequested_nutrition"] = review["quotes_unrequested_nutrition"]
+            per_case[-1]["misreads_consumed_amount_as_pack"] = review["misreads_consumed_amount_as_pack"]
 
     groups = defaultdict(list)
     for row in per_case:
@@ -156,7 +203,7 @@ def evaluate(case_document, replay, judgements):
     def summary(rows):
         inspected = sum(row["inspected_leads_at_3"] for row in rows)
         citations = sum(row["lead_count"] for row in rows)
-        return {
+        result = {
             "cases": len(rows), "leads": citations,
             "useful_at_3": sum(row["useful_at_3"] for row in rows),
             "primary_at_3": sum(row["primary_at_3"] for row in rows),
@@ -171,13 +218,33 @@ def evaluate(case_document, replay, judgements):
             "nutrition_promotion_cases": sum(row["promotes_unverified_nutrition"] for row in rows),
             "suggestions_present_cases": sum(row["suggestions_present"] for row in rows),
         }
+        if page_review:
+            result["source_pages"] = sum(row["page_count"] for row in rows)
+            result["duplicate_citation_annotations"] = citations - result["source_pages"]
+            result["page_precision_at_3"] = result.pop("lead_precision_at_3")
+            result["citation_annotations"] = result.pop("leads")
+            result["unrequested_nutrition_cases"] = sum(row["quotes_unrequested_nutrition"] for row in rows)
+            result["consumed_amount_as_pack_cases"] = sum(row["misreads_consumed_amount_as_pack"] for row in rows)
+        return result
 
-    return {"schema_version": "gemini-grounding-report-v1", "run_id": replay["run_id"],
+    groups = {name: summary(rows) for name, rows in sorted(groups.items())}
+    if page_review:
+        for row in per_case:
+            row["citation_annotations"] = row.pop("lead_count")
+            row["source_pages"] = row.pop("page_count")
+            row["useful_pages_at_3"] = row.pop("useful_leads_at_3")
+            row["inspected_pages_at_3"] = row.pop("inspected_leads_at_3")
+    else:
+        for row in per_case:
+            row.pop("page_count")
+    return {"schema_version": "gemini-grounding-report-v2" if page_review else "gemini-grounding-report-v1",
+            "scoring_unit": "reviewed_source_page" if page_review else "citation_annotation",
+            "run_id": replay["run_id"],
             "provider": replay["provider"], "model": replay["model"],
             "captured_on": replay["captured_on"], "reviewer": judgements["reviewer"],
             "reviewed_on": judgements["reviewed_on"],
             "interpretation": "Reviewed source-discovery diagnostics only; no nutrition admission or device/provider acceptance",
-            "groups": {name: summary(rows) for name, rows in sorted(groups.items())},
+            "groups": groups,
             "cases": per_case}
 
 

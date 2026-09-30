@@ -2,6 +2,54 @@ import XCTest
 @testable import FoodLedgerApplication
 
 final class FoodQueryParserTests: XCTestCase {
+    func testRawOrUncookedWithCookingMethodRequiresClarification() {
+        for raw in ["raw", "uncooked"] {
+            for method in ["cooked", "roast", "roasted", "boiled", "grilled", "broiled", "fried", "baked", "steamed", "braised", "poached", "stewed"] {
+                for query in ["160g \(raw) \(method) cod", "160g \(method) \(raw) cod"] {
+                    let parsed = FoodQueryParser.parse(query)
+                    XCTAssertEqual(parsed.route, .clarify, query)
+                    XCTAssertNil(parsed.quantity, query)
+                    XCTAssertTrue(parsed.reasons.contains("conflicting_preparation"), query)
+                    XCTAssertEqual(parsed.original, query)
+                }
+            }
+        }
+    }
+
+    func testUncookedDoesNotMatchCookedAndMethodsRemainRetrievalTerms() {
+        let uncooked = FoodQueryParser.parse("175g uncooked quinoa")
+        XCTAssertEqual(uncooked.route, .search)
+        XCTAssertEqual(uncooked.attributes["preparation"], "raw")
+        XCTAssertEqual(uncooked.food, "quinoa")
+        XCTAssertEqual(uncooked.quantity?.value, 175)
+        for method in ["steamed", "grilled", "braised", "poached"] {
+            let parsed = FoodQueryParser.parse("165g \(method) cod")
+            XCTAssertEqual(parsed.route, .search)
+            XCTAssertEqual(parsed.food, "\(method) cod")
+            XCTAssertEqual(parsed.quantity?.value, 165)
+        }
+        XCTAssertEqual(FoodQueryParser.parse("100g raw strawberries").route, .search)
+    }
+
+    func testLiteralPercentageDiscoveryDoesNotResolveMeaningOrQuantity() {
+        for text in ["150g FAGE Total 2% Greek yoghurt", "200g Acme 2.5% yoghurt", "Acme 0% yoghurt"] {
+            let parsed = FoodQueryParser.parse(text)
+            XCTAssertTrue(parsed.allowsCandidateDiscovery, text)
+            XCTAssertEqual(parsed.route, .clarify)
+            XCTAssertEqual(parsed.reasons, ["percentage_meaning_unknown"])
+            XCTAssertNil(parsed.quantity); XCTAssertNil(parsed.attributes["fat_percent"])
+            XCTAssertEqual(parsed.original, text)
+        }
+    }
+    func testLiteralPercentageNeverBypassesOtherClarification() {
+        for text in ["0g Fage 2% yoghurt", "-1g Fage 2% yoghurt", "Fage 2% or 5% yoghurt", "Fage 2% less yoghurt",
+                     "100g Fage 2% yoghurt and honey", "about 100g Fage 2% yoghurt", "bowl Fage 2% yoghurt",
+                     "100g Fage 2% yoghurt 200g", "101% yoghurt", "-2% yoghurt", "2% 2% yoghurt"] {
+            XCTAssertFalse(FoodQueryParser.parse(text).allowsCandidateDiscovery, text)
+        }
+        XCTAssertTrue(FoodQueryParser.parse("100g rice").allowsCandidateDiscovery)
+    }
+
     func testQuantityAndVariantAreSeparatedAndOriginalRetained() {
         let input = "200g Greek youghurt 10% fat"
         let p = FoodQueryParser.parse(input)

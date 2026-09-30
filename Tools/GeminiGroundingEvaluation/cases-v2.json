@@ -1,0 +1,545 @@
+{
+  "schema_version": "gemini-grounding-cases-v1",
+  "frozen_on": "2026-09-28",
+  "cases": [
+    {
+      "id": "g01",
+      "split": "development",
+      "family": "dairy-fat",
+      "food_terms": "200g Greek yoghurt 10% fat",
+      "task": "Find a source for the requested Greek yoghurt or clearly identify close, non-exact alternatives.",
+      "critical_distinctions": [
+        "Greek versus Greek-style",
+        "10% exact versus CoFID 10.2 g/100 g",
+        "product-specific versus generic composition"
+      ],
+      "source_leads": [
+        "https://www.gov.uk/government/publications/composition-of-foods-integrated-dataset-cofid",
+        "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html"
+      ]
+    },
+    {
+      "id": "g02",
+      "split": "development",
+      "family": "dairy-fat",
+      "food_terms": "KOLIOS Authentic Greek Yogurt 10% 500g cup",
+      "task": "Find the manufacturer's product and distinguish the requested cup from other sizes and organic variants.",
+      "critical_distinctions": [
+        "brand and non-organic range",
+        "500 g cup versus other packs",
+        "current web panel versus dated pack/formulation"
+      ],
+      "source_leads": [
+        "https://www.kolios.gr/en/our_products/authentic-greek-yogurt-range/authentic-greek-yogurt-10/"
+      ]
+    },
+    {
+      "id": "g03",
+      "split": "development",
+      "family": "liquid-basis",
+      "food_terms": "200ml whole milk",
+      "task": "Find UK whole cow's-milk composition and any source-specific volume basis.",
+      "critical_distinctions": [
+        "cow versus sheep/human milk",
+        "whole versus skimmed/evaporated",
+        "per 100 g versus per 100 mL",
+        "no universal density"
+      ],
+      "source_leads": [
+        "https://www.gov.uk/government/publications/composition-of-foods-integrated-dataset-cofid"
+      ]
+    },
+    {
+      "id": "g04",
+      "split": "development",
+      "family": "liquid-basis",
+      "food_terms": "200ml oat milk",
+      "task": "Find candidate sources while noting that brand and formulation are unspecified.",
+      "critical_distinctions": [
+        "oat drink versus dairy milk",
+        "brand and fortified variant unknown",
+        "volume basis must be sourced"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g05",
+      "split": "development",
+      "family": "meat-preparation",
+      "food_terms": "200g raw ribeye steak",
+      "task": "Find a raw ribeye source and show regional and cut uncertainty.",
+      "critical_distinctions": [
+        "ribeye cut",
+        "raw versus cooked",
+        "USDA US composition versus UK product"
+      ],
+      "source_leads": [
+        "https://fdc.nal.usda.gov/download-datasets/"
+      ]
+    },
+    {
+      "id": "g06",
+      "split": "development",
+      "family": "meat-preparation",
+      "food_terms": "200g cooked ribeye steak",
+      "task": "Find cooked ribeye evidence without substituting a raw record.",
+      "critical_distinctions": [
+        "ribeye cut",
+        "cooked versus raw",
+        "cooking method unspecified"
+      ],
+      "source_leads": [
+        "https://fdc.nal.usda.gov/download-datasets/"
+      ]
+    },
+    {
+      "id": "g07",
+      "split": "development",
+      "family": "compound-food",
+      "food_terms": "fish and chips 300g",
+      "task": "Find a defensible whole-dish source or state that a component is not the meal.",
+      "critical_distinctions": [
+        "whole meal versus fish or chips alone",
+        "species, batter and frying unknown",
+        "recipe and portion unknown"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g08",
+      "split": "development",
+      "family": "unspecified-variant",
+      "food_terms": "100g rice",
+      "task": "Find broad rice sources without deciding an unspecified colour or cooked state.",
+      "critical_distinctions": [
+        "white versus red or brown",
+        "dry versus cooked",
+        "100 g refers to user amount, not source basis"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g09",
+      "split": "development",
+      "family": "quantity-ambiguity",
+      "food_terms": "2 eggs",
+      "task": "Find egg composition while keeping size and edible mass unresolved.",
+      "critical_distinctions": [
+        "egg size unknown",
+        "shell excluded from edible mass",
+        "no invented count-to-gram conversion"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g10",
+      "split": "development",
+      "family": "meat-preparation",
+      "food_terms": "100g smoked salmon",
+      "task": "Find smoked salmon rather than raw or cooked salmon.",
+      "critical_distinctions": [
+        "smoked versus raw/cooked",
+        "species and brand unknown",
+        "salt differs by product"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g11",
+      "split": "development",
+      "family": "meat-preparation",
+      "food_terms": "150g grilled skinless chicken breast",
+      "task": "Find a cooked, skinless breast source with its preparation stated.",
+      "critical_distinctions": [
+        "breast versus other cuts",
+        "skinless versus skin-on",
+        "grilled/cooked versus raw"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g12",
+      "split": "development",
+      "family": "packaged-identity",
+      "food_terms": "Heinz Beanz 2.62kg 5000157004000",
+      "task": "Find a product lead but avoid asserting present-day label or formulation from barcode alone.",
+      "critical_distinctions": [
+        "exact GTIN and pack size",
+        "current label versus historical page",
+        "barcode hit is not verified nutrition"
+      ],
+      "source_leads": [
+        "https://classicfinefoods.co.uk/grocery/885-heinz-baked-beans.html"
+      ]
+    },
+    {
+      "id": "g13",
+      "split": "development",
+      "family": "dairy-fat",
+      "food_terms": "200g plain Greek yoghurt 0% fat",
+      "task": "Find non-fat plain Greek yoghurt, without substituting the 10% case.",
+      "critical_distinctions": [
+        "0% versus 10%",
+        "plain versus fruit",
+        "Greek versus Greek-style"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g14",
+      "split": "development",
+      "family": "meat-preparation",
+      "food_terms": "200g raw beef mince 10% fat",
+      "task": "Find the stated mince fat class and raw preparation.",
+      "critical_distinctions": [
+        "mince versus steak",
+        "10% label versus other fat classes",
+        "raw versus cooked"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g15",
+      "split": "development",
+      "family": "compound-food",
+      "food_terms": "homemade vegetable soup 250g",
+      "task": "Find helpful source leads but say that an unknown home recipe has no exact whole-food nutrition.",
+      "critical_distinctions": [
+        "home recipe unknown",
+        "single ingredient is not the soup",
+        "no invented measured composition"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g16",
+      "split": "development",
+      "family": "meat-preparation",
+      "food_terms": "200g oven-baked frozen chips",
+      "task": "Find an oven-prepared chips source without equating it to deep-fried chips.",
+      "critical_distinctions": [
+        "oven-baked versus deep-fried",
+        "frozen product variant unknown",
+        "brand and oil unknown"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g17",
+      "split": "development",
+      "family": "dairy-fat",
+      "food_terms": "100g Greek-style yoghurt 10% fat",
+      "task": "Find a source for Greek-style yoghurt at the requested fat level, with exactness stated.",
+      "critical_distinctions": [
+        "Greek-style versus Greek yoghurt",
+        "10% label versus a nearby composition value",
+        "brand unspecified"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g18",
+      "split": "development",
+      "family": "liquid-basis",
+      "food_terms": "200ml semi-skimmed cow milk",
+      "task": "Find a semi-skimmed cow-milk source and identify the source quantity basis.",
+      "critical_distinctions": [
+        "semi-skimmed versus whole",
+        "cow versus other species",
+        "per 100 g versus per 100 mL",
+        "no inferred density"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g19",
+      "split": "development",
+      "family": "liquid-basis",
+      "food_terms": "250ml unsweetened almond drink",
+      "task": "Find relevant almond-drink sources while leaving brand and fortification unresolved.",
+      "critical_distinctions": [
+        "almond drink versus dairy milk",
+        "unsweetened versus sweetened",
+        "fortification and brand unknown",
+        "volume basis must be sourced"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g20",
+      "split": "development",
+      "family": "grain-preparation",
+      "food_terms": "150g cooked basmati rice",
+      "task": "Find cooked basmati rice, retaining uncertainty about cooking method.",
+      "critical_distinctions": [
+        "basmati versus generic rice",
+        "cooked versus dry",
+        "added fat or seasoning unknown"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g21",
+      "split": "development",
+      "family": "quantity-ambiguity",
+      "food_terms": "2 peeled bananas",
+      "task": "Find banana composition without guessing the edible weight of two fruit.",
+      "critical_distinctions": [
+        "peel excluded",
+        "size and edible mass unknown",
+        "count is not a measured gram amount"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g22",
+      "split": "development",
+      "family": "quantity-ambiguity",
+      "food_terms": "1 avocado flesh",
+      "task": "Find avocado-flesh composition without treating a whole fruit as measured edible mass.",
+      "critical_distinctions": [
+        "skin and stone excluded",
+        "edible mass unknown",
+        "cultivar and ripeness unspecified"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g23",
+      "split": "development",
+      "family": "compound-food",
+      "food_terms": "250g homemade chicken curry",
+      "task": "Find recipe or dish leads while keeping an unknown homemade recipe unresolved.",
+      "critical_distinctions": [
+        "whole dish versus chicken alone",
+        "recipe and sauce unknown",
+        "no exact composition inferred"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g24",
+      "split": "development",
+      "family": "compound-food",
+      "food_terms": "takeaway fish and chips 400g",
+      "task": "Find a whole-meal lead if available and mark components or different recipes as alternatives.",
+      "critical_distinctions": [
+        "whole meal versus fish or chips alone",
+        "fish species and batter unknown",
+        "frying oil and portion composition unknown"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g25",
+      "split": "development",
+      "family": "packaged-identity",
+      "food_terms": "Heinz Beanz 415g tin",
+      "task": "Find a relevant manufacturer product without guessing an exact code or formulation date.",
+      "critical_distinctions": [
+        "415 g tin versus other pack sizes",
+        "variant unspecified",
+        "current page does not establish a historical pack"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g26",
+      "split": "development",
+      "family": "packaged-identity",
+      "food_terms": "Oatly Barista Edition 1L",
+      "task": "Find the requested brand and product range while retaining region and formulation uncertainty.",
+      "critical_distinctions": [
+        "Barista Edition versus original oat drink",
+        "1 L pack",
+        "country and label date matter"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g27",
+      "split": "development",
+      "family": "vegetable-preparation",
+      "food_terms": "200g boiled peeled potatoes",
+      "task": "Find plain boiled peeled potatoes without substituting fried or skin-on potatoes.",
+      "critical_distinctions": [
+        "boiled versus fried",
+        "peeled versus skin-on",
+        "added salt or fat unspecified"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "g28",
+      "split": "development",
+      "family": "vegetable-preparation",
+      "food_terms": "200g fried potatoes",
+      "task": "Find a fried-potato lead while leaving method and absorbed oil uncertain.",
+      "critical_distinctions": [
+        "fried versus boiled or oven-baked",
+        "oil and method unknown",
+        "cut or product form unspecified"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h01",
+      "split": "holdout",
+      "family": "dairy-fat",
+      "food_terms": "150g plain Greek yoghurt 5% fat",
+      "task": "Find the requested fat class while keeping brand and Greek-style alternatives explicit.",
+      "critical_distinctions": [
+        "5% versus 0% or 10%",
+        "plain versus flavoured",
+        "Greek versus Greek-style"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h02",
+      "split": "holdout",
+      "family": "liquid-basis",
+      "food_terms": "200ml whole goat milk",
+      "task": "Find whole goat-milk sources with an explicit quantity basis.",
+      "critical_distinctions": [
+        "goat versus cow or sheep",
+        "whole versus reduced fat",
+        "per 100 g versus per 100 mL",
+        "no inferred density"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h03",
+      "split": "holdout",
+      "family": "meat-preparation",
+      "food_terms": "150g raw chicken thigh with skin",
+      "task": "Find raw, skin-on chicken-thigh evidence.",
+      "critical_distinctions": [
+        "thigh versus breast",
+        "raw versus cooked",
+        "skin-on versus skinless"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h04",
+      "split": "holdout",
+      "family": "meat-preparation",
+      "food_terms": "150g cooked skinless chicken thigh",
+      "task": "Find cooked skinless thigh evidence without borrowing a raw or skin-on record.",
+      "critical_distinctions": [
+        "thigh versus breast",
+        "cooked versus raw",
+        "skinless versus skin-on",
+        "cooking method unknown"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h05",
+      "split": "holdout",
+      "family": "quantity-ambiguity",
+      "food_terms": "2 slices sourdough bread",
+      "task": "Find sourdough-bread leads without inventing the mass of two slices.",
+      "critical_distinctions": [
+        "slice thickness and mass unknown",
+        "loaf recipe and brand unspecified",
+        "count is not measured grams"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h06",
+      "split": "holdout",
+      "family": "quantity-ambiguity",
+      "food_terms": "1 tablespoon olive oil",
+      "task": "Find olive-oil sources without assigning an unsourced mass to the spoon.",
+      "critical_distinctions": [
+        "tablespoon volume convention unknown",
+        "no unsourced volume-to-mass conversion",
+        "olive oil versus other oils"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h07",
+      "split": "holdout",
+      "family": "compound-food",
+      "food_terms": "250g homemade lentil soup",
+      "task": "Find useful soup or recipe leads while acknowledging the recipe is unknown.",
+      "critical_distinctions": [
+        "whole soup versus lentils alone",
+        "recipe and liquid ratio unknown",
+        "no exact composition inferred"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h08",
+      "split": "holdout",
+      "family": "compound-food",
+      "food_terms": "250g egg fried rice",
+      "task": "Find whole-dish leads without presenting plain rice or egg alone as exact.",
+      "critical_distinctions": [
+        "whole dish versus rice or egg alone",
+        "fried versus plain boiled rice",
+        "oil and recipe unknown"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h09",
+      "split": "holdout",
+      "family": "packaged-identity",
+      "food_terms": "Tesco 10% fat beef mince 500g",
+      "task": "Find the retailer product and retain pack, fat class and label-date uncertainty.",
+      "critical_distinctions": [
+        "Tesco product versus generic mince",
+        "10% versus other fat classes",
+        "500 g pack",
+        "raw pack versus cooked food"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h10",
+      "split": "holdout",
+      "family": "packaged-identity",
+      "food_terms": "200g oven-cooked McCain Home Chips",
+      "task": "Find the requested branded product and preparation guidance without assuming an exact eaten composition.",
+      "critical_distinctions": [
+        "McCain Home Chips versus other McCain chips",
+        "oven-cooked versus frozen or deep-fried",
+        "oil or serving method unknown"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h11",
+      "split": "holdout",
+      "family": "grain-preparation",
+      "food_terms": "150g cooked quinoa",
+      "task": "Find cooked quinoa evidence without using the dry-grain basis as eaten.",
+      "critical_distinctions": [
+        "cooked versus dry",
+        "plain versus prepared with fat",
+        "colour or variety unspecified"
+      ],
+      "source_leads": []
+    },
+    {
+      "id": "h12",
+      "split": "holdout",
+      "family": "quantity-ambiguity",
+      "food_terms": "1 peeled apple",
+      "task": "Find peeled-apple evidence without guessing its edible weight.",
+      "critical_distinctions": [
+        "peel and core excluded as appropriate",
+        "fruit size and edible mass unknown",
+        "variety unspecified"
+      ],
+      "source_leads": []
+    }
+  ]
+}

@@ -180,7 +180,7 @@ final class OpenFoodFactsLookupTests: XCTestCase {
         XCTAssertEqual(bound.upper, 0.1); XCTAssertFalse(bound.upperClosed); XCTAssertEqual(bound.origin, .augmented)
         XCTAssertEqual(entries.first(where: { $0.key == .fiber })?.value, .unknown(.notDeclared))
         XCTAssertEqual(entries.first(where: { $0.key == .sugar })?.value, .unknown(.noCompatibleSource))
-        XCTAssertEqual(input.sourceReleases[0].pipelineVersion.value, "off-product-projection-v2")
+        XCTAssertEqual(input.sourceReleases[0].pipelineVersion.value, "off-product-projection-v4")
     }
 
     func testModernAmbiguousPreparedOrVolumeSetsDeclineWithoutLegacyFallback() async throws {
@@ -197,34 +197,185 @@ final class OpenFoodFactsLookupTests: XCTestCase {
         }
     }
 
+    private func sodiumResponse(_ sodium: [String: Any]) throws -> Data {
+        try response { product in
+            product["nutrition"] = ["input_sets": [["source": "packaging", "per": "100g", "preparation": "as_sold",
+                "nutrients": ["proteins": ["value": 8, "unit": "g"], "sodium": sodium,
+                              "salt": ["value": 0.13, "unit": "g"]]]],
+                "aggregated_set": ["nutrients": ["sodium": ["value": 99, "unit": "mg"]]]]
+        }
+    }
+
+    private func sodiumCandidate(_ sodium: [String: Any]) async throws -> PopulatedFoodConfirmation {
+        let source = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: try sodiumResponse(sodium))), clock: clock)
+        guard case let .candidate(input) = try await source.lookup(request()) else { throw OFFLookupError.malformedResponse }
+        return input
+    }
+
+    func testDirectSodiumRetainsSourceUnitsAndVersionedConversion() async throws {
+        for (value, unit, expected) in [(0.052, "g", 52.0), (52.0, "mg", 52.0), (0.0, "g", 0.0)] {
+            let input = try await sodiumCandidate(["value": value, "unit": unit, "value_computed": 999])
+            guard case let .augmented(sodium) = input.candidates[0].candidate.nutrients.entries.first(where: { $0.key == .sodium })?.value,
+                  case let .exact(original) = sodium.sourceValue else { return XCTFail("Expected declared sodium") }
+            XCTAssertEqual(sodium.amount, expected, accuracy: 1e-10); XCTAssertEqual(sodium.unit, .milligrams)
+            XCTAssertEqual(original.amount, value, accuracy: 1e-12); XCTAssertEqual(original.unit.value, unit)
+            XCTAssertEqual(original.basis, .per100Grams)
+            XCTAssertEqual(sodium.provenance[0].transforms.count, unit == "g" ? 1 : 0)
+            if unit == "g" {
+                XCTAssertEqual(sodium.provenance[0].transforms[0].transformID.value, "mass-g-to-mg")
+                XCTAssertEqual(sodium.provenance[0].transforms[0].transformVersion.value, "v1")
+            }
+            XCTAssertTrue(try XCTUnwrap(sodium.provenance[0].manifestReference).value.hasSuffix("nutrition/input_sets/0/nutrients/sodium"))
+            XCTAssertTrue(input.sourceReleases[0].sourceReleaseID.value.contains("projection:off-product-projection-v4:schema:off-v3.6-explicit-basis-candidates-v4:"))
+            let repeated = try await sodiumCandidate(["value": value, "unit": unit, "value_computed": 999])
+            XCTAssertEqual(input.sourceReleases, repeated.sourceReleases)
+            XCTAssertFalse(FoodConfirmationState(input: input).unresolvedIdentity.isEmpty)
+        }
+    }
+
+    func testSodiumBoundsConvertWithoutLosingOriginalEndpoints() async throws {
+        for modifier in ["<", "<=", ">", ">="] {
+            let input = try await sodiumCandidate(["value": 0.052, "unit": "g", "modifier": modifier])
+            guard case let .bounded(bound) = input.candidates[0].candidate.nutrients.entries.first(where: { $0.key == .sodium })?.value,
+                  case let .bounded(original) = bound.sourceValue else { return XCTFail("Expected source bound") }
+            if modifier.hasPrefix("<") {
+                XCTAssertEqual(try XCTUnwrap(bound.upper), 52, accuracy: 1e-10); XCTAssertNil(bound.lower)
+                XCTAssertEqual(try XCTUnwrap(original.upper), 0.052, accuracy: 1e-12); XCTAssertNil(original.lower)
+            } else {
+                XCTAssertEqual(try XCTUnwrap(bound.lower), 52, accuracy: 1e-10); XCTAssertNil(bound.upper)
+                XCTAssertEqual(try XCTUnwrap(original.lower), 0.052, accuracy: 1e-12); XCTAssertNil(original.upper)
+            }
+            XCTAssertEqual(bound.upperClosed, modifier == "<="); XCTAssertEqual(bound.lowerClosed, modifier == ">=")
+            XCTAssertEqual(original.upperClosed, bound.upperClosed); XCTAssertEqual(original.lowerClosed, bound.lowerClosed)
+            XCTAssertEqual(original.unit.value, "g"); XCTAssertEqual(bound.unit, .milligrams)
+            XCTAssertEqual(bound.provenance[0].transforms.count, 1)
+        }
+    }
+
+    func testUnsupportedSodiumNeverFallsBackToSaltComputedOrAggregate() async throws {
+        let invalid: [[String: Any]] = [[:], ["value_computed": 0.052, "unit": "g"],
+            ["value": true, "unit": "g"], ["value": -0.052, "unit": "g"],
+            ["value": "0.052", "unit": "g"], ["value": 0.052, "unit": "kg"],
+            ["value": 0.052], ["value": 0.052, "unit": "g", "modifier": "~"],
+            ["value": 0.052, "unit": "g", "modifier": true], ["value": Double.greatestFiniteMagnitude, "unit": "g"]]
+        for raw in invalid {
+            let input = try await sodiumCandidate(raw)
+            guard case .unknown = input.candidates[0].candidate.nutrients.entries.first(where: { $0.key == .sodium })?.value else {
+                return XCTFail("Unsupported sodium admitted: \(raw)")
+            }
+        }
+    }
+
+    func testLegacySodiumRemainsUnknownRegardlessOfContributorUnit() async throws {
+        for unit in ["g", "mg"] {
+            let body = try response { $0["nutriments"] = ["proteins_100g": 8, "proteins_unit": "g", "sodium_100g": 0.052, "sodium_unit": unit] }
+            let source = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: body)), clock: clock)
+            guard case let .candidate(input) = try await source.lookup(request()) else { return XCTFail() }
+            XCTAssertEqual(input.candidates[0].candidate.nutrients.entries.first(where: { $0.key == .sodium })?.value, .unknown(.notDeclared))
+        }
+    }
+
+    private func volumeResponse(pack: String = "1 l", change: (inout [String: Any]) -> Void = { _ in }) throws -> Data {
+        try response { product in
+            product["quantity"] = pack
+            let mass: [String: Any] = ["source": "packaging", "per": "100g", "preparation": "as_sold",
+                "nutrients": ["fiber": ["value": 99, "unit": "g"], "fat": ["value": 99, "unit": "g"]]]
+            var volume: [String: Any] = ["source": "packaging", "per": "100ml", "per_quantity": 100, "per_unit": "ml", "preparation": "as_sold",
+                "nutrients": ["proteins": ["value": 3, "unit": "g"], "fat": ["value": 1.8, "unit": "g"],
+                    "sodium": ["value": 0.04, "unit": "g"], "saturated-fat": ["value": 0.1, "unit": "g", "modifier": "<"]]]
+            change(&volume)
+            product["nutrition"] = ["input_sets": [mass, volume]]
+        }
+    }
+
+    func testExplicitVolumePanelPreservesBasisWithoutMassPanelBackfill() async throws {
+        for pack in ["250 ml", "25 cl", "2.5 dl", "1 l"] {
+            let source = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: try volumeResponse(pack: pack))), clock: clock)
+            guard case let .candidate(input) = try await source.lookup(request()) else { return XCTFail(pack) }
+            let c = input.candidates[0].candidate
+            XCTAssertEqual(c.identity.servingBasis, .per100Millilitres)
+            XCTAssertEqual(c.edibleQuantity, try .known(PositiveQuantity(value: 100, unit: .millilitres), conversionVersionID: nil))
+            XCTAssertTrue(input.candidates[0].variant?.value.contains("per 100 ml") == true)
+            XCTAssertEqual(c.nutrients.entries.first(where: { $0.key == .fiber })?.value, .unknown(.notDeclared))
+            guard case let .augmented(sodium) = c.nutrients.entries.first(where: { $0.key == .sodium })?.value,
+                  case let .exact(original) = sodium.sourceValue else { return XCTFail() }
+            XCTAssertEqual(sodium.amount, 40, accuracy: 1e-10); XCTAssertEqual(original.amount, 0.04, accuracy: 1e-12)
+            XCTAssertEqual(original.basis, .per100Millilitres)
+            XCTAssertTrue(sodium.provenance[0].manifestReference?.value.contains("input_sets/1/nutrients/sodium") == true)
+            XCTAssertEqual(sodium.provenance[0].transforms.count, 1)
+            guard case let .bounded(bound) = c.nutrients.entries.first(where: { $0.key == .fatSaturated })?.value,
+                  case let .bounded(sourceBound) = bound.sourceValue else { return XCTFail() }
+            XCTAssertEqual(sourceBound.basis, .per100Millilitres)
+            XCTAssertEqual(bound.upper, 0.1); XCTAssertFalse(bound.upperClosed)
+        }
+    }
+
+    func testVolumeRequiresConsistentExplicitPanelMetadataAndPackageUnit() async throws {
+        let changes: [(inout [String: Any]) -> Void] = [
+            { $0["per"] = "serving" }, { $0["per"] = "100g" }, { $0.removeValue(forKey: "per") },
+            { $0["preparation"] = "prepared" }, { $0["source"] = "estimate" },
+            { $0["per_quantity"] = 200 }, { $0["per_quantity"] = true }, { $0["per_quantity"] = "100" },
+            { $0["per_unit"] = "g" }, { $0["per_unit"] = NSNull() }
+        ]
+        for change in changes {
+            let source = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: try volumeResponse(change: change))), clock: clock)
+            let result = try await source.lookup(request()); XCTAssertEqual(result, .insufficientData)
+        }
+        for pack in ["250ml / 250g", "one bottle", "250 ounces"] {
+            let source = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: try volumeResponse(pack: pack))), clock: clock)
+            let result = try await source.lookup(request()); XCTAssertEqual(result, .insufficientData)
+        }
+        var envelope = try JSONSerialization.jsonObject(with: volumeResponse()) as! [String: Any]
+        var product = envelope["product"] as! [String: Any]
+        var nutrition = product["nutrition"] as! [String: Any]
+        let panels = nutrition["input_sets"] as! [[String: Any]]
+        nutrition["input_sets"] = panels + [panels[1]]; product["nutrition"] = nutrition; envelope["product"] = product
+        let source = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: try JSONSerialization.data(withJSONObject: envelope))), clock: clock)
+        let result = try await source.lookup(request()); XCTAssertEqual(result, .insufficientData)
+    }
+
+    func testVolumeComputedSodiumDoesNotBorrowMassOrLegacyNutrition() async throws {
+        let body = try volumeResponse { $0["nutrients"] = ["proteins": ["value": 3, "unit": "g"], "sodium": ["value_computed": 0.04, "unit": "g"]] }
+        let source = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: .init(status: 200, body: body)), clock: clock)
+        guard case let .candidate(input) = try await source.lookup(request()) else { return XCTFail() }
+        let entries = input.candidates[0].candidate.nutrients.entries
+        XCTAssertEqual(entries.first(where: { $0.key == .sodium })?.value, .unknown(.notDeclared))
+        XCTAssertEqual(entries.first(where: { $0.key == .fatTotal })?.value, .unknown(.notDeclared))
+        XCTAssertEqual(entries.first(where: { $0.key == .energyConsumed })?.value, .unknown(.notDeclared))
+    }
+
     func testConfirmedCandidateSavesNoticesAndReusesOfflineWithoutProvider() async throws {
-        let request = try request()
-        let source = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: OFFProductResponse(status: 200, body: try response())), clock: clock)
-        guard case let .candidate(input) = try await source.lookup(request) else { return XCTFail("Expected candidate") }
-        var state = FoodConfirmationState(input: input)
-        let candidate = state.selectedCandidate
-        let identity = try DecisiveIdentity(preparation: PreparationState(kind: .asSold), bone: .notApplicable,
-            skin: .notApplicable, drained: .notApplicable, packingMedium: .named(LedgerText("none")), fortification: .unfortified, servingBasis: .per100Grams)
-        FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(FoodCorrection(name: candidate.name, brand: candidate.brand,
-            variant: candidate.variant, identity: identity, nutrients: candidate.candidate.nutrients, reason: try LedgerText("Synthetic explicit package review"))))
-        let ids = OFFIDs(start: 100)
-        let store = InMemoryFoodLedgerStore()
-        let ledger = FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store, clock: clock,
-            encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
-        let saved = try FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids).save(state, operationID: ids.makeID(OperationTag.self))
-        let projection = try CanonicalFoodProjection(records: store.archiveState().records)
-        let bytes = try FoundationCanonicalJSONEncoder().encode(projection)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .millisecondsSince1970
-        let restored = try decoder.decode(CanonicalFoodProjection.self, from: bytes)
-        XCTAssertEqual(restored.records.sourceReleases, input.sourceReleases)
-        XCTAssertEqual(restored.records.evidence, [request.evidence])
-        let scan = try BarcodeScan(code: LedgerText("3274080005003"), symbology: .ean13, originalSymbology: LedgerText("ean-13"),
-            capturedAt: clock.now(), locale: LedgerText("en_GB"), captureMethod: LedgerText("synthetic"), captureMethodVersion: LedgerText("v1"))
-        let reuse = try BarcodeCaptureCoordinator(search: PersonalLibraryBarcodeSearch(reader: store), ids: ids).route(scan: scan)
-        guard case let .confirmation(route) = reuse else { return XCTFail("Expected offline exact reuse") }
-        XCTAssertEqual(route.reuse.productVersionID, saved.productVersion.productVersionID)
-        XCTAssertEqual(route.confirmation.sourceReleases, input.sourceReleases)
+        for volume in [false, true] {
+            let request = try request()
+            let source = OpenFoodFactsLookup(transport: OFFFixtureTransport(response: OFFProductResponse(status: 200, body: try volume ? volumeResponse() : sodiumResponse(["value": 0.052, "unit": "g"]))), clock: clock)
+            guard case let .candidate(input) = try await source.lookup(request) else { return XCTFail("Expected candidate") }
+            var state = FoodConfirmationState(input: input)
+            let candidate = state.selectedCandidate
+            let identity = try DecisiveIdentity(preparation: PreparationState(kind: .asSold), bone: .notApplicable,
+                skin: .notApplicable, drained: .notApplicable, packingMedium: .named(LedgerText("none")), fortification: .unfortified, servingBasis: volume ? .per100Millilitres : .per100Grams)
+            FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(FoodCorrection(name: candidate.name, brand: candidate.brand,
+                variant: candidate.variant, identity: identity, nutrients: candidate.candidate.nutrients, reason: try LedgerText("Synthetic explicit package review"))))
+            let ids = OFFIDs(start: 100)
+            let store = InMemoryFoodLedgerStore()
+            let ledger = FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store, clock: clock,
+                encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+            let saved = try FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids).save(state, operationID: ids.makeID(OperationTag.self))
+            let projection = try CanonicalFoodProjection(records: store.archiveState().records)
+            let bytes = try FoundationCanonicalJSONEncoder().encode(projection)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .millisecondsSince1970
+            let restored = try decoder.decode(CanonicalFoodProjection.self, from: bytes)
+            XCTAssertEqual(restored, projection)
+            XCTAssertEqual(restored.records.sourceReleases, input.sourceReleases)
+            XCTAssertEqual(restored.records.evidence, [request.evidence])
+            let scan = try BarcodeScan(code: LedgerText("3274080005003"), symbology: .ean13, originalSymbology: LedgerText("ean-13"),
+                capturedAt: clock.now(), locale: LedgerText("en_GB"), captureMethod: LedgerText("synthetic"), captureMethodVersion: LedgerText("v1"))
+            let reuse = try BarcodeCaptureCoordinator(search: PersonalLibraryBarcodeSearch(reader: store), ids: ids).route(scan: scan)
+            guard case let .confirmation(route) = reuse else { return XCTFail("Expected offline exact reuse") }
+            XCTAssertEqual(route.reuse.productVersionID, saved.productVersion.productVersionID)
+            XCTAssertEqual(route.confirmation.sourceReleases, input.sourceReleases)
+            XCTAssertEqual(route.confirmation.candidates[0].candidate.nutrients, input.candidates[0].candidate.nutrients)
+        }
     }
 }
 

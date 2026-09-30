@@ -6,6 +6,33 @@ import XCTest
 
 /// Same-author synthetic development replay through the actual bundled adapters.
 final class RankedRetrievalDevelopmentTests: XCTestCase {
+    func testNamedCutsSurviveFullCoverageAndRankBeforeParentheticalMentionsAcrossSources() throws {
+        let ids = ReplayIDs()
+        let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
+        let sources: [any GenericFoodSearching] = [cofid, usda, CompositeGenericFoodSearch(sources: [cofid, usda], ids: ids)]
+        for source in sources {
+            let query = "250g cooked weight sirloin"
+            let request = try GenericFoodSearchRequest(text: LedgerText(query), identity: .init(preparation: PreparationState(kind: .cooked)), capturedAt: Date(timeIntervalSince1970: 1700000000), locale: LedgerText("en_GB"))
+            guard case let .confirmation(route) = try source.search(request) else { return XCTFail("Full cut-token coverage should retrieve named cuts") }
+            let first = try XCTUnwrap(route.matches.first)
+            let direct = first.candidate.name.value.replacingOccurrences(of: #"\([^)]*\)"#, with: "", options: .regularExpression)
+            XCTAssertTrue(direct.lowercased().contains("sirloin"), direct)
+            XCTAssertTrue(route.matches.allSatisfy { $0.candidate.candidate.identity.preparation.kind == .cooked })
+            XCTAssertEqual(route.confirmation.evidence.first?.originalPayload, .text(try LedgerText(query)))
+            XCTAssertEqual(FoodConfirmationState(input: route.confirmation).decision, .undecided)
+            let miss = try GenericFoodSearchRequest(text: LedgerText("250g sirloin zzzzqqqq"), capturedAt: request.capturedAt, locale: request.locale)
+            guard case .noResult = try source.search(miss) else { return XCTFail("All meaningful tokens remain required") }
+        }
+        let request = try GenericFoodSearchRequest(text: LedgerText("sirloin"), identity: .init(preparation: PreparationState(kind: .cooked)), capturedAt: Date(timeIntervalSince1970: 1700000000), locale: LedgerText("en_GB"))
+        guard case let .confirmation(route) = try cofid.search(request) else { return XCTFail() }
+        XCTAssertTrue(route.matches.contains { $0.candidate.name.value.contains("sirloin steak, grilled") }, "Long source names must not be lost to a numeric score floor")
+        for species in ["lamb", "beef", "veal"] {
+            let q = try GenericFoodSearchRequest(text: LedgerText("250g cooked \(species) sirloin"), identity: request.identity, capturedAt: request.capturedAt, locale: request.locale)
+            guard case let .confirmation(route) = try usda.search(q) else { return XCTFail("Known explicit species should be available") }
+            XCTAssertTrue(route.matches.allSatisfy { $0.candidate.name.value.lowercased().hasPrefix(species) })
+        }
+    }
+
     struct Fixture: Decodable { let version: String; let cases: [Scenario] }
     struct Scenario: Decodable { let id: String; let query: String; let preparation: String? }
     struct Row: Encodable {

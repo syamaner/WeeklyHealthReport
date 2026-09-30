@@ -14,7 +14,7 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
         let evidence = try request.captureEvidence ?? CaptureEvidence(
             evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch, capturedAt: request.capturedAt,
             locale: request.locale, captureMethod: LedgerText("typed_generic_food_search"),
-            captureMethodVersion: LedgerText("composite-generic-ranking-v6"), originalPayload: .text(request.text)
+            captureMethodVersion: LedgerText("composite-generic-ranking-v7"), originalPayload: .text(request.text)
         )
         let shared = GenericFoodSearchRequest(text: request.text, identity: request.identity, capturedAt: request.capturedAt,
                                              locale: request.locale, captureEvidence: evidence, additionalEvidence: request.additionalEvidence)
@@ -42,6 +42,11 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
         // Source-local interleaving is only the stable tiebreak for equal preferences.
         let food = request.retrievalText
         let lexical = interleaved.enumerated().sorted { lhs, rhs in
+            let leftUnverified = FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation,
+                actual: lhs.element.candidate.candidate.identity.preparation.kind)
+            let rightUnverified = FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation,
+                actual: rhs.element.candidate.candidate.identity.preparation.kind)
+            if leftUnverified != rightUnverified { return !leftUnverified }
             if lhs.element.isExactName != rhs.element.isExactName { return lhs.element.isExactName }
             let a = GenericFoodRankingPolicy.preference(name: lhs.element.candidate.name.value,
                 food: food, requestedText: request.text.value)
@@ -49,7 +54,9 @@ public final class CompositeGenericFoodSearch: GenericFoodSearching, @unchecked 
                 food: food, requestedText: request.text.value)
             return a == b ? lhs.offset < rhs.offset : GenericFoodRankingPolicy.prefers(a, over: b)
         }.map(\.element)
-        let matches = lexical.filter { FoodQueryCandidateAssessment.matchesFat(query: request.parsedQuery, candidate: $0.candidate) } + lexical.filter { !FoodQueryCandidateAssessment.matchesFat(query: request.parsedQuery, candidate: $0.candidate) }
+        let fatRanked = lexical.filter { FoodQueryCandidateAssessment.matchesFat(query: request.parsedQuery, candidate: $0.candidate) } + lexical.filter { !FoodQueryCandidateAssessment.matchesFat(query: request.parsedQuery, candidate: $0.candidate) }
+        let matches = fatRanked.filter { !FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation, actual: $0.candidate.candidate.identity.preparation.kind) }
+            + fatRanked.filter { FoodPreparationDiscoveryPolicy.isUnverified(requested: request.identity.preparation, actual: $0.candidate.candidate.identity.preparation.kind) }
         var releases: [SourceRelease] = []
         for release in routes.flatMap({ $0.confirmation.sourceReleases }) {
             if let existing = releases.first(where: { $0.sourceReleaseID == release.sourceReleaseID }) {

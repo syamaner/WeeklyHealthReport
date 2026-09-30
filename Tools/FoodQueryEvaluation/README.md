@@ -19,7 +19,7 @@ New families cover prefix/suffix amounts, decimals, kilograms, brands, cocoa/ing
 Run the production Swift parser locally:
 
 ```sh
-swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Tools/FoodQueryEvaluation/run.swift -o /tmp/whr-query-eval
+swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryDiscoveryPolicy.swift Tools/FoodQueryEvaluation/run.swift -o /tmp/whr-query-eval
 /tmp/whr-query-eval Tools/FoodQueryEvaluation/synthetic-v2.json /tmp/query-results.json
 python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v2.json /tmp/query-results.json /tmp/query-report.json
 ```
@@ -54,7 +54,7 @@ The gate is a development regression check, not independent acceptance.
 ```sh
 python3 Tools/FoodQueryEvaluation/validate.py v5
 python3 -m unittest discover -s Tools/FoodQueryEvaluation/tests
-swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Tools/FoodQueryEvaluation/run.swift -o /tmp/whr-query-eval
+swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryDiscoveryPolicy.swift Tools/FoodQueryEvaluation/run.swift -o /tmp/whr-query-eval
 /tmp/whr-query-eval Tools/FoodQueryEvaluation/synthetic-v5.json /tmp/query-results.json
 python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v5.json /tmp/query-results.json /tmp/query-report.json --gate
 ```

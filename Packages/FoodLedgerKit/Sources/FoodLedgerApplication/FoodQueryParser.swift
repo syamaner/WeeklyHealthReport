@@ -7,6 +7,18 @@ public struct ParsedFoodQuery: Codable, Equatable, Sendable {
         public let value: Double
         public let unit: String
     }
+    public static let discoveryPolicyVersion = FoodQueryDiscoveryPolicy.version
+    /// Discovery may retain a literal percentage or a bounded named dish without resolving it.
+    /// `route` and `quantity` stay unchanged, so this cannot authorise intake prefill.
+    public var allowsCandidateDiscovery: Bool {
+        route == .search || (route == .clarify && reasons == ["percentage_meaning_unknown"]
+            && attributes["unspecified_percent"] != nil && food?.isEmpty == false)
+            || requiresRecipeReview
+    }
+    public var requiresRecipeReview: Bool { FoodQueryDiscoveryPolicy.allowsNamedDishDiscovery(self) }
+    public var discoveryReviewMessage: String? {
+        requiresRecipeReview ? FoodQueryDiscoveryPolicy.recipeReviewMessage : nil
+    }
     public let original: String
     public let food: String?
     public let attributes: [String: String]
@@ -16,7 +28,7 @@ public struct ParsedFoodQuery: Codable, Equatable, Sendable {
 }
 
 public enum FoodQueryParser {
-    public static let version = "food-query-parser-v2"
+    public static let version = "food-query-parser-v3"
     public static func parse(_ original: String, recognisedBrands: [String] = ["olympus", "olympos", "quaker", "quakers", "kirkland", "costco", "ortiz", "coop", "the estate dairy"]) -> ParsedFoodQuery {
         var text = original.folding(options: .widthInsensitive, locale: Locale(identifier: "en_GB")).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         var attributes: [String: String] = [:]
@@ -143,11 +155,18 @@ public enum FoodQueryParser {
             if quantities.count > 1 { reasons.append("count_and_mass_need_basis_confirmation") }
         }
         if text.contains("half") { reasons.append("fraction_requires_portion_confirmation") }
-        if !matches(#"\braw\b"#, text).isEmpty && !matches(#"\broast\b"#, text).isEmpty { reasons.append("conflicting_preparation") }
+        // Keep cooking methods in retrieval text, but reject incompatible states
+        // even when a method is not represented by a preparation descriptor below.
+        let rawWords = #"\b(raw|uncooked)\b"#
+        let cookedWords = #"\b(cooked|roast|roasted|boiled|grilled|broiled|fried|baked|steamed|braised|poached|stewed)\b"#
+        if !matches(rawWords, text).isEmpty && !matches(cookedWords, text).isEmpty {
+            reasons.append("conflicting_preparation")
+        }
         let descriptors: [(String, String, String)] = [
             ("soft boiled", "preparation", "soft-boiled"), ("boiled", "preparation", "boiled"),
             ("pan-fried", "preparation", "pan-fried"), ("pan fried", "preparation", "pan-fried"),
-            ("roasted", "preparation", "roasted"), ("raw", "preparation", "raw"), ("cooked", "preparation", "cooked"),
+            ("roasted", "preparation", "roasted"), ("raw", "preparation", "raw"),
+            ("uncooked", "preparation", "raw"), ("cooked", "preparation", "cooked"),
             ("full-fat", "fat_descriptor", "full-fat"), ("low-fat", "fat_descriptor", "low-fat"), ("fat-free", "fat_descriptor", "fat-free"),
             ("whole", "fat_descriptor", "whole"), ("skimmed", "fat_descriptor", "skimmed"), ("unsweetened", "sweetening", "unsweetened"),
             ("lactose-free", "lactose", "free"), ("canned", "preservation", "canned"), ("frozen", "preservation", "frozen"),

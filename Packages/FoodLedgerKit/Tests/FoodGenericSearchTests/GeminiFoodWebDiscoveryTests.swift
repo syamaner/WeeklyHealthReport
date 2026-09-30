@@ -17,6 +17,17 @@ final class GeminiFoodWebDiscoveryTests: XCTestCase {
         try await provider.validate(key: key)
     }
 
+    func testValidatedVisiblePunctuationKeyIsSentOnlyInHeader() async throws {
+        let punctuationKey = "synthetic.key:with+visible=punctuation"
+        let provider = GeminiFoodWebDiscovery { request in
+            XCTAssertEqual(request.value(forHTTPHeaderField: "x-goog-api-key"), punctuationKey)
+            XCTAssertFalse(request.url!.absoluteString.contains(punctuationKey))
+            XCTAssertNil(request.httpBody)
+            return GeminiHTTPReply(status: 200, data: Data(#"{"name":"models/gemini-3.8-flash"}"#.utf8))
+        }
+        try await provider.validate(key: punctuationKey)
+    }
+
     func testDiscoveryContractKeepsCompleteTextCitationsAndAllSuggestions() async throws {
         let provider = GeminiFoodWebDiscovery { request in
             XCTAssertEqual(request.url?.absoluteString, "https://generativelanguage.googleapis.com/v1beta/interactions")

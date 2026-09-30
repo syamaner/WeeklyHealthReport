@@ -46,7 +46,7 @@ jobs:
           python3 Tools/FoodSearchQuality/score_retrieval.py \
             Tools/FoodSearchQuality/retrieval-scenarios-v3.json \
             "$WHR_RETRIEVAL_REPORT" "$RUNNER_TEMP/retrieval-metrics.json" \
-            --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-v4.json
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-v5.json
 
   food-ledger-kit-isolation:
     name: FoodLedgerKit boundaries
@@ -94,6 +94,9 @@ jobs:
           python3 Tools/GeminiGroundingEvaluation/evaluate.py \
             --contract Tools/GeminiGroundingEvaluation/frozen-contract-v1.json \
             --validate-cases Tools/GeminiGroundingEvaluation/cases-v1.json
+          python3 Tools/GeminiGroundingEvaluation/evaluate.py \
+            --contract Tools/GeminiGroundingEvaluation/frozen-contract-v2.json \
+            --validate-cases Tools/GeminiGroundingEvaluation/cases-v2.json
           python3 -m unittest discover -s Tools/GeminiGroundingEvaluation/tests -v
 
   food-ocr-evaluation:
@@ -277,7 +280,7 @@ jobs:
           set -euo pipefail
           python3 Tools/FoodQueryEvaluation/validate.py v5
           python3 -m unittest discover -s Tools/FoodQueryEvaluation/tests
-          swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Tools/FoodQueryEvaluation/run.swift -o "$RUNNER_TEMP/food-query-eval"
+          swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryDiscoveryPolicy.swift Tools/FoodQueryEvaluation/run.swift -o "$RUNNER_TEMP/food-query-eval"
           "$RUNNER_TEMP/food-query-eval" Tools/FoodQueryEvaluation/synthetic-v5.json "$RUNNER_TEMP/food-query-results.json"
           python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v5.json "$RUNNER_TEMP/food-query-results.json" "$RUNNER_TEMP/food-query-report.json" --gate
 

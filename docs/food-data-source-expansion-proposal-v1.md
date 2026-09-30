@@ -79,3 +79,19 @@ Run `python3 Tools/FoodSourceEvaluation/probe_usda_snapshots.py` with the three 
 The user approved at most 50 public UK production reads at no more than 5/minute. The first request was a bounded public UK-tag discovery query (the official API currently provides structured search in v2 only). It returned HTTP 503 immediately; the probe stopped without retrying. Exactly one production request was attempted, zero product reads completed, and no public cohort was retrieved/frozen. `Tools/FoodSourceEvaluation/off-public-uk-production-probe-2026-09-26.json` preserves the result. This is an availability failure, not a measured coverage miss.
 
 The reviewable optional in-app lookup, provenance, licence notices and private storage/export proposal is `docs/off-barcode-candidate-plan-v1.md`. The user subsequently approved the in-app flow, explicitly read-only with no account for now. The source plan now records the local implementation and validation; UK production coverage remains unverified.
+
+
+### Runtime search follow-up — 29 September 2026
+
+The [unified search contract](unified-food-search-contract-v1.md) now implements a
+local, uncommitted OFF text-search adapter and an explicit default-off setting.
+This extends the runtime entry point beyond barcode lookup while reusing the same
+closed mass-product projection. It does not admit liquid records, infer preparation,
+relax exact-product save requirements, or establish representative UK coverage.
+Gemini remains citation-only in debug controls pending separate nutrition admission.
+
+## Unified-search preparation reconciliation, v67
+
+Adopted the primary checkout's versioned USDA preparation repair into the unified-search worktree after the paired evaluation found “Quinoa, uncooked” marked cooked. `usda-preparation-words-v2` uses explicit words, keeps negations/conflicts unknown, and preserves explicit precooked/refried compounds. The 8,156-record resource changes only 27 preparation states: 22 cooked to raw, one unknown to raw, four cooked to unknown. Names, record IDs, source metadata and every nutrient remain unchanged.
+
+The corrected resource SHA-256 is `6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4`; it reproduces from the pinned local Foundation/SR Legacy archives. `usda-projection-v2` source-release IDs append `:projection:<resource SHA-256>` to avoid collisions with immutable releases in existing saves. Older saves and frozen evaluation evidence are preserved. The composed presentation regression checks 175g cooked/raw quinoa, literal 120/368 kcal per 100g respectively, and explicit selection.

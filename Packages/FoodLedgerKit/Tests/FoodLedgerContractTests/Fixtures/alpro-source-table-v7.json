@@ -1,0 +1,214 @@
+{
+  "tables": [
+    {
+      "captions": [],
+      "id": 1,
+      "rows": [
+        {
+          "cells": [
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "Typical Values"
+              ],
+              "tag": "th"
+            },
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "per 100 ml"
+              ],
+              "tag": "th"
+            }
+          ],
+          "section": "tbody"
+        },
+        {
+          "cells": [
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "Energy"
+              ],
+              "tag": "th"
+            },
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "175 kJ / 42 kcal"
+              ],
+              "tag": "td"
+            }
+          ],
+          "section": "tbody"
+        },
+        {
+          "cells": [
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "Fat",
+                "Saturates"
+              ],
+              "tag": "th"
+            },
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "1.9 g",
+                "0.3 g"
+              ],
+              "tag": "td"
+            }
+          ],
+          "section": "tbody"
+        },
+        {
+          "cells": [
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "Carbohydrate",
+                "Sugars"
+              ],
+              "tag": "th"
+            },
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "2.7 g",
+                "2.5 g"
+              ],
+              "tag": "td"
+            }
+          ],
+          "section": "tbody"
+        },
+        {
+          "cells": [
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "Fibre"
+              ],
+              "tag": "th"
+            },
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "0.6 g"
+              ],
+              "tag": "td"
+            }
+          ],
+          "section": "tbody"
+        },
+        {
+          "cells": [
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "Protein"
+              ],
+              "tag": "th"
+            },
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "3.3 g"
+              ],
+              "tag": "td"
+            }
+          ],
+          "section": "tbody"
+        },
+        {
+          "cells": [
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "Salt"
+              ],
+              "tag": "th"
+            },
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "0.09 g"
+              ],
+              "tag": "td"
+            }
+          ],
+          "section": "tbody"
+        },
+        {
+          "cells": [
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "Vitamins",
+                "Vitamin D2",
+                "Vitamin B2",
+                "Vitamin B12"
+              ],
+              "tag": "th"
+            },
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "",
+                "0.75 µg [15%]*",
+                "0.21 mg [15%]*",
+                "0.38 µg [15%]*"
+              ],
+              "tag": "td"
+            }
+          ],
+          "section": "tbody"
+        },
+        {
+          "cells": [
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "Minerals",
+                "Calcium",
+                "Iodine"
+              ],
+              "tag": "th"
+            },
+            {
+              "colspan": 1,
+              "rowspan": 1,
+              "segments": [
+                "",
+                "120 mg [15%]*",
+                "22.5 µg [15%]*"
+              ],
+              "tag": "td"
+            }
+          ],
+          "section": "tbody"
+        }
+      ]
+    }
+  ],
+  "version": "table-preserving-source-v7"
+}

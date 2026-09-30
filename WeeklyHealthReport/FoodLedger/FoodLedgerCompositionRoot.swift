@@ -16,6 +16,10 @@ final class FoodLedgerCompositionRoot {
     private let ledger: FoodLedgerService
     private let genericFoodSearch: any GenericFoodSearching
     private let milkVolumeConversion: CoFIDWholeMilkVolumeConversion
+    private let offSearchTransport: OFFHTTPSearchTransport
+    private let searchPreferences: FoodSearchUserDefaultsPreferences
+    let webDiscovery: FoodWebDiscoveryViewModel
+    private let geminiSourceReview: GeminiGroundedSourceReview
     private let offLookup: OpenFoodFactsLookup
     private let ids: RandomLedgerIDGenerator
     private var activeFoodList: FoodListImportViewModel?
@@ -47,6 +51,15 @@ final class FoodLedgerCompositionRoot {
         )
         ids = RandomLedgerIDGenerator()
         offLookup = OpenFoodFactsLookup(transport: OFFHTTPSProductTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)"))
+        offSearchTransport = OFFHTTPSearchTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)")
+        searchPreferences = FoodSearchUserDefaultsPreferences(defaults: userDefaults)
+        let discovery = GeminiFoodWebDiscovery()
+        webDiscovery = FoodWebDiscoveryViewModel(provider: discovery, keys: GeminiKeychainStore())
+        let contentHosts = ManufacturerSourceCandidateAdmission.contentHosts
+        let sourceAcquirer = try HTTPSFoodSourcePageAcquirer(
+            allowedHosts: contentHosts.union([GeminiGroundedSourceReview.citationResolverHost]),
+            userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)")
+        geminiSourceReview = try GeminiGroundedSourceReview(discovery: discovery, acquisition: sourceAcquirer, contentHosts: contentHosts)
         let clock = SystemLedgerClock()
         ledger = FoodLedgerService(
             actorID: try Self.actorID(userDefaults: userDefaults),
@@ -121,7 +134,11 @@ final class FoodLedgerCompositionRoot {
         GenericFoodSearchViewModel(
             searcher: genericFoodSearch,
             locale: try LedgerText(locale.identifier),
-            additionalEvidence: additionalEvidence
+            additionalEvidence: additionalEvidence,
+            database: OpenFoodFactsSearch(transport: offSearchTransport, locale: try LedgerText(locale.identifier), ids: ids),
+            gemini: GeminiFoodSearch(credentials: webDiscovery, reviewer: geminiSourceReview,
+                admission: ManufacturerSourceCandidateAdmission(), locale: try LedgerText(locale.identifier), ids: ids),
+            preferences: searchPreferences, geminiCredentialReady: webDiscovery.keyIsUsable
         )
     }
 
@@ -282,7 +299,7 @@ struct GenericFoodSearchFlowView: View {
         self.root = root
         model.query = initialQuery
         _searchModel = StateObject(wrappedValue: model)
-        _webDiscovery = StateObject(wrappedValue: FoodWebDiscoveryViewModel(provider: GeminiFoodWebDiscovery(), keys: GeminiKeychainStore()))
+        _webDiscovery = StateObject(wrappedValue: root.webDiscovery)
     }
 
     var body: some View {
@@ -291,6 +308,7 @@ struct GenericFoodSearchFlowView: View {
             confirmationModel = root.model(for: input, queryQuantity: searchModel.parsedQuery?.quantity)
             showsConfirmation = true
         }
+        .onReceive(webDiscovery.$keyIsUsable) { searchModel.setGeminiCredentialReady($0) }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {

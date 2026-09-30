@@ -171,6 +171,32 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
         XCTAssertNoThrow(try service.save(next, operationID: id(906, OperationTag.self)))
     }
 
+    func testNamedDishUnknownPreparationSurvivesExplicitSaveAndDoesNotBecomeExactReuse() throws {
+        let store = InMemoryFoodLedgerStore()
+        let ids = SequenceIDs()
+        let search = try CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids)
+        guard case let .confirmation(route) = try search.search(request("200g cooked porridge made with water")) else { return XCTFail("200g cooked porridge made with water") }
+        var state = FoodConfirmationState(input: route.confirmation)
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(100, .grams))
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        let ledger = FoodLedgerService(actorID: try id(999, ActorTag.self), committer: store,
+            clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: FixedClock(), ids: ids)
+        let saved = try service.save(state, operationID: id(905, OperationTag.self))
+        XCTAssertFalse(try store.exactLibraryEntries(alias: LedgerText("food:name:200g cooked porridge made with water")).isEmpty)
+        guard case let .confirmation(nextRoute) = try search.search(request("200g cooked porridge made with water")) else { return XCTFail("200g cooked porridge made with water") }
+        XCTAssertEqual(saved.candidateDecision.candidate.identity.preparation.kind, .unknown)
+        XCTAssertEqual(nextRoute.matches[0].candidate.candidate.identity.preparation.kind, .unknown)
+        XCTAssertEqual(nextRoute.matches[0].candidate.candidate.nutrients, saved.candidateDecision.candidate.nutrients)
+        XCTAssertNil(nextRoute.reuse)
+        XCTAssertEqual(nextRoute.matches[0].candidate.candidate.recordID, saved.candidateDecision.candidate.recordID)
+        var next = FoodConfirmationState(input: nextRoute.confirmation)
+        XCTAssertTrue(next.isGenericEstimate)
+        FoodConfirmationReducer.reduce(state: &next, action: .setQuantity(150, .grams))
+        FoodConfirmationReducer.reduce(state: &next, action: .accept)
+        XCTAssertNoThrow(try service.save(next, operationID: id(906, OperationTag.self)))
+    }
+
     func testConfirmedGenericMatchCreatesOfflineExactLibraryReuse() throws {
         let store = InMemoryFoodLedgerStore()
         let ids = SequenceIDs()

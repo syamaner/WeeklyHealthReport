@@ -3,17 +3,24 @@ import SwiftUI
 
 public struct FoodWebDiscoveryView: View {
     @ObservedObject private var model: FoodWebDiscoveryViewModel
-    public init(model: FoodWebDiscoveryViewModel) { self.model = model }
+    private let showsManualSearch: Bool
+    public init(model: FoodWebDiscoveryViewModel, showsManualSearch: Bool = true) {
+        self.model = model; self.showsManualSearch = showsManualSearch
+    }
 
     public var body: some View {
         Form {
-            Section("Optional Gemini web discovery") {
-                Text("Find unverified source leads with your own Gemini API key. Web leads cannot be selected or saved as food, and contain no admitted nutrition data.")
+            Section(showsManualSearch ? "Optional Gemini web discovery" : "Gemini food search") {
+                Text(showsManualSearch
+                    ? "Find unverified source leads with your own Gemini API key. Web leads cannot be selected or saved as food, and contain no admitted nutrition data."
+                    : "Use your own Gemini API key for source discovery. Automatic search is enabled separately in Search services; saving a key alone sends no food terms.")
                 Text("Offline food search remains available without a key.").font(.caption)
             }
             Section("Before adding a key") {
-                Text("Save and validate sends only your key to Google to check model access. Search the web sends the food terms you enter below, with a fixed source-finding instruction. HealthKit data, saved foods, diary history and capture evidence are not attached.")
-                Text("Google may charge your account for model use and each search query; one tap can cause several queries. Set quota and billing controls in your Google project. There is no app-enforced spending cap.")
+                Text(showsManualSearch
+                    ? "Save and validate sends only your key to Google to check model access. Search the web sends the food terms you enter below, with a fixed source-finding instruction. HealthKit data, saved foods, diary history and capture evidence are not attached."
+                    : "Save and validate sends only your key to Google to check model access. When automatic Gemini search is enabled, a submitted food search may send the displayed terms with a fixed source-finding instruction and request one cited source page. HealthKit data, saved foods, diary history and capture evidence are not attached.")
+                Text("Google may charge your account for model use and each search query; one request can cause several queries. Set quota and billing controls in your Google project. There is no app-enforced spending cap.")
                 Text("Your key is stored only in this device’s Keychain, without sync or backup migration. A compromised device or instrumented app can still expose it. Remove it here and revoke it in Google AI Studio if needed.")
                 Text("Interaction storage is disabled, but Google retains grounding prompts, context and outputs for 30 days. Unpaid services may use content for training and human review; paid-service terms differ. UK, EEA and Swiss users must use a project with active billing. Avoid private or sensitive information in food terms.")
                 Link("Google API terms", destination: URL(string: "https://ai.google.dev/gemini-api/terms")!)
@@ -42,6 +49,7 @@ public struct FoodWebDiscoveryView: View {
                 }
                 if let message = model.keyMessage { Text(message).font(.caption) }
             }
+            if showsManualSearch {
             Section("Food terms to send to Google") {
                 TextField("e.g. Greek yoghurt 10% fat", text: $model.foodTerms, axis: .vertical)
                     .autocorrectionDisabled()
@@ -52,21 +60,47 @@ public struct FoodWebDiscoveryView: View {
                 if model.isSearching { ProgressView("Finding source leads") }
                 if let message = model.searchMessage { Text(message) }
             }
-            if let result = model.result {
-                Section("Unverified source leads") {
-                    Text("Check the original page, exact product and preparation. A citation does not verify nutrients, identity or quantity basis.").font(.caption)
-                    if !result.responseText.isEmpty { Text(verbatim: result.responseText) }
+            }
+            if showsManualSearch, let result = model.result {
+                Section("Google-cited pages (unverified)") {
+                    Text("These links come from Google's citation annotations. Gemini may write different links or claims in its answer. Check each page's food, preparation and quantity basis yourself; a citation does not verify nutrition.")
+                        .font(.caption)
+                    if result.leads.isEmpty { Text("Google supplied no cited pages for this answer.") }
                     ForEach(Array(result.leads.enumerated()), id: \.offset) { _, lead in
                         if FoodWebLinkPolicy.isAllowed(lead.url) {
-                            Link(destination: lead.url) {
-                                VStack(alignment: .leading) {
-                                    Text(lead.title)
-                                    if let citedText = lead.citedText {
-                                        Text("Cited passage: \(citedText)").font(.caption)
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(lead.title).font(.headline)
+                                Text("Google citation URL: \(lead.url.host ?? "Source website")")
+                                    .font(.caption)
+                                Link("Open Google-cited page", destination: lead.url)
+                                switch FoodWebCitationLinkPolicy.relationship(for: lead) {
+                                case .conflictingHost:
+                                    Text("Gemini wrote a link to a different website in this cited passage. Check Google's citation page directly.")
+                                        .font(.caption)
+                                case .multipleWrittenHosts:
+                                    Text("This citation spans links to more than one website. Check Google's citation page directly.")
+                                        .font(.caption)
+                                case .unknownDestination:
+                                    Text("The written link uses an opaque redirect or has no comparable source host. Check Google's citation page directly.")
+                                        .font(.caption)
+                                case .matchingHost, .noWrittenLink:
+                                    EmptyView()
+                                }
+                                if let citedText = lead.citedText {
+                                    DisclosureGroup("Gemini text attached to this citation") {
+                                        Text(verbatim: citedText).font(.caption)
                                     }
-                                    Text(lead.url.host ?? "Source website").font(.caption)
                                 }
                             }
+                        }
+                    }
+                }
+                if !result.responseText.isEmpty {
+                    Section("Gemini's generated answer") {
+                        Text("This is unverified model-written text. Its links and claims may differ from Google's citations; it cannot be used to save nutrition.")
+                            .font(.caption)
+                        DisclosureGroup("Read full unverified answer") {
+                            Text(verbatim: result.responseText)
                         }
                     }
                 }
@@ -79,7 +113,7 @@ public struct FoodWebDiscoveryView: View {
                 }
             }
         }
-        .navigationTitle("Search the web")
-        .onDisappear { model.cancelPending() }
+        .navigationTitle(showsManualSearch ? "Search the web" : "Gemini API key")
+        .onDisappear { if showsManualSearch { model.cancelPending() } else { model.closeCredentialEditor() } }
     }
 }
