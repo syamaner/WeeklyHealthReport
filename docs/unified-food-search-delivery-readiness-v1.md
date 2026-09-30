@@ -28,11 +28,12 @@ cost and escalation benefit remain unmeasured for the final implementation.
 
 ## Validation and CI reconciliation
 
-The v72 exact source manifest passed 466 package tests (465 passed, one optional
+The v72 exact source manifest passed 466 package tests (465 passed, the opt-in OFF public-response
 replay skipped), 279 simulator tests and Xcode static analysis. v73 changes only
 CI guards/snapshots and documentation; production Swift and data hashes remain
-identical. An additional five-test ranked retrieval run enabled the optional replay;
-four scorer tests passed. Do not combine these overlapping counts into a new suite total.
+identical. An additional five-test ranked retrieval run emitted the optional JSON report for
+CI comparison; four scorer tests passed. The ranked replay itself also ran in the
+full suite. The OFF public-response replay is a different opt-in test. Do not combine these overlapping counts into a new suite total.
 
 The 72-query replay covers CoFID, USDA and composite (216 scored rows). v5 retains
 v3 labels and the scorer unchanged. Only four row grade arrays differ from v4:
