@@ -280,7 +280,7 @@ jobs:
           set -euo pipefail
           python3 Tools/FoodQueryEvaluation/validate.py v5
           python3 -m unittest discover -s Tools/FoodQueryEvaluation/tests
-          swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Tools/FoodQueryEvaluation/run.swift -o "$RUNNER_TEMP/food-query-eval"
+          swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryDiscoveryPolicy.swift Tools/FoodQueryEvaluation/run.swift -o "$RUNNER_TEMP/food-query-eval"
           "$RUNNER_TEMP/food-query-eval" Tools/FoodQueryEvaluation/synthetic-v5.json "$RUNNER_TEMP/food-query-results.json"
           python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v5.json "$RUNNER_TEMP/food-query-results.json" "$RUNNER_TEMP/food-query-report.json" --gate
 
