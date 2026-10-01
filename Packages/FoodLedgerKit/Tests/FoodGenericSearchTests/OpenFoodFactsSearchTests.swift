@@ -308,8 +308,8 @@ final class OpenFoodFactsSearchTests: XCTestCase {
         }
     }
 
-    func testInvalidOrAmbiguousQuantityNeverReachesOFF() async throws {
-        for original in ["0g rice", "-50g rice", "100g rice and 200g chicken", "bowl of rice"] {
+    func testInvalidQuantityNeverReachesOFF() async throws {
+        for original in ["0g rice", "-50g rice", "raw cooked rice"] {
             let transport = SearchFixture(response: OFFProductResponse(status: 200, body: Data("{\"products\":[]}".utf8)))
             do {
                 _ = try await OpenFoodFactsSearch(transport: transport, locale: LedgerText("en_GB"), clock: clock)
@@ -318,6 +318,18 @@ final class OpenFoodFactsSearchTests: XCTestCase {
             } catch { XCTAssertEqual(error as? FoodSearchEnrichmentError, .invalidQuery) }
             let sent = await transport.terms
             XCTAssertTrue(sent.isEmpty)
+        }
+    }
+
+    func testDescriptionsReachOFFWithoutMakingIntakeAmounts() async throws {
+        for original in ["Scallion pancake with eggs and american chese", "100g rice and 200g chicken", "bowl of rice", "half scallion pancake"] {
+            let transport = SearchFixture(response: .init(status: 200, body: Data("{\"products\":[]}".utf8)))
+            _ = try await OpenFoodFactsSearch(transport: transport, locale: LedgerText("en_GB"), clock: clock)
+                .enrich(FoodSearchRemoteQuery(foodTerms: original))
+            let sent = await transport.terms
+            XCTAssertEqual(sent.count, 1)
+            XCTAssertNil(FoodQueryInterpretation(original).parsedQuery.quantity)
+            if original == "half scallion pancake" { XCTAssertEqual(sent, ["scallion pancake"]) }
         }
     }
 

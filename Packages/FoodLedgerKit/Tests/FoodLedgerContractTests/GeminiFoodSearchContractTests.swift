@@ -23,11 +23,22 @@ final class GeminiFoodSearchContractTests: XCTestCase {
         XCTAssertNil(FoodQueryParser.parse(text).quantity)
         let blockedReviewer = RuntimeReview(source: nil)
         do {
-            _ = try await make(RuntimeCredentials(), blockedReviewer).enrich(FoodSearchRemoteQuery(foodTerms: "100g soup and 50g bread"))
-            XCTFail("Mixed quantities must not reach discovery")
+            _ = try await make(RuntimeCredentials(), blockedReviewer).enrich(FoodSearchRemoteQuery(foodTerms: "raw cooked sirloin"))
+            XCTFail("Contradictory preparation must not reach discovery")
         } catch { XCTAssertEqual(error as? FoodSearchEnrichmentError, .invalidQuery) }
         let blockedCalls = await blockedReviewer.calls
         XCTAssertTrue(blockedCalls.isEmpty)
+    }
+
+    func testNewDescriptionAndFractionEligibilityReachesActualAdapter() async throws {
+        for text in ["Scallion pancake with eggs and american chese", "half a scallion pancake", "100g soup and 50g bread"] {
+            let reviewer = RuntimeReview(source: nil)
+            let result = try await make(RuntimeCredentials(), reviewer).enrich(FoodSearchRemoteQuery(foodTerms: text))
+            guard case .noResult = result else { return XCTFail("Citation-only result cannot create nutrition") }
+            let calls = await reviewer.calls
+            XCTAssertEqual(calls, [text])
+            XCTAssertNil(FoodQueryInterpretation(text).parsedQuery.quantity)
+        }
     }
 
     func testUnavailableCredentialNeverCallsReview() async throws {

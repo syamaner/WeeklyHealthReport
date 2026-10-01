@@ -23,7 +23,7 @@ public struct GeminiFoodSearch: FoodSearchEnriching {
 
     public func enrich(_ query: FoodSearchRemoteQuery) async throws -> GenericFoodSearchOutcome {
         try Task.checkCancellation()
-        guard FoodQueryParser.parse(query.foodTerms).allowsCandidateDiscovery else { throw FoodSearchEnrichmentError.invalidQuery }
+        guard query.interpretation.allowsDiscovery else { throw FoodSearchEnrichmentError.invalidQuery }
         let expires = ContinuousClock.now.advanced(by: timeout)
         return try await withThrowingTaskGroup(of: GenericFoodSearchOutcome.self) { group in
             group.addTask { try await run(query, expires: expires) }

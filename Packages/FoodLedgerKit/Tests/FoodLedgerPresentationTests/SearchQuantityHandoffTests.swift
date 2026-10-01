@@ -121,13 +121,17 @@ final class SearchQuantityHandoffTests: XCTestCase {
         }
     }
 
-    func testAmbiguityNeverReachesCandidateSelectionOrExactQuantity() throws {
+    func testAmbiguityNeverPrefillsExactQuantityAndGroundsStillBlockDiscovery() throws {
         let search = try model()
         for query in ["A bowl of rice", "<100g rice", "one mug coffee 15g grounds"] {
             search.query = query; search.search()
             XCTAssertNil(search.parsedQuery?.quantity)
-            XCTAssertNil(search.confirmation(at: 0))
-            guard case .failed = search.phase else { return XCTFail(query) }
+            if query.contains("grounds") {
+                XCTAssertNil(search.confirmation(at: 0))
+                guard case .failed = search.phase else { return XCTFail(query) }
+            } else {
+                XCTAssertNotNil(search.confirmation(at: 0), query)
+            }
         }
     }
 }
