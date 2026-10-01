@@ -8,6 +8,7 @@ import SwiftUI
 import UIKit
 import XCTest
 import WebKit
+import Vision
 
 @MainActor
 final class FoodSearchQuantityNativeTests: XCTestCase {
@@ -55,6 +56,53 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             XCTAssertEqual(saves,0);XCTAssertEqual(model.state.decision,.undecided)
         }
     }
+    func testNutritionFirstScreenHasReferenceValuesWithoutDefaultIntakeAndHidesSourceIDs() async throws {
+        let ids = NativeQuantityIDs()
+        let searcher = try CoFIDGenericFoodSearch(ids: ids)
+        let search = try GenericFoodSearchViewModel(searcher: searcher, locale: LedgerText("en_GB"))
+        search.query = "Greek yoghurt 10% fat"; search.search()
+        let input = try XCTUnwrap(search.confirmation(at: 0))
+        for (name, dark, size) in [("light", false, DynamicTypeSize.large), ("dark", true, .large), ("large-text", false, .accessibility3)] {
+            let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, prefillSourceQuantity: false), searchInterpretation: search.interpretation) { _ in
+                XCTFail("Rendering must not save"); throw CocoaError(.fileWriteUnknown)
+            }
+            let host = NativeHostingController(rootView: NavigationStack {
+                FoodConfirmationView(model: model, leave: {}).environment(\.dynamicTypeSize, size)
+            })
+            let scene = try testScene()
+            let previous = scene.windows.first(where: \.isKeyWindow)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            window.overrideUserInterfaceStyle = dark ? .dark : .light
+            window.rootViewController = host; window.makeKeyAndVisible()
+            defer { window.isHidden = true; previous?.makeKey() }
+            try await waitForHostAppearance(host, window: window)
+            try await Task.sleep(for: .milliseconds(250))
+            host.view.layoutIfNeeded()
+            XCTAssertNil(model.state.quantity.value)
+            XCTAssertFalse(model.nutritionReview.isConsumed)
+            XCTAssertEqual(model.nutritionReview.mainRows.count, 4)
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            let request = VNRecognizeTextRequest()
+            request.recognitionLevel = .accurate; request.usesLanguageCorrection = false
+            try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+            let visible = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
+            XCTAssertTrue(visible.contains("Nutrition"), visible)
+            if size == .large {
+                for label in ["Energy", "Protein", "Carbohydrate", "Fat"] { XCTAssertTrue(visible.contains(label), visible) }
+            }
+            XCTAssertFalse(visible.contains(input.candidates[0].candidate.recordID.value), "Identifiers belong inside source details")
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "Nutrition first \(name)"; attachment.lifetime = .keepAlways
+            add(attachment)
+            let url = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("whr-food-input-\(name).png")
+            try image.pngData()?.write(to: url)
+            print("FOOD_INPUT_SCREENSHOT \(url.path)")
+        }
+    }
+
     func testSavedEntrySessionMissingFailureAndRetry() throws {
         let id = try NativeQuantityIDs().makeID(LogItemTag.self)
         var attempts = 0

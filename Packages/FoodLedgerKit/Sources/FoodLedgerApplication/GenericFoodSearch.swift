@@ -39,12 +39,9 @@ public struct GenericFoodIdentityQuery: Equatable, Sendable {
 }
 
 public struct GenericFoodSearchRequest: Equatable, Sendable {
-    public var parsedQuery: ParsedFoodQuery { FoodQueryParser.parse(text.value) }
-    public var retrievalText: String {
-        let parsed = parsedQuery
-        return parsed.route == .search || parsed.requiresRecipeReview
-            ? FoodQueryPreparationPolicy.foodTerms(for: parsed) : text.value
-    }
+    public let interpretation: FoodQueryInterpretation
+    public var parsedQuery: ParsedFoodQuery { interpretation.parsedQuery }
+    public var retrievalText: String { interpretation.retrievalText }
     public let text: LedgerText
     public let identity: GenericFoodIdentityQuery
     public let capturedAt: Date
@@ -58,11 +55,15 @@ public struct GenericFoodSearchRequest: Equatable, Sendable {
         capturedAt: Date,
         locale: LedgerText,
         captureEvidence: CaptureEvidence? = nil,
-        additionalEvidence: [CaptureEvidence] = []
+        additionalEvidence: [CaptureEvidence] = [],
+        interpretation: FoodQueryInterpretation? = nil
     ) {
         self.text = text
+        // A caller cannot attach another query's interpretation.
+        let interpretation = interpretation?.originalText == text.value ? interpretation! : FoodQueryInterpretation(text.value)
+        self.interpretation = interpretation
         if (identity.preparation == nil || identity.preparation?.kind == .unknown),
-           let kind = FoodQueryPreparationPolicy.kind(for: FoodQueryParser.parse(text.value)),
+           let kind = interpretation.preparation,
            let preparation = try? PreparationState(kind: kind) {
             self.identity = GenericFoodIdentityQuery(preparation: preparation, bone: identity.bone,
                 skin: identity.skin, drained: identity.drained, packingMedium: identity.packingMedium,

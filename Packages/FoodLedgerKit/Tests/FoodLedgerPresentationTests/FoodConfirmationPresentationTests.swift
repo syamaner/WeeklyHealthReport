@@ -240,6 +240,49 @@ final class FoodConfirmationPresentationTests: XCTestCase {
             "Measured quantity must not upgrade augmented source nutrients")
     }
 
+    func testNutritionFirstReferenceAndConsumedProjectionShareExistingCalculation() throws {
+        var state = try fixtureState(knownProtein: true)
+        state.quantity = FoodQuantityDraft()
+        let model = FoodConfirmationViewModel(state: state) { _ in throw CocoaError(.fileWriteUnknown) }
+        XCTAssertFalse(model.nutritionReview.isConsumed)
+        XCTAssertEqual(model.nutritionReview.basis, "Per 100 g")
+        XCTAssertEqual(model.nutritionReview.mainRows.map(\.key), [.energyConsumed, .protein, .carbohydrates, .fatTotal])
+        XCTAssertEqual(model.nutritionReview.mainRows.first { $0.key == .fatTotal }?.value, "Not provided")
+        model.send(.setQuantityText("half"))
+        XCTAssertEqual(model.state.quantity.value, 0.5)
+        XCTAssertTrue(model.nutritionReview.isConsumed)
+        XCTAssertEqual(model.nutritionReview.basis, "For 0.5 g eaten")
+        XCTAssertEqual(model.nutritionReview.mainRows.first { $0.key == .protein }?.value, "0.04 g")
+        model.send(.setQuantity(0.5, .millilitres))
+        XCTAssertFalse(model.nutritionReview.isConsumed)
+        XCTAssertEqual(model.nutritionReview.basis, "Per 100 g")
+    }
+    func testSourceBasisDoesNotPrefillGenericIntakeAndCountSuggestionIsExplicit() throws {
+        let input = try fixtureState().input
+        let state = FoodConfirmationState(input: input, prefillSourceQuantity: false)
+        let interpretation = FoodQueryInterpretation("half scallion pancake")
+        let model = FoodConfirmationViewModel(state: state, searchInterpretation: interpretation) { _ in throw CocoaError(.fileWriteUnknown) }
+        XCTAssertNil(model.state.quantity.value)
+        XCTAssertFalse(model.nutritionReview.isConsumed)
+        XCTAssertEqual(model.quantitySuggestion?.unit, "count")
+        model.send(.setQuantity(0.5, .count))
+        XCTAssertNil(model.state.quantity.conversion)
+        XCTAssertFalse(model.nutritionReview.isConsumed)
+        XCTAssertThrowsError(try model.state.calculatedEdibleQuantity())
+    }
+    func testBoundsAndSmallKnownValuesRemainHonest() throws {
+        var state = try fixtureState(boundedProtein: true)
+        state.quantity = FoodQuantityDraft()
+        let model = FoodConfirmationViewModel(state: state) { _ in throw CocoaError(.fileWriteUnknown) }
+        XCTAssertEqual(model.nutritionReview.mainRows.first { $0.key == .protein }?.value, "[1–2) g")
+        model.send(.setQuantityText("1/2"))
+        XCTAssertEqual(model.nutritionReview.mainRows.first { $0.key == .protein }?.value, "Unavailable · source is bounded")
+        XCTAssertNotEqual(FoodNutritionReviewPresentation.number(0.000001), "0")
+        model.send(.setQuantityText("1/0"))
+        XCTAssertNil(model.state.quantity.value)
+        XCTAssertFalse(model.nutritionReview.isConsumed)
+    }
+
     private func fixtureState(basis: ResolutionBasis = .per100Grams, knownProtein: Bool = false, boundedProtein: Bool = false) throws -> FoodConfirmationState {
         let evidenceID = try EvidenceID("00000000-0000-0000-0000-000000000001")
         let releaseID = try ExternalIdentifier("synthetic:presentation-v1")

@@ -409,8 +409,8 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
         model.query = "milk"; model.search()
         XCTAssertEqual(model.stageReports.map(\.stage), [.local])
         XCTAssertEqual(model.searchStatus?.title, "Search finished")
-        XCTAssertTrue(model.searchStatus?.details.contains("Open Food Facts: Not searched") == true)
-        XCTAssertTrue(model.searchStatus?.details.contains("Gemini: Not searched") == true)
+        XCTAssertTrue(model.searchStatus?.details.contains("Open Food Facts: Off") == true)
+        XCTAssertTrue(model.searchStatus?.details.contains("Gemini: Off") == true)
         XCTAssertEqual(model.onlineAddedIDs, [])
         model.query = "rice"
         XCTAssertNil(model.searchStatus)

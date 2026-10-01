@@ -162,7 +162,7 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     public let reopened: StoredFoodConfirmation?
 
     public init(input: PopulatedFoodConfirmation, reopened: StoredFoodConfirmation? = nil,
-                queryQuantity: ParsedFoodQuery.Quantity? = nil) {
+                queryQuantity: ParsedFoodQuery.Quantity? = nil, prefillSourceQuantity: Bool = true) {
         self.input = input
         selectedCandidateIndex = 0
         decision = .undecided
@@ -197,7 +197,7 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
                     unit: reopened.logItemVersion.edibleQuantity.unit
                 )
             }
-        } else if case let .known(value, _) = input.expectedEdibleQuantity {
+        } else if prefillSourceQuantity, case let .known(value, _) = input.expectedEdibleQuantity {
             quantity = FoodQuantityDraft(value: value.value, unit: value.unit)
         } else {
             quantity = FoodQuantityDraft()
@@ -329,7 +329,7 @@ public enum FoodConfirmationReducer {
             state.quantity.directWeight?.basis = basis
             state.phase = .editing
         case let .setQuantityText(text):
-            let value = Double(text)
+            let value = FoodAmountTextParser.parse(text)
             reduce(state: &state, action: .setQuantity(value, state.quantity.unit))
             state.quantity.invalidOriginalAmountText = !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && value == nil
         case let .setQuantity(value, unit):

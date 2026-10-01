@@ -8,7 +8,7 @@ public struct FoodSearchStatusPresentation: Equatable, Sendable {
     public let details: [String]
     public let isSearching: Bool
 
-    public init(reports: [FoodSearchStageReport], pending: FoodSearchStage?, stopped: Bool) {
+    public init(reports: [FoodSearchStageReport], pending: FoodSearchStage?, stopped: Bool, services: FoodSearchServiceAvailability? = nil) {
         let count = reports.flatMap(\.addedCandidateIDs).count
         let online = reports.filter { $0.stage != .local }.flatMap(\.addedCandidateIDs).count
         let matches = "\(count) \(count == 1 ? "match" : "matches")"
@@ -59,7 +59,15 @@ public struct FoodSearchStatusPresentation: Equatable, Sendable {
                     let count = report.addedCandidateIDs.count
                     result = "\(count) \(stage == .local ? "" : "new ")\(count == 1 ? "match" : "matches")"
                 }
-            } else { result = stopped && pending == stage ? "Stopped" : "Not searched" }
+            } else if stopped { result = pending == stage ? "Stopped" : "Not searched" }
+            else if let services, stage != .local {
+                let access = stage == .gemini ? services.gemini : services.onlineDatabase
+                switch access {
+                case .disabled: result = "Off"
+                case .unavailable: result = stage == .gemini ? "Key needs validation" : "Unavailable"
+                case .ready: result = "Not searched"
+                }
+            } else { result = "Not searched" }
             return "\(Self.name(stage)): \(result)"
         }
     }

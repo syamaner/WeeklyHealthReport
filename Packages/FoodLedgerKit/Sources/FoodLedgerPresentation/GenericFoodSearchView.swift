@@ -14,6 +14,7 @@ public enum GenericFoodSearchPhase: Equatable, Sendable {
 public final class GenericFoodSearchViewModel: ObservableObject {
     @Published public var query = "" { didSet { if query != oldValue { invalidateSearch() } } }
     @Published public private(set) var parsedQuery: ParsedFoodQuery?
+    @Published public private(set) var interpretation: FoodQueryInterpretation?
     @Published public var preparationFilter: PreparationKind? { didSet { if preparationFilter != oldValue { invalidateSearch() } } }
     @Published public private(set) var phase: GenericFoodSearchPhase = .idle
     public var canOfferWebDiscovery: Bool {
@@ -31,8 +32,20 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         if case .failed = phase { return nil }
         if case .declined = phase { return nil }
         guard activeEnrichmentStage != nil || !stageReports.isEmpty || stoppedSearchStage != nil else { return nil }
-        return FoodSearchStatusPresentation(reports: stageReports, pending: activeEnrichmentStage ?? stoppedSearchStage, stopped: searchWasStopped)
+        return FoodSearchStatusPresentation(reports: stageReports, pending: activeEnrichmentStage ?? stoppedSearchStage, stopped: searchWasStopped, services: services)
     }
+    /// Explain a skipped web search beside completed results, without making a call.
+    public var geminiSetupMessage: String? {
+        guard canOfferWebDiscovery, activeEnrichmentStage == nil, !searchWasStopped,
+              !stageReports.contains(where: { $0.stage == .gemini }) else { return nil }
+        if !geminiAvailable { return nil }
+        switch services.gemini {
+        case .disabled: return "Gemini is off."
+        case .unavailable: return "Gemini needs a validated API key."
+        case .ready: return nil
+        }
+    }
+
     public var onlineAddedIDs: [FoodSearchCandidateID] {
         stageReports.filter { $0.stage != .local }.flatMap(\.addedCandidateIDs)
     }
@@ -118,6 +131,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         enrichmentMessage = nil
         stageReports = []; searchWasStopped = false; stoppedSearchStage = nil
         parsedQuery = nil
+        interpretation = nil
         phase = .idle
     }
 
@@ -127,14 +141,16 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         enrichmentMessage = nil
         stageReports = []; searchWasStopped = false; stoppedSearchStage = nil
         do {
-            let parsed = FoodQueryParser.parse(query)
+            let interpretation = FoodQueryInterpretation(query)
+            self.interpretation = interpretation
+            let parsed = interpretation.parsedQuery
             parsedQuery = parsed
-            guard parsed.allowsCandidateDiscovery else {
+            guard interpretation.allowsDiscovery else {
                 phase = .failed(parsed.reasons.contains("empty_query") ? "Enter a food name before searching." : parsed.route == .reject ? "Enter a valid food and a positive quantity, if supplied." : Self.clarificationMessage(parsed))
                 return
             }
             let text = try LedgerText(query, field: "generic food search")
-            let parsedPreparation = FoodQueryPreparationPolicy.kind(for: parsed)
+            let parsedPreparation = interpretation.preparation
             if let preparationFilter, let parsedPreparation, preparationFilter != parsedPreparation {
                 phase = .failed("The preparation in your query conflicts with the selected filter. Please choose one.")
                 return
@@ -150,7 +166,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
                 locale: locale,
                 additionalEvidence: additionalEvidence + retainedEvidence.filter { retained in
                     !additionalEvidence.contains { $0.evidenceID == retained.evidenceID }
-                }
+                }, interpretation: interpretation
             ))
         } catch FoodLedgerValidationError.empty {
             phase = .failed("Enter a food name before searching.")
@@ -270,7 +286,7 @@ public struct GenericFoodSearchView: View {
         ScrollViewReader { proxy in
             Form {
                 Section {
-                    TextField("Food name, e.g. 200g Greek yoghurt", text: $model.query)
+                    TextField("Food or dish, e.g. scallion pancake", text: $model.query)
                         .accessibilityLabel("Food to search")
                         .submitLabel(.search)
                         .onSubmit { if model.activeEnrichmentStage == nil { model.search() } }
@@ -287,6 +303,15 @@ public struct GenericFoodSearchView: View {
                         .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.searchStatus?.isSearching == true)
                 }
                 resultSection
+                if let message = model.geminiSetupMessage {
+                    Section {
+                        HStack {
+                            Text(message).font(.subheadline)
+                            Spacer()
+                            Button("Search settings") { showsServices = true }.frame(minHeight: 44)
+                        }
+                    }
+                }
                 if let discovery = model.sourceDiscovery {
                     Section {
                         NavigationLink("Web sources") {

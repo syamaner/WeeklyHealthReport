@@ -50,7 +50,7 @@ public struct ConservativeFoodSearchCoverageAssessment: FoodSearchCoverageAssess
 
     static func requestedPreparation(_ request: GenericFoodSearchRequest) -> PreparationState? {
         if let explicit = request.identity.preparation, explicit.kind != .unknown { return explicit }
-        guard let kind = FoodQueryPreparationPolicy.kind(for: request.parsedQuery) else { return nil }
+        guard let kind = request.interpretation.preparation else { return nil }
         return try? PreparationState(kind: kind)
     }
 

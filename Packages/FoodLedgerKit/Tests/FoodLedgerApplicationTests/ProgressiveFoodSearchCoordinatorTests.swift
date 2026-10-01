@@ -235,7 +235,7 @@ final class ProgressiveFoodSearchCoordinatorTests: XCTestCase {
     func testInvalidQueryNeverReachesLocalOrRemoteAndRemoteLengthIsBounded() throws {
         let local = CountingFoodSearch(try SearchFixture.outcome())
         let coordinator = ProgressiveFoodSearchCoordinator(local: local)
-        coordinator.search(try SearchFixture.request("<100g rice"))
+        coordinator.search(try SearchFixture.request("0g rice"))
         XCTAssertEqual(local.calls, 0)
         XCTAssertEqual(coordinator.snapshot.failures.map(\.reason), [.invalidQuery])
         XCTAssertThrowsError(try FoodSearchRemoteQuery(foodTerms: "   "))

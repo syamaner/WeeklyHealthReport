@@ -81,10 +81,10 @@ final class FoodLedgerCompositionRoot {
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }
 
-    func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil) -> FoodConfirmationViewModel {
+    func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil, searchInterpretation: FoodQueryInterpretation? = nil, prefillSourceQuantity: Bool = true) -> FoodConfirmationViewModel {
         let (prepared, offering) = withMilkVolumeSource(input)
-        let state = FoodConfirmationState(input: prepared, queryQuantity: queryQuantity)
-        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering) { [confirmations, ids] state in
+        let state = FoodConfirmationState(input: prepared, queryQuantity: queryQuantity, prefillSourceQuantity: prefillSourceQuantity)
+        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, searchInterpretation: searchInterpretation) { [confirmations, ids] state in
             try confirmations.save(
                 state,
                 operationID: ids.makeID(OperationTag.self),
@@ -305,7 +305,7 @@ struct GenericFoodSearchFlowView: View {
     var body: some View {
         GenericFoodSearchView(model: searchModel, webDiscovery: webDiscovery) { input in
             // Snapshot selection and parsed quantity once; navigation renders reuse this model.
-            confirmationModel = root.model(for: input, queryQuantity: searchModel.parsedQuery?.quantity)
+            confirmationModel = root.model(for: input, queryQuantity: searchModel.parsedQuery?.quantity, searchInterpretation: searchModel.interpretation, prefillSourceQuantity: false)
             showsConfirmation = true
         }
         .onReceive(webDiscovery.$keyIsUsable) { searchModel.setGeminiCredentialReady($0) }

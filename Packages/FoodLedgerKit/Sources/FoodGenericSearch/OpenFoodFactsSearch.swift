@@ -24,8 +24,8 @@ public struct OpenFoodFactsSearch: FoodSearchEnriching {
 
     public func enrich(_ query: FoodSearchRemoteQuery) async throws -> GenericFoodSearchOutcome {
         try Task.checkCancellation()
-        let parsed = FoodQueryParser.parse(query.foodTerms)
-        guard parsed.allowsCandidateDiscovery, let food = parsed.food else { throw FoodSearchEnrichmentError.invalidQuery }
+        let parsed = query.interpretation.parsedQuery
+        guard query.interpretation.allowsDiscovery, let food = parsed.food else { throw FoodSearchEnrichmentError.invalidQuery }
         let terms = GenericFoodSearchTerms.tokens([parsed.attributes["brand"], FoodQueryPreparationPolicy.foodTerms(for: parsed)].compactMap { $0 }.joined(separator: " "))
         guard !terms.isEmpty else { throw FoodSearchEnrichmentError.invalidQuery }
         let response = try await transport.search(foodTerms: Self.retrievalText(parsed, food: food))

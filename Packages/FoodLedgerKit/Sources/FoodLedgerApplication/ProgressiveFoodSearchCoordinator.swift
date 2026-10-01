@@ -4,6 +4,7 @@ import FoodLedgerDomain
 /// The remote port cannot receive ledger history, capture evidence or credentials.
 public struct FoodSearchRemoteQuery: Equatable, Sendable {
     public let foodTerms: String
+    public var interpretation: FoodQueryInterpretation { FoodQueryInterpretation(foodTerms) }
     public init(foodTerms: String) throws {
         let terms = foodTerms.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !terms.isEmpty, terms.count <= 300 else { throw FoodSearchEnrichmentError.invalidQuery }
@@ -89,10 +90,10 @@ public final class ProgressiveFoodSearchCoordinator {
         cancel()
         self.request = request
         snapshot = ProgressiveFoodSearchSnapshot(outcome: nil, pending: .local, failures: [])
-        let parsedPreparation = FoodQueryPreparationPolicy.kind(for: request.parsedQuery)
+        let parsedPreparation = request.interpretation.preparation
         let explicitPreparation = request.identity.preparation?.kind
         let conflicts = parsedPreparation != nil && explicitPreparation != nil && explicitPreparation != .unknown && parsedPreparation != explicitPreparation
-        guard request.parsedQuery.allowsCandidateDiscovery, !conflicts else {
+        guard request.interpretation.allowsDiscovery, !conflicts else {
             snapshot = ProgressiveFoodSearchSnapshot(outcome: nil, pending: nil,
                 failures: [.init(stage: .local, reason: .invalidQuery)])
             onUpdate?(snapshot)
@@ -110,7 +111,7 @@ public final class ProgressiveFoodSearchCoordinator {
             fallbackEvidence = .noResult(GenericFoodNoResultRoute(evidence: evidence, additionalEvidence: request.additionalEvidence))
             let localRequest = GenericFoodSearchRequest(text: request.text, identity: request.identity,
                 capturedAt: request.capturedAt, locale: request.locale, captureEvidence: evidence,
-                additionalEvidence: request.additionalEvidence)
+                additionalEvidence: request.additionalEvidence, interpretation: request.interpretation)
             receive(try local.search(localRequest), token: token)
         } catch {
             if fallbackEvidence == nil {
@@ -201,7 +202,7 @@ public final class ProgressiveFoodSearchCoordinator {
         do {
             var terms = request.text.value
             // The selected preparation is a displayed food-search term, not ledger metadata.
-            if FoodQueryPreparationPolicy.kind(for: request.parsedQuery) == nil,
+            if request.interpretation.preparation == nil,
                let preparation = request.identity.preparation, preparation.kind != .unknown {
                 terms += " " + (preparation.method?.value ?? preparation.kind.rawValue.replacingOccurrences(of: "_", with: " "))
             }
