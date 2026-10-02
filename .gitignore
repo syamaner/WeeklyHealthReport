@@ -9,3 +9,6 @@ __pycache__/
 Config/Signing.local.xcconfig
 Config/DriveOAuth.local.xcconfig
 Tools/SyntheticDriveExport/Config/OAuth.local.xcconfig
+
+# Local Swift and evaluation compiler output
+.build/

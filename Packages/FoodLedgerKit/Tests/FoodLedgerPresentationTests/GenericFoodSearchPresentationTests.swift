@@ -6,6 +6,41 @@ import XCTest
 
 @MainActor
 final class GenericFoodSearchPresentationTests: XCTestCase {
+    func testHalfItemCountAndHouseholdDiscoveryKeepQuantityReview() throws {
+        let spy = SearchSpy()
+        let model = GenericFoodSearchViewModel(searcher: spy, locale: try LedgerText("en_GB"))
+        model.query = "half a green pepper"
+        model.search()
+        XCTAssertEqual(spy.callCount, 1)
+        XCTAssertEqual(spy.lastRequest?.retrievalText, "green pepper")
+        XCTAssertEqual(model.parsedQuery?.quantity?.value, 0.5)
+        XCTAssertEqual(model.parsedQuery?.quantity?.unit, "count")
+        model.query = "half a cup pepper sauce"
+        model.search()
+        XCTAssertEqual(spy.callCount, 2)
+        XCTAssertNil(model.parsedQuery?.quantity)
+        XCTAssertNil(model.interpretation?.quantitySuggestion)
+    }
+
+    func testCookingDescriptorHandoffRetainsMethodAndRejectsConflictingState() throws {
+        let spy = SearchSpy()
+        let model = GenericFoodSearchViewModel(searcher: spy, locale: try LedgerText("en_GB"))
+        for (query, method) in [("90g roasted lamb", "roasted"), ("90g boiled carrots", "boiled"), ("90g pan-fried beef", "pan-fried")] {
+            model.query = query
+            model.search()
+            XCTAssertEqual(spy.lastRequest?.identity.preparation?.kind, .cooked)
+            XCTAssertTrue(spy.lastRequest?.retrievalText.contains(method) == true)
+            XCTAssertEqual(spy.lastRequest?.text.value, query)
+            let calls = spy.callCount
+            model.preparationFilter = .raw
+            model.search()
+            XCTAssertEqual(spy.callCount, calls)
+            model.preparationFilter = nil
+            model.search(identity: GenericFoodIdentityQuery(preparation: try PreparationState(kind: .raw)))
+            XCTAssertEqual(spy.callCount, calls)
+        }
+    }
+
     func testWebDiscoveryIsOfferedOnlyAfterCompletedOfflineSearch() throws {
         let search = SearchSpy()
         let model = GenericFoodSearchViewModel(searcher: search, locale: try LedgerText("en_GB"))
@@ -96,6 +131,31 @@ final class GenericFoodSearchPresentationTests: XCTestCase {
 
         XCTAssertEqual(model.phase, .declined)
     }
+    func testMeasuredAndCompoundDiscoveryKeepsUnresolvedAmountsOutOfConfirmation() throws {
+        let spy = SearchSpy()
+        let model = GenericFoodSearchViewModel(searcher: spy, locale: try LedgerText("en_GB"), now: { Date(timeIntervalSince1970: 0) })
+        for text in ["73g smoked ham slices", "81g wholemeal and rye sourdough"] {
+            let count = spy.callCount
+            model.query = text
+            model.search()
+            XCTAssertEqual(spy.callCount, count + 1, text)
+            XCTAssertEqual(spy.lastRequest?.text.value, text)
+            XCTAssertEqual(spy.lastRequest?.retrievalText, model.parsedQuery?.food)
+            if text.contains(" and ") {
+                XCTAssertTrue(model.interpretation?.needsCompositionReview == true)
+                XCTAssertNil(model.parsedQuery?.quantity)
+            } else { XCTAssertEqual(model.parsedQuery?.quantity?.unit, "g") }
+        }
+        for text in ["2 slices ham", "about 73g ham slices", "81g bread 24g cheese"] {
+            let count = spy.callCount
+            model.query = text
+            model.search()
+            XCTAssertEqual(spy.callCount, count + 1, text)
+            XCTAssertNil(model.parsedQuery?.quantity, text)
+        }
+        XCTAssertNil(model.confirmation(at: 0))
+    }
+
 }
 
 private final class SearchSpy: GenericFoodSearching, @unchecked Sendable {

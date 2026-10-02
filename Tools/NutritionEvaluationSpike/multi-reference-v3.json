@@ -1,0 +1,3707 @@
+{
+  "schema": "synthetic-multi-source-reference-v1",
+  "reference_quality": "public_catalogue_derived_exposed_synthetic",
+  "source_sha256": {
+    "cofid-2021-generic-search-v1.json": "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445",
+    "usda-generic-v1.json": "6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4",
+    "cofid-whole-milk-volume-v1.json": "bc1b0965edb48e5d09f98092ae6efd85e66fd8ee672880f8de87b650e5514962"
+  },
+  "cases": [
+    {
+      "case_id": "usda-ribeye-100",
+      "kind": "save",
+      "expected": {
+        "parser_route": "search",
+        "backend": "usda",
+        "entry": "query",
+        "target_found": true,
+        "selected_record": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+        "handoff_value": 100,
+        "handoff_unit": "g",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": false,
+        "conversion_applied": false,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 100,
+        "edible_unit": "g",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 260.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 18.7,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 20.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 7.97,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 7.73,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.629,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sugar",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "cholesterol",
+            "known": 62.7,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "thiamin_b1",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "niacin_b3",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b6",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "biotin_b7",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_c",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_k",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "calcium",
+            "known": 4.17,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iron",
+            "known": 1.64,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 16.7,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 150.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 288.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 42.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": 4.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": 0.043,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iodine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "manganese",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "usda-ribeye-50",
+      "kind": "save",
+      "expected": {
+        "parser_route": "search",
+        "backend": "usda",
+        "entry": "query",
+        "target_found": true,
+        "selected_record": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+        "handoff_value": 50,
+        "handoff_unit": "g",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": false,
+        "conversion_applied": false,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 50,
+        "edible_unit": "g",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 130.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 9.35,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 10.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 3.985,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 3.865,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.3145,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sugar",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "cholesterol",
+            "known": 31.35,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "thiamin_b1",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "niacin_b3",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b6",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "biotin_b7",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_c",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_k",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "calcium",
+            "known": 2.085,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iron",
+            "known": 0.82,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 8.35,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 75.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 144.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 21.25,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": 2.03,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": 0.0215,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iodine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "manganese",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "usda-list-ribeye",
+      "kind": "save",
+      "expected": {
+        "parser_route": "not_applicable",
+        "backend": "usda",
+        "entry": "list",
+        "target_found": true,
+        "selected_record": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+        "handoff_value": 100,
+        "handoff_unit": "g",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": false,
+        "conversion_applied": false,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 100,
+        "edible_unit": "g",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 260.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 18.7,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 20.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 7.97,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 7.73,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.629,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sugar",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "cholesterol",
+            "known": 62.7,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "thiamin_b1",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "niacin_b3",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b6",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "biotin_b7",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_c",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_k",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "calcium",
+            "known": 4.17,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iron",
+            "known": 1.64,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 16.7,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 150.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 288.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 42.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": 4.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": 0.043,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iodine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "manganese",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "composite-ribeye",
+      "kind": "save",
+      "expected": {
+        "parser_route": "search",
+        "backend": "composite",
+        "entry": "query",
+        "target_found": true,
+        "selected_record": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+        "handoff_value": 100,
+        "handoff_unit": "g",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": false,
+        "conversion_applied": false,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 100,
+        "edible_unit": "g",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 260.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 18.7,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 20.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 7.97,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 7.73,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.629,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sugar",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "cholesterol",
+            "known": 62.7,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "thiamin_b1",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "niacin_b3",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b6",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "biotin_b7",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_c",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_k",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "calcium",
+            "known": 4.17,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iron",
+            "known": 1.64,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 16.7,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 150.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 288.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 42.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": 4.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": 0.043,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iodine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "manganese",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "composite-list-apple",
+      "kind": "save",
+      "expected": {
+        "parser_route": "not_applicable",
+        "backend": "composite",
+        "entry": "list",
+        "target_found": true,
+        "selected_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+        "handoff_value": 100,
+        "handoff_unit": "g",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": false,
+        "conversion_applied": false,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 100,
+        "edible_unit": "g",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 51.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 11.6,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 0.6,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 0.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 0.12,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 0.04,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": 1.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sugar",
+            "known": 11.6,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "cholesterol",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": 2.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "thiamin_b1",
+            "known": 0.04,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": 0.04,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "niacin_b3",
+            "known": 0.1,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": 0.1,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b6",
+            "known": 0.07,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "biotin_b7",
+            "known": 1.1,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_c",
+            "known": 6.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_d",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_e",
+            "known": 0.09,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_k",
+            "known": 5.6,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "calcium",
+            "known": 5.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": 44.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iron",
+            "known": 0.09,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 4.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 8.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 100.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 1.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": 0.03,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iodine",
+            "known": 4.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "manganese",
+            "known": 0.04,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "milk-cofid-convert",
+      "kind": "save",
+      "expected": {
+        "parser_route": "search",
+        "backend": "cofid",
+        "entry": "query",
+        "target_found": true,
+        "selected_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+        "handoff_value": 200,
+        "handoff_unit": "mL",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": true,
+        "conversion_applied": true,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 206,
+        "edible_unit": "g",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 129.78,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 9.476,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 7.004,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 7.416,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 4.7174,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 1.9776,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.1854,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sugar",
+            "known": 9.476,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "cholesterol",
+            "known": 24.72,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": 78.28,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "thiamin_b1",
+            "known": 0.0618,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": 0.4738,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "niacin_b3",
+            "known": 0.412,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": 1.1948,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b6",
+            "known": 0.1236,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "biotin_b7",
+            "known": 5.15,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "folate_b9",
+            "known": 16.48,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b12",
+            "known": 1.854,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_c",
+            "known": 4.12,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": 0.1236,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_k",
+            "known": 1.236,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "calcium",
+            "known": 247.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": 183.34,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iron",
+            "known": 0.0412,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 22.66,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 197.76,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 323.42,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 86.52,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": 1.03,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iodine",
+            "known": 63.86,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "manganese",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": 2.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "milk-composite-convert",
+      "kind": "save",
+      "expected": {
+        "parser_route": "search",
+        "backend": "composite",
+        "entry": "query",
+        "target_found": true,
+        "selected_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+        "handoff_value": 200,
+        "handoff_unit": "mL",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": true,
+        "conversion_applied": true,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 206,
+        "edible_unit": "g",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 129.78,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 9.476,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 7.004,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 7.416,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 4.7174,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 1.9776,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.1854,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sugar",
+            "known": 9.476,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "cholesterol",
+            "known": 24.72,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": 78.28,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "thiamin_b1",
+            "known": 0.0618,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": 0.4738,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "niacin_b3",
+            "known": 0.412,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": 1.1948,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b6",
+            "known": 0.1236,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "biotin_b7",
+            "known": 5.15,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "folate_b9",
+            "known": 16.48,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b12",
+            "known": 1.854,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_c",
+            "known": 4.12,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": 0.1236,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_k",
+            "known": 1.236,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "calcium",
+            "known": 247.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": 183.34,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iron",
+            "known": 0.0412,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 22.66,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 197.76,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 323.42,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 86.52,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": 1.03,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iodine",
+            "known": 63.86,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "manganese",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": 2.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "milk-litres-convert",
+      "kind": "save",
+      "expected": {
+        "parser_route": "search",
+        "backend": "cofid",
+        "entry": "query",
+        "target_found": true,
+        "selected_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+        "handoff_value": 200,
+        "handoff_unit": "mL",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": true,
+        "conversion_applied": true,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 206,
+        "edible_unit": "g",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 129.78,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 9.476,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 7.004,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 7.416,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 4.7174,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 1.9776,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.1854,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sugar",
+            "known": 9.476,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "cholesterol",
+            "known": 24.72,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": 78.28,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "thiamin_b1",
+            "known": 0.0618,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": 0.4738,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "niacin_b3",
+            "known": 0.412,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": 1.1948,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b6",
+            "known": 0.1236,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "biotin_b7",
+            "known": 5.15,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "folate_b9",
+            "known": 16.48,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b12",
+            "known": 1.854,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_c",
+            "known": 4.12,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": 0.1236,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_k",
+            "known": 1.236,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "calcium",
+            "known": 247.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": 183.34,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iron",
+            "known": 0.0412,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 22.66,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 197.76,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 323.42,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 86.52,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": 1.03,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iodine",
+            "known": 63.86,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "manganese",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": 2.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "milk-no-conversion-tap",
+      "kind": "save",
+      "expected": {
+        "parser_route": "search",
+        "backend": "cofid",
+        "entry": "query",
+        "target_found": true,
+        "selected_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+        "handoff_value": 200,
+        "handoff_unit": "mL",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": true,
+        "conversion_applied": false,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 200,
+        "edible_unit": "mL",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "carbohydrates",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "protein",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_total",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_saturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fiber",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sugar",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "cholesterol",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_a",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "thiamin_b1",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "niacin_b3",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b6",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "biotin_b7",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_c",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_k",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "calcium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chloride",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iron",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "magnesium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "phosphorus",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "potassium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sodium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iodine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "manganese",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "milk-edited-conversion",
+      "kind": "save",
+      "expected": {
+        "parser_route": "search",
+        "backend": "cofid",
+        "entry": "query",
+        "target_found": true,
+        "selected_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+        "handoff_value": 200,
+        "handoff_unit": "mL",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": true,
+        "conversion_applied": false,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 100,
+        "edible_unit": "mL",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "carbohydrates",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "protein",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_total",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_saturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fiber",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sugar",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "cholesterol",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_a",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "thiamin_b1",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "niacin_b3",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b6",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "biotin_b7",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_c",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_k",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "calcium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chloride",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iron",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "magnesium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "phosphorus",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "potassium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sodium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iodine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "manganese",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "milk-uht-no-offer",
+      "kind": "save",
+      "expected": {
+        "parser_route": "search",
+        "backend": "cofid",
+        "entry": "query",
+        "target_found": true,
+        "selected_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1684:e549680f66e3ad26",
+        "handoff_value": 200,
+        "handoff_unit": "mL",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": false,
+        "conversion_applied": false,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 200,
+        "edible_unit": "mL",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "carbohydrates",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "protein",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_total",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_saturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fiber",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sugar",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "cholesterol",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_a",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "thiamin_b1",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "niacin_b3",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b6",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "biotin_b7",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_c",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_k",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "calcium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chloride",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iron",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "magnesium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "phosphorus",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "potassium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sodium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iodine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "manganese",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "milk-usda-no-offer",
+      "kind": "save",
+      "expected": {
+        "parser_route": "search",
+        "backend": "usda",
+        "entry": "query",
+        "target_found": true,
+        "selected_record": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172217",
+        "handoff_value": 200,
+        "handoff_unit": "mL",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": false,
+        "conversion_applied": false,
+        "reopen_preserved": true,
+        "validation": "saved",
+        "error": "",
+        "edible_value": 200,
+        "edible_unit": "mL",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "original_preserved": true,
+        "provenance_preserved": true,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "carbohydrates",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "protein",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_total",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_saturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "fiber",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sugar",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "cholesterol",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_a",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "thiamin_b1",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "niacin_b3",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b6",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "biotin_b7",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_c",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_k",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "calcium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chloride",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iron",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "magnesium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "phosphorus",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "potassium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "sodium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "iodine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "manganese",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "milk-usda-unreviewed-amount",
+      "kind": "block",
+      "expected": {
+        "parser_route": "search",
+        "backend": "usda",
+        "entry": "query",
+        "target_found": true,
+        "selected_record": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172217",
+        "handoff_value": null,
+        "handoff_unit": "g",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": false,
+        "conversion_applied": false,
+        "reopen_preserved": false,
+        "validation": "blocked",
+        "error": "invalidQuantity",
+        "edible_value": null,
+        "edible_unit": null,
+        "saved_versions": 0,
+        "operations": 0,
+        "rows": 0,
+        "original_preserved": false,
+        "provenance_preserved": false,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "carbohydrates",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "protein",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_total",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_saturated",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fiber",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "sugar",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "cholesterol",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_a",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "thiamin_b1",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "niacin_b3",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b6",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "biotin_b7",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_c",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_k",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "calcium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "chloride",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "iron",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "magnesium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "phosphorus",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "potassium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "sodium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "iodine",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "manganese",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "usda-count-block",
+      "kind": "block",
+      "expected": {
+        "parser_route": "not_applicable",
+        "backend": "usda",
+        "entry": "list",
+        "target_found": true,
+        "selected_record": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+        "handoff_value": 2,
+        "handoff_unit": "count",
+        "initially_undecided": true,
+        "preaccept_blocked": true,
+        "generic_estimate": true,
+        "conversion_offered": false,
+        "conversion_applied": false,
+        "reopen_preserved": false,
+        "validation": "blocked",
+        "error": "missingConversion",
+        "edible_value": null,
+        "edible_unit": null,
+        "saved_versions": 0,
+        "operations": 0,
+        "rows": 0,
+        "original_preserved": false,
+        "provenance_preserved": false,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "carbohydrates",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "protein",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_total",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_saturated",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fiber",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "sugar",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "cholesterol",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_a",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "thiamin_b1",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "niacin_b3",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b6",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "biotin_b7",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_c",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_k",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "calcium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "chloride",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "iron",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "magnesium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "phosphorus",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "potassium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "sodium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "iodine",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "manganese",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          }
+        ]
+      }
+    }
+  ]
+}

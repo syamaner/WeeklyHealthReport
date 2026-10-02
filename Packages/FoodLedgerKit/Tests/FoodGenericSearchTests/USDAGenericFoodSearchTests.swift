@@ -55,6 +55,59 @@ final class USDAGenericFoodSearchTests: XCTestCase {
         XCTAssertTrue(syrup.matches.allSatisfy { $0.candidate.name.value.lowercased().contains("syrup") })
     }
 
+    func testBothAdaptersPreserveSeedIdentityAndRejectDerivativeOnlyMatches() throws {
+        let sources: [any GenericFoodSearching] = [try CoFIDGenericFoodSearch(ids: USDASequenceIDs()), try USDAGenericFoodSearch(ids: USDASequenceIDs())]
+        for source in sources {
+            var records: [[String]] = []
+            for query in ["pumpkin seed", "pumpkin seeds"] {
+                guard case let .confirmation(route) = try source.search(request(query)) else { return XCTFail("Expected seed records") }
+                XCTAssertEqual(route.confirmation.evidence.first?.originalPayload, .text(try LedgerText(query)))
+                records.append(route.matches.map { $0.candidate.candidate.recordID.value })
+                XCTAssertTrue(route.matches.allSatisfy { $0.candidate.candidate.matchMetadata?.selectionPolicy.value == "explicit_user_selection_v1" })
+            }
+            XCTAssertEqual(records[0], records[1])
+            guard case let .noResult(miss) = try source.search(request("hot dog")) else { return XCTFail("Derivative foods cannot stand in for the requested food") }
+            XCTAssertEqual(miss.evidence.originalPayload, .text(try LedgerText("hot dog")))
+        }
+        let usda = try USDAGenericFoodSearch(ids: USDASequenceIDs())
+        guard case let .confirmation(relish) = try usda.search(request("hot dog relish")) else { return XCTFail("Explicitly requested relish must remain searchable") }
+        XCTAssertTrue(relish.matches.allSatisfy { $0.candidate.name.value.lowercased().contains("relish") })
+        guard case let .confirmation(seeds) = try usda.search(request("chia seed")) else { return XCTFail("Expected literal chia seed source") }
+        XCTAssertTrue(seeds.matches.allSatisfy { $0.candidate.name.value.lowercased().contains("chia") })
+        guard case .noResult = try usda.search(request("chia seed", identity: GenericFoodIdentityQuery(preparation: try PreparationState(kind: .cooked)))) else { return XCTFail("Lexical equivalence cannot override preparation") }
+    }
+
+    func testSlicedSourceRetrievalKeepsUnknownPreparationAndOriginalEvidence() throws {
+        let source = try USDAGenericFoodSearch(ids: USDASequenceIDs())
+        for text in ["roast beef slice", "roast beef slices"] {
+            guard case let .confirmation(route) = try source.search(request(text)) else { return XCTFail("Expected sliced source record") }
+            let target = try XCTUnwrap(route.matches.first { $0.candidate.candidate.recordID.value.hasSuffix(":fdc:174570") })
+            XCTAssertEqual(target.candidate.candidate.identity.preparation.kind, .unknown)
+            XCTAssertEqual(route.confirmation.evidence.first?.originalPayload, .text(try LedgerText(text)))
+            XCTAssertEqual(target.candidate.candidate.matchMetadata?.selectionPolicy.value, "explicit_user_selection_v1")
+            for preparation in [PreparationKind.raw, .cooked] {
+                guard case .noResult = try source.search(request(text, identity: GenericFoodIdentityQuery(preparation: try PreparationState(kind: preparation)))) else { return XCTFail("Unknown preparation cannot satisfy a requested state") }
+            }
+        }
+        let parsed = try XCTUnwrap(FoodListParser.parse("75 g roast beef slices").first)
+        let ids = USDASequenceIDs()
+        let draft = FoodListLineDraft(parsed: parsed, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        let service = FoodListImportService(searcher: source)
+        guard case .unresolved = try service.search(draft, at: Date(timeIntervalSince1970: 1_700_000_000), locale: LedgerText("en_GB")) else { return XCTFail("List preparation cannot bypass unknown source metadata") }
+    }
+
+    func testBothAdaptersKeepExplicitSliceAndContradictoryMethodConstraints() throws {
+        let sources: [any GenericFoodSearching] = [try CoFIDGenericFoodSearch(ids: USDASequenceIDs()), try USDAGenericFoodSearch(ids: USDASequenceIDs())]
+        for source in sources {
+            guard case .noResult = try source.search(request("roast turkey slices")) else { return XCTFail("A whole roast source does not declare a sliced form") }
+            if case let .confirmation(route) = try source.search(request("roast turkey", identity: GenericFoodIdentityQuery(preparation: try PreparationState(kind: .raw)))) {
+                // A raw turkey roast is a named cut, not an asserted cooked record.
+                XCTAssertTrue(route.matches.allSatisfy { $0.candidate.candidate.identity.preparation.kind == .raw })
+                XCTAssertFalse(route.matches.contains { $0.candidate.name.value.lowercased().contains("roasted") })
+            }
+        }
+    }
+
     private func request(_ text: String, identity: GenericFoodIdentityQuery = GenericFoodIdentityQuery()) throws -> GenericFoodSearchRequest {
         GenericFoodSearchRequest(text: try LedgerText(text), identity: identity, capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: try LedgerText("en_GB"))
     }

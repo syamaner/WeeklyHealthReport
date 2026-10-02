@@ -1,0 +1,16 @@
+{
+  "version": "nutrition-extraction-contract-v2",
+  "development_requests": 20,
+  "holdouts_used": false,
+  "sha256": {
+    "corpus-v1.json": "5a566079a1f5a8c458a95c04b6885bc167d626b3d0809e8b6e1c78c137c5ae78",
+    "prompt-v2.txt": "eabcbee133716ac1b2466128f75c1fa62194c558a3c7f3f9bd05942a5c92c622",
+    "response-schema-v2.json": "309758f2f6b6d7ca15c62aab9cb0483d1a418a5bb9e519c6b316fd56bf479bee",
+    "candidate_v2.py": "981b1b06187b44025ce1cffa1ebd6960dbed7503bbc6f372be74feb971fb0368",
+    "fetch_documents.py": "3b5f48b70f55ee1aaa14b0a2d434d9f4ba8ccd5992355970b46017c5a4e2e1ed",
+    "collect.py": "e190d28230a43c0082b8b29c18013ee689dc15f9b32853fffac54f2c2ff2f401",
+    "evaluate.py": "d3543a5e5301a06ce22ab6e41a267dc541607e7f98dff2370b1230f3fadc8920",
+    "experiment-v2.md": "3375d0861f7bf0f2a8a83a2a20eed2f261e90fecde43ddab3d38ad1a6de21bac"
+  },
+  "document_manifest_sha256": "4575094df6d977a117cad13256638cf5b286c8f127aa02d9d94b6bc1ffa68537"
+}

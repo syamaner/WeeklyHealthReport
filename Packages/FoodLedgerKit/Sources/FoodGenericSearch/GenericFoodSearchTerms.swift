@@ -4,7 +4,7 @@ import FoodLedgerApplication
 /// Retrieval-only spelling equivalents. Original evidence and identity are unchanged.
 /// Complete token coverage is required; these terms never infer a recipe or a cut.
 enum GenericFoodSearchTerms {
-    static let version = "food-lexical-terms-v6"
+    static let version = "food-lexical-terms-v8"
     static func tokens(_ text: String) -> Set<String> { Set(terms(text)) }
     private static func terms(_ text: String) -> [String] { GenericFoodRankingPolicy.terms(text) }
 

@@ -1,0 +1,95 @@
+[
+  {
+    "id": "cofid-sirloin",
+    "result": {
+      "status": "verified",
+      "reason": "exact_admitted_record",
+      "conflicts": [],
+      "record": {
+        "family": "cofid",
+        "id": "18-070",
+        "name": "Beef, sirloin steak, grilled medium-rare, lean",
+        "preparation": "cooked",
+        "reviewed_name_aliases": [
+          "Beef, sirloin steak, grilled medium-rare, lean only"
+        ],
+        "release_record_id": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0248:9790a443fbd45bc1",
+        "basis_amount": 100,
+        "basis_unit": "g",
+        "nutrients": {
+          "energy_kcal": {
+            "value": 176.0,
+            "unit": "kcal"
+          },
+          "protein": {
+            "value": 26.6,
+            "unit": "g"
+          },
+          "fat": {
+            "value": 7.7,
+            "unit": "g"
+          }
+        }
+      },
+      "requires_user_confirmation": true
+    },
+    "expected_status": "verified",
+    "passed": true
+  },
+  {
+    "id": "usda-sirloin",
+    "result": {
+      "status": "conflicting_claims",
+      "reason": "claimed_values_not_supported",
+      "conflicts": [
+        "protein"
+      ],
+      "record": {
+        "family": "usda-sr",
+        "id": "169457",
+        "name": "Beef, top sirloin, steak, separable lean and fat, trimmed to 0\" fat, all grades, cooked, broiled",
+        "preparation": "cooked",
+        "release_record_id": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:169457",
+        "basis_amount": 100,
+        "basis_unit": "g",
+        "nutrients": {
+          "energy_kcal": {
+            "value": 212,
+            "unit": "kcal"
+          },
+          "protein": {
+            "value": 29.3,
+            "unit": "g"
+          },
+          "fat": {
+            "value": 9.67,
+            "unit": "g"
+          }
+        }
+      },
+      "requires_user_confirmation": true
+    },
+    "expected_status": "conflicting_claims",
+    "passed": true
+  },
+  {
+    "id": "soup-2707462",
+    "result": {
+      "status": "unresolved",
+      "reason": "missing_or_ambiguous_record",
+      "record": null
+    },
+    "expected_status": "unresolved",
+    "passed": true
+  },
+  {
+    "id": "soup-2707460",
+    "result": {
+      "status": "unresolved",
+      "reason": "missing_or_ambiguous_record",
+      "record": null
+    },
+    "expected_status": "unresolved",
+    "passed": true
+  }
+]

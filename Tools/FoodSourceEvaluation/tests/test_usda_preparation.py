@@ -6,6 +6,11 @@ sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from project_usda import preparation_from_description,PREPARATION_POLICY
 
 class PreparationTests(unittest.TestCase):
+ def test_roast_noun_and_sliced_form_do_not_assert_cooked(self):
+  for name in ('Roast beef, deli style, prepackaged, sliced','Turkey, sliced','Beef, roast, raw'):
+   self.assertEqual(preparation_from_description(name),'raw' if name.endswith(', raw') else 'unknown')
+  self.assertEqual(preparation_from_description('Turkey, cooked, roasted'),'cooked')
+  self.assertEqual(preparation_from_description('Turkey, not roasted, sliced'),'unknown')
  def test_uncooked_is_not_cooked_substring(self):
   for name in ('Quinoa, uncooked','Rice, white, uncooked','Tripe uncooked, raw'):
    self.assertEqual(preparation_from_description(name),'raw')

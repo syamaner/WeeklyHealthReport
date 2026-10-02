@@ -1,0 +1,12 @@
+{
+  "version": "nutrition-extraction-contract-v1",
+  "frozen_on": "2026-09-28",
+  "development_cases": 12,
+  "holdout_cases": 4,
+  "planned_requests": 20,
+  "sha256": {
+    "corpus-v1.json": "5a566079a1f5a8c458a95c04b6885bc167d626b3d0809e8b6e1c78c137c5ae78",
+    "prompt-v1.txt": "c9ea83ce2dcc662c671ce806b5c26a14ea92430885ebeff5bab3b0b32b476457",
+    "response-schema-v1.json": "3151030a33fe94dd3dd2d2357f1de0d60b9b4d61605e96d92295973b86d72525"
+  }
+}

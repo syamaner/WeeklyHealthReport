@@ -1,0 +1,34 @@
+{
+  "fetched_at": "2026-09-28T20:07:47.936028+00:00",
+  "extractor_sha256": "3b5f48b70f55ee1aaa14b0a2d434d9f4ba8ccd5992355970b46017c5a4e2e1ed",
+  "sources": {
+    "olympus": {
+      "selected_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html",
+      "retrieved_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html",
+      "html_sha256": "a7f4584146ba230709177ad3f3d01d31c89aac3c6646c685baadd8bb2ae125f6",
+      "text_sha256": "34b9300103f3c2da5b20d3a4bd86dc860aeaa021d52711baa4467f0a4cd9e5dd",
+      "outcome": "fetched"
+    },
+    "grahams": {
+      "selected_url": "https://www.grahamsfamilydairy.com/our-products/grahams-milk/whole-milk/",
+      "retrieved_url": "https://www.grahamsfamilydairy.com/our-products/grahams-milk/whole-milk/",
+      "html_sha256": "73420c7a5ed184b1947b5693b03c8b9f6e52da83b926993d717b9339e6aa0af1",
+      "text_sha256": "6f826538d961a96740121a7c17bf1b843e764d8384f97b6b6b8ebb4e979dfba5",
+      "outcome": "fetched"
+    },
+    "mccain": {
+      "selected_url": "https://www.mccain.co.uk/home-chips-straight-cut/",
+      "retrieved_url": "https://www.mccain.co.uk/home-chips-straight-cut/",
+      "html_sha256": "812fbf2fe360f2df69cf98988dd2aadc0ce439627bfdbbe072c0bb17d40d9804",
+      "text_sha256": "71385adfcfe4c41eb72f905fcc136772a3370786d9e94a74bc2b01bccdc19284",
+      "outcome": "fetched"
+    },
+    "cspi": {
+      "selected_url": "https://www.cspi.org/recipe/tomato-lentil-soup",
+      "retrieved_url": "https://www.cspi.org/recipe/tomato-lentil-soup",
+      "html_sha256": "44fc580e03eabf2a34b8b4da7b0d2e1a45c9a6991f65bbb493660d326547c590",
+      "text_sha256": "22b428e440cf947f27b29c6cc8e8f0a39413a6f55e0bccfbdbf639dbeb7f0c01",
+      "outcome": "fetched"
+    }
+  }
+}

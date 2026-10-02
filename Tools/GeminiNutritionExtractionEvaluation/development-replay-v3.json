@@ -1,0 +1,3327 @@
+{
+  "version": "nutrition-v3-replay",
+  "model": "gemini-3.8-flash",
+  "contract": {
+    "version": "nutrition-contract-v3",
+    "development_requests": 20,
+    "conditional_holdout_requests": 4,
+    "sha256": {
+      "frozen-contract-v2.json": "e2577e4b122c75eee7111d072fd3c64a9bfd6f25dc4e45b0aa5375adc1016cd5",
+      "candidate_v3.py": "6ba1f4fee295fda6413b849a8cb6b85c88326fd0c64552cd942948bd3017d11d",
+      "prompt-v3.txt": "090fa34ac2e89e1f6957e11e18f46b7aaa8ea0a32fe6db1ca2b01da96734cefe",
+      "response-schema-v3.json": "7e49f5504866005c29e0c1554a4212016d92dcac8dcc680fa6b91bb88c0d21b5",
+      "evidence_binding.py": "476a5b333d042c6ae965bd9e55e9ec029cfc0db64d6308048bf902fa733fea34",
+      "resolve_discovery.py": "b864b39d59f68f27d4e505ba51a8a0991196c19545c4f667bda7d2bf11e66d53",
+      "resolution-cases-v3.json": "c0ddd4d0736f9087aeeb5208b400dd387983cb71484c37108838ae1de0553a89",
+      "experiment-v3.md": "b054e64fa781ea46a6c0dc9a581b71d889aa35a1a9a123325cb88f45946d9973",
+      "../../Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/cofid-2021-generic-search-v1.json": "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445",
+      "../../Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/usda-generic-v1.json": "70480d2c58bac9fcf9646b3b66c70be00e52398695536cef0af129ea1528e4c7"
+    }
+  },
+  "split": "development",
+  "started_at": "2026-09-28T20:21:55.249703+00:00",
+  "results": [
+    {
+      "case_id": "n01",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100.0,
+        "basis_unit": "g",
+        "preparation": "as_sold",
+        "nutrients": [
+          {
+            "id": "energy_kj",
+            "state": "declared",
+            "value": 557.0,
+            "unit": "kJ",
+            "operator": "=",
+            "evidence": "Energy: 557 kJ",
+            "evidence_line": null
+          },
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 134.0,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "134 kcal",
+            "evidence_line": null
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 10.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Fat: 10.0 g",
+            "evidence_line": null
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 6.2,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Saturates: 6.2 g",
+            "evidence_line": null
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 4.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Carbohydrate: 4.0 g",
+            "evidence_line": null
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 4.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Sugars: 4.0 g",
+            "evidence_line": null
+          },
+          {
+            "id": "fibre",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 7.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Protein: 7.0 g",
+            "evidence_line": null
+          },
+          {
+            "id": "salt",
+            "state": "declared",
+            "value": 0.18,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Salt: 0.18 g",
+            "evidence_line": null
+          },
+          {
+            "id": "calcium",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Successfully extracted nutrition values per 100 g from the panel evidence.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "olympus",
+          "source_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html",
+          "content_sha256": "ff36061dfae7b9aee324d36b8b5edbb2c977d5c145f3b6836f0f03eb7dac5430",
+          "request_sha256": "2aeea200d3da429c49087eeabe846af48e38510f208a42d0f72179708166fc61"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100.0,
+          "basis_unit": "g",
+          "preparation": "as_sold",
+          "nutrients": [
+            {
+              "id": "energy_kj",
+              "state": "declared",
+              "value": 557.0,
+              "unit": "kJ",
+              "operator": "=",
+              "evidence": "Energy: 557 kJ",
+              "evidence_line": null
+            },
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 134.0,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "134 kcal",
+              "evidence_line": null
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 10.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Fat: 10.0 g",
+              "evidence_line": null
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 6.2,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Saturates: 6.2 g",
+              "evidence_line": null
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 4.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Carbohydrate: 4.0 g",
+              "evidence_line": null
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 4.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Sugars: 4.0 g",
+              "evidence_line": null
+            },
+            {
+              "id": "fibre",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 7.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Protein: 7.0 g",
+              "evidence_line": null
+            },
+            {
+              "id": "salt",
+              "state": "declared",
+              "value": 0.18,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Salt: 0.18 g",
+              "evidence_line": null
+            },
+            {
+              "id": "calcium",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Successfully extracted nutrition values per 100 g from the panel evidence.",
+          "applicability": "source_record",
+          "source_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 2096,
+        "total_input_tokens": 1330,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 766,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 1927
+      }
+    },
+    {
+      "case_id": "n02",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "identity_mismatch",
+        "basis_amount": null,
+        "basis_unit": null,
+        "preparation": null,
+        "nutrients": [],
+        "reason": "Requested product variant is 0% Fat, but evidence panel is for Olympus Greek Yogurt 10% Fat.",
+        "applicability": "unresolved"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "olympus",
+          "source_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html",
+          "content_sha256": "ff36061dfae7b9aee324d36b8b5edbb2c977d5c145f3b6836f0f03eb7dac5430",
+          "request_sha256": "ec911f3b54a3c3019243cc25eaa47449f4da4f3d29afdc34144a255c1835fd73"
+        },
+        "extraction": {
+          "status": "identity_mismatch",
+          "basis_amount": null,
+          "basis_unit": null,
+          "preparation": null,
+          "nutrients": [],
+          "reason": "Requested product variant is 0% Fat, but evidence panel is for Olympus Greek Yogurt 10% Fat.",
+          "applicability": "unresolved",
+          "source_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 1534,
+        "total_input_tokens": 1329,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 85,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 120,
+        "raw_prompt_token": 1926
+      }
+    },
+    {
+      "case_id": "n03",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100,
+        "basis_unit": "ml",
+        "preparation": "as_sold",
+        "nutrients": [
+          {
+            "id": "energy_kj",
+            "state": "declared",
+            "value": 280,
+            "unit": "kJ",
+            "operator": "=",
+            "evidence": "Energy: 280 kJ",
+            "evidence_line": null
+          },
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 65,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "65 kcal",
+            "evidence_line": null
+          },
+          {
+            "id": "fat",
+            "state": "bounded",
+            "value": 3.5,
+            "unit": "%",
+            "operator": ">=",
+            "evidence": "Fat: 3.5% minimum",
+            "evidence_line": null
+          },
+          {
+            "id": "saturates",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 4.9,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Carbohydrate: 4.9 g",
+            "evidence_line": null
+          },
+          {
+            "id": "sugars",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "fibre",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 3.4,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Protein: 3.4 g",
+            "evidence_line": null
+          },
+          {
+            "id": "salt",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "calcium",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Successfully extracted declared nutrients per 100 ml for Graham's Whole Milk.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "grahams",
+          "source_url": "https://www.grahamsfamilydairy.com/our-products/grahams-milk/whole-milk/",
+          "content_sha256": "51673b49989a1e408f59113b9a1adf5f2c565555910a28b958769ca29a11f170",
+          "request_sha256": "f626d82ad15bf8845609ff4d3aec2d6d7c7b523a9fafb770d8f5722455a395eb"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100,
+          "basis_unit": "ml",
+          "preparation": "as_sold",
+          "nutrients": [
+            {
+              "id": "energy_kj",
+              "state": "declared",
+              "value": 280,
+              "unit": "kJ",
+              "operator": "=",
+              "evidence": "Energy: 280 kJ",
+              "evidence_line": null
+            },
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 65,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "65 kcal",
+              "evidence_line": null
+            },
+            {
+              "id": "fat",
+              "state": "bounded",
+              "value": 3.5,
+              "unit": "%",
+              "operator": ">=",
+              "evidence": "Fat: 3.5% minimum",
+              "evidence_line": null
+            },
+            {
+              "id": "saturates",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 4.9,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Carbohydrate: 4.9 g",
+              "evidence_line": null
+            },
+            {
+              "id": "sugars",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "fibre",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 3.4,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Protein: 3.4 g",
+              "evidence_line": null
+            },
+            {
+              "id": "salt",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "calcium",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Successfully extracted declared nutrients per 100 ml for Graham's Whole Milk.",
+          "applicability": "source_record",
+          "source_url": "https://www.grahamsfamilydairy.com/our-products/grahams-milk/whole-milk/"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 2018,
+        "total_input_tokens": 1297,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 721,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 1894
+      }
+    },
+    {
+      "case_id": "n04",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100,
+        "basis_unit": "g",
+        "preparation": "frozen",
+        "nutrients": [
+          {
+            "id": "energy_kj",
+            "state": "declared",
+            "value": 599,
+            "unit": "kJ",
+            "operator": "=",
+            "evidence": "Frozen Energy kJ: 599",
+            "evidence_line": null
+          },
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 143,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "Frozen Energy kcal: 143",
+            "evidence_line": null
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 5.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Frozen Fat g: 5.0",
+            "evidence_line": null
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 0.6,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Frozen Saturates g: 0.6",
+            "evidence_line": null
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 21,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Frozen Carbohydrate g: 21",
+            "evidence_line": null
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 0.5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Frozen Sugars g: 0.5",
+            "evidence_line": null
+          },
+          {
+            "id": "fibre",
+            "state": "declared",
+            "value": 1.8,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Frozen Fibre g: 1.8",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 2.3,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Frozen Protein g: 2.3",
+            "evidence_line": null
+          },
+          {
+            "id": "salt",
+            "state": "declared",
+            "value": 0.19,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Frozen Salt g: 0.19",
+            "evidence_line": null
+          },
+          {
+            "id": "calcium",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Declared nutrition extracted from the Frozen column per 100 g for McCain Home Chips Straight Cut.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "mccain",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/",
+          "content_sha256": "8b46901e4eb58dc46aba643d9315eb54e28598dc825525d2e989b0b484cb6da6",
+          "request_sha256": "8f89506603633799064891ffbd89ba4f7549e8b7a313e6d88505c236486d2acb"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100,
+          "basis_unit": "g",
+          "preparation": "frozen",
+          "nutrients": [
+            {
+              "id": "energy_kj",
+              "state": "declared",
+              "value": 599,
+              "unit": "kJ",
+              "operator": "=",
+              "evidence": "Frozen Energy kJ: 599",
+              "evidence_line": null
+            },
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 143,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "Frozen Energy kcal: 143",
+              "evidence_line": null
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 5.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Frozen Fat g: 5.0",
+              "evidence_line": null
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 0.6,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Frozen Saturates g: 0.6",
+              "evidence_line": null
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 21,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Frozen Carbohydrate g: 21",
+              "evidence_line": null
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 0.5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Frozen Sugars g: 0.5",
+              "evidence_line": null
+            },
+            {
+              "id": "fibre",
+              "state": "declared",
+              "value": 1.8,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Frozen Fibre g: 1.8",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 2.3,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Frozen Protein g: 2.3",
+              "evidence_line": null
+            },
+            {
+              "id": "salt",
+              "state": "declared",
+              "value": 0.19,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Frozen Salt g: 0.19",
+              "evidence_line": null
+            },
+            {
+              "id": "calcium",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Declared nutrition extracted from the Frozen column per 100 g for McCain Home Chips Straight Cut.",
+          "applicability": "source_record",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 2260,
+        "total_input_tokens": 1480,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 780,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 2077
+      }
+    },
+    {
+      "case_id": "n05",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100,
+        "basis_unit": "g",
+        "preparation": "oven_baked",
+        "nutrients": [
+          {
+            "id": "energy_kj",
+            "state": "declared",
+            "value": 846,
+            "unit": "kJ",
+            "operator": "=",
+            "evidence": "Energy kJ: 599 | 846 | 924",
+            "evidence_line": null
+          },
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 202,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "Energy kcal: 143 | 202 | 220",
+            "evidence_line": null
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 7.2,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Fat g: 5.0 | 7.2 | 7.8",
+            "evidence_line": null
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 0.9,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Saturates g: 0.6 | 0.9 | 0.9",
+            "evidence_line": null
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 30,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Carbohydrate g: 21 | 30 | 33",
+            "evidence_line": null
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 0.5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Sugars g: 0.5 | 0.5 | 0.5",
+            "evidence_line": null
+          },
+          {
+            "id": "fibre",
+            "state": "declared",
+            "value": 2.7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Fibre g: 1.8 | 2.7 | 3.2",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 3.2,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Protein g: 2.3 | 3.2 | 3.0",
+            "evidence_line": null
+          },
+          {
+            "id": "salt",
+            "state": "declared",
+            "value": 0.27,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Salt g: 0.19 | 0.27 | 0.30",
+            "evidence_line": null
+          },
+          {
+            "id": "calcium",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Extracted declared nutrition for McCain Home Chips Straight Cut per 100 g oven baked.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "mccain",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/",
+          "content_sha256": "8b46901e4eb58dc46aba643d9315eb54e28598dc825525d2e989b0b484cb6da6",
+          "request_sha256": "2a2003e772c2ea3fb789a6e92d362017568abe1c26a04ab4fa613d84dbe00a2a"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100,
+          "basis_unit": "g",
+          "preparation": "oven_baked",
+          "nutrients": [
+            {
+              "id": "energy_kj",
+              "state": "declared",
+              "value": 846,
+              "unit": "kJ",
+              "operator": "=",
+              "evidence": "Energy kJ: 599 | 846 | 924",
+              "evidence_line": null
+            },
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 202,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "Energy kcal: 143 | 202 | 220",
+              "evidence_line": null
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 7.2,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Fat g: 5.0 | 7.2 | 7.8",
+              "evidence_line": null
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 0.9,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Saturates g: 0.6 | 0.9 | 0.9",
+              "evidence_line": null
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 30,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Carbohydrate g: 21 | 30 | 33",
+              "evidence_line": null
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 0.5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Sugars g: 0.5 | 0.5 | 0.5",
+              "evidence_line": null
+            },
+            {
+              "id": "fibre",
+              "state": "declared",
+              "value": 2.7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Fibre g: 1.8 | 2.7 | 3.2",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 3.2,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Protein g: 2.3 | 3.2 | 3.0",
+              "evidence_line": null
+            },
+            {
+              "id": "salt",
+              "state": "declared",
+              "value": 0.27,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Salt g: 0.19 | 0.27 | 0.30",
+              "evidence_line": null
+            },
+            {
+              "id": "calcium",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Extracted declared nutrition for McCain Home Chips Straight Cut per 100 g oven baked.",
+          "applicability": "source_record",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 2347,
+        "total_input_tokens": 1482,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 865,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 2079
+      }
+    },
+    {
+      "case_id": "n06",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "ambiguous_basis",
+        "basis_amount": null,
+        "basis_unit": null,
+        "preparation": null,
+        "nutrients": [],
+        "reason": "Multiple preparation columns (Frozen, Oven Baked, Air Fryer) are available without a specified requested preparation.",
+        "applicability": "unresolved"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "mccain",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/",
+          "content_sha256": "8b46901e4eb58dc46aba643d9315eb54e28598dc825525d2e989b0b484cb6da6",
+          "request_sha256": "59cd0229ca7ce68ef03373e6da76841e2a95abd2b887097c8169287321ea3325"
+        },
+        "extraction": {
+          "status": "ambiguous_basis",
+          "basis_amount": null,
+          "basis_unit": null,
+          "preparation": null,
+          "nutrients": [],
+          "reason": "Multiple preparation columns (Frozen, Oven Baked, Air Fryer) are available without a specified requested preparation.",
+          "applicability": "unresolved",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 1775,
+        "total_input_tokens": 1479,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 83,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 213,
+        "raw_prompt_token": 2076
+      }
+    },
+    {
+      "case_id": "n07",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100,
+        "basis_unit": "g",
+        "preparation": "as_sold",
+        "nutrients": [
+          {
+            "id": "energy_kj",
+            "state": "declared",
+            "value": 80,
+            "unit": "kJ",
+            "operator": "=",
+            "evidence": "per 100 g: energy 80 kJ",
+            "evidence_line": null
+          },
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 19,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "19 kcal",
+            "evidence_line": null
+          },
+          {
+            "id": "fat",
+            "state": "bounded",
+            "value": 0.5,
+            "unit": "g",
+            "operator": "<",
+            "evidence": "fat <0.5 g",
+            "evidence_line": null
+          },
+          {
+            "id": "saturates",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "carbohydrate",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "sugars 0 g",
+            "evidence_line": null
+          },
+          {
+            "id": "fibre",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "salt",
+            "state": "declared",
+            "value": 0.1,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "salt 0.10 g",
+            "evidence_line": null
+          },
+          {
+            "id": "calcium",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Declared nutrition extracted per 100 g as sold; prompt injection in footer ignored.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "synthetic-bounds",
+          "source_url": null,
+          "content_sha256": "9922f6ec1ecbee1154b464f2771dde85eb6e58914aa71c3b01b89ddb6ba7b418",
+          "request_sha256": "1a13841a2b31bf152d311d304d216fa026735fdec47476067114fb7ecb169134"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100,
+          "basis_unit": "g",
+          "preparation": "as_sold",
+          "nutrients": [
+            {
+              "id": "energy_kj",
+              "state": "declared",
+              "value": 80,
+              "unit": "kJ",
+              "operator": "=",
+              "evidence": "per 100 g: energy 80 kJ",
+              "evidence_line": null
+            },
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 19,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "19 kcal",
+              "evidence_line": null
+            },
+            {
+              "id": "fat",
+              "state": "bounded",
+              "value": 0.5,
+              "unit": "g",
+              "operator": "<",
+              "evidence": "fat <0.5 g",
+              "evidence_line": null
+            },
+            {
+              "id": "saturates",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "carbohydrate",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "sugars 0 g",
+              "evidence_line": null
+            },
+            {
+              "id": "fibre",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "salt",
+              "state": "declared",
+              "value": 0.1,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "salt 0.10 g",
+              "evidence_line": null
+            },
+            {
+              "id": "calcium",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Declared nutrition extracted per 100 g as sold; prompt injection in footer ignored.",
+          "applicability": "source_record",
+          "source_url": null
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 2003,
+        "total_input_tokens": 1283,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 720,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 1880
+      }
+    },
+    {
+      "case_id": "n08",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "ambiguous_basis",
+        "basis_amount": null,
+        "basis_unit": null,
+        "preparation": null,
+        "nutrients": [],
+        "reason": "No nutrition denominator is declared for the reported nutrient values.",
+        "applicability": "unresolved"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "synthetic-no-basis",
+          "source_url": null,
+          "content_sha256": "d5f4f84c0702170721f5b2484dc9f140f8ce02d3824234b254eea00654dbb914",
+          "request_sha256": "60cc9c06b026e45b33fb8b73fd18ee5a797529636770d38447e115300c1f272a"
+        },
+        "extraction": {
+          "status": "ambiguous_basis",
+          "basis_amount": null,
+          "basis_unit": null,
+          "preparation": null,
+          "nutrients": [],
+          "reason": "No nutrition denominator is declared for the reported nutrient values.",
+          "applicability": "unresolved",
+          "source_url": null
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 1437,
+        "total_input_tokens": 1256,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 73,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 108,
+        "raw_prompt_token": 1853
+      }
+    },
+    {
+      "case_id": "n13",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 1,
+        "basis_unit": "cup",
+        "preparation": "cooked",
+        "nutrients": [
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 160,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "per 1 cup: energy 160 kcal",
+            "evidence_line": null
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "fat 5 g",
+            "evidence_line": null
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 1,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "saturates 1 g",
+            "evidence_line": null
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 21,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "carbohydrate 21 g",
+            "evidence_line": null
+          },
+          {
+            "id": "fibre",
+            "state": "declared",
+            "value": 7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "fibre 7 g",
+            "evidence_line": null
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "sugars 5 g",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "protein 7 g",
+            "evidence_line": null
+          },
+          {
+            "id": "sodium",
+            "state": "declared",
+            "value": 280,
+            "unit": "mg",
+            "operator": "=",
+            "evidence": "sodium 280 mg",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Extracted per 1 cup basis from CSPI Tomato Lentil Soup recipe as a representative estimate; gram scaling is unavailable without measured yield/density.",
+        "applicability": "representative"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "cspi",
+          "source_url": "https://www.cspi.org/recipe/tomato-lentil-soup",
+          "content_sha256": "6e873f9e40bd49d9f1b6a5876f99f743ed94af006819f0f3ec01feab3444c631",
+          "request_sha256": "0e3333032b54b8a07884ef2d93f6ab9cf9e8043828bfeeef8d1edcbac11efff0"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 1,
+          "basis_unit": "cup",
+          "preparation": "cooked",
+          "nutrients": [
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 160,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "per 1 cup: energy 160 kcal",
+              "evidence_line": null
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "fat 5 g",
+              "evidence_line": null
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 1,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "saturates 1 g",
+              "evidence_line": null
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 21,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "carbohydrate 21 g",
+              "evidence_line": null
+            },
+            {
+              "id": "fibre",
+              "state": "declared",
+              "value": 7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "fibre 7 g",
+              "evidence_line": null
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "sugars 5 g",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "protein 7 g",
+              "evidence_line": null
+            },
+            {
+              "id": "sodium",
+              "state": "declared",
+              "value": 280,
+              "unit": "mg",
+              "operator": "=",
+              "evidence": "sodium 280 mg",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Extracted per 1 cup basis from CSPI Tomato Lentil Soup recipe as a representative estimate; gram scaling is unavailable without measured yield/density.",
+          "applicability": "representative",
+          "source_url": "https://www.cspi.org/recipe/tomato-lentil-soup"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 1954,
+        "total_input_tokens": 1327,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 627,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 1924
+      }
+    },
+    {
+      "case_id": "n14",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 1,
+        "basis_unit": "cup",
+        "preparation": "cooked",
+        "nutrients": [
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 160,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "per 1 cup: energy 160 kcal",
+            "evidence_line": null
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "fat 5 g",
+            "evidence_line": null
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 1,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "saturates 1 g",
+            "evidence_line": null
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 21,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "carbohydrate 21 g",
+            "evidence_line": null
+          },
+          {
+            "id": "fibre",
+            "state": "declared",
+            "value": 7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "fibre 7 g",
+            "evidence_line": null
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "sugars 5 g",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "protein 7 g",
+            "evidence_line": null
+          },
+          {
+            "id": "sodium",
+            "state": "declared",
+            "value": 280,
+            "unit": "mg",
+            "operator": "=",
+            "evidence": "sodium 280 mg",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Extracted nutrition per 1 cup serving from CSPI recipe as a representative estimate; gram scaling is unavailable without measured yield/density.",
+        "applicability": "representative"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "cspi",
+          "source_url": "https://www.cspi.org/recipe/tomato-lentil-soup",
+          "content_sha256": "6e873f9e40bd49d9f1b6a5876f99f743ed94af006819f0f3ec01feab3444c631",
+          "request_sha256": "c2faeeaa300d98828caf6ad0ca7ca49264a1281f3d8db929e46d1003631912d5"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 1,
+          "basis_unit": "cup",
+          "preparation": "cooked",
+          "nutrients": [
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 160,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "per 1 cup: energy 160 kcal",
+              "evidence_line": null
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "fat 5 g",
+              "evidence_line": null
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 1,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "saturates 1 g",
+              "evidence_line": null
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 21,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "carbohydrate 21 g",
+              "evidence_line": null
+            },
+            {
+              "id": "fibre",
+              "state": "declared",
+              "value": 7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "fibre 7 g",
+              "evidence_line": null
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "sugars 5 g",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "protein 7 g",
+              "evidence_line": null
+            },
+            {
+              "id": "sodium",
+              "state": "declared",
+              "value": 280,
+              "unit": "mg",
+              "operator": "=",
+              "evidence": "sodium 280 mg",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Extracted nutrition per 1 cup serving from CSPI recipe as a representative estimate; gram scaling is unavailable without measured yield/density.",
+          "applicability": "representative",
+          "source_url": "https://www.cspi.org/recipe/tomato-lentil-soup"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 1970,
+        "total_input_tokens": 1346,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 624,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 1943
+      }
+    },
+    {
+      "case_id": "n15",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100,
+        "basis_unit": "g",
+        "preparation": "cooked",
+        "nutrients": [
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 176.0,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "Per 100 g: energy_kcal 176.0 kcal",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 26.6,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "protein 26.6 g",
+            "evidence_line": null
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 7.7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "fat 7.7 g",
+            "evidence_line": null
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 3.4,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "saturates 3.4 g",
+            "evidence_line": null
+          },
+          {
+            "id": "iron",
+            "state": "declared",
+            "value": 1.4,
+            "unit": "mg",
+            "operator": "=",
+            "evidence": "iron 1.4 mg",
+            "evidence_line": null
+          },
+          {
+            "id": "sodium",
+            "state": "declared",
+            "value": 65.0,
+            "unit": "mg",
+            "operator": "=",
+            "evidence": "sodium 65.0 mg",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Representative composition record for grilled medium-rare, lean sirloin steak. Not the user's exact meal.",
+        "applicability": "representative"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "cofid-sirloin",
+          "source_url": null,
+          "content_sha256": "5170bab05c07514e37e106f4e527e481c84c0666a6f401076b937f6dfad383d2",
+          "request_sha256": "250fd18e6e916f21b4101c732b1832e77c2ce6d469fe2774ef74af0457da6566"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100,
+          "basis_unit": "g",
+          "preparation": "cooked",
+          "nutrients": [
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 176.0,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "Per 100 g: energy_kcal 176.0 kcal",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 26.6,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "protein 26.6 g",
+              "evidence_line": null
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 7.7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "fat 7.7 g",
+              "evidence_line": null
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 3.4,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "saturates 3.4 g",
+              "evidence_line": null
+            },
+            {
+              "id": "iron",
+              "state": "declared",
+              "value": 1.4,
+              "unit": "mg",
+              "operator": "=",
+              "evidence": "iron 1.4 mg",
+              "evidence_line": null
+            },
+            {
+              "id": "sodium",
+              "state": "declared",
+              "value": 65.0,
+              "unit": "mg",
+              "operator": "=",
+              "evidence": "sodium 65.0 mg",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Representative composition record for grilled medium-rare, lean sirloin steak. Not the user's exact meal.",
+          "applicability": "representative",
+          "source_url": null
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 1878,
+        "total_input_tokens": 1365,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 513,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 1962
+      }
+    },
+    {
+      "case_id": "n16",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100.0,
+        "basis_unit": "g",
+        "preparation": "cooked",
+        "nutrients": [
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 176.0,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "Per 100 g: energy_kcal 176.0 kcal",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 26.6,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "protein 26.6 g",
+            "evidence_line": null
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 7.7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "fat 7.7 g",
+            "evidence_line": null
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 3.4,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "saturates 3.4 g",
+            "evidence_line": null
+          },
+          {
+            "id": "iron",
+            "state": "declared",
+            "value": 1.4,
+            "unit": "mg",
+            "operator": "=",
+            "evidence": "iron 1.4 mg",
+            "evidence_line": null
+          },
+          {
+            "id": "sodium",
+            "state": "declared",
+            "value": 65.0,
+            "unit": "mg",
+            "operator": "=",
+            "evidence": "sodium 65.0 mg",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Declared nutrients extracted from the explicitly selected CoFID composition record for cooked grilled medium-rare lean sirloin steak per 100 g.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "cofid-sirloin",
+          "source_url": null,
+          "content_sha256": "5170bab05c07514e37e106f4e527e481c84c0666a6f401076b937f6dfad383d2",
+          "request_sha256": "65b49f226be3ea7da8d2dc0f6a668a5a39e5204406d876b7b9dffa1752b6d040"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100.0,
+          "basis_unit": "g",
+          "preparation": "cooked",
+          "nutrients": [
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 176.0,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "Per 100 g: energy_kcal 176.0 kcal",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 26.6,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "protein 26.6 g",
+              "evidence_line": null
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 7.7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "fat 7.7 g",
+              "evidence_line": null
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 3.4,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "saturates 3.4 g",
+              "evidence_line": null
+            },
+            {
+              "id": "iron",
+              "state": "declared",
+              "value": 1.4,
+              "unit": "mg",
+              "operator": "=",
+              "evidence": "iron 1.4 mg",
+              "evidence_line": null
+            },
+            {
+              "id": "sodium",
+              "state": "declared",
+              "value": 65.0,
+              "unit": "mg",
+              "operator": "=",
+              "evidence": "sodium 65.0 mg",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Declared nutrients extracted from the explicitly selected CoFID composition record for cooked grilled medium-rare lean sirloin steak per 100 g.",
+          "applicability": "source_record",
+          "source_url": null
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 1903,
+        "total_input_tokens": 1380,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 523,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 1977
+      }
+    },
+    {
+      "case_id": "n01",
+      "arm": "document",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100.0,
+        "basis_unit": "g",
+        "preparation": "as_sold",
+        "nutrients": [
+          {
+            "id": "energy_kj",
+            "state": "declared",
+            "value": 557.0,
+            "unit": "kJ",
+            "operator": "=",
+            "evidence": "L25: 557kj / 134kcal",
+            "evidence_line": 25
+          },
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 134.0,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "L25: 557kj / 134kcal",
+            "evidence_line": 25
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 10.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L27: 10.0 g",
+            "evidence_line": 27
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 6.2,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L29: 6.2 g",
+            "evidence_line": 29
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 4.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L31: 4.0 g",
+            "evidence_line": 31
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 4.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L33: 4.0 g",
+            "evidence_line": 33
+          },
+          {
+            "id": "fibre",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 7.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L35: 7.0 g",
+            "evidence_line": 35
+          },
+          {
+            "id": "salt",
+            "state": "declared",
+            "value": 0.18,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L37: 0.18 g",
+            "evidence_line": 37
+          },
+          {
+            "id": "calcium",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Successfully extracted nutrition information per 100 g for Olympus Greek Yogurt 10% Fat from the provided document.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "olympus",
+          "source_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html",
+          "content_sha256": "34b9300103f3c2da5b20d3a4bd86dc860aeaa021d52711baa4467f0a4cd9e5dd",
+          "request_sha256": "6b5e80bfdd0f9726bc7539d5b1325cfbb09a952cd0eaca8831eabdb61be0d893"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100.0,
+          "basis_unit": "g",
+          "preparation": "as_sold",
+          "nutrients": [
+            {
+              "id": "energy_kj",
+              "state": "declared",
+              "value": 557.0,
+              "unit": "kJ",
+              "operator": "=",
+              "evidence": "L25: 557kj / 134kcal",
+              "evidence_line": 25
+            },
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 134.0,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "L25: 557kj / 134kcal",
+              "evidence_line": 25
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 10.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L27: 10.0 g",
+              "evidence_line": 27
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 6.2,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L29: 6.2 g",
+              "evidence_line": 29
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 4.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L31: 4.0 g",
+              "evidence_line": 31
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 4.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L33: 4.0 g",
+              "evidence_line": 33
+            },
+            {
+              "id": "fibre",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 7.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L35: 7.0 g",
+              "evidence_line": 35
+            },
+            {
+              "id": "salt",
+              "state": "declared",
+              "value": 0.18,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L37: 0.18 g",
+              "evidence_line": 37
+            },
+            {
+              "id": "calcium",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Successfully extracted nutrition information per 100 g for Olympus Greek Yogurt 10% Fat from the provided document.",
+          "applicability": "source_record",
+          "source_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 2981,
+        "total_input_tokens": 2164,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 817,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 2761
+      }
+    },
+    {
+      "case_id": "n02",
+      "arm": "document",
+      "model_extraction": {
+        "status": "identity_mismatch",
+        "basis_amount": null,
+        "basis_unit": null,
+        "preparation": null,
+        "nutrients": [],
+        "reason": "The document describes Olympus Greek Yogurt 10% Fat, which conflicts with the requested 0% Fat variant.",
+        "applicability": "unresolved"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "olympus",
+          "source_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html",
+          "content_sha256": "34b9300103f3c2da5b20d3a4bd86dc860aeaa021d52711baa4467f0a4cd9e5dd",
+          "request_sha256": "79d9b3876c86e4342243c2248753ffa349e3f5c7d6fb697ba8cb8089ef5b0b84"
+        },
+        "extraction": {
+          "status": "identity_mismatch",
+          "basis_amount": null,
+          "basis_unit": null,
+          "preparation": null,
+          "nutrients": [],
+          "reason": "The document describes Olympus Greek Yogurt 10% Fat, which conflicts with the requested 0% Fat variant.",
+          "applicability": "unresolved",
+          "source_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 2248,
+        "total_input_tokens": 2163,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 85,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 2760
+      }
+    },
+    {
+      "case_id": "n03",
+      "arm": "document",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100.0,
+        "basis_unit": "ml",
+        "preparation": "as_sold",
+        "nutrients": [
+          {
+            "id": "energy_kj",
+            "state": "declared",
+            "value": 280.0,
+            "unit": "kJ",
+            "operator": "=",
+            "evidence": "L71: Energy | 280 kJ / 65 kcal",
+            "evidence_line": 71
+          },
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 65.0,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "L71: Energy | 280 kJ / 65 kcal",
+            "evidence_line": 71
+          },
+          {
+            "id": "fat",
+            "state": "bounded",
+            "value": 3.5,
+            "unit": "%",
+            "operator": ">=",
+            "evidence": "L74: Fat | 3.5% min",
+            "evidence_line": 74
+          },
+          {
+            "id": "saturates",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 4.9,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L73: Carbohydrates | 4.9 g",
+            "evidence_line": 73
+          },
+          {
+            "id": "sugars",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "fibre",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 3.4,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L72: Protein | 3.4 g",
+            "evidence_line": 72
+          },
+          {
+            "id": "salt",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          },
+          {
+            "id": "calcium",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Successfully extracted declared nutrients per 100ml from the Graham's Whole Milk product page.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "grahams",
+          "source_url": "https://www.grahamsfamilydairy.com/our-products/grahams-milk/whole-milk/",
+          "content_sha256": "6f826538d961a96740121a7c17bf1b843e764d8384f97b6b6b8ebb4e979dfba5",
+          "request_sha256": "c4b6457190011171578a8fc5bbd8eddf34fa8b597dd9db462cd3090d7bab220d"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100.0,
+          "basis_unit": "ml",
+          "preparation": "as_sold",
+          "nutrients": [
+            {
+              "id": "energy_kj",
+              "state": "declared",
+              "value": 280.0,
+              "unit": "kJ",
+              "operator": "=",
+              "evidence": "L71: Energy | 280 kJ / 65 kcal",
+              "evidence_line": 71
+            },
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 65.0,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "L71: Energy | 280 kJ / 65 kcal",
+              "evidence_line": 71
+            },
+            {
+              "id": "fat",
+              "state": "bounded",
+              "value": 3.5,
+              "unit": "%",
+              "operator": ">=",
+              "evidence": "L74: Fat | 3.5% min",
+              "evidence_line": 74
+            },
+            {
+              "id": "saturates",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 4.9,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L73: Carbohydrates | 4.9 g",
+              "evidence_line": 73
+            },
+            {
+              "id": "sugars",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "fibre",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 3.4,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L72: Protein | 3.4 g",
+              "evidence_line": 72
+            },
+            {
+              "id": "salt",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            },
+            {
+              "id": "calcium",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Successfully extracted declared nutrients per 100ml from the Graham's Whole Milk product page.",
+          "applicability": "source_record",
+          "source_url": "https://www.grahamsfamilydairy.com/our-products/grahams-milk/whole-milk/"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 3232,
+        "total_input_tokens": 2459,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 773,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 3056
+      }
+    },
+    {
+      "case_id": "n04",
+      "arm": "document",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100.0,
+        "basis_unit": "g",
+        "preparation": "frozen",
+        "nutrients": [
+          {
+            "id": "energy_kj",
+            "state": "declared",
+            "value": 599.0,
+            "unit": "kJ",
+            "operator": "=",
+            "evidence": "Energy (kJ) | 599",
+            "evidence_line": 97
+          },
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 143.0,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "Energy (kcal) | 143",
+            "evidence_line": 98
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 5.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Fat | 5.0g",
+            "evidence_line": 99
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 0.6,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Of which Saturates | 0.6g",
+            "evidence_line": 100
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 21.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Carbohydrates | 21g",
+            "evidence_line": 101
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 0.5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Of which Sugars | 0.5g",
+            "evidence_line": 102
+          },
+          {
+            "id": "fibre",
+            "state": "declared",
+            "value": 1.8,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Fibre | 1.8g",
+            "evidence_line": 103
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 2.3,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Protein | 2.3g",
+            "evidence_line": 104
+          },
+          {
+            "id": "salt",
+            "state": "declared",
+            "value": 0.19,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Salt | 0.19g",
+            "evidence_line": 105
+          },
+          {
+            "id": "calcium",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Declared nutrition extracted from the 'PER 100g FROZEN' column.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "mccain",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/",
+          "content_sha256": "71385adfcfe4c41eb72f905fcc136772a3370786d9e94a74bc2b01bccdc19284",
+          "request_sha256": "325ccbec60dc5f1aaa90ef0812a130f5b2066e604a2dcc111408f7226ad35b07"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100.0,
+          "basis_unit": "g",
+          "preparation": "frozen",
+          "nutrients": [
+            {
+              "id": "energy_kj",
+              "state": "declared",
+              "value": 599.0,
+              "unit": "kJ",
+              "operator": "=",
+              "evidence": "Energy (kJ) | 599",
+              "evidence_line": 97
+            },
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 143.0,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "Energy (kcal) | 143",
+              "evidence_line": 98
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 5.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Fat | 5.0g",
+              "evidence_line": 99
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 0.6,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Of which Saturates | 0.6g",
+              "evidence_line": 100
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 21.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Carbohydrates | 21g",
+              "evidence_line": 101
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 0.5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Of which Sugars | 0.5g",
+              "evidence_line": 102
+            },
+            {
+              "id": "fibre",
+              "state": "declared",
+              "value": 1.8,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Fibre | 1.8g",
+              "evidence_line": 103
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 2.3,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Protein | 2.3g",
+              "evidence_line": 104
+            },
+            {
+              "id": "salt",
+              "state": "declared",
+              "value": 0.19,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Salt | 0.19g",
+              "evidence_line": 105
+            },
+            {
+              "id": "calcium",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Declared nutrition extracted from the 'PER 100g FROZEN' column.",
+          "applicability": "source_record",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 4200,
+        "total_input_tokens": 3390,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 810,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 3987
+      }
+    },
+    {
+      "case_id": "n05",
+      "arm": "document",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100.0,
+        "basis_unit": "g",
+        "preparation": "oven_baked",
+        "nutrients": [
+          {
+            "id": "energy_kj",
+            "state": "declared",
+            "value": 846.0,
+            "unit": "kJ",
+            "operator": "=",
+            "evidence": "L97: Energy (kJ) | 599 | 846 | 924",
+            "evidence_line": 97
+          },
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 202.0,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "L98: Energy (kcal) | 143 | 202 | 220",
+            "evidence_line": 98
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 7.2,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L99: Fat | 5.0g | 7.2g | 7.8g",
+            "evidence_line": 99
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 0.9,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L100: Of which Saturates | 0.6g | 0.9g | 0.9g",
+            "evidence_line": 100
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 30.0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L101: Carbohydrates | 21g | 30g | 33g",
+            "evidence_line": 101
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 0.5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L102: Of which Sugars | 0.5g | 0.5g | 0.5g",
+            "evidence_line": 102
+          },
+          {
+            "id": "fibre",
+            "state": "declared",
+            "value": 2.7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L103: Fibre | 1.8g | 2.7g | 3.2g",
+            "evidence_line": 103
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 3.2,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L104: Protein | 2.3g | 3.2g | 3.0g",
+            "evidence_line": 104
+          },
+          {
+            "id": "salt",
+            "state": "declared",
+            "value": 0.27,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "L105: Salt | 0.19g | 0.27g | 0.30g",
+            "evidence_line": 105
+          },
+          {
+            "id": "calcium",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Declared nutrition panel extracted for 100 g oven baked McCain Home Chips Straight Cut.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "mccain",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/",
+          "content_sha256": "71385adfcfe4c41eb72f905fcc136772a3370786d9e94a74bc2b01bccdc19284",
+          "request_sha256": "e57fa99bcced1efa5b94aa0c350e8dc678666582029845fb15f394709dc09c1f"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100.0,
+          "basis_unit": "g",
+          "preparation": "oven_baked",
+          "nutrients": [
+            {
+              "id": "energy_kj",
+              "state": "declared",
+              "value": 846.0,
+              "unit": "kJ",
+              "operator": "=",
+              "evidence": "L97: Energy (kJ) | 599 | 846 | 924",
+              "evidence_line": 97
+            },
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 202.0,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "L98: Energy (kcal) | 143 | 202 | 220",
+              "evidence_line": 98
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 7.2,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L99: Fat | 5.0g | 7.2g | 7.8g",
+              "evidence_line": 99
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 0.9,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L100: Of which Saturates | 0.6g | 0.9g | 0.9g",
+              "evidence_line": 100
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 30.0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L101: Carbohydrates | 21g | 30g | 33g",
+              "evidence_line": 101
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 0.5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L102: Of which Sugars | 0.5g | 0.5g | 0.5g",
+              "evidence_line": 102
+            },
+            {
+              "id": "fibre",
+              "state": "declared",
+              "value": 2.7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L103: Fibre | 1.8g | 2.7g | 3.2g",
+              "evidence_line": 103
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 3.2,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L104: Protein | 2.3g | 3.2g | 3.0g",
+              "evidence_line": 104
+            },
+            {
+              "id": "salt",
+              "state": "declared",
+              "value": 0.27,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "L105: Salt | 0.19g | 0.27g | 0.30g",
+              "evidence_line": 105
+            },
+            {
+              "id": "calcium",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Declared nutrition panel extracted for 100 g oven baked McCain Home Chips Straight Cut.",
+          "applicability": "source_record",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 4349,
+        "total_input_tokens": 3392,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 957,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 3989
+      }
+    },
+    {
+      "case_id": "n06",
+      "arm": "document",
+      "model_extraction": {
+        "status": "ambiguous_basis",
+        "basis_amount": null,
+        "basis_unit": null,
+        "preparation": null,
+        "nutrients": [],
+        "reason": "The document provides multiple preparation columns (PER 100g FROZEN, PER 100g OVEN BAKED, and PER 100g AIR FRYER) but no preparation was requested.",
+        "applicability": "unresolved"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "mccain",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/",
+          "content_sha256": "71385adfcfe4c41eb72f905fcc136772a3370786d9e94a74bc2b01bccdc19284",
+          "request_sha256": "623927cf93b0e27e3061b2f25aabfe34b42c796ca828ed130db77f2ac5e48abc"
+        },
+        "extraction": {
+          "status": "ambiguous_basis",
+          "basis_amount": null,
+          "basis_unit": null,
+          "preparation": null,
+          "nutrients": [],
+          "reason": "The document provides multiple preparation columns (PER 100g FROZEN, PER 100g OVEN BAKED, and PER 100g AIR FRYER) but no preparation was requested.",
+          "applicability": "unresolved",
+          "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 3495,
+        "total_input_tokens": 3389,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 106,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 3986
+      }
+    },
+    {
+      "case_id": "n13",
+      "arm": "document",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 1,
+        "basis_unit": "cup",
+        "preparation": "cooked",
+        "nutrients": [
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 160,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "Calories: 160",
+            "evidence_line": 132
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Total fat: 5 g",
+            "evidence_line": 133
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 1,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Sat fat: 1 g",
+            "evidence_line": 134
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 21,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Carbs: 21 g",
+            "evidence_line": 135
+          },
+          {
+            "id": "fibre",
+            "state": "declared",
+            "value": 7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Fiber: 7 g",
+            "evidence_line": 136
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Total sugar: 5 g",
+            "evidence_line": 137
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Protein: 7 g",
+            "evidence_line": 139
+          },
+          {
+            "id": "sodium",
+            "state": "declared",
+            "value": 280,
+            "unit": "mg",
+            "operator": "=",
+            "evidence": "Sodium: 280 mg",
+            "evidence_line": 140
+          }
+        ],
+        "reason": "Extracted nutrition values for CSPI Kate Sherwood Tomato Lentil Soup recipe serving basis of 1 cup. Gram scaling is unavailable without measured yield/density.",
+        "applicability": "representative"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "cspi",
+          "source_url": "https://www.cspi.org/recipe/tomato-lentil-soup",
+          "content_sha256": "22b428e440cf947f27b29c6cc8e8f0a39413a6f55e0bccfbdbf639dbeb7f0c01",
+          "request_sha256": "1bf8a9b9d8ff1691f5f69f9d67e8a3e535fc349a76ea1ec5108f890b16bd9513"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 1,
+          "basis_unit": "cup",
+          "preparation": "cooked",
+          "nutrients": [
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 160,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "Calories: 160",
+              "evidence_line": 132
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Total fat: 5 g",
+              "evidence_line": 133
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 1,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Sat fat: 1 g",
+              "evidence_line": 134
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 21,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Carbs: 21 g",
+              "evidence_line": 135
+            },
+            {
+              "id": "fibre",
+              "state": "declared",
+              "value": 7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Fiber: 7 g",
+              "evidence_line": 136
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Total sugar: 5 g",
+              "evidence_line": 137
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Protein: 7 g",
+              "evidence_line": 139
+            },
+            {
+              "id": "sodium",
+              "state": "declared",
+              "value": 280,
+              "unit": "mg",
+              "operator": "=",
+              "evidence": "Sodium: 280 mg",
+              "evidence_line": 140
+            }
+          ],
+          "reason": "Extracted nutrition values for CSPI Kate Sherwood Tomato Lentil Soup recipe serving basis of 1 cup. Gram scaling is unavailable without measured yield/density.",
+          "applicability": "representative",
+          "source_url": "https://www.cspi.org/recipe/tomato-lentil-soup"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 4784,
+        "total_input_tokens": 4132,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 652,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 4729
+      }
+    },
+    {
+      "case_id": "n14",
+      "arm": "document",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 1,
+        "basis_unit": "cup",
+        "preparation": "cooked",
+        "nutrients": [
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 160,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "Calories: 160",
+            "evidence_line": 132
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Total fat: 5 g",
+            "evidence_line": 133
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 1,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Sat fat: 1 g",
+            "evidence_line": 134
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 21,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Carbs: 21 g",
+            "evidence_line": 135
+          },
+          {
+            "id": "fibre",
+            "state": "declared",
+            "value": 7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Fiber: 7 g",
+            "evidence_line": 136
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Total sugar: 5 g",
+            "evidence_line": 137
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 7,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "Protein: 7 g",
+            "evidence_line": 139
+          },
+          {
+            "id": "sodium",
+            "state": "declared",
+            "value": 280,
+            "unit": "mg",
+            "operator": "=",
+            "evidence": "Sodium: 280 mg",
+            "evidence_line": 140
+          }
+        ],
+        "reason": "Representative recipe estimate extracted from CSPI Tomato Lentil Soup. Gram scaling is unavailable without measured yield/density.",
+        "applicability": "representative"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "cspi",
+          "source_url": "https://www.cspi.org/recipe/tomato-lentil-soup",
+          "content_sha256": "22b428e440cf947f27b29c6cc8e8f0a39413a6f55e0bccfbdbf639dbeb7f0c01",
+          "request_sha256": "9abd24d4dfa013ccac07c5f610294eb83271331c33e881bff987b5fdbbf4b379"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 1,
+          "basis_unit": "cup",
+          "preparation": "cooked",
+          "nutrients": [
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 160,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "Calories: 160",
+              "evidence_line": 132
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Total fat: 5 g",
+              "evidence_line": 133
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 1,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Sat fat: 1 g",
+              "evidence_line": 134
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 21,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Carbs: 21 g",
+              "evidence_line": 135
+            },
+            {
+              "id": "fibre",
+              "state": "declared",
+              "value": 7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Fiber: 7 g",
+              "evidence_line": 136
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Total sugar: 5 g",
+              "evidence_line": 137
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 7,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "Protein: 7 g",
+              "evidence_line": 139
+            },
+            {
+              "id": "sodium",
+              "state": "declared",
+              "value": 280,
+              "unit": "mg",
+              "operator": "=",
+              "evidence": "Sodium: 280 mg",
+              "evidence_line": 140
+            }
+          ],
+          "reason": "Representative recipe estimate extracted from CSPI Tomato Lentil Soup. Gram scaling is unavailable without measured yield/density.",
+          "applicability": "representative",
+          "source_url": "https://www.cspi.org/recipe/tomato-lentil-soup"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 4794,
+        "total_input_tokens": 4151,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 643,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 4748
+      }
+    }
+  ]
+}

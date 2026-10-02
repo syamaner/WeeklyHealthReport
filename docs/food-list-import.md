@@ -47,10 +47,12 @@ dependencies. No automatic match acceptance or alternate save schema is added.
 
 ## Parsing envelope
 
-`food-list-lexical-v1` handles compact/spaced gram and millilitre forms, their plural
+`food-list-lexical-v2` handles compact/spaced gram and millilitre forms, their plural
 and regional spellings, explicit kg/L scaling, decimal points, unambiguous decimal
 commas, simple fractions, `1x` counts, half/quarter and one/two/three counts, and
-bulleted lines. A small unit dictionary recognises common spellings. One-edit
+bulleted lines. Articles `a` and `an` remain counts. A single trailing metric
+amount is supported when no leading amount is present; competing amounts stay
+unresolved. A small unit dictionary recognises common spellings. One-edit
 matches to long unit words are flagged for correction; short units such as mg are
 never fuzzily changed into g. A bounded food spelling dictionary offers explicit
 opt-in query corrections without changing the frozen search normalisation.
@@ -63,6 +65,17 @@ silent truncation.
 
 Uncertain numbers, household measures, pack multipliers and multiple amounts leave
 the consumed amount empty. Coffee-ground amounts remain preparation information.
+Spoon and slice measures remain unresolved; split spoon names are recognised. Negated preparation terms stay
+in the query and do not assert cooking or an inferred opposite state. Roast and
+toasted are recognised cooking states; coffee roast describes grounds. Known
+supplement names add a review notice without establishing product identity or dose.
+The search-query parser (`food-query-parser-v5`) likewise retains negated cooking
+terms instead of extracting them as affirmative preparation attributes. A single
+exact gram amount can accompany a slice descriptor without a household conversion.
+Unmeasured slices and competing amounts stay unresolved. Narrow rye/wheat/wholemeal
+bread conjunctions are symmetric in word order; separate food combinations remain
+subject to clarification. Parser search eligibility does not imply that a compatible
+catalogue record exists or that a confirmation is accepted.
 Count-to-mass and volume-to-mass conversions are never inferred. Raw/cooked state
 is carried to search and checked against saved-food reuse as well as CoFID.
 Other preparation terms, brands, percentages and recipe descriptions stay in the
@@ -84,3 +97,13 @@ locking. Shared memory/SQLite contracts prove replay recovers the same log item.
 Local package tests, Xcode analysis and simulator tests validate software behavior.
 The user's physical-device test is deferred. This feature has no Drive, provider,
 HealthKit, voice, handwriting or label-OCR dependency.
+
+### Evidence retained at generic search
+
+List search retains the original manual descriptor and a distinct `genericSearch`
+capture containing the reviewed query (`food_list_generic_search`, method version
+`v1`). Both are linked to the selected source candidate and retained through save
+and reopen. Reviewed speech text keeps its manual capture method. This supplies the
+existing generic-estimate confirmation contract without inventing missing source
+identity or changing exact-product admission. Explicit acceptance and consumed
+quantity/conversion review are still required.

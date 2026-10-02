@@ -1,0 +1,286 @@
+{
+  "model": "gemini-3.8-flash",
+  "adapter_sha256": "b4c12cfac9d82fbba1ade216d6b361d9f31bcac213464ab2633f7ffe59117bcf",
+  "prompt": "Find at most two primary published sources with declared nutrition for the displayed food. A generic recipe or composition record is only a representative candidate, not the user's actual food. Explain the recipe, cooking and lean/fat assumptions and the declared denominator, and whether the displayed amount can be supported without guessing density or cooking yield. Do not invent nutrition, mix sources, use a raw record for cooked weight, or treat consumed weight as pack size. Link the exact source record/page with provider citations. Do not save or select for the user. If no source supports the query, say so. Keep the answer concise.",
+  "started_at": "2026-09-28T20:11:17.777970+00:00",
+  "results": [
+    {
+      "query": "lentil and tomato soup",
+      "blocks": [
+        {
+          "text": "No specific portion size or image was provided, so a consumed amount cannot be calculated without guessing volume, density, or serving size. \n\nBelow are two representative primary database sources for prepared/cooked lentil soup recipes containing tomato:\n\n### 1. USDA FoodData Central (FNDDS)\n* **Record:** [Soup, lentil (FDC ID: 2707462)](https://fdc.nal.usda.gov/fdc-app.html#/food-details/2707462/nutrients)\n* **Recipe / Cooking Assumptions:** Represents a standard home-style lentil soup prepared with brown/green lentils, canned tomato products/puree, aromatics (onions, celery, carrots), vegetable broth/water, and minimal added cooking fat (oil).\n* **Declared Denominator:** 100 g (also published with a measure of 1 cup = 255 g).\n* **Nutrition per 100 g:**\n  * **Energy:** 60 kcal\n  * **Protein:** 3.8 g\n  * **Total Fat:** 0.69 g\n  * **Carbohydrate:** 10.2 g\n  * **Dietary Fiber:** ~3.6 g\n\n---\n\n### 2. USDA FoodData Central (FNDDS)\n* **Record:** [Soup, lentil, canned (FDC ID: 2707460)](https://fdc.nal.usda.gov/fdc-app.html#/food-details/2707460/nutrients)\n* **Recipe / Cooking Assumptions:** Represents commercially canned, ready-to-serve vegetarian lentil soup (typically formulated with lentils, tomato paste or diced tomatoes, water, salt, and seasonings).\n* **Declared Denominator:** 100 g (also published with standard measures: 1 cup = 255 g, 1 can = 525 g).\n* **Nutrition per 100 g:**\n  * **Energy:** 43 kcal\n  * **Protein:** 2.5 g\n  * **Total Fat:** 0.64 g\n  * **Carbohydrate:** 7.2 g\n\n---\n\n*Note: These generic composition records serve only as representative benchmarks; actual macronutrient and energy values vary significantly based on oil additions, lentil-to-water ratios, and commercial brand recipes.*",
+          "citations": [
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGElgZGq0E_ZUysTTzT0oWJlRt6bbQAH6yq4eYPtJNbH8ynzyBhtwfWa6gjAXXeJO750siKnIH17HgRP-EEtjEcYQcyV3lXjw807YD4KnOKVTGks8wCmJprWXS74Nw_KdnO2MBxkRTXSvZeccvk",
+              "title": "myfoodanalysis.com",
+              "start_index": 264,
+              "end_index": 411
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEUw_9QAEvzXrO_8c9lhVtHAlSnqK7bQWFqYtKTPi9QIz7UWsEQ6pWNnlkn6mW_tNXylI4War7m35ayLw8CotyTfzwxEJE83ZBmyQJbtRFyBzabkBevZJK_oK9fnVXsO9_APg9hpk0=",
+              "title": "saciedad.com",
+              "start_index": 264,
+              "end_index": 411
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGElgZGq0E_ZUysTTzT0oWJlRt6bbQAH6yq4eYPtJNbH8ynzyBhtwfWa6gjAXXeJO750siKnIH17HgRP-EEtjEcYQcyV3lXjw807YD4KnOKVTGks8wCmJprWXS74Nw_KdnO2MBxkRTXSvZeccvk",
+              "title": "myfoodanalysis.com",
+              "start_index": 655,
+              "end_index": 737
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGElgZGq0E_ZUysTTzT0oWJlRt6bbQAH6yq4eYPtJNbH8ynzyBhtwfWa6gjAXXeJO750siKnIH17HgRP-EEtjEcYQcyV3lXjw807YD4KnOKVTGks8wCmJprWXS74Nw_KdnO2MBxkRTXSvZeccvk",
+              "title": "myfoodanalysis.com",
+              "start_index": 739,
+              "end_index": 789
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEUw_9QAEvzXrO_8c9lhVtHAlSnqK7bQWFqYtKTPi9QIz7UWsEQ6pWNnlkn6mW_tNXylI4War7m35ayLw8CotyTfzwxEJE83ZBmyQJbtRFyBzabkBevZJK_oK9fnVXsO9_APg9hpk0=",
+              "title": "saciedad.com",
+              "start_index": 739,
+              "end_index": 789
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGElgZGq0E_ZUysTTzT0oWJlRt6bbQAH6yq4eYPtJNbH8ynzyBhtwfWa6gjAXXeJO750siKnIH17HgRP-EEtjEcYQcyV3lXjw807YD4KnOKVTGks8wCmJprWXS74Nw_KdnO2MBxkRTXSvZeccvk",
+              "title": "myfoodanalysis.com",
+              "start_index": 739,
+              "end_index": 812
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGElgZGq0E_ZUysTTzT0oWJlRt6bbQAH6yq4eYPtJNbH8ynzyBhtwfWa6gjAXXeJO750siKnIH17HgRP-EEtjEcYQcyV3lXjw807YD4KnOKVTGks8wCmJprWXS74Nw_KdnO2MBxkRTXSvZeccvk",
+              "title": "myfoodanalysis.com",
+              "start_index": 739,
+              "end_index": 838
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGElgZGq0E_ZUysTTzT0oWJlRt6bbQAH6yq4eYPtJNbH8ynzyBhtwfWa6gjAXXeJO750siKnIH17HgRP-EEtjEcYQcyV3lXjw807YD4KnOKVTGks8wCmJprWXS74Nw_KdnO2MBxkRTXSvZeccvk",
+              "title": "myfoodanalysis.com",
+              "start_index": 739,
+              "end_index": 867
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGDCgnu9BrQQr8ekmPyBflUwaBg14_no0LDrn4NxwWLkdk8RUCTlFRX8gtaLq3g6f40gdvWekds3egbqwOHi7BIveuuXpGh20DQ62JTFEUKO9ZC8faQ1qa7jT6lF9nLRk-9wHzkAeN-jU-fVFAa_sB_xOb3og==",
+              "title": "myfoodanalysis.com",
+              "start_index": 911,
+              "end_index": 1066
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGDCgnu9BrQQr8ekmPyBflUwaBg14_no0LDrn4NxwWLkdk8RUCTlFRX8gtaLq3g6f40gdvWekds3egbqwOHi7BIveuuXpGh20DQ62JTFEUKO9ZC8faQ1qa7jT6lF9nLRk-9wHzkAeN-jU-fVFAa_sB_xOb3og==",
+              "title": "myfoodanalysis.com",
+              "start_index": 1271,
+              "end_index": 1374
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGDCgnu9BrQQr8ekmPyBflUwaBg14_no0LDrn4NxwWLkdk8RUCTlFRX8gtaLq3g6f40gdvWekds3egbqwOHi7BIveuuXpGh20DQ62JTFEUKO9ZC8faQ1qa7jT6lF9nLRk-9wHzkAeN-jU-fVFAa_sB_xOb3og==",
+              "title": "myfoodanalysis.com",
+              "start_index": 1376,
+              "end_index": 1426
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGDCgnu9BrQQr8ekmPyBflUwaBg14_no0LDrn4NxwWLkdk8RUCTlFRX8gtaLq3g6f40gdvWekds3egbqwOHi7BIveuuXpGh20DQ62JTFEUKO9ZC8faQ1qa7jT6lF9nLRk-9wHzkAeN-jU-fVFAa_sB_xOb3og==",
+              "title": "myfoodanalysis.com",
+              "start_index": 1376,
+              "end_index": 1449
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGDCgnu9BrQQr8ekmPyBflUwaBg14_no0LDrn4NxwWLkdk8RUCTlFRX8gtaLq3g6f40gdvWekds3egbqwOHi7BIveuuXpGh20DQ62JTFEUKO9ZC8faQ1qa7jT6lF9nLRk-9wHzkAeN-jU-fVFAa_sB_xOb3og==",
+              "title": "myfoodanalysis.com",
+              "start_index": 1376,
+              "end_index": 1475
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGDCgnu9BrQQr8ekmPyBflUwaBg14_no0LDrn4NxwWLkdk8RUCTlFRX8gtaLq3g6f40gdvWekds3egbqwOHi7BIveuuXpGh20DQ62JTFEUKO9ZC8faQ1qa7jT6lF9nLRk-9wHzkAeN-jU-fVFAa_sB_xOb3og==",
+              "title": "myfoodanalysis.com",
+              "start_index": 1376,
+              "end_index": 1503
+            }
+          ]
+        }
+      ],
+      "usage": {
+        "total_tokens": 757,
+        "total_input_tokens": 131,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 626,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 6860
+      }
+    },
+    {
+      "query": "250g cooked weight sirloin",
+      "blocks": [
+        {
+          "text": "Nutritional composition varies by cut trimming (separable lean vs. lean and fat) and cooking method. The generic published references below serve as representative candidates rather than your specific meal:\n\n---\n\n### Candidate 1: USDA FoodData Central (SR Legacy)\n* **Record:** [Beef, top sirloin, steak, separable lean and fat, trimmed to 0\" fat, all grades, cooked, broiled (FDC ID: 169457)](https://fdc.nal.usda.gov/food-details/169457/nutrients)\n* **Recipe / Cooking / Lean-Fat Assumptions:** \n  * Cooked whole via dry-heat broiling with no added oil, breading, or seasoning.\n  * External fat trimmed to 0 inches before cooking; values reflect the composite average across USDA quality grades (e.g., Choice, Select) containing both the separable lean meat and visible seam fat eaten together.\n* **Declared Denominator:** Declared per 100 g cooked weight.\n* **Nutrition for 250 g cooked weight (direct linear scaling \u00d72.5):**\n  * **Energy:** 530 kcal (212 kcal per 100 g)\n  * **Protein:** 73.3 g (29.33 g per 100 g)\n  * **Fat:** 24.2 g (9.67 g per 100 g)\n  * **Carbohydrate:** 0.0 g\n\n---\n\n### Candidate 2: UK Composition of Foods Integrated Dataset (CoFID / McCance & Widdowson)\n* **Record:** [McCance and Widdowson\u2019s The Composition of Foods Integrated Dataset (CoFID)](https://www.gov.uk/government/publications/composition-of-foods-integrated-dataset-cofid) \u2014 *Beef, sirloin steak, grilled medium-rare, lean only (Food Code: 18-070)*\n* **Recipe / Cooking / Lean-Fat Assumptions:** \n  * UK retail sirloin cut, dry-grilled to a medium-rare finish with no added fat or sauce.\n  * Separable external and seam fat removed after cooking (lean meat only consumed).\n* **Declared Denominator:** Declared per 100 g cooked edible portion.\n* **Nutrition for 250 g cooked weight (direct linear scaling \u00d72.5):**\n  * **Energy:** 440 kcal (176 kcal per 100 g)\n  * **Protein:** 66.5 g (26.6 g per 100 g)\n  * **Fat:** 19.3 g (7.7 g per 100 g)\n  * **Carbohydrate:** 0.0 g\n\n---\n\n### Feasibility of Displayed Amount\n* **Can it be supported without guessing density or cooking yield?** **Yes.** Because the input amount is specified as a cooked mass (250 g) and both published sources provide reference data per 100 g cooked weight, the values scale directly without converting volume to density or estimating raw-to-cooked moisture/yield loss.",
+          "citations": [
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQE5ds9KwUM0LcG4LNVyhYc-Wti2DFxMKnpbxYm1PNrdQsjWhy44mfXtUjXPEDT2-hAEN7F8yK32YoTLgvpV9iV6VfBrYHep0xyCt4c9RLb8Bv8rOuF_Nr9MeFbZexF5xFEayHWNGBWL2dN1QBKuiu6Eha9eiUOs6W-nLTOJCY2598WiUTEfb686DV3ftcfTCAAyUktpY7euwNXYYZfZO9MG7IMUqhWx1KF1WQ==",
+              "title": "myfoodanalysis.com",
+              "start_index": 213,
+              "end_index": 449
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHfeewmvblLUd3WsY8dJNxlrFc4amVK-jmnYW2Ao-_DTSR0DqTAojKJ5nHc9MmaoBGYgfDTdpQRYIBf3K8owr19RXo4zyEOwEBCyXMtII4AjSssLb4drQyurNRvucvwhIVqfVW3tUpjP_XL",
+              "title": "bodypalapp.com",
+              "start_index": 213,
+              "end_index": 449
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQGGGMX5tfurV-svYCjezIp30mqc1UzcPbQMVTcN_AWUWWYbIIjMlD_H6uB6mHoC1bnnLjAJfWdKZW1PVgGU1VgEVZbqD0B5HwTE5MbJ5P4old-mXDXpfTQmagHgdCJgmeFgyuLzh_2nJxBZ5o0x",
+              "title": "myfooddata.com",
+              "start_index": 213,
+              "end_index": 578
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHfeewmvblLUd3WsY8dJNxlrFc4amVK-jmnYW2Ao-_DTSR0DqTAojKJ5nHc9MmaoBGYgfDTdpQRYIBf3K8owr19RXo4zyEOwEBCyXMtII4AjSssLb4drQyurNRvucvwhIVqfVW3tUpjP_XL",
+              "title": "bodypalapp.com",
+              "start_index": 213,
+              "end_index": 578
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHfeewmvblLUd3WsY8dJNxlrFc4amVK-jmnYW2Ao-_DTSR0DqTAojKJ5nHc9MmaoBGYgfDTdpQRYIBf3K8owr19RXo4zyEOwEBCyXMtII4AjSssLb4drQyurNRvucvwhIVqfVW3tUpjP_XL",
+              "title": "bodypalapp.com",
+              "start_index": 582,
+              "end_index": 795
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQE5ds9KwUM0LcG4LNVyhYc-Wti2DFxMKnpbxYm1PNrdQsjWhy44mfXtUjXPEDT2-hAEN7F8yK32YoTLgvpV9iV6VfBrYHep0xyCt4c9RLb8Bv8rOuF_Nr9MeFbZexF5xFEayHWNGBWL2dN1QBKuiu6Eha9eiUOs6W-nLTOJCY2598WiUTEfb686DV3ftcfTCAAyUktpY7euwNXYYZfZO9MG7IMUqhWx1KF1WQ==",
+              "title": "myfoodanalysis.com",
+              "start_index": 797,
+              "end_index": 857
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHfeewmvblLUd3WsY8dJNxlrFc4amVK-jmnYW2Ao-_DTSR0DqTAojKJ5nHc9MmaoBGYgfDTdpQRYIBf3K8owr19RXo4zyEOwEBCyXMtII4AjSssLb4drQyurNRvucvwhIVqfVW3tUpjP_XL",
+              "title": "bodypalapp.com",
+              "start_index": 797,
+              "end_index": 857
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHfeewmvblLUd3WsY8dJNxlrFc4amVK-jmnYW2Ao-_DTSR0DqTAojKJ5nHc9MmaoBGYgfDTdpQRYIBf3K8owr19RXo4zyEOwEBCyXMtII4AjSssLb4drQyurNRvucvwhIVqfVW3tUpjP_XL",
+              "title": "bodypalapp.com",
+              "start_index": 859,
+              "end_index": 975
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHfeewmvblLUd3WsY8dJNxlrFc4amVK-jmnYW2Ao-_DTSR0DqTAojKJ5nHc9MmaoBGYgfDTdpQRYIBf3K8owr19RXo4zyEOwEBCyXMtII4AjSssLb4drQyurNRvucvwhIVqfVW3tUpjP_XL",
+              "title": "bodypalapp.com",
+              "start_index": 859,
+              "end_index": 1019
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHfeewmvblLUd3WsY8dJNxlrFc4amVK-jmnYW2Ao-_DTSR0DqTAojKJ5nHc9MmaoBGYgfDTdpQRYIBf3K8owr19RXo4zyEOwEBCyXMtII4AjSssLb4drQyurNRvucvwhIVqfVW3tUpjP_XL",
+              "title": "bodypalapp.com",
+              "start_index": 859,
+              "end_index": 1058
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHfeewmvblLUd3WsY8dJNxlrFc4amVK-jmnYW2Ao-_DTSR0DqTAojKJ5nHc9MmaoBGYgfDTdpQRYIBf3K8owr19RXo4zyEOwEBCyXMtII4AjSssLb4drQyurNRvucvwhIVqfVW3tUpjP_XL",
+              "title": "bodypalapp.com",
+              "start_index": 859,
+              "end_index": 1086
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHZKliV86yIy1fInV0S2EY412hXdtAqxQGQ_Xr7NEvCE8Q2RT3-HWCQ_DXBQqY1SQwtO8K9AKwALOBFhZa290tx3PRr5HYe3hgenkeLCqla3XZ64quOiUOQrCa1bneNN1enn7Dq1v_UMxMD_loGCFOD4SfChsZ5-gD4-Ck6t_vH_3oiBdIz7Ea-l4SnK0frW0iRguFR90fNfUw6wb56LdlqD27F6KIDWHjJ_5lup1E3s7nI0Lq7ifM3fTicRYLgQLYh9DbF7ZA=",
+              "title": "service.gov.uk",
+              "start_index": 1093,
+              "end_index": 1444
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEWdmV8msh-qWNxsWmzd-WVBO9G-gT50_dvAWtnIBSR_4uokEJkaijlrQvpTGuTJ1EoVLSiqxwVBP9UkUbm-ZmzK2h-Bavau2oyjlunvMZvIFTg5flKs9mYsPBFddFxxB0BoPtEzbckXqFR7NvBBvUbg3lUARvi7-h35a8YKrhpMtvoFJF-zqrwLAkmbv2I7HzRzou1IqMR8BHcNHdo4go=",
+              "title": "scribd.com",
+              "start_index": 1093,
+              "end_index": 1444
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLYcPu7Q3khS0YfiSmkqpFs_K4VTXMtajVi-file4EvPtbqnXriRgjO8QIbTeR36lW8tgXePf5OfExGcIdaasGZLTRcbtaZiOKNXw5bR26N7ld2hpO3xK8rBaEZti2AXN80I57_8DTxRIySsayLbSjjXG1Ad1yLGzU",
+              "title": "calori.com",
+              "start_index": 1093,
+              "end_index": 1444
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLYcPu7Q3khS0YfiSmkqpFs_K4VTXMtajVi-file4EvPtbqnXriRgjO8QIbTeR36lW8tgXePf5OfExGcIdaasGZLTRcbtaZiOKNXw5bR26N7ld2hpO3xK8rBaEZti2AXN80I57_8DTxRIySsayLbSjjXG1Ad1yLGzU",
+              "title": "calori.com",
+              "start_index": 1093,
+              "end_index": 1582
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQEWdmV8msh-qWNxsWmzd-WVBO9G-gT50_dvAWtnIBSR_4uokEJkaijlrQvpTGuTJ1EoVLSiqxwVBP9UkUbm-ZmzK2h-Bavau2oyjlunvMZvIFTg5flKs9mYsPBFddFxxB0BoPtEzbckXqFR7NvBBvUbg3lUARvi7-h35a8YKrhpMtvoFJF-zqrwLAkmbv2I7HzRzou1IqMR8BHcNHdo4go=",
+              "title": "scribd.com",
+              "start_index": 1586,
+              "end_index": 1667
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLYcPu7Q3khS0YfiSmkqpFs_K4VTXMtajVi-file4EvPtbqnXriRgjO8QIbTeR36lW8tgXePf5OfExGcIdaasGZLTRcbtaZiOKNXw5bR26N7ld2hpO3xK8rBaEZti2AXN80I57_8DTxRIySsayLbSjjXG1Ad1yLGzU",
+              "title": "calori.com",
+              "start_index": 1586,
+              "end_index": 1667
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLYcPu7Q3khS0YfiSmkqpFs_K4VTXMtajVi-file4EvPtbqnXriRgjO8QIbTeR36lW8tgXePf5OfExGcIdaasGZLTRcbtaZiOKNXw5bR26N7ld2hpO3xK8rBaEZti2AXN80I57_8DTxRIySsayLbSjjXG1Ad1yLGzU",
+              "title": "calori.com",
+              "start_index": 1669,
+              "end_index": 1737
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLYcPu7Q3khS0YfiSmkqpFs_K4VTXMtajVi-file4EvPtbqnXriRgjO8QIbTeR36lW8tgXePf5OfExGcIdaasGZLTRcbtaZiOKNXw5bR26N7ld2hpO3xK8rBaEZti2AXN80I57_8DTxRIySsayLbSjjXG1Ad1yLGzU",
+              "title": "calori.com",
+              "start_index": 1739,
+              "end_index": 1855
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLYcPu7Q3khS0YfiSmkqpFs_K4VTXMtajVi-file4EvPtbqnXriRgjO8QIbTeR36lW8tgXePf5OfExGcIdaasGZLTRcbtaZiOKNXw5bR26N7ld2hpO3xK8rBaEZti2AXN80I57_8DTxRIySsayLbSjjXG1Ad1yLGzU",
+              "title": "calori.com",
+              "start_index": 1739,
+              "end_index": 1898
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLYcPu7Q3khS0YfiSmkqpFs_K4VTXMtajVi-file4EvPtbqnXriRgjO8QIbTeR36lW8tgXePf5OfExGcIdaasGZLTRcbtaZiOKNXw5bR26N7ld2hpO3xK8rBaEZti2AXN80I57_8DTxRIySsayLbSjjXG1Ad1yLGzU",
+              "title": "calori.com",
+              "start_index": 1739,
+              "end_index": 1898
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLYcPu7Q3khS0YfiSmkqpFs_K4VTXMtajVi-file4EvPtbqnXriRgjO8QIbTeR36lW8tgXePf5OfExGcIdaasGZLTRcbtaZiOKNXw5bR26N7ld2hpO3xK8rBaEZti2AXN80I57_8DTxRIySsayLbSjjXG1Ad1yLGzU",
+              "title": "calori.com",
+              "start_index": 1739,
+              "end_index": 1936
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLYcPu7Q3khS0YfiSmkqpFs_K4VTXMtajVi-file4EvPtbqnXriRgjO8QIbTeR36lW8tgXePf5OfExGcIdaasGZLTRcbtaZiOKNXw5bR26N7ld2hpO3xK8rBaEZti2AXN80I57_8DTxRIySsayLbSjjXG1Ad1yLGzU",
+              "title": "calori.com",
+              "start_index": 1739,
+              "end_index": 1936
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLYcPu7Q3khS0YfiSmkqpFs_K4VTXMtajVi-file4EvPtbqnXriRgjO8QIbTeR36lW8tgXePf5OfExGcIdaasGZLTRcbtaZiOKNXw5bR26N7ld2hpO3xK8rBaEZti2AXN80I57_8DTxRIySsayLbSjjXG1Ad1yLGzU",
+              "title": "calori.com",
+              "start_index": 1739,
+              "end_index": 1964
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHLYcPu7Q3khS0YfiSmkqpFs_K4VTXMtajVi-file4EvPtbqnXriRgjO8QIbTeR36lW8tgXePf5OfExGcIdaasGZLTRcbtaZiOKNXw5bR26N7ld2hpO3xK8rBaEZti2AXN80I57_8DTxRIySsayLbSjjXG1Ad1yLGzU",
+              "title": "calori.com",
+              "start_index": 2082,
+              "end_index": 2333
+            },
+            {
+              "url": "https://vertexaisearch.cloud.google.com/grounding-api-redirect/AUZIYQHfeewmvblLUd3WsY8dJNxlrFc4amVK-jmnYW2Ao-_DTSR0DqTAojKJ5nHc9MmaoBGYgfDTdpQRYIBf3K8owr19RXo4zyEOwEBCyXMtII4AjSssLb4drQyurNRvucvwhIVqfVW3tUpjP_XL",
+              "title": "bodypalapp.com",
+              "start_index": 2082,
+              "end_index": 2333
+            }
+          ]
+        }
+      ],
+      "usage": {
+        "total_tokens": 1031,
+        "total_input_tokens": 134,
+        "total_cached_tokens": 109,
+        "total_output_tokens": 897,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 77931
+      }
+    }
+  ]
+}

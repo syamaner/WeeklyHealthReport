@@ -1,0 +1,533 @@
+{
+  "planned": 20,
+  "completed": 20,
+  "arms": {
+    "panel": {
+      "planned": 12,
+      "completed": 12,
+      "passed": 3
+    },
+    "url": {
+      "planned": 8,
+      "completed": 8,
+      "passed": 1
+    }
+  },
+  "details": [
+    {
+      "case_id": "n01",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kj",
+          "field:energy_kcal",
+          "field:fat",
+          "field:saturates",
+          "field:carbohydrate",
+          "field:sugars",
+          "field:protein",
+          "field:salt"
+        ],
+        "correct_fields": 2,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n02",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n03",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kj",
+          "field:energy_kcal",
+          "field:carbohydrate",
+          "field:protein"
+        ],
+        "correct_fields": 6,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n04",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kj",
+          "field:energy_kcal",
+          "field:fat",
+          "field:saturates",
+          "field:carbohydrate",
+          "field:sugars",
+          "field:fibre",
+          "field:protein",
+          "field:salt"
+        ],
+        "correct_fields": 1,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n05",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kj",
+          "field:energy_kcal",
+          "field:fat",
+          "field:saturates",
+          "field:carbohydrate",
+          "field:sugars",
+          "field:fibre",
+          "field:protein",
+          "field:salt"
+        ],
+        "correct_fields": 1,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n06",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n07",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kj",
+          "field:energy_kcal",
+          "field:sugars",
+          "field:salt"
+        ],
+        "correct_fields": 6,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n08",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n13",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kcal",
+          "field:fat",
+          "field:saturates",
+          "field:carbohydrate",
+          "field:fibre",
+          "field:sugars",
+          "field:protein",
+          "field:sodium"
+        ],
+        "correct_fields": 0,
+        "expected_fields": 8,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n14",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kcal",
+          "field:fat",
+          "field:saturates",
+          "field:carbohydrate",
+          "field:fibre",
+          "field:sugars",
+          "field:protein",
+          "field:sodium"
+        ],
+        "correct_fields": 0,
+        "expected_fields": 8,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n15",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kcal",
+          "field:protein",
+          "field:fat",
+          "field:saturates",
+          "field:iron",
+          "field:sodium"
+        ],
+        "correct_fields": 0,
+        "expected_fields": 6,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": {
+        "energy_kcal": 440.0,
+        "protein": 66.5,
+        "fat": 19.25,
+        "saturates": 8.5,
+        "iron": 3.5,
+        "sodium": 162.5
+      },
+      "expected_portion": {
+        "energy_kcal": 440.0,
+        "protein": 66.5,
+        "fat": 19.25,
+        "saturates": 8.5,
+        "iron": 3.5,
+        "sodium": 162.5
+      }
+    },
+    {
+      "case_id": "n16",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "applicability",
+          "field:energy_kcal",
+          "field:protein",
+          "field:fat",
+          "field:saturates",
+          "field:iron",
+          "field:sodium"
+        ],
+        "correct_fields": 0,
+        "expected_fields": 6,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": {
+        "energy_kcal": 440.0,
+        "protein": 66.5,
+        "fat": 19.25,
+        "saturates": 8.5,
+        "iron": 3.5,
+        "sodium": 162.5
+      },
+      "expected_portion": {
+        "energy_kcal": 440.0,
+        "protein": 66.5,
+        "fat": 19.25,
+        "saturates": 8.5,
+        "iron": 3.5,
+        "sodium": 162.5
+      }
+    },
+    {
+      "case_id": "n01",
+      "arm": "url",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "status",
+          "basis_amount",
+          "basis_unit",
+          "preparation",
+          "applicability",
+          "nutrient_set",
+          "field:energy_kj",
+          "missing_evidence:energy_kj",
+          "field:energy_kcal",
+          "missing_evidence:energy_kcal",
+          "field:fat",
+          "missing_evidence:fat",
+          "field:saturates",
+          "missing_evidence:saturates",
+          "field:carbohydrate",
+          "missing_evidence:carbohydrate",
+          "field:sugars",
+          "missing_evidence:sugars",
+          "field:fibre",
+          "missing_evidence:fibre",
+          "field:protein",
+          "missing_evidence:protein",
+          "field:salt",
+          "missing_evidence:salt",
+          "field:calcium",
+          "missing_evidence:calcium"
+        ],
+        "correct_fields": 0,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n02",
+      "arm": "url",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "status"
+        ],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n03",
+      "arm": "url",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "status",
+          "basis_amount",
+          "basis_unit",
+          "preparation",
+          "applicability",
+          "nutrient_set",
+          "field:energy_kj",
+          "missing_evidence:energy_kj",
+          "field:energy_kcal",
+          "missing_evidence:energy_kcal",
+          "field:fat",
+          "missing_evidence:fat",
+          "field:saturates",
+          "missing_evidence:saturates",
+          "field:carbohydrate",
+          "missing_evidence:carbohydrate",
+          "field:sugars",
+          "missing_evidence:sugars",
+          "field:fibre",
+          "missing_evidence:fibre",
+          "field:protein",
+          "missing_evidence:protein",
+          "field:salt",
+          "missing_evidence:salt",
+          "field:calcium",
+          "missing_evidence:calcium"
+        ],
+        "correct_fields": 0,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n04",
+      "arm": "url",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kj",
+          "field:energy_kcal",
+          "field:fat",
+          "field:saturates",
+          "field:carbohydrate",
+          "field:sugars",
+          "field:fibre",
+          "field:protein",
+          "field:salt"
+        ],
+        "correct_fields": 1,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n05",
+      "arm": "url",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kj",
+          "field:energy_kcal",
+          "field:fat",
+          "field:saturates",
+          "field:carbohydrate",
+          "field:sugars",
+          "field:fibre",
+          "field:protein",
+          "field:salt"
+        ],
+        "correct_fields": 1,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n06",
+      "arm": "url",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n13",
+      "arm": "url",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kcal",
+          "field:fat",
+          "field:saturates",
+          "field:carbohydrate",
+          "field:fibre",
+          "field:sugars",
+          "field:protein",
+          "field:sodium"
+        ],
+        "correct_fields": 0,
+        "expected_fields": 8,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    },
+    {
+      "case_id": "n14",
+      "arm": "url",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": false,
+        "errors": [
+          "field:energy_kcal",
+          "field:fat",
+          "field:saturates",
+          "field:carbohydrate",
+          "field:fibre",
+          "field:sugars",
+          "field:protein",
+          "field:sodium"
+        ],
+        "correct_fields": 0,
+        "expected_fields": 8,
+        "invented_fields": [],
+        "values_on_abstention": false
+      },
+      "portion": null,
+      "expected_portion": null
+    }
+  ],
+  "evidence_review": "separate manual review required; numeric match is not provenance proof"
+}

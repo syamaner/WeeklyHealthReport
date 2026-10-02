@@ -77,8 +77,12 @@ public enum FoodListSearchResult: Equatable, Sendable {
 
 public struct FoodListImportService: Sendable {
     private let searcher: any GenericFoodSearching
+    private let ids: any LedgerIDGenerating
 
-    public init(searcher: any GenericFoodSearching) { self.searcher = searcher }
+    public init(searcher: any GenericFoodSearching, ids: any LedgerIDGenerating = RandomLedgerIDGenerator()) {
+        self.searcher = searcher
+        self.ids = ids
+    }
 
     public func search(_ draft: FoodListLineDraft, at date: Date, locale: LedgerText) throws -> FoodListSearchResult {
         let query = try LedgerText(draft.query)
@@ -96,10 +100,21 @@ public struct FoodListImportService: Sendable {
             captureMethodVersion: LedgerText(FoodListParser.version),
             originalPayload: .descriptor(LedgerText(String(decoding: encoder.encode(payload), as: UTF8.self)))
         )
+        // The reviewed line and the subsequent search are distinct evidence events.
+        // Retain the manual capture first; never relabel reviewed speech as search input.
+        let searchEvidence = try CaptureEvidence(
+            evidenceID: ids.makeID(EvidenceTag.self), kind: .genericSearch,
+            capturedAt: date, locale: locale,
+            captureMethod: LedgerText("food_list_generic_search"),
+            captureMethodVersion: LedgerText("v1"), originalPayload: .text(query)
+        )
+        guard searchEvidence.evidenceID != evidence.evidenceID else {
+            throw FoodLedgerValidationError.invalidProvenance
+        }
         let request = GenericFoodSearchRequest(
             text: query,
             identity: GenericFoodIdentityQuery(preparation: try draft.preparation.map { try PreparationState(kind: $0) }),
-            capturedAt: date, locale: locale, captureEvidence: evidence
+            capturedAt: date, locale: locale, captureEvidence: evidence, additionalEvidence: [searchEvidence]
         )
         switch try searcher.search(request) {
         case .noResult:

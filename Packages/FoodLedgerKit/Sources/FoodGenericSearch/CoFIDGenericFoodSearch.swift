@@ -10,7 +10,7 @@ public enum CoFIDSearchError: Error, Equatable, Sendable {
 }
 
 public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "cofid-generic-ranking-v10"
+    public static let matcherVersion = "cofid-generic-ranking-v12"
     public static let corpusCanonicalSHA256 = "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445"
     public static let candidateLimit = 10
     public static let minimumScore = 0.25
@@ -206,6 +206,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             let candidateTokens = GenericFoodSearchTerms.tokens(record.name)
             guard meaningfulTokens.isSubset(of: candidateTokens),
                   GenericFoodSearchTerms.acceptsFoodForm(name: record.name, query: meaningfulTokens),
+                  GenericFoodRankingPolicy.allowsDerivativeFoodName(record.name, query: food),
                   Self.contradictions(query: request.identity, record: record, parsed: parsed).isEmpty else { continue }
             let intersection = meaningfulTokens.intersection(candidateTokens)
             let union = meaningfulTokens.union(candidateTokens)

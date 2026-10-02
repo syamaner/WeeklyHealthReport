@@ -36,7 +36,7 @@ public struct ParsedFoodListLine: Codable, Equatable, Sendable {
 /// A deliberately bounded grammar. Unrecognised units and multiple amounts stay unresolved.
 /// No food spelling, brand, household volume or nutrient value is inferred.
 public enum FoodListParser {
-    public static let version = "food-list-lexical-v1"
+    public static let version = "food-list-lexical-v3"
     public static let maximumCharacters = 30_000
     public static let maximumLines = 200
 
@@ -56,6 +56,7 @@ public enum FoodListParser {
 
     public static func number(_ text: String) -> Double? {
         let value = text.trimmingCharacters(in: .whitespaces)
+        if value == "½" { return 0.5 }
         // Three digits after a comma could be a thousands separator.
         guard !matches(#"\d,\d{3}(?:\D|$)"#, in: value) else { return nil }
         let parts = value.split(separator: "/", omittingEmptySubsequences: false)
@@ -102,13 +103,18 @@ public enum FoodListParser {
                 quantity: nil, unit: nil, preparation: nil, notices: [.contextLine]
             )
         }
-        let raw = matches(#"\braw\b"#, in: lower)
-        let cooked = matches(#"\b(cooked|roasted|boiled|grilled|fried|baked|steamed)\b"#, in: lower)
+        let raw = matchesPreparation(#"\b(raw|uncooked)\b"#, in: lower)
+        // Coffee roast describes dry grounds, not the consumed drink's state.
+        let coffeeInput = matches(#"\bcoffee\b"#, in: lower)
+        let cookedPattern = coffeeInput
+            ? #"\b(cooked|boiled|grilled|fried|baked|steamed)\b"#
+            : #"\b(cooked|roast|roasted|toasted|boiled|grilled|fried|baked|steamed)\b"#
+        let cooked = matchesPreparation(cookedPattern, in: lower)
         let preparation: PreparationKind? = raw && cooked ? nil : raw ? .raw : cooked ? .cooked : nil
         if raw && cooked { notices.append(.conflictingPreparation) }
 
         let content = text.replacingOccurrences(of: #"^[•*\-]\s+"#, with: "", options: .regularExpression)
-        if let prefix = capture(#"(?i)^([0-9]+(?:[.,][0-9]+)?(?:/[0-9]+)?|\.[0-9]+|half\b|one\b|two\b|three\b|quarter\b)\s*(?:[x×]\s*(?=[\p{L}]))?"#, in: content) {
+        if let prefix = capture(#"(?i)^(½|[0-9]+(?:[.,][0-9]+)?(?:/[0-9]+)?|\.[0-9]+|half\b|one\b|two\b|three\b|quarter\b|a\b|an\b)\s*(?:[x×]\s*(?=[\p{L}]))?"#, in: content) {
             amount = wordNumbers[prefix[1].lowercased()] ?? number(prefix[1])
             if amount == nil { notices.append(.ambiguousNumber) }
             let remainder = String(content.dropFirst(prefix[0].count))
@@ -138,6 +144,17 @@ public enum FoodListParser {
                 amount = nil
                 notices.append(.unknownUnit)
             }
+        } else if let suffix = capture(#"(?i)^(.+?)\s+([0-9]+(?:[.,][0-9]+)?(?:/[0-9]+)?|\.[0-9]+)\s*([\p{L}]+)\.?$"#, in: content),
+                  let definition = units[suffix[3].lowercased()], definition.0 != .count {
+            // One explicit trailing metric amount is supported. Additional
+            // amounts in the remaining query still trigger the guard below.
+            amount = number(suffix[2]).map { $0 * definition.1 }
+            unit = amount == nil ? nil : definition.0
+            query = suffix[1]
+            if amount == nil { notices.append(.ambiguousNumber) }
+            if ["grm", "grms", "gramme", "mililitre", "mililitres", "milliliteres"].contains(suffix[3].lowercased()) {
+                notices.append(.unitSpelling)
+            }
         } else {
             notices.append(.missingQuantity)
             query = content
@@ -155,7 +172,7 @@ public enum FoodListParser {
             unit = nil
         }
         if matches(#"\b(home[ -]?made|recipe)\b"#, in: lower) { notices.append(.recipe) }
-        if matches(#"\b(supplement|vitamin|multivitamin|omega|capsules?|tablets?|zinc|d3|k2)\b"#, in: lower) {
+        if matches(#"\b(supplement|vitamin|multivitamin|omega|capsules?|tablets?|zinc|d3|k2|centrum|tudca)\b"#, in: lower) {
             notices.append(.supplement)
         }
         if let value = amount, !value.isFinite { amount = nil; notices.append(.ambiguousNumber) }
@@ -177,9 +194,9 @@ public enum FoodListParser {
         for word in ["count", "piece", "pieces"] { values[word] = (.count, 1) }
         return values
     }()
-    private static let household: Set<String> = ["mug", "mugs", "cup", "cups", "tsp", "tbsp", "spoon", "spoons", "scoop", "scoops", "portion", "portions", "pack", "packs", "packet", "packets"]
+    private static let household: Set<String> = ["mug", "mugs", "cup", "cups", "tsp", "tbsp", "spoon", "spoons", "scoop", "scoops", "portion", "portions", "slice", "slices", "table", "tablespoon", "tablespoons", "teaspoon", "teaspoons", "pack", "packs", "packet", "packets"]
     private static let unsupported: Set<String> = ["mg", "mcg", "ug", "oz", "ounce", "ounces", "lb", "lbs", "pint", "pints", "cl", "dl", "gl", "m", "fl"]
-    private static let wordNumbers: [String: Double] = ["half": 0.5, "quarter": 0.25, "one": 1, "two": 2, "three": 3]
+    private static let wordNumbers: [String: Double] = ["half": 0.5, "quarter": 0.25, "one": 1, "two": 2, "three": 3, "a": 1, "an": 1]
 
     private static func isContext(_ text: String) -> Bool {
         matches(#"^\d{1,2}:\d{2}(?:\s*[-–]\s*\d{1,2}:\d{2})?$"#, in: text)
@@ -208,6 +225,15 @@ public enum FoodListParser {
             previous = row
         }
         return previous[right.count]
+    }
+
+    private static func matchesPreparation(_ pattern: String, in text: String) -> Bool {
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return false }
+        return regex.matches(in: text, range: NSRange(text.startIndex..., in: text)).contains { match in
+            guard let range = Range(match.range, in: text) else { return false }
+            let prefix = String(text[..<range.lowerBound])
+            return !matches(#"\b(?:not|never)\s+(?:(?:pan|soft)[ -]+)?$|\bnon[ -]$"#, in: prefix)
+        }
     }
 
     private static func matches(_ pattern: String, in text: String) -> Bool { capture(pattern, in: text) != nil }

@@ -5,6 +5,98 @@ import FoodLedgerTestSupport
 import XCTest
 
 final class CoFIDGenericFoodSearchTests: XCTestCase {
+    func testListSearchEvidenceAllowsExplicitGenericEstimateSaveAndReopen() throws {
+        for method in [FoodListInputMethod.pastedOrTyped, .reviewedSpeechText] {
+            let ids = SequenceIDs()
+            let importer = FoodListImportService(searcher: try CoFIDGenericFoodSearch(ids: ids), ids: ids)
+            let line = try XCTUnwrap(FoodListParser.parse(" 100g raw apples ").first)
+            let draft = FoodListLineDraft(parsed: line, operationID: try ids.makeID(OperationTag.self),
+                evidenceID: try ids.makeID(EvidenceTag.self), inputMethod: method)
+            guard case let .candidates(route) = try importer.search(draft, at: FixedClock().now(), locale: LedgerText("en_GB")) else {
+                return XCTFail("Expected list candidates")
+            }
+            var state = try importer.confirmation(for: draft, route: route, candidateIndex: 0)
+            let manual = try XCTUnwrap(state.input.evidence.first)
+            XCTAssertEqual(manual.evidenceID, draft.evidenceID)
+            XCTAssertEqual(manual.kind, .manual)
+            XCTAssertEqual(manual.captureMethod.value, method.rawValue)
+            let search = try XCTUnwrap(state.input.evidence.first(where: { $0.kind == .genericSearch }))
+            XCTAssertNotEqual(search.evidenceID, manual.evidenceID)
+            XCTAssertEqual(search.originalPayload, .text(try LedgerText(draft.query)))
+            let store = InMemoryFoodLedgerStore()
+            let service = FoodConfirmationService(
+                ledger: FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store,
+                    clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()),
+                reader: store, clock: FixedClock(), ids: ids)
+            XCTAssertThrowsError(try service.save(state, operationID: draft.operationID)) { error in
+                XCTAssertEqual(error as? FoodConfirmationSaveError, .noAcceptedCandidate)
+            }
+            XCTAssertEqual(try store.counts().operations, 0)
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            let saved = try service.save(state, operationID: draft.operationID)
+            XCTAssertEqual(saved.logItemVersion.edibleQuantity.value, 100)
+            XCTAssertTrue(saved.evidence.contains(manual))
+            XCTAssertTrue(saved.evidence.contains(search))
+            XCTAssertTrue(saved.candidateDecision.candidate.evidenceIDs.contains(manual.evidenceID))
+            XCTAssertTrue(saved.candidateDecision.candidate.evidenceIDs.contains(search.evidenceID))
+            XCTAssertEqual(saved.resolutionVersion.nutrients, state.selectedCandidate.candidate.nutrients)
+            let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+            XCTAssertTrue(reopened.input.evidence.contains(manual))
+            XCTAssertTrue(reopened.input.evidence.contains(search))
+        }
+    }
+
+    func testListSearchEvidenceDoesNotBypassConsumedQuantityRequirements() throws {
+        for (text, count) in [("2 boiled eggs", true), ("raw apples", false)] {
+            let ids = SequenceIDs()
+            let importer = FoodListImportService(searcher: try CoFIDGenericFoodSearch(ids: ids), ids: ids)
+            let draft = FoodListLineDraft(parsed: try XCTUnwrap(FoodListParser.parse(text).first),
+                operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+            guard case let .candidates(route) = try importer.search(draft, at: FixedClock().now(), locale: LedgerText("en_GB")) else {
+                return XCTFail("Expected list candidates")
+            }
+            var state = try importer.confirmation(for: draft, route: route, candidateIndex: 0)
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            let store = InMemoryFoodLedgerStore()
+            let service = FoodConfirmationService(
+                ledger: FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store,
+                    clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()),
+                reader: store, clock: FixedClock(), ids: ids)
+            XCTAssertThrowsError(try service.save(state, operationID: draft.operationID)) { error in
+                if count { XCTAssertEqual(error as? FoodQuantityValidationError, .missingConversion) }
+                else { XCTAssertEqual(error as? FoodConfirmationSaveError, .invalidQuantity) }
+            }
+            XCTAssertEqual(try store.counts().operations, 0)
+        }
+    }
+
+    func testHalfItemQueryAndListConfirmationsKeepCountsAndEvidence() throws {
+        let ids = SequenceIDs()
+        let search = try CoFIDGenericFoodSearch(ids: ids)
+        let list = FoodListImportService(searcher: search)
+        for text in ["half a green pepper", "½ yellow pepper", "1/2 green pepper"] {
+            let parsed = FoodQueryParser.parse(text)
+            guard case let .confirmation(route) = try search.search(request(text)) else { return XCTFail("Expected whole-food candidates") }
+            let state = FoodConfirmationState(input: route.confirmation, queryQuantity: parsed.quantity)
+            XCTAssertEqual(state.quantity.value, 0.5)
+            XCTAssertEqual(state.quantity.unit, .count)
+            XCTAssertNil(state.quantity.conversion)
+            XCTAssertEqual(state.decision, .undecided)
+            XCTAssertEqual(state.input.evidence.first?.originalPayload, .text(try LedgerText(text)))
+            XCTAssertThrowsError(try state.quantity.calculatedEdibleQuantity()) { error in
+                XCTAssertEqual(error as? FoodQuantityValidationError, .missingConversion)
+            }
+            let line = try XCTUnwrap(FoodListParser.parse(text).first)
+            let draft = FoodListLineDraft(parsed: line, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+            guard case let .candidates(listRoute) = try list.search(draft, at: FixedClock().now(), locale: LedgerText("en_GB")) else { return XCTFail("Expected list candidate") }
+            let listState = try list.confirmation(for: draft, route: listRoute, candidateIndex: 0)
+            XCTAssertEqual(listState.quantity.value, 0.5)
+            XCTAssertEqual(listState.quantity.unit, .count)
+            XCTAssertNil(listState.quantity.conversion)
+            XCTAssertEqual(listState.decision, .undecided)
+        }
+    }
+
     func testWholeMilkVolumeEstimateIsRecordBoundAndSurvivesSaveReopen() throws {
         let ids = SequenceIDs()
         let search = try CoFIDGenericFoodSearch(ids: ids)
@@ -286,6 +378,46 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
         }
         XCTAssertEqual(route.retainedEvidence.last, evidence)
         XCTAssertThrowsError(try search.search(request("rice", additionalEvidence: [evidence, evidence])))
+    }
+
+    func testListToRealCatalogueConfirmationPreservesMeasuredDescriptorsAndEvidence() throws {
+        let ids = SequenceIDs()
+        let search = try CoFIDGenericFoodSearch(ids: ids)
+        let service = FoodListImportService(searcher: search)
+        for (text, amount) in [("73g cheese processed slices", 73.0), ("81g bread white sliced", 81.0)] {
+            let parsed = try XCTUnwrap(FoodListParser.parse(text).first)
+            var draft = FoodListLineDraft(parsed: parsed, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+            guard case let .candidates(route) = try service.search(draft, at: FixedClock().now(), locale: LedgerText("en_GB")) else {
+                return XCTFail("Expected real catalogue candidates: \(text)")
+            }
+            let state = try service.confirmation(for: draft, route: route, candidateIndex: 0)
+            XCTAssertEqual(state.quantity.value, amount)
+            XCTAssertEqual(state.quantity.unit, .grams)
+            XCTAssertEqual(state.decision, .undecided)
+            XCTAssertFalse(state.input.sourceReleases.isEmpty)
+            let evidence = try XCTUnwrap(state.input.evidence.first)
+            XCTAssertEqual(evidence.evidenceID, draft.evidenceID)
+            guard case let .descriptor(payload) = evidence.originalPayload else { return XCTFail("Missing source") }
+            let json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(payload.value.utf8)) as? [String: Any])
+            XCTAssertEqual(json["original"] as? String, text)
+            draft.quantityText = ""
+            XCTAssertNil(try service.confirmation(for: draft, route: route, candidateIndex: 0).quantity.value)
+            XCTAssertThrowsError(try service.confirmation(for: draft, route: route, candidateIndex: route.matches.count))
+        }
+        let parsed = try XCTUnwrap(FoodListParser.parse("2 slices processed cheese").first)
+        let draft = FoodListLineDraft(parsed: parsed, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        guard case let .candidates(route) = try service.search(draft, at: FixedClock().now(), locale: LedgerText("en_GB")) else {
+            return XCTFail("Expected editable household query candidates")
+        }
+        XCTAssertNil(try service.confirmation(for: draft, route: route, candidateIndex: 0).quantity.value)
+        for text in ["73g ham slices", "81g wholemeal and rye bread"] {
+            let parsed = try XCTUnwrap(FoodListParser.parse(text).first)
+            let unmatched = FoodListLineDraft(parsed: parsed, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+            guard case .unresolved = try service.search(unmatched, at: FixedClock().now(), locale: LedgerText("en_GB")) else {
+                return XCTFail("A missing catalogue description must not silently drop terms: \(text)")
+            }
+            XCTAssertNotNil(FoodListParser.number(unmatched.quantityText))
+        }
     }
 
     private func barcodeEvidence() throws -> CaptureEvidence {

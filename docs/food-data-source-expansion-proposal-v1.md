@@ -55,7 +55,9 @@ One of the approved maximum 50 staging reads was made, using the official public
 
 ## Offline implementation contract
 
-The bundled projection includes 363 Foundation and 7,793 SR Legacy records (8,156 total). The 32 Foundation null slots are recorded in the probe and omitted. `project_usda.py` requires the pinned official archive hashes and generates `usda-generic-v1.json`, whose SHA-256 is `70480d2c58bac9fcf9646b3b66c70be00e52398695536cef0af129ea1528e4c7`.
+The bundled projection includes 363 Foundation and 7,793 SR Legacy records (8,156 total). The 32 Foundation null slots are recorded in the probe and omitted. `project_usda.py` requires the pinned official archive hashes and generates `usda-generic-v1.json`, whose SHA-256 is `6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4`.
+
+The projection keeps schema `usda-generic-v1` and official archive/record identifiers, with pipeline `usda-projection-v2` and explicit metadata policy `usda-preparation-words-v2`. Whole-word cooking terms prevent `uncooked`, `unroasted` and dry `parboiled` descriptions from being classified as cooked. Existing explicit `precooked` and `refried` compounds remain recognised. Conflicting wording and recognised direct `not`/`never` negations remain unknown. The established comma-delimited raw rule is preserved; explicit uncooked wording also establishes raw. This is preparation metadata only; drying, ingredients and cooking methods remain visible in the unchanged source description.
 
 USDA candidates preserve source descriptions and release/record/nutrient IDs. Energy uses one declared convention in priority order: Atwater specific (2048), Atwater general (2047), then energy (1008). It is never summed across conventions. Missing or duplicate nutrient entries remain unknown; incompatible water mass versus canonical volume remains unknown. Vitamin A RAE/IU is not silently mapped to the UK RE field. Carbohydrate-by-difference differences are visible. Preparation/bone is inferred only from explicit source wording; other identity states stay unknown.
 
@@ -73,6 +75,15 @@ Both adapters pass the same evidence, unknown-value, explicit-selection and hard
 ## Reproduction
 
 Run `python3 Tools/FoodSourceEvaluation/probe_usda_snapshots.py` with the three local official ZIP paths. It performs no network requests. Compare archive/JSON hashes and hit records against the saved probe; published non-object slots are explicit. The public files remain in `/private/tmp/whr-source-probe/`; the approved Foundation/SR projection is now bundled; FNDDS remains probe-only.
+
+Regenerate the bundled projection with:
+
+```sh
+python3 Tools/FoodSourceEvaluation/project_usda.py /private/tmp/whr-source-probe/FoodData_Central_foundation_food_json_2026-04-30.zip /private/tmp/whr-source-probe/FoodData_Central_sr_legacy_food_json_2018-04.zip /tmp/usda-rebuilt.json
+python3 -m unittest discover -s Tools/FoodSourceEvaluation/tests -v
+```
+
+The builder checks archive hashes before reading source records. Compare the rebuilt bytes with the bundled resource and its hash in `USDAGenericFoodSearch`; do not replace source IDs or nutrient values during a preparation-only repair. The September 2026 repair changes 27 preparation states: 22 cooked→raw, one unknown→raw, and four cooked→unknown. Record count, source metadata, record IDs, descriptions, bone states and all nutrients are unchanged. Runtime source-release IDs append `:projection:<corpus SHA-256>` to the official archive release ID so the corrected projection cannot collide with immutable releases in existing saves. Candidate and nutrient provenance reference that derived release; official record IDs and archive hashes are preserved. Saved records and historical evaluation snapshots remain unchanged; this projection version applies to newly retrieved candidates.
 
 ## Production evaluation extension
 

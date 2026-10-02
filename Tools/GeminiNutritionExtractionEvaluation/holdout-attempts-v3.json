@@ -1,0 +1,29 @@
+{
+  "max_requests": 4,
+  "attempts": [
+    {
+      "case_id": "n09",
+      "arm": "panel",
+      "outcome": "completed",
+      "http_status": 200
+    },
+    {
+      "case_id": "n10",
+      "arm": "panel",
+      "outcome": "completed",
+      "http_status": 200
+    },
+    {
+      "case_id": "n11",
+      "arm": "panel",
+      "outcome": "completed",
+      "http_status": 200
+    },
+    {
+      "case_id": "n12",
+      "arm": "panel",
+      "outcome": "completed",
+      "http_status": 200
+    }
+  ]
+}

@@ -2,6 +2,15 @@ import Foundation
 import FoodLedgerDomain
 
 public struct GenericFoodIdentityQuery: Equatable, Sendable {
+    // These are the affirmative cooking descriptors emitted by parser v5.
+    // Translation to a broad state does not erase the method from retrieval.
+    fileprivate static let parsedCookingMethods: Set<String> = ["soft-boiled", "boiled", "pan-fried", "roasted"]
+    public static func preparationKind(forParsedDescriptor descriptor: String?) -> PreparationKind? {
+        guard let descriptor else { return nil }
+        if parsedCookingMethods.contains(descriptor) { return .cooked }
+        return PreparationKind(rawValue: descriptor)
+    }
+
     public let preparation: PreparationState?
     public let bone: BoneState?
     public let skin: SkinState?

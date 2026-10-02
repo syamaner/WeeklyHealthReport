@@ -1,0 +1,127 @@
+{
+  "reviewed_on": "2026-09-28",
+  "reviewer": "Codex agent; not second human annotation",
+  "replay_sha256": "31ca1140bafff1045f9bea240314567b9de46072eb3477ee176ab90d1db91173",
+  "document_cases": [
+    {
+      "case_id": "n01",
+      "source_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html",
+      "text_sha256": "34b9300103f3c2da5b20d3a4bd86dc860aeaa021d52711baa4467f0a4cd9e5dd",
+      "review": "page identity, denominator, nutrient labels and preparation columns match frozen reference; no invented values",
+      "value_line_numbers": [
+        25,
+        27,
+        29,
+        31,
+        33,
+        35,
+        37
+      ],
+      "status": "extracted"
+    },
+    {
+      "case_id": "n02",
+      "source_url": "https://www.olympus-foods.co.uk/products/yogurt/greek-yogurt-10-fat.html",
+      "text_sha256": "34b9300103f3c2da5b20d3a4bd86dc860aeaa021d52711baa4467f0a4cd9e5dd",
+      "review": "page identity, denominator, nutrient labels and preparation columns match frozen reference; no invented values",
+      "value_line_numbers": [],
+      "status": "identity_mismatch"
+    },
+    {
+      "case_id": "n03",
+      "source_url": "https://www.grahamsfamilydairy.com/our-products/grahams-milk/whole-milk/",
+      "text_sha256": "6f826538d961a96740121a7c17bf1b843e764d8384f97b6b6b8ebb4e979dfba5",
+      "review": "page identity, denominator, nutrient labels and preparation columns match frozen reference; no invented values",
+      "value_line_numbers": [
+        71,
+        72,
+        73,
+        74
+      ],
+      "status": "extracted"
+    },
+    {
+      "case_id": "n04",
+      "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/",
+      "text_sha256": "71385adfcfe4c41eb72f905fcc136772a3370786d9e94a74bc2b01bccdc19284",
+      "review": "page identity, denominator, nutrient labels and preparation columns match frozen reference; no invented values",
+      "value_line_numbers": [
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105
+      ],
+      "status": "extracted"
+    },
+    {
+      "case_id": "n05",
+      "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/",
+      "text_sha256": "71385adfcfe4c41eb72f905fcc136772a3370786d9e94a74bc2b01bccdc19284",
+      "review": "page identity, denominator, nutrient labels and preparation columns match frozen reference; no invented values",
+      "value_line_numbers": [
+        97,
+        98,
+        99,
+        100,
+        101,
+        102,
+        103,
+        104,
+        105
+      ],
+      "status": "extracted"
+    },
+    {
+      "case_id": "n06",
+      "source_url": "https://www.mccain.co.uk/home-chips-straight-cut/",
+      "text_sha256": "71385adfcfe4c41eb72f905fcc136772a3370786d9e94a74bc2b01bccdc19284",
+      "review": "page identity, denominator, nutrient labels and preparation columns match frozen reference; no invented values",
+      "value_line_numbers": [],
+      "status": "ambiguous_basis"
+    },
+    {
+      "case_id": "n13",
+      "source_url": "https://www.cspi.org/recipe/tomato-lentil-soup",
+      "text_sha256": "22b428e440cf947f27b29c6cc8e8f0a39413a6f55e0bccfbdbf639dbeb7f0c01",
+      "review": "page identity, denominator, nutrient labels and preparation columns match frozen reference; no invented values",
+      "value_line_numbers": [
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        139,
+        140
+      ],
+      "status": "extracted"
+    },
+    {
+      "case_id": "n14",
+      "source_url": "https://www.cspi.org/recipe/tomato-lentil-soup",
+      "text_sha256": "22b428e440cf947f27b29c6cc8e8f0a39413a6f55e0bccfbdbf639dbeb7f0c01",
+      "review": "page identity, denominator, nutrient labels and preparation columns match frozen reference; no invented values",
+      "value_line_numbers": [
+        132,
+        133,
+        134,
+        135,
+        136,
+        137,
+        139,
+        140
+      ],
+      "status": "extracted"
+    }
+  ],
+  "full_document_location": "/private/tmp/gemini-nutrition-v2-documents-host",
+  "discovery": {
+    "soup": "Unverified primary source identity; provider citation titles differ from model-written USDA links; no selection accepted.",
+    "sirloin": "CoFID code 18-070 resolves in admitted local resource with matching numeric values; USDA 169457 protein differs 29.33 model vs 29.3 in admitted source. No automatic selection or nutrition admission."
+  }
+}

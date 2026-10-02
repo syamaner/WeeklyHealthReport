@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "audit_date": "2026-10-01",
+  "head": "312b20cf5a80bf71c56f9d6e7cc89c5a0278db15",
+  "working_tree_dirty": true,
+  "scope": "Selected local suite metadata, exposed development artefacts and scorer entrypoints; no sealed case bodies or reserved predictions inspected",
+  "performance_runs_executed": false,
+  "provider_calls": 0,
+  "selected_files": [
+    {
+      "path": ".github/workflows/ios-ci.yml",
+      "exists": true,
+      "tracked": true,
+      "sha256": "3db6144f4a6d62cc36fcbba61ddff9c26efb2b2d8848d7de9f15704394822fc7"
+    },
+    {
+      "path": "Tools/FoodQueryEvaluation/manifest-v5.json",
+      "exists": true,
+      "tracked": true,
+      "sha256": "327c9ebe128919b0d6882e3b2d128e06464209ce98f267f2a19b2cb5f55f7368"
+    },
+    {
+      "path": "Tools/FoodQueryEvaluation/synthetic-v5.json",
+      "exists": true,
+      "tracked": true,
+      "sha256": "9e668248df72a42ca0f5ec039d6a7fdcb09221b61230ec62addd258996aff035"
+    },
+    {
+      "path": "Tools/FoodQueryEvaluation/score.py",
+      "exists": true,
+      "tracked": true,
+      "sha256": "e6894bc55640a1ae6a88a875e60d2152d8ba20f4ad6065ea8f40f0246d9af782"
+    },
+    {
+      "path": "Tools/FoodQueryEvaluation/run.swift",
+      "exists": true,
+      "tracked": true,
+      "sha256": "2c851de427eff90ad98fc94ec4d1e8f96d18af60ffc5fa2440e03d9ec1d39c68"
+    },
+    {
+      "path": "Tools/FoodQueryEvaluation/predictions/v5-final.json.gz",
+      "exists": true,
+      "tracked": true,
+      "sha256": "6a6eb97340babf044b254dc6c691c89c8771edf6561e83829ecbde2f2776f8c0"
+    },
+    {
+      "path": "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift",
+      "exists": true,
+      "tracked": true,
+      "sha256": "5d022ab6bfeed6c4f6282ac4efcfe75e6772aa6058aa841242473f46e05e34a7"
+    },
+    {
+      "path": "Tools/FoodSearchQuality/retrieval-scenarios-v3.json",
+      "exists": true,
+      "tracked": true,
+      "sha256": "93771a450b5fa0374e247b743ceb3333e4dfdd8bfd7376e27000ca2fa6f41922"
+    },
+    {
+      "path": "Tools/FoodSearchQuality/retrieval-metrics-final-v4.json",
+      "exists": true,
+      "tracked": true,
+      "sha256": "c101c691ca4e285550481b0ecc57a2da81009082d4a210c17f467739b7f05822"
+    },
+    {
+      "path": "Tools/FoodSearchQuality/retrieval-final-v4.json.gz",
+      "exists": true,
+      "tracked": true,
+      "sha256": "760e377fe02b4562606890374bda6e9ace0fa89291e9ff7ac6131cacf2167913"
+    },
+    {
+      "path": "Tools/FoodSearchQuality/score_retrieval.py",
+      "exists": true,
+      "tracked": true,
+      "sha256": "90969bb74009935e879a803f7ae048781635799106e25cc3b418ac192b6250ef"
+    },
+    {
+      "path": "Tools/FoodSearchQuality/v4-confirmation-reproduction-manifest.json",
+      "exists": true,
+      "tracked": true,
+      "sha256": "024ca97196b972d11482fae827e1c376aa7ff11bedfd62e880fe4f2ec827df27"
+    },
+    {
+      "path": "Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/usda-generic-v1.json",
+      "exists": true,
+      "tracked": true,
+      "sha256": "6759b10f419ecdfd5395d469b0ff51d58e59e29d40f31e2087ae9455da6a4bd4"
+    },
+    {
+      "path": "Tools/FoodMatchEvaluation/README.md",
+      "exists": true,
+      "tracked": true,
+      "sha256": "2de3c29c7416ae73e2b02f7455f68ec7fd907cc24f1552662c223aa5d83aeb1d"
+    },
+    {
+      "path": "Tools/FoodModelChallenger/README.md",
+      "exists": true,
+      "tracked": true,
+      "sha256": "ad1c59d6659f604ed7459ad8cafbbf340fe4b3bebcb6a015e0613df4fe3fde38"
+    },
+    {
+      "path": "Tools/GeminiGroundingEvaluation/README.md",
+      "exists": true,
+      "tracked": true,
+      "sha256": "15bd4f2d763d5aaeeed0da5b3b2d983569c0161dd7701634df15948fdcf37221"
+    },
+    {
+      "path": "Tools/FoodOCREvaluation/README.md",
+      "exists": true,
+      "tracked": true,
+      "sha256": "3ed679cf3b6bd9c117283c6a834ea450a80d93f093d0eb54ed828fd0cb7661a9"
+    },
+    {
+      "path": "Tools/GeminiNutritionExtractionEvaluation/README.md",
+      "exists": true,
+      "tracked": false,
+      "sha256": "d3f4f251ab952ae28115e0906a2fc71bc60e707da1f1266ce9077bc95f108458"
+    },
+    {
+      "path": "Tools/GeminiNutritionExtractionEvaluation/candidate_v3.py",
+      "exists": true,
+      "tracked": false,
+      "sha256": "6ba1f4fee295fda6413b849a8cb6b85c88326fd0c64552cd942948bd3017d11d"
+    },
+    {
+      "path": "Tools/GeminiNutritionExtractionEvaluation/development-replay-v3.json",
+      "exists": true,
+      "tracked": false,
+      "sha256": "d9df2d7165c3af8d04a62e7a031d7d2ed46736852c586b1e8ea6e885cbc8553d"
+    },
+    {
+      "path": "Tools/GeminiNutritionExtractionEvaluation/development-report-v3.json",
+      "exists": true,
+      "tracked": false,
+      "sha256": "f800b08ef901b9e2e9b7c1de4c07683614aacd89ad1330c0101c51b4fb8c3124"
+    },
+    {
+      "path": "Tools/LocalHybridSearchEvaluation/README.md",
+      "exists": true,
+      "tracked": false,
+      "sha256": "eff421ca271d96ddad949003411a2ab9a6bb46d039ee388f5ce4b433bc8c71b2"
+    },
+    {
+      "path": "Tools/LocalHybridSearchEvaluation/holdout-consumed-v22.json",
+      "exists": true,
+      "tracked": false,
+      "sha256": "095d203e00e135fcc2189209eb2d53d211aabf1210c08b41dd02002e868ef678"
+    },
+    {
+      "path": "Packages/FoodLedgerKit/Tests/FoodLedgerDomainTests/FoodListParserTests.swift",
+      "exists": true,
+      "tracked": true,
+      "sha256": "7f7a79699763f5364c186db2d33e7b80aa30d0100151ad7b768018f00af8a844"
+    },
+    {
+      "path": "Packages/FoodLedgerKit/Tests/FoodLedgerDomainTests/FoodIntakeSummaryTests.swift",
+      "exists": true,
+      "tracked": true,
+      "sha256": "99907e5ea317b1f4629c5c648a20805b87c97c854bb21bf3225b8a144333c9bc"
+    },
+    {
+      "path": "Packages/FoodLedgerKit/Tests/FoodLedgerContractTests/SharedStoreContractTests.swift",
+      "exists": true,
+      "tracked": true,
+      "sha256": "b25b0f66464817523650e07c1c3d05ccb9dba6d050a07e6f2e545ec74aa6fd62"
+    }
+  ],
+  "checks": {
+    "query_v5_fixture_matches_manifest": true,
+    "retrieval_v3_labels_match_v4_manifest": true,
+    "retrieval_v4_report_matches_manifest": true,
+    "current_usda_matches_v4_manifest": false,
+    "private_extraction_document_directory_exists": true,
+    "private_document_hashes_verified": false
+  }
+}

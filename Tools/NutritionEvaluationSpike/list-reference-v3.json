@@ -1,0 +1,2021 @@
+{
+  "schema": "synthetic-list-reference-v1",
+  "reference_quality": "public_catalogue_derived_exposed_synthetic",
+  "source_sha256": "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445",
+  "cases": [
+    {
+      "case_id": "context-two-foods",
+      "expected": {
+        "lines": [
+          {
+            "line": 1,
+            "original": "Breakfast",
+            "query": "Breakfast",
+            "quantity": null,
+            "unit": null,
+            "preparation": null,
+            "notices": [
+              "contextLine"
+            ],
+            "handoff": null,
+            "handoff_unit": null,
+            "record": null,
+            "outcome": "context",
+            "error": "",
+            "initially_undecided": false,
+            "preaccept_blocked": false,
+            "write_delta": 0,
+            "original_preserved": null,
+            "provenance_preserved": false
+          },
+          {
+            "line": 2,
+            "original": "100g raw apples",
+            "query": "raw apples",
+            "quantity": 100,
+            "unit": "g",
+            "preparation": "raw",
+            "notices": [],
+            "handoff": 100,
+            "handoff_unit": "g",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+            "outcome": "saved",
+            "error": "",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 1,
+            "original_preserved": true,
+            "provenance_preserved": true
+          },
+          {
+            "line": 3,
+            "original": "50g boiled eggs",
+            "query": "boiled eggs",
+            "quantity": 50,
+            "unit": "g",
+            "preparation": "cooked",
+            "notices": [],
+            "handoff": 50,
+            "handoff_unit": "g",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf",
+            "outcome": "saved",
+            "error": "",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 1,
+            "original_preserved": true,
+            "provenance_preserved": true
+          }
+        ],
+        "saved_count": 2,
+        "saved_versions": 2,
+        "operations": 2,
+        "evidence_count": 4,
+        "assertions": 2,
+        "outstanding_food_lines": 0,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 122.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 11.6,
+            "incomplete": 1,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 7.65,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 5.3,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 1.47,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 1.885,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.955,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": 1.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sugar",
+            "known": 11.6,
+            "incomplete": 1,
+            "estimate": true
+          },
+          {
+            "key": "cholesterol",
+            "known": 180.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": 62.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "thiamin_b1",
+            "known": 0.08,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": 0.275,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "niacin_b3",
+            "known": 0.15,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": 0.725,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b6",
+            "known": 0.12,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "biotin_b7",
+            "known": 9.45,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "folate_b9",
+            "known": 15.0,
+            "incomplete": 1,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b12",
+            "known": 1.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_c",
+            "known": 6.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_d",
+            "known": 1.6,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_e",
+            "known": 0.905,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_k",
+            "known": 5.6,
+            "incomplete": 1,
+            "estimate": true
+          },
+          {
+            "key": "calcium",
+            "known": 32.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": 133.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iron",
+            "known": 1.075,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 11.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 110.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 170.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 76.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": 0.65,
+            "incomplete": 1,
+            "estimate": true
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": 0.065,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iodine",
+            "known": 30.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "manganese",
+            "known": 0.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": 13.5,
+            "incomplete": 1,
+            "estimate": true
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "duplicate-consumption",
+      "expected": {
+        "lines": [
+          {
+            "line": 1,
+            "original": "100g raw apples",
+            "query": "raw apples",
+            "quantity": 100,
+            "unit": "g",
+            "preparation": "raw",
+            "notices": [],
+            "handoff": 100,
+            "handoff_unit": "g",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+            "outcome": "saved",
+            "error": "",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 1,
+            "original_preserved": true,
+            "provenance_preserved": true
+          },
+          {
+            "line": 2,
+            "original": "100g raw apples",
+            "query": "raw apples",
+            "quantity": 100,
+            "unit": "g",
+            "preparation": "raw",
+            "notices": [],
+            "handoff": 100,
+            "handoff_unit": "g",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+            "outcome": "saved",
+            "error": "",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 1,
+            "original_preserved": true,
+            "provenance_preserved": true
+          }
+        ],
+        "saved_count": 2,
+        "saved_versions": 2,
+        "operations": 2,
+        "evidence_count": 4,
+        "assertions": 2,
+        "outstanding_food_lines": 0,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 102.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 23.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 1.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 1.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 0.24,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 0.08,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.4,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": 2.4,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sugar",
+            "known": 23.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "cholesterol",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": 4.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "thiamin_b1",
+            "known": 0.08,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": 0.08,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "niacin_b3",
+            "known": 0.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": 0.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b6",
+            "known": 0.14,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "biotin_b7",
+            "known": 2.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_c",
+            "known": 12.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_d",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_e",
+            "known": 0.18,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_k",
+            "known": 11.2,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "calcium",
+            "known": 10.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": 88.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iron",
+            "known": 0.18,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 8.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 16.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 200.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 2.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": 0.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iodine",
+            "known": 8.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "manganese",
+            "known": 0.08,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "partial-count",
+      "expected": {
+        "lines": [
+          {
+            "line": 1,
+            "original": "50g raw apples",
+            "query": "raw apples",
+            "quantity": 50,
+            "unit": "g",
+            "preparation": "raw",
+            "notices": [],
+            "handoff": 50,
+            "handoff_unit": "g",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+            "outcome": "saved",
+            "error": "",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 1,
+            "original_preserved": true,
+            "provenance_preserved": true
+          },
+          {
+            "line": 2,
+            "original": "2 boiled eggs",
+            "query": "boiled eggs",
+            "quantity": 2,
+            "unit": "count",
+            "preparation": "cooked",
+            "notices": [],
+            "handoff": 2,
+            "handoff_unit": "count",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf",
+            "outcome": "blocked",
+            "error": "missingConversion",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 0,
+            "original_preserved": true,
+            "provenance_preserved": false
+          }
+        ],
+        "saved_count": 1,
+        "saved_versions": 1,
+        "operations": 1,
+        "evidence_count": 2,
+        "assertions": 1,
+        "outstanding_food_lines": 1,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 25.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 5.8,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 0.3,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 0.25,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 0.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.1,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": 0.6,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sugar",
+            "known": 5.8,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "cholesterol",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": 1.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "thiamin_b1",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "niacin_b3",
+            "known": 0.05,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": 0.05,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b6",
+            "known": 0.035,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "biotin_b7",
+            "known": 0.55,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_c",
+            "known": 3.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_d",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_e",
+            "known": 0.045,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_k",
+            "known": 2.8,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "calcium",
+            "known": 2.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": 22.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iron",
+            "known": 0.045,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 2.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 4.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 50.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 0.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": 0.015,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iodine",
+            "known": 2.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "manganese",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "missing-amount",
+      "expected": {
+        "lines": [
+          {
+            "line": 1,
+            "original": "raw apples",
+            "query": "raw apples",
+            "quantity": null,
+            "unit": null,
+            "preparation": "raw",
+            "notices": [
+              "missingQuantity"
+            ],
+            "handoff": null,
+            "handoff_unit": "g",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+            "outcome": "blocked",
+            "error": "invalidQuantity",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 0,
+            "original_preserved": true,
+            "provenance_preserved": false
+          }
+        ],
+        "saved_count": 0,
+        "saved_versions": 0,
+        "operations": 0,
+        "evidence_count": 0,
+        "assertions": 0,
+        "outstanding_food_lines": 1,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "carbohydrates",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "protein",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_total",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_saturated",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "fiber",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "sugar",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "cholesterol",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_a",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "thiamin_b1",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "niacin_b3",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b6",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "biotin_b7",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_c",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_d",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_e",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_k",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "calcium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "chloride",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "iron",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "magnesium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "phosphorus",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "potassium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "sodium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "iodine",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "manganese",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 0,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "source-miss",
+      "expected": {
+        "lines": [
+          {
+            "line": 1,
+            "original": "100g zzqvnofood",
+            "query": "zzqvnofood",
+            "quantity": 100,
+            "unit": "g",
+            "preparation": null,
+            "notices": [],
+            "handoff": null,
+            "handoff_unit": null,
+            "record": null,
+            "outcome": "unresolved",
+            "error": "",
+            "initially_undecided": false,
+            "preaccept_blocked": false,
+            "write_delta": 0,
+            "original_preserved": null,
+            "provenance_preserved": false
+          },
+          {
+            "line": 2,
+            "original": "50g raw apples",
+            "query": "raw apples",
+            "quantity": 50,
+            "unit": "g",
+            "preparation": "raw",
+            "notices": [],
+            "handoff": 50,
+            "handoff_unit": "g",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+            "outcome": "saved",
+            "error": "",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 1,
+            "original_preserved": true,
+            "provenance_preserved": true
+          }
+        ],
+        "saved_count": 1,
+        "saved_versions": 1,
+        "operations": 1,
+        "evidence_count": 2,
+        "assertions": 1,
+        "outstanding_food_lines": 1,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 25.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 5.8,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 0.3,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 0.25,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 0.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.1,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": 0.6,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sugar",
+            "known": 5.8,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "cholesterol",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": 1.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "thiamin_b1",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "niacin_b3",
+            "known": 0.05,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": 0.05,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b6",
+            "known": 0.035,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "biotin_b7",
+            "known": 0.55,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_c",
+            "known": 3.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_d",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_e",
+            "known": 0.045,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_k",
+            "known": 2.8,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "calcium",
+            "known": 2.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": 22.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iron",
+            "known": 0.045,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 2.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 4.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 50.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 0.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": 0.015,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iodine",
+            "known": 2.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "manganese",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "blank-bullet",
+      "expected": {
+        "lines": [
+          {
+            "line": 1,
+            "original": "100g raw apples",
+            "query": "raw apples",
+            "quantity": 100,
+            "unit": "g",
+            "preparation": "raw",
+            "notices": [],
+            "handoff": 100,
+            "handoff_unit": "g",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+            "outcome": "saved",
+            "error": "",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 1,
+            "original_preserved": true,
+            "provenance_preserved": true
+          },
+          {
+            "line": 3,
+            "original": "\u2022 50g raw apples",
+            "query": "raw apples",
+            "quantity": 50,
+            "unit": "g",
+            "preparation": "raw",
+            "notices": [],
+            "handoff": 50,
+            "handoff_unit": "g",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+            "outcome": "saved",
+            "error": "",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 1,
+            "original_preserved": true,
+            "provenance_preserved": true
+          }
+        ],
+        "saved_count": 2,
+        "saved_versions": 2,
+        "operations": 2,
+        "evidence_count": 4,
+        "assertions": 2,
+        "outstanding_food_lines": 0,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 76.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 17.4,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 0.9,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 0.75,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 0.18,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 0.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.3,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": 1.8,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sugar",
+            "known": 17.4,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "cholesterol",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": 3.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "thiamin_b1",
+            "known": 0.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": 0.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "niacin_b3",
+            "known": 0.15,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": 0.15,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b6",
+            "known": 0.105,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "biotin_b7",
+            "known": 1.65,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_c",
+            "known": 9.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_d",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_e",
+            "known": 0.135,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_k",
+            "known": 8.4,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "calcium",
+            "known": 7.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": 66.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iron",
+            "known": 0.135,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 6.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 12.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 150.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 1.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": 0.045,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iodine",
+            "known": 6.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "manganese",
+            "known": 0.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 2,
+            "estimate": false
+          }
+        ]
+      }
+    },
+    {
+      "case_id": "fraction-count",
+      "expected": {
+        "lines": [
+          {
+            "line": 1,
+            "original": "\u00bd boiled eggs",
+            "query": "boiled eggs",
+            "quantity": 0.5,
+            "unit": "count",
+            "preparation": "cooked",
+            "notices": [],
+            "handoff": 0.5,
+            "handoff_unit": "count",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf",
+            "outcome": "blocked",
+            "error": "missingConversion",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 0,
+            "original_preserved": true,
+            "provenance_preserved": false
+          },
+          {
+            "line": 2,
+            "original": "50g raw apples",
+            "query": "raw apples",
+            "quantity": 50,
+            "unit": "g",
+            "preparation": "raw",
+            "notices": [],
+            "handoff": 50,
+            "handoff_unit": "g",
+            "record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+            "outcome": "saved",
+            "error": "",
+            "initially_undecided": true,
+            "preaccept_blocked": true,
+            "write_delta": 1,
+            "original_preserved": true,
+            "provenance_preserved": true
+          }
+        ],
+        "saved_count": 1,
+        "saved_versions": 1,
+        "operations": 1,
+        "evidence_count": 2,
+        "assertions": 1,
+        "outstanding_food_lines": 1,
+        "totals": [
+          {
+            "key": "energy_consumed",
+            "known": 25.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "carbohydrates",
+            "known": 5.8,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "protein",
+            "known": 0.3,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_total",
+            "known": 0.25,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_saturated",
+            "known": 0.06,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_monounsaturated",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fat_polyunsaturated",
+            "known": 0.1,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "fiber",
+            "known": 0.6,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sugar",
+            "known": 5.8,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "cholesterol",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_a",
+            "known": 1.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "thiamin_b1",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "riboflavin_b2",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "niacin_b3",
+            "known": 0.05,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "pantothenic_acid_b5",
+            "known": 0.05,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_b6",
+            "known": 0.035,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "biotin_b7",
+            "known": 0.55,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "folate_b9",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "vitamin_b12",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_c",
+            "known": 3.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_d",
+            "known": 0.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_e",
+            "known": 0.045,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "vitamin_k",
+            "known": 2.8,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "calcium",
+            "known": 2.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "chloride",
+            "known": 22.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iron",
+            "known": 0.045,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "magnesium",
+            "known": 2.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "phosphorus",
+            "known": 4.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "potassium",
+            "known": 50.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "sodium",
+            "known": 0.5,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "zinc",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "chromium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "copper",
+            "known": 0.015,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "iodine",
+            "known": 2.0,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "manganese",
+            "known": 0.02,
+            "incomplete": 0,
+            "estimate": true
+          },
+          {
+            "key": "molybdenum",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "selenium",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "water",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          },
+          {
+            "key": "caffeine",
+            "known": null,
+            "incomplete": 1,
+            "estimate": false
+          }
+        ]
+      }
+    }
+  ],
+  "reference_revision": "v2-explicit-capture-stage-absence"
+}

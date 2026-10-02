@@ -2,6 +2,18 @@ import FoodLedgerDomain
 import XCTest
 
 final class FoodListParserTests: XCTestCase {
+    func testHalfNotationPreservesCountRatherThanMass() throws {
+        for input in ["half green pepper", "½ yellow pepper", "1/2 orange pepper", "0.5 bell pepper"] {
+            let parsed = try XCTUnwrap(FoodListParser.parse(input).first)
+            XCTAssertEqual(parsed.quantity, 0.5, input)
+            XCTAssertEqual(parsed.unit, .count, input)
+            XCTAssertEqual(parsed.original, input)
+        }
+        let household = try XCTUnwrap(FoodListParser.parse("½ cup pepper sauce").first)
+        XCTAssertNil(household.quantity)
+        XCTAssertTrue(household.notices.contains(.householdMeasure))
+    }
+
     func testUnitAliasesAndExplicitMetricScaling() throws {
         let cases: [(String, Double, QuantityUnit, String)] = [
             ("75 gram oats", 75, .grams, "oats"), ("75 grams oats", 75, .grams, "oats"),
@@ -85,4 +97,62 @@ final class FoodListParserTests: XCTestCase {
         XCTAssertNil(FoodListParser.suggestedQuery("BrandExample milk"))
         XCTAssertEqual(try FoodListParser.parse("70 g avacado").first?.query, "avacado")
     }
+    func testNegatedPreparationNeverAssertsAnOppositeState() throws {
+        for text in ["45 g almonds not roasted", "55 g seeds never toasted", "65 g non-roasted hazelnuts", "75 g not pan fried mushrooms"] {
+            let row = try XCTUnwrap(FoodListParser.parse(text).first)
+            XCTAssertNil(row.preparation, text)
+            XCTAssertEqual(row.original, text)
+            XCTAssertFalse(row.notices.contains(.conflictingPreparation), text)
+        }
+        let raw = try XCTUnwrap(FoodListParser.parse("85 g raw peas not boiled").first)
+        XCTAssertEqual(raw.preparation, .raw)
+        let cooked = try XCTUnwrap(FoodListParser.parse("95 g boiled lentils not raw").first)
+        XCTAssertEqual(cooked.preparation, .cooked)
+        for text in ["105 g roast duck", "115 g toasted bread"] {
+            XCTAssertEqual(try FoodListParser.parse(text).first?.preparation, .cooked, text)
+        }
+        XCTAssertNil(try FoodListParser.parse("1 mug dark roast coffee").first?.preparation)
+    }
+
+    func testTrailingMetricAmountPreservesFoodAndRejectsCompetingAmounts() throws {
+        for (text, amount, unit, query) in [
+            ("parsley 17 grams", 17.0, QuantityUnit.grams, "parsley"),
+            ("kefir .4 l", 400.0, .millilitres, "kefir"),
+            ("BrandExample cereal 6% fat 45g", 45.0, .grams, "BrandExample cereal 6% fat")
+        ] {
+            let row = try XCTUnwrap(FoodListParser.parse(text).first)
+            XCTAssertEqual(row.quantity, amount, text)
+            XCTAssertEqual(row.unit, unit, text)
+            XCTAssertEqual(row.query, query, text)
+            XCTAssertEqual(row.original, text)
+        }
+        for text in ["rice 90g 120g", "2 pears 40g", "tea 8 g coffee grounds", "cereal -17 g", "cereal 0g"] {
+            XCTAssertNil(try FoodListParser.parse(text).first?.quantity, text)
+        }
+    }
+
+    func testArticlesRemainCountsAndHouseholdMeasuresRemainUnresolved() throws {
+        for text in ["a falafel wrap", "an orange"] {
+            let row = try XCTUnwrap(FoodListParser.parse(text).first)
+            XCTAssertEqual(row.quantity, 1, text)
+            XCTAssertEqual(row.unit, .count, text)
+        }
+        for text in ["3 teaspoons honey", "2 table spoons tahini", "a tablespoon cream", "2 slices toast"] {
+            let row = try XCTUnwrap(FoodListParser.parse(text).first)
+            XCTAssertNil(row.quantity, text)
+            XCTAssertNil(row.unit, text)
+            XCTAssertTrue(row.notices.contains(.householdMeasure), text)
+        }
+        XCTAssertEqual(try FoodListParser.parse("44g sliced cucumber").first?.quantity, 44)
+    }
+
+    func testSupplementNamesAreNotFoodOrValidatedDoses() throws {
+        for text in ["4 Centrum", "3 TUDCA", "12 mg zinc"] {
+            let row = try XCTUnwrap(FoodListParser.parse(text).first)
+            XCTAssertTrue(row.notices.contains(.supplement), text)
+            XCTAssertEqual(row.original, text)
+        }
+        XCTAssertNil(try FoodListParser.parse("12 mg zinc").first?.quantity)
+    }
+
 }
