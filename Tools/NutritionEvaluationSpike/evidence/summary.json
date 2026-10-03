@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "status": "development_spike_only",
+  "suites": {
+    "extraction": {
+      "cases": 20,
+      "expectations_met": 20,
+      "failures": []
+    },
+    "query": {
+      "cases": 511,
+      "expectations_met": 511,
+      "failures": []
+    },
+    "safeguard": {
+      "cases": 2,
+      "expectations_met": 2,
+      "failures": []
+    }
+  },
+  "ai": {
+    "extraction": "legacy_development_replay",
+    "synthetic_proposal_failures": 1,
+    "independent_acceptance": "not_run"
+  },
+  "safeguards": "pass",
+  "user_outcomes": "incomplete_control_save_only",
+  "provider_calls": 0,
+  "judges": 0,
+  "historical_resource_drift": [
+    "../../Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/usda-generic-v1.json"
+  ]
+}

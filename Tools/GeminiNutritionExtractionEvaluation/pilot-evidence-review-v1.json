@@ -1,0 +1,185 @@
+{
+  "replay_sha256": "dd29f9294cf1816b8bfb098eb864002eea6f7d300a7a33d1b23b5eb60c663ded",
+  "reviews": [
+    {
+      "case_id": "n01",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "source variant and preparation checked",
+      "note": "Controlled supplied transcription; not live-page retrieval."
+    },
+    {
+      "case_id": "n02",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "no_nutrition_emitted",
+      "assumptions": "source variant and preparation checked",
+      "note": "Controlled supplied transcription; not live-page retrieval."
+    },
+    {
+      "case_id": "n03",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "source variant and preparation checked",
+      "note": "Controlled supplied transcription; not live-page retrieval."
+    },
+    {
+      "case_id": "n04",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "source variant and preparation checked",
+      "note": "Controlled supplied transcription; not live-page retrieval."
+    },
+    {
+      "case_id": "n05",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "source variant and preparation checked",
+      "note": "Controlled supplied transcription; not live-page retrieval."
+    },
+    {
+      "case_id": "n06",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "no_nutrition_emitted",
+      "assumptions": "source variant and preparation checked",
+      "note": "Controlled supplied transcription; not live-page retrieval."
+    },
+    {
+      "case_id": "n07",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "source variant and preparation checked",
+      "note": "Controlled supplied transcription; not live-page retrieval."
+    },
+    {
+      "case_id": "n08",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "no_nutrition_emitted",
+      "assumptions": "source variant and preparation checked",
+      "note": "Controlled supplied transcription; not live-page retrieval."
+    },
+    {
+      "case_id": "n13",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "representative CSPI recipe; cup-to-grams unavailable explicitly stated",
+      "note": "Controlled supplied transcription; not live-page retrieval."
+    },
+    {
+      "case_id": "n14",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "representative CSPI recipe; cup-to-grams unavailable explicitly stated",
+      "note": "Controlled supplied transcription; not live-page retrieval."
+    },
+    {
+      "case_id": "n15",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "grilled medium-rare, lean meat only explicitly stated",
+      "note": "Controlled supplied transcription; not live-page retrieval."
+    },
+    {
+      "case_id": "n16",
+      "arm": "panel",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "grilled medium-rare, lean meat only explicitly stated",
+      "note": "Conservative representative classification differs from frozen expected source_record."
+    },
+    {
+      "case_id": "n01",
+      "arm": "url",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "unavailable_selected_page",
+      "assumptions": "source variant and preparation checked",
+      "note": "Provider retrieval metadata only; no citation annotations."
+    },
+    {
+      "case_id": "n02",
+      "arm": "url",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "unavailable_selected_page",
+      "assumptions": "source variant and preparation checked",
+      "note": "Provider retrieval metadata only; no citation annotations."
+    },
+    {
+      "case_id": "n03",
+      "arm": "url",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "unavailable_selected_page",
+      "assumptions": "source variant and preparation checked",
+      "note": "Provider retrieval metadata only; no citation annotations."
+    },
+    {
+      "case_id": "n04",
+      "arm": "url",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "source variant and preparation checked",
+      "note": "Provider retrieval metadata only; no citation annotations."
+    },
+    {
+      "case_id": "n05",
+      "arm": "url",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "source variant and preparation checked",
+      "note": "Provider retrieval metadata only; no citation annotations."
+    },
+    {
+      "case_id": "n06",
+      "arm": "url",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "no_nutrition_emitted",
+      "assumptions": "source variant and preparation checked",
+      "note": "Provider retrieval metadata only; no citation annotations."
+    },
+    {
+      "case_id": "n13",
+      "arm": "url",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "representative CSPI recipe; cup-to-grams unavailable explicitly stated",
+      "note": "Provider retrieval metadata only; no citation annotations."
+    },
+    {
+      "case_id": "n14",
+      "arm": "url",
+      "reviewed_on": "2026-09-28",
+      "reviewer": "Codex agent; not an independent human annotation",
+      "evidence": "numeric_fields_match_checked_reference",
+      "assumptions": "representative CSPI recipe; cup-to-grams unavailable explicitly stated",
+      "note": "Provider retrieval metadata only; no citation annotations."
+    }
+  ]
+}

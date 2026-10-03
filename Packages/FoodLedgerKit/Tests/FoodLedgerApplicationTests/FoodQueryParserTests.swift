@@ -2,6 +2,26 @@ import XCTest
 @testable import FoodLedgerApplication
 
 final class FoodQueryParserTests: XCTestCase {
+    func testHalfPepperFormsCaptureOnlyAnItemCount() {
+        for input in ["half a green pepper", "½ yellow pepper", "1/2 orange pepper", "0.5 bell pepper"] {
+            let parsed = FoodQueryParser.parse(input)
+            XCTAssertEqual(parsed.route, .search, input)
+            XCTAssertEqual(parsed.quantity?.value, 0.5, input)
+            XCTAssertEqual(parsed.quantity?.unit, "count", input)
+            XCTAssertEqual(parsed.original, input)
+            XCTAssertFalse(parsed.food?.contains("half") == true)
+        }
+        for input in ["half green pepper soup", "half cup pepper sauce", "half a pack peppers", "half green pepper and cheese", "half green pepper 80g", "about half green pepper", "⅓ green pepper", "2½ green pepper 40g"] {
+            let parsed = FoodQueryParser.parse(input)
+            XCTAssertNotEqual(parsed.route, .search, input)
+            XCTAssertNil(parsed.quantity, input)
+        }
+        for input in ["0 green pepper", "−½ yellow pepper"] {
+            XCTAssertEqual(FoodQueryParser.parse(input).route, .reject, input)
+            XCTAssertNil(FoodQueryParser.parse(input).quantity, input)
+        }
+    }
+
     func testRawOrUncookedWithCookingMethodRequiresClarification() {
         for raw in ["raw", "uncooked"] {
             for method in ["cooked", "roast", "roasted", "boiled", "grilled", "broiled", "fried", "baked", "steamed", "braised", "poached", "stewed"] {
@@ -97,6 +117,59 @@ final class FoodQueryParserTests: XCTestCase {
             XCTAssertEqual(parsed.quantity?.unit, unit, input)
         }
         XCTAssertEqual(FoodQueryParser.parse("−100g rice").route, .reject)
+    }
+
+    func testNegatedPreparationRemainsInRetrievalEvidence() {
+        for phrase in ["not roasted", "not   roasted", "never boiled", "non-roasted", "not pan fried"] {
+            let text = "47g hazelnuts \(phrase)"
+            let parsed = FoodQueryParser.parse(text)
+            XCTAssertNil(parsed.attributes["preparation"], text)
+            XCTAssertEqual(parsed.quantity?.value, 47, text)
+            XCTAssertEqual(parsed.original, text)
+            XCTAssertTrue(parsed.food?.contains(phrase.replacingOccurrences(of: "   ", with: " ")) == true, text)
+        }
+        let raw = FoodQueryParser.parse("87g raw lentils not cooked")
+        XCTAssertEqual(raw.route, .search)
+        XCTAssertEqual(raw.attributes["preparation"], "raw")
+        XCTAssertTrue(raw.food?.contains("not cooked") == true)
+        let cooked = FoodQueryParser.parse("97g boiled peas not raw")
+        XCTAssertEqual(cooked.attributes["preparation"], "boiled")
+        XCTAssertTrue(cooked.food?.contains("not raw") == true)
+        let repeated = FoodQueryParser.parse("107g roasted almonds not roasted")
+        XCTAssertEqual(repeated.attributes["preparation"], "roasted")
+        XCTAssertTrue(repeated.food?.contains("not roasted") == true)
+        let negatedBasis = FoodQueryParser.parse("117g lentils not cooked weight")
+        XCTAssertNil(negatedBasis.attributes["weight_basis"])
+        XCTAssertNil(negatedBasis.attributes["preparation"])
+    }
+
+    func testMeasuredSliceDescriptorsDoNotInventAHouseholdConversion() {
+        for text in ["73g smoked ham slices", "112 grams cheese slice"] {
+            let parsed = FoodQueryParser.parse(text)
+            XCTAssertEqual(parsed.route, .search, text)
+            XCTAssertEqual(parsed.quantity?.unit, "g", text)
+            XCTAssertEqual(parsed.original, text)
+        }
+        for text in ["two slices cheese", "120ml cheese slice", "about 73g ham slices", "73g ham 2 slices", "73g ham slices 35g cheese", "0g ham slice", "73g ham slice and cheese"] {
+            let parsed = FoodQueryParser.parse(text)
+            XCTAssertNotEqual(parsed.route, .search, text)
+            XCTAssertNil(parsed.quantity, text)
+        }
+    }
+
+    func testBreadConjunctionIsBoundedAndWordOrderSymmetric() {
+        for grains in ["rye and wheat", "wheat and rye", "rye and wholemeal", "wholemeal and rye"] {
+            for kind in ["bread", "sourdough", "sourdough bread"] {
+                let text = "81g \(grains) \(kind)"
+                let parsed = FoodQueryParser.parse(text)
+                XCTAssertEqual(parsed.route, .search, text)
+                XCTAssertEqual(parsed.food, "\(grains) \(kind)", text)
+                XCTAssertEqual(parsed.quantity?.value, 81, text)
+            }
+        }
+        for text in ["81g wheat bread and rye bread", "81g rye and wheat bread with cheese", "81g rye and milk", "81g wheat and rye 24g cheese"] {
+            XCTAssertNotEqual(FoodQueryParser.parse(text).route, .search, text)
+        }
     }
 
 }

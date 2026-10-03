@@ -4,6 +4,17 @@ import FoodLedgerDomain
 import XCTest
 
 final class FoodQueryPreparationPolicyTests: XCTestCase {
+    func testNegatedMethodsDoNotBecomeAffirmativeDiscoveryConstraints() {
+        for text in ["90g not grilled aubergine", "90g never boiled carrots", "90g non-roasted lamb", "90g not pan fried beef"] {
+            let interpretation = FoodQueryInterpretation(text)
+            XCTAssertTrue(interpretation.allowsDiscovery, text)
+            XCTAssertNil(interpretation.preparation, text)
+            XCTAssertEqual(interpretation.originalText, text)
+        }
+        XCTAssertEqual(FoodQueryInterpretation("87g raw lentils not cooked").preparation, .raw)
+        XCTAssertEqual(FoodQueryInterpretation("90g grilled aubergine").preparation, .cooked)
+    }
+
     func testCookingMethodsResolveCoarseStateAndRetainMethodWithoutInventingSourceFacts() throws {
         for word in ["boiled", "soft boiled", "pan-fried", "pan fried", "roasted", "grilled", "broiled", "fried", "baked", "steamed", "braised", "poached", "stewed"] {
             let parsed = FoodQueryParser.parse("90g \(word) broccoli")

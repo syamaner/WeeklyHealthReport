@@ -1,0 +1,72 @@
+[
+  {
+    "case_id": "cofid-sirloin",
+    "expected_status": "verified",
+    "lead": {
+      "family": "cofid",
+      "id": "18-070",
+      "name": "Beef, sirloin steak, grilled medium-rare, lean only",
+      "preparation": "cooked",
+      "claims": {
+        "energy_kcal": {
+          "value": 176,
+          "unit": "kcal"
+        },
+        "protein": {
+          "value": 26.6,
+          "unit": "g"
+        },
+        "fat": {
+          "value": 7.7,
+          "unit": "g"
+        }
+      }
+    }
+  },
+  {
+    "case_id": "usda-sirloin",
+    "expected_status": "conflicting_claims",
+    "lead": {
+      "family": "usda-sr",
+      "id": "169457",
+      "name": "Beef, top sirloin, steak, separable lean and fat, trimmed to 0\" fat, all grades, cooked, broiled",
+      "preparation": "cooked",
+      "claims": {
+        "energy_kcal": {
+          "value": 212,
+          "unit": "kcal"
+        },
+        "protein": {
+          "value": 29.33,
+          "unit": "g"
+        },
+        "fat": {
+          "value": 9.67,
+          "unit": "g"
+        }
+      }
+    }
+  },
+  {
+    "case_id": "soup-2707462",
+    "expected_status": "unresolved",
+    "lead": {
+      "family": "usda-fndds",
+      "id": "2707462",
+      "name": "Soup, lentil",
+      "preparation": "cooked",
+      "claims": {}
+    }
+  },
+  {
+    "case_id": "soup-2707460",
+    "expected_status": "unresolved",
+    "lead": {
+      "family": "usda-fndds",
+      "id": "2707460",
+      "name": "Soup, lentil, canned",
+      "preparation": "cooked",
+      "claims": {}
+    }
+  }
+]

@@ -1,0 +1,633 @@
+{
+  "version": "nutrition-v3-replay",
+  "model": "gemini-3.8-flash",
+  "contract": {
+    "version": "nutrition-contract-v3",
+    "development_requests": 20,
+    "conditional_holdout_requests": 4,
+    "sha256": {
+      "frozen-contract-v2.json": "e2577e4b122c75eee7111d072fd3c64a9bfd6f25dc4e45b0aa5375adc1016cd5",
+      "candidate_v3.py": "6ba1f4fee295fda6413b849a8cb6b85c88326fd0c64552cd942948bd3017d11d",
+      "prompt-v3.txt": "090fa34ac2e89e1f6957e11e18f46b7aaa8ea0a32fe6db1ca2b01da96734cefe",
+      "response-schema-v3.json": "7e49f5504866005c29e0c1554a4212016d92dcac8dcc680fa6b91bb88c0d21b5",
+      "evidence_binding.py": "476a5b333d042c6ae965bd9e55e9ec029cfc0db64d6308048bf902fa733fea34",
+      "resolve_discovery.py": "b864b39d59f68f27d4e505ba51a8a0991196c19545c4f667bda7d2bf11e66d53",
+      "resolution-cases-v3.json": "c0ddd4d0736f9087aeeb5208b400dd387983cb71484c37108838ae1de0553a89",
+      "experiment-v3.md": "b054e64fa781ea46a6c0dc9a581b71d889aa35a1a9a123325cb88f45946d9973",
+      "../../Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/cofid-2021-generic-search-v1.json": "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445",
+      "../../Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/usda-generic-v1.json": "70480d2c58bac9fcf9646b3b66c70be00e52398695536cef0af129ea1528e4c7"
+    }
+  },
+  "split": "holdout",
+  "started_at": "2026-09-28T20:23:46.618249+00:00",
+  "results": [
+    {
+      "case_id": "n09",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100,
+        "basis_unit": "g",
+        "preparation": "as_sold",
+        "nutrients": [
+          {
+            "id": "energy_kj",
+            "state": "declared",
+            "value": 540,
+            "unit": "kJ",
+            "operator": "=",
+            "evidence": "per 100 g: 540 kJ",
+            "evidence_line": null
+          },
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 130,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "130 kcal",
+            "evidence_line": null
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 10,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "fat 10 g",
+            "evidence_line": null
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 7.5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "saturates 7.5 g",
+            "evidence_line": null
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 3.5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "carbohydrate 3.5 g",
+            "evidence_line": null
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 3.5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "sugars 3.5 g",
+            "evidence_line": null
+          },
+          {
+            "id": "fibre",
+            "state": "declared",
+            "value": 0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "fibre 0.0 g",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 6.5,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "protein 6.5 g",
+            "evidence_line": null
+          },
+          {
+            "id": "salt",
+            "state": "declared",
+            "value": 0.11,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "salt 0.11 g",
+            "evidence_line": null
+          },
+          {
+            "id": "calcium",
+            "state": "declared",
+            "value": 120,
+            "unit": "mg",
+            "operator": "=",
+            "evidence": "calcium 120 mg",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Nutrition successfully extracted per 100 g from panel evidence.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "odysea",
+          "source_url": "https://www.odysea.com/product/odysea-real-greek-yoghurt-10-cows-milk-500g/",
+          "content_sha256": "f648d4e022ccdd24ea2b98e9bccda913b403ff5e7fb9530fe534f835ff459226",
+          "request_sha256": "0bf840c390e367c8403dbcbefd823e52f4d5fdc567a75fbb40e4b63be4150e68"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100,
+          "basis_unit": "g",
+          "preparation": "as_sold",
+          "nutrients": [
+            {
+              "id": "energy_kj",
+              "state": "declared",
+              "value": 540,
+              "unit": "kJ",
+              "operator": "=",
+              "evidence": "per 100 g: 540 kJ",
+              "evidence_line": null
+            },
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 130,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "130 kcal",
+              "evidence_line": null
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 10,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "fat 10 g",
+              "evidence_line": null
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 7.5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "saturates 7.5 g",
+              "evidence_line": null
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 3.5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "carbohydrate 3.5 g",
+              "evidence_line": null
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 3.5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "sugars 3.5 g",
+              "evidence_line": null
+            },
+            {
+              "id": "fibre",
+              "state": "declared",
+              "value": 0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "fibre 0.0 g",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 6.5,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "protein 6.5 g",
+              "evidence_line": null
+            },
+            {
+              "id": "salt",
+              "state": "declared",
+              "value": 0.11,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "salt 0.11 g",
+              "evidence_line": null
+            },
+            {
+              "id": "calcium",
+              "state": "declared",
+              "value": 120,
+              "unit": "mg",
+              "operator": "=",
+              "evidence": "calcium 120 mg",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Nutrition successfully extracted per 100 g from panel evidence.",
+          "applicability": "source_record",
+          "source_url": "https://www.odysea.com/product/odysea-real-greek-yoghurt-10-cows-milk-500g/"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 2141,
+        "total_input_tokens": 1368,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 773,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 1965
+      }
+    },
+    {
+      "case_id": "n10",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "identity_mismatch",
+        "basis_amount": null,
+        "basis_unit": null,
+        "preparation": null,
+        "nutrients": [],
+        "reason": "Requested 0% fat Greek yoghurt, but the source evidence is for the 10% fat variant.",
+        "applicability": "unresolved"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "odysea",
+          "source_url": "https://www.odysea.com/product/odysea-real-greek-yoghurt-10-cows-milk-500g/",
+          "content_sha256": "f648d4e022ccdd24ea2b98e9bccda913b403ff5e7fb9530fe534f835ff459226",
+          "request_sha256": "646c676ac31d5bec8bdd5e330262eb9e2c28df548d054e830a1c8248255f00cc"
+        },
+        "extraction": {
+          "status": "identity_mismatch",
+          "basis_amount": null,
+          "basis_unit": null,
+          "preparation": null,
+          "nutrients": [],
+          "reason": "Requested 0% fat Greek yoghurt, but the source evidence is for the 10% fat variant.",
+          "applicability": "unresolved",
+          "source_url": "https://www.odysea.com/product/odysea-real-greek-yoghurt-10-cows-milk-500g/"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 1583,
+        "total_input_tokens": 1362,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 84,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 137,
+        "raw_prompt_token": 1959
+      }
+    },
+    {
+      "case_id": "n11",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "extracted",
+        "basis_amount": 100,
+        "basis_unit": "ml",
+        "preparation": "as_sold",
+        "nutrients": [
+          {
+            "id": "energy_kj",
+            "state": "declared",
+            "value": 58,
+            "unit": "kJ",
+            "operator": "=",
+            "evidence": "Per 100 ml: energy 58 kJ",
+            "evidence_line": null
+          },
+          {
+            "id": "energy_kcal",
+            "state": "declared",
+            "value": 14,
+            "unit": "kcal",
+            "operator": "=",
+            "evidence": "14 kcal",
+            "evidence_line": null
+          },
+          {
+            "id": "fat",
+            "state": "declared",
+            "value": 1.1,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "fat 1.1 g",
+            "evidence_line": null
+          },
+          {
+            "id": "saturates",
+            "state": "declared",
+            "value": 0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "saturates 0.0 g",
+            "evidence_line": null
+          },
+          {
+            "id": "carbohydrate",
+            "state": "declared",
+            "value": 0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "carbohydrate 0.0 g",
+            "evidence_line": null
+          },
+          {
+            "id": "sugars",
+            "state": "declared",
+            "value": 0,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "sugars 0.0 g",
+            "evidence_line": null
+          },
+          {
+            "id": "fibre",
+            "state": "declared",
+            "value": 0.3,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "fibre 0.3 g",
+            "evidence_line": null
+          },
+          {
+            "id": "protein",
+            "state": "declared",
+            "value": 0.4,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "protein 0.4 g",
+            "evidence_line": null
+          },
+          {
+            "id": "salt",
+            "state": "declared",
+            "value": 0.15,
+            "unit": "g",
+            "operator": "=",
+            "evidence": "salt 0.15 g",
+            "evidence_line": null
+          },
+          {
+            "id": "calcium",
+            "state": "declared",
+            "value": 120,
+            "unit": "mg",
+            "operator": "=",
+            "evidence": "calcium 120 mg",
+            "evidence_line": null
+          },
+          {
+            "id": "vitamin_d2",
+            "state": "declared",
+            "value": 0.75,
+            "unit": "ug",
+            "operator": "=",
+            "evidence": "vitamin D2 0.75 µg",
+            "evidence_line": null
+          },
+          {
+            "id": "vitamin_b12",
+            "state": "declared",
+            "value": 0.38,
+            "unit": "ug",
+            "operator": "=",
+            "evidence": "vitamin B12 0.38 µg",
+            "evidence_line": null
+          },
+          {
+            "id": "iodine",
+            "state": "declared",
+            "value": 22.5,
+            "unit": "ug",
+            "operator": "=",
+            "evidence": "iodine 22.5 µg",
+            "evidence_line": null
+          },
+          {
+            "id": "iron",
+            "state": "unknown",
+            "value": null,
+            "unit": null,
+            "operator": null,
+            "evidence": "",
+            "evidence_line": null
+          }
+        ],
+        "reason": "Nutrition declared per 100 ml for Alpro Almond Roasted No Sugars UK 500 ml.",
+        "applicability": "source_record"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "alpro",
+          "source_url": "https://www.alpro.com/en-gb/products/drinks/almond-roasted-no-sugars-500ml",
+          "content_sha256": "6f8d0415f25ee5bf6482a0075d8279643a69246f665a14ce44e6f62a63c85453",
+          "request_sha256": "0ebcc218e5f4243ae5b1e92620f5b1a44980d65bf8a184804459c67ad0db8be1"
+        },
+        "extraction": {
+          "status": "extracted",
+          "basis_amount": 100,
+          "basis_unit": "ml",
+          "preparation": "as_sold",
+          "nutrients": [
+            {
+              "id": "energy_kj",
+              "state": "declared",
+              "value": 58,
+              "unit": "kJ",
+              "operator": "=",
+              "evidence": "Per 100 ml: energy 58 kJ",
+              "evidence_line": null
+            },
+            {
+              "id": "energy_kcal",
+              "state": "declared",
+              "value": 14,
+              "unit": "kcal",
+              "operator": "=",
+              "evidence": "14 kcal",
+              "evidence_line": null
+            },
+            {
+              "id": "fat",
+              "state": "declared",
+              "value": 1.1,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "fat 1.1 g",
+              "evidence_line": null
+            },
+            {
+              "id": "saturates",
+              "state": "declared",
+              "value": 0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "saturates 0.0 g",
+              "evidence_line": null
+            },
+            {
+              "id": "carbohydrate",
+              "state": "declared",
+              "value": 0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "carbohydrate 0.0 g",
+              "evidence_line": null
+            },
+            {
+              "id": "sugars",
+              "state": "declared",
+              "value": 0,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "sugars 0.0 g",
+              "evidence_line": null
+            },
+            {
+              "id": "fibre",
+              "state": "declared",
+              "value": 0.3,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "fibre 0.3 g",
+              "evidence_line": null
+            },
+            {
+              "id": "protein",
+              "state": "declared",
+              "value": 0.4,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "protein 0.4 g",
+              "evidence_line": null
+            },
+            {
+              "id": "salt",
+              "state": "declared",
+              "value": 0.15,
+              "unit": "g",
+              "operator": "=",
+              "evidence": "salt 0.15 g",
+              "evidence_line": null
+            },
+            {
+              "id": "calcium",
+              "state": "declared",
+              "value": 120,
+              "unit": "mg",
+              "operator": "=",
+              "evidence": "calcium 120 mg",
+              "evidence_line": null
+            },
+            {
+              "id": "vitamin_d2",
+              "state": "declared",
+              "value": 0.75,
+              "unit": "ug",
+              "operator": "=",
+              "evidence": "vitamin D2 0.75 µg",
+              "evidence_line": null
+            },
+            {
+              "id": "vitamin_b12",
+              "state": "declared",
+              "value": 0.38,
+              "unit": "ug",
+              "operator": "=",
+              "evidence": "vitamin B12 0.38 µg",
+              "evidence_line": null
+            },
+            {
+              "id": "iodine",
+              "state": "declared",
+              "value": 22.5,
+              "unit": "ug",
+              "operator": "=",
+              "evidence": "iodine 22.5 µg",
+              "evidence_line": null
+            },
+            {
+              "id": "iron",
+              "state": "unknown",
+              "value": null,
+              "unit": null,
+              "operator": null,
+              "evidence": "",
+              "evidence_line": null
+            }
+          ],
+          "reason": "Nutrition declared per 100 ml for Alpro Almond Roasted No Sugars UK 500 ml.",
+          "applicability": "source_record",
+          "source_url": "https://www.alpro.com/en-gb/products/drinks/almond-roasted-no-sugars-500ml"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 2480,
+        "total_input_tokens": 1421,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 1059,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 0,
+        "raw_prompt_token": 2018
+      }
+    },
+    {
+      "case_id": "n12",
+      "arm": "panel",
+      "model_extraction": {
+        "status": "identity_mismatch",
+        "basis_amount": null,
+        "basis_unit": null,
+        "preparation": null,
+        "nutrients": [],
+        "reason": "The evidence panel describes Alpro Almond Roasted No Sugars, which conflicts with the requested Alpro Soya Original.",
+        "applicability": "unresolved"
+      },
+      "bound": {
+        "version": "selected-evidence-envelope-v3",
+        "provenance": {
+          "source_id": "alpro",
+          "source_url": "https://www.alpro.com/en-gb/products/drinks/almond-roasted-no-sugars-500ml",
+          "content_sha256": "6f8d0415f25ee5bf6482a0075d8279643a69246f665a14ce44e6f62a63c85453",
+          "request_sha256": "bde5f9426e09a8896c43a2696f40deb929aafa74fa2ccedbaed67093861174c6"
+        },
+        "extraction": {
+          "status": "identity_mismatch",
+          "basis_amount": null,
+          "basis_unit": null,
+          "preparation": null,
+          "nutrients": [],
+          "reason": "The evidence panel describes Alpro Almond Roasted No Sugars, which conflicts with the requested Alpro Soya Original.",
+          "applicability": "unresolved",
+          "source_url": "https://www.alpro.com/en-gb/products/drinks/almond-roasted-no-sugars-500ml"
+        }
+      },
+      "citations": [],
+      "retrieval": [],
+      "usage": {
+        "total_tokens": 1605,
+        "total_input_tokens": 1399,
+        "total_cached_tokens": 0,
+        "total_output_tokens": 85,
+        "total_tool_use_tokens": 0,
+        "total_thought_tokens": 121,
+        "raw_prompt_token": 1996
+      }
+    }
+  ]
+}

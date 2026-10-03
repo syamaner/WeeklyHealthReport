@@ -151,8 +151,9 @@ public final class GenericFoodSearchViewModel: ObservableObject {
             }
             let text = try LedgerText(query, field: "generic food search")
             let parsedPreparation = interpretation.preparation
-            if let preparationFilter, let parsedPreparation, preparationFilter != parsedPreparation {
-                phase = .failed("The preparation in your query conflicts with the selected filter. Please choose one.")
+            let requestedPreparation = identity?.preparation?.kind ?? preparationFilter
+            if let requestedPreparation, let parsedPreparation, requestedPreparation != parsedPreparation {
+                phase = .failed("The preparation in your query conflicts with the selected preparation. Please choose one.")
                 return
             }
             let identity = try identity ?? GenericFoodIdentityQuery(

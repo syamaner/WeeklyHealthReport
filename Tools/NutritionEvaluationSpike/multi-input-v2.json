@@ -1,0 +1,109 @@
+{
+  "schema": "synthetic-multi-source-input-v1",
+  "cases": [
+    {
+      "case_id": "usda-ribeye-100",
+      "text": "100g raw ribeye",
+      "backend": "usda",
+      "entry": "query",
+      "target_record": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+      "action": "accept"
+    },
+    {
+      "case_id": "usda-ribeye-50",
+      "text": "50g raw ribeye",
+      "backend": "usda",
+      "entry": "query",
+      "target_record": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+      "action": "accept"
+    },
+    {
+      "case_id": "usda-list-ribeye",
+      "text": "100g raw ribeye",
+      "backend": "usda",
+      "entry": "list",
+      "target_record": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+      "action": "accept"
+    },
+    {
+      "case_id": "composite-ribeye",
+      "text": "100g raw ribeye",
+      "backend": "composite",
+      "entry": "query",
+      "target_record": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+      "action": "accept"
+    },
+    {
+      "case_id": "composite-list-apple",
+      "text": "100g raw apples",
+      "backend": "composite",
+      "entry": "list",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+      "action": "accept"
+    },
+    {
+      "case_id": "milk-cofid-convert",
+      "text": "200ml Milk whole pasteurised average",
+      "backend": "cofid",
+      "entry": "query",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+      "action": "convert"
+    },
+    {
+      "case_id": "milk-composite-convert",
+      "text": "200ml Milk whole pasteurised average",
+      "backend": "composite",
+      "entry": "query",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+      "action": "convert"
+    },
+    {
+      "case_id": "milk-litres-convert",
+      "text": "0.2l Milk whole pasteurised average",
+      "backend": "cofid",
+      "entry": "query",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+      "action": "convert"
+    },
+    {
+      "case_id": "milk-no-conversion-tap",
+      "text": "200ml Milk whole pasteurised average",
+      "backend": "cofid",
+      "entry": "query",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+      "action": "accept"
+    },
+    {
+      "case_id": "milk-edited-conversion",
+      "text": "200ml Milk whole pasteurised average",
+      "backend": "cofid",
+      "entry": "query",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1681:c5ec3e17866aa937",
+      "action": "convert_then_edit"
+    },
+    {
+      "case_id": "milk-uht-no-offer",
+      "text": "200ml Milk whole UHT",
+      "backend": "cofid",
+      "entry": "query",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1684:e549680f66e3ad26",
+      "action": "convert"
+    },
+    {
+      "case_id": "milk-usda-no-offer",
+      "text": "200ml Milk whole without added",
+      "backend": "usda",
+      "entry": "query",
+      "target_record": "usda-legacy:2018-04-01:sha256:0fe8ae486a2c8eb42cb96413f058deb51863a46c8fb8eeb4b1fb45006dd338ef:fdc:172217",
+      "action": "convert"
+    },
+    {
+      "case_id": "usda-count-block",
+      "text": "2 ribeye",
+      "backend": "usda",
+      "entry": "list",
+      "target_record": "usda-foundation:2026-04-30:sha256:186e988ec542e913f51ef62b86a47758e8cdd0d1dc3889e7b055581f3c09c77a:fdc:2646172",
+      "action": "accept"
+    }
+  ]
+}

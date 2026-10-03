@@ -28,7 +28,7 @@ public struct ParsedFoodQuery: Codable, Equatable, Sendable {
 }
 
 public enum FoodQueryParser {
-    public static let version = "food-query-parser-v3"
+    public static let version = "food-query-parser-v7"
     public static func parse(_ original: String, recognisedBrands: [String] = ["olympus", "olympos", "quaker", "quakers", "kirkland", "costco", "ortiz", "coop", "the estate dairy"]) -> ParsedFoodQuery {
         var text = original.folding(options: .widthInsensitive, locale: Locale(identifier: "en_GB")).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         var attributes: [String: String] = [:]
@@ -44,6 +44,20 @@ public enum FoodQueryParser {
         }
         func remove(_ pattern: String) {
             text = text.replacingOccurrences(of: pattern, with: " ", options: .regularExpression)
+        }
+        // A negated cooking word is retained as evidence, never inverted into
+        // an affirmative preparation or an inferred opposite state.
+        func preparationMatches(_ pattern: String) -> [NSTextCheckingResult] {
+            matches(pattern, text).filter { match in
+                guard let range = Range(match.range, in: text) else { return false }
+                let prefix = String(text[..<range.lowerBound])
+                return matches(#"\b(?:not|never)\s+(?:(?:pan|soft)[ -]+)?$|\bnon[ -]$"#, prefix).isEmpty
+            }
+        }
+        func removePreparation(_ pattern: String) {
+            for match in preparationMatches(pattern).reversed() {
+                if let range = Range(match.range, in: text) { text.replaceSubrange(range, with: " ") }
+            }
         }
         func result(_ route: ParsedFoodQuery.Route, food: String? = nil) -> ParsedFoodQuery {
             ParsedFoodQuery(original: original, food: food, attributes: attributes,
@@ -141,15 +155,22 @@ public enum FoodQueryParser {
         }
         remove(quantityPattern)
         if quantities.count > 1 { reasons.append("competing_quantities") }
-        if !matches(#"\b(bowl|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pot|pack|glass|cup|mug|slices?|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|some)\b"#, text).isEmpty { reasons.append("portion_requires_confirmation") }
+        let householdAmount = !matches(#"\b(bowl|handfuls?|jars?|tubs?|cans?|bags?|packets?|pieces?|ladles?|pot|pack|glass|cup|mug|tins?|sachets?|bottles?|plates?|pints?|dollops?|cartons?|scoops?|servings?|portions?|tablespoons?|teaspoons?|oz|ounce|some)\b"#, text).isEmpty
+        let hasSliceDescriptor = !matches(#"\bslices?\b"#, text).isEmpty
+        let hasSingleMass = quantities.count == 1 && quantities[0].unit == "g"
+        if householdAmount || (hasSliceDescriptor && !hasSingleMass) { reasons.append("portion_requires_confirmation") }
         if text.contains("grounds") { reasons.append("grounds_are_not_drink_weight") }
         if text.contains("homemade") || text.contains("smoothie") || text.contains("mixed vegetables") { reasons.append("recipe_unknown") }
-        let countPattern = #"^(half|zero|one|two|three|a|an|-?\d+(?:\.\d+)?)\s*x?\s*(?:an?\s+)?(?=(?:medium\s+)?(?:soft boiled\s+|boiled\s+)?(?:eggs?|bananas?|avocados?|apples?|clementines?|mandarins?|pretzels?)\b)"#
+        // A bounded whole-item name admits counts, never an estimated mass.
+        // The end anchor keeps pepper soup/sauce and other preparations out.
+        let countedFood = #"(?:medium\s+)?(?:soft boiled\s+|boiled\s+)?(?:eggs?|bananas?|avocados?|apples?|clementines?|mandarins?|pretzels?)\b"#
+        let discretePepper = #"(?:(?:small|medium|large)\s+)?(?:(?:red|green|yellow|orange|bell)\s+)*peppers?(?:\s+(?:raw|cooked))?\s*$"#
+        let countPattern = #"^(half|zero|one|two|three|a|an|-?\d+(?:\.\d+)?)\s*x?\s*(?:an?\s+)?(?=(?:"# + countedFood + #"|"# + discretePepper + #"))"#
         if let m = matches(countPattern, text).first {
             let token = capture(m, 1, text)
             let words: [String: Double] = ["half": 0.5, "zero": 0, "one": 1, "two": 2, "three": 3, "a": 1, "an": 1]
             let value = words[token] ?? Double(token) ?? 0
-            if value <= 0 { reasons.append("invalid_quantity") }
+            if value <= 0 || !value.isFinite { reasons.append("invalid_quantity") }
             else { quantities.append(.init(value: value, unit: "count")) }
             remove(countPattern)
             if quantities.count > 1 { reasons.append("count_and_mass_need_basis_confirmation") }
@@ -159,7 +180,7 @@ public enum FoodQueryParser {
         // even when a method is not represented by a preparation descriptor below.
         let rawWords = #"\b(raw|uncooked)\b"#
         let cookedWords = #"\b(cooked|roast|roasted|boiled|grilled|broiled|fried|baked|steamed|braised|poached|stewed)\b"#
-        if !matches(rawWords, text).isEmpty && !matches(cookedWords, text).isEmpty {
+        if !preparationMatches(rawWords).isEmpty && !preparationMatches(cookedWords).isEmpty {
             reasons.append("conflicting_preparation")
         }
         let descriptors: [(String, String, String)] = [
@@ -171,17 +192,20 @@ public enum FoodQueryParser {
             ("whole", "fat_descriptor", "whole"), ("skimmed", "fat_descriptor", "skimmed"), ("unsweetened", "sweetening", "unsweetened"),
             ("lactose-free", "lactose", "free"), ("canned", "preservation", "canned"), ("frozen", "preservation", "frozen"),
             ("medium", "size", "medium")]
-        for basis in ["cooked", "raw", "drained"] where text.contains(basis + " weight") {
+        for basis in ["cooked", "raw", "drained"] {
+            let pattern = #"\b"# + basis + #" weight\b"#
+            guard !preparationMatches(pattern).isEmpty else { continue }
             attributes["weight_basis"] = basis
             if basis != "drained" { attributes["preparation"] = basis }
-            remove(#"\b"# + basis + #" weight\b"#)
+            removePreparation(pattern)
         }
         for (phrase, key, value) in descriptors {
             let pattern = #"\b"# + NSRegularExpression.escapedPattern(for: phrase) + #"\b"#
-            if !matches(pattern, text).isEmpty {
+            let occurrences = key == "preparation" ? preparationMatches(pattern) : matches(pattern, text)
+            if !occurrences.isEmpty {
                 if let existing = attributes[key], existing != value { reasons.append("conflicting_" + key) }
                 attributes[key] = value
-                remove(pattern)
+                if key == "preparation" { removePreparation(pattern) } else { remove(pattern) }
             }
         }
         for phrase in ["without skin or stone", "without seed or skin", "without skin or seed"] where text.contains(phrase) {
@@ -200,7 +224,10 @@ public enum FoodQueryParser {
         if text == "protein powder whey" { text = "whey protein powder" }
         if !matches(#"\d"#, text).isEmpty { reasons.append("unresolved_number") }
         if text.contains(" and ") || text.contains(" with ") || text.contains(" & ") || text.contains(" on ") {
-            if !["rye and wheat bread", "rye and wholemeal bread"].contains(text) { reasons.append("multiple_foods_or_recipe") }
+            // One bounded bread name may contain both grain terms. This is
+            // not a general exception for food conjunctions or mixed meals.
+            let compoundBread = #"^(?:rye and (?:wheat|wholemeal)|(?:wheat|wholemeal) and rye) (?:bread|sourdough(?: bread)?)$"#
+            if matches(compoundBread, text).isEmpty { reasons.append("multiple_foods_or_recipe") }
         }
         if text.isEmpty { reasons.append("food_missing") }
         let invalid = reasons.contains("invalid_quantity") || reasons.contains("invalid_percentage") || text.isEmpty

@@ -1,0 +1,355 @@
+{
+  "schema": "synthetic-save-daily-journeys-v1",
+  "scope": "Production confirmation to in-memory ledger and production daily projection; not raw AI, user UI or persistent-store acceptance. UTC calendar, fixed time and IDs.",
+  "cases": [
+    {
+      "case_id": "grams-100",
+      "kind": "save",
+      "expected": {
+        "validation": "saved",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "removed_rows": 0,
+        "item_count": 1,
+        "row_grams": [
+          100.0
+        ],
+        "protein_known": 10.0,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 1,
+        "evidence_count": 1,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 1,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "grams-50",
+      "kind": "save",
+      "expected": {
+        "validation": "saved",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "removed_rows": 0,
+        "item_count": 1,
+        "row_grams": [
+          50.0
+        ],
+        "protein_known": 5.0,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 1,
+        "evidence_count": 1,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 1,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "two-entries",
+      "kind": "save",
+      "expected": {
+        "validation": "saved",
+        "saved_versions": 2,
+        "operations": 2,
+        "rows": 2,
+        "removed_rows": 0,
+        "item_count": 2,
+        "row_grams": [
+          50.0,
+          100.0
+        ],
+        "protein_known": 15.0,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 2,
+        "evidence_count": 1,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 2,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "quantity-edit",
+      "kind": "save",
+      "expected": {
+        "validation": "saved",
+        "saved_versions": 2,
+        "operations": 2,
+        "rows": 1,
+        "removed_rows": 0,
+        "item_count": 1,
+        "row_grams": [
+          200.0
+        ],
+        "protein_known": 20.0,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 1,
+        "evidence_count": 1,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 1,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "idempotent-retry",
+      "kind": "save",
+      "expected": {
+        "validation": "saved",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "removed_rows": 0,
+        "item_count": 1,
+        "row_grams": [
+          100.0
+        ],
+        "protein_known": 10.0,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 1,
+        "evidence_count": 1,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": true,
+        "preview_days": 7,
+        "preview_item_count": 1,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "unsupported-count",
+      "kind": "block",
+      "expected": {
+        "validation": "blocked",
+        "saved_versions": 0,
+        "operations": 0,
+        "rows": 0,
+        "removed_rows": 0,
+        "item_count": 0,
+        "row_grams": [],
+        "protein_known": null,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 0,
+        "evidence_count": 0,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 0,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "unaccepted",
+      "kind": "block",
+      "expected": {
+        "validation": "blocked",
+        "saved_versions": 0,
+        "operations": 0,
+        "rows": 0,
+        "removed_rows": 0,
+        "item_count": 0,
+        "row_grams": [],
+        "protein_known": null,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 0,
+        "evidence_count": 0,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 0,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "cleared-quantity",
+      "kind": "block",
+      "expected": {
+        "validation": "blocked",
+        "saved_versions": 0,
+        "operations": 0,
+        "rows": 0,
+        "removed_rows": 0,
+        "item_count": 0,
+        "row_grams": [],
+        "protein_known": null,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 0,
+        "evidence_count": 0,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 0,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "empty-other-day",
+      "kind": "save",
+      "expected": {
+        "validation": "saved",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 0,
+        "removed_rows": 0,
+        "item_count": 0,
+        "row_grams": [],
+        "protein_known": null,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 0,
+        "evidence_count": 1,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 1,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "partial-nutrients",
+      "kind": "save",
+      "expected": {
+        "validation": "saved",
+        "saved_versions": 2,
+        "operations": 2,
+        "rows": 2,
+        "removed_rows": 0,
+        "item_count": 2,
+        "row_grams": [
+          50.0,
+          100.0
+        ],
+        "protein_known": 10.0,
+        "protein_incomplete": 1,
+        "fat_known": null,
+        "fat_incomplete": 2,
+        "evidence_count": 1,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 2,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "completed-week",
+      "kind": "save",
+      "expected": {
+        "validation": "saved",
+        "saved_versions": 1,
+        "operations": 1,
+        "rows": 1,
+        "removed_rows": 0,
+        "item_count": 1,
+        "row_grams": [
+          100.0
+        ],
+        "protein_known": 10.0,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 1,
+        "evidence_count": 1,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 1,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "remove-entry",
+      "kind": "save",
+      "expected": {
+        "validation": "saved",
+        "saved_versions": 2,
+        "operations": 2,
+        "rows": 0,
+        "removed_rows": 1,
+        "item_count": 0,
+        "row_grams": [],
+        "protein_known": null,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 0,
+        "evidence_count": 1,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 0,
+        "preview_excludes_today": true
+      }
+    },
+    {
+      "case_id": "restore-entry",
+      "kind": "save",
+      "expected": {
+        "validation": "saved",
+        "saved_versions": 3,
+        "operations": 3,
+        "rows": 1,
+        "removed_rows": 0,
+        "item_count": 1,
+        "row_grams": [
+          100.0
+        ],
+        "protein_known": 10.0,
+        "protein_incomplete": 0,
+        "fat_known": null,
+        "fat_incomplete": 1,
+        "evidence_count": 1,
+        "nutrient_keys": 39,
+        "evidence_preserved": true,
+        "provenance_preserved": true,
+        "retry_same_version": false,
+        "preview_days": 7,
+        "preview_item_count": 1,
+        "preview_excludes_today": true
+      }
+    }
+  ],
+  "limitations": [
+    "No physical UI/device or real user intake.",
+    "No fresh model outputs.",
+    "No GRDB persistence.",
+    "Not complete journey-family acceptance."
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "schema": "synthetic-linked-input-v1",
+  "cases": [
+    {
+      "case_id": "apple-100",
+      "text": "100g raw apples",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+      "action": "accept"
+    },
+    {
+      "case_id": "apple-50",
+      "text": "50g raw apples",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+      "action": "accept"
+    },
+    {
+      "case_id": "apple-kg",
+      "text": "0.05kg raw apples",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+      "action": "accept"
+    },
+    {
+      "case_id": "egg-100",
+      "text": "100g boiled eggs",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf",
+      "action": "accept"
+    },
+    {
+      "case_id": "egg-count",
+      "text": "2 boiled eggs",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf",
+      "action": "accept"
+    },
+    {
+      "case_id": "unaccepted",
+      "text": "100g raw apples",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+      "action": "unaccepted"
+    },
+    {
+      "case_id": "cleared",
+      "text": "100g raw apples",
+      "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68",
+      "action": "clear"
+    },
+    {
+      "case_id": "missing-food",
+      "text": "100g zzqvnofood",
+      "target_record": null,
+      "action": "accept"
+    },
+    {
+      "case_id": "invalid-zero",
+      "text": "0g apples",
+      "target_record": null,
+      "action": "accept"
+    }
+  ]
+}

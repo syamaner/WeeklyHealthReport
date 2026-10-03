@@ -1,0 +1,323 @@
+{
+  "version": "nutrition-v3-report",
+  "split": "development",
+  "planned": 20,
+  "completed": 20,
+  "passed": 20,
+  "details": [
+    {
+      "case_id": "n01",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 10,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n02",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n03",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 10,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n04",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 10,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n05",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 10,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n06",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n07",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 10,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n08",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n13",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 8,
+        "expected_fields": 8,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n14",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 8,
+        "expected_fields": 8,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n15",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 6,
+        "expected_fields": 6,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": {
+          "energy_kcal": 440.0,
+          "protein": 66.5,
+          "fat": 19.25,
+          "saturates": 8.5,
+          "iron": 3.5,
+          "sodium": 162.5
+        }
+      }
+    },
+    {
+      "case_id": "n16",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 6,
+        "expected_fields": 6,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": {
+          "energy_kcal": 440.0,
+          "protein": 66.5,
+          "fat": 19.25,
+          "saturates": 8.5,
+          "iron": 3.5,
+          "sodium": 162.5
+        }
+      }
+    },
+    {
+      "case_id": "n01",
+      "arm": "document",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 10,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n02",
+      "arm": "document",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n03",
+      "arm": "document",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 10,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n04",
+      "arm": "document",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 10,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n05",
+      "arm": "document",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 10,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n06",
+      "arm": "document",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n13",
+      "arm": "document",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 8,
+        "expected_fields": 8,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n14",
+      "arm": "document",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 8,
+        "expected_fields": 8,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    }
+  ]
+}

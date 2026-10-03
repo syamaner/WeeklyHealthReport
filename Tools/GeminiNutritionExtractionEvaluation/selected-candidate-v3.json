@@ -1,0 +1,27 @@
+{
+  "version": "selected-extraction-candidate-v3",
+  "selected_at": "2026-09-28T20:23:46.307966+00:00",
+  "contract": {
+    "version": "nutrition-contract-v3",
+    "development_requests": 20,
+    "conditional_holdout_requests": 4,
+    "sha256": {
+      "frozen-contract-v2.json": "e2577e4b122c75eee7111d072fd3c64a9bfd6f25dc4e45b0aa5375adc1016cd5",
+      "candidate_v3.py": "6ba1f4fee295fda6413b849a8cb6b85c88326fd0c64552cd942948bd3017d11d",
+      "prompt-v3.txt": "090fa34ac2e89e1f6957e11e18f46b7aaa8ea0a32fe6db1ca2b01da96734cefe",
+      "response-schema-v3.json": "7e49f5504866005c29e0c1554a4212016d92dcac8dcc680fa6b91bb88c0d21b5",
+      "evidence_binding.py": "476a5b333d042c6ae965bd9e55e9ec029cfc0db64d6308048bf902fa733fea34",
+      "resolve_discovery.py": "b864b39d59f68f27d4e505ba51a8a0991196c19545c4f667bda7d2bf11e66d53",
+      "resolution-cases-v3.json": "c0ddd4d0736f9087aeeb5208b400dd387983cb71484c37108838ae1de0553a89",
+      "experiment-v3.md": "b054e64fa781ea46a6c0dc9a581b71d889aa35a1a9a123325cb88f45946d9973",
+      "../../Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/cofid-2021-generic-search-v1.json": "2b0fbbade4d405eabcad440cabb1560e9861d9388c5fb4032ef24c81fb45f445",
+      "../../Packages/FoodLedgerKit/Sources/FoodGenericSearch/Resources/usda-generic-v1.json": "70480d2c58bac9fcf9646b3b66c70be00e52398695536cef0af129ea1528e4c7"
+    }
+  },
+  "development_replay": "/Users/sertanyamaner/git/WeeklyHealthReport/Tools/GeminiNutritionExtractionEvaluation/development-replay-v3.json",
+  "development_replay_sha256": "d9df2d7165c3af8d04a62e7a031d7d2ed46736852c586b1e8ea6e885cbc8553d",
+  "evidence_review": "passed",
+  "reviewer": "Codex agent; not independent human annotation",
+  "review_notes": "All eight document cases checked against source rows, neighbouring labels, denominator and preparation columns. Panel assumptions and abstentions checked. Four offline lead outcomes match expected verified/conflicting/unresolved states. This does not establish soup discovery coverage.",
+  "holdout_scope": "Four supplied-panel tasks once; no holdout-site fetching."
+}

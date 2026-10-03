@@ -1,0 +1,95 @@
+{
+  "schema": "synthetic-list-input-v1",
+  "cases": [
+    {
+      "case_id": "context-two-foods",
+      "text": "Breakfast\n100g raw apples\n50g boiled eggs",
+      "selections": [
+        {
+          "line": 2,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68"
+        },
+        {
+          "line": 3,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf"
+        }
+      ]
+    },
+    {
+      "case_id": "duplicate-consumption",
+      "text": "100g raw apples\n100g raw apples",
+      "selections": [
+        {
+          "line": 1,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68"
+        },
+        {
+          "line": 2,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68"
+        }
+      ]
+    },
+    {
+      "case_id": "partial-count",
+      "text": "50g raw apples\n2 boiled eggs",
+      "selections": [
+        {
+          "line": 1,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68"
+        },
+        {
+          "line": 2,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf"
+        }
+      ]
+    },
+    {
+      "case_id": "missing-amount",
+      "text": "raw apples",
+      "selections": [
+        {
+          "line": 1,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68"
+        }
+      ]
+    },
+    {
+      "case_id": "source-miss",
+      "text": "100g zzqvnofood\n50g raw apples",
+      "selections": [
+        {
+          "line": 2,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68"
+        }
+      ]
+    },
+    {
+      "case_id": "blank-bullet",
+      "text": "100g raw apples\n\n• 50g raw apples",
+      "selections": [
+        {
+          "line": 1,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68"
+        },
+        {
+          "line": 3,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68"
+        }
+      ]
+    },
+    {
+      "case_id": "fraction-count",
+      "text": "½ boiled eggs\n50g raw apples",
+      "selections": [
+        {
+          "line": 1,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:1091:0fe190b81c244ccf"
+        },
+        {
+          "line": 2,
+          "target_record": "cofid:2021:sha256:436e9445ef2adb2a75f3d7edd51302de3adad25385f9795fc94ba58bd030e97d:row:0030:e5ade4061b8d8f68"
+        }
+      ]
+    }
+  ]
+}

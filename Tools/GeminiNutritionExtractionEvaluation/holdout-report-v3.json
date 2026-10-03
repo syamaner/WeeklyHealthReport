@@ -1,0 +1,69 @@
+{
+  "version": "nutrition-v3-report",
+  "split": "holdout",
+  "planned": 4,
+  "completed": 4,
+  "passed": 4,
+  "details": [
+    {
+      "case_id": "n09",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 10,
+        "expected_fields": 10,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n10",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n11",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 14,
+        "expected_fields": 14,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    },
+    {
+      "case_id": "n12",
+      "arm": "panel",
+      "completed": true,
+      "score": {
+        "schema_valid": true,
+        "passed": true,
+        "errors": [],
+        "correct_fields": 0,
+        "expected_fields": 0,
+        "invented_fields": [],
+        "values_on_abstention": false,
+        "portion": null
+      }
+    }
+  ]
+}

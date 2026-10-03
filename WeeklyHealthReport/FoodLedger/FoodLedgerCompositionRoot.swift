@@ -198,7 +198,7 @@ final class FoodLedgerCompositionRoot {
     func foodListModel(locale: Locale = .current) throws -> FoodListImportViewModel {
         if let activeFoodList { return activeFoodList }
         let model = FoodListImportViewModel(
-            service: FoodListImportService(searcher: genericFoodSearch),
+            service: FoodListImportService(searcher: genericFoodSearch, ids: ids),
             locale: try LedgerText(locale.identifier), ids: ids,
             checkpointStore: try FoodListCheckpointGRDBStore(databaseURL: draftURL),
             recoveredLogItemID: { [ledger] operationID in

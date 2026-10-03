@@ -1,0 +1,12 @@
+{
+  "version": "nutrition-evidence-review-v3",
+  "reviewed_on": "2026-09-28",
+  "reviewer": "Codex agent; not second independent human annotation",
+  "development_replay_sha256": "d9df2d7165c3af8d04a62e7a031d7d2ed46736852c586b1e8ea6e885cbc8553d",
+  "holdout_replay_sha256": "051ef473ab4759c2035fe27d8e198f2494b65de2f401472ac4f83f81e0a249b9",
+  "development": "20/20: original gold unchanged; document fields checked with adjacent labels and preparation headers. Representative recipes, cooked weight, bounds, unknowns, abstentions and arithmetic checked.",
+  "holdout": "4/4 first run: Odysea zero fibre and mg calcium preserved; Alpro ml basis, microgram vitamins/iodine and unknown iron preserved; both wrong-variant/product queries abstained. Supplied panels only; no holdout site fetching.",
+  "provenance": "Selected source id, URL, evidence hash and exact request hash bound outside the model; raw model extraction retained separately.",
+  "resolution": "One verified admitted record, one conflicting numeric claim, two unresolved soup IDs. These are four expected routing outcomes, not four verified sources.",
+  "limitations": "Small correlated challenge set, two holdout source domains, no statistical accuracy claim or app/device validation. Confirmation remains simulated; no nutrition admission."
+}

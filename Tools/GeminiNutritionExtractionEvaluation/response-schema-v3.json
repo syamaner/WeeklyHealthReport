@@ -1,0 +1,120 @@
+{
+  "type": "object",
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "extracted",
+        "identity_mismatch",
+        "ambiguous_basis",
+        "unavailable"
+      ]
+    },
+    "basis_amount": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "basis_unit": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "preparation": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "nutrients": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "declared",
+              "bounded",
+              "unknown"
+            ]
+          },
+          "value": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "operator": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "=",
+              "<",
+              "<=",
+              ">",
+              ">=",
+              null
+            ],
+            "description": "REQUIRED: \"=\" for declared, inequality for bounded, null ONLY for unknown."
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "evidence_line": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Integer line in supplied source_document for declared/bounded; null in panel mode or unknown."
+          }
+        },
+        "required": [
+          "id",
+          "state",
+          "value",
+          "unit",
+          "operator",
+          "evidence",
+          "evidence_line"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "reason": {
+      "type": "string"
+    },
+    "applicability": {
+      "type": "string",
+      "enum": [
+        "source_record",
+        "representative",
+        "unresolved"
+      ],
+      "description": "source_record for explicitly matching product OR user-selected composition record, even if an average; representative for a vague query matched to an example."
+    }
+  },
+  "required": [
+    "status",
+    "basis_amount",
+    "basis_unit",
+    "preparation",
+    "nutrients",
+    "reason",
+    "applicability"
+  ],
+  "additionalProperties": false
+}

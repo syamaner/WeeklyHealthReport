@@ -4,6 +4,23 @@ import FoodLedgerTestSupport
 import XCTest
 
 final class FoodConfirmationReducerTests: XCTestCase {
+    func testFractionalCountCannotSaveOrCalculateMassWithoutConversion() throws {
+        let store = InMemoryFoodLedgerStore()
+        let service = makeService(store: store, ids: SequenceIDs())
+        var state = FoodConfirmationState(input: try fixtureInput(), queryQuantity: FoodQueryParser.parse("half a green pepper").quantity)
+        XCTAssertEqual(state.quantity.value, 0.5)
+        XCTAssertEqual(state.quantity.unit, .count)
+        XCTAssertNil(state.quantity.conversion)
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        XCTAssertThrowsError(try state.quantity.calculatedEdibleQuantity()) { error in
+            XCTAssertEqual(error as? FoodQuantityValidationError, .missingConversion)
+        }
+        XCTAssertThrowsError(try service.save(state, operationID: id(960, OperationTag.self))) { error in
+            XCTAssertEqual(error as? FoodQuantityValidationError, .missingConversion)
+        }
+        XCTAssertEqual(try store.counts().logItemVersions, 0)
+    }
+
     func testSaveAndProjectionShareCanonicalLocalDateWithNonGregorianDisplayCalendar() throws {
         var calendar = Calendar(identifier: .buddhist)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Pacific/Auckland"))
