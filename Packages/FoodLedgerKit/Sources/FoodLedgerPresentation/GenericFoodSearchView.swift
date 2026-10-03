@@ -55,6 +55,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         let id = release.sourceID.value.lowercased()
         if id.contains("cofid") { return "CoFID · on device" }
         if id.contains("usda") { return "USDA · on device" }
+        if id == "tfda-taiwan" { return "TFDA · Taiwan · on device" }
         if id.contains("openfoodfacts") || id.contains("open-food-facts") { return "Open Food Facts · online" }
         if stageReports.contains(where: { $0.stage == .gemini && $0.addedCandidateIDs.contains(match.searchID) }) { return "Web source" }
         if stageReports.contains(where: { $0.stage == .onlineDatabase && $0.addedCandidateIDs.contains(match.searchID) }) { return "Online food database" }
@@ -74,11 +75,32 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         }
         switch failure {
         case .unsupportedSource: return "The cited page is not supported for nutrition verification. You can still open its source link."
-        case .unavailable: return "The source page could not be loaded. Existing food results remain available."
+        case .unavailable: return "The source page could not be loaded. No nutrition was added from it."
         case .invalidContent: return "The source page did not pass nutrition verification. No nutrition was added from it."
         case .quotaExceeded: return "The source-page request limit was reached. No retry was made."
-        case .timedOut: return "The source-page check timed out. Existing food results remain available."
+        case .timedOut: return "The source-page check timed out. No nutrition was added from it."
         case nil: return nil
+        }
+    }
+
+    public var searchRecoveryMessage: String? {
+        guard activeEnrichmentStage == nil, !searchWasStopped else { return nil }
+        var messages = stageReports.compactMap { report in
+            report.failure.map { FoodSearchStatusPresentation.recoveryMessage($0, stage: report.stage) }
+        }
+        if let message = sourceReviewMessage { messages.append(message) }
+        if !messages.isEmpty { return messages.joined(separator: "\n\n") }
+        if stageReports.contains(where: { $0.stage == .gemini && $0.addedCandidateIDs.isEmpty && $0.hasSourceLinks }) {
+            return "Web source links are available, but no extra nutrition matches were added."
+        }
+        return nil
+    }
+
+    public var canRetrySearch: Bool {
+        guard activeEnrichmentStage == nil, !searchWasStopped else { return false }
+        return stageReports.contains { report in
+            if let failure = report.failure { return FoodSearchStatusPresentation.isRetryable(failure) }
+            return report.sourceReviewFailure == .timedOut || report.sourceReviewFailure == .unavailable
         }
     }
 
@@ -303,7 +325,6 @@ public struct GenericFoodSearchView: View {
                         .frame(maxWidth: .infinity)
                         .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.searchStatus?.isSearching == true)
                 }
-                resultSection
                 if let message = model.geminiSetupMessage {
                     Section {
                         HStack {
@@ -332,6 +353,13 @@ public struct GenericFoodSearchView: View {
                         }
                     }
                 }
+                if let message = model.searchRecoveryMessage {
+                    Section("Search information") {
+                        Text(message)
+                        if model.canRetrySearch { Button("Search again") { model.search() } }
+                    }
+                }
+                resultSection
                 if !model.additionalEvidence.isEmpty {
                     Section {
                         DisclosureGroup("Entry source") {
@@ -449,9 +477,13 @@ public struct GenericFoodSearchView: View {
                 Label(message, systemImage: "exclamationmark.triangle")
             }
         case let .noResult(route):
-            Section(model.activeEnrichmentStage == nil ? "No match found" : "No matches yet") {
+            Section(model.activeEnrichmentStage != nil ? "No matches yet" : model.stageReports.contains(where: { $0.failure != nil }) ? "Search incomplete" : "No match found") {
                 if model.activeEnrichmentStage == nil {
-                    Text(route.suggestedQueries.isEmpty ? "Try a different food name or leave this entry unselected." : route.guidance)
+                    if model.searchRecoveryMessage == nil {
+                        Text(route.suggestedQueries.isEmpty ? "Try a different food name or leave this entry unselected." : route.guidance)
+                    } else {
+                        Text("Leave this entry unselected until you have a suitable nutrition match.")
+                    }
                     ForEach(route.suggestedQueries, id: \.self) { query in
                         Button("Search \(query)") { model.searchSuggestion(query, from: route) }
                     }

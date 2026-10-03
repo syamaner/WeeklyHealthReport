@@ -61,10 +61,22 @@ final class GeminiGroundedSourceReviewTests: XCTestCase {
         let bad = [URL(string: "https://other.example.com/page")!, URL(string: "http://source.example.com/food")!,
                    URL(string: "https://source.example.com.evil.com/page")!]
         let discovery = ReviewDiscoverySpy(result(bad)); let source = ReviewAcquisitionSpy(page())
-        let review = try await service(discovery, source).review(foodTerms: "milk", key: key)
-        XCTAssertNil(review.source)
+        do { _ = try await service(discovery, source).review(foodTerms: "milk", key: key); XCTFail() }
+        catch let partial as FoodGroundedSourcePartialFailure {
+            XCTAssertEqual(partial.reason, .unsupportedSource)
+            XCTAssertEqual(partial.discovery, result(bad))
+        }
         let urls = await source.urls; XCTAssertTrue(urls.isEmpty)
         let queries = await discovery.queries; XCTAssertEqual(queries.count, 1)
+    }
+
+    func testNoCitationsDoesNotClaimAnUnsupportedWebsiteOrFetchModelWrittenURLs() async throws {
+        let source = ReviewAcquisitionSpy(page())
+        let response = result([])
+        let review = try await service(ReviewDiscoverySpy(response), source).review(foodTerms: "milk", key: key)
+        XCTAssertNil(review.source)
+        XCTAssertEqual(review.discovery, response)
+        let urls = await source.urls; XCTAssertTrue(urls.isEmpty)
     }
 
     func testFirstEligibleAnnotationIsSelectedWithoutFollowingOtherLeads() async throws {

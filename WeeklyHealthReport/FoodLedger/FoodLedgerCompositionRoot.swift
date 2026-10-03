@@ -76,7 +76,8 @@ final class FoodLedgerCompositionRoot {
         )
         genericFoodSearch = try CompositeGenericFoodSearch(sources: [
             CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
-            USDAGenericFoodSearch(ids: ids)
+            USDAGenericFoodSearch(ids: ids),
+            TFDAGenericFoodSearch(ids: ids)
         ], ids: ids)
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }

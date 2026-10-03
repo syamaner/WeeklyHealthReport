@@ -25,8 +25,8 @@ public struct FoodSearchStatusPresentation: Equatable, Sendable {
             summary = count == 0 ? "Looking for a match" : "\(matches) ready to choose"
         } else {
             title = "Search finished"
-            if let failed = reports.last(where: { $0.failure != nil }) {
-                summary = "\(Self.name(failed.stage)) unavailable · \(matches) kept"
+            if let failed = reports.last(where: { $0.failure != nil }), let failure = failed.failure {
+                summary = "\(Self.name(failed.stage)): \(Self.failureLabel(failure)) · \(matches) kept"
             } else if let last = reports.last, last.stage != .local, last.addedCandidateIDs.isEmpty {
                 summary = "\(matches) · " + (last.hasSourceLinks || last.sourceReviewFailure != nil
                     ? "Web nutrition not verified" : "No extra matches from \(Self.name(last.stage))")
@@ -39,16 +39,11 @@ public struct FoodSearchStatusPresentation: Equatable, Sendable {
             if pending == stage && !stopped { result = "Searching" }
             else if let report = reports.first(where: { $0.stage == stage }) {
                 if let failure = report.failure {
-                    switch failure {
-                    case .credentialRejected: result = "Key needs validation"
-                    case .quotaExceeded: result = "Usage limit reached"
-                    case .permissionDenied: result = "Access unavailable"
-                    default: result = "Unavailable"
-                    }
+                    result = Self.failureLabel(failure)
                 } else if report.addedCandidateIDs.isEmpty {
                     if let failure = report.sourceReviewFailure {
                         switch failure {
-                        case .unsupportedSource: result = "Source found; nutrition format unsupported"
+                        case .unsupportedSource: result = "Source found; website not supported"
                         case .invalidContent: result = "Source nutrition could not be verified"
                         case .unavailable: result = "Source page unavailable"
                         case .timedOut: result = "Source check timed out"
@@ -69,6 +64,42 @@ public struct FoodSearchStatusPresentation: Equatable, Sendable {
                 }
             } else { result = "Not searched" }
             return "\(Self.name(stage)): \(result)"
+        }
+    }
+
+    public static func failureLabel(_ failure: FoodSearchEnrichmentError) -> String {
+        switch failure {
+        case .credentialRejected: "Key needs validation"
+        case .quotaExceeded: "Usage limit reached"
+        case .permissionDenied: "Access unavailable"
+        case .timedOut: "Search timed out"
+        case .connectionFailed: "Connection failed"
+        case .requestRejected: "Request rejected"
+        case .invalidResponse: "Response could not be read"
+        case .invalidQuery: "Search terms not accepted"
+        case .unavailable: "Unavailable"
+        }
+    }
+
+    public static func recoveryMessage(_ failure: FoodSearchEnrichmentError, stage: FoodSearchStage) -> String {
+        let service = name(stage)
+        switch failure {
+        case .timedOut: return "\(service) timed out. You can search again."
+        case .connectionFailed: return "\(service) could not connect. Check your connection and search again."
+        case .unavailable: return "\(service) could not complete the search. You can try again."
+        case .credentialRejected: return "\(service) rejected the API key. Revalidate it in Search settings."
+        case .permissionDenied: return "\(service) refused access. Check your provider permissions."
+        case .quotaExceeded: return "\(service) reached a usage limit. Check your provider quota before searching again."
+        case .requestRejected: return "\(service) rejected the request or model. Check provider availability before searching again."
+        case .invalidResponse: return "\(service) returned a response the app could not read. No nutrition was added from it."
+        case .invalidQuery: return "\(service) did not accept these search terms. Review the description."
+        }
+    }
+
+    public static func isRetryable(_ failure: FoodSearchEnrichmentError) -> Bool {
+        switch failure {
+        case .timedOut, .connectionFailed, .unavailable: true
+        default: false
         }
     }
 

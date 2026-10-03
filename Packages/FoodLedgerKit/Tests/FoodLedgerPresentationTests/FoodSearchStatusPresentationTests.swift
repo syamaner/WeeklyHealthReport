@@ -16,10 +16,13 @@ final class FoodSearchStatusPresentationTests: XCTestCase {
     }
     func testFailureKindsRemainActionableInDetailsWithoutScoresOrRawErrors() {
         for (error, text) in [(FoodSearchEnrichmentError.credentialRejected,"Key needs validation"),
-                              (.quotaExceeded,"Usage limit reached"),(.permissionDenied,"Access unavailable")] {
+                              (.quotaExceeded,"Usage limit reached"),(.permissionDenied,"Access unavailable"),
+                              (.timedOut,"Search timed out"),(.connectionFailed,"Connection failed"),
+                              (.requestRejected,"Request rejected"),(.invalidResponse,"Response could not be read"),
+                              (.unavailable,"Unavailable"),(.invalidQuery,"Search terms not accepted")] {
             let status = FoodSearchStatusPresentation(reports: [.init(stage: .gemini, failure: error)], pending: nil, stopped: false)
             XCTAssertEqual(status.details[2], "Gemini: \(text)")
-            XCTAssertEqual(status.summary,"Gemini unavailable · 0 matches kept")
+            XCTAssertEqual(status.summary,"Gemini: \(text) · 0 matches kept")
         }
     }
     func testCompactCautionKeepsLiteralPercentageDistinctFromFatPercent() throws {

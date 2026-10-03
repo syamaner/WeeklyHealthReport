@@ -93,7 +93,7 @@ final class GeminiFoodWebDiscoveryTests: XCTestCase {
     func testNetworkAndInvalidInputDoNotLeakRawErrors() async throws {
         let provider = GeminiFoodWebDiscovery { _ in throw URLError(.notConnectedToInternet) }
         do { try await provider.validate(key: key); XCTFail() }
-        catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .serviceUnavailable) }
+        catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .connectionFailed) }
         let never = GeminiFoodWebDiscovery { _ in XCTFail("No request authorised"); throw URLError(.unknown) }
         for invalid in ["", "short", key + "\n"] {
             do { try await never.validate(key: invalid); XCTFail() }
@@ -103,6 +103,21 @@ final class GeminiFoodWebDiscoveryTests: XCTestCase {
             do { _ = try await never.discover(foodTerms: terms, key: key); XCTFail() }
             catch { XCTAssertEqual(error as? FoodWebDiscoveryError, .invalidQuery) }
         }
+    }
+
+    func testTransportFailuresRemainTypedAndCancellationIsNotFailure() async throws {
+        let cases: [(URLError.Code, FoodWebDiscoveryError)] = [(.timedOut, .timedOut),
+            (.networkConnectionLost, .connectionFailed), (.cannotFindHost, .connectionFailed),
+            (.cannotConnectToHost, .connectionFailed), (.dnsLookupFailed, .connectionFailed),
+            (.unknown, .serviceUnavailable), (.secureConnectionFailed, .serviceUnavailable)]
+        for (code, expected) in cases {
+            let provider = GeminiFoodWebDiscovery { _ in throw URLError(code) }
+            do { _ = try await provider.discover(foodTerms: "milk", key: key); XCTFail() }
+            catch { XCTAssertEqual(error as? FoodWebDiscoveryError, expected) }
+        }
+        let cancelled = GeminiFoodWebDiscovery { _ in throw URLError(.cancelled) }
+        do { _ = try await cancelled.discover(foodTerms: "milk", key: key); XCTFail() }
+        catch { XCTAssertTrue(error is CancellationError) }
     }
 
     private func assertError(_ expected: FoodWebDiscoveryError, status: Int, payload: String = "{}") async {

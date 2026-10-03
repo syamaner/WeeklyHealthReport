@@ -95,7 +95,8 @@ final class GeminiFoodSearchContractTests: XCTestCase {
     func testOnlyCurrentExplicitCredentialRejectionInvalidatesAuthority() async throws {
         let errors: [(FoodWebDiscoveryError, FoodSearchEnrichmentError)] = [
             (.credentialRejected, .credentialRejected), (.permissionDenied, .permissionDenied),
-            (.quotaExceeded, .quotaExceeded), (.serviceUnavailable, .unavailable), (.invalidResponse, .invalidResponse)]
+            (.quotaExceeded, .quotaExceeded), (.serviceUnavailable, .unavailable), (.invalidResponse, .invalidResponse),
+            (.timedOut, .timedOut), (.connectionFailed, .connectionFailed), (.requestRejected, .requestRejected)]
         for (providerError, expected) in errors {
             let credentials = RuntimeCredentials()
             do { _ = try await make(credentials, RuntimeReview(source: nil, error: providerError)).enrich(SourceAdmissionFixtures.query()); XCTFail() }
@@ -113,7 +114,10 @@ final class GeminiFoodSearchContractTests: XCTestCase {
             await reviewer.waitUntilPending()
             if expire { try await Task.sleep(for: .milliseconds(60)) } else { task.cancel() }
             await reviewer.release()
-            do { _ = try await task.value; XCTFail() } catch { }
+            do { _ = try await task.value; XCTFail() } catch {
+                if expire { XCTAssertEqual(error as? FoodSearchEnrichmentError, .timedOut) }
+                else { XCTAssertTrue(error is CancellationError) }
+            }
             XCTAssertEqual(credentials.rejections, 0)
             XCTAssertTrue(credentials.available)
         }

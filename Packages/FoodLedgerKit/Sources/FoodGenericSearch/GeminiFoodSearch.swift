@@ -27,7 +27,7 @@ public struct GeminiFoodSearch: FoodSearchEnriching {
         let expires = ContinuousClock.now.advanced(by: timeout)
         return try await withThrowingTaskGroup(of: GenericFoodSearchOutcome.self) { group in
             group.addTask { try await run(query, expires: expires) }
-            group.addTask { try await Task.sleep(for: timeout); throw FoodSearchEnrichmentError.unavailable }
+            group.addTask { try await Task.sleep(for: timeout); throw FoodSearchEnrichmentError.timedOut }
             defer { group.cancelAll() }
             let result = try await group.next()!
             try Self.check(expires)
@@ -77,12 +77,16 @@ public struct GeminiFoodSearch: FoodSearchEnriching {
             }
             if let error = error as? FoodSearchEnrichmentError { throw error }
             switch error as? FoodWebDiscoveryError {
+            case .timedOut: throw FoodSearchEnrichmentError.timedOut
+            case .connectionFailed: throw FoodSearchEnrichmentError.connectionFailed
+            case .requestRejected: throw FoodSearchEnrichmentError.requestRejected
             case .permissionDenied: throw FoodSearchEnrichmentError.permissionDenied
             case .quotaExceeded: throw FoodSearchEnrichmentError.quotaExceeded
             case .invalidQuery: throw FoodSearchEnrichmentError.invalidQuery
             case .invalidResponse: throw FoodSearchEnrichmentError.invalidResponse
             default: break
             }
+            if error as? FoodSourceAcquisitionError == .timedOut { throw FoodSearchEnrichmentError.timedOut }
             if error as? FoodSourceAcquisitionError == .quotaExceeded { throw FoodSearchEnrichmentError.quotaExceeded }
             throw FoodSearchEnrichmentError.unavailable
         }
@@ -90,6 +94,6 @@ public struct GeminiFoodSearch: FoodSearchEnriching {
 
     private static func check(_ expires: ContinuousClock.Instant) throws {
         try Task.checkCancellation()
-        guard ContinuousClock.now < expires else { throw FoodSearchEnrichmentError.unavailable }
+        guard ContinuousClock.now < expires else { throw FoodSearchEnrichmentError.timedOut }
     }
 }
