@@ -20,6 +20,7 @@ public protocol FoodSearchEnriching: Sendable {
 
 public enum FoodSearchEnrichmentError: Error, Equatable, Sendable {
     case credentialRejected, permissionDenied, quotaExceeded, unavailable, invalidResponse, invalidQuery
+    case timedOut, connectionFailed, requestRejected
 }
 
 public struct FoodSearchStageFailure: Equatable, Sendable {

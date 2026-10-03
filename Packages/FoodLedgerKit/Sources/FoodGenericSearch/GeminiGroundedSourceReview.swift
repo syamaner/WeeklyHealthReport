@@ -4,7 +4,7 @@ import FoodLedgerApplication
 
 /// One discovery call, one native-cited source job, no model-written URL or numeric admission.
 public actor GeminiGroundedSourceReview: FoodGroundedSourceReviewing {
-    public static let version = "gemini-grounded-source-review-v3"
+    public static let version = "gemini-grounded-source-review-v4"
     public static let deadline: Duration = .seconds(50)
     public static let citationResolverHost = "vertexaisearch.cloud.google.com"
     private let discovery: any FoodWebDiscovering
@@ -50,6 +50,9 @@ public actor GeminiGroundedSourceReview: FoodGroundedSourceReviewing {
         try Self.check(expires)
         // Provider annotations alone supply leads. Response prose, written links and titles cannot select a URL.
         guard let selected = result.leads.first(where: { (try? requestPolicy.canonicalURL($0.url)) != nil }) else {
+            if !result.leads.isEmpty {
+                throw FoodGroundedSourcePartialFailure(discovery: result, reason: .unsupportedSource)
+            }
             return FoodGroundedSourceReview(discovery: result, source: nil)
         }
         do {

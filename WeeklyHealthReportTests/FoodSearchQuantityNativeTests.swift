@@ -200,6 +200,47 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         }
     }
 
+    func testEmptyOnlineSearchRendersSourceLinksOrRetryBeforeAnyScrolling() async throws {
+        for unsupported in [false, true] {
+            let local = try CoFIDGenericFoodSearch(ids: NativeQuantityIDs())
+            let request = try GenericFoodSearchRequest(text: LedgerText("synthetic example food"),
+                capturedAt: Date(timeIntervalSince1970: 1_700_000_000), locale: LedgerText("en_GB"))
+            guard case let .noResult(route) = try local.search(request) else { return XCTFail() }
+            let discovery = FoodWebDiscoveryResult(leads: [.init(title: "Synthetic food source",
+                url: URL(string: "https://source.example.com/food")!)], searchSuggestionsHTML: nil)
+            let remote = NativeSearchRecoverySource(outcome: unsupported ? .noResult(GenericFoodNoResultRoute(
+                evidence: route.evidence, sourceDiscovery: discovery, sourceReviewFailure: .unsupportedSource)) : nil)
+            let model = try GenericFoodSearchViewModel(searcher: local, locale: LedgerText("en_GB"),
+                gemini: remote, services: .init(onlineDatabase: .disabled, gemini: .ready))
+            model.query = "synthetic example food"; model.search()
+            for _ in 0..<30 where model.activeEnrichmentStage != nil { try await Task.sleep(for: .milliseconds(50)) }
+            XCTAssertNil(model.activeEnrichmentStage)
+            let host = NativeHostingController(rootView: NavigationStack { GenericFoodSearchView(model: model) { _ in XCTFail("No selection") } })
+            let scene = try testScene()
+            let previous = scene.windows.first(where: \.isKeyWindow)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            window.rootViewController = host; window.makeKeyAndVisible()
+            defer { window.isHidden = true; previous?.makeKey() }
+            try await waitForHostAppearance(host, window: window)
+            try await Task.sleep(for: .milliseconds(250))
+            host.view.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            let ocr = VNRecognizeTextRequest()
+            ocr.recognitionLevel = .accurate; ocr.usesLanguageCorrection = false
+            try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([ocr])
+            let visible = (ocr.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
+            XCTAssertTrue(visible.contains(unsupported ? "Web sources" : "Search again"), visible)
+            XCTAssertTrue(visible.contains(unsupported ? "not supported" : "timed out"), visible)
+            XCTAssertFalse(visible.contains("Try a different food name"), visible)
+            let attachment = XCTAttachment(image: image)
+            attachment.name = unsupported ? "Unsupported source recovery" : "Timeout recovery"
+            attachment.lifetime = .keepAlways; add(attachment)
+        }
+    }
+
     func testGeminiSetupRendersSecureEntryAndDoesNotCallProvider() async throws {
         let provider = NativeWebDiscoverySpy()
         let model = FoodWebDiscoveryViewModel(provider: provider, keys: NativeEmptyWebKeys())
@@ -371,4 +412,12 @@ private struct NativeEmptyWebKeys: FoodWebKeyStoring {
     func load() throws -> String? { nil }
     func save(_ key: String) throws {}
     func delete() throws {}
+}
+
+private struct NativeSearchRecoverySource: FoodSearchEnriching {
+    let outcome: GenericFoodSearchOutcome?
+    func enrich(_ query: FoodSearchRemoteQuery) async throws -> GenericFoodSearchOutcome {
+        guard let outcome else { throw FoodSearchEnrichmentError.timedOut }
+        return outcome
+    }
 }

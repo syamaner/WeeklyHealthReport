@@ -454,10 +454,53 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
         await fulfillment(of: [returned], timeout: 2)
         for _ in 0..<20 where model.activeEnrichmentStage != nil { await Task.yield() }
         XCTAssertEqual(model.searchStatus?.title, "Search finished")
-        XCTAssertTrue(model.searchStatus?.summary.contains("Open Food Facts unavailable") == true)
-        XCTAssertTrue(model.searchStatus?.details.contains("Gemini: Source found; nutrition format unsupported") == true)
+        XCTAssertTrue(model.searchStatus?.summary.contains("Open Food Facts: Unavailable") == true)
+        XCTAssertTrue(model.searchStatus?.details.contains("Gemini: Source found; website not supported") == true)
         XCTAssertEqual(model.sourceDiscovery, discovery)
         XCTAssertEqual(model.onlineAddedIDs, [])
+    }
+
+    func testEmptySearchFailureOffersExplicitRetryWithoutAutomaticCallsAndEditClearsRecovery() async throws {
+        let remote = RecoveryFailureSource()
+        let model = try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()),
+            locale: LedgerText("en_GB"), gemini: remote, services: .init(onlineDatabase: .disabled, gemini: .ready))
+        model.query = "synthetic example food"
+        for expectedCalls in 1...2 {
+            let finished = expectation(description: "search completed")
+            let subscription = model.$stageReports.dropFirst().sink { reports in
+                if reports.contains(where: { $0.failure != nil }) { finished.fulfill() }
+            }
+            model.search()
+            await fulfillment(of: [finished], timeout: 3); subscription.cancel()
+            guard case .noResult = model.phase else { return XCTFail() }
+            XCTAssertTrue(model.canRetrySearch)
+            XCTAssertEqual(model.searchRecoveryMessage, "Gemini timed out. You can search again.")
+            let calls = await remote.calls; XCTAssertEqual(calls, expectedCalls)
+        }
+        model.query = "rice"
+        XCTAssertNil(model.searchRecoveryMessage)
+        XCTAssertFalse(model.canRetrySearch)
+    }
+
+    func testUnsupportedSourceWithNoMatchesKeepsLinksAndExplainsCoverageWithoutRetry() async throws {
+        let started = expectation(description: "discovery started")
+        let returned = expectation(description: "discovery returned")
+        let finished = expectation(description: "discovery displayed")
+        let remote = HeldFoodEnrichment(started: started, returned: returned)
+        let model = try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()),
+            locale: LedgerText("en_GB"), gemini: remote, services: .init(onlineDatabase: .disabled, gemini: .ready))
+        model.query = "synthetic example food"; model.search()
+        let subscription = model.$activeEnrichmentStage.dropFirst().sink { if $0 == nil { finished.fulfill() } }
+        await fulfillment(of: [started], timeout: 2)
+        guard case let .noResult(before) = model.phase else { return XCTFail() }
+        let discovery = FoodWebDiscoveryResult(leads: [.init(title: "Food source", url: URL(string: "https://source.example.com/food")!)], searchSuggestionsHTML: nil)
+        await remote.release(.noResult(GenericFoodNoResultRoute(evidence: before.evidence,
+            sourceDiscovery: discovery, sourceReviewFailure: .unsupportedSource)))
+        await fulfillment(of: [returned, finished], timeout: 2); subscription.cancel()
+        XCTAssertEqual(model.sourceDiscovery, discovery)
+        XCTAssertTrue(model.searchRecoveryMessage?.contains("not supported for nutrition verification") == true)
+        XCTAssertFalse(model.canRetrySearch)
+        guard case .noResult = model.phase else { return XCTFail() }
     }
 
     private func makeModel(_ remote: HeldFoodEnrichment) throws -> GenericFoodSearchViewModel {
@@ -520,4 +563,12 @@ private struct UXNeedsMoreEvidence: FoodSearchCoverageAssessing {
 
 private struct UXUnavailableSource: FoodSearchEnriching {
     func enrich(_ query: FoodSearchRemoteQuery) async throws -> GenericFoodSearchOutcome { throw FoodSearchEnrichmentError.unavailable }
+}
+
+private actor RecoveryFailureSource: FoodSearchEnriching {
+    var calls = 0
+    func enrich(_ query: FoodSearchRemoteQuery) async throws -> GenericFoodSearchOutcome {
+        calls += 1
+        throw FoodSearchEnrichmentError.timedOut
+    }
 }

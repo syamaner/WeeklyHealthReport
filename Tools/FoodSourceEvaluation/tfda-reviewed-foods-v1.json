@@ -1,0 +1,641 @@
+{
+  "schema": "tfda-reviewed-foods-v1",
+  "aliasPolicy": "tfda-reviewed-names-v1",
+  "reviewScope": "Manually reviewed translations and lexical aliases for the named public TFDA records; not private query labels or independent acceptance data.",
+  "records": [
+    {
+      "id": "D15002",
+      "sourceName": "芭樂平均值(白肉)",
+      "name": "Guava, white flesh average",
+      "aliases": [
+        "guava",
+        "ba le",
+        "芭樂",
+        "番石榴"
+      ]
+    },
+    {
+      "id": "D18001",
+      "sourceName": "蓮霧平均值(粉紅色種)",
+      "name": "Wax apple, pink variety average",
+      "aliases": [
+        "wax apple",
+        "lian wu",
+        "蓮霧"
+      ]
+    },
+    {
+      "id": "D0700101",
+      "sourceName": "紅龍果(白肉)",
+      "name": "Dragon fruit, white flesh",
+      "aliases": [
+        "white dragon fruit",
+        "dragon fruit",
+        "pitaya",
+        "紅龍果",
+        "白肉火龍果"
+      ]
+    },
+    {
+      "id": "D0700201",
+      "sourceName": "紅龍果(紅肉)",
+      "name": "Dragon fruit, red flesh",
+      "aliases": [
+        "red dragon fruit",
+        "dragon fruit",
+        "pitaya",
+        "紅肉火龍果"
+      ]
+    },
+    {
+      "id": "D2300101",
+      "sourceName": "龍眼",
+      "name": "Longan",
+      "aliases": [
+        "longan",
+        "long yan",
+        "龍眼"
+      ]
+    },
+    {
+      "id": "D22001",
+      "sourceName": "荔枝平均值",
+      "name": "Lychee, average",
+      "aliases": [
+        "lychee",
+        "litchi",
+        "li zhi",
+        "荔枝"
+      ]
+    },
+    {
+      "id": "D1200101",
+      "sourceName": "釋迦",
+      "name": "Sugar apple",
+      "aliases": [
+        "sugar apple",
+        "sweet sop",
+        "shi jia",
+        "釋迦"
+      ]
+    },
+    {
+      "id": "D1200201",
+      "sourceName": "鳳梨釋迦",
+      "name": "Atemoya",
+      "aliases": [
+        "atemoya",
+        "鳳梨釋迦"
+      ]
+    },
+    {
+      "id": "D16001",
+      "sourceName": "楊桃平均值",
+      "name": "Star fruit, average",
+      "aliases": [
+        "star fruit",
+        "carambola",
+        "yang tao",
+        "楊桃"
+      ]
+    },
+    {
+      "id": "D0400101",
+      "sourceName": "百香果(台農一號)",
+      "name": "Passion fruit, Tainung No. 1",
+      "aliases": [
+        "passion fruit",
+        "bai xiang guo",
+        "百香果"
+      ]
+    },
+    {
+      "id": "D3500101",
+      "sourceName": "文旦",
+      "name": "Pomelo, Wendan",
+      "aliases": [
+        "pomelo",
+        "wendan",
+        "文旦"
+      ]
+    },
+    {
+      "id": "D3100101",
+      "sourceName": "蜜棗(長形)",
+      "name": "Indian jujube, elongated",
+      "aliases": [
+        "indian jujube",
+        "mi zao",
+        "蜜棗"
+      ]
+    },
+    {
+      "id": "D08001",
+      "sourceName": "北蕉平均值",
+      "name": "Banana, Beijiao average",
+      "aliases": [
+        "banana",
+        "xiang jiao",
+        "香蕉",
+        "北蕉"
+      ]
+    },
+    {
+      "id": "D11002",
+      "sourceName": "鳳梨平均值(雜交種)",
+      "name": "Pineapple, hybrid average",
+      "aliases": [
+        "pineapple",
+        "feng li",
+        "鳳梨"
+      ]
+    },
+    {
+      "id": "D21002",
+      "sourceName": "芒果平均值(西洋種)",
+      "name": "Mango, western varieties average",
+      "aliases": [
+        "mango",
+        "mang guo",
+        "芒果"
+      ]
+    },
+    {
+      "id": "D02001",
+      "sourceName": "木瓜平均值",
+      "name": "Papaya, average",
+      "aliases": [
+        "papaya",
+        "mu gua",
+        "木瓜"
+      ]
+    },
+    {
+      "id": "D19002",
+      "sourceName": "西瓜平均值(紅肉小瓜)",
+      "name": "Watermelon, small red flesh average",
+      "aliases": [
+        "watermelon",
+        "red watermelon",
+        "西瓜",
+        "紅肉西瓜"
+      ]
+    },
+    {
+      "id": "D19004",
+      "sourceName": "西瓜平均值(黃肉小瓜)",
+      "name": "Watermelon, small yellow flesh average",
+      "aliases": [
+        "watermelon",
+        "yellow watermelon",
+        "黃肉西瓜"
+      ]
+    },
+    {
+      "id": "D2600101",
+      "sourceName": "筆柿",
+      "name": "Persimmon, Bishi",
+      "aliases": [
+        "persimmon",
+        "筆柿"
+      ]
+    },
+    {
+      "id": "D2700201",
+      "sourceName": "富有甜柿(大雪山)",
+      "name": "Sweet persimmon, Fuyu",
+      "aliases": [
+        "sweet persimmon",
+        "fuyu persimmon",
+        "甜柿"
+      ]
+    },
+    {
+      "id": "E5600101",
+      "sourceName": "蕹菜(土植)(1月取樣)",
+      "name": "Water spinach, soil grown January sample",
+      "aliases": [
+        "water spinach",
+        "kong xin cai",
+        "空心菜",
+        "蕹菜"
+      ]
+    },
+    {
+      "id": "E3200601",
+      "sourceName": "小白菜(土植)(1月取樣)",
+      "name": "Pak choi, soil grown January sample",
+      "aliases": [
+        "pak choi",
+        "xiao bai cai",
+        "小白菜"
+      ]
+    },
+    {
+      "id": "E3201201",
+      "sourceName": "青江菜(土植)(1月取樣)",
+      "name": "Qingjiang pak choi, soil grown January sample",
+      "aliases": [
+        "qingjiang pak choi",
+        "bok choy",
+        "qing jiang cai",
+        "青江菜"
+      ]
+    },
+    {
+      "id": "E3100101",
+      "sourceName": "甘藷葉",
+      "name": "Sweet potato leaves",
+      "aliases": [
+        "sweet potato leaves",
+        "di gua ye",
+        "地瓜葉",
+        "甘藷葉"
+      ]
+    },
+    {
+      "id": "E6500101",
+      "sourceName": "苦瓜(白皮)",
+      "name": "Bitter melon, white skin",
+      "aliases": [
+        "bitter melon",
+        "bitter gourd",
+        "ku gua",
+        "苦瓜"
+      ]
+    },
+    {
+      "id": "E6800101",
+      "sourceName": "絲瓜",
+      "name": "Loofah gourd",
+      "aliases": [
+        "loofah",
+        "sponge gourd",
+        "si gua",
+        "絲瓜"
+      ]
+    },
+    {
+      "id": "E1500101",
+      "sourceName": "綠竹筍",
+      "name": "Green bamboo shoots, raw",
+      "aliases": [
+        "green bamboo shoots",
+        "bamboo shoots",
+        "綠竹筍"
+      ]
+    },
+    {
+      "id": "E1500201",
+      "sourceName": "帶殼熟綠竹筍",
+      "name": "Green bamboo shoots, cooked vacuum packed",
+      "aliases": [
+        "cooked green bamboo shoots",
+        "cooked bamboo shoots",
+        "熟綠竹筍"
+      ]
+    },
+    {
+      "id": "E1600101",
+      "sourceName": "熟箭竹筍",
+      "name": "Arrow bamboo shoots, cooked vacuum packed",
+      "aliases": [
+        "cooked arrow bamboo shoots",
+        "cooked bamboo shoots",
+        "熟箭竹筍"
+      ]
+    },
+    {
+      "id": "E62001",
+      "sourceName": "冬瓜平均值",
+      "name": "Winter melon, average",
+      "aliases": [
+        "winter melon",
+        "wax gourd",
+        "dong gua",
+        "冬瓜"
+      ]
+    },
+    {
+      "id": "E7300101",
+      "sourceName": "長茄子",
+      "name": "Aubergine, long",
+      "aliases": [
+        "aubergine",
+        "eggplant",
+        "long aubergine",
+        "茄子",
+        "長茄子"
+      ]
+    },
+    {
+      "id": "E7600101",
+      "sourceName": "黃秋葵",
+      "name": "Okra",
+      "aliases": [
+        "okra",
+        "qiu kui",
+        "秋葵",
+        "黃秋葵"
+      ]
+    },
+    {
+      "id": "E74001",
+      "sourceName": "大番茄平均值(紅色系)",
+      "name": "Tomato, large red average",
+      "aliases": [
+        "tomato",
+        "large red tomato",
+        "番茄"
+      ]
+    },
+    {
+      "id": "E74004",
+      "sourceName": "小番茄平均值(紅色系)",
+      "name": "Tomato, small red average",
+      "aliases": [
+        "small red tomato",
+        "cherry tomato",
+        "小番茄"
+      ]
+    },
+    {
+      "id": "E5800402",
+      "sourceName": "青花菜(2021年取樣)",
+      "name": "Broccoli, 2021 sample",
+      "aliases": [
+        "broccoli",
+        "青花菜"
+      ]
+    },
+    {
+      "id": "E3000104",
+      "sourceName": "甘藍(圓球形)(2021年取樣)",
+      "name": "Cabbage, round 2021 sample",
+      "aliases": [
+        "cabbage",
+        "高麗菜",
+        "甘藍"
+      ]
+    },
+    {
+      "id": "E33001",
+      "sourceName": "結球白菜平均值",
+      "name": "Chinese cabbage, average",
+      "aliases": [
+        "chinese cabbage",
+        "napa cabbage",
+        "大白菜",
+        "結球白菜"
+      ]
+    },
+    {
+      "id": "E3900101",
+      "sourceName": "芥藍菜",
+      "name": "Chinese kale",
+      "aliases": [
+        "chinese kale",
+        "gai lan",
+        "芥藍菜"
+      ]
+    },
+    {
+      "id": "E38004",
+      "sourceName": "芥菜平均值",
+      "name": "Mustard greens, average",
+      "aliases": [
+        "mustard greens",
+        "芥菜"
+      ]
+    },
+    {
+      "id": "E0400101",
+      "sourceName": "白蘿蔔",
+      "name": "White radish",
+      "aliases": [
+        "white radish",
+        "daikon",
+        "白蘿蔔"
+      ]
+    },
+    {
+      "id": "E0200101",
+      "sourceName": "胡蘿蔔",
+      "name": "Carrot",
+      "aliases": [
+        "carrot",
+        "胡蘿蔔"
+      ]
+    },
+    {
+      "id": "E6400101",
+      "sourceName": "胡瓜",
+      "name": "Cucumber",
+      "aliases": [
+        "cucumber",
+        "胡瓜"
+      ]
+    },
+    {
+      "id": "E7700701",
+      "sourceName": "綠豆芽",
+      "name": "Mung bean sprouts",
+      "aliases": [
+        "mung bean sprouts",
+        "bean sprouts",
+        "綠豆芽"
+      ]
+    },
+    {
+      "id": "E63001",
+      "sourceName": "南瓜平均值",
+      "name": "Pumpkin, average",
+      "aliases": [
+        "pumpkin",
+        "南瓜"
+      ]
+    },
+    {
+      "id": "E1300201",
+      "sourceName": "玉米筍",
+      "name": "Baby corn",
+      "aliases": [
+        "baby corn",
+        "玉米筍"
+      ]
+    },
+    {
+      "id": "G08001",
+      "sourceName": "香菇平均值",
+      "name": "Shiitake mushrooms, average",
+      "aliases": [
+        "shiitake mushroom",
+        "香菇"
+      ]
+    },
+    {
+      "id": "G08101",
+      "sourceName": "乾香菇平均值",
+      "name": "Shiitake mushrooms, dried average",
+      "aliases": [
+        "dried shiitake mushroom",
+        "乾香菇"
+      ]
+    },
+    {
+      "id": "G1300101",
+      "sourceName": "杏香菇",
+      "name": "King oyster mushroom",
+      "aliases": [
+        "king oyster mushroom",
+        "杏香菇"
+      ]
+    },
+    {
+      "id": "A0550601",
+      "sourceName": "白飯",
+      "name": "White rice, cooked",
+      "aliases": [
+        "white rice",
+        "cooked rice",
+        "白飯"
+      ]
+    },
+    {
+      "id": "B0500101",
+      "sourceName": "芋頭",
+      "name": "Taro",
+      "aliases": [
+        "taro",
+        "yu tou",
+        "芋頭"
+      ]
+    },
+    {
+      "id": "B0400401",
+      "sourceName": "紅肉甘藷",
+      "name": "Sweet potato, red flesh",
+      "aliases": [
+        "red sweet potato",
+        "red flesh sweet potato",
+        "紅肉甘藷"
+      ]
+    },
+    {
+      "id": "B0400601",
+      "sourceName": "黃肉甘藷",
+      "name": "Sweet potato, yellow flesh",
+      "aliases": [
+        "yellow sweet potato",
+        "yellow flesh sweet potato",
+        "黃肉甘藷"
+      ]
+    },
+    {
+      "id": "A0400301",
+      "sourceName": "甜玉米",
+      "name": "Sweet corn",
+      "aliases": [
+        "sweet corn",
+        "甜玉米"
+      ]
+    },
+    {
+      "id": "R4700902",
+      "sourceName": "傳統豆腐(2022年取樣)",
+      "name": "Traditional tofu, 2022 sample",
+      "aliases": [
+        "tofu",
+        "traditional tofu",
+        "dou fu",
+        "豆腐",
+        "傳統豆腐"
+      ]
+    },
+    {
+      "id": "R4701201",
+      "sourceName": "嫩豆腐",
+      "name": "Soft tofu",
+      "aliases": [
+        "soft tofu",
+        "嫩豆腐"
+      ]
+    },
+    {
+      "id": "R4701001",
+      "sourceName": "冷凍豆腐",
+      "name": "Tofu, frozen",
+      "aliases": [
+        "frozen tofu",
+        "冷凍豆腐"
+      ]
+    },
+    {
+      "id": "R4701301",
+      "sourceName": "雞蛋豆腐",
+      "name": "Egg tofu",
+      "aliases": [
+        "egg tofu",
+        "雞蛋豆腐"
+      ]
+    },
+    {
+      "id": "H1150201",
+      "sourceName": "豆漿(無糖)",
+      "name": "Soy milk, unsweetened",
+      "aliases": [
+        "unsweetened soy milk",
+        "無糖豆漿"
+      ]
+    },
+    {
+      "id": "R5000301",
+      "sourceName": "鹹豆漿",
+      "name": "Salted soy milk dish with additions",
+      "aliases": [
+        "salted soy milk",
+        "xian dou jiang",
+        "鹹豆漿"
+      ]
+    },
+    {
+      "id": "R2700101",
+      "sourceName": "蔥油餅",
+      "name": "Scallion pancake",
+      "aliases": [
+        "scallion pancake",
+        "spring onion pancake",
+        "cong you bing",
+        "蔥油餅"
+      ]
+    },
+    {
+      "id": "R2700201",
+      "sourceName": "冷凍蔥油餅",
+      "name": "Scallion pancake, frozen packaged",
+      "aliases": [
+        "frozen scallion pancake",
+        "冷凍蔥油餅"
+      ]
+    },
+    {
+      "id": "K01001",
+      "sourceName": "雞蛋平均值",
+      "name": "Chicken egg, whole raw average",
+      "aliases": [
+        "chicken egg",
+        "whole egg",
+        "雞蛋"
+      ]
+    },
+    {
+      "id": "R2000101",
+      "sourceName": "乾麵條",
+      "name": "Wheat noodles, dried",
+      "aliases": [
+        "dried wheat noodles",
+        "乾麵條"
+      ]
+    }
+  ]
+}

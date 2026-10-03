@@ -49,6 +49,30 @@ final class SearchQuantityHandoffTests: XCTestCase {
             XCTAssertNil(search.confirmation(at: -1)); XCTAssertNil(search.confirmation(at: route.matches.count))
         }
     }
+    func testTaiwanSourceLabelAndQuantityHandoffThroughQueryAndFoodList() throws {
+        let ids = HandoffIDs()
+        let source = try TFDAGenericFoodSearch(ids: ids)
+        let composite = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: ids), USDAGenericFoodSearch(ids: ids), source], ids: ids)
+        let search = try GenericFoodSearchViewModel(searcher: composite, locale: LedgerText("en_GB"))
+        search.query = "150g guava"; search.search()
+        guard case let .results(route) = search.phase,
+              let match = route.matches.first(where: { $0.candidate.candidate.recordID.value == "tfda:D15002" }) else { return XCTFail() }
+        XCTAssertEqual(search.sourceLabel(for: match), "TFDA · Taiwan · on device")
+        let selected = try XCTUnwrap(search.confirmation(id: match.searchID))
+        let state = FoodConfirmationState(input: selected, queryQuantity: search.parsedQuery?.quantity)
+        XCTAssertEqual(state.quantity.value, 150)
+        XCTAssertEqual(state.quantity.unit, .grams)
+        XCTAssertEqual(state.decision, .undecided)
+        let parsed = try XCTUnwrap(FoodListParser.parse("150g guava").first)
+        let draft = FoodListLineDraft(parsed: parsed, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        let service = FoodListImportService(searcher: composite, ids: ids)
+        guard case let .candidates(list) = try service.search(draft, at: Date(timeIntervalSince1970: 1_700_000_000), locale: LedgerText("en_GB")) else { return XCTFail() }
+        XCTAssertTrue(list.matches.contains { $0.candidate.candidate.recordID.value == "tfda:D15002" })
+        XCTAssertTrue(list.confirmation.evidence.contains { $0.kind == .manual })
+        XCTAssertTrue(list.confirmation.evidence.contains { $0.kind == .genericSearch })
+        XCTAssertEqual(FoodConfirmationState(input: list.confirmation).decision, .undecided)
+    }
+
     func testQueryAndPreparationEditsInvalidateSelectionAndHints() throws {
         let search = try model()
         search.query = "100g rice"; search.search()

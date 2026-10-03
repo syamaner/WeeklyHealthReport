@@ -896,6 +896,30 @@ final class SharedStoreContractTests: XCTestCase {
         }
     }
 
+    func testTaiwanCompositionEstimatePreservesValuesAndUnknownsAcrossBothStores() throws {
+        try forEachStore { harness, ledger in
+            let source = try TFDAGenericFoodSearch(ids: ContractSequenceIDs())
+            guard case let .confirmation(route) = try source.search(GenericFoodSearchRequest(text: LedgerText("wax apple"),
+                capturedAt: LedgerFixtures.clock.now(), locale: LedgerText("en_GB"))) else { return XCTFail() }
+            var state = FoodConfirmationState(input: route.confirmation)
+            let service = FoodConfirmationService(ledger: ledger, reader: harness.reader,
+                clock: LedgerFixtures.clock, ids: ContractSequenceIDs())
+            XCTAssertNil(state.quantity.value)
+            XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(540)))
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(150, .grams))
+            FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("Chosen Taiwan composition estimate for the weighed edible portion.")))
+            let saved = try service.save(state, operationID: LedgerFixtures.operationID(541))
+            XCTAssertEqual(saved.logItemVersion.edibleQuantity, try PositiveQuantity(value: 150, unit: .grams))
+            XCTAssertNil(saved.quantityConversion)
+            let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+            XCTAssertEqual(reopened.selectedCandidate.candidate.nutrients, route.matches[0].candidate.candidate.nutrients)
+            XCTAssertEqual(reopened.input.sourceReleases, route.confirmation.sourceReleases)
+            XCTAssertEqual(reopened.selectedCandidate.candidate.identity.preparation.kind, .unknown)
+            XCTAssertEqual(reopened.quantity.value, 150)
+            XCTAssertNil(reopened.quantity.conversion)
+        }
+    }
+
     private func forEachStore(
         _ body: (TestHarness, FoodLedgerService) throws -> Void
     ) throws {

@@ -262,6 +262,8 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         case .credentialRejected: "Google rejected the API key. Replace or revalidate it."
         case .permissionDenied: "Google refused access. Check API restrictions and project permissions; this does not establish that the key is invalid."
         case .quotaExceeded: "Google reports a quota or rate limit. Check your quota and billing before trying again."
+        case .timedOut: "The web search timed out. You can try again."
+        case .connectionFailed: "The web search could not connect. Check your connection and try again."
         case .requestRejected: "Google could not accept this request or model. Check provider availability before trying again."
         case .invalidQuery: "Enter between 1 and 300 characters of food terms."
         case .invalidResponse: "Google returned an unsupported or incomplete response. No food was selected or saved."

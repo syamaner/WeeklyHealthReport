@@ -33,6 +33,8 @@ public enum FoodWebDiscoveryError: Error, Equatable, Sendable {
     case quotaExceeded
     case requestRejected
     case invalidQuery
+    case timedOut
+    case connectionFailed
     case serviceUnavailable
     case invalidResponse
 }

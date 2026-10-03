@@ -156,6 +156,13 @@ Community records retain exact-product provenance, licences and unknown fields.
 Missing exact-product identity still blocks saving until resolved; a text match does
 not turn a branded product into a generic estimate. Runtime quality and device checks remain pending.
 
+The bundled [Taiwan food catalogue](docs/taiwan-food-catalogue-v1.md) adds 63 reviewed
+TFDA records for everyday fruit, vegetables, mushrooms and staples. English,
+Traditional Chinese and selected romanised names retrieve labelled Taiwan
+composition estimates. Source varieties and preparation remain visible; frozen and
+dried variants require their descriptors. Values stay per 100 g edible portion,
+without a count weight or milk density. Unreviewed TFDA records are not shipped.
+
 **Search services → Automatic Gemini search** is also off by default. It requires
 a separately enabled setting and the exact key validated in this app session.
 Add or revalidate the key under **Gemini API key and privacy**; closing that editor

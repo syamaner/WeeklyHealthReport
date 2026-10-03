@@ -92,6 +92,15 @@ Do not calculate or invent nutrients, portions, density, ingredient proportions 
         do { reply = try await transport(request) }
         catch is CancellationError { throw CancellationError() }
         catch let error as FoodWebDiscoveryError { throw error }
+        catch let error as URLError {
+            switch error.code {
+            case .cancelled: throw CancellationError()
+            case .timedOut: throw FoodWebDiscoveryError.timedOut
+            case .notConnectedToInternet, .networkConnectionLost, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+                throw FoodWebDiscoveryError.connectionFailed
+            default: throw FoodWebDiscoveryError.serviceUnavailable
+            }
+        }
         catch { throw FoodWebDiscoveryError.serviceUnavailable }
         guard reply.data.count <= 1_000_000 else { throw FoodWebDiscoveryError.invalidResponse }
         let reasons = (try? JSONDecoder().decode(ErrorReply.self, from: reply.data))?.error.details?.compactMap(\.reason) ?? []

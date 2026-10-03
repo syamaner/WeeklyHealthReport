@@ -1,0 +1,39 @@
+{
+  "schema": "tfda-source-audit-v1",
+  "sourceURL": "https://data.fda.gov.tw/data/opendata/export/20/json",
+  "snapshotDate": "2026-10-03",
+  "archiveSHA256": "c1ef5502ceceead6d5ce3b7ee21fe544702b1e508be73b196fce2cf0e61985cb",
+  "sourceJSONSHA256": "58781c15c632ca66047ba16698c44b37a88ab5ccf655f1bee00dd2301c791e65",
+  "projectionSHA256": "95949fcb64a6a45ede5298080ded30feebb9608e1054fa7d3dca6f422a67d72a",
+  "reviewSHA256": "a30b25ba3751d550ff04c6bb7ac7b9f0944d6c5d76bfb5791e344f155aa17bed",
+  "sourceRecords": 2180,
+  "admittedRecords": 63,
+  "categoryCounts": {
+    "加工調理食品及其他類": 8,
+    "水果類": 20,
+    "澱粉類": 3,
+    "穀物類": 2,
+    "菇類": 3,
+    "蔬菜類": 25,
+    "蛋類": 1,
+    "豆類": 1
+  },
+  "preparationCounts": {
+    "cooked": 3,
+    "raw": 30,
+    "unknown": 30
+  },
+  "fieldCorrespondence": {
+    "passed": 1163,
+    "denominator": 1163
+  },
+  "completeFourMacros": 63,
+  "retainedZeroValues": 53,
+  "providerCalls": 0,
+  "independentAcceptance": "not_run",
+  "limitations": [
+    "Reviewed development selection, not a representative coverage rate.",
+    "Literal source fidelity does not establish the identity of a user meal or portion.",
+    "Unknown cooking state, serving weight, density and unmapped nutrients remain unknown."
+  ]
+}

@@ -1,5 +1,41 @@
 # Nutrition test-build readiness
 
+## Current Taiwan and search-recovery candidate — 2026-10-03
+
+The current local candidate adds the [Taiwan catalogue](taiwan-food-catalogue-v1.md)
+and [online search recovery](online-food-search-recovery-v1.md) on merged build-17
+lineage `f6e4c49d80a435010e30738741555429c10630b7`. The structured-output/provider
+comparison remains a separate lane and is not included. The previous readiness
+receipt below is historical; its three-resource inventory and two-source retrieval
+results must not be presented as current three-source coverage.
+
+Current software evidence: 546 package tests (two optional skips, zero failures),
+281 simulator tests passed, Xcode static analysis and dependency boundaries passed.
+All 193 reviewed TFDA names reach their records; all 1,163 projected source values
+match the pinned public rows. Eleven source-projector tests pass and are included
+in the existing nutrition CI job. Independent accuracy and physical-device
+acceptance remain open.
+
+Device acceptance should cover `lian wu`, `蓮霧`, `guava`, `空心菜`,
+`scallion pancake` and `冷凍蔥油餅`, explicit edible grams, the TFDA source label,
+and save/reopen. Compare plain versus frozen pancakes; verify fruit counts do not
+invent weights. Test offline catalogue results separately from enabled online
+services. Source links and service failures must remain visible without deleting
+local matches. Private evaluation inputs remain outside Git and the app bundle.
+
+Unsigned iPhone Release compilation passed. The app bundle contains exactly four
+public food JSON resources, each byte-identical to its repository source: CoFID,
+USDA, milk conversion and TFDA. No unexpected JSON/JSONL, CSV, spreadsheet, archive
+or database resources were found. The established bundle ID is unchanged. The
+historical project build number (5) is compile-only and must not be uploaded; choose
+an unused distribution number during authorised release preparation.
+
+Release evidence: `/private/tmp/whr-taiwan-release.log` and
+`/private/tmp/whr-taiwan-release-receipt.json`. Local preparation is complete;
+changes remain uncommitted and unsigned, with no upload or installation.
+
+## Historical build-17 readiness receipt
+
 This candidate combines the local nutrition evaluation repairs with current main at
 `12743760a4c5dc0eed9d56a20c17c963139c39ad`, the lineage used for internal build 16.
 The original development checkout is preserved. Work is local and uncommitted.
