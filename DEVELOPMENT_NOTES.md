@@ -1326,3 +1326,20 @@ Source delivery/preflight: `2026-10-04T20:28:10.496Z` → `2026-10-04T20:38:45.6
 Integration: `2026-10-04T20:38:45.643Z` → `2026-10-04T20:51:18.447Z`. Baseline input 134,373,482, cached 132,519,168, output 344,267, total 134,717,749; endpoint input 140,687,858, cached 138,765,952, output 359,629, total 141,047,487. 51 reconciled requests, maximum input 143,257, 0 above 272,000. Reasoning delta 2,372 is already in output. Exact API-equivalent USD 7.690804.
 
 The final endpoint precedes only this numeric insertion and commit. Those actions and subsequent delivery start the next measured phase; they are not counted twice.
+
+
+## WHR-INTERNAL-22-2026-10-04 — compatible reader release
+
+This bounded `gpt-6-astra` child-session phase starts at the preceding integration endpoint and includes final integration commit/rebase, protected PR187 delivery and CI observation, final-source privacy and Apple inventory verification, signed archive/local export, independent-review coordination, one internal-only upload and actual uploaded-package verification, Testing/group/notes readback, durable private retention, and the build22 receipt. Root coordination, producer work, independent reviewer tokens and future receipt-PR delivery are excluded. Exact raw JSONL request/cumulative reconciliation preserves the child/fork identity; no counters are inferred.
+
+Pricing checked 4 October 2026: [official model rates](https://developers.openai.com/api/docs/models/gpt-6-astra), USD10/M uncached input,1/M cached input,12.50/M cache-write input,50/M output; above272,000 input,2× input and1.5× output rates apply per request. Reasoning is a subset of output. This is an API-equivalent comparison, not a ChatGPT subscription charge.
+
+Private evidence: `whr-build22-delivery-accounting-final.json`; signed source and release evidence are described in [the build22 receipt](docs/internal-testflight-build22.md).
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Protected compatible-reader delivery and build22 | 26,939,117 (26,691,584) | 0 | 38,733 | 26,977,850 | $31.10 |
+
+Boundary: `2026-10-04T20:51:18.447Z` → `2026-10-04T21:59:41.693Z`. Baseline: input 140,687,858, cached 138,765,952, output 359,629, total 141,047,487. Endpoint: input 167,626,975, cached 165,457,536, output 398,362, total 168,025,337. 172 reconciled requests; maximum input 211,671; 0 long-context threshold crossings. Reasoning delta 13,109 is already included in output. Exact API-equivalent USD 31.103564.
+
+The final endpoint precedes only numeric insertion, final review and commit; those and subsequent receipt delivery are outside this measured row.
