@@ -1,4 +1,5 @@
 import XCTest
+import CoreFoundation
 import HealthKit
 @testable import WeeklyHealthReport
 
@@ -262,6 +263,84 @@ final class WorkoutEnrichmentTests: XCTestCase {
         XCTAssertNil(mapped["other.secret"])
     }
 
+    func testSDKMetadataBridgeUsesExactNumericValueInsteadOfStorageType() {
+        let integers: [(NSNumber, Int)] = [
+            (NSNumber(value: 2.0), 2), (NSNumber(value: Float(2)), 2),
+            (NSDecimalNumber(string: "2.0"), 2), (NSDecimalNumber(string: "2e0"), 2),
+            (NSNumber(value: Int.min), Int.min), (NSNumber(value: Int.max), Int.max),
+            (NSDecimalNumber(decimal: Decimal(Int.min)), Int.min),
+            (NSDecimalNumber(decimal: Decimal(Int.max)), Int.max), (NSNumber(value: -0.0), 0)
+        ]
+        for (number, expected) in integers {
+            XCTAssertEqual(WorkoutHealthKitProjection.metadata([prefix + "intervalCount": number])[prefix + "intervalCount"], .integer(expected))
+        }
+        let decimals: [NSNumber] = [
+            NSDecimalNumber(string: "5.2"), NSNumber(value: 2.5),
+            NSDecimalNumber(string: "2.0000000000000000000000000000000000001"),
+            NSDecimalNumber(decimal: Decimal(Int.max) + 1),
+            NSDecimalNumber(decimal: Decimal(Int.min) - 1), NSNumber(value: UInt64.max)
+        ]
+        for number in decimals {
+            XCTAssertEqual(WorkoutHealthKitProjection.metadata([prefix + "intervalCount": number])[prefix + "intervalCount"], .decimal(number.decimalValue))
+        }
+        for number in [NSNumber(value: true), NSNumber(value: false), NSNumber(value: Double.nan),
+                       NSNumber(value: Double.infinity), NSNumber(value: -Double.infinity), NSDecimalNumber.notANumber] {
+            XCTAssertEqual(WorkoutHealthKitProjection.metadata([prefix + "intervalCount": number])[prefix + "intervalCount"], .invalid)
+        }
+    }
+
+    func testNativeArchivedNumericMetadataKeepsV1V2CompleteAndIncompleteFixtures() throws {
+        for version in [1, 2] {
+            for name in ["complete", "incomplete"] {
+                let expected = WorkoutEnrichmentReader.read(try fixture(name, version: version))
+                for decimalStorage in [false, true] {
+                    let input = try fixture(name, version: version) { raw, activity in
+                        try self.archivedMetadata(self.reboxingIntegers(raw, decimalStorage: decimalStorage), activity: activity)
+                    }
+                    XCTAssertEqual(WorkoutEnrichmentReader.read(input), expected, "v\(version) \(name), decimal storage: \(decimalStorage)")
+                }
+            }
+        }
+    }
+
+    func testNativeArchivedMetadataPreservesFractionalDecimalsAndDates() throws {
+        let observedAt = Date(timeIntervalSince1970: 60.123456789)
+        let raw: [String: Any] = [prefix + "observedSpeedKilometresPerHour": NSDecimalNumber(string: "5.2"),
+                                  prefix + "observedInclinationPercent": NSDecimalNumber(string: "1.3"),
+                                  prefix + "observedAt": observedAt]
+        for activity in [false, true] {
+            let mapped = WorkoutHealthKitProjection.metadata(try archivedMetadata(raw, activity: activity))
+            XCTAssertEqual(mapped[prefix + "observedSpeedKilometresPerHour"], .decimal(Decimal(string: "5.2")!))
+            XCTAssertEqual(mapped[prefix + "observedInclinationPercent"], .decimal(Decimal(string: "1.3")!))
+            XCTAssertEqual(mapped[prefix + "observedAt"], .date(observedAt))
+        }
+    }
+
+    func testNativeArchivedNumericMetadataStillRejectsMalformedSchemaAndInvariants() throws {
+        let cases: [(String, Any, Bool, WorkoutEnrichment.Recognition)] = [
+            ("interchangeSchemaVersion", NSNumber(value: 99.0), false, .unsupported),
+            ("interchangeSchemaVersion", NSNumber(value: 2.5), false, .invalid),
+            ("intervalCount", NSNumber(value: true), false, .invalid),
+            ("intervalCount", "2", false, .invalid),
+            ("intervalCount", NSNumber(value: 2.5), false, .invalid),
+            ("intervalCount", NSDecimalNumber(decimal: Decimal(Int.max) + 1), false, .invalid),
+            ("manifestRevision", NSDecimalNumber(decimal: Decimal(Int.min) - 1), false, .invalid),
+            ("summaryID", "not-a-uuid", false, .invalid),
+            ("ownership", "phone", false, .unsupported),
+            ("speedTargetSource", "future", true, .unsupported),
+            ("segmentIndex", NSNumber(value: 0.5), true, .invalid),
+            ("observedAt", Date(timeIntervalSince1970: 1), true, .invalid)
+        ]
+        for (key, value, inActivity, expected) in cases {
+            let input = try fixture("complete", version: 2) { raw, activity in
+                var raw = self.reboxingIntegers(raw, decimalStorage: false)
+                if activity == inActivity { raw[self.prefix + key] = value }
+                return try self.archivedMetadata(raw, activity: activity)
+            }
+            XCTAssertEqual(WorkoutEnrichmentReader.read(input).recognition, expected, key)
+        }
+    }
+
     func testPartialHeartRateAndZeroEnergyRemainIndependent() {
         let statistics = WorkoutStatistics(provenance: "healthKitActivityStatistics", minimum: nil, average: 120, maximum: .infinity, energy: 0)
         XCTAssertEqual(statistics.heartRateState, "available")
@@ -303,7 +382,8 @@ final class WorkoutEnrichmentTests: XCTestCase {
         return try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: root.appendingPathComponent("docs/fixtures/watch-health-v\(version)/\(name).synthetic.json"))) as? [String: Any])
     }
 
-    private func fixture(_ name: String, version: Int = 1) throws -> WorkoutEnrichmentInput {
+    private func fixture(_ name: String, version: Int = 1,
+                         transformMetadata: (([String: Any], Bool) throws -> [String: Any])? = nil) throws -> WorkoutEnrichmentInput {
         let root = try fixtureJSON(name, version: version)
         let expected = try XCTUnwrap(root["expected"] as? [String: Any])
         let workout = try XCTUnwrap(expected["workout"] as? [String: Any])
@@ -311,19 +391,43 @@ final class WorkoutEnrichmentTests: XCTestCase {
             let formatter = ISO8601DateFormatter(); formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             return formatter.date(from: value as! String)!
         }
-        func metadata(_ value: Any?) -> [String: WorkoutMetadataValue] {
+        func metadata(_ value: Any?, activity: Bool) throws -> [String: WorkoutMetadataValue] {
             var raw = value as! [String: Any]
             for (key, value) in raw where key.hasSuffix("observedAt") || key.hasSuffix("ObservedAt") { raw[key] = date(value) }
+            if let transformMetadata { raw = try transformMetadata(raw, activity) }
             return WorkoutHealthKitProjection.metadata(raw)
         }
         func statistics(_ value: Any?, activity: Bool) -> WorkoutStatistics {
             let raw = value as! [String: Any], hr = raw["heartRate"] as? [String: Any], energy = raw["activeEnergy"] as? [String: Any]
             return .init(provenance: activity ? "healthKitActivityStatistics" : "healthKitWorkoutStatistics", minimum: hr?["minimum"] as? Double, average: hr?["average"] as? Double, maximum: hr?["maximum"] as? Double, energy: energy?["sum"] as? Double)
         }
-        let activities = (workout["activities"] as! [[String: Any]]).map {
-            WorkoutActivityInput(id: UUID(uuidString: $0["activityID"] as! String)!, start: date($0["startedAt"]), end: date($0["endedAt"]), duration: $0["durationSeconds"] as! Double, activity: $0["activity"] as! String, indoor: $0["location"] as? String == "indoor", metadata: metadata($0["metadata"]), statistics: statistics($0["statistics"], activity: true))
+        let activities = try (workout["activities"] as! [[String: Any]]).map {
+            WorkoutActivityInput(id: UUID(uuidString: $0["activityID"] as! String)!, start: date($0["startedAt"]), end: date($0["endedAt"]), duration: $0["durationSeconds"] as! Double, activity: $0["activity"] as! String, indoor: $0["location"] as? String == "indoor", metadata: try metadata($0["metadata"], activity: true), statistics: statistics($0["statistics"], activity: true))
         }
-        return WorkoutEnrichmentInput(start: date(workout["startedAt"]), end: date(workout["endedAt"]), activity: workout["activity"] as! String, metadata: metadata(workout["metadata"]), statistics: statistics(workout["statistics"], activity: false), distanceMetres: (workout["distance"] as? [String: Any])?["metres"] as? Double, activities: activities)
+        return WorkoutEnrichmentInput(start: date(workout["startedAt"]), end: date(workout["endedAt"]), activity: workout["activity"] as! String, metadata: try metadata(workout["metadata"], activity: false), statistics: statistics(workout["statistics"], activity: false), distanceMetres: (workout["distance"] as? [String: Any])?["metres"] as? Double, activities: activities)
+    }
+
+    private func reboxingIntegers(_ raw: [String: Any], decimalStorage: Bool) -> [String: Any] {
+        raw.mapValues { value in
+            guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+                  let integer = Int(exactly: number) else { return value }
+            return decimalStorage ? NSDecimalNumber(decimal: Decimal(integer)) : NSNumber(value: Double(integer))
+        }
+    }
+
+    /// Synthetic SDK objects only: no Health store, permissions, builder or sample queries.
+    private func archivedMetadata(_ raw: [String: Any], activity: Bool) throws -> [String: Any] {
+        let start = Date(timeIntervalSince1970: 0), end = start.addingTimeInterval(60)
+        if activity {
+            let configuration = HKWorkoutConfiguration(); configuration.activityType = .walking
+            let value = HKWorkoutActivity(workoutConfiguration: configuration, start: start, end: end, metadata: raw)
+            let data = try NSKeyedArchiver.archivedData(withRootObject: value, requiringSecureCoding: true)
+            return try XCTUnwrap(NSKeyedUnarchiver.unarchivedObject(ofClass: HKWorkoutActivity.self, from: data)?.metadata)
+        }
+        let value = HKWorkout(activityType: .walking, start: start, end: end, workoutEvents: nil,
+                              totalEnergyBurned: nil, totalDistance: nil, metadata: raw)
+        let data = try NSKeyedArchiver.archivedData(withRootObject: value, requiringSecureCoding: true)
+        return try XCTUnwrap(NSKeyedUnarchiver.unarchivedObject(ofClass: HKWorkout.self, from: data)?.metadata)
     }
 
     private func replacing(_ input: WorkoutEnrichmentInput, metadata: [String: WorkoutMetadataValue]? = nil, activities: [WorkoutActivityInput]? = nil) -> WorkoutEnrichmentInput {

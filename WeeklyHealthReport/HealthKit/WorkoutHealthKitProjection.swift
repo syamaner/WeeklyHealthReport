@@ -35,10 +35,9 @@ enum WorkoutHealthKitProjection {
         (values ?? [:]).filter { $0.key.hasPrefix(WorkoutEnrichmentReader.namespace) }.mapValues { value in
             if let number = value as? NSNumber {
                 guard CFGetTypeID(number) != CFBooleanGetTypeID(), number.doubleValue.isFinite else { return .invalid }
-                // Integers and dates must not be accepted from text or Boolean coercion.
-                let type = String(cString: number.objCType)
-                if ["c", "s", "i", "l", "q", "C", "S", "I", "L", "Q"].contains(type),
-                   let integer = Int(number.stringValue) { return .integer(integer) }
+                // NSNumber's storage type is not a schema type. Accept only an exact,
+                // in-range integer value; never round a fraction or coerce text/Boolean.
+                if let integer = Int(exactly: number) { return .integer(integer) }
                 return .decimal(number.decimalValue)
             }
             if let date = value as? Date { return .date(date) }

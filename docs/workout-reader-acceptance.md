@@ -20,6 +20,14 @@ Shared v1 fixtures originate unchanged from PacePrompt a6809ec983ec8d06a491f2697
 8. Verify complete, incomplete and unsupported/invalid reader states using retained synthetic fixtures for malformed cases; do not corrupt real Health data. Complete means validated interval mirror only.
 9. Review privacy disclosure and exact JSON before any separately authorised Drive export. Verify selected historical date, offset/DST timestamp, canonical replacement/recovery and no food payload. Test identity failures with the synthetic Drive harness, not personal data.
 
+## Numeric metadata compatibility
+
+The HealthKit adapter treats an `NSNumber` as an integer only when `Int(exactly:)` succeeds, after excluding Boolean and nonfinite values. This admits whole-valued floating or decimal representations without rounding fractions, truncating out-of-range values or coercing strings. Other finite numeric values retain their exact `Decimal` projection. The pure reader's version, ownership, identity, count, timestamp, enum and completeness rules remain unchanged, as do schema6 and the exported metadata allowlist.
+
+A device export with `recognition: invalid` and no exported interchange version narrows the failure to the version's type projection: a missing version key would be unsupported, while a later validation failure would retain a parsed version. The raw live metadata representation is not present in the export, so a Health-store conversion to floating representation is not a proven cause. Synthetic native workout/activity secure-archive cases reproduce the earlier failure for a whole-valued floating `NSNumber`; they test adapter compatibility, not Health-store persistence.
+
+Acceptance uses the **same existing saved workout** with the repaired reader. Prepare a fresh Daily JSON preview and locally compare recognition, version, interval identity, targets, timestamps, statistics and available distance evidence. Retain unsupported, incomplete or unavailable states when the underlying evidence requires them. A new workout or Health write is not needed for this comparison, and successful numeric decoding alone does not establish the later metadata invariants or the full device round trip.
+
 ## Release boundary
 
 Software tests, simulator compilation and static analysis do not establish HealthKit metadata survival, native zone visibility, sensor accuracy, calorimetry, distance accuracy or physical treadmill behaviour. Signed release, App Store privacy/compliance review and real Health/Drive comparison remain distinct acceptance evidence. No real Health read or external export is part of automated validation.
