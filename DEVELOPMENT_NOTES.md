@@ -1269,3 +1269,18 @@ Raw JSONL reconciliation verified the child/fork identities, inherited metadata,
 Includes preceding release preparation, archive-path investigation, post-privacy protected delivery and CI failure investigation/retry, signing/export/upload, App Store Connect policy/test-note/audience checks, receipt preparation and this child's PacePrompt24 UI support. Excludes parent and independent reviewer usage, the separately ledgered privacy implementation, this final numeric insertion and subsequent receipt-PR review corrections, delivery, private retention and handoff. Missing usage is not estimated. Exact interval reports and reconciliation script are retained privately with the release evidence.
 
 Result: build0.1.1(19) Testing for the existing internal group; one upload, no audience expansion. Actual uploaded and local-export IPA hashes, the earlier build17 artifact caveat, failed first PR CI attempt, successful exact-main checks and physical acceptance limits are recorded in the [delivery receipt](docs/internal-testflight-build19.md).
+
+
+## HealthKit numeric metadata compatibility — 4 October 2026
+
+| Change | Measured scope | Input tokens (cached) | Cache-write input | Output tokens | Total tokens | API-equivalent |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `WHR-NUMERIC-METADATA-2026-10-04` | Exact child implementation, synthetic validation, documentation and review-coordination phase | 3,628,896 (3,577,728) | 0 | 10,868 | 3,639,764 | $4.63 |
+
+Exact model: `gpt-6-astra`, child session `01a10423-e413-7cd2-9170-60633cbb7eda`. Baseline `2026-10-04T14:55:17.923Z`: input 55,466,130, cached 54,534,528, output 128,903, total 55,595,033. Final `2026-10-04T15:04:40.701Z`: input 59,095,026, cached 58,112,256, output 139,771, total 59,234,797. Reasoning 3,893 is a subset of output.
+
+Raw JSONL reconciliation verified the child/fork metadata, each event's model and exact request/cumulative deltas: 22 requests, maximum input 177,414, 0 above272,000. Official [Astra rates](https://developers.openai.com/api/docs/models/gpt-6-astra), checked4October2026: USD10/M uncached input,1/M cached,12.50/M cache-write,50/M output; documented long-context multipliers apply when triggered. Exact token-only API-equivalent USD4.632808; this is not a subscription bill.
+
+Includes the adapter repair, synthetic native archive/fixture/boundary tests, acceptance documentation, focused and full validation, parent-review coordination and initial build-number preflight after the baseline. Excludes the preceding live-export investigation, parent and independent agent usage, this numeric insertion, subsequent protected delivery and signing/upload. Excluded usage is not estimated. Private evidence: `/private/tmp/whr-numeric-metadata-accounting-baseline.json`, `/private/tmp/whr-numeric-accounting-final.json` and `/private/tmp/whr-numeric-usage-report.py`.
+
+Validation:27 focused tests,316 complete simulator tests,97.26% domain coverage, static analysis passed and288 frozen tracked source/project/policy/acceptance hashes unchanged. Parent independently reviewed the three implementation/test/documentation inputs before the full gate; no blocking findings. Native secure-archive tests reproduce the representation-sensitive reader defect, but do not prove the raw type of the live Health record. Same-workout re-export remains required under the [acceptance procedure](docs/workout-reader-acceptance.md#numeric-metadata-compatibility).
