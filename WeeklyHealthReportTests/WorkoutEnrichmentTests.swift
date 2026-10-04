@@ -404,7 +404,7 @@ final class WorkoutEnrichmentTests: XCTestCase {
         let activities = try (workout["activities"] as! [[String: Any]]).map {
             WorkoutActivityInput(id: UUID(uuidString: $0["activityID"] as! String)!, start: date($0["startedAt"]), end: date($0["endedAt"]), duration: $0["durationSeconds"] as! Double, activity: $0["activity"] as! String, indoor: $0["location"] as? String == "indoor", metadata: try metadata($0["metadata"], activity: true), statistics: statistics($0["statistics"], activity: true))
         }
-        return WorkoutEnrichmentInput(start: date(workout["startedAt"]), end: date(workout["endedAt"]), activity: workout["activity"] as! String, metadata: try metadata(workout["metadata"], activity: false), statistics: statistics(workout["statistics"], activity: false), distanceMetres: (workout["distance"] as? [String: Any])?["metres"] as? Double, activities: activities)
+        return WorkoutEnrichmentInput(start: date(workout["startedAt"]), end: date(workout["endedAt"]), activity: workout["activity"] as! String, metadata: try metadata(workout["metadata"], activity: false), statistics: statistics(workout["statistics"], activity: false), distanceMetres: (workout["distance"] as? [String: Any])?["metres"] as? Double, activities: activities, sourceBundleIdentifier: workout["sourceBundleIdentifier"] as? String)
     }
 
     private func reboxingIntegers(_ raw: [String: Any], decimalStorage: Bool) -> [String: Any] {
@@ -435,5 +435,298 @@ final class WorkoutEnrichmentTests: XCTestCase {
     }
     private func replacing(_ input: WorkoutActivityInput, metadata: [String: WorkoutMetadataValue]? = nil, start: Date? = nil, end: Date? = nil, removeEnd: Bool = false) -> WorkoutActivityInput {
         .init(id: input.id, start: start ?? input.start, end: removeEnd ? nil : end ?? input.end, duration: input.duration, activity: input.activity, indoor: input.indoor, metadata: metadata ?? input.metadata, statistics: input.statistics, zones: input.zones)
+    }
+}
+
+extension WorkoutEnrichmentTests {
+    func testV3AcceptedAggregateRetainsExactDecimalAndIndependentNativeDecision() throws {
+        let input = try acceptedV3("100.125")
+        let value = WorkoutEnrichmentReader.read(input)
+        XCTAssertEqual(value.recognition, .supportedComplete)
+        XCTAssertEqual(value.acceptedDistance?.metres, Decimal(string: "100.125"))
+        XCTAssertEqual(value.acceptedDistance?.evidence, "producerMetadataV3")
+        XCTAssertEqual(value.nativeDistanceSample?.reason, "pauseOverlap")
+        XCTAssertNil(value.distanceMetres)
+        XCTAssertEqual(value.activities[0].pacePrompt?.intervalDistance.metres, 40)
+        XCTAssertTrue(WorkoutEnrichmentReader.validatesExport(value))
+        let zero = WorkoutEnrichmentReader.read(try acceptedV3("0", reason: "zeroAggregate"))
+        XCTAssertEqual(zero.acceptedDistance?.metres, 0)
+        XCTAssertEqual(zero.acceptedDistance?.state, "accepted")
+        XCTAssertTrue(WorkoutEnrichmentReader.validatesExport(zero))
+    }
+
+    func testV3TrustAndContradictoryHeaderFailClosedWithoutLegacyFallback() throws {
+        var foreign = try acceptedV3("100")
+        foreign.sourceBundleIdentifier = "com.example.foreign"
+        let result = WorkoutEnrichmentReader.read(foreign)
+        XCTAssertEqual(result.recognition, .invalid)
+        XCTAssertEqual(result.acceptedDistance?.reason, "unsupportedSource")
+        XCTAssertTrue(result.activities.allSatisfy { $0.pacePrompt == nil })
+        XCTAssertNotNil(result.statistics.activeEnergyKilocalories)
+        XCTAssertNil(LegacyWorkoutDistanceRequest.make(workoutID: UUID(), source: "com.otherweather.PromptPace", enrichment: result))
+        XCTAssertTrue(WorkoutEnrichmentReader.validatesExport(result))
+        for (key, wrong) in [("nativeDistanceSampleReason", WorkoutMetadataValue.string("zeroAggregate")),
+                             ("acceptedDistanceSchemaVersion", .decimal(1.5)), ("acceptedDistanceMetres", .decimal(100)),
+                             ("acceptedDistanceReason", .string("notAccepted")), ("nativeDistanceSampleState", .string("included"))] {
+            let input = try acceptedV3("100")
+            var fields = input.metadata; fields[prefix + key] = wrong
+            var changed = replacing(input, metadata: fields); changed.sourceBundleIdentifier = input.sourceBundleIdentifier
+            let invalid = WorkoutEnrichmentReader.read(changed)
+            XCTAssertEqual(invalid.recognition, .invalid, key)
+            XCTAssertEqual(invalid.acceptedDistance?.reason, "invalidEvidence", key)
+            XCTAssertNil(invalid.nativeDistanceSample, key)
+        }
+    }
+
+    func testV3ValidatedAggregateSurvivesInvalidIntervalButNotInvalidIdentity() throws {
+        let input = try acceptedV3("100")
+        var fields = input.activities[0].metadata; fields[prefix + "observedSpeedKilometresPerHour"] = .decimal(99)
+        var changed = replacing(input, activities: [replacing(input.activities[0], metadata: fields), input.activities[1]])
+        changed.sourceBundleIdentifier = input.sourceBundleIdentifier
+        let result = WorkoutEnrichmentReader.read(changed)
+        XCTAssertEqual(result.recognition, .invalid)
+        XCTAssertEqual(result.acceptedDistance?.metres, 100)
+        XCTAssertTrue(result.activities.allSatisfy { $0.pacePrompt == nil })
+        XCTAssertTrue(WorkoutEnrichmentReader.validatesExport(result))
+        var bad = input.metadata; bad[prefix + "summaryID"] = .string("invalid")
+        changed = replacing(input, metadata: bad); changed.sourceBundleIdentifier = input.sourceBundleIdentifier
+        XCTAssertEqual(WorkoutEnrichmentReader.read(changed).acceptedDistance?.reason, "invalidEvidence")
+    }
+
+    func testCanonicalAggregateDecimalRejectsRoundingAndNoncanonicalForms() {
+        for valid in ["0", "0.125", "100", "12345678901234567890123456789012345678"] {
+            XCTAssertNotNil(WorkoutAcceptedDistancePolicy.canonicalDecimal(valid), valid)
+        }
+        for bad in ["-0", "-1", "+1", "01", "1.0", "1.", ".5", "1e3", "NaN", "inf", " 1", "1 ",
+                    "123456789012345678901234567890123456789123456789", "0." + String(repeating: "0", count: 130) + "1",
+                    String(repeating: "9", count: 257)] {
+            XCTAssertNil(WorkoutAcceptedDistancePolicy.canonicalDecimal(bad), bad)
+        }
+    }
+
+    func testLegacyRecoveryKeepsPersistedQuantitySeparateFromNativeStatistic() async throws {
+        let request = legacyRequest(1)
+        let sample = legacySample(request, metres: 100)
+        let result = try await LegacyWorkoutDistanceRecovery.resolve([request]) { requests, limit in
+            XCTAssertEqual(requests, [request]); XCTAssertEqual(limit, 3); return [sample]
+        }
+        XCTAssertEqual(result[request.workoutID], .accepted(100, evidence: "recoveredLegacyAssociatedSample"))
+        XCTAssertEqual(LegacyWorkoutDistanceRecovery.validate([], request: request).reason, "noDataOrAccess")
+        XCTAssertEqual(LegacyWorkoutDistanceRecovery.validate([sample, sample], request: request).reason, "invalidEvidence")
+        for bad in [legacySample(request, metres: 0), legacySample(request, metres: -.infinity), legacySample(request, metres: .nan),
+                    legacySample(request, source: "com.example.foreign"), legacySample(request, version: 2),
+                    legacySample(request, offset: 0.0001), legacySample(request, sync: "foreign")] {
+            XCTAssertEqual(LegacyWorkoutDistanceRecovery.validate([bad], request: request).reason, "invalidEvidence")
+        }
+    }
+
+    func testLegacyRecoveryBatchesAndRejectsAmbiguousOrTruncatedQueries() async throws {
+        let requests = (1...65).map(legacyRequest)
+        var sizes: [Int] = []
+        let result = try await LegacyWorkoutDistanceRecovery.resolve(requests) { batch, limit in
+            sizes.append(batch.count); XCTAssertEqual(limit, 2 * batch.count + 1)
+            return batch.map { self.legacySample($0) }
+        }
+        XCTAssertEqual(sizes, [32, 32, 1]); XCTAssertEqual(result.count, 65)
+        XCTAssertTrue(result.values.allSatisfy { $0.state == "accepted" })
+        let request = requests[0]
+        let duplicates = try await LegacyWorkoutDistanceRecovery.resolve([request, request]) { _, _ in XCTFail("Duplicate summary must not query"); return [] }
+        XCTAssertEqual(duplicates[request.workoutID]?.reason, "invalidEvidence")
+        let truncated = try await LegacyWorkoutDistanceRecovery.resolve([request]) { _, limit in Array(repeating: self.legacySample(request), count: limit) }
+        XCTAssertEqual(truncated[request.workoutID]?.reason, "invalidEvidence")
+        enum QueryFailure: Error { case failed }
+        do { _ = try await LegacyWorkoutDistanceRecovery.resolve([request]) { _, _ in throw QueryFailure.failed }; XCTFail("Error must block export") }
+        catch QueryFailure.failed {}
+        let cancelled = Task {
+            try await LegacyWorkoutDistanceRecovery.resolve([request]) { _, _ in
+                withUnsafeCurrentTask { $0?.cancel() }; return [self.legacySample(request)]
+            }
+        }
+        do { _ = try await cancelled.value; XCTFail("Cancellation must block export") } catch is CancellationError {}
+    }
+
+    private func acceptedV3(_ metres: String, reason: String = "pauseOverlap") throws -> WorkoutEnrichmentInput {
+        let input = try fixture("complete", version: 2)
+        var fields = input.metadata
+        fields[prefix + "interchangeSchemaVersion"] = .integer(3)
+        fields[prefix + "distanceProvenance"] = .string("unavailable")
+        fields[prefix + "acceptedDistanceSchemaVersion"] = .integer(1)
+        fields[prefix + "acceptedDistanceState"] = .string("accepted")
+        fields[prefix + "acceptedDistanceMetres"] = .string(metres)
+        fields[prefix + "acceptedDistanceProvenance"] = .string("fr30zCumulativeDistanceDelta")
+        fields[prefix + "nativeDistanceSampleState"] = .string("suppressed")
+        fields[prefix + "nativeDistanceSampleReason"] = .string(reason)
+        var result = replacing(input, metadata: fields)
+        result.sourceBundleIdentifier = "com.otherweather.PromptPace.watchkitapp"
+        return result
+    }
+
+    private func legacyRequest(_ index: Int) -> LegacyWorkoutDistanceRequest {
+        .init(workoutID: UUID(uuidString: String(format: "00000000-0000-4000-8000-%012d", index))!,
+              summaryID: String(format: "00000000-0000-4000-8001-%012d", index), sourceBundleIdentifier: "com.otherweather.PromptPace.watchkitapp",
+              start: Date(timeIntervalSince1970: 1_700_000_000.1234), end: Date(timeIntervalSince1970: 1_700_000_010.123))
+    }
+    private func legacySample(_ request: LegacyWorkoutDistanceRequest, metres: Double = 100, source: String? = nil, version: Int = 1, offset: TimeInterval = 0, sync: String? = nil) -> LegacyWorkoutDistanceSample {
+        .init(id: UUID(), syncIdentifier: sync ?? request.syncIdentifier, syncVersion: version,
+              sourceBundleIdentifier: source ?? request.sourceBundleIdentifier,
+              start: LegacyWorkoutDistanceRecovery.legacyDate(request.start)!.addingTimeInterval(offset),
+              end: LegacyWorkoutDistanceRecovery.legacyDate(request.end)!, metres: metres)
+    }
+}
+
+extension WorkoutEnrichmentTests {
+    func testNativeLegacySampleProjectionPreservesQuantityAndSemanticSyncVersion() throws {
+        let start = Date(timeIntervalSince1970: 1_700_000_000)
+        for (number, expected) in [(NSNumber(value: 1), Int?.some(1)), (NSNumber(value: 1.0), 1),
+                                   (NSNumber(value: 1.5), nil), (NSNumber(value: true), nil)] {
+            let sample = HKQuantitySample(type: HKQuantityType(.distanceWalkingRunning), quantity: HKQuantity(unit: .meter(), doubleValue: 100.125), start: start, end: start.addingTimeInterval(10), metadata: [HKMetadataKeySyncIdentifier: "synthetic-distance", HKMetadataKeySyncVersion: number])
+            let bytes = try NSKeyedArchiver.archivedData(withRootObject: sample, requiringSecureCoding: true)
+            let native = try XCTUnwrap(NSKeyedUnarchiver.unarchivedObject(ofClass: HKQuantitySample.self, from: bytes))
+            let projected = WorkoutHealthKitProjection.legacyDistanceSample(native)
+            XCTAssertEqual(projected.syncVersion, expected)
+            XCTAssertEqual(projected.syncIdentifier, "synthetic-distance")
+            XCTAssertEqual(projected.metres, 100.125)
+            XCTAssertEqual(projected.start, start)
+            XCTAssertEqual(projected.end, start.addingTimeInterval(10))
+            XCTAssertEqual(projected.id, native.uuid)
+        }
+    }
+
+    func testLegacyQueryEligibilityRequiresValidatedHeaderAndTrustedNativeSource() throws {
+        var input = try fixture("complete", version: 2)
+        input.sourceBundleIdentifier = "com.otherweather.PromptPace.watchkitapp"
+        let value = WorkoutEnrichmentReader.read(input)
+        XCTAssertNotNil(LegacyWorkoutDistanceRequest.make(workoutID: UUID(), source: input.sourceBundleIdentifier!, enrichment: value))
+        XCTAssertNil(LegacyWorkoutDistanceRequest.make(workoutID: UUID(), source: "com.example.foreign", enrichment: value))
+        let untrusted = WorkoutEnrichmentReader.read(try fixture("complete", version: 2))
+        XCTAssertEqual(untrusted.recognition, .supportedComplete)
+        XCTAssertEqual(untrusted.acceptedDistance?.reason, "unsupportedSource")
+        XCTAssertNil(LegacyWorkoutDistanceRequest.make(workoutID: UUID(), source: "com.otherweather.PromptPace.watchkitapp", enrichment: untrusted))
+        var metadata = input.metadata; metadata[prefix + "manifestRevision"] = .integer(-1)
+        var bad = replacing(input, metadata: metadata); bad.sourceBundleIdentifier = input.sourceBundleIdentifier
+        XCTAssertNil(LegacyWorkoutDistanceRequest.make(workoutID: UUID(), source: input.sourceBundleIdentifier!, enrichment: WorkoutEnrichmentReader.read(bad)))
+    }
+}
+
+extension WorkoutEnrichmentTests {
+    func testExactSharedV3FixturesPreserveAcceptedAndNativeDistancesIndependently() throws {
+        for (name, accepted, native, reason) in [
+            ("paused", Decimal?.some(100), Double?.none, "pauseOverlap"),
+            ("submillisecond", Decimal(string: "30.625"), nil, "pauseOverlap"),
+            ("safe", Decimal(string: "30.625"), 30.625, ""),
+            ("zero", Decimal?.some(0), nil, "zeroAggregate"),
+            ("incomplete", nil, nil, "notAccepted")
+        ] {
+            let input = try fixture(name, version: 3)
+            let value = WorkoutEnrichmentReader.read(input)
+            XCTAssertEqual(value.recognition, name == "incomplete" ? .supportedIncomplete : .supportedComplete, name)
+            XCTAssertEqual(value.acceptedDistance?.metres, accepted, name)
+            XCTAssertEqual(value.distanceMetres, native, name)
+            XCTAssertEqual(value.nativeDistanceSample?.reason ?? "", reason, name)
+            XCTAssertTrue(WorkoutEnrichmentReader.validatesExport(value), name)
+            XCTAssertNil(LegacyWorkoutDistanceRequest.make(workoutID: UUID(), source: input.sourceBundleIdentifier!, enrichment: value), name)
+            let roundTrip = try fixture(name, version: 3) { raw, activity in
+                try self.archivedMetadata(self.reboxingIntegers(raw, decimalStorage: true), activity: activity)
+            }
+            XCTAssertEqual(WorkoutEnrichmentReader.read(roundTrip), value, name)
+        }
+    }
+}
+
+extension WorkoutEnrichmentTests {
+    func testLegacyDistanceConversionRoundTripsPersistedDoubleOrRejectsUnrepresentableValue() throws {
+        let request = legacyRequest(1)
+        let metres = 100.12345678901234
+        let result = LegacyWorkoutDistanceRecovery.validate([legacySample(request, metres: metres)], request: request)
+        let value = try XCTUnwrap(result.metres)
+        XCTAssertEqual(Double(NSDecimalNumber(decimal: value).stringValue), metres)
+        XCTAssertEqual(value, Decimal(string: "100.12345678901234"))
+        for unsupported in [1e200, 1e-200] {
+            XCTAssertEqual(LegacyWorkoutDistanceRecovery.validate([legacySample(request, metres: unsupported)], request: request).reason, "invalidEvidence")
+        }
+    }
+
+    func testLegacyHeadersRejectV3OnlyMetadataBeforeRecoveryEligibility() throws {
+        for version in [1, 2] {
+            for key in ["acceptedDistanceSchemaVersion", "acceptedDistanceMetres", "nativeDistanceSampleState"] {
+                let input = try fixture("complete", version: version)
+                var metadata = input.metadata; metadata[prefix + key] = .string("invented")
+                var changed = replacing(input, metadata: metadata); changed.sourceBundleIdentifier = "com.otherweather.PromptPace.watchkitapp"
+                let result = WorkoutEnrichmentReader.read(changed)
+                XCTAssertEqual(result.recognition, .invalid)
+                XCTAssertEqual(result.acceptedDistance?.reason, "invalidEvidence")
+                XCTAssertNil(LegacyWorkoutDistanceRequest.make(workoutID: UUID(), source: changed.sourceBundleIdentifier!, enrichment: result))
+            }
+        }
+    }
+}
+
+extension WorkoutEnrichmentTests {
+    func testDisabledSummaryOrBasicExportRecoveryNeverInvokesSampleCapability() async throws {
+        let result = try await LegacyWorkoutDistanceRecovery.resolve([legacyRequest(1)], enabled: false) { _, _ in
+            XCTFail("Weekly/context/basic exports must not query associated samples")
+            return []
+        }
+        XCTAssertTrue(result.isEmpty)
+    }
+}
+
+extension WorkoutEnrichmentTests {
+    func testRecoveredExportCannotClaimPrecisionBeyondPersistedDouble() {
+        let impossible = WorkoutAcceptedDistance.accepted(Decimal(string: "100.12345678901234123456789")!, evidence: "recoveredLegacyAssociatedSample")
+        XCTAssertFalse(impossible.isValid)
+        XCTAssertTrue(WorkoutAcceptedDistance.accepted(Decimal(string: "100.12345678901234")!, evidence: "recoveredLegacyAssociatedSample").isValid)
+        XCTAssertTrue(WorkoutAcceptedDistance.accepted(Decimal(string: "100.12345678901234123456789")!, evidence: "producerMetadataV3").isValid)
+    }
+}
+
+extension WorkoutEnrichmentTests {
+    func testExplicitIncompleteV3HeaderCannotClaimConfirmedAggregate() throws {
+        let input = try acceptedV3("100")
+        var metadata = input.metadata; metadata[prefix + "interchangeStatus"] = .string("incomplete")
+        var incomplete = replacing(input, metadata: metadata); incomplete.sourceBundleIdentifier = input.sourceBundleIdentifier
+        let result = WorkoutEnrichmentReader.read(incomplete)
+        XCTAssertEqual(result.recognition, .invalid)
+        XCTAssertEqual(result.acceptedDistance?.reason, "invalidEvidence")
+        XCTAssertNil(result.nativeDistanceSample)
+        var missing = replacing(input, activities: Array(input.activities.prefix(1))); missing.sourceBundleIdentifier = input.sourceBundleIdentifier
+        let visiblePrefix = WorkoutEnrichmentReader.read(missing)
+        XCTAssertEqual(visiblePrefix.recognition, .supportedIncomplete)
+        XCTAssertEqual(visiblePrefix.acceptedDistance?.metres, 100)
+        XCTAssertTrue(WorkoutEnrichmentReader.validatesExport(visiblePrefix))
+    }
+}
+
+extension WorkoutEnrichmentTests {
+    func testMeasuredCompanionSourceAliasDoesNotAllowMixedSampleOwnership() throws {
+        var input = try acceptedV3("100")
+        input.sourceBundleIdentifier = "com.otherweather.PromptPace"
+        XCTAssertEqual(WorkoutEnrichmentReader.read(input).acceptedDistance?.metres, 100)
+        let original = legacyRequest(1)
+        let companion = LegacyWorkoutDistanceRequest(workoutID: original.workoutID, summaryID: original.summaryID,
+            sourceBundleIdentifier: "com.otherweather.PromptPace", start: original.start, end: original.end)
+        XCTAssertEqual(LegacyWorkoutDistanceRecovery.validate([legacySample(companion)], request: companion).metres, 100)
+        XCTAssertEqual(LegacyWorkoutDistanceRecovery.validate([legacySample(companion, source: "com.otherweather.PromptPace.watchkitapp")], request: companion).reason, "invalidEvidence")
+        XCTAssertEqual(LegacyWorkoutDistanceRecovery.validate([legacySample(original, source: "com.otherweather.PromptPace")], request: original).reason, "invalidEvidence")
+        for foreign in ["com.example.foreign", "com.otherweather.PromptPace.other", ""] {
+            input.sourceBundleIdentifier = foreign
+            XCTAssertEqual(WorkoutEnrichmentReader.read(input).acceptedDistance?.reason, "unsupportedSource")
+        }
+    }
+}
+
+extension WorkoutEnrichmentTests {
+    func testProducerCanonicalDecimalExponentExtremesRetainExactValues() throws {
+        for (exponent, canonical) in [(127, "1" + String(repeating: "0", count: 127)),
+                                      (-128, "0." + String(repeating: "0", count: 127) + "1")] {
+            let producerValue = try XCTUnwrap(Decimal(string: "1e\(exponent)", locale: Locale(identifier: "en_US_POSIX")))
+            XCTAssertEqual(NSDecimalNumber(decimal: producerValue).stringValue, canonical)
+            XCTAssertEqual(WorkoutAcceptedDistancePolicy.canonicalDecimal(canonical), producerValue)
+            let accepted = WorkoutEnrichmentReader.read(try acceptedV3(canonical))
+            XCTAssertEqual(accepted.acceptedDistance?.metres, producerValue)
+            XCTAssertTrue(WorkoutEnrichmentReader.validatesExport(accepted))
+        }
+        XCTAssertNil(WorkoutAcceptedDistancePolicy.canonicalDecimal("1" + String(repeating: "0", count: 166)))
+        XCTAssertNil(WorkoutAcceptedDistancePolicy.canonicalDecimal("0." + String(repeating: "0", count: 128) + "1"))
     }
 }

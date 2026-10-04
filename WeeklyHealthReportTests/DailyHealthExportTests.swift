@@ -9,7 +9,7 @@ import XCTest
 
 // Every health value in this file is invented. These tests never access HealthKit.
 final class DailyHealthExportTests: XCTestCase {
-    func testSchemaSixEnrichmentRoundTripsWithLocalDatesAndIndependentDailyTotals() throws {
+    func testSchemaSevenEnrichmentRoundTripsWithLocalDatesAndIndependentDailyTotals() throws {
         let calendar = londonCalendar()
         let now = date(2026, 9, 10, 15, calendar: calendar)
         let selected = DailyExportWindow.availableDays(at: now, calendar: calendar)[1]
@@ -21,7 +21,7 @@ final class DailyHealthExportTests: XCTestCase {
         let outside = WorkoutRecord(id: UUID(), startDate: window.day.end, duration: 60, activityName: "Walking", enrichment: enrichment)
         let inputs = emptyInputs(window: window, workouts: [outside, record])
         let envelope = try DailyHealthExportBuilder.make(window: window, exportedAt: now, inputs: inputs, includeWorkoutEnrichment: true)
-        XCTAssertEqual(envelope.schemaVersion, 6)
+        XCTAssertEqual(envelope.schemaVersion, 7)
         XCTAssertEqual(envelope.today.workouts.data?.count, 1)
         XCTAssertEqual(envelope.today.workouts.data?.first?.enrichment?.statistics.activeEnergyKilocalories, 5)
         XCTAssertNil(envelope.today.activity.activeEnergy.data)
@@ -39,7 +39,7 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertNil(legacy.today.workouts.data?.first?.enrichment)
     }
 
-    func testSchemaSixNestedWorkoutDatesRetainDSTOffsetChange() throws {
+    func testSchemaSevenNestedWorkoutDatesRetainDSTOffsetChange() throws {
         let calendar = londonCalendar()
         let now = date(2026, 10, 26, 12, calendar: calendar)
         let selected = DailyExportWindow.availableDays(at: now, calendar: calendar)[1]
@@ -58,7 +58,7 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertNoThrow(try DailyHealthExportIdentityPolicy().validate(payload: bytes, reportDate: window.reportDate))
     }
 
-    func testCancelledSnapshotNeverPublishesSchemaSixBytes() async throws {
+    func testCancelledSnapshotNeverPublishesSchemaSevenBytes() async throws {
         let calendar = londonCalendar()
         let now = date(2026, 9, 10, 15, calendar: calendar)
         let provider = RecordingDailyProvider { window in
@@ -129,7 +129,7 @@ final class DailyHealthExportTests: XCTestCase {
         for offset in [5, 1, 7, 3, 0] {
             let result = try await service.refresh(nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier, selectedDay: choices[offset])
             XCTAssertEqual(result.envelope.reportDate, choices[offset].reportDate)
-            XCTAssertEqual(result.envelope.schemaVersion, 6)
+            XCTAssertEqual(result.envelope.schemaVersion, 7)
             XCTAssertEqual(result.notesSnapshot.notes, ["Invented note for \(choices[offset].reportDate)"])
             XCTAssertEqual(result.envelope.exportedAt, "2026-09-10T15:00:00+01:00")
             XCTAssertEqual(store.document, original)
@@ -2964,7 +2964,8 @@ private final class FailingDailyProvider: DailyHealthExportDataProviding {
 
     func fetchDailyHealthExportInputs(
         for window: DailyExportWindow,
-        nutritionSourceBundleIdentifier: String
+        nutritionSourceBundleIdentifier: String,
+        includeWorkoutEnrichment: Bool
     ) async throws -> DailyHealthExportInputs {
         fetchCount += 1
         throw ProbeError.queryFailed
@@ -2976,6 +2977,7 @@ private final class RecordingDailyProvider: DailyHealthExportDataProviding {
     private let sources: [NutritionSource]
     private let makeInputs: (DailyExportWindow, String) -> DailyHealthExportInputs
     private(set) var window: DailyExportWindow?
+    private(set) var requestedWorkoutEnrichment: Bool?
     private(set) var requestedSourceBundleIdentifier: String?
     private(set) var fetchCount = 0
     private(set) var readAuthorizationCount = 0
@@ -3009,11 +3011,56 @@ private final class RecordingDailyProvider: DailyHealthExportDataProviding {
 
     func fetchDailyHealthExportInputs(
         for window: DailyExportWindow,
-        nutritionSourceBundleIdentifier: String
+        nutritionSourceBundleIdentifier: String,
+        includeWorkoutEnrichment: Bool
     ) async throws -> DailyHealthExportInputs {
         self.window = window
+        requestedWorkoutEnrichment = includeWorkoutEnrichment
         requestedSourceBundleIdentifier = nutritionSourceBundleIdentifier
         fetchCount += 1
         return makeInputs(window, nutritionSourceBundleIdentifier)
+    }
+}
+
+extension DailyHealthExportTests {
+    func testSchemaSevenAdmissionPreservesHistoricalSchemaSixAndRejectsCrossVersionShapes() throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: now, calendar: calendar)
+        let start = window.day.start.addingTimeInterval(3600)
+        let enrichment = WorkoutEnrichmentReader.read(.init(start: start, end: start.addingTimeInterval(60), activity: "walking", metadata: [:], statistics: .init(provenance: "healthKitWorkoutStatistics"), distanceMetres: nil, activities: []))
+        let record = WorkoutRecord(id: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!, startDate: start, duration: 60, activityName: "Walking", enrichment: enrichment)
+        let envelope = try DailyHealthExportBuilder.make(window: window, exportedAt: now, inputs: emptyInputs(window: window, workouts: [record]), includeWorkoutEnrichment: true)
+        let bytes = try DailyHealthExportSerializer.encode(envelope)
+        let text = try XCTUnwrap(String(data: bytes, encoding: .utf8))
+        let identity = DailyHealthExportIdentityPolicy()
+        XCTAssertNoThrow(try identity.validate(payload: bytes, reportDate: window.reportDate))
+        let old = text.replacingOccurrences(of: "\"schema_version\":7", with: "\"schema_version\":6")
+            .replacingOccurrences(of: "\"enrichment_version\":2", with: "\"enrichment_version\":1")
+            .replacingOccurrences(of: "\"accepted_distance\":{\"reason\":\"notPacePrompt\",\"schema_version\":1,\"state\":\"unavailable\"},", with: "")
+        XCTAssertNotEqual(old, text)
+        XCTAssertFalse(old.contains("accepted_distance"))
+        XCTAssertNoThrow(try identity.validate(payload: Data(old.utf8), reportDate: window.reportDate))
+        for forged in [text.replacingOccurrences(of: "\"schema_version\":7", with: "\"schema_version\":6"),
+                       text.replacingOccurrences(of: "\"enrichment_version\":2", with: "\"enrichment_version\":1"),
+                       text.replacingOccurrences(of: "\"reason\":\"notPacePrompt\"", with: "\"reason\":\"future\""),
+                       text.replacingOccurrences(of: "\"schema_version\":7", with: "\"schema_version\":8")] {
+            XCTAssertThrowsError(try identity.validate(payload: Data(forged.utf8), reportDate: window.reportDate))
+        }
+    }
+}
+
+extension DailyHealthExportTests {
+    func testExportEnrichmentChoiceIsCarriedToProviderAndBuilder() async throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let provider = RecordingDailyProvider { self.emptyInputs(window: $0) }
+        let service = DailyHealthExportService(healthData: provider, calendar: calendar, now: { now })
+        let basic = try await service.refresh(nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier, includeWorkoutEnrichment: false)
+        XCTAssertEqual(provider.requestedWorkoutEnrichment, false)
+        XCTAssertEqual(basic.envelope.schemaVersion, 3)
+        let enriched = try await service.refresh(nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier)
+        XCTAssertEqual(provider.requestedWorkoutEnrichment, true)
+        XCTAssertEqual(enriched.envelope.schemaVersion, 7)
     }
 }

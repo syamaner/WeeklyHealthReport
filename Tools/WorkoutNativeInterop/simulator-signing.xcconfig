@@ -1,0 +1,9 @@
+// Local synthetic simulator only; no developer identity or device provisioning.
+JOINED_SIGN_app=YES
+JOINED_SIGN_xctest=YES
+JOINED_SIGN_framework=YES
+JOINED_SIGN_bundle=NO
+JOINED_SIGN_=NO
+CODE_SIGNING_ALLOWED=$(JOINED_SIGN_$(WRAPPER_EXTENSION))
+CODE_SIGN_IDENTITY=-
+ENABLE_DEBUG_DYLIB=NO

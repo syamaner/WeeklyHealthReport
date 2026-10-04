@@ -1133,7 +1133,8 @@ private struct UnusedDailyHealthDataProvider: DailyHealthExportDataProviding {
 
     func fetchDailyHealthExportInputs(
         for window: DailyExportWindow,
-        nutritionSourceBundleIdentifier: String
+        nutritionSourceBundleIdentifier: String,
+        includeWorkoutEnrichment: Bool
     ) async throws -> DailyHealthExportInputs {
         throw HealthDataError.unavailable
     }
