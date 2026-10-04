@@ -44,28 +44,14 @@ grep -q 'Licence: MIT' "$package_root/DEPENDENCIES.md"
 
 # Keep platform capabilities restricted to their concrete adapters.
 if grep -l '^import Security$' "$package_root"/Sources/FoodGenericSearch/*.swift | grep -Ev '/(GeminiKeychainStore|PublicFoodSourceCapture)\.swift$'; then
-  echo "Security belongs only in the keychain or public-source TLS adapter" >&2; exit 1
+  echo "Security belongs only in the keychain and TLS capture adapters" >&2; exit 1
 fi
 if grep -l '^import WebKit$' "$package_root"/Sources/FoodLedgerPresentation/*.swift | grep -v '/FoodWebSearchSuggestions.swift$'; then
   echo "WebKit belongs only in the search-suggestion renderer" >&2; exit 1
 fi
 
-if grep -l '^import Foundation$' "$package_root"/Sources/FoodLedgerPresentation/*.swift | grep -v '/GenericFoodProposalReviewView.swift$'; then
-  echo "Explicit Foundation import belongs only in the generic food review view" >&2; exit 1
-fi
-
-# Native address resolution and pinned TLS transport stay in the public-source adapter.
-for capability in Darwin Network; do
-  if grep -l "^import $capability$" "$package_root"/Sources/FoodGenericSearch/*.swift | grep -v '/PublicFoodSourceCapture.swift$'; then
-    echo "$capability belongs only in the public-source transport adapter" >&2; exit 1
-  fi
-done
-if grep -l '^import PDFKit$' "$package_root"/Sources/FoodGenericSearch/*.swift | grep -v '/GenericFoodPDFProjector.swift$'; then
-  echo "PDFKit belongs only in the generic food PDF projector" >&2; exit 1
-fi
-
 # HTML parsing and JSON Boolean discrimination stay in concrete source adapters.
-if grep -l '^import SwiftSoup$' "$package_root"/Sources/FoodGenericSearch/*.swift | grep -Ev '/(HTMLFoodSourceTableProjector|GenericFoodDocumentProjector|ManufacturerSourcePageIdentity|AlproSourceCandidateAdmission|ArlaSourceCandidateAdmission|OatlySourceCandidateAdmission|WPRecipeSourceParser)\.swift$'; then
+if grep -l '^import SwiftSoup$' "$package_root"/Sources/FoodGenericSearch/*.swift | grep -Ev '/(HTMLFoodSourceTableProjector|ManufacturerSourcePageIdentity|AlproSourceCandidateAdmission|ArlaSourceCandidateAdmission|OatlySourceCandidateAdmission|WPRecipeSourceParser|GenericFoodDocumentProjector)\.swift$'; then
   echo "SwiftSoup belongs only in the reviewed source HTML adapters" >&2; exit 1
 fi
 if grep -l '^import CoreFoundation$' "$package_root"/Sources/FoodGenericSearch/*.swift | grep -v '/OFFHTTPSearchTransport.swift$'; then
@@ -74,3 +60,17 @@ fi
 grep -q 'exact: "2.13.9"' "$package_root/Package.swift"
 grep -q '## SwiftSoup 2.13.9' "$package_root/DEPENDENCIES.md"
 test -s "$package_root/Sources/FoodGenericSearch/Resources/SwiftSoup-LICENSE.txt"
+
+# Generic acquisition platform APIs are confined to the concrete capture/PDF adapters.
+for capability in Darwin Network PDFKit; do
+  case "$capability" in
+    Darwin|Network) adapter='PublicFoodSourceCapture' ;;
+    PDFKit) adapter='GenericFoodPDFProjector' ;;
+  esac
+  if grep -l "^import $capability$" "$package_root"/Sources/FoodGenericSearch/*.swift | grep -v "/$adapter.swift$"; then
+    echo "$capability belongs only in $adapter" >&2; exit 1
+  fi
+done
+if grep -l '^import Foundation$' "$package_root"/Sources/FoodLedgerPresentation/*.swift | grep -v '/GenericFoodProposalReviewView.swift$'; then
+  echo "Explicit Foundation import belongs only in the generic review presentation adapter" >&2; exit 1
+fi

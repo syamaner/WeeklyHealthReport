@@ -1,0 +1,51 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "鹽酥雞"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "每份一袋。每袋重量未標示。"
+    },
+    {
+      "id" : "b3",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/table[2]\/tbody[0]\/tr[0];projection:swift-food-document-blocks-v4",
+      "text" : "熱量 | 320 大卡"
+    },
+    {
+      "id" : "b4",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/table[2]\/tbody[0]\/tr[1];projection:swift-food-document-blocks-v4",
+      "text" : "蛋白質 | 20 公克"
+    },
+    {
+      "id" : "b5",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/table[2]\/tbody[0]\/tr[2];projection:swift-food-document-blocks-v4",
+      "text" : "碳水化合物 | 16 公克"
+    },
+    {
+      "id" : "b6",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/table[2]\/tbody[0]\/tr[3];projection:swift-food-document-blocks-v4",
+      "text" : "脂肪 | 20 公克"
+    },
+    {
+      "id" : "b7",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/table[2]\/tbody[0]\/tr[4];projection:swift-food-document-blocks-v4",
+      "text" : "鈉 | 600 毫克"
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_48efe87e41504569",
+  "raw_sha256" : "48efe87e41504569b22f703d483e264e5e578053ec8085f778244a5870cbb9e8",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/popcorn-chicken-serving"
+}

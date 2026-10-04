@@ -1,0 +1,21 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "Homemade granola"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Oats, mixed nuts and honey. Add ingredients to taste. No finished yield or nutrition has been calculated."
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_509dd3e715ee04a8",
+  "raw_sha256" : "509dd3e715ee04a8cff37c1a08910f5d43623f71e506efc942186a77bcff531d",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/granola-no-recipe"
+}

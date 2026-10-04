@@ -1,0 +1,93 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "Tuna including oil"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Per 100 g"
+    },
+    {
+      "id" : "b3",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[0];projection:swift-food-document-blocks-v4",
+      "text" : "Energy | 250 kcal"
+    },
+    {
+      "id" : "b4",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[1];projection:swift-food-document-blocks-v4",
+      "text" : "Protein | 20 g"
+    },
+    {
+      "id" : "b5",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[2];projection:swift-food-document-blocks-v4",
+      "text" : "Carbohydrate | 0 g"
+    },
+    {
+      "id" : "b6",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[3];projection:swift-food-document-blocks-v4",
+      "text" : "Fat | 18 g"
+    },
+    {
+      "id" : "b7",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[4];projection:swift-food-document-blocks-v4",
+      "text" : "Sodium | 180 mg"
+    },
+    {
+      "id" : "b8",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "Tuna, drained solids"
+    },
+    {
+      "id" : "b9",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Per 100 g"
+    },
+    {
+      "id" : "b10",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[0];projection:swift-food-document-blocks-v4",
+      "text" : "Energy | 150 kcal"
+    },
+    {
+      "id" : "b11",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[1];projection:swift-food-document-blocks-v4",
+      "text" : "Protein | 25 g"
+    },
+    {
+      "id" : "b12",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[2];projection:swift-food-document-blocks-v4",
+      "text" : "Carbohydrate | 0 g"
+    },
+    {
+      "id" : "b13",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[3];projection:swift-food-document-blocks-v4",
+      "text" : "Fat | 6 g"
+    },
+    {
+      "id" : "b14",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[4];projection:swift-food-document-blocks-v4",
+      "text" : "Sodium | 200 mg"
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_06f6ce17b7b3a738",
+  "raw_sha256" : "06f6ce17b7b3a7387bffce2bc30f898e416a1b3aa0aa7e03d9a8132461a4e047",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/tuna-drained"
+}

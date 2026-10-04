@@ -36,6 +36,25 @@ final class OpenRouterFoodProviderTests: XCTestCase {
         XCTAssertTrue(schemas.allSatisfy { $0 == schemas.first })
     }
 
+    func testDiscoveryDoesNotInferTaiwanFromGenericDishNames() {
+        XCTAssertEqual(OpenRouterFoodProvider.discoverySearchTerms("scallion pancake"),
+            "scallion pancake nutrition facts calories protein serving size")
+        XCTAssertEqual(OpenRouterFoodProvider.discoverySearchTerms("UK whole milk"),
+            "UK whole milk nutrition facts calories protein serving size")
+    }
+
+    func testDiscoveryAddsNutritionIntentWithoutReplacingFoodOrMarket() async throws {
+        let payload = try reply(content: "No sources")
+        let provider = OpenRouterFoodProvider { request in
+            let body = try StrictFoodProposalJSON.object(XCTUnwrap(request.httpBody))
+            let messages = try XCTUnwrap(body["messages"] as? [[String: Any]])
+            XCTAssertEqual(messages.last?["content"] as? String,
+                "Fat Daddy fried chicken [market: Taiwan] nutrition facts calories protein serving size 營養標示 熱量 每份")
+            return .init(status: 200, data: payload)
+        }
+        _ = try await provider.discover(foodTerms: "Fat Daddy fried chicken [market: Taiwan]", key: key)
+    }
+
     func testExtractionRouteDoesNotChangeDiscoveryRoute() async throws {
         let payload = try reply(content: "No sources")
         for route in OpenRouterFoodExtractionRoute.allCases {

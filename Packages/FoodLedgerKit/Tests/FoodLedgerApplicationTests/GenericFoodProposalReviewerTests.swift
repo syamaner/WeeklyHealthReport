@@ -8,6 +8,98 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
     private let key = "synthetic-provider-key-123456789"
     private let url = URL(string: "https://publisher.example/tofu")!
 
+    func testSingleEmptySourceRetainsExtractionOutcomeWithoutExtraProviderCalls() async throws {
+        let ports = ReviewPorts(empty: true, leadURLs: [url])
+        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        let result = try await service.review(foodTerms: "tofu", key: key)
+        XCTAssertTrue(result.validation.candidates.isEmpty)
+        XCTAssertEqual(result.sourceAttempts, [url])
+        let calls = await ports.calls
+        XCTAssertEqual(calls, ["discover", "chooseSource", "capture", "extract"])
+    }
+
+    func testSingleUnreadableSourceRetainsItsAcquisitionReason() async throws {
+        let ports = ReviewPorts(captureError: .unsupportedContent, leadURLs: [url])
+        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected unreadable source") }
+        catch let failure as GenericFoodProposalPartialFailure {
+            guard case .acquisition(.unsupportedContent) = failure.reason else { return XCTFail("Original reason was replaced") }
+            XCTAssertEqual(failure.sourceAttempts, [url])
+        }
+    }
+
+    func testUnreadableSourcesStopAtTwoAndPreserveFailedAttemptURLs() async throws {
+        let ports = ReviewPorts(captureError: .unsupportedContent)
+        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected unreadable sources") }
+        catch let failure as GenericFoodProposalPartialFailure {
+            XCTAssertEqual(failure.sourceAttempts.map(\.host), ["publisher.example", "other.example"])
+            XCTAssertEqual(failure.discovery?.leads.count, 2)
+        }
+        let calls = await ports.calls
+        XCTAssertEqual(calls, ["discover", "chooseSource", "capture", "chooseSource", "capture"])
+    }
+
+    func testSuppliedURLNeverAutomaticallyTriesAnotherSource() async throws {
+        let ports = ReviewPorts(empty: true)
+        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        let result = try await service.review(foodTerms: "tofu", sourceURL: url, key: key)
+        XCTAssertEqual(result.sourceAttempts, [url])
+        let calls = await ports.calls
+        XCTAssertEqual(calls, ["capture", "extract"])
+    }
+
+    func testApplicabilityAbstentionDoesNotSearchUntilItFindsAPassingSource() async throws {
+        let ports = ReviewPorts(selectionChoice: "none")
+        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+            sourceSelection: ports, selection: ports)
+        let result = try await service.review(foodTerms: "tofu", key: key)
+        XCTAssertEqual(result.suggestedChoice, "none")
+        XCTAssertEqual(result.sourceAttempts.count, 1)
+        let calls = await ports.calls
+        XCTAssertEqual(calls.filter { $0 == "chooseSource" }.count, 1)
+    }
+
+    func testEmptyFirstSourceUsesOneDistinctAlternativeWithoutRediscovery() async throws {
+        let ports = ReviewPorts(emptyFirstOnly: true)
+        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+            sourceSelection: ports, selection: ports)
+        let result = try await service.review(foodTerms: "tofu", key: key)
+        let calls = await ports.calls
+        XCTAssertEqual(calls, ["discover", "chooseSource", "capture", "extract", "chooseSource", "capture", "extract", "select"])
+        XCTAssertEqual(result.sourceAttempts.map(\.host), ["publisher.example", "other.example"])
+        XCTAssertEqual(result.discovery?.leads.count, 2)
+        XCTAssertEqual(result.documents.count, 1, "Distinct source panels must not be merged")
+        XCTAssertEqual(result.documents.first?.url, "https://other.example/tofu")
+    }
+
+    func testEmptyAlternativeStopsAtTwoSourcesAndNoApplicability() async throws {
+        let ports = ReviewPorts(empty: true)
+        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports,
+            sourceSelection: ports, selection: ports)
+        let result = try await service.review(foodTerms: "tofu", key: key)
+        XCTAssertEqual(result.sourceAttempts.count, 2)
+        XCTAssertTrue(result.validation.candidates.isEmpty)
+        let calls = await ports.calls
+        XCTAssertEqual(calls.filter { $0 == "capture" }.count, 2)
+        XCTAssertFalse(calls.contains("select"))
+    }
+
+    func testProviderFailureDoesNotSpendOnAlternativeSource() async throws {
+        let ports = ReviewPorts(extractionError: .quotaExceeded)
+        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected quota failure") } catch {}
+        let calls = await ports.calls
+        XCTAssertEqual(calls, ["discover", "chooseSource", "capture", "extract"])
+    }
+
+    func testRepresentativeLeadRetainsRestrictedScope() async throws {
+        let ports = ReviewPorts(sourceChoice: .selected(index: 0, purpose: .representativeEstimate, reason: "representative_food_lead"))
+        let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
+        let result = try await service.review(foodTerms: "tofu", key: key)
+        XCTAssertTrue(result.representativeSourceOnly)
+    }
+
     func testSelectedWrongMarketStopsBeforeCaptureAndPreservesEveryLead() async throws {
         for useSelector in [true, false] {
             let urls = [URL(string: "https://ie.fage/yoghurts/fage-total-0")!, URL(string: "https://publisher.co.uk/yoghurt")!]
@@ -54,7 +146,7 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
     }
 
     func testSourceSelectionChoosesOnlyAnOfferedLeadBeforeCapture() async throws {
-        let ports = ReviewPorts(sourceChoice: .selected(index: 1, reason: "Exact source"))
+        let ports = ReviewPorts(sourceChoice: .selected(index: 1, purpose: .primaryProduct, reason: "Exact source"))
         let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
         let result = try await service.review(foodTerms: "tofu", key: key)
         XCTAssertEqual(result.attemptedSourceURL?.host, "other.example")
@@ -65,8 +157,8 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 
     func testSourceAbstentionInvalidIndexAndFailurePreserveLeadsWithoutCapture() async throws {
         for ports in [ReviewPorts(sourceChoice: .abstain(reason: "Wrong market")),
-                      ReviewPorts(sourceChoice: .selected(index: 2, reason: "Invented choice")),
-                      ReviewPorts(sourceChoice: .selected(index: -1, reason: "Invalid choice")),
+                      ReviewPorts(sourceChoice: .selected(index: 2, purpose: .primaryProduct, reason: "Invented choice")),
+                      ReviewPorts(sourceChoice: .selected(index: -1, purpose: .primaryProduct, reason: "Invalid choice")),
                       ReviewPorts(sourceError: .quotaExceeded)] {
             let service = GenericFoodProposalReviewer(discovery: ports, capture: ports, extraction: ports, sourceSelection: ports)
             do { _ = try await service.review(foodTerms: "tofu", key: key); XCTFail("Expected closed source choice") }
@@ -221,23 +313,26 @@ final class GenericFoodProposalReviewerTests: XCTestCase {
 private actor ReviewPorts: FoodWebDiscovering, FoodDocumentCapturing, FoodProposalExtracting, FoodProposalSelecting, FoodSourceLeadSelecting {
     var calls: [String] = []
     let empty: Bool
+    let emptyFirstOnly: Bool
+    var extractionCount = 0
     let captureError: FoodSourceAcquisitionError?
     let extractionError: FoodWebDiscoveryError?
     let selectionError: FoodWebDiscoveryError?
+    let selectionChoice: String
     var suspendCapture: Bool
     let sourceChoice: FoodSourceLeadDecision
     let sourceError: FoodWebDiscoveryError?
     let suspendSourceChoice: Bool
     let leadURLs: [URL]
     let capturedURL: URL?
-    init(empty: Bool = false, captureError: FoodSourceAcquisitionError? = nil,
-         extractionError: FoodWebDiscoveryError? = nil, selectionError: FoodWebDiscoveryError? = nil,
-         suspendCapture: Bool = false, sourceChoice: FoodSourceLeadDecision = .selected(index: 0, reason: "Source"),
+    init(empty: Bool = false, emptyFirstOnly: Bool = false, captureError: FoodSourceAcquisitionError? = nil,
+         extractionError: FoodWebDiscoveryError? = nil, selectionError: FoodWebDiscoveryError? = nil, selectionChoice: String = "c1",
+         suspendCapture: Bool = false, sourceChoice: FoodSourceLeadDecision = .selected(index: 0, purpose: .primaryProduct, reason: "Source"),
          sourceError: FoodWebDiscoveryError? = nil, suspendSourceChoice: Bool = false,
          leadURLs: [URL] = [URL(string: "https://publisher.example/tofu")!, URL(string: "https://other.example/tofu")!],
          capturedURL: URL? = nil) {
-        self.empty = empty; self.captureError = captureError; self.extractionError = extractionError
-        self.selectionError = selectionError; self.suspendCapture = suspendCapture
+        self.empty = empty; self.emptyFirstOnly = emptyFirstOnly; self.captureError = captureError; self.extractionError = extractionError
+        self.selectionError = selectionError; self.selectionChoice = selectionChoice; self.suspendCapture = suspendCapture
         self.sourceChoice = sourceChoice; self.sourceError = sourceError; self.suspendSourceChoice = suspendSourceChoice
         self.leadURLs = leadURLs; self.capturedURL = capturedURL
     }
@@ -264,7 +359,8 @@ private actor ReviewPorts: FoodWebDiscovering, FoodDocumentCapturing, FoodPropos
     func extract(foodTerms: String, documents: [CapturedFoodDocument], key: String) async throws -> FoodProposalExtraction {
         calls.append("extract")
         if let extractionError { throw extractionError }
-        if empty { return .init(version: FoodProposalExtraction.schemaVersion, candidates: [], preferredId: "none") }
+        extractionCount += 1
+        if empty || (emptyFirstOnly && extractionCount == 1) { return .init(version: FoodProposalExtraction.schemaVersion, candidates: [], preferredId: "none") }
         let reference: [[String: Any]] = [["block_id": "b1", "quote": "Tofu Per 100 g Protein 6 g"]]
         let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { nutrient in
             let known = nutrient == .protein
@@ -283,6 +379,6 @@ private actor ReviewPorts: FoodWebDiscovering, FoodDocumentCapturing, FoodPropos
     func select(foodTerms: String, documents: [CapturedFoodDocument], validation: FoodProposalValidation, key: String) async throws -> FoodProposalSelection {
         calls.append("select")
         if let selectionError { throw selectionError }
-        return try .init(choice: "c1", probabilities: ["c1": 0.8, "none": 0.1, "clarify": 0.1], rawConfidence: 0.8, validation: validation)
+        return try .init(choice: selectionChoice, probabilities: ["c1": 0.8, "none": 0.1, "clarify": 0.1], rawConfidence: 0.8, validation: validation)
     }
 }

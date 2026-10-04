@@ -1,0 +1,269 @@
+{
+  "version": "matched-food-route-comparison-v1",
+  "left": {
+    "run": "prospective-luna-5-set-e-v1",
+    "plan_sha256": "69992aa379b056bfd5d287ba805a0565d1e4a528d412a2f1337c52bc28598aec",
+    "extractor": "luna",
+    "baseline": {
+      "whole_case": {
+        "numerator": 4,
+        "denominator": 5,
+        "rate": 0.8
+      },
+      "answerable_case_success": {
+        "numerator": 2,
+        "denominator": 3,
+        "rate": 0.6666666666666666
+      },
+      "correct_abstention": {
+        "numerator": 2,
+        "denominator": 2,
+        "rate": 1.0
+      },
+      "selected_case_count": 2,
+      "availability": {
+        "numerator": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "declared_field_precision": {
+        "numerator": 10,
+        "denominator": 10,
+        "rate": 1.0
+      },
+      "required_declared_field_recall": {
+        "numerator": 10,
+        "denominator": 15,
+        "rate": 0.6666666666666666
+      },
+      "unknown_field_preservation": {
+        "numerator": 2,
+        "denominator": 3,
+        "rate": 0.6666666666666666
+      },
+      "invented_unknown_fields": 0
+    },
+    "operations": {
+      "request_count": 5,
+      "known_cost_requests": 5,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.002583740",
+      "cost_complete": true,
+      "cost_per_usable_panel_usd": "0.001291870",
+      "usable_correct_panels": 2,
+      "latency_observed_requests": 5,
+      "median_request_seconds": 2.403099166,
+      "p90_request_seconds": 6.157219542,
+      "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+    }
+  },
+  "right": {
+    "run": "prospective-grok-5-set-e-v1",
+    "plan_sha256": "c5fce27ced5a5e0715c4b3827fa09f94b4bacd81870ac3e95981eb92b6cec005",
+    "extractor": "grok",
+    "baseline": {
+      "whole_case": {
+        "numerator": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "answerable_case_success": {
+        "numerator": 3,
+        "denominator": 3,
+        "rate": 1.0
+      },
+      "correct_abstention": {
+        "numerator": 2,
+        "denominator": 2,
+        "rate": 1.0
+      },
+      "selected_case_count": 3,
+      "availability": {
+        "numerator": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "declared_field_precision": {
+        "numerator": 15,
+        "denominator": 15,
+        "rate": 1.0
+      },
+      "required_declared_field_recall": {
+        "numerator": 15,
+        "denominator": 15,
+        "rate": 1.0
+      },
+      "unknown_field_preservation": {
+        "numerator": 3,
+        "denominator": 3,
+        "rate": 1.0
+      },
+      "invented_unknown_fields": 0
+    },
+    "operations": {
+      "request_count": 5,
+      "known_cost_requests": 5,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.114908",
+      "cost_complete": true,
+      "cost_per_usable_panel_usd": "0.03830266666666666666666666667",
+      "usable_correct_panels": 3,
+      "latency_observed_requests": 5,
+      "median_request_seconds": 14.595171542,
+      "p90_request_seconds": 42.875603875,
+      "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+    }
+  },
+  "paired": {
+    "planned_pairs": 5,
+    "both_pass": 4,
+    "left_only_pass": 0,
+    "right_only_pass": 1,
+    "neither_pass": 0,
+    "groups": {
+      "family": {
+        "restaurant-shredded-chicken-rice-box": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "restaurant-hawaiian-personal-pizza-slice": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "restaurant-braised-pork-rice-versus-retail-topping": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "restaurant-child-chicken-ramen": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "restaurant-egg-tomato-breakfast-baguette": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        }
+      },
+      "domain": {
+        "m.wu-tau.com": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "image.pizzahut.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "shop.fmsc.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.wagamama.com": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "www.pret.co.uk": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        }
+      }
+    },
+    "cases": [
+      {
+        "case": "wutau-chicken-rice",
+        "family": "restaurant-shredded-chicken-rice-box",
+        "domain": "m.wu-tau.com",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "pizzahut-tw-hawaiian-slice",
+        "family": "restaurant-hawaiian-personal-pizza-slice",
+        "domain": "image.pizzahut.com.tw",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "formosa-chang-rice-vs-topping-abstain",
+        "family": "restaurant-braised-pork-rice-versus-retail-topping",
+        "domain": "shop.fmsc.com.tw",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "wagamama-mini-chicken-ramen",
+        "family": "restaurant-child-chicken-ramen",
+        "domain": "www.wagamama.com",
+        "left_pass": false,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "pret-roasted-tomato-egg-baguette",
+        "family": "restaurant-egg-tomato-breakfast-baguette",
+        "domain": "www.pret.co.uk",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      }
+    ]
+  },
+  "qualification": "Descriptive matched development comparison. Repeated foods and shared families are not independent samples; no statistical superiority or calibrated-confidence claim.",
+  "scope": "Extraction and binding on identical captured documents. Does not measure discovery, acquisition, source truth, saved entries or physical-device behaviour."
+}

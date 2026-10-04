@@ -1,0 +1,962 @@
+{
+  "version": "food-evaluation-holdout-preflight-v1",
+  "candidate_roster_sha256": "6a500ab52591243dccdf3677d5dc616684da4cae61bc6c259d98dc54e441706c",
+  "candidate_cases": [
+    {
+      "id": "luna-fage-total-0",
+      "comparison_case": "fage-total-0",
+      "family": "fage-fat-variants",
+      "domains": [
+        "uk.fage"
+      ],
+      "query": "find the uk fage total 0% plain strained yoghurt nutrition per 100 g. do not substitute the 5% variant.",
+      "raw_sha256": [
+        "5d00cdec78f11f959c110e630fe51d9fc3814536f2a75ab7409ff0ebca936cc4",
+        "7a81a5251a4865b1c2e709e8dac7be6050fbba23d7473b03716b540c94325de0"
+      ],
+      "source_urls": [
+        "https://uk.fage/yoghurts/fage-total-0",
+        "https://uk.fage/yoghurts/fage-total-5"
+      ]
+    },
+    {
+      "id": "luna-fage-total-5",
+      "comparison_case": "fage-total-5",
+      "family": "fage-fat-variants",
+      "domains": [
+        "uk.fage"
+      ],
+      "query": "find the uk fage total 5% plain strained yoghurt nutrition per 100 g. do not substitute the 0% variant.",
+      "raw_sha256": [
+        "5d00cdec78f11f959c110e630fe51d9fc3814536f2a75ab7409ff0ebca936cc4",
+        "7a81a5251a4865b1c2e709e8dac7be6050fbba23d7473b03716b540c94325de0"
+      ],
+      "source_urls": [
+        "https://uk.fage/yoghurts/fage-total-0",
+        "https://uk.fage/yoghurts/fage-total-5"
+      ]
+    },
+    {
+      "id": "luna-shengguang-black-sesame",
+      "comparison_case": "shengguang-black-sesame",
+      "family": "shengguang-black-sesame",
+      "domains": [
+        "www.shengguang.com.tw"
+      ],
+      "query": "請找盛光食品「黑芝麻粉(全素)」每份20公克的營養標示,保留每份欄位,不用每100公克欄位換算。",
+      "raw_sha256": [
+        "360f8c10b2bff8263417cb70bb5ae7ec4bb725e6e0e8d905445ea76f7b3b40a1"
+      ],
+      "source_urls": [
+        "https://www.shengguang.com.tw/product-48.html"
+      ]
+    },
+    {
+      "id": "luna-aunt-stella-sesame-cookie",
+      "comparison_case": "aunt-stella-sesame-cookie",
+      "family": "aunt-stella-sesame-cookie",
+      "domains": [
+        "auntstella.com"
+      ],
+      "query": "請找台灣詩特莉「黑芝麻手工餅乾(5片裝)」每100公克的營養標示,不要使用每份12公克欄位。",
+      "raw_sha256": [
+        "1113884f28cf62ce3abc0255fbf8b357e45391f00b18665d553f5ce247d37c35"
+      ],
+      "source_urls": [
+        "https://auntstella.com/collections/all-products/products/sesame-cookie"
+      ]
+    },
+    {
+      "id": "luna-kuangchuan-sugarfree-ambient",
+      "comparison_case": "kuangchuan-sugarfree-ambient",
+      "family": "kuangchuan-sugarfree-ambient",
+      "domains": [
+        "www.kuangchuan.com.tw"
+      ],
+      "query": "請找光泉「光泉豆漿-無加糖(常溫)」200毫升包裝的官方營養資訊。保留每瓶基準,只列來源直接提供的營養素。",
+      "raw_sha256": [
+        "488a6ff9c35c240629ba0f742f5ab1281822375c91ab004db12a84ed0a3482c4"
+      ],
+      "source_urls": [
+        "https://www.kuangchuan.com.tw/Product/PlantMilk"
+      ]
+    },
+    {
+      "id": "luna-supau-sodium-partial",
+      "comparison_case": "supau-sodium-partial",
+      "family": "supau-sodium-partial",
+      "domains": [
+        "www.supau.com.tw"
+      ],
+      "query": "請找台灣舒跑運動飲料每100毫升的官方營養資訊。只列產品直接宣告的數值,不要把法規門檻當成產品數值。",
+      "raw_sha256": [
+        "10645afb44d1dd50bb5e46b586b0d5dde7cece6c2d3e538efead99eccb378c1f"
+      ],
+      "source_urls": [
+        "https://www.supau.com.tw/Product.aspx?N=37"
+      ]
+    },
+    {
+      "id": "luna-kikkoman-less-salt",
+      "comparison_case": "kikkoman-less-salt",
+      "family": "kikkoman-less-salt",
+      "domains": [
+        "www.kikkoman.co.uk"
+      ],
+      "query": "find uk kikkoman naturally brewed less salt soy sauce nutrition per 100 ml, including sodium only if directly declared.",
+      "raw_sha256": [
+        "0428b7916dfa8e338104828b9a5c46592df46953631749ccc5edf1c7208f2b7d"
+      ],
+      "source_urls": [
+        "https://www.kikkoman.co.uk/products/detail/kikkoman-naturally-brewed-less-salt-soy-sauce"
+      ]
+    },
+    {
+      "id": "luna-knorr-vegetable-undefined-portion",
+      "comparison_case": "knorr-vegetable-undefined-portion",
+      "family": "knorr-vegetable-undefined-portion",
+      "domains": [
+        "www.knorr.com"
+      ],
+      "query": "find uk knorr vegetable stock cubes nutrition per 100 g of dry cube, using only the supplied official page. do not infer the nutrition denominator from preparation directions.",
+      "raw_sha256": [
+        "bcac318823d86ccec17c104543d8bb34d6436b66e7c3c8c5f05cf53ed73a347b"
+      ],
+      "source_urls": [
+        "https://www.knorr.com/uk/p/vegetable-stock-cubes.html/05000184161165"
+      ]
+    },
+    {
+      "id": "luna-kongyen-black-natto",
+      "comparison_case": "kongyen-black-natto",
+      "family": "kongyen-black-natto",
+      "domains": [
+        "kongyen.com.tw"
+      ],
+      "query": "工研養生黑豆納豆(45公克杯裝),請找每100公克的營養標示。",
+      "raw_sha256": [
+        "99bfef79cff9ea58156db4870b9cea06977f6caa2ab06725050db313a344371b"
+      ],
+      "source_urls": [
+        "https://kongyen.com.tw/product/33209/"
+      ]
+    },
+    {
+      "id": "luna-smai-black-beans",
+      "comparison_case": "smai-black-beans",
+      "family": "smai-black-beans",
+      "domains": [
+        "www.smai.com.tw"
+      ],
+      "query": "先麥【小】黑豆兄弟(7g×10袋),請找每100公克的營養標示。",
+      "raw_sha256": [
+        "4ee48c1bebab9fbff4c1bf7bdc3ede4f54b8c067a0f204d0910e55817a72ecba"
+      ],
+      "source_urls": [
+        "https://www.smai.com.tw/Order/ProductDetail/AC/AC22/1/012200101?a=False"
+      ]
+    },
+    {
+      "id": "luna-nutella-original-uk",
+      "comparison_case": "nutella-original-uk",
+      "family": "nutella-original-uk",
+      "domains": [
+        "www.nutella.com"
+      ],
+      "query": "find original nutella hazelnut spread from the uk jar page, per 100g.",
+      "raw_sha256": [
+        "c7ef20a6ff26be255d677bd8824e4ce8720eb8d0c31a338872bc9b521362c8e0"
+      ],
+      "source_urls": [
+        "https://www.nutella.com/uk/en/products/nutella"
+      ]
+    },
+    {
+      "id": "luna-itsu-chicken-gyoza",
+      "comparison_case": "itsu-chicken-gyoza",
+      "family": "itsu-chicken-gyoza",
+      "domains": [
+        "www.itsu.com"
+      ],
+      "query": "find itsu frozen grocery chicken gyoza in the 240g pack, per100g, using its published product nutrition.",
+      "raw_sha256": [
+        "4bb79edf20231cd06d74fa42fc939b36cfe9765cc14c84cb70b66c326e72143d"
+      ],
+      "source_urls": [
+        "https://www.itsu.com/grocery/products/gyoza-and-bao/chicken-gyoza/"
+      ]
+    },
+    {
+      "id": "luna-greggs-sausage-roll-partial",
+      "comparison_case": "greggs-sausage-roll-partial",
+      "family": "greggs-sausage-roll-partial",
+      "domains": [
+        "www.greggs.com"
+      ],
+      "query": "find one standard greggs sausage roll, declared103g portion, using the official product page.",
+      "raw_sha256": [
+        "8a20086bb1b7c1d4f98f29dba23bae2f1287d2ada232f87a8fe2aa1c1942bc70"
+      ],
+      "source_urls": [
+        "https://www.greggs.com/menu/product/sausage-roll-1000446/"
+      ]
+    },
+    {
+      "id": "luna-kanekyu-brewed-tea-basis",
+      "comparison_case": "kanekyu-brewed-tea-basis",
+      "family": "kanekyu-brewed-tea-basis",
+      "domains": [
+        "www.kanekyu.com.tw"
+      ],
+      "query": "康乃久丹波黑豆茶,沖泡完成後的茶湯每100毫升營養是多少?不要用乾茶包重量替代。",
+      "raw_sha256": [
+        "7177ee0acefdc82b346cb6c25bc51132177546c93feaef403712b5cccd58e160"
+      ],
+      "source_urls": [
+        "https://www.kanekyu.com.tw/product/170"
+      ]
+    },
+    {
+      "id": "luna-chimei-sesame-bun",
+      "comparison_case": "chimei-sesame-bun",
+      "family": "chimei-sesame-bun",
+      "domains": [
+        "www.chimeifoodshop.com.tw"
+      ],
+      "query": "奇美冷凍香菇芝麻造型包(全素,4入裝),請列出產品標示每100公克的營養。",
+      "raw_sha256": [
+        "cf2ef0f99af4be24540f47b77dd0db0126776801140713103e4ce28f704f0417"
+      ],
+      "source_urls": [
+        "https://www.chimeifoodshop.com.tw/products/101060091cm00411"
+      ]
+    },
+    {
+      "id": "luna-viva-generic-cashew",
+      "comparison_case": "viva-generic-cashew",
+      "family": "viva-generic-cashew",
+      "domains": [
+        "viva.lianhwa.com.tw"
+      ],
+      "query": "請整理萬歲牌「認識堅果」頁面對通用腰果每100公克的營養敘述;不是萬歲牌某款調味腰果產品,也不指定生熟。",
+      "raw_sha256": [
+        "7871e23021e86123bfa92c83a64d220fd36490e66e74fc728900830d2a67ef5b"
+      ],
+      "source_urls": [
+        "https://viva.lianhwa.com.tw/wc-43"
+      ]
+    },
+    {
+      "id": "luna-ikari-toast-100g-abstain",
+      "comparison_case": "ikari-toast-100g-abstain",
+      "family": "ikari-toast-100g-abstain",
+      "domains": [
+        "ikari.com.tw"
+      ],
+      "query": "怡客咖啡「現烤吐司-奶油」,請找每100公克的營養;不要把整份餐點數字當成每100公克。",
+      "raw_sha256": [
+        "d8dcc8e025f9bbd4ae3acffcc432a8c0bdfb011751f863aa1dfcda9d8c01f3c2"
+      ],
+      "source_urls": [
+        "https://ikari.com.tw/wp-content/uploads/2025/07/%E9%A3%9F%E7%89%A9%E6%88%90%E5%88%86%E7%87%9F%E9%A4%8A%E6%A8%99%E7%A4%BA%E8%A1%A8.pdf"
+      ]
+    },
+    {
+      "id": "luna-mccain-air-fryer-fries",
+      "comparison_case": "mccain-air-fryer-fries",
+      "family": "mccain-air-fryer-fries",
+      "domains": [
+        "www.mccain.co.uk"
+      ],
+      "query": "mccain crispy french fries, air-fried according to the product instructions: use the published per100g air fryer nutrition.",
+      "raw_sha256": [
+        "8c9c54a4d345a22eaaa1e9d2a5f7abc7c6d5f1836ea6abb9ee75ffadc66692e2"
+      ],
+      "source_urls": [
+        "https://www.mccain.co.uk/crispy-french-fries/"
+      ]
+    },
+    {
+      "id": "luna-warburtons-old-english",
+      "comparison_case": "warburtons-old-english",
+      "family": "warburtons-old-english",
+      "domains": [
+        "www.warburtons.co.uk"
+      ],
+      "query": "warburtons old english white400g loaf: find the published nutrition for one average40g slice.",
+      "raw_sha256": [
+        "0904996dced69c89fb4086e2b130ef2ca993e0f2986b9ae32f6ce6989c2c82a2"
+      ],
+      "source_urls": [
+        "https://www.warburtons.co.uk/products/bread/white/old-english-white-400g/"
+      ]
+    }
+  ],
+  "development_plans": [
+    {
+      "path": "/Users/sertanyamaner/.codex/worktrees/nutrition-generic-review/WeeklyHealthReport/Tools/GenericFoodProposalEvaluation/runs/grok-public-19-compact-v2",
+      "sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+      "planned_cases": 19
+    }
+  ],
+  "development_cases": [
+    {
+      "id": "grok-fage-total-0",
+      "comparison_case": "fage-total-0",
+      "family": "fage-fat-variants",
+      "domains": [
+        "uk.fage"
+      ],
+      "query": "find the uk fage total 0% plain strained yoghurt nutrition per 100 g. do not substitute the 5% variant.",
+      "raw_sha256": [
+        "5d00cdec78f11f959c110e630fe51d9fc3814536f2a75ab7409ff0ebca936cc4",
+        "7a81a5251a4865b1c2e709e8dac7be6050fbba23d7473b03716b540c94325de0"
+      ],
+      "source_urls": [
+        "https://uk.fage/yoghurts/fage-total-0",
+        "https://uk.fage/yoghurts/fage-total-5"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-fage-total-5",
+      "comparison_case": "fage-total-5",
+      "family": "fage-fat-variants",
+      "domains": [
+        "uk.fage"
+      ],
+      "query": "find the uk fage total 5% plain strained yoghurt nutrition per 100 g. do not substitute the 0% variant.",
+      "raw_sha256": [
+        "5d00cdec78f11f959c110e630fe51d9fc3814536f2a75ab7409ff0ebca936cc4",
+        "7a81a5251a4865b1c2e709e8dac7be6050fbba23d7473b03716b540c94325de0"
+      ],
+      "source_urls": [
+        "https://uk.fage/yoghurts/fage-total-0",
+        "https://uk.fage/yoghurts/fage-total-5"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-shengguang-black-sesame",
+      "comparison_case": "shengguang-black-sesame",
+      "family": "shengguang-black-sesame",
+      "domains": [
+        "www.shengguang.com.tw"
+      ],
+      "query": "請找盛光食品「黑芝麻粉(全素)」每份20公克的營養標示,保留每份欄位,不用每100公克欄位換算。",
+      "raw_sha256": [
+        "360f8c10b2bff8263417cb70bb5ae7ec4bb725e6e0e8d905445ea76f7b3b40a1"
+      ],
+      "source_urls": [
+        "https://www.shengguang.com.tw/product-48.html"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-aunt-stella-sesame-cookie",
+      "comparison_case": "aunt-stella-sesame-cookie",
+      "family": "aunt-stella-sesame-cookie",
+      "domains": [
+        "auntstella.com"
+      ],
+      "query": "請找台灣詩特莉「黑芝麻手工餅乾(5片裝)」每100公克的營養標示,不要使用每份12公克欄位。",
+      "raw_sha256": [
+        "1113884f28cf62ce3abc0255fbf8b357e45391f00b18665d553f5ce247d37c35"
+      ],
+      "source_urls": [
+        "https://auntstella.com/collections/all-products/products/sesame-cookie"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-kuangchuan-sugarfree-ambient",
+      "comparison_case": "kuangchuan-sugarfree-ambient",
+      "family": "kuangchuan-sugarfree-ambient",
+      "domains": [
+        "www.kuangchuan.com.tw"
+      ],
+      "query": "請找光泉「光泉豆漿-無加糖(常溫)」200毫升包裝的官方營養資訊。保留每瓶基準,只列來源直接提供的營養素。",
+      "raw_sha256": [
+        "488a6ff9c35c240629ba0f742f5ab1281822375c91ab004db12a84ed0a3482c4"
+      ],
+      "source_urls": [
+        "https://www.kuangchuan.com.tw/Product/PlantMilk"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-supau-sodium-partial",
+      "comparison_case": "supau-sodium-partial",
+      "family": "supau-sodium-partial",
+      "domains": [
+        "www.supau.com.tw"
+      ],
+      "query": "請找台灣舒跑運動飲料每100毫升的官方營養資訊。只列產品直接宣告的數值,不要把法規門檻當成產品數值。",
+      "raw_sha256": [
+        "10645afb44d1dd50bb5e46b586b0d5dde7cece6c2d3e538efead99eccb378c1f"
+      ],
+      "source_urls": [
+        "https://www.supau.com.tw/Product.aspx?N=37"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-kikkoman-less-salt",
+      "comparison_case": "kikkoman-less-salt",
+      "family": "kikkoman-less-salt",
+      "domains": [
+        "www.kikkoman.co.uk"
+      ],
+      "query": "find uk kikkoman naturally brewed less salt soy sauce nutrition per 100 ml, including sodium only if directly declared.",
+      "raw_sha256": [
+        "0428b7916dfa8e338104828b9a5c46592df46953631749ccc5edf1c7208f2b7d"
+      ],
+      "source_urls": [
+        "https://www.kikkoman.co.uk/products/detail/kikkoman-naturally-brewed-less-salt-soy-sauce"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-knorr-vegetable-undefined-portion",
+      "comparison_case": "knorr-vegetable-undefined-portion",
+      "family": "knorr-vegetable-undefined-portion",
+      "domains": [
+        "www.knorr.com"
+      ],
+      "query": "find uk knorr vegetable stock cubes nutrition per 100 g of dry cube, using only the supplied official page. do not infer the nutrition denominator from preparation directions.",
+      "raw_sha256": [
+        "bcac318823d86ccec17c104543d8bb34d6436b66e7c3c8c5f05cf53ed73a347b"
+      ],
+      "source_urls": [
+        "https://www.knorr.com/uk/p/vegetable-stock-cubes.html/05000184161165"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-kongyen-black-natto",
+      "comparison_case": "kongyen-black-natto",
+      "family": "kongyen-black-natto",
+      "domains": [
+        "kongyen.com.tw"
+      ],
+      "query": "工研養生黑豆納豆(45公克杯裝),請找每100公克的營養標示。",
+      "raw_sha256": [
+        "99bfef79cff9ea58156db4870b9cea06977f6caa2ab06725050db313a344371b"
+      ],
+      "source_urls": [
+        "https://kongyen.com.tw/product/33209/"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-smai-black-beans",
+      "comparison_case": "smai-black-beans",
+      "family": "smai-black-beans",
+      "domains": [
+        "www.smai.com.tw"
+      ],
+      "query": "先麥【小】黑豆兄弟(7g×10袋),請找每100公克的營養標示。",
+      "raw_sha256": [
+        "4ee48c1bebab9fbff4c1bf7bdc3ede4f54b8c067a0f204d0910e55817a72ecba"
+      ],
+      "source_urls": [
+        "https://www.smai.com.tw/Order/ProductDetail/AC/AC22/1/012200101?a=False"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-nutella-original-uk",
+      "comparison_case": "nutella-original-uk",
+      "family": "nutella-original-uk",
+      "domains": [
+        "www.nutella.com"
+      ],
+      "query": "find original nutella hazelnut spread from the uk jar page, per 100g.",
+      "raw_sha256": [
+        "c7ef20a6ff26be255d677bd8824e4ce8720eb8d0c31a338872bc9b521362c8e0"
+      ],
+      "source_urls": [
+        "https://www.nutella.com/uk/en/products/nutella"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-itsu-chicken-gyoza",
+      "comparison_case": "itsu-chicken-gyoza",
+      "family": "itsu-chicken-gyoza",
+      "domains": [
+        "www.itsu.com"
+      ],
+      "query": "find itsu frozen grocery chicken gyoza in the 240g pack, per100g, using its published product nutrition.",
+      "raw_sha256": [
+        "4bb79edf20231cd06d74fa42fc939b36cfe9765cc14c84cb70b66c326e72143d"
+      ],
+      "source_urls": [
+        "https://www.itsu.com/grocery/products/gyoza-and-bao/chicken-gyoza/"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-greggs-sausage-roll-partial",
+      "comparison_case": "greggs-sausage-roll-partial",
+      "family": "greggs-sausage-roll-partial",
+      "domains": [
+        "www.greggs.com"
+      ],
+      "query": "find one standard greggs sausage roll, declared103g portion, using the official product page.",
+      "raw_sha256": [
+        "8a20086bb1b7c1d4f98f29dba23bae2f1287d2ada232f87a8fe2aa1c1942bc70"
+      ],
+      "source_urls": [
+        "https://www.greggs.com/menu/product/sausage-roll-1000446/"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-kanekyu-brewed-tea-basis",
+      "comparison_case": "kanekyu-brewed-tea-basis",
+      "family": "kanekyu-brewed-tea-basis",
+      "domains": [
+        "www.kanekyu.com.tw"
+      ],
+      "query": "康乃久丹波黑豆茶,沖泡完成後的茶湯每100毫升營養是多少?不要用乾茶包重量替代。",
+      "raw_sha256": [
+        "7177ee0acefdc82b346cb6c25bc51132177546c93feaef403712b5cccd58e160"
+      ],
+      "source_urls": [
+        "https://www.kanekyu.com.tw/product/170"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-chimei-sesame-bun",
+      "comparison_case": "chimei-sesame-bun",
+      "family": "chimei-sesame-bun",
+      "domains": [
+        "www.chimeifoodshop.com.tw"
+      ],
+      "query": "奇美冷凍香菇芝麻造型包(全素,4入裝),請列出產品標示每100公克的營養。",
+      "raw_sha256": [
+        "cf2ef0f99af4be24540f47b77dd0db0126776801140713103e4ce28f704f0417"
+      ],
+      "source_urls": [
+        "https://www.chimeifoodshop.com.tw/products/101060091cm00411"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-viva-generic-cashew",
+      "comparison_case": "viva-generic-cashew",
+      "family": "viva-generic-cashew",
+      "domains": [
+        "viva.lianhwa.com.tw"
+      ],
+      "query": "請整理萬歲牌「認識堅果」頁面對通用腰果每100公克的營養敘述;不是萬歲牌某款調味腰果產品,也不指定生熟。",
+      "raw_sha256": [
+        "7871e23021e86123bfa92c83a64d220fd36490e66e74fc728900830d2a67ef5b"
+      ],
+      "source_urls": [
+        "https://viva.lianhwa.com.tw/wc-43"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-ikari-toast-100g-abstain",
+      "comparison_case": "ikari-toast-100g-abstain",
+      "family": "ikari-toast-100g-abstain",
+      "domains": [
+        "ikari.com.tw"
+      ],
+      "query": "怡客咖啡「現烤吐司-奶油」,請找每100公克的營養;不要把整份餐點數字當成每100公克。",
+      "raw_sha256": [
+        "d8dcc8e025f9bbd4ae3acffcc432a8c0bdfb011751f863aa1dfcda9d8c01f3c2"
+      ],
+      "source_urls": [
+        "https://ikari.com.tw/wp-content/uploads/2025/07/%E9%A3%9F%E7%89%A9%E6%88%90%E5%88%86%E7%87%9F%E9%A4%8A%E6%A8%99%E7%A4%BA%E8%A1%A8.pdf"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-mccain-air-fryer-fries",
+      "comparison_case": "mccain-air-fryer-fries",
+      "family": "mccain-air-fryer-fries",
+      "domains": [
+        "www.mccain.co.uk"
+      ],
+      "query": "mccain crispy french fries, air-fried according to the product instructions: use the published per100g air fryer nutrition.",
+      "raw_sha256": [
+        "8c9c54a4d345a22eaaa1e9d2a5f7abc7c6d5f1836ea6abb9ee75ffadc66692e2"
+      ],
+      "source_urls": [
+        "https://www.mccain.co.uk/crispy-french-fries/"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    },
+    {
+      "id": "grok-warburtons-old-english",
+      "comparison_case": "warburtons-old-english",
+      "family": "warburtons-old-english",
+      "domains": [
+        "www.warburtons.co.uk"
+      ],
+      "query": "warburtons old english white400g loaf: find the published nutrition for one average40g slice.",
+      "raw_sha256": [
+        "0904996dced69c89fb4086e2b130ef2ca993e0f2986b9ae32f6ce6989c2c82a2"
+      ],
+      "source_urls": [
+        "https://www.warburtons.co.uk/products/bread/white/old-english-white-400g/"
+      ],
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5"
+    }
+  ],
+  "overlapping_candidate_count": 19,
+  "overlaps": [
+    {
+      "candidate_case": "luna-fage-total-0",
+      "matches": [
+        {
+          "development_case": "grok-fage-total-0",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        },
+        {
+          "development_case": "grok-fage-total-5",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "declared_food_family",
+            "declared_source_domain",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-fage-total-5",
+      "matches": [
+        {
+          "development_case": "grok-fage-total-0",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "declared_food_family",
+            "declared_source_domain",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        },
+        {
+          "development_case": "grok-fage-total-5",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-shengguang-black-sesame",
+      "matches": [
+        {
+          "development_case": "grok-shengguang-black-sesame",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-aunt-stella-sesame-cookie",
+      "matches": [
+        {
+          "development_case": "grok-aunt-stella-sesame-cookie",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-kuangchuan-sugarfree-ambient",
+      "matches": [
+        {
+          "development_case": "grok-kuangchuan-sugarfree-ambient",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-supau-sodium-partial",
+      "matches": [
+        {
+          "development_case": "grok-supau-sodium-partial",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-kikkoman-less-salt",
+      "matches": [
+        {
+          "development_case": "grok-kikkoman-less-salt",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-knorr-vegetable-undefined-portion",
+      "matches": [
+        {
+          "development_case": "grok-knorr-vegetable-undefined-portion",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-kongyen-black-natto",
+      "matches": [
+        {
+          "development_case": "grok-kongyen-black-natto",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-smai-black-beans",
+      "matches": [
+        {
+          "development_case": "grok-smai-black-beans",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-nutella-original-uk",
+      "matches": [
+        {
+          "development_case": "grok-nutella-original-uk",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-itsu-chicken-gyoza",
+      "matches": [
+        {
+          "development_case": "grok-itsu-chicken-gyoza",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-greggs-sausage-roll-partial",
+      "matches": [
+        {
+          "development_case": "grok-greggs-sausage-roll-partial",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-kanekyu-brewed-tea-basis",
+      "matches": [
+        {
+          "development_case": "grok-kanekyu-brewed-tea-basis",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-chimei-sesame-bun",
+      "matches": [
+        {
+          "development_case": "grok-chimei-sesame-bun",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-viva-generic-cashew",
+      "matches": [
+        {
+          "development_case": "grok-viva-generic-cashew",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-ikari-toast-100g-abstain",
+      "matches": [
+        {
+          "development_case": "grok-ikari-toast-100g-abstain",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-mccain-air-fryer-fries",
+      "matches": [
+        {
+          "development_case": "grok-mccain-air-fryer-fries",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    },
+    {
+      "candidate_case": "luna-warburtons-old-english",
+      "matches": [
+        {
+          "development_case": "grok-warburtons-old-english",
+          "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+          "reasons": [
+            "comparison_case",
+            "declared_food_family",
+            "declared_source_domain",
+            "normalised_query",
+            "raw_source_bytes",
+            "source_url"
+          ]
+        }
+      ]
+    }
+  ],
+  "eligible_for_prospective_run": false,
+  "independent_acceptance": false,
+  "confidence_calibrated": false,
+  "qualification": "Mechanical overlap check against the explicitly supplied plans only. All planned cases count as exposed. Declared family/domain groups need source review; semantic aliases, shared brands across country domains and unseen development history can still overlap. No prediction quality or source truth is certified."
+}

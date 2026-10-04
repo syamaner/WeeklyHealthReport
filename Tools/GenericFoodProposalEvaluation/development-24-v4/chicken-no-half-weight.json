@@ -1,0 +1,57 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "Roast chicken"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Per 100 g"
+    },
+    {
+      "id" : "b3",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[0];projection:swift-food-document-blocks-v4",
+      "text" : "Energy | 210 kcal"
+    },
+    {
+      "id" : "b4",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[1];projection:swift-food-document-blocks-v4",
+      "text" : "Protein | 25 g"
+    },
+    {
+      "id" : "b5",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[2];projection:swift-food-document-blocks-v4",
+      "text" : "Carbohydrate | 0 g"
+    },
+    {
+      "id" : "b6",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[3];projection:swift-food-document-blocks-v4",
+      "text" : "Fat | 12 g"
+    },
+    {
+      "id" : "b7",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[4];projection:swift-food-document-blocks-v4",
+      "text" : "Fibre | 0 g"
+    },
+    {
+      "id" : "b8",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[5];projection:swift-food-document-blocks-v4",
+      "text" : "Sodium | 100 mg"
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_6ad87c8ed64a3324",
+  "raw_sha256" : "6ad87c8ed64a3324dbae6ec8bcb3b25376f9f0961a0b6ccececf0a67cdb3fb20",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/chicken-no-half-weight"
+}

@@ -1,0 +1,629 @@
+{
+  "version": "matched-food-route-comparison-v1",
+  "left": {
+    "run": "luna-public-19-v5",
+    "plan_sha256": "aeaa4918ac5c2403913b0ff5e777ed8d17690f2077fb1078b17f845e86b37bc1",
+    "extractor": "luna",
+    "baseline": {
+      "whole_case": {
+        "numerator": 17,
+        "denominator": 19,
+        "rate": 0.8947368421052632
+      },
+      "answerable_case_success": {
+        "numerator": 14,
+        "denominator": 16,
+        "rate": 0.875
+      },
+      "correct_abstention": {
+        "numerator": 3,
+        "denominator": 3,
+        "rate": 1.0
+      },
+      "selected_case_count": 15,
+      "availability": {
+        "numerator": 19,
+        "denominator": 19,
+        "rate": 1.0
+      },
+      "declared_field_precision": {
+        "numerator": 59,
+        "denominator": 60,
+        "rate": 0.9833333333333333
+      },
+      "required_declared_field_recall": {
+        "numerator": 59,
+        "denominator": 65,
+        "rate": 0.9076923076923077
+      },
+      "unknown_field_preservation": {
+        "numerator": 25,
+        "denominator": 31,
+        "rate": 0.8064516129032258
+      },
+      "invented_unknown_fields": 0
+    },
+    "operations": {
+      "request_count": 19,
+      "known_cost_requests": 19,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.054765965",
+      "cost_complete": true,
+      "cost_per_usable_panel_usd": "0.003911854642857142857142857143",
+      "usable_correct_panels": 14,
+      "latency_observed_requests": 19,
+      "median_request_seconds": 2.9424530410000003,
+      "p90_request_seconds": 4.014080417,
+      "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+    }
+  },
+  "right": {
+    "run": "grok-public-19-v5",
+    "plan_sha256": "902a1d994c4ed783c0fefea9c78e73e0bb7f4bc01fa5cf2426cc988223519b77",
+    "extractor": "grok",
+    "baseline": {
+      "whole_case": {
+        "numerator": 7,
+        "denominator": 19,
+        "rate": 0.3684210526315789
+      },
+      "answerable_case_success": {
+        "numerator": 7,
+        "denominator": 16,
+        "rate": 0.4375
+      },
+      "correct_abstention": {
+        "numerator": 0,
+        "denominator": 3,
+        "rate": 0.0
+      },
+      "selected_case_count": 7,
+      "availability": {
+        "numerator": 7,
+        "denominator": 19,
+        "rate": 0.3684210526315789
+      },
+      "declared_field_precision": {
+        "numerator": 24,
+        "denominator": 24,
+        "rate": 1.0
+      },
+      "required_declared_field_recall": {
+        "numerator": 24,
+        "denominator": 65,
+        "rate": 0.36923076923076925
+      },
+      "unknown_field_preservation": {
+        "numerator": 18,
+        "denominator": 31,
+        "rate": 0.5806451612903226
+      },
+      "invented_unknown_fields": 0
+    },
+    "operations": {
+      "request_count": 8,
+      "known_cost_requests": 7,
+      "unknown_cost_requests": 1,
+      "known_reported_cost_usd": "0.551338",
+      "cost_complete": false,
+      "cost_per_usable_panel_usd": null,
+      "usable_correct_panels": 7,
+      "latency_observed_requests": 8,
+      "median_request_seconds": 15.419896020500001,
+      "p90_request_seconds": 90.930017834,
+      "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+    }
+  },
+  "paired": {
+    "planned_pairs": 19,
+    "both_pass": 6,
+    "left_only_pass": 11,
+    "right_only_pass": 1,
+    "neither_pass": 1,
+    "groups": {
+      "family": {
+        "fage-fat-variants": {
+          "planned_pairs": 2,
+          "both_pass": 2,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "shengguang-black-sesame": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "aunt-stella-sesame-cookie": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "kuangchuan-sugarfree-ambient": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "supau-sodium-partial": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "kikkoman-less-salt": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "knorr-vegetable-undefined-portion": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "kongyen-black-natto": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "smai-black-beans": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 1,
+          "left_all_pass": false,
+          "right_all_pass": false
+        },
+        "nutella-original-uk": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "itsu-chicken-gyoza": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "greggs-sausage-roll-partial": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "kanekyu-brewed-tea-basis": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "chimei-sesame-bun": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "viva-generic-cashew": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "ikari-toast-100g-abstain": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "mccain-air-fryer-fries": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "warburtons-old-english": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        }
+      },
+      "domain": {
+        "uk.fage": {
+          "planned_pairs": 2,
+          "both_pass": 2,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.shengguang.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "auntstella.com": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.kuangchuan.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.supau.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "www.kikkoman.co.uk": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.knorr.com": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "kongyen.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "www.smai.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 1,
+          "left_all_pass": false,
+          "right_all_pass": false
+        },
+        "www.nutella.com": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "www.itsu.com": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "www.greggs.com": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "www.kanekyu.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "www.chimeifoodshop.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "viva.lianhwa.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "ikari.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "www.mccain.co.uk": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        },
+        "www.warburtons.co.uk": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        }
+      }
+    },
+    "cases": [
+      {
+        "case": "fage-total-0",
+        "family": "fage-fat-variants",
+        "domain": "uk.fage",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "fage-total-5",
+        "family": "fage-fat-variants",
+        "domain": "uk.fage",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "shengguang-black-sesame",
+        "family": "shengguang-black-sesame",
+        "domain": "www.shengguang.com.tw",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "aunt-stella-sesame-cookie",
+        "family": "aunt-stella-sesame-cookie",
+        "domain": "auntstella.com",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "kuangchuan-sugarfree-ambient",
+        "family": "kuangchuan-sugarfree-ambient",
+        "domain": "www.kuangchuan.com.tw",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "supau-sodium-partial",
+        "family": "supau-sodium-partial",
+        "domain": "www.supau.com.tw",
+        "left_pass": false,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "kikkoman-less-salt",
+        "family": "kikkoman-less-salt",
+        "domain": "www.kikkoman.co.uk",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "knorr-vegetable-undefined-portion",
+        "family": "knorr-vegetable-undefined-portion",
+        "domain": "www.knorr.com",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      },
+      {
+        "case": "kongyen-black-natto",
+        "family": "kongyen-black-natto",
+        "domain": "kongyen.com.tw",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      },
+      {
+        "case": "smai-black-beans",
+        "family": "smai-black-beans",
+        "domain": "www.smai.com.tw",
+        "left_pass": false,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      },
+      {
+        "case": "nutella-original-uk",
+        "family": "nutella-original-uk",
+        "domain": "www.nutella.com",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      },
+      {
+        "case": "itsu-chicken-gyoza",
+        "family": "itsu-chicken-gyoza",
+        "domain": "www.itsu.com",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      },
+      {
+        "case": "greggs-sausage-roll-partial",
+        "family": "greggs-sausage-roll-partial",
+        "domain": "www.greggs.com",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      },
+      {
+        "case": "kanekyu-brewed-tea-basis",
+        "family": "kanekyu-brewed-tea-basis",
+        "domain": "www.kanekyu.com.tw",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      },
+      {
+        "case": "chimei-sesame-bun",
+        "family": "chimei-sesame-bun",
+        "domain": "www.chimeifoodshop.com.tw",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      },
+      {
+        "case": "viva-generic-cashew",
+        "family": "viva-generic-cashew",
+        "domain": "viva.lianhwa.com.tw",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      },
+      {
+        "case": "ikari-toast-100g-abstain",
+        "family": "ikari-toast-100g-abstain",
+        "domain": "ikari.com.tw",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      },
+      {
+        "case": "mccain-air-fryer-fries",
+        "family": "mccain-air-fryer-fries",
+        "domain": "www.mccain.co.uk",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      },
+      {
+        "case": "warburtons-old-english",
+        "family": "warburtons-old-english",
+        "domain": "www.warburtons.co.uk",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      }
+    ]
+  },
+  "qualification": "Descriptive matched development comparison. Repeated foods and shared families are not independent samples; no statistical superiority or calibrated-confidence claim.",
+  "scope": "Extraction and binding on identical captured documents. Does not measure discovery, acquisition, source truth, saved entries or physical-device behaviour."
+}

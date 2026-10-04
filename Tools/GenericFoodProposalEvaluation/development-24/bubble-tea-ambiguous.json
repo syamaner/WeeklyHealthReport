@@ -1,0 +1,93 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/h1[0]",
+      "text" : "珍珠奶茶 大杯 全糖"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[1]",
+      "text" : "Per 1 large serving"
+    },
+    {
+      "id" : "b3",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[0]",
+      "text" : "Energy | 500 kcal"
+    },
+    {
+      "id" : "b4",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[1]",
+      "text" : "Protein | 4 g"
+    },
+    {
+      "id" : "b5",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[2]",
+      "text" : "Carbohydrate | 80 g"
+    },
+    {
+      "id" : "b6",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[3]",
+      "text" : "Fat | 18 g"
+    },
+    {
+      "id" : "b7",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[4]",
+      "text" : "Sodium | 80 mg"
+    },
+    {
+      "id" : "b8",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/h1[0]",
+      "text" : "珍珠奶茶 小杯 無糖"
+    },
+    {
+      "id" : "b9",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/p[1]",
+      "text" : "Per 1 small serving"
+    },
+    {
+      "id" : "b10",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[0]",
+      "text" : "Energy | 220 kcal"
+    },
+    {
+      "id" : "b11",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[1]",
+      "text" : "Protein | 3 g"
+    },
+    {
+      "id" : "b12",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[2]",
+      "text" : "Carbohydrate | 30 g"
+    },
+    {
+      "id" : "b13",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[3]",
+      "text" : "Fat | 9 g"
+    },
+    {
+      "id" : "b14",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[4]",
+      "text" : "Sodium | 40 mg"
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_4c5b8cda35a23dd6",
+  "raw_sha256" : "4c5b8cda35a23dd60e2ed6872c77ece8a5418ab05807e0bf8df9b1c20a3cea77",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/bubble-tea-ambiguous"
+}

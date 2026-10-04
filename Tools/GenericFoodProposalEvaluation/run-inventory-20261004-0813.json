@@ -1,0 +1,566 @@
+{
+  "version": "food-evaluation-run-inventory-v2",
+  "created_at": "2026-10-04T07:12:47.826087+00:00",
+  "scope": "Local frozen Swift runs and separately identified frozen selection/search experiments. Repeated foods are not independent samples; no pooled quality score. Response-reported costs retain all unknowns.",
+  "runs": [
+    {
+      "run": "capture-12-v1",
+      "plan_sha256": "7f64b7d5d9ced12805698661e2a36312ec7b7f6a2f6cef7602178af2ad2bc101",
+      "version": "keyless-source-capture-audit-v1",
+      "planned_cases": 12,
+      "captured": 7,
+      "provider_calls": 0,
+      "output_integrity": "not_recorded_legacy_capture"
+    },
+    {
+      "run": "development-24-v1",
+      "plan_sha256": "b8a3ad432500da27c97a1c881eac4a8abe466261c9dd185d2ab6447a54f390fe",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 24,
+      "request_count": 43,
+      "known_cost_requests": 43,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.013051578",
+      "output_hashes_required": false
+    },
+    {
+      "run": "development-24-wire-v3",
+      "plan_sha256": "5ecd2886c6595311b8acb9f06cadff9c2529cb371161f7b82e9500a25175339f",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 24,
+      "request_count": 24,
+      "known_cost_requests": 24,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.006808990",
+      "output_hashes_required": true
+    },
+    {
+      "run": "development-grok-24-v1",
+      "plan_sha256": "48e7e8d718fbb761d66ad685c1b1403147cb061920aa3220593b2931fc7885f8",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 24,
+      "request_count": 24,
+      "known_cost_requests": 24,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.278450",
+      "output_hashes_required": true
+    },
+    {
+      "run": "discovery-12-v1",
+      "plan_sha256": "7f8f93a85b9fa581fc2d425fe14b97d26a796ee15ad9ff2edfbbb21fa25f138f",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 12,
+      "request_count": 12,
+      "known_cost_requests": 12,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.087116225",
+      "output_hashes_required": false
+    },
+    {
+      "run": "grok-public-19-compact-v2",
+      "plan_sha256": "98e8c9155a8579487403dea2b62dc36c1f92b4aa47f6c28502c10a839d8dfbc5",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 19,
+      "request_count": 19,
+      "known_cost_requests": 19,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.641002",
+      "output_hashes_required": true
+    },
+    {
+      "run": "grok-public-19-v5",
+      "plan_sha256": "902a1d994c4ed783c0fefea9c78e73e0bb7f4bc01fa5cf2426cc988223519b77",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 19,
+      "request_count": 8,
+      "known_cost_requests": 7,
+      "unknown_cost_requests": 1,
+      "known_reported_cost_usd": "0.551338",
+      "output_hashes_required": true
+    },
+    {
+      "run": "grok-set-d-compact-v2",
+      "plan_sha256": "bb35fe03c6990244ff8af2afabdc30dda755491eae7adee1f5fcadaf68529396",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 4,
+      "request_count": 4,
+      "known_cost_requests": 3,
+      "unknown_cost_requests": 1,
+      "known_reported_cost_usd": "0.095002",
+      "output_hashes_required": true
+    },
+    {
+      "run": "grok-wire-v3-qualification",
+      "plan_sha256": "297e7491e520a67b5fa4b9f9fb7781640572427754b955a111e454abe1c36e5e",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 2,
+      "request_count": 2,
+      "known_cost_requests": 2,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.023786",
+      "output_hashes_required": true
+    },
+    {
+      "run": "html-size-repair-capture-2-v1",
+      "plan_sha256": "e8f7ee47cb8f852ce78e31ed5fbb2c29cfa42455259248e852b2ac11b7eea72d",
+      "version": "keyless-source-capture-audit-v1",
+      "planned_cases": 2,
+      "captured": 1,
+      "provider_calls": 0,
+      "output_integrity": "not_recorded_legacy_capture"
+    },
+    {
+      "run": "luna-comparison-v3",
+      "plan_sha256": "e3c41bf8a4bbf02bac439b6c3f8a09bc976dc8c3d7beb5ae6c82c041b3939fa8",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 8,
+      "request_count": 8,
+      "known_cost_requests": 8,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.031539725",
+      "output_hashes_required": false
+    },
+    {
+      "run": "luna-public-19-compact-v2",
+      "plan_sha256": "d95cebf3d728ba52e4f21e7ba0311ba7202509aec9ed199e3d3e8475a50273cb",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 19,
+      "request_count": 19,
+      "known_cost_requests": 19,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.016026590",
+      "output_hashes_required": true
+    },
+    {
+      "run": "luna-public-19-v5",
+      "plan_sha256": "aeaa4918ac5c2403913b0ff5e777ed8d17690f2077fb1078b17f845e86b37bc1",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 19,
+      "request_count": 19,
+      "known_cost_requests": 19,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.054765965",
+      "output_hashes_required": true
+    },
+    {
+      "run": "luna-wire-v2-qualification",
+      "plan_sha256": "ac0d71b3d8ecf0d0741d9b4d098746b705da84f8e2a54f59ac1df77172bd9a19",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 2,
+      "request_count": 2,
+      "known_cost_requests": 2,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.000834720",
+      "output_hashes_required": true
+    },
+    {
+      "run": "luna-wire-v3-qualification",
+      "plan_sha256": "8c0baf8bb9e489c49f6ac4ece8374899a5d834196d9abd4e48a9f31087c57908",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 2,
+      "request_count": 2,
+      "known_cost_requests": 2,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.00070691",
+      "output_hashes_required": true
+    },
+    {
+      "run": "opus-wire-v3-qualification",
+      "plan_sha256": "5ae335148b5941716808b1907bf2daf6f003da06d42bfe0dccb51729d78484b2",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 2,
+      "request_count": 1,
+      "known_cost_requests": 0,
+      "unknown_cost_requests": 1,
+      "known_reported_cost_usd": "0",
+      "output_hashes_required": true
+    },
+    {
+      "run": "projection-repair-8-v1",
+      "plan_sha256": "089717ffc9011e936c921efa3db89da3905163ed04fbce400485fe47a79a8b64",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 8,
+      "request_count": 8,
+      "known_cost_requests": 8,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.033378645",
+      "output_hashes_required": false
+    },
+    {
+      "run": "prospective-capture-6-v2",
+      "plan_sha256": "7c0a0b498a298db519d5f52330f51d4520e6751430e0f41e0bdf703609adee16",
+      "version": "keyless-source-capture-audit-v1",
+      "planned_cases": 6,
+      "captured": 6,
+      "provider_calls": 0,
+      "output_integrity": "not_recorded_legacy_capture"
+    },
+    {
+      "run": "prospective-capture-6-v3",
+      "plan_sha256": "2e646aaedab98ec970a234d40230ccf982f6f88e550cda82679c7b41a17ce7f2",
+      "version": "keyless-source-capture-audit-v1",
+      "planned_cases": 6,
+      "captured": 5,
+      "provider_calls": 0,
+      "output_integrity": "not_recorded_legacy_capture"
+    },
+    {
+      "run": "prospective-capture-6-v4",
+      "plan_sha256": "8e84ef13c08aef2fecd8e4240208f7ad85ae9176cf8b52bbb01f3184605d27dc",
+      "version": "keyless-source-capture-audit-v1",
+      "planned_cases": 6,
+      "captured": 4,
+      "provider_calls": 0,
+      "output_integrity": "not_recorded_legacy_capture"
+    },
+    {
+      "run": "prospective-capture-6-v5",
+      "plan_sha256": "d0893b08891f7beee9682fe88569a51857cf10c54f259c2028385dd0b9db16da",
+      "version": "keyless-source-capture-audit-v1",
+      "planned_cases": 6,
+      "captured": 5,
+      "provider_calls": 0,
+      "output_integrity": "not_recorded_legacy_capture"
+    },
+    {
+      "run": "prospective-capture-8-v1",
+      "plan_sha256": "8c0a02f022dd95eed71c2b4d3452c86b0b74050c646078bd457d40b894183e27",
+      "version": "keyless-source-capture-audit-v1",
+      "planned_cases": 8,
+      "captured": 8,
+      "provider_calls": 0,
+      "output_integrity": "not_recorded_legacy_capture"
+    },
+    {
+      "run": "prospective-capture-8-v6",
+      "plan_sha256": "8a7d7973e70d669f82d5e49b060b8b6a1aa46623cdaa5d55c6f15cf3d2361a68",
+      "version": "keyless-source-capture-audit-v2",
+      "planned_cases": 8,
+      "captured": 5,
+      "provider_calls": 0,
+      "output_integrity": "verified_against_capture_completion_receipt"
+    },
+    {
+      "run": "prospective-grok-5-set-e-v1",
+      "plan_sha256": "c5fce27ced5a5e0715c4b3827fa09f94b4bacd81870ac3e95981eb92b6cec005",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 5,
+      "request_count": 5,
+      "known_cost_requests": 5,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.114908",
+      "output_hashes_required": true
+    },
+    {
+      "run": "prospective-grok-5-set-f-v1",
+      "plan_sha256": "7d2b0a8824cbc7c7c7e359fb1fd7c709fca917f8da08ded2af6e9c501a96e319",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 5,
+      "request_count": 5,
+      "known_cost_requests": 5,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.128852",
+      "output_hashes_required": true
+    },
+    {
+      "run": "prospective-luna-4-compact-v2",
+      "plan_sha256": "70b3c30753379b7ffd0e7990826c3eed32ffb8f519c2590aecac28287fe29bb4",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 4,
+      "request_count": 4,
+      "known_cost_requests": 4,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.003887940",
+      "output_hashes_required": true
+    },
+    {
+      "run": "prospective-luna-5-set-e-v1",
+      "plan_sha256": "69992aa379b056bfd5d287ba805a0565d1e4a528d412a2f1337c52bc28598aec",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 5,
+      "request_count": 5,
+      "known_cost_requests": 5,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.002583740",
+      "output_hashes_required": true
+    },
+    {
+      "run": "prospective-luna-5-set-f-v1",
+      "plan_sha256": "6c39dc9552df0bf608d0d4bd4f0eef48df628774343b2feae0ef32aff058bf7d",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 5,
+      "request_count": 5,
+      "known_cost_requests": 5,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.003699990",
+      "output_hashes_required": true
+    },
+    {
+      "run": "prospective-luna-5-wire-v3",
+      "plan_sha256": "cfe7c71537bfaefea6ba9f5eb9467adb0d82d473a4104bd06a20a3b549b1f712",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 5,
+      "request_count": 5,
+      "known_cost_requests": 5,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.012732050",
+      "output_hashes_required": true
+    },
+    {
+      "run": "prospective-luna-6-wire-v2",
+      "plan_sha256": "836050cf5fd300e83bfcb69b4af4deb530e4fa74b97700c5ac9a2da8f37bd1a6",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 6,
+      "request_count": 6,
+      "known_cost_requests": 6,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.014114645",
+      "output_hashes_required": true
+    },
+    {
+      "run": "prospective-luna-8-v1",
+      "plan_sha256": "8b0a80264f160262529dddfaf50ffa0c5f574bedff577a9c6828b9f3d91786d3",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 8,
+      "request_count": 8,
+      "known_cost_requests": 8,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.027674995",
+      "output_hashes_required": false
+    },
+    {
+      "run": "public-captured-7-v1",
+      "plan_sha256": "9011762be0d80200cb0835fd2839fa323aea3345b475b581a2f75b53f571669d",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 7,
+      "request_count": 8,
+      "known_cost_requests": 8,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.014486501",
+      "output_hashes_required": false
+    },
+    {
+      "run": "public-regression-14-v4",
+      "plan_sha256": "1db1211eebf55f9dc3ab2412163b73c8c8feb4ba3013411af0ee89caaaa7276f",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 14,
+      "request_count": 14,
+      "known_cost_requests": 14,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.045580915",
+      "output_hashes_required": true
+    },
+    {
+      "run": "public-regression-14-wire-v3",
+      "plan_sha256": "e31fdfd4074d71c93a18bdb898d0c48f78f4d5a612e20eff7fe693e6676f92ac",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 14,
+      "request_count": 14,
+      "known_cost_requests": 14,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.042778790",
+      "output_hashes_required": true
+    },
+    {
+      "run": "qwen-qualification-v1",
+      "plan_sha256": "96f14e1a0131034bbc74ffaf778b727927881c2f2d7c11ed452edad2de7398bb",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 2,
+      "request_count": 1,
+      "known_cost_requests": 0,
+      "unknown_cost_requests": 1,
+      "known_reported_cost_usd": "0",
+      "output_hashes_required": false
+    },
+    {
+      "run": "repair-reference-v4",
+      "plan_sha256": "7334bed301921dbe53bfb070180fd573959873f9503f149a86fdacbdea3e8832",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 3,
+      "request_count": 6,
+      "known_cost_requests": 6,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.003434364",
+      "output_hashes_required": false
+    },
+    {
+      "run": "retailer-capture-1-v2a",
+      "plan_sha256": "24a50e476e7f484a820fe4dc8b04d2d300934754db60984b13a2725a05f7dd02",
+      "version": "keyless-source-capture-audit-v2",
+      "planned_cases": 1,
+      "captured": 0,
+      "provider_calls": 0,
+      "output_integrity": "verified_against_capture_completion_receipt"
+    },
+    {
+      "run": "route-qualification-v1",
+      "plan_sha256": "e3ad61d9f6cd056e8e60b29e8b9d5bd4525d76c84616f9e8d581fd0fa44e977a",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 4,
+      "request_count": 2,
+      "known_cost_requests": 1,
+      "unknown_cost_requests": 1,
+      "known_reported_cost_usd": "0.0092735",
+      "output_hashes_required": false
+    },
+    {
+      "run": "sol-comparison-v3",
+      "plan_sha256": "5dc6dcefbe60c487dda440bd4cba3537e720c63738bec1ff8196aafaceb4ed21",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 8,
+      "request_count": 1,
+      "known_cost_requests": 0,
+      "unknown_cost_requests": 1,
+      "known_reported_cost_usd": "0",
+      "output_hashes_required": false
+    },
+    {
+      "run": "workflow-discovery-6-v1",
+      "plan_sha256": "0d20c4a204817bae2c56df0d383de9f5d378208d90d6cbaa50a41bca365dda84",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 6,
+      "request_count": 6,
+      "known_cost_requests": 6,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.043491125",
+      "output_hashes_required": true
+    },
+    {
+      "run": "workflow-extraction-grok-6-v2",
+      "plan_sha256": "3c7449570bf4ac7f57c4ade58b5464d7b3700952c5c55f57fae69b38cea42f08",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 6,
+      "request_count": 6,
+      "known_cost_requests": 6,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.212160",
+      "output_hashes_required": true
+    },
+    {
+      "run": "workflow-extraction-luna-6-v2",
+      "plan_sha256": "10dd3d2f6806b3e15b111d87ea24e92a3a41d1760a4117d8f275203d75cd4568",
+      "version": "swift-frozen-evaluation-v1",
+      "planned_cases": 6,
+      "request_count": 6,
+      "known_cost_requests": 6,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.005042910",
+      "output_hashes_required": true
+    },
+    {
+      "run": "workflow-first-lead-capture-6-v1",
+      "plan_sha256": "36dea09557812edab2eb036d09acbaae839a1832a6d3a6cd34edb192e19d8d85",
+      "version": "keyless-source-capture-audit-v1",
+      "planned_cases": 6,
+      "captured": 6,
+      "provider_calls": 0,
+      "output_integrity": "not_recorded_legacy_capture"
+    }
+  ],
+  "totals": {
+    "request_count": 302,
+    "known_cost_requests": 296,
+    "unknown_cost_requests": 6,
+    "known_reported_cost_usd": "2.518508813"
+  },
+  "external_experiments": [
+    {
+      "name": "lead-selection-v1",
+      "location": "/Users/sertanyamaner/Documents/ChatGPT/New project/nutrition-structured-proposals-v1/generic-source-v1/lead-selection-v1/run",
+      "plan_sha256": "4d88ae088504ee32fce96851836154f9941ec550576c4d1e3887846f550acb42",
+      "request_count": 6,
+      "known_cost_requests": 6,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.001400925"
+    },
+    {
+      "name": "discovery-breadth-v1",
+      "location": "/Users/sertanyamaner/Documents/ChatGPT/New project/nutrition-structured-proposals-v1/generic-source-v1/discovery-breadth-v1/run",
+      "plan_sha256": "0a4d5a77c638227bd129dc3eaeedad0528d5c294606a0efa281df008af710fde",
+      "request_count": 12,
+      "known_cost_requests": 12,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.087230550"
+    },
+    {
+      "name": "lead-selection-retailer-v2",
+      "location": "/Users/sertanyamaner/Documents/ChatGPT/New project/nutrition-structured-proposals-v1/generic-source-v1/lead-selection-retailer-v2/run",
+      "plan_sha256": "6cc50a018d5c704f91e10779c67528251300beb2ee9f86919fc1ca431fb38ffd",
+      "request_count": 6,
+      "known_cost_requests": 6,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.001533925"
+    },
+    {
+      "name": "lead-selection-primary-control-v1",
+      "location": "/Users/sertanyamaner/Documents/ChatGPT/New project/nutrition-structured-proposals-v1/generic-source-v1/lead-selection-primary-control-v1/run",
+      "plan_sha256": "e753ac36cf60ccba18411110b02b0717f6602d07d188096780e213cbfbf0c0f7",
+      "request_count": 6,
+      "known_cost_requests": 6,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.001373175"
+    }
+  ],
+  "combined_frozen_costs": {
+    "request_count": 349,
+    "known_cost_requests": 343,
+    "unknown_cost_requests": 6,
+    "known_reported_cost_usd": "2.822306638"
+  },
+  "legacy_evidence_from_prior_inventory": [
+    {
+      "name": "swift-public-01 legacy pilot",
+      "requests": 2,
+      "known_reported_cost_usd": "0.003478120",
+      "limitation": "Executable hashed but not retained before rebuild"
+    },
+    {
+      "name": "earlier Python prototype",
+      "requests": 10,
+      "known_reported_cost_usd": "0.005305992",
+      "limitation": "Separate prototype implementation, not current Swift proof"
+    }
+  ],
+  "previous_inventory": {
+    "name": "run-inventory-20261004-0757.json",
+    "sha256": "10c6d05e82e70f637d9eef97e61eaf5347b2efaabf4f6a5ef7ec4aaff7833e3d"
+  },
+  "live_workflow_smoke": {
+    "name": "workflow-live-smoke-v1",
+    "location": "/Users/sertanyamaner/Documents/ChatGPT/New project/nutrition-structured-proposals-v1/generic-source-v1/workflow-live-smoke-v1",
+    "plan_sha256": "6a30acc953900c4ccd817346dc677a2ba5919c58d8fb0416352c64a339c25db0",
+    "planned_reviews": 6,
+    "attempted_reviews": 5,
+    "completed_reviews": 4,
+    "request_count": 14,
+    "known_cost_requests": 14,
+    "unknown_cost_requests": 0,
+    "known_reported_cost_usd": "0.181578775",
+    "output_hashes_verified": true,
+    "numeric_accuracy_scored": false
+  },
+  "all_recorded_scopes": {
+    "request_count": 361,
+    "known_cost_requests": 355,
+    "unknown_cost_requests": 6,
+    "known_reported_cost_usd": "2.831090750",
+    "limitation": "Legacy rows retain their prior limitations; unknown costs are not zero and this is not a provider credit statement."
+  },
+  "live_workflow_subset_follow_up": {
+    "name": "workflow-live-smoke-v2-ikari",
+    "location": "/Users/sertanyamaner/Documents/ChatGPT/New project/nutrition-structured-proposals-v1/generic-source-v1/workflow-live-smoke-v2-ikari",
+    "plan_sha256": "ccc9a5db43373fbbbc37a60588505dbe05e1273b54ba5b780a5da21971a4e252",
+    "original_cohort_denominator": 6,
+    "subset_denominator": 1,
+    "case_ids": [
+      "ikari-toast-100g-abstain"
+    ],
+    "request_count": 3,
+    "known_cost_requests": 3,
+    "unknown_cost_requests": 0,
+    "known_reported_cost_usd": "0.030680475",
+    "output_hashes_verified": true,
+    "numeric_accuracy_scored": false,
+    "limitation": "Separate follow-up for an unattempted case, not a pooled cross-version workflow score."
+  }
+}

@@ -7,6 +7,66 @@ import XCTest
 
 @MainActor
 final class GenericFoodProposalReviewPresentationTests: XCTestCase {
+    func testRememberedMarketIsAppliedWithoutWritingUntilChanged() {
+        var saved: [FoodReviewMarket] = []
+        let model = make(ControlledProposalReview(), initialMarket: .taiwan, saveMarket: { saved.append($0) })
+        model.foodTerms = "Fat Daddy fried chicken"
+        XCTAssertEqual(model.requestTerms, "Fat Daddy fried chicken [market: Taiwan]")
+        XCTAssertTrue(saved.isEmpty)
+        model.market = .taiwan
+        XCTAssertTrue(saved.isEmpty)
+        model.market = .unitedKingdom
+        XCTAssertEqual(saved, [.unitedKingdom])
+        XCTAssertEqual(model.requestTerms, "Fat Daddy fried chicken [market: United Kingdom]")
+        model.market = .unspecified
+        XCTAssertEqual(saved, [.unitedKingdom, .unspecified])
+        XCTAssertEqual(model.requestTerms, "Fat Daddy fried chicken")
+    }
+
+    func testRepresentativeSourceCannotPrepareExactProduct() async throws {
+        let reviewer = ControlledProposalReview(); let model = make(reviewer); model.foodTerms = "milk"
+        let original = try ProposalPresentationFixture.result()
+        let restricted = GenericFoodProposalReview(foodTerms: "milk", discovery: nil, documents: original.documents,
+            validation: original.validation, selection: original.selection, representativeSourceOnly: true)
+        let task = Task { await model.search() }; await reviewer.waitForRequest()
+        await reviewer.complete(restricted); await task.value
+        let proposal = try XCTUnwrap(model.result?.validation.candidates.first)
+        XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: "milk", scope: .exactProduct,
+            acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true)))
+        _ = try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate,
+            acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true))
+    }
+
+    func testMarketIsExplicitAndChangingItDiscardsLateResults() async throws {
+        let reviewer = ControlledProposalReview(); let model = make(reviewer)
+        model.foodTerms = "Fat Daddy fried chicken"
+        XCTAssertEqual(model.requestTerms, "Fat Daddy fried chicken")
+        model.market = .taiwan
+        XCTAssertEqual(model.requestTerms, "Fat Daddy fried chicken [market: Taiwan]")
+        let task = Task { await model.search() }; await reviewer.waitForRequest()
+        let sent = await reviewer.lastQuery
+        XCTAssertEqual(sent, model.requestTerms)
+        model.market = .unitedKingdom
+        await reviewer.complete(try ProposalPresentationFixture.result()); await task.value
+        XCTAssertNil(model.result)
+        XCTAssertNil(model.message)
+    }
+
+    func testNoExtractionIsExplainedWithoutClaimingWhyPageFailed() async throws {
+        let reviewer = ControlledProposalReview(); let model = make(reviewer)
+        model.foodTerms = "milk"
+        let original = try ProposalPresentationFixture.result()
+        let extraction = FoodProposalExtraction(version: FoodProposalExtraction.schemaVersion, candidates: [], preferredId: "none")
+        let validation = try FoodProposalBinding.validate(extraction, documents: original.documents)
+        let result = GenericFoodProposalReview(foodTerms: "milk", discovery: nil, documents: original.documents,
+            validation: validation, selection: nil)
+        let task = Task { await model.search() }; await reviewer.waitForRequest()
+        await reviewer.complete(result); await task.value
+        XCTAssertTrue(model.message?.contains("No nutrition proposal was extracted") == true)
+        XCTAssertTrue(model.message?.contains("may") == true)
+        XCTAssertEqual(model.result?.documents, original.documents)
+    }
+
     func testAbstentionOrClarificationCannotPrepareALiterallyBoundCandidate() async throws {
         for choice in ["none", "clarify"] {
             for selector in [false, true] {
@@ -234,10 +294,11 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         XCTAssertEqual(keys.rejections, 0)
     }
 
-    private func make(_ reviewer: any GenericFoodProposalReviewing, keys: ProposalCredentials = ProposalCredentials()) -> GenericFoodProposalReviewViewModel {
+    private func make(_ reviewer: any GenericFoodProposalReviewing, keys: ProposalCredentials = ProposalCredentials(),
+                      initialMarket: FoodReviewMarket = .unspecified, saveMarket: @escaping (FoodReviewMarket) -> Void = { _ in }) -> GenericFoodProposalReviewViewModel {
         GenericFoodProposalReviewViewModel(reviewer: reviewer, credentials: keys,
             confirmation: ReviewedFoodProposalConfirmation(ids: RandomLedgerIDGenerator(), clock: SystemLedgerClock(),
-                encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try! LedgerText("en_GB"))
+                encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try! LedgerText("en_GB"), initialMarket: initialMarket, saveMarket: saveMarket)
     }
 }
 
@@ -255,10 +316,12 @@ private final class ProposalCredentials: FoodWebCredentialAuthorizing {
 
 private actor ControlledProposalReview: GenericFoodProposalReviewing {
     var callCount = 0
+    var lastQuery: String?
     private var pending: CheckedContinuation<GenericFoodProposalReview, Error>?
     private var started: CheckedContinuation<Void, Never>?
     func review(foodTerms: String, sourceURL: URL?, key: String) async throws -> GenericFoodProposalReview {
         callCount += 1
+        lastQuery = foodTerms
         return try await withCheckedThrowingContinuation { continuation in
             pending = continuation; started?.resume(); started = nil
         }

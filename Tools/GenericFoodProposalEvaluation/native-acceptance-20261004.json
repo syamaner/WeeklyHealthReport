@@ -1,0 +1,30 @@
+{
+  "version": "nutrition-native-acceptance-v1",
+  "head": "79efe83526668e47608e33cbf00655638c2d4826",
+  "simulator_id": "E94E3624-9C41-45BC-9BF8-FB466A1C15DE",
+  "result": "passed",
+  "tests": 1,
+  "duration_seconds": 133.864,
+  "synthetic_only": true,
+  "paid_calls": 0,
+  "physical_device_acceptance": false,
+  "independent_source_review": "pending",
+  "test_only_changes_since_repair": [
+    {
+      "file": "WeeklyHealthReportTests/FoodSearchQuantityNativeTests.swift",
+      "before": "b7bea28c70b0d525161db10bd2aee399a5207be040cbb099cf3f32ae73b5f3fd",
+      "after": "07c94e18ab145e5f1eba7e3e7d2022fb0c61a07deaa78c50178eed5d0106a21a"
+    }
+  ],
+  "artifacts": {
+    "nutrition-acceptance-interaction.xctestrun": "f89acab7c16fcb434b4b449334a72be89dded000c1afa28670af928e48b57b6b",
+    "nutrition-date-roundtrip.swift": "e3d53267de6724e96ee85864ad0f9bf6ea14de4820d39e94c24f3f523c6e093b",
+    "reviewed-partial-saved.png": "1a6d6e6e13c536ccab62e1527834e9dd54f40a91e4228ce147d2368c22121038",
+    "nutrition-acceptance-build-v2-20261004.log": "e28c4d2e2ae84a14d4f8d4cf72d66ba6e683cb7204f1baeab22dde9ee4590f65",
+    "nutrition-acceptance-interaction-v4-20261004.log": "ec13bbe6ef712c5af7dcfab3d7a53d249babfab8499435f1fc6cd7c83a29f5b9",
+    "nutrition-acceptance-interaction-v3-20261004.log": "961eb0f1f334d84a4d7f596449108ca844acad217adf0936de519a1e7dcf9f84"
+  },
+  "source_audit_sha256": "e6b4ba21abe67002a2e103b82bbae7b7040bc56f00675022b891e15cd02080c3",
+  "review_packet_manifest_sha256": "4ac38051dc91ff3693634faa9b8cc31a33f688498f2842ba823010328ead1738",
+  "known_fixture_failure": "First interactive run completed save/reopen but exact Date equality failed. Identical manifest payload/hash; JSON Date round-trip reproduction differed by up to 0.357628 microseconds. Fixed whole-second injected fixture clock; no production precision policy change."
+}

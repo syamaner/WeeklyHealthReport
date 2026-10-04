@@ -3,14 +3,23 @@ import SwiftUI
 import FoodLedgerApplication
 import FoodLedgerDomain
 
+public enum FoodReviewMarket: String, CaseIterable, Identifiable {
+    case unspecified = "Unspecified", taiwan = "Taiwan", unitedKingdom = "United Kingdom"
+    public var id: String { rawValue }
+}
+
 @MainActor
 public final class GenericFoodProposalReviewViewModel: ObservableObject {
     @Published public var foodTerms = "" { didSet { if foodTerms != oldValue { knownSources = []; cancel() } } }
+    @Published public var market: FoodReviewMarket { didSet {
+        if market != oldValue { knownSources = []; cancel(); saveMarket(market) }
+    } }
     @Published public var sourceAddress = "" { didSet { if sourceAddress != oldValue { cancel() } } }
     @Published public private(set) var isSearching = false
     @Published public private(set) var result: GenericFoodProposalReview?
     @Published public private(set) var message: String?
     @Published public private(set) var alternativeSources: [FoodWebLead] = []
+    private let saveMarket: (FoodReviewMarket) -> Void
     private let reviewer: any GenericFoodProposalReviewing
     private let credentials: any FoodWebCredentialAuthorizing
     private let confirmation: ReviewedFoodProposalConfirmation
@@ -21,18 +30,25 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
     private var knownSources: [FoodWebLead] = []
 
     public init(reviewer: any GenericFoodProposalReviewing, credentials: any FoodWebCredentialAuthorizing,
-                confirmation: ReviewedFoodProposalConfirmation, locale: LedgerText) {
+                confirmation: ReviewedFoodProposalConfirmation, locale: LedgerText,
+                initialMarket: FoodReviewMarket = .unspecified,
+                saveMarket: @escaping (FoodReviewMarket) -> Void = { _ in }) {
         self.reviewer = reviewer; self.credentials = credentials; self.confirmation = confirmation; self.locale = locale
+        self.market = initialMarket; self.saveMarket = saveMarket
+    }
+    public var requestTerms: String {
+        let query = foodTerms.trimmingCharacters(in: .whitespacesAndNewlines)
+        return market == .unspecified || query.isEmpty ? query : query + " [market: " + market.rawValue + "]"
     }
     public var canSearch: Bool {
-        let query = foodTerms.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = requestTerms
         return !isSearching && !query.isEmpty && query.count <= 300
     }
     public func search() async {
         guard canSearch else { return }
         cancel()
         let current = generation
-        let query = foodTerms.trimmingCharacters(in: .whitespacesAndNewlines)
+        let query = requestTerms
         let address = sourceAddress.trimmingCharacters(in: .whitespacesAndNewlines)
         let url = address.isEmpty ? nil : URL(string: address)
         guard address.isEmpty || url.map(FoodWebLinkPolicy.isAllowed) == true else {
@@ -54,7 +70,11 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
             resultCredential = credential
             result = value
             publishOtherSources(value.discovery, attemptedURL: value.attemptedSourceURL ?? url)
-            if value.validation.candidates.isEmpty { message = "The captured source supplied no proposal that passed the source checks. Try another food description or source." }
+            if value.validation.candidates.isEmpty {
+                message = value.validation.rejected.isEmpty
+                    ? "No nutrition proposal was extracted from the captured text. The page may lack a food-specific declaration or usable serving basis, or its nutrition may be in an image. Open the captured page to inspect it, or review another source."
+                    : "Extracted proposals failed the source checks. See the reasons below and inspect the captured page before reviewing another source."
+            }
         } catch {
             guard generation == current else { return }
             guard credentials.isCurrent(credential) else {
@@ -63,6 +83,9 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
             if error as? FoodWebDiscoveryError == .credentialRejected { credentials.reject(credential) }
             if let partial = error as? GenericFoodProposalPartialFailure { publishOtherSources(partial.discovery, attemptedURL: partial.attemptedSourceURL ?? url) }
             message = Self.message(error)
+            if let partial = error as? GenericFoodProposalPartialFailure, partial.sourceAttempts.count > 1 {
+                message = "Two different source pages were attempted. " + (message ?? "")
+            }
         }
         if generation == current { isSearching = false; self.task = nil }
     }
@@ -72,8 +95,9 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
             cancel()
             throw GenericFoodProposalError.invalidSelection
         }
-        guard let result, result.foodTerms == foodTerms.trimmingCharacters(in: .whitespacesAndNewlines),
+        guard let result, result.foodTerms == requestTerms,
               result.foodTerms == querySnapshot,
+              (!result.representativeSourceOnly || scope == .representativeEstimate),
               let proposal = result.validation.candidates.first(where: { $0 == expected }),
               result.permitsConfirmation(of: proposal) else {
             throw GenericFoodProposalError.invalidSelection
@@ -133,11 +157,15 @@ public struct GenericFoodProposalReviewView: View {
         Form {
             Section("Find nutrition to review") {
                 TextField("Food, product or dish", text: $model.foodTerms, axis: .vertical).autocorrectionDisabled()
+                Picker("Food market", selection: $model.market) {
+                    ForEach(FoodReviewMarket.allCases) { Text($0.rawValue).tag($0) }
+                }
+                Text("Your choice is remembered on this device. Change it for any search, or choose Unspecified to clear the preference. For Taiwan foods, adding the local name can improve search. The chosen market is sent with your food terms.").font(.caption)
                 TextField("Source URL (optional)", text: $model.sourceAddress).autocorrectionDisabled()
                     #if os(iOS)
                     .textInputAutocapitalization(.never).keyboardType(.URL)
                     #endif
-                Text("Search public sources or supply a page. AI extracts source-backed proposals for you to check; missing values remain unknown.").font(.caption)
+                Text("Search public sources or supply a page. AI extracts source-backed proposals for you to check; missing values remain unknown. A search may inspect up to two different source pages and incur additional model charges.").font(.caption)
                 Button(model.isSearching ? "Reviewing source…" : "Find and review nutrition") { Task { await model.search() } }
                     .disabled(!model.canSearch || !credentials.keyIsUsable)
                 if model.isSearching {
@@ -180,7 +208,7 @@ public struct GenericFoodProposalReviewView: View {
                 Section("Source proposals") {
                     ForEach(result.validation.candidates) { proposal in
                         NavigationLink {
-                            FoodProposalDetailView(proposal: proposal, confirmationPermitted: result.permitsConfirmation(of: proposal)) { scope, acknowledgement in
+                            FoodProposalDetailView(proposal: proposal, representativeSourceOnly: result.representativeSourceOnly, confirmationPermitted: result.permitsConfirmation(of: proposal)) { scope, acknowledgement in
                                 let input = try model.prepare(proposal, querySnapshot: result.foodTerms,
                                     scope: scope, acknowledgement: acknowledgement)
                                 confirm(input)
@@ -194,7 +222,15 @@ public struct GenericFoodProposalReviewView: View {
                             }
                         }
                     }
-                    if !result.validation.rejected.isEmpty { Text("\(result.validation.rejected.count) proposal(s) failed the source checks.").font(.caption) }
+                    ForEach(Array(result.validation.rejected.enumerated()), id: \.offset) { _, rejection in
+                        Text(Self.rejectionMessage(rejection.reason)).font(.caption)
+                    }
+                }
+                if result.sourceAttempts.count > 1 {
+                    Section("Source attempts") {
+                        Text("The first source supplied no usable proposal or could not be read. One alternative was considered.").font(.caption)
+                        ForEach(result.sourceAttempts, id: \.absoluteString) { Link($0.host ?? "Source", destination: $0) }
+                    }
                 }
                 Section("Captured sources") {
                     ForEach(result.documents, id: \.id) { document in
@@ -208,10 +244,22 @@ public struct GenericFoodProposalReviewView: View {
         .onReceive(credentials.$keyIsUsable) { if !$0 { model.cancel() } }
         .onDisappear { model.cancel(clearResult: false) }
     }
+    private static func rejectionMessage(_ reason: GenericFoodProposalError) -> String {
+        switch reason {
+        case .invalidReference: "A proposal quote could not be matched to the captured text."
+        case .invalidIdentity: "A proposal did not establish the food identity from the captured text."
+        case .invalidBasis: "A proposal did not establish a supported serving basis from the captured text."
+        case .invalidNutrient: "A nutrient value, unit or quote did not pass the source checks."
+        case .invalidDocument: "The captured document did not pass the source checks."
+        case .invalidSchema: "The extracted proposal format did not pass validation."
+        case .invalidSelection: "The proposed selection did not pass validation."
+        }
+    }
 }
 
 private struct FoodProposalDetailView: View {
     let proposal: BoundFoodProposal
+    let representativeSourceOnly: Bool
     let confirmationPermitted: Bool
     let confirm: (FoodProposalReviewScope, FoodProposalAcknowledgement) throws -> Void
     @State private var scope: FoodProposalReviewScope?
@@ -231,13 +279,14 @@ private struct FoodProposalDetailView: View {
                 } else if !proposal.selectionEligible {
                     Text("The source is missing a usable nutrition basis or declaration. You can inspect its values, but confirmation needs more source information.").font(.caption)
                 }
+                if representativeSourceOnly { Text("This source supports a representative food estimate. It does not establish an exact branded product match.").font(.caption) }
                 if let brand = proposal.candidate.brand { LabeledContent("Source brand", value: brand) }
                 if let url = URL(string: proposal.document.url) { Link("Open source page", destination: url) }
                 Text("The quoted text matches the captured page. Check the food, nutrient labels and serving basis yourself.").font(.caption)
                 DisclosureGroup("Food identity evidence") { references(proposal.candidate.identityEvidence) }
                 Picker("How does this apply?", selection: $scope) {
                     Text("Choose match type").tag(Optional<FoodProposalReviewScope>.none)
-                    Text("Exact product").tag(Optional(FoodProposalReviewScope.exactProduct))
+                    if !representativeSourceOnly { Text("Exact product").tag(Optional(FoodProposalReviewScope.exactProduct)) }
                     Text("Representative food estimate").tag(Optional(FoodProposalReviewScope.representativeEstimate))
                 }.onChange(of: scope) { _, _ in identityReviewed = false }
                 Toggle("I reviewed the food and match type", isOn: $identityReviewed)

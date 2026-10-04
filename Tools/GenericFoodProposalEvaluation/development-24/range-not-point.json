@@ -1,0 +1,51 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/h1[0]",
+      "text" : "Bean soup"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[1]",
+      "text" : "Per 100 g"
+    },
+    {
+      "id" : "b3",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[0]",
+      "text" : "Protein | 5 g"
+    },
+    {
+      "id" : "b4",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[1]",
+      "text" : "Carbohydrate | 12 g"
+    },
+    {
+      "id" : "b5",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[2]",
+      "text" : "Fat | 2 g"
+    },
+    {
+      "id" : "b6",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[3]",
+      "text" : "Sodium | 100 mg"
+    },
+    {
+      "id" : "b7",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[3]",
+      "text" : "Energy 100–120 kcal. Fibre 2 g–4 g."
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_1f55687ecc3a7547",
+  "raw_sha256" : "1f55687ecc3a7547352d7f1b7f4a1a27c9c0caa422381a1c16bad531ead736cc",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/range-not-point"
+}

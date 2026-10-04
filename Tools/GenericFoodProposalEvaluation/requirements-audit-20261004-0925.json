@@ -1,0 +1,28 @@
+{
+  "version": "nutrition-requirements-audit-v1",
+  "head": "a1591a08324f57f7f451cb82f17cada0631fe7da",
+  "qualification": "Evidence index only. Hashes do not certify test scope or independent accuracy. Pre-merge test scope remains explicit in the linked audit.",
+  "files": {
+    "Packages/FoodLedgerKit/Package.swift": "498271676c27e8592f62390704de8e87c658263b5e6321abd7cd91653e8e2ec0",
+    "WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift": "6ca1d62012feb216119afe2751c09cf8459dad555414e16650b6b73554bd87a1",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/GenericFoodProposalReview.swift": "66b414c089ace17118eb8f4fb05383292a7fad7b6f2ab460bf8c697089913e82",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/ReviewedFoodProposalConfirmation.swift": "cce2988526c17c35217fc83be8ebfcc596187040ea072c66d1526a3bb9ced975",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerDomain/GenericFoodProposal.swift": "512a61ed728c09cd0de8c5cee079e1d77ae260b31a89a20c47bed3259be5cbf9",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerPresentation/GenericFoodProposalReviewView.swift": "0796e4d4cafdac7dc80e9cf76f3cc73a214b99613c8449cda01b0ba8649553fe",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/OpenRouterFoodProvider.swift": "3c68fc06d1a3c031d4c489a2d3c62df4dcb86fbbf9481527f2e2449a83dd9900",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/OpenRouterKeychainStore.swift": "24d0121f56874a4c800ea3e369d93abb199718a2c6826b49ab46a6ab8d7bec81",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/PublicFoodSourceCapture.swift": "56ce5ca19d60cebc61b2cb99abaf83986caec0471cbe6d3ffe7b8460d45fc354",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/GenericFoodDocumentProjector.swift": "2d59eb55af965393698bc723250d25d086842d26081828b70161c7c4bcb51fdb",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/GenericFoodPDFProjector.swift": "901894e2d7c32cbd2174999ee6949ff82ee7e1e29326fcc133ae51256fa572ef",
+    "Tools/GenericFoodProposalEvaluation/frozen_run.py": "1269b9597a62a4f21346b007c33b3b411e6fdea5d5acaaac28cdd1165bc81df6",
+    "Tools/GenericFoodProposalEvaluation/evaluate.py": "9f1d760bbbbe6b89d563617f81985b04f76730802b0ce3e8594a10dbe2f8493e",
+    "Tools/GenericFoodProposalEvaluation/build_prospective_roster.py": "286f57d204e136db758846c958576b5ef92fd07389aeecc49c72e066b24bed76"
+  },
+  "logs": {
+    "/private/tmp/nutrition-generic-full-package-v10.log": "8365a2efad581ce51d2d14718fa0616a874a38d6791c27e40d412604991dafe3",
+    "/private/tmp/nutrition-generic-simulator-tests-v9.log": "0a547ae441397bc8cc2caf5144f3477bd658046365661b8986aefe58cf074a4c",
+    "/private/tmp/nutrition-native-interaction-run-v1.log": "957de800167d54782d32ef4c3fcf31a15e3e11a706d195adcb6f8102d97b920b",
+    "/private/tmp/nutrition-integrated-build-analysis-v1.log": "b6966237d77bf1f52ac0599d06926a73cdb4ff89a285f94f364ef06900a196ba",
+    "/private/tmp/nutrition-python-gates-v15.log": "6e3a2d416aac383f14b0fb8d4b1a4fce7dfeb3627605a81ab67cdef84b1378e1"
+  }
+}

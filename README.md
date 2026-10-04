@@ -163,23 +163,51 @@ composition estimates. Source varieties and preparation remain visible; frozen a
 dried variants require their descriptors. Values stay per 100 g edible portion,
 without a count weight or milk density. Unreviewed TFDA records are not shipped.
 
-**Search services → Automatic Gemini search** is also off by default. It requires
-a separately enabled setting and the exact key validated in this app session.
-Add or revalidate the key under **Gemini API key and privacy**; closing that editor
-keeps completed validation for the session. A stored key alone does not enable
-requests. A submitted search may use Gemini after the earlier stages still need
-evidence. One grounded-discovery request can fetch one native-cited page, with at
-most three HTTPS attempts including redirects and a 50-second combined ceiling.
-Only source-verified Alpro, Arla and Oatly UK product pages currently become nutrition
-candidates. The selected product and table must pass the manufacturer-specific
-identity checks. Arla milk declared per 100 g stays mass-based: entering millilitres
-does not supply a density or make nutrient totals available.
-Model-written nutrition is never admitted; unknown identity still requires review
-and correction before saving. Native citations and supplied search suggestions are
-retained with completed discovery results. Unsupported or failed source acquisition
-keeps the completed discovery links and explains why no nutrition was added.
-Cancellation or an expired whole request still discards the response. No live quality or
-TestFlight acceptance is implied by this local implementation.
+**Web nutrition review** opens an explicit OpenRouter search and source-review flow.
+Add or revalidate your key under **API key and privacy**, then submit displayed food
+terms or a public HTTPS source URL. Typing, opening the screen and storing a key do
+not submit food terms. The key uses a separate ThisDeviceOnly Keychain namespace;
+an existing Gemini key cannot authorise OpenRouter requests. The food-market picker
+remembers your explicit choice on this device and remains editable per search;
+Unspecified clears it. The selected market accompanies displayed food terms.
+No IP geolocation is used.
+
+One review makes at most one discovery, two source-selection requests and two
+extraction requests, followed by at most one applicability request. A second offered
+source is considered only after empty extraction or unreadable capture; evidence is
+never merged across pages. Each capture permits three website connections including
+redirects. A supplied URL skips discovery and selection and is reviewed alone.
+The overall deadline is 150 seconds, with no automatic retries. The same OpenRouter key covers every model request.
+Luna searches, selects a source and checks applicability; Grok extracts from the
+captured document. Jev remains a separate evaluation option and is not composed
+in the app. Failed or declined source selection retains the leads without silently
+capturing the first result. These choices use development evidence and may fail.
+Food terms and captured public source text are sent to these services;
+saved foods, diary history and HealthKit data are excluded. Charges use your account.
+
+The generic parser accepts bounded UTF-8 HTML, plain text and text-bearing PDFs without a list of
+supported websites. It binds proposed values to exact captured quotes, units and
+basis. This establishes literal correspondence, not correct food identity or
+nutrient meaning. Review the original source and choose exact-product or
+representative-estimate scope, then enter your consumed amount in food confirmation.
+All bound proposals remain inspectable, but only the current recommended eligible
+proposal can continue to confirmation. A recommendation of none or clarification
+requires a refined query or another source; literal quotes alone cannot override it.
+Reviewed web values remain labelled estimates. Missing nutrients stay unknown;
+missing exact-product identity still blocks saving. No serving weight, density,
+salt-to-sodium or kJ conversion is inferred. A source-declared serving can be counted
+without inventing a gram weight.
+
+Acquisition or extraction failures retain discovered links for another explicit
+choice. A successful separate applicability check is required to continue to
+confirmation. Failed or unavailable checking leaves proposals inspectable but cannot
+approve them through extractor fallback. Categorical checks supply no numerical
+confidence and never authorise saving. The initial capture profile
+does not support scanned labels, image-only or encrypted PDFs, JavaScript rendering, compressed responses or
+IPv6-only sources. The [integration contract and runbook](docs/generic-food-proposal-integration-v1.md)
+separates local implementation, live development probes and pending acceptance.
+The [repair evaluation](docs/generic-food-proposal-repair-results-20261004.md) reports
+fresh UK, Taiwan and general cases alongside retained failures and actual costs.
 
 The [delivery readiness and device checklist](docs/unified-food-search-delivery-readiness-v1.md)
 separates local evidence from live acceptance. Named sirloin cuts rank before incidental
@@ -190,15 +218,11 @@ only for these named-dish reviews; known compatible preparation ranks first. Cur
 local data supplies porridge alternatives, but the four evaluated soup descriptions
 still have no local nutrition match.
 
-The existing [Gemini citation discovery](docs/gemini-grounded-food-discovery-plan-v1.md)
-is retained under **Search foods → Search options (ellipsis) → Developer tools →
-Debug Gemini source discovery**, after a completed search. It requires your own
-validated API key, held only in ThisDeviceOnly Keychain and revalidated when the
-search flow is reopened. This debug action sends entered food terms when you tap
-**Search the web**; it does not enable automatic nutrition enrichment. Google may
-charge your account and retains grounding data under its terms. Generated responses,
-citations and search suggestions remain unverified source leads and cannot populate
-or save nutrition. Live provider, device and TestFlight acceptance remain separate.
+The former [Gemini citation discovery](docs/gemini-grounded-food-discovery-plan-v1.md)
+and manufacturer adapters remain in the package for regression coverage, but the
+app composition no longer instantiates Gemini. OpenRouter web review is a separate
+explicit action alongside local and optional OFF search. Live quality, device and
+TestFlight acceptance remain separate from compilation and synthetic tests.
 
 The [pasted food-list input](docs/food-list-import.md) adds local quantity/unit
 parsing and a per-line review queue under **Food logging → Paste Food List**.
@@ -540,3 +564,12 @@ prioritises main food names, interleaves separately attributed source records an
 offers explicit typo-search suggestions while retaining the original evidence.
 The [paired development diagnostics](Tools/FoodSearchQuality/README.md) are tuning
 evidence, not independent retrieval-accuracy acceptance.
+
+
+The generic web-nutrition review also checks explicit market conflicts: recognised
+UK/GB, Ireland and Taiwan URL markers cannot silently override a different
+supported market named in the food request. Unknown geography still requires
+source review. This check is format/provider independent and introduces no
+website-specific nutrition parser. Current route, evaluation evidence and
+remaining reader limitations are recorded in
+[the generic proposal integration runbook](docs/generic-food-proposal-integration-v1.md).

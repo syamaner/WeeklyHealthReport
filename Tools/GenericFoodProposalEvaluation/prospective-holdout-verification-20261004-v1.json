@@ -1,0 +1,46 @@
+{
+  "version": "prospective-holdout-verification-v1",
+  "verified_at": "2026-10-04T12:06:55.266164+00:00",
+  "base": "79efe83526668e47608e33cbf00655638c2d4826",
+  "provider_requests_verified": 26,
+  "reported_models": [
+    "openai/gpt-6-luna",
+    "x-ai/grok-4.7"
+  ],
+  "reported_providers": [
+    "Azure",
+    "xAI"
+  ],
+  "capture_outputs_verified": true,
+  "reference_and_protocol_match_frozen_plan": true,
+  "prior_source_index_sha256": "57fdb074a770b50c4c4e4585e544ae0b526831d6d77ab9d828f6b136c8b5a1ca",
+  "changed_source_hashes": {
+    "Tools/GenericFoodProposalEvaluation/holdout_audit.py": "4d2f43c7099634385a758b238597ddca4783ea6d6da7ca75fa7e7e1bc3eca8e2",
+    "Tools/GenericFoodProposalEvaluation/test_holdout_audit.py": "32e5ffcdecefd99fa3ff820a7a176d66e0e3fed671ca44d10a919d27d2cd3ce5"
+  },
+  "unchanged_prior_source_files": 312,
+  "evaluator_test_log_sha256": "11de8ac9d8894cf6e3164b08481cee54cbcc5eda353e4d7be0a0a1b59ebc5021",
+  "files": {
+    "protocol.json": "8f75b48aa3b00d337e12ad5b573e2e086fde38cc2484db6888b067a7358cdf6b",
+    "protocol.sha256": "faa0bbbfa8d928f7cd73f56cd91643b6dc96f25311b4d744f9d8262f7ee602da",
+    "candidate-references.json": "ba8062522d464879e81fe214cf78f4e60cf6ed8429d3467c0a765488a93eb9be",
+    "source-references-draft.json": "fbd3af11f9ed1268bb218af963a7ceccb92082f88aaf08a2fe4eb137843fa283",
+    "source-references-v2.json": "be92427185eee0a4ec3e666fae8e4c697d09f8810f9087de11849aa0a538d506",
+    "raw-source-review-excerpts.json": "f7642315272bf097b41384c9113a18539956704ecc5d117445a1283d9cb2404a",
+    "development-runs.json": "02ed9f46149c986a0017f64b8fcfd832012a7e38c4203f86a46f3530a5569e83",
+    "exposure-supplement.json": "cf72e50cb12160eed620fc01d2f4c89339ff1f95764c512b1f742534af5910a2",
+    "discovery-source-review.json": "0f1aae12373b97444bb0402c4d721739118f0bfef26b7b0c48fcf02ca8d9bfcf",
+    "result.json": "64adc80032f79789cfd79e386e4233a93e667e8657a6d65fad310831224aa9ef",
+    "cost-inventory.json": "f7dc32ad8f07a82cd9db0351ab0575050abef9b4e9598a0596fae0053b3d6c80",
+    "report.md": "584f615bb15298dbe2da064e004194785c283b886eef1c79a77f53b9a95f3557",
+    "summarise_holdout.py": "a10cf4e162c1ad1b5ea7704051464c3434922c85e3a300259e06dfe4490b574f",
+    "capture/plan.json": "d9f5e3d053bf9b9a9b644aa09941749f84b7b70e16bf87f4d0dfb056c8622a5e",
+    "capture/report.json": "761e9566a6ee0f892fb3a3300268ce95e74e5e8eb271b74f2fd5156233a6f489",
+    "extraction-run/plan.json": "4fa718f43fa41512f0423f6e9fa30c39954941bea71c3848ae5b042992c7814f",
+    "extraction-run/run-summary.json": "8a6b8705773b60aea5c63175c10c0e5ad9d4194e60a8006258c61c367cf2fbff",
+    "extraction-run/score.json": "eb4dc748f620e30a4c1870efdae3d7ad2a0caf5ca9dcb7850450d1674932257f",
+    "discovery-run/plan.json": "5cf17cf4baf841e1ab26798bf7819e499ae5339036a8fb093a53fef350e453b9",
+    "discovery-run/run-summary.json": "41ead6fa8ca48990f347ab72ada00d00620a92d3f09e080d5faa94b8f7c3b027"
+  },
+  "qualification": "Local integrity verification, not independent attestation. No credential file inspected; established loader alone consumed credentials during inference. No provider requests in verification."
+}

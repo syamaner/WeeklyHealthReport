@@ -1,0 +1,57 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "紅燒牛肉麵食譜"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Per 1 serving; recipe makes 4 servings; finished gram yield is not supplied"
+    },
+    {
+      "id" : "b3",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[0];projection:swift-food-document-blocks-v4",
+      "text" : "Energy | 500 kcal"
+    },
+    {
+      "id" : "b4",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[1];projection:swift-food-document-blocks-v4",
+      "text" : "Protein | 30 g"
+    },
+    {
+      "id" : "b5",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[2];projection:swift-food-document-blocks-v4",
+      "text" : "Carbohydrate | 60 g"
+    },
+    {
+      "id" : "b6",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[3];projection:swift-food-document-blocks-v4",
+      "text" : "Fat | 15 g"
+    },
+    {
+      "id" : "b7",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[4];projection:swift-food-document-blocks-v4",
+      "text" : "Fibre | 4 g"
+    },
+    {
+      "id" : "b8",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[5];projection:swift-food-document-blocks-v4",
+      "text" : "Sodium | 900 mg"
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_464a09e499b95bd6",
+  "raw_sha256" : "464a09e499b95bd61880c6cd5d985db785eef809c2bab4a83e883c2c3f2f052a",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/beef-noodles-recipe"
+}

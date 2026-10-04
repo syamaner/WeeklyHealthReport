@@ -18,6 +18,8 @@ final class FoodLedgerCompositionRoot {
     private let milkVolumeConversion: CoFIDWholeMilkVolumeConversion
     private let offSearchTransport: OFFHTTPSearchTransport
     private let searchPreferences: FoodSearchUserDefaultsPreferences
+    private let foodMarketDefaults: UserDefaults
+    private static let foodMarketPreferenceKey = "food.webReview.market.v1"
     let webDiscovery: FoodWebDiscoveryViewModel
     private let proposalReviewer: GenericFoodProposalReviewer
     private let proposalConfirmation: ReviewedFoodProposalConfirmation
@@ -55,6 +57,7 @@ final class FoodLedgerCompositionRoot {
         offLookup = OpenFoodFactsLookup(transport: OFFHTTPSProductTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)"))
         offSearchTransport = OFFHTTPSearchTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)")
         searchPreferences = FoodSearchUserDefaultsPreferences(defaults: userDefaults)
+        foodMarketDefaults = userDefaults
         let clock = SystemLedgerClock()
         let openRouter = OpenRouterFoodProvider(extractionRoute: .grok, selectionRoute: .applicability)
         webDiscovery = FoodWebDiscoveryViewModel(provider: openRouter, keys: OpenRouterKeychainStore(),
@@ -146,7 +149,12 @@ final class FoodLedgerCompositionRoot {
 
     func proposalReviewModel(initialQuery: String) throws -> GenericFoodProposalReviewViewModel {
         let model = try GenericFoodProposalReviewViewModel(reviewer: proposalReviewer, credentials: webDiscovery,
-            confirmation: proposalConfirmation, locale: LedgerText(Locale.current.identifier))
+            confirmation: proposalConfirmation, locale: LedgerText(Locale.current.identifier),
+            initialMarket: FoodReviewMarket(rawValue: foodMarketDefaults.string(forKey: Self.foodMarketPreferenceKey) ?? "") ?? .unspecified,
+            saveMarket: { [foodMarketDefaults] market in
+                if market == .unspecified { foodMarketDefaults.removeObject(forKey: Self.foodMarketPreferenceKey) }
+                else { foodMarketDefaults.set(market.rawValue, forKey: Self.foodMarketPreferenceKey) }
+            })
         model.foodTerms = initialQuery
         return model
     }

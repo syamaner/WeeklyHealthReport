@@ -1,0 +1,93 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "滷肉飯"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Per 1 serving"
+    },
+    {
+      "id" : "b3",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[0];projection:swift-food-document-blocks-v4",
+      "text" : "Energy | 450 kcal"
+    },
+    {
+      "id" : "b4",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[1];projection:swift-food-document-blocks-v4",
+      "text" : "Protein | 15 g"
+    },
+    {
+      "id" : "b5",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[2];projection:swift-food-document-blocks-v4",
+      "text" : "Carbohydrate | 60 g"
+    },
+    {
+      "id" : "b6",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[3];projection:swift-food-document-blocks-v4",
+      "text" : "Fat | 17 g"
+    },
+    {
+      "id" : "b7",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[4];projection:swift-food-document-blocks-v4",
+      "text" : "Sodium | 700 mg"
+    },
+    {
+      "id" : "b8",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "滷肉飯"
+    },
+    {
+      "id" : "b9",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Per 1 serving"
+    },
+    {
+      "id" : "b10",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[0];projection:swift-food-document-blocks-v4",
+      "text" : "Energy | 550 kcal"
+    },
+    {
+      "id" : "b11",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[1];projection:swift-food-document-blocks-v4",
+      "text" : "Protein | 20 g"
+    },
+    {
+      "id" : "b12",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[2];projection:swift-food-document-blocks-v4",
+      "text" : "Carbohydrate | 70 g"
+    },
+    {
+      "id" : "b13",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[3];projection:swift-food-document-blocks-v4",
+      "text" : "Fat | 20 g"
+    },
+    {
+      "id" : "b14",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[4];projection:swift-food-document-blocks-v4",
+      "text" : "Sodium | 800 mg"
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_0f6afd1117f6766a",
+  "raw_sha256" : "0f6afd1117f6766a8b1706102aa08893dfdadbb4c1d55b45e11b70a8b679964c",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/pork-rice-conflict"
+}

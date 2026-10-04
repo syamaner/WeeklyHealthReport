@@ -1,0 +1,5 @@
+__pycache__/
+runs/
+**/evidence/
+**/source-body-*.bin
+native-evidence/

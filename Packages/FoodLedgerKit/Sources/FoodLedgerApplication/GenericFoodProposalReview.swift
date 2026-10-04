@@ -14,8 +14,12 @@ public protocol FoodProposalSelecting: Sendable {
                 key: String) async throws -> FoodProposalSelection
 }
 
+public enum FoodSourceLeadPurpose: Equatable, Sendable {
+    case primaryProduct, representativeEstimate
+}
+
 public enum FoodSourceLeadDecision: Equatable, Sendable {
-    case selected(index: Int, reason: String)
+    case selected(index: Int, purpose: FoodSourceLeadPurpose, reason: String)
     case abstain(reason: String)
 }
 
@@ -24,7 +28,7 @@ public protocol FoodSourceLeadSelecting: Sendable {
 }
 
 public struct GenericFoodProposalReview: Equatable, Sendable {
-    public static let choicePolicyVersion = "food-proposal-review-choice-v2"
+    public static let choicePolicyVersion = "food-proposal-review-choice-v3"
     public let foodTerms: String
     public let discovery: FoodWebDiscoveryResult?
     public let documents: [CapturedFoodDocument]
@@ -32,6 +36,8 @@ public struct GenericFoodProposalReview: Equatable, Sendable {
     public let selection: FoodProposalSelection?
     public let rankingUnavailable: Bool
     public let attemptedSourceURL: URL?
+    public let sourceAttempts: [URL]
+    public let representativeSourceOnly: Bool
 
     /// Literal binding is insufficient when the model declines applicability.
     /// A suggestion only permits explicit review; it never authorises a save.
@@ -49,11 +55,13 @@ public struct GenericFoodProposalReview: Equatable, Sendable {
 
     public init(foodTerms: String, discovery: FoodWebDiscoveryResult?, documents: [CapturedFoodDocument],
                 validation: FoodProposalValidation, selection: FoodProposalSelection?, rankingUnavailable: Bool = false,
-                attemptedSourceURL: URL? = nil) {
+                attemptedSourceURL: URL? = nil, sourceAttempts: [URL] = [], representativeSourceOnly: Bool = false) {
         self.foodTerms = foodTerms; self.discovery = discovery; self.documents = documents
         self.validation = validation; self.selection = selection
         self.rankingUnavailable = rankingUnavailable
         self.attemptedSourceURL = attemptedSourceURL
+        self.sourceAttempts = sourceAttempts.isEmpty ? attemptedSourceURL.map { [$0] } ?? [] : sourceAttempts
+        self.representativeSourceOnly = representativeSourceOnly
     }
 }
 
@@ -68,8 +76,10 @@ public struct GenericFoodProposalPartialFailure: Error, Sendable {
     public let discovery: FoodWebDiscoveryResult?
     public let reason: Reason
     public let attemptedSourceURL: URL?
-    public init(discovery: FoodWebDiscoveryResult?, reason: Reason, attemptedSourceURL: URL? = nil) {
+    public let sourceAttempts: [URL]
+    public init(discovery: FoodWebDiscoveryResult?, reason: Reason, attemptedSourceURL: URL? = nil, sourceAttempts: [URL] = []) {
         self.discovery = discovery; self.reason = reason; self.attemptedSourceURL = attemptedSourceURL
+        self.sourceAttempts = sourceAttempts.isEmpty ? attemptedSourceURL.map { [$0] } ?? [] : sourceAttempts
     }
 }
 
@@ -81,8 +91,9 @@ public protocol GenericFoodProposalReviewing: Sendable {
     func review(foodTerms: String, sourceURL: URL?, key: String) async throws -> GenericFoodProposalReview
 }
 
-/// One discovery and optional source choice (unless a URL was supplied), one
-/// capture/extraction and optional candidate selection. No retries or ledger writes.
+/// One discovery; at most two distinct selected source captures. A second source
+/// is considered only after empty extraction or recoverable acquisition failure.
+/// No repeated discovery, provider retries, cross-source merging or ledger writes.
 public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
     private let discovery: any FoodWebDiscovering
     private let capture: any FoodDocumentCapturing
@@ -122,12 +133,64 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
     }
 
     private func run(terms: String, sourceURL: URL?, key: String) async throws -> GenericFoodProposalReview {
+        guard sourceURL == nil, sourceSelection != nil else {
+            return try await runSingle(terms: terms, sourceURL: sourceURL, key: key)
+        }
+        let original: FoodWebDiscoveryResult
+        let attempts: [URL]
+        let excluded: Set<URL>
+        var firstReview: GenericFoodProposalReview?
+        var firstFailure: GenericFoodProposalPartialFailure?
+        do {
+            let first = try await runSingle(terms: terms, sourceURL: nil, key: key)
+            guard first.validation.candidates.isEmpty, first.validation.rejected.isEmpty,
+                  first.validation.extractorPreferredId == "none", let found = first.discovery,
+                  let attempted = first.attemptedSourceURL else { return first }
+            firstReview = first
+            original = found; attempts = first.sourceAttempts
+            excluded = Set([attempted] + first.documents.compactMap { URL(string: $0.url) })
+        } catch let failure as GenericFoodProposalPartialFailure {
+            guard case let .acquisition(reason) = failure.reason,
+                  [.unsupportedContent, .unavailable, .responseTooLarge].contains(reason),
+                  let found = failure.discovery, let attempted = failure.attemptedSourceURL else { throw failure }
+            firstFailure = failure
+            original = found; attempts = [attempted]; excluded = [attempted]
+        }
+        try Task.checkCancellation()
+        let remaining = original.leads.filter { !excluded.contains($0.url) && FoodWebLinkPolicy.isAllowed($0.url) }
+        guard !remaining.isEmpty else {
+            if let firstReview { return firstReview }
+            if let firstFailure { throw firstFailure }
+            throw GenericFoodProposalPartialFailure(discovery: original, reason: .sourceNotSuggested,
+                attemptedSourceURL: attempts.last)
+        }
+        let narrowed = FoodWebDiscoveryResult(leads: Array(remaining.prefix(3)), searchSuggestionsHTML: nil,
+            responseText: original.responseText)
+        do {
+            let next = try await runSingle(terms: terms, sourceURL: nil, key: key, existingDiscovery: narrowed)
+            return GenericFoodProposalReview(foodTerms: next.foodTerms, discovery: original, documents: next.documents,
+                validation: next.validation, selection: next.selection, rankingUnavailable: next.rankingUnavailable,
+                attemptedSourceURL: next.attemptedSourceURL, sourceAttempts: attempts + next.sourceAttempts,
+                representativeSourceOnly: next.representativeSourceOnly)
+        } catch let failure as GenericFoodProposalPartialFailure {
+            if case .sourceNotSuggested = failure.reason, let firstReview { return firstReview }
+            throw GenericFoodProposalPartialFailure(discovery: original, reason: failure.reason,
+                attemptedSourceURL: failure.attemptedSourceURL ?? attempts.last,
+                sourceAttempts: attempts + failure.sourceAttempts)
+        }
+    }
+
+    private func runSingle(terms: String, sourceURL: URL?, key: String,
+                           existingDiscovery: FoodWebDiscoveryResult? = nil) async throws -> GenericFoodProposalReview {
         try Task.checkCancellation()
         let result: FoodWebDiscoveryResult?
         let url: URL
+        var representativeSourceOnly = false
         if let sourceURL { url = sourceURL; result = nil }
         else {
-            let found = try await discovery.discover(foodTerms: terms, key: key)
+            let found: FoodWebDiscoveryResult
+            if let existingDiscovery { found = existingDiscovery }
+            else { found = try await discovery.discover(foodTerms: terms, key: key) }
             try Task.checkCancellation()
             let offered = Array(found.leads.filter { FoodWebLinkPolicy.isAllowed($0.url) }.prefix(3))
             guard let first = offered.first else {
@@ -144,11 +207,12 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
                 }
                 try Task.checkCancellation()
                 switch decision {
-                case let .selected(index, _):
+                case let .selected(index, purpose, _):
                     guard offered.indices.contains(index) else {
                         throw GenericFoodProposalPartialFailure(discovery: found, reason: .provider(.invalidResponse))
                     }
                     url = offered[index].url
+                    representativeSourceOnly = purpose == .representativeEstimate
                 case .abstain:
                     throw GenericFoodProposalPartialFailure(discovery: found, reason: .sourceNotSuggested)
                 }
@@ -199,6 +263,6 @@ public actor GenericFoodProposalReviewer: GenericFoodProposalReviewing {
         }
         try Task.checkCancellation()
         return GenericFoodProposalReview(foodTerms: terms, discovery: result, documents: [document],
-                                         validation: validation, selection: selected, rankingUnavailable: rankingUnavailable, attemptedSourceURL: url)
+                                         validation: validation, selection: selected, rankingUnavailable: rankingUnavailable, attemptedSourceURL: url, representativeSourceOnly: representativeSourceOnly)
     }
 }

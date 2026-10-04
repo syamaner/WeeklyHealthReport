@@ -1,0 +1,51 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/h1[0]",
+      "text" : "Hass avocado flesh"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[1]",
+      "text" : "Per 100 g edible flesh"
+    },
+    {
+      "id" : "b3",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[0]",
+      "text" : "Energy | 160 kcal"
+    },
+    {
+      "id" : "b4",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[1]",
+      "text" : "Protein | 2 g"
+    },
+    {
+      "id" : "b5",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[2]",
+      "text" : "Carbohydrate | 8 g"
+    },
+    {
+      "id" : "b6",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[3]",
+      "text" : "Fat | 15 g"
+    },
+    {
+      "id" : "b7",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[3]",
+      "text" : "Fibre < 1 g. Sodium approximately 7 mg."
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_9f7eea0553c9f579",
+  "raw_sha256" : "9f7eea0553c9f5791a46c58aaeaa04091faa784541753c27e5a10d9d975e45ab",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/avocado-inequality"
+}

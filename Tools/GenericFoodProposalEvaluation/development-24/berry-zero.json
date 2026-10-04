@@ -1,0 +1,21 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/h1[0]",
+      "text" : "Three berry blend"
+    },
+    {
+      "id" : "b2",
+      "kind" : "json_ld",
+      "locator" : "document\/html[0]\/body[1]\/script[1]",
+      "text" : "{\"name\": \"Three berry blend\", \"servingSize\": \"Per 100 g\", \"nutrition\": {\"Energy\": \"40 kcal\", \"Protein\": \"0 g\", \"Carbohydrate\": \"8 g\", \"Fat\": \"0 g\", \"Fibre\": \"0 g\", \"Sodium\": \"0 mg\"}}"
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_f6c7b905e92cc12d",
+  "raw_sha256" : "f6c7b905e92cc12db1e68f6079097bbb6bf128d6218a9356173f865185552a78",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/berry-zero"
+}

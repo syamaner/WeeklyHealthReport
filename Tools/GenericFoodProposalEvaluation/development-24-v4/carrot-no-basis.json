@@ -1,0 +1,21 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "Raw carrot"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Energy 40 kcal; Protein 1 g; Carbohydrate 8 g. The amount these values describe is not stated."
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_14ccfc158ef78f35",
+  "raw_sha256" : "14ccfc158ef78f357b4c4f9c40496dfd3f08292fe2adc38d197aae226f543455",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/carrot-no-basis"
+}

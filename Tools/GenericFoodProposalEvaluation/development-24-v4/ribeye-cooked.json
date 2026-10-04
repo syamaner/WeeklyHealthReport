@@ -1,0 +1,105 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "Ribeye steak, raw"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Per 100 g"
+    },
+    {
+      "id" : "b3",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[0];projection:swift-food-document-blocks-v4",
+      "text" : "Energy | 180 kcal"
+    },
+    {
+      "id" : "b4",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[1];projection:swift-food-document-blocks-v4",
+      "text" : "Protein | 19 g"
+    },
+    {
+      "id" : "b5",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[2];projection:swift-food-document-blocks-v4",
+      "text" : "Carbohydrate | 0 g"
+    },
+    {
+      "id" : "b6",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[3];projection:swift-food-document-blocks-v4",
+      "text" : "Fat | 12 g"
+    },
+    {
+      "id" : "b7",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[4];projection:swift-food-document-blocks-v4",
+      "text" : "Fibre | 0 g"
+    },
+    {
+      "id" : "b8",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[5];projection:swift-food-document-blocks-v4",
+      "text" : "Sodium | 40 mg"
+    },
+    {
+      "id" : "b9",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "Ribeye steak, cooked"
+    },
+    {
+      "id" : "b10",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Per 100 g"
+    },
+    {
+      "id" : "b11",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[0];projection:swift-food-document-blocks-v4",
+      "text" : "Energy | 250 kcal"
+    },
+    {
+      "id" : "b12",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[1];projection:swift-food-document-blocks-v4",
+      "text" : "Protein | 27 g"
+    },
+    {
+      "id" : "b13",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[2];projection:swift-food-document-blocks-v4",
+      "text" : "Carbohydrate | 0 g"
+    },
+    {
+      "id" : "b14",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[3];projection:swift-food-document-blocks-v4",
+      "text" : "Fat | 16 g"
+    },
+    {
+      "id" : "b15",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[4];projection:swift-food-document-blocks-v4",
+      "text" : "Fibre | 0 g"
+    },
+    {
+      "id" : "b16",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[5];projection:swift-food-document-blocks-v4",
+      "text" : "Sodium | 60 mg"
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_510f8b10c4763915",
+  "raw_sha256" : "510f8b10c47639159b37de24069d4315c7f2795b4827a85d2da448f6d95bc2fa",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/ribeye-cooked"
+}

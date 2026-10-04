@@ -1,0 +1,193 @@
+{
+  "version": "workflow-post-prediction-source-audit-v1",
+  "live_plan_sha256": "6a30acc953900c4ccd817346dc677a2ba5919c58d8fb0416352c64a339c25db0",
+  "original_query_denominator": 6,
+  "completed_sources_reviewed": 4,
+  "reviewer": "coding agent with predictions visible",
+  "independent_acceptance": false,
+  "predeclared_numeric_accuracy_score": false,
+  "no_new_provider_requests": true,
+  "cases": [
+    {
+      "case_id": "kongyen-black-natto",
+      "url": "https://kongyen.com.tw/product/33209/",
+      "raw_sha256": "99bfef79cff9ea58156db4870b9cea06977f6caa2ab06725050db313a344371b",
+      "document_sha256": "bc4a94018b4849869f013031a27b3724b175ec6e697ba26385b034d1ea34bd4c",
+      "extraction_sha256": "9d8d198b01d5ba48ef85cea910c0eaf89842a5023f3c21bfc9165abed710dab7",
+      "reviewed_basis": [
+        "100",
+        "g"
+      ],
+      "reviewed_declared_fields": {
+        "energy": [
+          "204.6",
+          "kcal"
+        ],
+        "protein": [
+          "17.1",
+          "g"
+        ],
+        "carbohydrate": [
+          "11.1",
+          "g"
+        ],
+        "fat": [
+          "10.2",
+          "g"
+        ],
+        "sodium": [
+          "4",
+          "mg"
+        ]
+      },
+      "unknown_fields": [
+        "fibre"
+      ],
+      "reviewed_source_block_ids": [
+        "b85",
+        "b86",
+        "b87",
+        "b88",
+        "b89",
+        "b92",
+        "b94"
+      ],
+      "source_context_observation": "Second column explicitly declares per 100 g; fibre is absent. The 45 g serving column remains separate.",
+      "matches_post_prediction_review": true
+    },
+    {
+      "case_id": "mugu-apple-rice-cracker",
+      "url": "https://www.muguo-organic.com/blog/posts/mugu-rice-crackers-faq",
+      "raw_sha256": "d41e83d649633f6ef0ba76c38ee8a8e9ff3cf72df43e0b26849708f27dbe588b",
+      "document_sha256": "c26487b5c56e5e6931a350a7392c24b89a1b90e4ec848772a2d662cbfc27b814",
+      "extraction_sha256": "ee14071fb8ec77fc064e439ad2806fff652537cb9259fd702b435161cbe4c827",
+      "reviewed_basis": [
+        "6",
+        "g"
+      ],
+      "reviewed_declared_fields": {
+        "sodium": [
+          "0.0",
+          "mg"
+        ]
+      },
+      "unknown_fields": [
+        "energy",
+        "protein",
+        "carbohydrate",
+        "fat",
+        "fibre"
+      ],
+      "reviewed_source_block_ids": [
+        "b169",
+        "b177",
+        "b178"
+      ],
+      "source_context_observation": "Named apple-flavour example declares sodium 0.0 mg per 6 g. Sugar is not carbohydrate. No other target nutrient is declared.",
+      "matches_post_prediction_review": true
+    },
+    {
+      "case_id": "itsu-chicken-gyoza",
+      "url": "https://www.itsu.com/grocery/products/gyoza-and-bao/chicken-gyoza/",
+      "raw_sha256": "4bb79edf20231cd06d74fa42fc939b36cfe9765cc14c84cb70b66c326e72143d",
+      "document_sha256": "f0baa49591b6516268bff93609f0f43e3ce4ba7986f2593384c052bba7a5344b",
+      "extraction_sha256": "df86ff3a2b693fb9ba2c0c9a39532241c31a28c8e8fad13ea199e85012248331",
+      "reviewed_basis": [
+        "100",
+        "g"
+      ],
+      "reviewed_declared_fields": {
+        "energy": [
+          "155",
+          "kcal"
+        ],
+        "protein": [
+          "8.2",
+          "g"
+        ],
+        "carbohydrate": [
+          "20",
+          "g"
+        ],
+        "fat": [
+          "4.4",
+          "g"
+        ],
+        "fibre": [
+          "1.7",
+          "g"
+        ]
+      },
+      "unknown_fields": [
+        "sodium"
+      ],
+      "reviewed_source_block_ids": [
+        "b60",
+        "b64",
+        "b66",
+        "b67",
+        "b69",
+        "b70",
+        "b72",
+        "b73"
+      ],
+      "source_context_observation": "Production grocery URL. Second column is 100 g; <0.5 is the per-gyoza fibre bound, not the 1.7 g per-100-g declaration. Salt is not converted to sodium.",
+      "matches_post_prediction_review": true
+    },
+    {
+      "case_id": "tilda-dry-basmati",
+      "url": "https://www.tilda.com/products/pure-basmati-rice-1kg/",
+      "raw_sha256": "ab864e854373881a8e611f7e626e0032ea81e91d31000420f6886ed3772dcd9a",
+      "document_sha256": "f2bf73ea88bf03a7402e4b47827eb9e7cbaee0fb9a0802d40377219efdcd420a",
+      "extraction_sha256": "57486a5334782d6e9ec1a056aa332f62fd4e2c2de77c09c3d05ad44efe5eeada",
+      "reviewed_basis": [
+        "100",
+        "g"
+      ],
+      "reviewed_declared_fields": {
+        "energy": [
+          "351",
+          "kcal"
+        ],
+        "protein": [
+          "7.8",
+          "g"
+        ],
+        "carbohydrate": [
+          "77.7",
+          "g"
+        ],
+        "fat": [
+          "0.8",
+          "g"
+        ],
+        "fibre": [
+          "1.0",
+          "g"
+        ]
+      },
+      "unknown_fields": [
+        "sodium"
+      ],
+      "reviewed_source_block_ids": [
+        "b109",
+        "b111",
+        "b112",
+        "b113",
+        "b115",
+        "b117",
+        "b118",
+        "b119",
+        "b123"
+      ],
+      "source_context_observation": "First nutrition column is per 100 g dry rice. Explicit kcal is used; serving-column values and salt are not converted.",
+      "matches_post_prediction_review": true
+    }
+  ],
+  "limitations": [
+    "This post-prediction audit is descriptive and does not change the original smoke report, gold or score.",
+    "Food applicability and current package labels still require explicit human review.",
+    "FAGE remains a wrong-market selection followed by capture timeout in the original run; Ikari was not attempted.",
+    "Four repeated foods are not independent new acceptance samples."
+  ]
+}

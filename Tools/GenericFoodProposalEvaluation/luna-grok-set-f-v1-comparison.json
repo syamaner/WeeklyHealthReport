@@ -1,0 +1,269 @@
+{
+  "version": "matched-food-route-comparison-v1",
+  "left": {
+    "run": "prospective-luna-5-set-f-v1",
+    "plan_sha256": "6c39dc9552df0bf608d0d4bd4f0eef48df628774343b2feae0ef32aff058bf7d",
+    "extractor": "luna",
+    "baseline": {
+      "whole_case": {
+        "numerator": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "answerable_case_success": {
+        "numerator": 4,
+        "denominator": 4,
+        "rate": 1.0
+      },
+      "correct_abstention": {
+        "numerator": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "selected_case_count": 4,
+      "availability": {
+        "numerator": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "declared_field_precision": {
+        "numerator": 8,
+        "denominator": 8,
+        "rate": 1.0
+      },
+      "required_declared_field_recall": {
+        "numerator": 8,
+        "denominator": 8,
+        "rate": 1.0
+      },
+      "unknown_field_preservation": {
+        "numerator": 16,
+        "denominator": 16,
+        "rate": 1.0
+      },
+      "invented_unknown_fields": 0
+    },
+    "operations": {
+      "request_count": 5,
+      "known_cost_requests": 5,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.003699990",
+      "cost_complete": true,
+      "cost_per_usable_panel_usd": "0.0009249975",
+      "usable_correct_panels": 4,
+      "latency_observed_requests": 5,
+      "median_request_seconds": 2.714022875,
+      "p90_request_seconds": 3.069475291,
+      "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+    }
+  },
+  "right": {
+    "run": "prospective-grok-5-set-f-v1",
+    "plan_sha256": "7d2b0a8824cbc7c7c7e359fb1fd7c709fca917f8da08ded2af6e9c501a96e319",
+    "extractor": "grok",
+    "baseline": {
+      "whole_case": {
+        "numerator": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "answerable_case_success": {
+        "numerator": 4,
+        "denominator": 4,
+        "rate": 1.0
+      },
+      "correct_abstention": {
+        "numerator": 1,
+        "denominator": 1,
+        "rate": 1.0
+      },
+      "selected_case_count": 4,
+      "availability": {
+        "numerator": 5,
+        "denominator": 5,
+        "rate": 1.0
+      },
+      "declared_field_precision": {
+        "numerator": 8,
+        "denominator": 8,
+        "rate": 1.0
+      },
+      "required_declared_field_recall": {
+        "numerator": 8,
+        "denominator": 8,
+        "rate": 1.0
+      },
+      "unknown_field_preservation": {
+        "numerator": 16,
+        "denominator": 16,
+        "rate": 1.0
+      },
+      "invented_unknown_fields": 0
+    },
+    "operations": {
+      "request_count": 5,
+      "known_cost_requests": 5,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.128852",
+      "cost_complete": true,
+      "cost_per_usable_panel_usd": "0.032213",
+      "usable_correct_panels": 4,
+      "latency_observed_requests": 5,
+      "median_request_seconds": 15.699149458,
+      "p90_request_seconds": 33.890748209,
+      "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+    }
+  },
+  "paired": {
+    "planned_pairs": 5,
+    "both_pass": 5,
+    "left_only_pass": 0,
+    "right_only_pass": 0,
+    "neither_pass": 0,
+    "groups": {
+      "family": {
+        "whole-dairy-milk": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "canned-tuna-drained-versus-packing-oil": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "dry-rolled-oats-versus-prepared-porridge": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "bubble-milk-tea-size-sugar-ice": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "restaurant-beef-noodle-soup": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        }
+      },
+      "domain": {
+        "www.grahamsfamilydairy.com": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.princes.co.uk": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.flahavans.co.uk": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.chingshin.tw": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.3375.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        }
+      }
+    },
+    "cases": [
+      {
+        "case": "grahams-whole-milk",
+        "family": "whole-dairy-milk",
+        "domain": "www.grahamsfamilydairy.com",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "princes-drained-tuna",
+        "family": "canned-tuna-drained-versus-packing-oil",
+        "domain": "www.princes.co.uk",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "flahavans-dry-oats",
+        "family": "dry-rolled-oats-versus-prepared-porridge",
+        "domain": "www.flahavans.co.uk",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "chingshin-medium-less-sugar-pearl-tea",
+        "family": "bubble-milk-tea-size-sugar-ice",
+        "domain": "www.chingshin.tw",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "sanshang-original-beef-noodles",
+        "family": "restaurant-beef-noodle-soup",
+        "domain": "www.3375.com.tw",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      }
+    ]
+  },
+  "qualification": "Descriptive matched development comparison. Repeated foods and shared families are not independent samples; no statistical superiority or calibrated-confidence claim.",
+  "scope": "Extraction and binding on identical captured documents. Does not measure discovery, acquisition, source truth, saved entries or physical-device behaviour."
+}

@@ -56,7 +56,7 @@ enum FoodProposalProbe {
             let destination = URL(fileURLWithPath: args[2], isDirectory: true)
             try createDestination(destination)
             let started = ContinuousClock.now
-            let requests = ProbeJournal(directory: destination, key: key, maximumRequests: 4)
+            let requests = ProbeJournal(directory: destination, key: key, maximumRequests: 6)
             let stages = ReviewSmokeJournal(directory: destination)
             let captures = CaptureProbeJournal(directory: destination)
             let provider = SmokeProvider(provider: OpenRouterFoodProvider(extractionRoute: .grok, selectionRoute: .applicability,
@@ -64,7 +64,7 @@ enum FoodProposalProbe {
             let capture = SmokeCapture(capture: PublicFoodSourceCapture(observe: { try captures.record($0) }), journal: stages)
             let reviewer = GenericFoodProposalReviewer(discovery: provider, capture: capture,
                 extraction: provider, sourceSelection: provider, selection: provider, timeout: .seconds(150))
-            var result: [String: Any] = ["query": args[1], "maximum_provider_requests": 4,
+            var result: [String: Any] = ["query": args[1], "maximum_provider_requests": 6,
                 "reviewer_deadline_seconds": 150, "save_authorised": false, "numeric_accuracy_scored": false,
                 "review_required": true, "allowed_confirmation_ids": [] as [String]]
             do {
@@ -72,6 +72,8 @@ enum FoodProposalProbe {
                 result["status"] = "completed"
                 result["attempted_source_url"] = review.attemptedSourceURL?.absoluteString
                 result["suggested_choice"] = review.suggestedChoice
+                result["source_attempts"] = review.sourceAttempts.map(\.absoluteString)
+                result["representative_source_only"] = review.representativeSourceOnly
                 result["bound_candidate_ids"] = review.validation.candidates.map(\.id)
                 result["eligible_candidate_ids"] = review.validation.candidates.filter(\.selectionEligible).map(\.id)
                 result["allowed_confirmation_ids"] = review.validation.candidates.filter { review.permitsConfirmation(of: $0) }.map(\.id)
@@ -83,6 +85,7 @@ enum FoodProposalProbe {
                 if let partial = error as? GenericFoodProposalPartialFailure {
                     result["attempted_source_url"] = partial.attemptedSourceURL?.absoluteString
                     result["partial_discovery_preserved"] = partial.discovery != nil
+                    result["source_attempts"] = partial.sourceAttempts.map(\.absoluteString)
                 }
             }
             let elapsed = started.duration(to: .now).components
@@ -279,13 +282,23 @@ private final class ReviewSmokeJournal: @unchecked Sendable {
         }
     }
     func write(_ value: [String: Any], name: String) throws {
-        try JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys])
-            .write(to: directory.appendingPathComponent(name), options: .withoutOverwriting)
+        try writeData(JSONSerialization.data(withJSONObject: value, options: [.prettyPrinted, .sortedKeys]), name: name)
     }
     func encode<T: Encodable>(_ value: T, name: String) throws {
         let encoder = JSONEncoder(); encoder.keyEncodingStrategy = .convertToSnakeCase
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(value).write(to: directory.appendingPathComponent(name), options: .withoutOverwriting)
+        try writeData(encoder.encode(value), name: name)
+    }
+    private func writeData(_ data: Data, name: String) throws {
+        try lock.withLock {
+            var target = directory.appendingPathComponent(name)
+            var index = 2
+            while FileManager.default.fileExists(atPath: target.path) {
+                let stem = (name as NSString).deletingPathExtension
+                target = directory.appendingPathComponent("\(stem)-\(index).json"); index += 1
+            }
+            try data.write(to: target, options: .withoutOverwriting)
+        }
     }
     func discovery(_ found: FoodWebDiscoveryResult) throws {
         try write(["leads": found.leads.map { ["title": $0.title, "url": $0.url.absoluteString,
@@ -341,8 +354,9 @@ private struct SmokeProvider: FoodWebDiscovering, FoodSourceLeadSelecting, FoodP
         do {
             let value = try await provider.chooseSource(foodTerms: foodTerms, leads: leads, key: key)
             switch value {
-            case let .selected(index, reason):
+            case let .selected(index, purpose, reason):
                 try journal.write(["decision": "selected", "index": index, "reason": reason,
+                    "purpose": purpose == .representativeEstimate ? "representative_estimate" : "primary_product",
                     "offered_urls": leads.map { $0.url.absoluteString }], name: "source-selection.json")
             case let .abstain(reason):
                 try journal.write(["decision": "abstain", "reason": reason,

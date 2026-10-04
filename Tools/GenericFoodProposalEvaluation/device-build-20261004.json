@@ -1,0 +1,18 @@
+{
+  "version": "0.1.1",
+  "base": "79efe83526668e47608e33cbf00655638c2d4826",
+  "source_uncommitted": true,
+  "bundle": "com.otherweather.WeeklyHealthReport",
+  "build": "19.1",
+  "configuration": "Debug, Apple Development",
+  "signature_verified": true,
+  "profile_contains_target_device": true,
+  "profile_expiry_utc": "2026-10-05T14:19:46Z",
+  "oauth_preserved": true,
+  "bundled_privacy_verified": true,
+  "signed_app_manifest_sha256": "90b7e14bb931fbcc899214c904e5155bfd04a66b035c53d780fea74514733b14",
+  "source_manifest_sha256": "d4693c34b83ebd946c0d555606fff947bb6582bee5ea61ce3b08f1a45325426f",
+  "installation": "not_attempted; automatic approval review rejected installation pending explicit in-place approval",
+  "device_acceptance": "not_run",
+  "provider_calls": 0
+}

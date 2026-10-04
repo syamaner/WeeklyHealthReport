@@ -1,0 +1,93 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "Strawberry yoghurt"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Per 100 g"
+    },
+    {
+      "id" : "b3",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[0];projection:swift-food-document-blocks-v4",
+      "text" : "Energy | 140 kcal"
+    },
+    {
+      "id" : "b4",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[1];projection:swift-food-document-blocks-v4",
+      "text" : "Protein | 5 g"
+    },
+    {
+      "id" : "b5",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[2];projection:swift-food-document-blocks-v4",
+      "text" : "Carbohydrate | 20 g"
+    },
+    {
+      "id" : "b6",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[3];projection:swift-food-document-blocks-v4",
+      "text" : "Fat | 4 g"
+    },
+    {
+      "id" : "b7",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[4];projection:swift-food-document-blocks-v4",
+      "text" : "Fibre | 1 g"
+    },
+    {
+      "id" : "b8",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[5];projection:swift-food-document-blocks-v4",
+      "text" : "Sodium | 30 mg"
+    },
+    {
+      "id" : "b9",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/h1[0];projection:swift-food-document-blocks-v4",
+      "text" : "Plain Greek yoghurt"
+    },
+    {
+      "id" : "b10",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/p[1];projection:swift-food-document-blocks-v4",
+      "text" : "Per 100 g"
+    },
+    {
+      "id" : "b11",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[0];projection:swift-food-document-blocks-v4",
+      "text" : "Energy | 120 kcal"
+    },
+    {
+      "id" : "b12",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[1];projection:swift-food-document-blocks-v4",
+      "text" : "Protein | 6 g"
+    },
+    {
+      "id" : "b13",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[2];projection:swift-food-document-blocks-v4",
+      "text" : "Carbohydrate | 4 g"
+    },
+    {
+      "id" : "b14",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[1]\/table[2]\/tbody[0]\/tr[3];projection:swift-food-document-blocks-v4",
+      "text" : "Fat | 9 g"
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_92249ac43cd1f72e",
+  "raw_sha256" : "92249ac43cd1f72ec7b93514073aed50bba5290cd89cc85e8f89b2479ecff51b",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/yoghurt-variant"
+}

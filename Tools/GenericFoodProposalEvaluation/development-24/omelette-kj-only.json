@@ -1,0 +1,51 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "h1",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/h1[0]",
+      "text" : "蚵仔煎"
+    },
+    {
+      "id" : "b2",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[1]",
+      "text" : "Per 1 serving including sauce"
+    },
+    {
+      "id" : "b3",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[0]",
+      "text" : "Protein | 12 g"
+    },
+    {
+      "id" : "b4",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[1]",
+      "text" : "Carbohydrate | 40 g"
+    },
+    {
+      "id" : "b5",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[2]",
+      "text" : "Fat | 15 g"
+    },
+    {
+      "id" : "b6",
+      "kind" : "tr",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/table[2]\/tbody[0]\/tr[3]",
+      "text" : "Sodium | 650 mg"
+    },
+    {
+      "id" : "b7",
+      "kind" : "p",
+      "locator" : "document\/html[0]\/body[1]\/article[0]\/p[3]",
+      "text" : "Energy 1600 kJ. kcal not declared."
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_ad9323435c24e765",
+  "raw_sha256" : "ad9323435c24e765efb29e51aa56a5847fc9bd629336c0d95b658f74ea9ff1d7",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/omelette-kj-only"
+}

@@ -1,0 +1,5506 @@
+{
+  "version": "prospective-nutrition-holdout-result-v1",
+  "protocol_sha256": "8f75b48aa3b00d337e12ad5b573e2e086fde38cc2484db6888b067a7358cdf6b",
+  "extraction_plan_sha256": "4fa718f43fa41512f0423f6e9fa30c39954941bea71c3848ae5b042992c7814f",
+  "discovery_plan_sha256": "5cf17cf4baf841e1ab26798bf7819e499ae5339036a8fb093a53fef350e453b9",
+  "source_references_sha256": "be92427185eee0a4ec3e666fae8e4c697d09f8810f9087de11849aa0a538d506",
+  "original_cases": 24,
+  "captured_cases": 20,
+  "case_review": [
+    {
+      "id": "tiptree-conserve",
+      "expected": "selected",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Sodium is printed as0g, not a literal mg declaration; fibre absent. No conversion permitted.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": true,
+        "basis_correct": true,
+        "passed": true,
+        "declared_claims": 4,
+        "correct_declared_claims": 4,
+        "required_declared_fields": 4,
+        "recovered_declared_fields": 4,
+        "required_unknown_fields": 2,
+        "preserved_unknown_fields": 2,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "belazu-harissa",
+      "expected": "selected",
+      "passed": false,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": false,
+      "rejected_candidates": [
+        {
+          "id": "c1",
+          "reason": "invalidBasis"
+        }
+      ],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": true,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Source explicitly says100mls although a paste; preserve rather than silently changing to100g. Salt is not sodium.",
+      "baseline": {
+        "available": true,
+        "choice": "none",
+        "selected": false,
+        "identity_correct": false,
+        "basis_correct": false,
+        "passed": false,
+        "declared_claims": 0,
+        "correct_declared_claims": 0,
+        "required_declared_fields": 5,
+        "recovered_declared_fields": 0,
+        "required_unknown_fields": 1,
+        "preserved_unknown_fields": 0,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "zenweixiang-pork-paper",
+      "expected": "abstain",
+      "passed": false,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": true,
+      "reference_note": "Author query uses真味香 but the captured business calls itself振味香. Keep the frozen query; treat as brand ambiguity requiring clarification rather than silently substituting. This author-origin spelling mismatch is an explicit negative control, not evidence of a natural user-query distribution.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": false,
+        "basis_correct": false,
+        "passed": false,
+        "declared_claims": 5,
+        "correct_declared_claims": 0,
+        "required_declared_fields": 0,
+        "recovered_declared_fields": 0,
+        "required_unknown_fields": 0,
+        "preserved_unknown_fields": 0,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "mutti-polpa",
+      "expected": "selected",
+      "passed": false,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": false,
+      "rejected_candidates": [
+        {
+          "id": "c1",
+          "reason": "invalidNutrient"
+        }
+      ],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": true,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Calories30 is printed without a target-unit numeral. Under literal-unit contract energy remains unsupported, not absent from source. Basis125mL is explicit; do not infer125g.",
+      "baseline": {
+        "available": true,
+        "choice": "none",
+        "selected": false,
+        "identity_correct": false,
+        "basis_correct": false,
+        "passed": false,
+        "declared_claims": 0,
+        "correct_declared_claims": 0,
+        "required_declared_fields": 5,
+        "recovered_declared_fields": 0,
+        "required_unknown_fields": 1,
+        "preserved_unknown_fields": 0,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "greenblacks-dark",
+      "expected": "selected",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Energy only2406kJ; adult reference2000kcal is not product energy. Sodium absent; salt not converted.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": true,
+        "basis_correct": true,
+        "passed": true,
+        "declared_claims": 4,
+        "correct_declared_claims": 4,
+        "required_declared_fields": 4,
+        "recovered_declared_fields": 4,
+        "required_unknown_fields": 2,
+        "preserved_unknown_fields": 2,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "lyb-aiyu-seed",
+      "expected": "selected",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Use dry seeds100g column, not prepared jelly or20g column. Source sugar/sodium scaling is inconsistent; do not repair printed values. Fibre absent.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": true,
+        "basis_correct": true,
+        "passed": true,
+        "declared_claims": 5,
+        "correct_declared_claims": 5,
+        "required_declared_fields": 5,
+        "recovered_declared_fields": 5,
+        "required_unknown_fields": 1,
+        "preserved_unknown_fields": 1,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "sacla-basil-pesto",
+      "expected": "selected",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Salt is not sodium.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": true,
+        "basis_correct": true,
+        "passed": true,
+        "declared_claims": 5,
+        "correct_declared_claims": 5,
+        "required_declared_fields": 5,
+        "recovered_declared_fields": 5,
+        "required_unknown_fields": 1,
+        "preserved_unknown_fields": 1,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "meridian-peanut",
+      "expected": "abstain",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "none",
+      "preferred_bound": false,
+      "rejected_candidates": [],
+      "model_explicit_abstention": true,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "No quantitative nutrition panel or basis in captured text;100%peanuts and25%of calories fromprotein do not define per100g macros.",
+      "baseline": {
+        "available": true,
+        "choice": "none",
+        "selected": false,
+        "identity_correct": false,
+        "basis_correct": false,
+        "passed": true,
+        "declared_claims": 0,
+        "correct_declared_claims": 0,
+        "required_declared_fields": 0,
+        "recovered_declared_fields": 0,
+        "required_unknown_fields": 0,
+        "preserved_unknown_fields": 0,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "pcfarmer-plum",
+      "expected": "selected",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Query requests per serving:13g column, not100g column. Package100g±10% is not basis. One explicit serving also accepted.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": true,
+        "basis_correct": true,
+        "passed": true,
+        "declared_claims": 5,
+        "correct_declared_claims": 5,
+        "required_declared_fields": 5,
+        "recovered_declared_fields": 5,
+        "required_unknown_fields": 1,
+        "preserved_unknown_fields": 1,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "silverspoon-sugar",
+      "expected": "abstain",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "none",
+      "preferred_bound": false,
+      "rejected_candidates": [],
+      "model_explicit_abstention": true,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Product listing has no numeric nutrition. Do not insert general sugar facts.",
+      "baseline": {
+        "available": true,
+        "choice": "none",
+        "selected": false,
+        "identity_correct": false,
+        "basis_correct": false,
+        "passed": true,
+        "declared_claims": 0,
+        "correct_declared_claims": 0,
+        "required_declared_fields": 0,
+        "recovered_declared_fields": 0,
+        "required_unknown_fields": 0,
+        "preserved_unknown_fields": 0,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "cathedral-cauliflower",
+      "expected": "selected",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Use per100g ovenbaked, not quarterpack. Salt not sodium.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": true,
+        "basis_correct": true,
+        "passed": true,
+        "declared_claims": 5,
+        "correct_declared_claims": 5,
+        "required_declared_fields": 5,
+        "recovered_declared_fields": 5,
+        "required_unknown_fields": 1,
+        "preserved_unknown_fields": 1,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "kaohsiung-peanut-brittle",
+      "expected": "abstain",
+      "passed": false,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": true,
+      "reference_note": "Query explicitly excludes sesame/otherflavours. Source only supplies sesame-peanut andpumpkinbrittle panels; no plainpeanut panel. Do not silently substitute.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": false,
+        "basis_correct": false,
+        "passed": false,
+        "declared_claims": 5,
+        "correct_declared_claims": 0,
+        "required_declared_fields": 0,
+        "recovered_declared_fields": 0,
+        "required_unknown_fields": 0,
+        "preserved_unknown_fields": 0,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "hartleys-strawberry-jelly",
+      "expected": "selected",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Protein<0.1g bounded, not0.1 or0. Fibre absent; salt not sodium.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": true,
+        "basis_correct": true,
+        "passed": true,
+        "declared_claims": 3,
+        "correct_declared_claims": 3,
+        "required_declared_fields": 3,
+        "recovered_declared_fields": 3,
+        "required_unknown_fields": 3,
+        "preserved_unknown_fields": 3,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "merchant-puy-lentils",
+      "expected": "selected",
+      "passed": false,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": false,
+      "rejected_candidates": [
+        {
+          "id": "c1",
+          "reason": "invalidNutrient"
+        }
+      ],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": true,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Energy row explicitly labels kJ/kcal624/148; gold retains source148kcal even if current binder cannot represent unparenthesised paired header. This is a coverage test, not a reason to delete source gold.",
+      "baseline": {
+        "available": true,
+        "choice": "none",
+        "selected": false,
+        "identity_correct": false,
+        "basis_correct": false,
+        "passed": false,
+        "declared_claims": 0,
+        "correct_declared_claims": 0,
+        "required_declared_fields": 5,
+        "recovered_declared_fields": 0,
+        "required_unknown_fields": 1,
+        "preserved_unknown_fields": 0,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "jollytime-popcorn",
+      "expected": "selected",
+      "passed": false,
+      "available": true,
+      "raw_preferred": "clarify",
+      "preferred_bound": false,
+      "rejected_candidates": [
+        {
+          "id": "c1",
+          "reason": "invalidNutrient"
+        }
+      ],
+      "model_explicit_abstention": true,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Basis onecup popped, not34g unpopped or2.5servings perbag. Fibre/protein<1g stay unknown; Calories35 lacks literal targetunit. Source repeats same panel.",
+      "baseline": {
+        "available": true,
+        "choice": "clarify",
+        "selected": false,
+        "identity_correct": false,
+        "basis_correct": false,
+        "passed": false,
+        "declared_claims": 0,
+        "correct_declared_claims": 0,
+        "required_declared_fields": 3,
+        "recovered_declared_fields": 0,
+        "required_unknown_fields": 3,
+        "preserved_unknown_fields": 0,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "chishya-mullet-roe",
+      "expected": "abstain",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "none",
+      "preferred_bound": false,
+      "rejected_candidates": [],
+      "model_explicit_abstention": true,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Nutrition only referenced as image; no readable quantitative panel in captured text.",
+      "baseline": {
+        "available": true,
+        "choice": "none",
+        "selected": false,
+        "identity_correct": false,
+        "basis_correct": false,
+        "passed": true,
+        "declared_claims": 0,
+        "correct_declared_claims": 0,
+        "required_declared_fields": 0,
+        "recovered_declared_fields": 0,
+        "required_unknown_fields": 0,
+        "preserved_unknown_fields": 0,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "alpro-vanilla-custard",
+      "expected": "abstain",
+      "passed": false,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": true,
+      "reference_note": "Query explicitly requests100g; source nutrition is per100ml. No density or mass-equivalent provided; must abstain rather than treating volume as mass.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": false,
+        "basis_correct": false,
+        "passed": false,
+        "declared_claims": 5,
+        "correct_declared_claims": 0,
+        "required_declared_fields": 0,
+        "recovered_declared_fields": 0,
+        "required_unknown_fields": 0,
+        "preserved_unknown_fields": 0,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "baxters-beetroot",
+      "expected": "selected",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Fat0.1g is exact; adjacent saturatedfat<0.1g is a separate field. Salt not sodium.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": true,
+        "basis_correct": true,
+        "passed": true,
+        "declared_claims": 5,
+        "correct_declared_claims": 5,
+        "required_declared_fields": 5,
+        "recovered_declared_fields": 5,
+        "required_unknown_fields": 1,
+        "preserved_unknown_fields": 1,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "taiguang-mushroom-meatballs",
+      "expected": "selected",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Use100g column not50g serving. Fibre absent.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": true,
+        "basis_correct": true,
+        "passed": true,
+        "declared_claims": 5,
+        "correct_declared_claims": 5,
+        "required_declared_fields": 5,
+        "recovered_declared_fields": 5,
+        "required_unknown_fields": 1,
+        "preserved_unknown_fields": 1,
+        "invented_unknown_fields": 0
+      }
+    },
+    {
+      "id": "whitworths-coated-raisins",
+      "expected": "selected",
+      "passed": true,
+      "available": true,
+      "raw_preferred": "c1",
+      "preferred_bound": true,
+      "rejected_candidates": [],
+      "model_explicit_abstention": false,
+      "binding_prevented_preferred_proposal": false,
+      "preferred_proposal_contradicts_reference": false,
+      "reference_note": "Use100g as sold, not30g. Source saturates30g column33.5g appears inconsistent but not a target field; retain warning without repairing values. Salt not sodium.",
+      "baseline": {
+        "available": true,
+        "choice": "c1",
+        "selected": true,
+        "identity_correct": true,
+        "basis_correct": true,
+        "passed": true,
+        "declared_claims": 5,
+        "correct_declared_claims": 5,
+        "required_declared_fields": 5,
+        "recovered_declared_fields": 5,
+        "required_unknown_fields": 1,
+        "preserved_unknown_fields": 1,
+        "invented_unknown_fields": 0
+      }
+    }
+  ],
+  "slices": {
+    "local_uk": {
+      "planned": 8,
+      "captured": 7,
+      "correct_review_outcomes": 5,
+      "usable_correct_partial_panels": 4
+    },
+    "taiwan_market": {
+      "planned": 8,
+      "captured": 6,
+      "correct_review_outcomes": 4,
+      "usable_correct_partial_panels": 3
+    },
+    "general": {
+      "planned": 8,
+      "captured": 7,
+      "correct_review_outcomes": 4,
+      "usable_correct_partial_panels": 3
+    }
+  },
+  "extraction": {
+    "version": "swift-food-proposal-evaluation-v1",
+    "cases": [
+      {
+        "id": "grok-tiptree-conserve",
+        "family": "fruit-conserve",
+        "layout": "captured_html",
+        "domain": "www.tiptree.com",
+        "comparison_case": "tiptree-conserve",
+        "slice": "local_uk",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": true,
+          "basis_correct": true,
+          "passed": true,
+          "declared_claims": 4,
+          "correct_declared_claims": 4,
+          "required_declared_fields": 4,
+          "recovered_declared_fields": 4,
+          "required_unknown_fields": 2,
+          "preserved_unknown_fields": 2,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 4,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 2,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-belazu-harissa",
+        "family": "chilli-spice-paste",
+        "layout": "captured_html",
+        "domain": "belazu.com",
+        "comparison_case": "belazu-harissa",
+        "slice": "local_uk",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "none",
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-zenweixiang-pork-paper",
+        "family": "dried-pork-paper",
+        "layout": "captured_html",
+        "domain": "www.zenweixiang.com",
+        "comparison_case": "zenweixiang-pork-paper",
+        "slice": "taiwan_market",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": false,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 5,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-mutti-polpa",
+        "family": "canned-chopped-tomato",
+        "layout": "captured_html",
+        "domain": "mutti-parma.com",
+        "comparison_case": "mutti-polpa",
+        "slice": "general",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "none",
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-greenblacks-dark",
+        "family": "dark-chocolate",
+        "layout": "captured_html",
+        "domain": "www.greenandblacks.co.uk",
+        "comparison_case": "greenblacks-dark",
+        "slice": "local_uk",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": true,
+          "basis_correct": true,
+          "passed": true,
+          "declared_claims": 4,
+          "correct_declared_claims": 4,
+          "required_declared_fields": 4,
+          "recovered_declared_fields": 4,
+          "required_unknown_fields": 2,
+          "preserved_unknown_fields": 2,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 4,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 2,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-lyb-aiyu-seed",
+        "family": "dried-aiyu-seeds",
+        "layout": "captured_html",
+        "domain": "www.lyb189.com.tw",
+        "comparison_case": "lyb-aiyu-seed",
+        "slice": "taiwan_market",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": true,
+          "basis_correct": true,
+          "passed": true,
+          "declared_claims": 5,
+          "correct_declared_claims": 5,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 5,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 1,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-sacla-basil-pesto",
+        "family": "basil-cheese-pesto",
+        "layout": "captured_html",
+        "domain": "www.sacla.co.uk",
+        "comparison_case": "sacla-basil-pesto",
+        "slice": "general",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": true,
+          "basis_correct": true,
+          "passed": true,
+          "declared_claims": 5,
+          "correct_declared_claims": 5,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 5,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 1,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-meridian-peanut",
+        "family": "pure-peanut-butter",
+        "layout": "captured_html",
+        "domain": "shop.meridianfoods.co.uk",
+        "comparison_case": "meridian-peanut",
+        "slice": "local_uk",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": false,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "none",
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": true,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-pcfarmer-plum",
+        "family": "preserved-salted-plum",
+        "layout": "captured_html",
+        "domain": "www.pcfarmer.tw",
+        "comparison_case": "pcfarmer-plum",
+        "slice": "taiwan_market",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": true,
+          "basis_correct": true,
+          "passed": true,
+          "declared_claims": 5,
+          "correct_declared_claims": 5,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 5,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 1,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-silverspoon-sugar",
+        "family": "granulated-sugar",
+        "layout": "captured_html",
+        "domain": "www.silverspoon.co.uk",
+        "comparison_case": "silverspoon-sugar",
+        "slice": "general",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": false,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "none",
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": true,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-cathedral-cauliflower",
+        "family": "baked-cauliflower-cheese",
+        "layout": "captured_html",
+        "domain": "www.cathedralcity.co.uk",
+        "comparison_case": "cathedral-cauliflower",
+        "slice": "local_uk",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": true,
+          "basis_correct": true,
+          "passed": true,
+          "declared_claims": 5,
+          "correct_declared_claims": 5,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 5,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 1,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-kaohsiung-peanut-brittle",
+        "family": "peanut-brittle",
+        "layout": "captured_html",
+        "domain": "shop.mjac.moj.gov.tw",
+        "comparison_case": "kaohsiung-peanut-brittle",
+        "slice": "taiwan_market",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": false,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 5,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-hartleys-strawberry-jelly",
+        "family": "gelatin-jelly-dessert",
+        "layout": "captured_html",
+        "domain": "www.hartleysfruit.co.uk",
+        "comparison_case": "hartleys-strawberry-jelly",
+        "slice": "general",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": true,
+          "basis_correct": true,
+          "passed": true,
+          "declared_claims": 3,
+          "correct_declared_claims": 3,
+          "required_declared_fields": 3,
+          "recovered_declared_fields": 3,
+          "required_unknown_fields": 3,
+          "preserved_unknown_fields": 3,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 3,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 3,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-merchant-puy-lentils",
+        "family": "cooked-puy-green-lentils",
+        "layout": "captured_html",
+        "domain": "www.merchant-gourmet.com",
+        "comparison_case": "merchant-puy-lentils",
+        "slice": "local_uk",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "none",
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-jollytime-popcorn",
+        "family": "popped-maize",
+        "layout": "captured_html",
+        "domain": "www.jollytime.com",
+        "comparison_case": "jollytime-popcorn",
+        "slice": "general",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "clarify",
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 3,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 3,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 3,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 3,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-chishya-mullet-roe",
+        "family": "cured-mullet-roe",
+        "layout": "captured_html",
+        "domain": "www.chishya.com.tw",
+        "comparison_case": "chishya-mullet-roe",
+        "slice": "taiwan_market",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": false,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "none",
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": true,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-alpro-vanilla-custard",
+        "family": "soya-vanilla-custard",
+        "layout": "captured_html",
+        "domain": "www.alpro.com",
+        "comparison_case": "alpro-vanilla-custard",
+        "slice": "general",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": false,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 5,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 0,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 0,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-baxters-beetroot",
+        "family": "pickled-beetroot",
+        "layout": "captured_html",
+        "domain": "www.baxters.com",
+        "comparison_case": "baxters-beetroot",
+        "slice": "local_uk",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": true,
+          "basis_correct": true,
+          "passed": true,
+          "declared_claims": 5,
+          "correct_declared_claims": 5,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 5,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 1,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-taiguang-mushroom-meatballs",
+        "family": "pork-mushroom-meatballs",
+        "layout": "captured_html",
+        "domain": "www.taiguang.com.tw",
+        "comparison_case": "taiguang-mushroom-meatballs",
+        "slice": "taiwan_market",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": true,
+          "basis_correct": true,
+          "passed": true,
+          "declared_claims": 5,
+          "correct_declared_claims": 5,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 5,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 1,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      },
+      {
+        "id": "grok-whitworths-coated-raisins",
+        "family": "yogurt-coated-dried-raisins",
+        "layout": "captured_html",
+        "domain": "whitworths.co.uk",
+        "comparison_case": "whitworths-coated-raisins",
+        "slice": "general",
+        "reference_status": "prospective_agent_source_review_no_predictions",
+        "extractor": "grok",
+        "selection_enabled": false,
+        "expected_answerable": true,
+        "run_status": "completed",
+        "extraction_completed": true,
+        "selector_completed": false,
+        "selection_status": "disabled_for_extractor_comparison",
+        "baseline": {
+          "available": true,
+          "choice": "c1",
+          "selected": true,
+          "identity_correct": true,
+          "basis_correct": true,
+          "passed": true,
+          "declared_claims": 5,
+          "correct_declared_claims": 5,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 5,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 1,
+          "invented_unknown_fields": 0
+        },
+        "jev": {
+          "available": false,
+          "choice": null,
+          "selected": false,
+          "identity_correct": false,
+          "basis_correct": false,
+          "passed": false,
+          "declared_claims": 0,
+          "correct_declared_claims": 0,
+          "required_declared_fields": 5,
+          "recovered_declared_fields": 0,
+          "required_unknown_fields": 1,
+          "preserved_unknown_fields": 0,
+          "invented_unknown_fields": 0
+        }
+      }
+    ],
+    "baseline": {
+      "whole_case": {
+        "numerator": 13,
+        "denominator": 20,
+        "rate": 0.65
+      },
+      "answerable_case_success": {
+        "numerator": 10,
+        "denominator": 14,
+        "rate": 0.7142857142857143
+      },
+      "correct_abstention": {
+        "numerator": 3,
+        "denominator": 6,
+        "rate": 0.5
+      },
+      "selected_case_count": 13,
+      "availability": {
+        "numerator": 20,
+        "denominator": 20,
+        "rate": 1.0
+      },
+      "declared_field_precision": {
+        "numerator": 46,
+        "denominator": 61,
+        "rate": 0.7540983606557377
+      },
+      "required_declared_field_recall": {
+        "numerator": 46,
+        "denominator": 64,
+        "rate": 0.71875
+      },
+      "unknown_field_preservation": {
+        "numerator": 14,
+        "denominator": 20,
+        "rate": 0.7
+      },
+      "invented_unknown_fields": 0
+    },
+    "jev": {
+      "whole_case": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "answerable_case_success": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "correct_abstention": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "selected_case_count": 0,
+      "availability": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "declared_field_precision": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "required_declared_field_recall": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "unknown_field_preservation": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "invented_unknown_fields": 0
+    },
+    "groups": {
+      "slice": {
+        "local_uk": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 5,
+              "denominator": 7,
+              "rate": 0.7142857142857143
+            },
+            "answerable_case_success": {
+              "numerator": 4,
+              "denominator": 6,
+              "rate": 0.6666666666666666
+            },
+            "correct_abstention": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "selected_case_count": 4,
+            "availability": {
+              "numerator": 7,
+              "denominator": 7,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 18,
+              "denominator": 18,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 18,
+              "denominator": 28,
+              "rate": 0.6428571428571429
+            },
+            "unknown_field_preservation": {
+              "numerator": 6,
+              "denominator": 8,
+              "rate": 0.75
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "taiwan_market": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 4,
+              "denominator": 6,
+              "rate": 0.6666666666666666
+            },
+            "answerable_case_success": {
+              "numerator": 3,
+              "denominator": 3,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 1,
+              "denominator": 3,
+              "rate": 0.3333333333333333
+            },
+            "selected_case_count": 5,
+            "availability": {
+              "numerator": 6,
+              "denominator": 6,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 15,
+              "denominator": 25,
+              "rate": 0.6
+            },
+            "required_declared_field_recall": {
+              "numerator": 15,
+              "denominator": 15,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 3,
+              "denominator": 3,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "general": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 4,
+              "denominator": 7,
+              "rate": 0.5714285714285714
+            },
+            "answerable_case_success": {
+              "numerator": 3,
+              "denominator": 5,
+              "rate": 0.6
+            },
+            "correct_abstention": {
+              "numerator": 1,
+              "denominator": 2,
+              "rate": 0.5
+            },
+            "selected_case_count": 4,
+            "availability": {
+              "numerator": 7,
+              "denominator": 7,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 13,
+              "denominator": 18,
+              "rate": 0.7222222222222222
+            },
+            "required_declared_field_recall": {
+              "numerator": 13,
+              "denominator": 21,
+              "rate": 0.6190476190476191
+            },
+            "unknown_field_preservation": {
+              "numerator": 5,
+              "denominator": 9,
+              "rate": 0.5555555555555556
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        }
+      },
+      "family": {
+        "fruit-conserve": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 4,
+              "denominator": 4,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 4,
+              "denominator": 4,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 2,
+              "denominator": 2,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "chilli-spice-paste": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "dried-pork-paper": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "canned-chopped-tomato": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "dark-chocolate": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 4,
+              "denominator": 4,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 4,
+              "denominator": 4,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 2,
+              "denominator": 2,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "dried-aiyu-seeds": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "basil-cheese-pesto": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "pure-peanut-butter": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "preserved-salted-plum": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "granulated-sugar": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "baked-cauliflower-cheese": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "peanut-brittle": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "gelatin-jelly-dessert": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 3,
+              "denominator": 3,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 3,
+              "denominator": 3,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 3,
+              "denominator": 3,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "cooked-puy-green-lentils": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "popped-maize": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 3,
+              "rate": 0.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 3,
+              "rate": 0.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "cured-mullet-roe": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "soya-vanilla-custard": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "pickled-beetroot": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "pork-mushroom-meatballs": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "yogurt-coated-dried-raisins": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        }
+      },
+      "layout": {
+        "captured_html": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 13,
+              "denominator": 20,
+              "rate": 0.65
+            },
+            "answerable_case_success": {
+              "numerator": 10,
+              "denominator": 14,
+              "rate": 0.7142857142857143
+            },
+            "correct_abstention": {
+              "numerator": 3,
+              "denominator": 6,
+              "rate": 0.5
+            },
+            "selected_case_count": 13,
+            "availability": {
+              "numerator": 20,
+              "denominator": 20,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 46,
+              "denominator": 61,
+              "rate": 0.7540983606557377
+            },
+            "required_declared_field_recall": {
+              "numerator": 46,
+              "denominator": 64,
+              "rate": 0.71875
+            },
+            "unknown_field_preservation": {
+              "numerator": 14,
+              "denominator": 20,
+              "rate": 0.7
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        }
+      },
+      "domain": {
+        "www.tiptree.com": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 4,
+              "denominator": 4,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 4,
+              "denominator": 4,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 2,
+              "denominator": 2,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "belazu.com": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.zenweixiang.com": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "mutti-parma.com": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.greenandblacks.co.uk": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 4,
+              "denominator": 4,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 4,
+              "denominator": 4,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 2,
+              "denominator": 2,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.lyb189.com.tw": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.sacla.co.uk": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "shop.meridianfoods.co.uk": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.pcfarmer.tw": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.silverspoon.co.uk": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.cathedralcity.co.uk": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "shop.mjac.moj.gov.tw": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.hartleysfruit.co.uk": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 3,
+              "denominator": 3,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 3,
+              "denominator": 3,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 3,
+              "denominator": 3,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.merchant-gourmet.com": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.jollytime.com": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 3,
+              "rate": 0.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 3,
+              "rate": 0.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.chishya.com.tw": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.alpro.com": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 1,
+              "rate": 0.0
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 5,
+              "rate": 0.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.baxters.com": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "www.taiguang.com.tw": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        },
+        "whitworths.co.uk": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "answerable_case_success": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 1,
+            "availability": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "required_declared_field_recall": {
+              "numerator": 5,
+              "denominator": 5,
+              "rate": 1.0
+            },
+            "unknown_field_preservation": {
+              "numerator": 1,
+              "denominator": 1,
+              "rate": 1.0
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        }
+      },
+      "extractor": {
+        "grok": {
+          "baseline": {
+            "whole_case": {
+              "numerator": 13,
+              "denominator": 20,
+              "rate": 0.65
+            },
+            "answerable_case_success": {
+              "numerator": 10,
+              "denominator": 14,
+              "rate": 0.7142857142857143
+            },
+            "correct_abstention": {
+              "numerator": 3,
+              "denominator": 6,
+              "rate": 0.5
+            },
+            "selected_case_count": 13,
+            "availability": {
+              "numerator": 20,
+              "denominator": 20,
+              "rate": 1.0
+            },
+            "declared_field_precision": {
+              "numerator": 46,
+              "denominator": 61,
+              "rate": 0.7540983606557377
+            },
+            "required_declared_field_recall": {
+              "numerator": 46,
+              "denominator": 64,
+              "rate": 0.71875
+            },
+            "unknown_field_preservation": {
+              "numerator": 14,
+              "denominator": 20,
+              "rate": 0.7
+            },
+            "invented_unknown_fields": 0
+          },
+          "jev": {
+            "whole_case": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "answerable_case_success": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "correct_abstention": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "selected_case_count": 0,
+            "availability": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "declared_field_precision": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "required_declared_field_recall": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "unknown_field_preservation": {
+              "numerator": 0,
+              "denominator": 0,
+              "rate": null
+            },
+            "invented_unknown_fields": 0
+          }
+        }
+      }
+    },
+    "paired": {
+      "denominator": 0,
+      "both_pass": 0,
+      "jev_only_pass": 0,
+      "baseline_only_pass": 0,
+      "neither_pass": 0
+    },
+    "request_count": 20,
+    "reported_cost_usd": "0.540802",
+    "cost_coverage": {
+      "numerator": 20,
+      "denominator": 20,
+      "rate": 1.0
+    },
+    "qualification": "Agent-authored or previously exposed development cases; no independent acceptance or confidence calibration.",
+    "persistence_evidence": "Separate Swift contract tests, not inferred from provider responses.",
+    "full_roster_denominator": true,
+    "provided_url_pipeline": {
+      "grok": {
+        "acquisition": {
+          "numerator": 20,
+          "denominator": 24,
+          "rate": 0.8333333333333334
+        },
+        "successful_review_outcome": {
+          "numerator": 13,
+          "denominator": 24,
+          "rate": 0.5416666666666666
+        },
+        "usable_source_panel": {
+          "numerator": 10,
+          "denominator": 24,
+          "rate": 0.4166666666666667
+        },
+        "source_eligibility": {},
+        "acquisition_failures": [
+          {
+            "id": "sunnyhills-pineapple",
+            "status": "failed",
+            "closed_error": "proposal_invalidDocument"
+          },
+          {
+            "id": "barilla-spaghetti",
+            "status": "failed",
+            "closed_error": "capture_unavailable"
+          },
+          {
+            "id": "agric-dried-pineapple",
+            "status": "failed",
+            "closed_error": "capture_unavailable"
+          },
+          {
+            "id": "biona-chickpeas",
+            "status": "failed",
+            "closed_error": "capture_responseTooLarge"
+          }
+        ],
+        "scope": "Capture and extraction from preselected URLs, not discovery or independent acceptance."
+      }
+    }
+  },
+  "extraction_operations": {
+    "request_count": 20,
+    "known_cost_requests": 20,
+    "unknown_cost_requests": 0,
+    "known_reported_cost_usd": "0.540802",
+    "cost_complete": true,
+    "cost_per_usable_panel_usd": "0.0540802",
+    "usable_correct_panels": 10,
+    "latency_observed_requests": 20,
+    "median_request_seconds": 15.0819386875,
+    "p90_request_seconds": 25.818234125,
+    "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+  },
+  "discovery": {
+    "planned": 6,
+    "top1": 4,
+    "any_top3": 4,
+    "operations": {
+      "request_count": 6,
+      "known_cost_requests": 6,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.043522675",
+      "cost_complete": true,
+      "cost_per_usable_panel_usd": null,
+      "usable_correct_panels": 0,
+      "latency_observed_requests": 6,
+      "median_request_seconds": 3.588881396,
+      "p90_request_seconds": 4.917721041,
+      "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+    },
+    "source_review": {
+      "reviewed_at": "2026-10-04T12:03:19.827493+00:00",
+      "plan_sha256": "5cf17cf4baf841e1ab26798bf7819e499ae5339036a8fb093a53fef350e453b9",
+      "criteria_frozen_before_predictions": true,
+      "human_reviewed": false,
+      "independent_acceptance": false,
+      "cases": [
+        {
+          "id": "tiptree-conserve",
+          "discovery_sha256": "d3b88bbf6b434bce8c41348b3d3267d9c67dde96a981d063fc0ff26f43a06905",
+          "top1_primary_exact_product_market": true,
+          "any_top3_primary_exact_product_market": true,
+          "negative_control": false,
+          "review_note": "First lead is exact Tiptree Strawberry Conserve primaryUKpage; URL differs only collection alias from frozenreference. Third lead is another package and does not add an independent success.",
+          "leads": [
+            {
+              "title": "Strawberry Conserve – Tiptree",
+              "url": "https://www.tiptree.com/products/tiptree-strawberry-conserve"
+            },
+            {
+              "title": "Tiptree Strawberry Conserve",
+              "url": "https://www.ocado.com/products/tiptree-strawberry-conserve/10531011"
+            },
+            {
+              "title": "Strawberry Preserve (24x28g)",
+              "url": "https://www.tiptree.com/products/tiptree-strawberry-preserve-24-x-28g"
+            }
+          ]
+        },
+        {
+          "id": "zenweixiang-pork-paper",
+          "discovery_sha256": "ad2afdf15d3d10722852b0fca229bfa52e1a706cacb8ecd117cc21cc51df83b0",
+          "top1_primary_exact_product_market": false,
+          "any_top3_primary_exact_product_market": false,
+          "negative_control": true,
+          "review_note": "Author-origin brand-spelling negative. All three returned brands differ from frozen query真味香. Response acknowledges brand uncertainty but offersanotherbrand; no exactprimarymatch. Not a claim about real user typo prevalence.",
+          "leads": [
+            {
+              "title": "B01古早味原味豬肉紙",
+              "url": "https://www.golden9.com.tw/product_detail.php?id=P0023&no=20200722019"
+            },
+            {
+              "title": "【霽月肉乾】豬肉紙－原味－180g - 霽月肉鬆肉乾總鋪 - iOPEN Mall",
+              "url": "https://mall.iopenmall.tw/026096/index.php?action=product_detail&prod_no=P2609603695184"
+            },
+            {
+              "title": "江記華隆肉乾肉紙 | 原味豬肉紙(200g)",
+              "url": "https://www.jiang-ji.com/product/c79/d116"
+            }
+          ]
+        },
+        {
+          "id": "sacla-basil-pesto",
+          "discovery_sha256": "b870fa81baf4a16441d5f3d032b1df3ecfe1bf2c5e0731ae804951689daae86a",
+          "top1_primary_exact_product_market": true,
+          "any_top3_primary_exact_product_market": true,
+          "negative_control": false,
+          "review_note": "First lead is exactUKSacla primaryproductURL; otherleads are retailers.",
+          "leads": [
+            {
+              "title": "Classic Basil Pesto | Italian Green Pesto | Sacla’\n – Sacla'",
+              "url": "https://www.sacla.co.uk/products/sacla-classic-basil-pesto"
+            },
+            {
+              "title": "Sacla' Classic Basil Pesto - Ocado",
+              "url": "https://www.ocado.com/products/sacla-classic-basil-pesto-12095011?sortBy=mostRecent"
+            },
+            {
+              "title": "Sacla' Classic Basil Pesto 190g - Morrisons Online Groceries & Offers",
+              "url": "https://groceries.morrisons.com/products/sacla-classic-basil-pesto-190g/100411093"
+            }
+          ]
+        },
+        {
+          "id": "cathedral-cauliflower",
+          "discovery_sha256": "692a8418db9c84fb3f7dbe37ad76d5c9544934fbe93b14f66fb499e78fd27a92",
+          "top1_primary_exact_product_market": false,
+          "any_top3_primary_exact_product_market": false,
+          "negative_control": false,
+          "review_note": "Only retailers returned. Firsttwo describe chilled350grecipe with different ingredients/nutrition; thirdIceland450g matches frozenvariant but is notprimarymanufacturer. Currentprimary-onlyselection would lack an eligiblelead.",
+          "leads": [
+            {
+              "title": "Cathedral City Cauliflower Cheese - Ocado",
+              "url": "https://www.ocado.com/products/cathedral-city-cauliflower-cheese/677087011"
+            },
+            {
+              "title": "Cathedral City Cauliflower Cheese 350g - Morrisons Online Groceries & Offers",
+              "url": "https://groceries.morrisons.com/products/cathedral-city-cauliflower-cheese/115081728"
+            },
+            {
+              "title": "Cathedral City Our Cauliflower Cheese 450g",
+              "url": "https://www.iceland.co.uk/p/cathedral-city-our-cauliflower-cheese-450g/88310.html"
+            }
+          ]
+        },
+        {
+          "id": "lyb-aiyu-seed",
+          "discovery_sha256": "3d4c7651446ae42bfae12dfa5f4dd5b7c8dd1b192301eea1f557c43e72f87e85",
+          "top1_primary_exact_product_market": true,
+          "any_top3_primary_exact_product_market": true,
+          "negative_control": false,
+          "review_note": "Firstlead exactTaiwan綠源寶dryseed200g primaryURL; remainingtwo are priceaggregators.",
+          "leads": [
+            {
+              "title": "愛玉籽 有機蔬菜食品-台灣綠源寶官方網站",
+              "url": "https://www.lyb189.com.tw/product_info.php?pid=866"
+            },
+            {
+              "title": "綠源寶愛玉籽 在購物網的價格推薦 - 2026年8月|FindPrice 價格網",
+              "url": "https://www.findprice.com.tw/a/%E7%B6%A0%E6%BA%90%E5%AF%B6%E6%84%9B%E7%8E%89%E7%B1%BD"
+            },
+            {
+              "title": "綠源寶愛玉籽 - FindPrice 價格網 2026年8月 精選購物推薦",
+              "url": "https://www.findprice.com.tw/g/%E7%B6%A0%E6%BA%90%E5%AF%B6%E6%84%9B%E7%8E%89%E7%B1%BD"
+            }
+          ]
+        },
+        {
+          "id": "alpro-vanilla-custard",
+          "discovery_sha256": "438bed0ae93069d22f4a817d7188fb0c7946e25491e5ead1f9cb209d1ac3d3a0",
+          "top1_primary_exact_product_market": true,
+          "any_top3_primary_exact_product_market": true,
+          "negative_control": false,
+          "review_note": "Firstlead exactUKAlpro525gprimaryURL. This is sourcefinding only: per100ml table stilldoesnotanswer per100g query. No inferred density.",
+          "leads": [
+            {
+              "title": "Alpro Deliciously Dairy Free Custard 525g",
+              "url": "https://www.alpro.com/en-gb/products/desserts/deliciously-dairy-free-custard"
+            },
+            {
+              "title": "Alpro Vanilla Custard - Morrisons Online Groceries & Offers",
+              "url": "https://groceries.morrisons.com/products/alpro-vanilla-custard/100179351"
+            },
+            {
+              "title": "Alpro Vanilla Dairy Free Soya Custard 525g",
+              "url": "https://www.tesco.com/groceries/en-GB/products/302301545"
+            }
+          ]
+        }
+      ],
+      "clean_query_subset": {
+        "denominator": 5,
+        "top1": 4,
+        "any_top3": 4
+      },
+      "scope": "Review of actualreturnednativeleadsagainstpredeclared primaryproductmarket criterion. Not sourcecapture, sourcechoice, numericanswer or single-tapworkflow success; sixcases are a subsetoforiginal24."
+    }
+  },
+  "gates": {
+    "capture_coverage": {
+      "value": 0.8333333333333334,
+      "threshold": 0.8,
+      "passed": true
+    },
+    "whole_case_captured": {
+      "value": 0.65,
+      "threshold": 0.9,
+      "passed": false
+    },
+    "discovery_any3": {
+      "value": 0.6666666666666666,
+      "threshold": 0.8,
+      "passed": false
+    },
+    "incorrect_declared_claims": {
+      "value": 15,
+      "maximum": 0,
+      "passed": false
+    },
+    "invented_unknown_fields": {
+      "value": 0,
+      "maximum": 0,
+      "passed": true
+    },
+    "fresh_answerable_cases": {
+      "value": 14,
+      "threshold": 12,
+      "passed": true
+    }
+  },
+  "all_gates_passed": false,
+  "new_provider_costs": {
+    "request_count": 26,
+    "known_cost_requests": 26,
+    "unknown_cost_requests": 0,
+    "known_reported_cost_usd": "0.584324675"
+  },
+  "independent_human_acceptance": false,
+  "confidence_calibrated": false,
+  "qualification": "Agent-reviewed prospective holdout on purposively chosen public product pages. Exact source/unit contract, not population accuracy, independent human validation, end-to-end UI or meal truth. Capture failures retain original24 denominator. Search is a separate test on six of the same24cases, not six new independent foods. Raw sources, model outputs and reference gold are unchanged."
+}
