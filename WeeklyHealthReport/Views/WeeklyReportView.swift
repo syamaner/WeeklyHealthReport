@@ -17,6 +17,7 @@ enum WeeklyReportRoute: String, Codable, Hashable {
     case notes
     case noteEditor
     case diagnostics
+    case privacy
 }
 
 @MainActor
@@ -293,6 +294,8 @@ struct WeeklyReportView: View {
                             navigation.protectCurrentPath()
                         }
                     )
+                case .privacy:
+                    PrivacyPolicyView()
                 case .diagnostics:
                     DeveloperDiagnosticsView(viewModel: viewModel)
                 }
@@ -417,6 +420,8 @@ struct WeeklyReportView: View {
             return [.dailyExport, .notes]
         case .noteEditor:
             return hasDraft ? [.dailyExport, .notes, .noteEditor] : [.dailyExport, .notes]
+        case .privacy:
+            return [.privacy]
         case .diagnostics:
             return []
         }
@@ -636,6 +641,8 @@ struct FoodIntakeHomeView: View {
                 }
                 Section("Review") {
                     NavigationLink(value: WeeklyReportRoute.healthReport) { Label("View health report", systemImage: "heart.text.square") }
+                    NavigationLink("Privacy policy", value: WeeklyReportRoute.privacy)
+                        .accessibilityIdentifier("privacyPolicyLink")
                 }
             }
         }

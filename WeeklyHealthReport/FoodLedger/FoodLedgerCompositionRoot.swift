@@ -39,8 +39,9 @@ final class FoodLedgerCompositionRoot {
             appropriateFor: nil,
             create: true
         )
-        let root = applicationSupport
-            .appendingPathComponent("WeeklyHealthReport", isDirectory: true)
+        let healthDirectory = applicationSupport.appendingPathComponent("WeeklyHealthReport", isDirectory: true)
+        try LocalHealthStorageDirectory.prepare(healthDirectory, fileManager: fileManager)
+        let root = healthDirectory
             .appendingPathComponent("FoodLedger", isDirectory: true)
             .appendingPathComponent("v1", isDirectory: true)
         inventoryURL = applicationSupport.appendingPathComponent("WeeklyHealthReport/Inventory/v1/inventory.sqlite")

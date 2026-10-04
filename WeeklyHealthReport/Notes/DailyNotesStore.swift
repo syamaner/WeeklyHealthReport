@@ -36,6 +36,7 @@ struct FileDailyNotesStore: DailyNotesPersisting {
     private let fileURL: URL
     private let fileManager: FileManager
     private let isProtectedDataAvailable: () -> Bool
+    private let prepareDirectory: (URL) throws -> Void
 
     var protectedDataAvailable: Bool { isProtectedDataAvailable() }
 
@@ -44,6 +45,9 @@ struct FileDailyNotesStore: DailyNotesPersisting {
             .appending(path: "WeeklyHealthReport", directoryHint: .isDirectory)
             .appending(path: "daily-notes-v1.json", directoryHint: .notDirectory),
         fileManager: FileManager = .default,
+        prepareDirectory: @escaping (URL) throws -> Void = {
+            try LocalHealthStorageDirectory.prepare($0)
+        },
         isProtectedDataAvailable: @escaping () -> Bool = {
             UIApplication.shared.isProtectedDataAvailable
         }
@@ -51,11 +55,13 @@ struct FileDailyNotesStore: DailyNotesPersisting {
         self.fileURL = fileURL
         self.fileManager = fileManager
         self.isProtectedDataAvailable = isProtectedDataAvailable
+        self.prepareDirectory = prepareDirectory
     }
 
     func load() throws -> DailyNotesDocument? {
         guard protectedDataAvailable else { throw DailyNotesStorageError.protectedDataUnavailable }
         do {
+            try prepareDirectory(fileURL.deletingLastPathComponent())
             guard fileManager.fileExists(atPath: fileURL.path) else { return nil }
             let data = try Data(contentsOf: fileURL)
             let document = try JSONDecoder().decode(DailyNotesDocument.self, from: data)
@@ -84,6 +90,7 @@ struct FileDailyNotesStore: DailyNotesPersisting {
 
     private func write(_ document: DailyNotesDocument) throws {
         let directory = fileURL.deletingLastPathComponent()
+        try prepareDirectory(directory)
         try fileManager.createDirectory(
             at: directory,
             withIntermediateDirectories: true,

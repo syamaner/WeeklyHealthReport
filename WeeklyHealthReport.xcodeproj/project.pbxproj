@@ -101,6 +101,9 @@
 		P0000000000000000000000D /* FoodBarcodeCapture in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000D /* FoodBarcodeCapture */; };
 		P0000000000000000000000E /* FoodGenericSearch in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000E /* FoodGenericSearch */; };
 		P0000000000000000000000F /* FoodInventoryImport in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000F /* FoodInventoryImport */; };
+		A00000000000000000000071 /* LocalHealthStorageDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000071 /* LocalHealthStorageDirectory.swift */; };
+		A00000000000000000000072 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000072 /* PrivacyPolicyView.swift */; };
+		A00000000000000000000073 /* privacy-policy.txt in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000073 /* privacy-policy.txt */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -202,6 +205,9 @@
 		B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLedgerCompositionRoot.swift; sourceTree = "<group>"; };
 		B96000000000000000000001 /* FoodVoiceCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodVoiceCapture.swift; sourceTree = "<group>"; };
 		B96000000000000000000002 /* FoodVoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodVoiceInputView.swift; sourceTree = "<group>"; };
+		B00000000000000000000071 /* LocalHealthStorageDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Utilities/LocalHealthStorageDirectory.swift"; sourceTree = "<group>"; };
+		B00000000000000000000072 /* PrivacyPolicyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Views/PrivacyPolicyView.swift"; sourceTree = "<group>"; };
+		B00000000000000000000073 /* privacy-policy.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "../docs/privacy-policy.txt"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -254,6 +260,9 @@
 			isa = PBXGroup;
 			children = (
 				B00000000000000000000001 /* WeeklyHealthReportApp.swift */,
+				B00000000000000000000073 /* privacy-policy.txt */,
+				B00000000000000000000072 /* PrivacyPolicyView.swift */,
+				B00000000000000000000071 /* LocalHealthStorageDirectory.swift */,
 				B0000000000000000000001F /* Assets.xcassets */,
 				G00000000000000000000003 /* Models */,
 				G00000000000000000000004 /* HealthKit */,
@@ -539,6 +548,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A0000000000000000000001B /* Assets.xcassets in Resources */,
+				A00000000000000000000073 /* privacy-policy.txt in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -557,6 +567,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				A00000000000000000000001 /* WeeklyHealthReportApp.swift in Sources */,
+				A00000000000000000000072 /* PrivacyPolicyView.swift in Sources */,
+				A00000000000000000000071 /* LocalHealthStorageDirectory.swift in Sources */,
 				A00000000000000000000002 /* ReportPeriod.swift in Sources */,
 				A00000000000000000000003 /* StepSummary.swift in Sources */,
 				A00000000000000000000004 /* HealthDataProviding.swift in Sources */,

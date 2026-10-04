@@ -1235,3 +1235,17 @@ check also passed. Independent review found no remaining P1/P2 issues. All
 79 frozen Swift/project hashes and all five shared fixture digests are unchanged.
 See [the acceptance runbook](docs/workout-reader-acceptance.md) for evidence and
 the separately authorised signed-device, HealthKit and real Drive boundaries.
+
+## Privacy prerequisites for internal release 19 — 4 October 2026
+
+| Change | Measured scope | Input tokens (cached) | Cache-write input | Output tokens | Total tokens | API-equivalent |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `WHR-PRIVACY-2026-10-04` | Bounded child implementation, policy, validation and review coordination | 3,731,874 (3,634,048) | 0 | 13,625 | 3,745,499 | $5.29 |
+
+Exact inherited model: `gpt-6-astra`, session `01a10423-e413-7cd2-9170-60633cbb7eda`. Baseline `2026-10-04T08:19:45.477Z`: input 13,853,257, cached 13,546,752, output 51,441, total 13,904,698. Final `2026-10-04T08:30:14.590Z`: input 17,585,131, cached 17,180,800, output 65,066, total 17,650,197. Reasoning 1,353 is a subset of output.
+
+Raw JSONL reconciliation reused the prior verified child/fork identity checks and validated each request delta against cumulative counters: 36 requests, largest input 140,803, 0 above 272,000. Official [Astra rates](https://developers.openai.com/api/docs/models/gpt-6-astra), checked 4 October 2026: USD10/M uncached input, 1/M cached, 12.50/M cache-write and 50/M output, with the documented long-context multipliers when applicable. Exact token-only API-equivalent USD 5.293558; this is not a subscription bill.
+
+Includes the narrow backup-exclusion/policy-access implementation, whole-app privacy documentation, focused and complete simulator validation, analysis and review coordination after the captured pre-edit boundary. Excludes preceding release preparation, root coordination, independent reviewer usage, this numeric insertion, subsequent protected delivery and signing/upload work. Those exclusions are not estimated. Private reproducible evidence: `/private/tmp/whr-privacy-accounting-baseline.json`, `/private/tmp/whr-privacy-accounting-final.json`, `/private/tmp/whr-privacy-usage-report.py`.
+
+Validation: 30 focused tests, 312 complete simulator tests, 97.26% domain coverage, Xcode analysis and unchanged 82 frozen input hashes. Independent review found no remaining P1/P2 code findings; policy wording corrections preceded the frozen gate. Public App Store questionnaire completion and supervised HealthKit/device acceptance remain separate, as recorded in the [internal-release privacy checkpoint](docs/internal-release-privacy-checkpoint.md).
