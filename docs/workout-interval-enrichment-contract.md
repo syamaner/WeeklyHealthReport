@@ -28,7 +28,7 @@ Keep existing 64-interval, 32768-byte message and rolling send limits. Test limi
 
 Read v1 and v2 recognized Watch metadata, validate identity, types, supported enums, chronological nonoverlapping bounds, unique segment/interval identity, count and ownership. States are notPacePrompt, supportedComplete, supportedIncomplete, unsupported, invalid. Retain basic workouts and visible statistics for all states. Historical iPhone metadata is not Watch ownership. Malformed recognized data cannot upgrade to complete. V1 has no interval distance; show unavailable, not zero.
 
-Daily schema 6 is assigned to workout enrichment. Existing v3 normal exports and v4 canonical-food projections keep their meanings; v5 remains reserved by the separately proposed food-write plan. The new runtime export emits v6 with workout enrichmentVersion 1. Golden v3/v4 regression fixtures remain. Preserve reporting-time-zone offset timestamp encoding, half-open selected-day membership, historic selected days and independent daily aggregates. Update cross-repository references that previously reserved v4 for workouts.
+Daily schema 6 is assigned to workout enrichment. Existing v3 normal exports and v4 canonical-food projections keep their meanings; v5 remains reserved by the separately proposed food-write plan. The initial runtime export emitted v6 with workout enrichmentVersion 1; current v7/enrichmentVersion 2 is defined by the accepted-distance correction below. Golden v3/v4 regression fixtures remain. Preserve reporting-time-zone offset timestamp encoding, half-open selected-day membership, historic selected days and independent daily aggregates. Update cross-repository references that previously reserved v4 for workouts.
 
 Drive admits the reviewed v6 workout envelope with the same exact-byte validation and historical-v2 cutoff/encoding-time ordering. It must still reject food payloads and standalone v4 until their separate transport scope is authorised; do not enable food transport via a broadened schema range. Preserve v1-v3 recovery, future-version rejection, canonical identity, cancellation and no-partial-publication behaviour.
 
@@ -39,3 +39,7 @@ Add only distanceWalkingRunning to existing user-initiated read authorization wh
 ## Verification and delivery
 
 Use shared synthetic complete/incomplete/zero-prefix v1 files unchanged, plus v2 valid/partial/reset/malformed/unsupported cases. Prove serialization, metadata mapping, retention/recovery, v1 history, idempotency, single writer, bounds, partial visibility, no raw-sample fan-out, coherent snapshots, cancellation, Drive admission and historical ordering. Focused tests first; then complete repository gates after executable content freezes. #116 remains the final signed-device producer/HealthKit/reader round trip; release availability is not acceptance.
+
+## Versioned accepted-distance correction
+
+The [approved aggregate-distance amendment](accepted-workout-distance-amendment.md) supersedes the original single native-distance assumption for new Wire3/Health3 and Daily7/enrichment2. Historical Wire1/2, Health1/2 and Daily6 retain their meanings. The reader performs only the explicitly bounded legacy associated-distance recovery described there; raw HR sample queries remain excluded.

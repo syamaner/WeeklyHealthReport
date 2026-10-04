@@ -677,7 +677,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         try await fetchWorkouts(in: period.interval)
     }
 
-    private func fetchWorkouts(in interval: DateInterval) async throws -> [WorkoutRecord] {
+    func fetchWorkouts(in interval: DateInterval, recoverAcceptedDistance: Bool = false) async throws -> [WorkoutRecord] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         let datePredicate = HKQuery.predicateForSamples(
             withStart: interval.start,
@@ -689,9 +689,8 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
             sortDescriptors: [SortDescriptor(\.startDate, order: .forward)]
         )
         let workouts = try await descriptor.result(for: store)
-        return workouts.map {
-            WorkoutHealthKitProjection.record($0, activityName: Self.workoutName($0.workoutActivityType))
-        }
+        return try await WorkoutHealthKitProjection.records(workouts, store: store,
+            recoverAcceptedDistance: recoverAcceptedDistance, activityName: Self.workoutName)
     }
 
     func fetchAsleepIntervals(
@@ -731,7 +730,8 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
 
     func fetchDailyHealthExportInputs(
         for window: DailyExportWindow,
-        nutritionSourceBundleIdentifier: String
+        nutritionSourceBundleIdentifier: String,
+        includeWorkoutEnrichment: Bool
     ) async throws -> DailyHealthExportInputs {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let previous = window.context.precedingEquivalent(
@@ -806,7 +806,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
             todayWatchSamples = try await fetchAppleWatchHeartRateSampleDates(in: window.day)
             todayActiveEnergy = try await fetchActiveEnergyKilocalories(in: window.day)
             todayExercise = try await fetchExerciseMinutes(in: window.day)
-            todayWorkouts = try await fetchWorkouts(in: window.day)
+            todayWorkouts = try await fetchWorkouts(in: window.day, recoverAcceptedDistance: includeWorkoutEnrichment)
         }
         let todaySleep = try await fetchAsleepIntervals(in: window.sleep)
         let todayMedications = supportsMedicationData && window.day.duration > 0

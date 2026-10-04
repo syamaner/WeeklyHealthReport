@@ -1,0 +1,310 @@
+{
+  "fixtureSchemaVersion": 3,
+  "synthetic": true,
+  "manifests": [
+    {
+      "schemaVersion": 3,
+      "kind": "manifest",
+      "summaryID": "00000000-0000-4000-8000-000000000114",
+      "revision": 1,
+      "workoutActivity": "indoorWalking",
+      "workoutStart": "2026-01-01T12:00:00.000Z",
+      "workoutEnd": null,
+      "final": false,
+      "localOutcome": null,
+      "intervals": [
+        {
+          "segmentIndex": 0,
+          "intervalIndex": 0,
+          "startedAt": "2026-01-01T12:00:10.000Z",
+          "endedAt": "2026-01-01T12:01:10.000Z",
+          "prescribed": {
+            "kind": "interval",
+            "speedKilometresPerHour": 3,
+            "inclinationPercent": 0
+          },
+          "effectiveSpeed": {
+            "kilometresPerHour": 3,
+            "source": "planned"
+          },
+          "effectiveInclination": {
+            "percent": 0,
+            "source": "planned"
+          },
+          "settledObservation": {
+            "observedAt": "2026-01-01T12:00:10.000Z",
+            "speedKilometresPerHour": 3,
+            "inclinationPercent": 0,
+            "provenance": "fr30zTreadmillDataCurrentEpoch"
+          },
+          "endReason": "paused",
+          "intervalDistance": {
+            "schemaVersion": 1,
+            "state": "observed",
+            "startCumulativeMetres": 100,
+            "endCumulativeMetres": 140,
+            "startObservedAt": "2026-01-01T12:00:10.000Z",
+            "endObservedAt": "2026-01-01T12:01:10.000Z",
+            "metres": 40,
+            "provenance": "fr30zCumulativeDistanceDelta"
+          }
+        }
+      ],
+      "distance": {
+        "state": "unavailable"
+      }
+    },
+    {
+      "schemaVersion": 3,
+      "kind": "manifest",
+      "summaryID": "00000000-0000-4000-8000-000000000114",
+      "revision": 2,
+      "workoutActivity": "indoorWalking",
+      "workoutStart": "2026-01-01T12:00:00.000Z",
+      "workoutEnd": "2026-01-01T12:02:40.000Z",
+      "final": true,
+      "localOutcome": "completed",
+      "intervals": [
+        {
+          "segmentIndex": 0,
+          "intervalIndex": 0,
+          "startedAt": "2026-01-01T12:00:10.000Z",
+          "endedAt": "2026-01-01T12:01:10.000Z",
+          "prescribed": {
+            "kind": "interval",
+            "speedKilometresPerHour": 3,
+            "inclinationPercent": 0
+          },
+          "effectiveSpeed": {
+            "kilometresPerHour": 3,
+            "source": "planned"
+          },
+          "effectiveInclination": {
+            "percent": 0,
+            "source": "planned"
+          },
+          "settledObservation": {
+            "observedAt": "2026-01-01T12:00:10.000Z",
+            "speedKilometresPerHour": 3,
+            "inclinationPercent": 0,
+            "provenance": "fr30zTreadmillDataCurrentEpoch"
+          },
+          "endReason": "paused",
+          "intervalDistance": {
+            "schemaVersion": 1,
+            "state": "observed",
+            "startCumulativeMetres": 100,
+            "endCumulativeMetres": 140,
+            "startObservedAt": "2026-01-01T12:00:10.000Z",
+            "endObservedAt": "2026-01-01T12:01:10.000Z",
+            "metres": 40,
+            "provenance": "fr30zCumulativeDistanceDelta"
+          }
+        },
+        {
+          "segmentIndex": 1,
+          "intervalIndex": 0,
+          "startedAt": "2026-01-01T12:01:30.000Z",
+          "endedAt": "2026-01-01T12:02:30.000Z",
+          "prescribed": {
+            "kind": "interval",
+            "speedKilometresPerHour": 3,
+            "inclinationPercent": 0
+          },
+          "effectiveSpeed": {
+            "kilometresPerHour": 3.5,
+            "source": "manualOverride"
+          },
+          "effectiveInclination": {
+            "percent": 0,
+            "source": "planned"
+          },
+          "settledObservation": {
+            "observedAt": "2026-01-01T12:01:30.000Z",
+            "speedKilometresPerHour": 3.5,
+            "inclinationPercent": 0,
+            "provenance": "fr30zTreadmillDataCurrentEpoch"
+          },
+          "endReason": "completed",
+          "intervalDistance": {
+            "schemaVersion": 1,
+            "state": "observed",
+            "startCumulativeMetres": 150,
+            "endCumulativeMetres": 190,
+            "startObservedAt": "2026-01-01T12:01:30.000Z",
+            "endObservedAt": "2026-01-01T12:02:29.000Z",
+            "metres": 40,
+            "provenance": "fr30zCumulativeDistanceDelta"
+          }
+        }
+      ],
+      "distance": {
+        "state": "accepted",
+        "metres": 0,
+        "provenance": "fr30zCumulativeDistanceDelta"
+      }
+    }
+  ],
+  "phoneReceivedAckRevision": 2,
+  "watchReceivedFinalizeRevision": 2,
+  "expected": {
+    "workout": {
+      "startedAt": "2026-01-01T12:00:00.000Z",
+      "endedAt": "2026-01-01T12:02:40.000Z",
+      "durationSeconds": 140,
+      "activity": "walking",
+      "location": "indoor",
+      "metadata": {
+        "com.otherweather.PromptPace.interchangeSchemaVersion": 3,
+        "com.otherweather.PromptPace.summaryID": "00000000-0000-4000-8000-000000000114",
+        "com.otherweather.PromptPace.ownership": "watchPrimary",
+        "com.otherweather.PromptPace.interchangeStatus": "complete",
+        "com.otherweather.PromptPace.manifestRevision": 2,
+        "com.otherweather.PromptPace.distanceProvenance": "unavailable",
+        "HKMetadataKeySyncIdentifier": "com.otherweather.PromptPace.workout.00000000-0000-4000-8000-000000000114",
+        "HKMetadataKeySyncVersion": 1,
+        "com.otherweather.PromptPace.intervalCount": 2,
+        "com.otherweather.PromptPace.acceptedDistanceSchemaVersion": 1,
+        "com.otherweather.PromptPace.acceptedDistanceState": "accepted",
+        "com.otherweather.PromptPace.acceptedDistanceMetres": "0",
+        "com.otherweather.PromptPace.acceptedDistanceProvenance": "fr30zCumulativeDistanceDelta",
+        "com.otherweather.PromptPace.nativeDistanceSampleState": "suppressed",
+        "com.otherweather.PromptPace.nativeDistanceSampleReason": "zeroAggregate"
+      },
+      "statistics": {
+        "heartRate": {
+          "state": "available",
+          "unit": "beatsPerMinute",
+          "minimum": 90,
+          "average": 100,
+          "maximum": 110,
+          "provenance": "healthKitWorkoutStatistics"
+        },
+        "activeEnergy": {
+          "state": "available",
+          "unit": "kilocalories",
+          "sum": 12,
+          "provenance": "healthKitWorkoutStatistics",
+          "interpretation": "healthKitCalculationEstimate"
+        }
+      },
+      "distance": {
+        "state": "unavailable"
+      },
+      "activities": [
+        {
+          "activityID": "00000000-0000-4000-8000-000000000001",
+          "startedAt": "2026-01-01T12:00:10.000Z",
+          "endedAt": "2026-01-01T12:01:10.000Z",
+          "durationSeconds": 60,
+          "activity": "walking",
+          "location": "indoor",
+          "metadata": {
+            "com.otherweather.PromptPace.timelineSchemaVersion": 1,
+            "com.otherweather.PromptPace.summaryID": "00000000-0000-4000-8000-000000000114",
+            "com.otherweather.PromptPace.segmentIndex": 0,
+            "com.otherweather.PromptPace.intervalIndex": 0,
+            "com.otherweather.PromptPace.prescribedSegmentKind": "interval",
+            "com.otherweather.PromptPace.prescribedSpeedKilometresPerHour": 3,
+            "com.otherweather.PromptPace.prescribedInclinationPercent": 0,
+            "com.otherweather.PromptPace.effectiveTargetSpeedKilometresPerHour": 3,
+            "com.otherweather.PromptPace.effectiveTargetInclinationPercent": 0,
+            "com.otherweather.PromptPace.speedTargetSource": "planned",
+            "com.otherweather.PromptPace.inclinationTargetSource": "planned",
+            "com.otherweather.PromptPace.observedSpeedKilometresPerHour": 3,
+            "com.otherweather.PromptPace.observedInclinationPercent": 0,
+            "com.otherweather.PromptPace.observedAt": "2026-01-01T12:00:10.000Z",
+            "com.otherweather.PromptPace.observationProvenance": "fr30zTreadmillDataCurrentEpoch",
+            "com.otherweather.PromptPace.intervalEndReason": "paused",
+            "com.otherweather.PromptPace.intervalDistanceSchemaVersion": 1,
+            "com.otherweather.PromptPace.intervalDistanceState": "observed",
+            "com.otherweather.PromptPace.intervalDistanceStartCumulativeMetres": 100,
+            "com.otherweather.PromptPace.intervalDistanceEndCumulativeMetres": 140,
+            "com.otherweather.PromptPace.intervalDistanceStartObservedAt": "2026-01-01T12:00:10.000Z",
+            "com.otherweather.PromptPace.intervalDistanceEndObservedAt": "2026-01-01T12:01:10.000Z",
+            "com.otherweather.PromptPace.intervalDistanceMetres": 40,
+            "com.otherweather.PromptPace.intervalDistanceProvenance": "fr30zCumulativeDistanceDelta"
+          },
+          "statistics": {
+            "heartRate": {
+              "state": "available",
+              "unit": "beatsPerMinute",
+              "minimum": 90,
+              "average": 100,
+              "maximum": 110,
+              "provenance": "healthKitActivityStatistics"
+            },
+            "activeEnergy": {
+              "state": "available",
+              "unit": "kilocalories",
+              "sum": 4,
+              "provenance": "healthKitActivityStatistics",
+              "interpretation": "healthKitCalculationEstimate"
+            }
+          }
+        },
+        {
+          "activityID": "00000000-0000-4000-8000-000000000002",
+          "startedAt": "2026-01-01T12:01:30.000Z",
+          "endedAt": "2026-01-01T12:02:30.000Z",
+          "durationSeconds": 60,
+          "activity": "walking",
+          "location": "indoor",
+          "metadata": {
+            "com.otherweather.PromptPace.timelineSchemaVersion": 1,
+            "com.otherweather.PromptPace.summaryID": "00000000-0000-4000-8000-000000000114",
+            "com.otherweather.PromptPace.segmentIndex": 1,
+            "com.otherweather.PromptPace.intervalIndex": 0,
+            "com.otherweather.PromptPace.prescribedSegmentKind": "interval",
+            "com.otherweather.PromptPace.prescribedSpeedKilometresPerHour": 3,
+            "com.otherweather.PromptPace.prescribedInclinationPercent": 0,
+            "com.otherweather.PromptPace.effectiveTargetSpeedKilometresPerHour": 3.5,
+            "com.otherweather.PromptPace.effectiveTargetInclinationPercent": 0,
+            "com.otherweather.PromptPace.speedTargetSource": "manualOverride",
+            "com.otherweather.PromptPace.inclinationTargetSource": "planned",
+            "com.otherweather.PromptPace.observedSpeedKilometresPerHour": 3.5,
+            "com.otherweather.PromptPace.observedInclinationPercent": 0,
+            "com.otherweather.PromptPace.observedAt": "2026-01-01T12:01:30.000Z",
+            "com.otherweather.PromptPace.observationProvenance": "fr30zTreadmillDataCurrentEpoch",
+            "com.otherweather.PromptPace.intervalEndReason": "completed",
+            "com.otherweather.PromptPace.intervalDistanceSchemaVersion": 1,
+            "com.otherweather.PromptPace.intervalDistanceState": "observed",
+            "com.otherweather.PromptPace.intervalDistanceStartCumulativeMetres": 150,
+            "com.otherweather.PromptPace.intervalDistanceEndCumulativeMetres": 190,
+            "com.otherweather.PromptPace.intervalDistanceStartObservedAt": "2026-01-01T12:01:30.000Z",
+            "com.otherweather.PromptPace.intervalDistanceEndObservedAt": "2026-01-01T12:02:29.000Z",
+            "com.otherweather.PromptPace.intervalDistanceMetres": 40,
+            "com.otherweather.PromptPace.intervalDistanceProvenance": "fr30zCumulativeDistanceDelta"
+          },
+          "statistics": {
+            "heartRate": {
+              "state": "available",
+              "unit": "beatsPerMinute",
+              "minimum": 90,
+              "average": 100,
+              "maximum": 110,
+              "provenance": "healthKitActivityStatistics"
+            },
+            "activeEnergy": {
+              "state": "available",
+              "unit": "kilocalories",
+              "sum": 5,
+              "provenance": "healthKitActivityStatistics",
+              "interpretation": "healthKitCalculationEstimate"
+            }
+          }
+        }
+      ],
+      "sourceBundleIdentifier": "com.otherweather.PromptPace.watchkitapp"
+    },
+    "readerState": "supportedComplete",
+    "phoneSaveCount": 0,
+    "watchFinishCount": 1,
+    "treadmillCommandCount": 0
+  },
+  "nativeDistanceSampleDecision": {
+    "state": "suppressed",
+    "reason": "zeroAggregate"
+  },
+  "note": "Synthetic contract fixture, not a native saved-workout round trip. Metres are independent aggregate evidence, never native statistics reconstructed across pauses."
+}
