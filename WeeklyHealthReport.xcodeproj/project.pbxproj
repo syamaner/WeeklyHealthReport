@@ -12,6 +12,7 @@
 		A00000000000000000000003 /* StepSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000003 /* StepSummary.swift */; };
 		A00000000000000000000004 /* HealthDataProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000004 /* HealthDataProviding.swift */; };
 		A00000000000000000000005 /* HealthKitClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000005 /* HealthKitClient.swift */; };
+		F11600000000000000000002 /* WorkoutHealthKitProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11700000000000000000002 /* WorkoutHealthKitProjection.swift */; };
 		A00000000000000000000006 /* WeeklyReportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000006 /* WeeklyReportViewModel.swift */; };
 		A00000000000000000000007 /* WeeklyReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000007 /* WeeklyReportView.swift */; };
 		A00000000000000000000008 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B00000000000000000000008 /* HealthKit.framework */; };
@@ -24,9 +25,11 @@
 		A0000000000000000000000F /* BodyComposition.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000012 /* BodyComposition.swift */; };
 		A00000000000000000000010 /* HeartMetricSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000013 /* HeartMetricSummary.swift */; };
 		A00000000000000000000011 /* ActivitySummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000014 /* ActivitySummary.swift */; };
+		F11600000000000000000001 /* WorkoutEnrichment.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11700000000000000000001 /* WorkoutEnrichment.swift */; };
 		A00000000000000000000012 /* SleepSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000015 /* SleepSummary.swift */; };
 		A00000000000000000000014 /* HeartMetricSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000017 /* HeartMetricSummaryTests.swift */; };
 		A00000000000000000000015 /* ActivitySummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000018 /* ActivitySummaryTests.swift */; };
+		F11600000000000000000003 /* WorkoutEnrichmentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11700000000000000000003 /* WorkoutEnrichmentTests.swift */; };
 		A00000000000000000000016 /* SleepSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000019 /* SleepSummaryTests.swift */; };
 		A00000000000000000000017 /* HealthReportFormatterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000001A /* HealthReportFormatterTests.swift */; };
 		A00000000000000000000018 /* DeveloperDiagnosticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000001B /* DeveloperDiagnosticsView.swift */; };
@@ -116,6 +119,7 @@
 		B00000000000000000000003 /* StepSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepSummary.swift; sourceTree = "<group>"; };
 		B00000000000000000000004 /* HealthDataProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthDataProviding.swift; sourceTree = "<group>"; };
 		B00000000000000000000005 /* HealthKitClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitClient.swift; sourceTree = "<group>"; };
+		F11700000000000000000002 /* WorkoutHealthKitProjection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutHealthKitProjection.swift; sourceTree = "<group>"; };
 		B00000000000000000000006 /* WeeklyReportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportViewModel.swift; sourceTree = "<group>"; };
 		B00000000000000000000007 /* WeeklyReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportView.swift; sourceTree = "<group>"; };
 		B00000000000000000000008 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
@@ -131,9 +135,11 @@
 		B00000000000000000000012 /* BodyComposition.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BodyComposition.swift; sourceTree = "<group>"; };
 		B00000000000000000000013 /* HeartMetricSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartMetricSummary.swift; sourceTree = "<group>"; };
 		B00000000000000000000014 /* ActivitySummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitySummary.swift; sourceTree = "<group>"; };
+		F11700000000000000000001 /* WorkoutEnrichment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutEnrichment.swift; sourceTree = "<group>"; };
 		B00000000000000000000015 /* SleepSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSummary.swift; sourceTree = "<group>"; };
 		B00000000000000000000017 /* HeartMetricSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartMetricSummaryTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000018 /* ActivitySummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActivitySummaryTests.swift; sourceTree = "<group>"; };
+		F11700000000000000000003 /* WorkoutEnrichmentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutEnrichmentTests.swift; sourceTree = "<group>"; };
 		B00000000000000000000019 /* SleepSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepSummaryTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000001A /* HealthReportFormatterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthReportFormatterTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000001B /* DeveloperDiagnosticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperDiagnosticsView.swift; sourceTree = "<group>"; };
@@ -272,6 +278,7 @@
 				B00000000000000000000012 /* BodyComposition.swift */,
 				B00000000000000000000013 /* HeartMetricSummary.swift */,
 				B00000000000000000000014 /* ActivitySummary.swift */,
+				F11700000000000000000001 /* WorkoutEnrichment.swift */,
 				B00000000000000000000015 /* SleepSummary.swift */,
 				B0000000000000000000001C /* WatchCoverageSummary.swift */,
 				B00000000000000000000020 /* WaistMeasurement.swift */,
@@ -291,6 +298,7 @@
 			children = (
 				B00000000000000000000004 /* HealthDataProviding.swift */,
 				B00000000000000000000005 /* HealthKitClient.swift */,
+				F11700000000000000000002 /* WorkoutHealthKitProjection.swift */,
 				B00000000000000000000049 /* NutritionQueryCatalogue.swift */,
 				B0000000000000000000002C /* DailyHealthExportService.swift */,
 			);
@@ -326,6 +334,7 @@
 				B00000000000000000000011 /* BodyCompositionTests.swift */,
 				B00000000000000000000017 /* HeartMetricSummaryTests.swift */,
 				B00000000000000000000018 /* ActivitySummaryTests.swift */,
+				F11700000000000000000003 /* WorkoutEnrichmentTests.swift */,
 				B00000000000000000000019 /* SleepSummaryTests.swift */,
 				B0000000000000000000001A /* HealthReportFormatterTests.swift */,
 				B0000000000000000000001D /* WatchCoverageSummaryTests.swift */,
@@ -552,6 +561,7 @@
 				A00000000000000000000003 /* StepSummary.swift in Sources */,
 				A00000000000000000000004 /* HealthDataProviding.swift in Sources */,
 				A00000000000000000000005 /* HealthKitClient.swift in Sources */,
+				F11600000000000000000002 /* WorkoutHealthKitProjection.swift in Sources */,
 				A00000000000000000000043 /* NutritionQueryCatalogue.swift in Sources */,
 				A00000000000000000000006 /* WeeklyReportViewModel.swift in Sources */,
 				A00000000000000000000007 /* WeeklyReportView.swift in Sources */,
@@ -568,6 +578,7 @@
 				A0000000000000000000000F /* BodyComposition.swift in Sources */,
 				A00000000000000000000010 /* HeartMetricSummary.swift in Sources */,
 				A00000000000000000000011 /* ActivitySummary.swift in Sources */,
+				F11600000000000000000001 /* WorkoutEnrichment.swift in Sources */,
 				A00000000000000000000012 /* SleepSummary.swift in Sources */,
 				A0000000000000000000003C /* ReportDocument.swift in Sources */,
 				A00000000000000000000045 /* MetricState.swift in Sources */,
@@ -610,6 +621,7 @@
 				A0000000000000000000000E /* BodyCompositionTests.swift in Sources */,
 				A00000000000000000000014 /* HeartMetricSummaryTests.swift in Sources */,
 				A00000000000000000000015 /* ActivitySummaryTests.swift in Sources */,
+				F11600000000000000000003 /* WorkoutEnrichmentTests.swift in Sources */,
 				A00000000000000000000016 /* SleepSummaryTests.swift in Sources */,
 				A00000000000000000000017 /* HealthReportFormatterTests.swift in Sources */,
 				A0000000000000000000001A /* WatchCoverageSummaryTests.swift in Sources */,

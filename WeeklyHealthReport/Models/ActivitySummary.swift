@@ -5,6 +5,7 @@ struct WorkoutRecord: Equatable, Identifiable {
     let startDate: Date
     let duration: TimeInterval
     let activityName: String
+    var enrichment: WorkoutEnrichment? = nil
 }
 
 struct WorkoutSummary: Equatable {

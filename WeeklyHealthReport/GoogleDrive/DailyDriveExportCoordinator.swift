@@ -2,7 +2,7 @@ import DriveExportKit
 import Foundation
 
 struct DailyHealthExportIdentityPolicy: DrivePayloadIdentityPolicy {
-    // Versioned refinement: cutoff remains primary; only full historical schema-3
+    // Versioned refinement: cutoff remains primary; full historical schema-3/6
     // snapshots use encoding time to order corrections at an unchanged cutoff.
     static let historicalOrderingVersion = "historical-v2"
     let ownerPropertyKey = "whrDailyCanonical"
@@ -11,14 +11,28 @@ struct DailyHealthExportIdentityPolicy: DrivePayloadIdentityPolicy {
     func validate(payload: Data, reportDate: String) throws -> DrivePayloadIdentity {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .custom { decoder in
+            let value = try decoder.singleValueContainer().decode(String.self)
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            guard let date = formatter.date(from: value) else { throw DailyDriveExportFailure.invalidPayload }
+            return date
+        }
         guard let envelope = try? decoder.decode(DailyHealthExportEnvelope.self, from: payload),
-              (1...3).contains(envelope.schemaVersion),
+              [1, 2, 3, 6].contains(envelope.schemaVersion),
+              envelope.today.foodLog == nil, envelope.today.foodNutritionSummary == nil,
               envelope.reportDate == reportDate,
               try DailyHealthExportSerializer.encode(envelope) == payload,
               let dataAsOf = try? timestamp(envelope.dataAsOf),
               let exportedAt = try? timestamp(envelope.exportedAt),
               exportedAt >= dataAsOf else {
             throw DailyDriveExportFailure.invalidPayload
+        }
+        if let workouts = envelope.today.workouts.data {
+            guard workouts.allSatisfy({ workout in
+                guard let enrichment = workout.enrichment else { return true }
+                return envelope.schemaVersion == 6 && WorkoutEnrichmentReader.validatesExport(enrichment)
+            }) else { throw DailyDriveExportFailure.invalidPayload }
         }
         if envelope.schemaVersion == 1 {
             guard envelope.today.nutrition == nil,
@@ -50,7 +64,7 @@ struct DailyHealthExportIdentityPolicy: DrivePayloadIdentityPolicy {
             }
         }
         let orderingToken: String
-        if envelope.schemaVersion == 3, try isHistorical(envelope) {
+        if [3, 6].contains(envelope.schemaVersion), try isHistorical(envelope) {
             orderingToken = "\(Self.historicalOrderingVersion)|\(envelope.dataAsOf)|\(envelope.exportedAt)"
         } else {
             orderingToken = envelope.dataAsOf

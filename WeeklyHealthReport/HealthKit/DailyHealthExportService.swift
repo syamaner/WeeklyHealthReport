@@ -59,6 +59,7 @@ struct DailyHealthExportService {
         nutritionSourceBundleIdentifier: String?,
         selectedDay: DailyNoteDayID? = nil
     ) async throws -> DailyHealthExportResult {
+        try Task.checkCancellation()
         let cutoff = now()
         let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar, selectedDay: selectedDay)
         let notesSnapshot: DailyNotesSnapshot
@@ -101,11 +102,14 @@ struct DailyHealthExportService {
             window: window,
             exportedAt: now(),
             inputs: inputs,
-            notes: notesSnapshot.notes
+            notes: notesSnapshot.notes,
+            includeWorkoutEnrichment: true
         )
+        let bytes = try DailyHealthExportSerializer.encode(envelope)
+        try Task.checkCancellation()
         return DailyHealthExportResult(
             envelope: envelope,
-            bytes: try DailyHealthExportSerializer.encode(envelope),
+            bytes: bytes,
             notesSnapshot: notesSnapshot
         )
     }
