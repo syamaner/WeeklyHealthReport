@@ -1249,3 +1249,23 @@ Raw JSONL reconciliation reused the prior verified child/fork identity checks an
 Includes the narrow backup-exclusion/policy-access implementation, whole-app privacy documentation, focused and complete simulator validation, analysis and review coordination after the captured pre-edit boundary. Excludes preceding release preparation, root coordination, independent reviewer usage, this numeric insertion, subsequent protected delivery and signing/upload work. Those exclusions are not estimated. Private reproducible evidence: `/private/tmp/whr-privacy-accounting-baseline.json`, `/private/tmp/whr-privacy-accounting-final.json`, `/private/tmp/whr-privacy-usage-report.py`.
 
 Validation: 30 focused tests, 312 complete simulator tests, 97.26% domain coverage, Xcode analysis and unchanged 82 frozen input hashes. Independent review found no remaining P1/P2 code findings; policy wording corrections preceded the frozen gate. Public App Store questionnaire completion and supervised HealthKit/device acceptance remain separate, as recorded in the [internal-release privacy checkpoint](docs/internal-release-privacy-checkpoint.md).
+
+
+## Internal TestFlight build19 delivery — 4 October 2026
+
+| Change | Measured scope | Input tokens (cached) | Cache-write input | Output tokens | Total tokens | API-equivalent |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| `WHR-INTERNAL-19-2026-10-04` | Two exact child-session release intervals, excluding the separately recorded privacy implementation | 33,627,406 (33,038,336) | 0 | 55,614 | 33,683,020 | $41.71 |
+
+Exact inherited model: `gpt-6-astra`, session `01a10423-e413-7cd2-9170-60633cbb7eda`. The intervals below deliberately omit the already-recorded `WHR-PRIVACY-2026-10-04` phase; no tokens are counted twice. Reasoning 16,195 is a subset of output.
+
+| Interval | Start UTC | End UTC | Input counters | Cached counters | Output counters | Total counters |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 1 | 2026-10-04T08:07:12.289Z | 2026-10-04T08:19:45.477Z | 8,549,099 → 13,853,257 | 8,362,112 → 13,546,752 | 42,716 → 51,441 | 8,591,815 → 13,904,698 |
+| 2 | 2026-10-04T08:30:14.590Z | 2026-10-04T09:35:58.401Z | 17,585,131 → 45,908,379 | 17,180,800 → 45,034,496 | 65,066 → 111,955 | 17,650,197 → 46,020,334 |
+
+Raw JSONL reconciliation verified the child/fork identities, inherited metadata, every event's model and request/cumulative deltas without altering the transcript. The two intervals contain 238 requests; largest input 217,327, none above272,000. Official [Astra rates](https://developers.openai.com/api/docs/models/gpt-6-astra), checked4October2026: USD10/M uncached input,1/M cached,12.50/M cache-write,50/M output; documented long-context multipliers apply when triggered. This is a token-only API-equivalent comparison, not a subscription bill.
+
+Includes preceding release preparation, archive-path investigation, post-privacy protected delivery and CI failure investigation/retry, signing/export/upload, App Store Connect policy/test-note/audience checks, receipt preparation and this child's PacePrompt24 UI support. Excludes parent and independent reviewer usage, the separately ledgered privacy implementation, this final numeric insertion and subsequent receipt-PR review corrections, delivery, private retention and handoff. Missing usage is not estimated. Exact interval reports and reconciliation script are retained privately with the release evidence.
+
+Result: build0.1.1(19) Testing for the existing internal group; one upload, no audience expansion. Actual uploaded and local-export IPA hashes, the earlier build17 artifact caveat, failed first PR CI attempt, successful exact-main checks and physical acceptance limits are recorded in the [delivery receipt](docs/internal-testflight-build19.md).
