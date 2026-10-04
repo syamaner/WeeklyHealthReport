@@ -2,7 +2,7 @@ import Foundation
 import CoreFoundation
 import HealthKit
 
-/// One materialized workout query supplies every statistic; this adapter issues no sample queries.
+/// Materialized native statistics remain independent of narrowly recovered legacy distance evidence.
 enum WorkoutHealthKitProjection {
     static func record(_ workout: HKWorkout, activityName: String) -> WorkoutRecord {
         let heartRate = HKQuantityType(.heartRate)
@@ -24,11 +24,50 @@ enum WorkoutHealthKitProjection {
                 #endif
                 return result
             })
+        input.sourceBundleIdentifier = workout.sourceRevision.source.bundleIdentifier
         #if compiler(>=6.4)
         if #available(iOS 27.0, *) { input.zones = zones(workout.zoneGroup(for: heartRate)) }
         #endif
         return WorkoutRecord(id: workout.uuid, startDate: workout.startDate, duration: workout.duration,
                              activityName: activityName, enrichment: WorkoutEnrichmentReader.read(input))
+    }
+
+    /// Query only exact associated legacy aggregate identities, in bounded batches.
+    /// New v3 metadata and unrelated workouts cause no sample query.
+    static func records(_ workouts: [HKWorkout], store: HKHealthStore, recoverAcceptedDistance: Bool = true, activityName: (HKWorkoutActivityType) -> String) async throws -> [WorkoutRecord] {
+        var records = workouts.map { record($0, activityName: activityName($0.workoutActivityType)) }
+        let native = Dictionary(workouts.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
+        let requests = zip(workouts, records).compactMap { workout, record in
+            record.enrichment.flatMap { LegacyWorkoutDistanceRequest.make(workoutID: workout.uuid, source: workout.sourceRevision.source.bundleIdentifier, enrichment: $0) }
+        }
+        let recovered = try await LegacyWorkoutDistanceRecovery.resolve(requests, enabled: recoverAcceptedDistance) { batch, limit in
+            let alternatives = try batch.map { request -> NSPredicate in
+                guard let workout = native[request.workoutID] else { throw WorkoutAcceptedDistancePolicy.Invalid.metadata }
+                return NSCompoundPredicate(andPredicateWithSubpredicates: [
+                    HKQuery.predicateForObjects(from: workout),
+                    HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeySyncIdentifier, allowedValues: [request.syncIdentifier])
+                ])
+            }
+            let descriptor = HKSampleQueryDescriptor(predicates: [.quantitySample(type: HKQuantityType(.distanceWalkingRunning),
+                predicate: NSCompoundPredicate(orPredicateWithSubpredicates: alternatives))], sortDescriptors: [], limit: limit)
+            return try await descriptor.result(for: store).map(legacyDistanceSample)
+
+        }
+        for index in records.indices {
+            if let distance = recovered[records[index].id] { records[index].enrichment?.acceptedDistance = distance }
+        }
+        try Task.checkCancellation()
+        return records
+    }
+
+    static func legacyDistanceSample(_ sample: HKQuantitySample) -> LegacyWorkoutDistanceSample {
+        let version: Int?
+        if let number = sample.metadata?[HKMetadataKeySyncVersion] as? NSNumber,
+           CFGetTypeID(number) != CFBooleanGetTypeID() { version = Int(exactly: number) } else { version = nil }
+        return LegacyWorkoutDistanceSample(id: sample.uuid,
+            syncIdentifier: sample.metadata?[HKMetadataKeySyncIdentifier] as? String, syncVersion: version,
+            sourceBundleIdentifier: sample.sourceRevision.source.bundleIdentifier,
+            start: sample.startDate, end: sample.endDate, metres: sample.quantity.doubleValue(for: .meter()))
     }
 
     static func metadata(_ values: [String: Any]?) -> [String: WorkoutMetadataValue] {

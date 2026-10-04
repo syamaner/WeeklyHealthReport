@@ -824,7 +824,7 @@ enum DailyHealthExportBuilder {
             nutrition: nutrition.context
         )
         return DailyHealthExportEnvelope(
-            schemaVersion: includeWorkoutEnrichment ? 6 : 3,
+            schemaVersion: includeWorkoutEnrichment ? 7 : 3,
             reportDate: window.reportDate,
             timeZone: window.timeZoneIdentifier,
             dataAsOf: timestamp(window.cutoff),

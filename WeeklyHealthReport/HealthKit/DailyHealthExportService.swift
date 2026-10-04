@@ -8,7 +8,8 @@ protocol DailyHealthExportDataProviding {
     func fetchVisibleNutritionSources() async throws -> [NutritionSource]
     func fetchDailyHealthExportInputs(
         for window: DailyExportWindow,
-        nutritionSourceBundleIdentifier: String
+        nutritionSourceBundleIdentifier: String,
+        includeWorkoutEnrichment: Bool
     ) async throws -> DailyHealthExportInputs
 }
 
@@ -57,7 +58,8 @@ struct DailyHealthExportService {
 
     func refresh(
         nutritionSourceBundleIdentifier: String?,
-        selectedDay: DailyNoteDayID? = nil
+        selectedDay: DailyNoteDayID? = nil,
+        includeWorkoutEnrichment: Bool = true
     ) async throws -> DailyHealthExportResult {
         try Task.checkCancellation()
         let cutoff = now()
@@ -84,7 +86,8 @@ struct DailyHealthExportService {
         }
         let inputs = try await healthData.fetchDailyHealthExportInputs(
             for: window,
-            nutritionSourceBundleIdentifier: nutritionSourceBundleIdentifier
+            nutritionSourceBundleIdentifier: nutritionSourceBundleIdentifier,
+            includeWorkoutEnrichment: includeWorkoutEnrichment
         )
         guard inputs.nutrition.source.bundleIdentifier == nutritionSourceBundleIdentifier else {
             throw DailyHealthExportError.nutritionSourceUnavailable
@@ -103,7 +106,7 @@ struct DailyHealthExportService {
             exportedAt: now(),
             inputs: inputs,
             notes: notesSnapshot.notes,
-            includeWorkoutEnrichment: true
+            includeWorkoutEnrichment: includeWorkoutEnrichment
         )
         let bytes = try DailyHealthExportSerializer.encode(envelope)
         try Task.checkCancellation()

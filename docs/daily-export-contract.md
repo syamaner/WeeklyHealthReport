@@ -54,7 +54,7 @@ recovery, or queues later work.
   rejected, never relabelled. Changing selection clears the preview and requires
   a fresh review; upload stays bound to the frozen canonical date and exact bytes.
 - Historical canonical ordering is explicitly versioned as `historical-v2`.
-  Schema-3 and schema-6 full historical-day snapshots use the opaque metadata/registry token
+  Schema-3, schema-6 and schema-7 full historical-day snapshots use the opaque metadata/registry token
   `historical-v2|data_as_of|exported_at`. Compare cutoff first, then encoding time
   only for equal cutoffs. Timestamp-only legacy identities retain their original
   ordering; when compared with v2 their secondary time is the cutoff. A later
@@ -75,11 +75,11 @@ recovery, or queues later work.
 
 ## JSON envelope
 
-Workout enrichment uses schema **6** under [the interval contract](workout-interval-enrichment-contract.md). This preserves v3 notes/nutrition and adds optional `today.workouts.data[].enrichment` with `enrichment_version: 1`; v4 remains the separate canonical-food projection and v5 remains reserved for the proposed food-write plan. Runtime previews emit v6. Existing v3/v4 fixtures keep their meanings. Drive admits v6 with the reviewed exact-byte and historical-v2 ordering rules, and rejects both canonical-food fields at every admitted version. There is no food transport expansion.
+The initial workout enrichment uses schema **6** under [the interval contract](workout-interval-enrichment-contract.md). This preserves v3 notes/nutrition and adds optional `today.workouts.data[].enrichment` with `enrichment_version: 1`; v4 remains the separate canonical-food projection and v5 remains reserved for the proposed food-write plan. Runtime previews now emit v7 under [the accepted-distance amendment](accepted-workout-distance-amendment.md), with enrichment version 2 and separately evidenced accepted treadmill distance; v6/enrichment1 keeps its existing meaning. Existing v3/v4 fixtures keep their meanings. Drive admits v6 and v7 with the reviewed exact-byte and historical-v2 ordering rules, and rejects both canonical-food fields at every admitted version. There is no food transport expansion.
 
-The enrichment carries end time, independently available workout/activity heart-rate summaries and active energy, native zone availability/boundaries/source, recognised PacePrompt ownership/identity/completeness, and ordered activities retaining planned segment/executed sub-interval identity. Timestamps retain reporting-time-zone offsets; nested observation timestamps include milliseconds. Whole-workout distance requires accepted producer provenance and visible statistics. V2 interval distance retains actual endpoint observations and complete/partial coverage; v1 interval distance is unavailable. Basic workouts and available statistics survive invalid/unsupported metadata. No raw sample query, energy allocation, invented zone threshold or distance interpolation is permitted.
+The enrichment carries end time, independently available workout/activity heart-rate summaries and active energy, native zone availability/boundaries/source, recognised PacePrompt ownership/identity/completeness, and ordered activities retaining planned segment/executed sub-interval identity. Timestamps retain reporting-time-zone offsets; nested observation timestamps include milliseconds. Whole-workout distance requires accepted producer provenance and visible statistics. V2 interval distance retains actual endpoint observations and complete/partial coverage; v1 interval distance is unavailable. Basic workouts and available statistics survive invalid/unsupported metadata. No raw HR sample query, energy allocation, invented zone threshold or distance interpolation is permitted. The only added distance sample query is the bounded, exact associated legacy aggregate recovery in the versioned amendment; it remains separate from native statistics.
 
-Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `exported_at`, `day_window`, `today`, `app_context`. The runtime HealthKit-and-notes envelope now uses schema version 6; legacy schema-3 projections remain byte-stable. Schema version 4 is an additive projection produced only when a canonical food document and its matching daily food summary are explicitly supplied. Schema versions 1 and 2 remain valid only for verifying and safely replacing an existing canonical same-date Drive file.
+Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `exported_at`, `day_window`, `today`, `app_context`. The runtime HealthKit-and-notes envelope now uses schema version 7; legacy schema-3 projections remain byte-stable. Schema version 4 is an additive projection produced only when a canonical food document and its matching daily food summary are explicitly supplied. Schema versions 1 and 2 remain valid only for verifying and safely replacing an existing canonical same-date Drive file.
 
 Schema v3 always includes `today.notes: [String]`. No saved notes is `[]`, never
 `null` or an availability wrapper. Strings retain intentional embedded line breaks
@@ -260,3 +260,9 @@ action. Compare a reviewed product snapshot with Apple Health and independently
 confirm same-ID Drive replacement. Do not broaden `drive.file`, add hosting, a
 backend, API keys or client secrets, start automation, or close issue #6 until those
 separate device and Google gates pass.
+
+### Accepted treadmill aggregate (schema 7)
+
+Schema 7 reserves `accepted_distance` (closed schema 1) independently of the existing native `distance_metres` field. Metadata-v3 evidence preserves the exact canonical producer decimal, including an observed zero. Strict legacy recovery preserves one persisted associated quantity, with different evidence; it does not recreate its pre-Double precision. Native writer decisions are optional `native_distance_sample` objects for Health interchange 3 only. Unknown, absent, invalid and unsupported evidence stays explicit. No native statistic is rescaled or replaced.
+
+Legacy recovery is the narrow exception to the earlier no-sample-fan-out scope: bounded batches of at most 32 exact workout-association plus summary-sync predicates, matching one trusted-source sample per valid legacy header. There is no raw HR query or time-series export. Query errors/cancellation block the coherent export; access uncertainty is noDataOrAccess. Schema 3/4/6 byte meaning and strict Drive historical ordering remain unchanged; schema 7 still excludes food transport.

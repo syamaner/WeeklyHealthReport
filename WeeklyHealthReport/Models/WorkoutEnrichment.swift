@@ -115,6 +115,7 @@ struct WorkoutEnrichmentInput: Equatable {
     let distanceMetres: Double?
     let activities: [WorkoutActivityInput]
     var zones: WorkoutHeartRateZones = .unsupported
+    var sourceBundleIdentifier: String? = nil
 }
 
 struct WorkoutIntervalDistance: Codable, Equatable {
@@ -187,10 +188,12 @@ struct WorkoutEnrichment: Codable, Equatable {
     let distanceMetres: Double?
     let distanceProvenance: String?
     let activities: [EnrichedWorkoutActivity]
+    var acceptedDistance: WorkoutAcceptedDistance? = nil
+    var nativeDistanceSample: WorkoutNativeDistanceSample? = nil
     private enum CodingKeys: String, CodingKey {
         case summaryID = "summaryId"
         case enrichmentVersion, activity, startedAt, endedAt, statistics, heartRateZones, recognition, interchangeSchemaVersion
-        case ownership, manifestRevision, expectedIntervalCount, distanceState, distanceMetres, distanceProvenance, activities
+        case ownership, manifestRevision, expectedIntervalCount, distanceState, distanceMetres, distanceProvenance, activities, acceptedDistance, nativeDistanceSample
     }
 }
 
@@ -242,6 +245,9 @@ enum WorkoutEnrichmentReader {
         var count: Int?
         var distanceProvenance: String?
         var distance: Double?
+        var accepted: WorkoutAcceptedDistance = .unavailable("notPacePrompt")
+        var nativeDecision: WorkoutNativeDistanceSample?
+        var headerValidated = false
         var activities = input.activities.sorted { $0.start < $1.start }.map {
             EnrichedWorkoutActivity(activityID: $0.id, startedAt: $0.start, endedAt: $0.end,
                 durationSeconds: $0.duration, activity: $0.activity, location: $0.indoor ? "indoor" : "otherOrUnknown",
@@ -250,11 +256,16 @@ enum WorkoutEnrichmentReader {
         let recognized = input.metadata.keys.contains { $0.hasPrefix(namespace) }
             || input.activities.contains { $0.metadata.keys.contains { $0.hasPrefix(namespace) } }
         if recognized {
+            accepted = .unavailable("invalidEvidence")
             do {
                 // Historical phone metadata must not be inferred to have Watch ownership.
                 guard metadata.has("interchangeSchemaVersion") else { throw Failure.unsupported }
                 guard let version else { throw Failure.invalid }
-                guard [1, 2].contains(version) else { throw Failure.unsupported }
+                guard [1, 2, 3].contains(version) else { throw Failure.unsupported }
+                if version == 3, !WorkoutAcceptedDistancePolicy.watchPrimarySources.contains(input.sourceBundleIdentifier ?? "") {
+                    accepted = .unavailable("unsupportedSource")
+                    throw Failure.invalid
+                }
                 summaryID = try metadata.uuid("summaryID")
                 ownership = try metadata.string("ownership", allowed: ["watchPrimary"])
                 let status = try metadata.string("interchangeStatus", allowed: ["complete", "incomplete"])
@@ -267,6 +278,19 @@ enum WorkoutEnrichmentReader {
                 count = declaredCount
                 let count = declaredCount
                 distanceProvenance = try metadata.string("distanceProvenance", allowed: ["fr30zCumulativeDistanceDelta", "unavailable"])
+                if version < 3, input.metadata.keys.contains(where: {
+                    $0.hasPrefix(namespace + "acceptedDistance") || $0.hasPrefix(namespace + "nativeDistanceSample")
+                }) { throw Failure.invalid }
+                if version == 3 {
+                    let parsed = try WorkoutAcceptedDistancePolicy.metadata(input.metadata, nativeProvenance: distanceProvenance!)
+                    guard status == "complete" || parsed.0.state == "unavailable" else { throw Failure.invalid }
+                    (accepted, nativeDecision) = parsed
+                } else if distanceProvenance == "unavailable" {
+                    accepted = .unavailable("notAccepted")
+                } else {
+                    accepted = .unavailable(WorkoutAcceptedDistancePolicy.watchPrimarySources.contains(input.sourceBundleIdentifier ?? "") ? "noDataOrAccess" : "unsupportedSource")
+                }
+                headerValidated = true
                 if distanceProvenance == "fr30zCumulativeDistanceDelta",
                    let metres = input.distanceMetres, metres.isFinite, metres > 0 { distance = metres }
                 var previousEnd = input.start
@@ -297,20 +321,23 @@ enum WorkoutEnrichmentReader {
                     previousEnd = end
                 }
                 recognition = status == "complete" && activities.count == count ? .supportedComplete : .supportedIncomplete
-            } catch Failure.unsupported { recognition = .unsupported }
+            } catch Failure.unsupported {
+                recognition = .unsupported
+                if !headerValidated { accepted = .unavailable("unsupportedInterchange") }
+            }
             catch { recognition = .invalid }
         }
-        return WorkoutEnrichment(enrichmentVersion: 1, activity: input.activity, startedAt: input.start, endedAt: input.end, statistics: input.statistics,
+        return WorkoutEnrichment(enrichmentVersion: 2, activity: input.activity, startedAt: input.start, endedAt: input.end, statistics: input.statistics,
             heartRateZones: input.zones, recognition: recognition, interchangeSchemaVersion: version,
             summaryID: summaryID, ownership: ownership, manifestRevision: revision, expectedIntervalCount: count,
             distanceState: distance == nil ? "noDataOrAccess" : "available", distanceMetres: distance,
-            distanceProvenance: distanceProvenance, activities: activities)
+            distanceProvenance: distanceProvenance, activities: activities, acceptedDistance: accepted, nativeDistanceSample: nativeDecision)
     }
 
     /// Canonical bytes are necessary but not sufficient for recovering a remote v6 file.
     /// Reuse the reader's closed invariants; never trust a serialized complete label.
     static func validatesExport(_ value: WorkoutEnrichment) -> Bool {
-        guard value.enrichmentVersion == 1, value.startedAt.timeIntervalSinceReferenceDate.isFinite,
+        guard [1, 2].contains(value.enrichmentVersion), value.startedAt.timeIntervalSinceReferenceDate.isFinite,
               value.endedAt.timeIntervalSinceReferenceDate.isFinite, value.endedAt >= value.startedAt,
               value.statistics.provenance == "healthKitWorkoutStatistics", value.heartRateZones.isValid,
               value.ownership == nil || value.ownership == "watchPrimary",
@@ -327,9 +354,12 @@ enum WorkoutEnrichmentReader {
                   value.distanceProvenance == nil || ["unavailable", "fr30zCumulativeDistanceDelta"].contains(value.distanceProvenance!) else { return false }
         default: return false
         }
+        if value.enrichmentVersion == 1 {
+            guard value.acceptedDistance == nil, value.nativeDistanceSample == nil else { return false }
+        } else if !validatesAcceptedDistance(value) { return false }
         let supported = [.supportedComplete, .supportedIncomplete].contains(value.recognition)
         if supported {
-            guard value.startedAt < value.endedAt, [1, 2].contains(value.interchangeSchemaVersion ?? -1), ["walking", "running"].contains(value.activity), value.summaryID != nil,
+            guard value.startedAt < value.endedAt, (value.enrichmentVersion == 1 ? [1, 2] : [1, 2, 3]).contains(value.interchangeSchemaVersion ?? -1), ["walking", "running"].contains(value.activity), value.summaryID != nil,
                   value.ownership == "watchPrimary", value.manifestRevision != nil,
                   let count = value.expectedIntervalCount, value.activities.count <= count,
                   value.distanceProvenance != nil else { return false }
@@ -355,7 +385,7 @@ enum WorkoutEnrichmentReader {
             previousStart = activity.startedAt
             if let projection = activity.pacePrompt {
                 guard !foundUnrecognised, value.recognition != .notPacePrompt,
-                      let version = value.interchangeSchemaVersion, [1, 2].contains(version),
+                      let version = value.interchangeSchemaVersion, (value.enrichmentVersion == 1 ? [1, 2] : [1, 2, 3]).contains(version),
                       let summaryID = value.summaryID, let end = activity.endedAt,
                       activity.startedAt >= previousEnd, end > activity.startedAt, end <= value.endedAt,
                       activity.durationSeconds <= end.timeIntervalSince(activity.startedAt) + 0.001,
@@ -382,6 +412,36 @@ enum WorkoutEnrichmentReader {
         return true
     }
 
+    private static func validatesAcceptedDistance(_ value: WorkoutEnrichment) -> Bool {
+        guard let accepted = value.acceptedDistance, accepted.isValid else { return false }
+        let version = value.interchangeSchemaVersion
+        let header = value.summaryID != nil && value.ownership == "watchPrimary" && value.manifestRevision != nil
+            && value.expectedIntervalCount != nil && value.startedAt < value.endedAt
+            && ["walking", "running"].contains(value.activity) && value.distanceProvenance != nil
+        if let decision = value.nativeDistanceSample {
+            guard version == 3, header, decision.isValid(accepted: accepted, nativeProvenance: value.distanceProvenance) else { return false }
+        }
+        if accepted.state == "accepted" {
+            guard header else { return false }
+            if accepted.evidence == "producerMetadataV3" {
+                guard version == 3, value.nativeDistanceSample != nil else { return false }
+                // Equal visible/expected counts plus incomplete recognition means
+                // an explicitly incomplete writer header, not missing visible activities.
+                return value.recognition != .supportedIncomplete || value.expectedIntervalCount != value.activities.count
+            }
+            return [1, 2].contains(version ?? -1) && value.distanceProvenance == "fr30zCumulativeDistanceDelta" && value.nativeDistanceSample == nil
+        }
+        switch accepted.reason {
+        case "notPacePrompt": return value.recognition == .notPacePrompt && value.nativeDistanceSample == nil
+        case "unsupportedInterchange": return value.recognition == .unsupported && value.nativeDistanceSample == nil
+        case "unsupportedSource": return value.nativeDistanceSample == nil && (version == 3 ? value.recognition == .invalid && value.activities.allSatisfy { $0.pacePrompt == nil } : [1, 2].contains(version ?? -1) && header)
+        case "notAccepted": return header && (version == 3 ? value.nativeDistanceSample?.reason == "notAccepted" : [1, 2].contains(version ?? -1) && value.distanceProvenance == "unavailable")
+        case "noDataOrAccess": return header && [1, 2].contains(version ?? -1) && value.distanceProvenance == "fr30zCumulativeDistanceDelta" && value.nativeDistanceSample == nil
+        case "invalidEvidence": return value.nativeDistanceSample == nil && (value.recognition == .invalid || (header && [1, 2].contains(version ?? -1)))
+        default: return false
+        }
+    }
+
     private static func exportedMetadata(_ value: PacePromptInterval, summaryID: String, version: Int) -> [String: WorkoutMetadataValue] {
         var fields: [String: WorkoutMetadataValue] = [
             "timelineSchemaVersion": .integer(1), "summaryID": .string(summaryID),
@@ -397,7 +457,7 @@ enum WorkoutEnrichmentReader {
             "observedAt": .date(value.observedAt), "observationProvenance": .string(value.observationProvenance),
             "intervalEndReason": .string(value.intervalEndReason)
         ]
-        if version == 2 {
+        if version >= 2 {
             let distance = value.intervalDistance
             fields["intervalDistanceSchemaVersion"] = .integer(distance.schemaVersion)
             fields["intervalDistanceState"] = .string(distance.state)
