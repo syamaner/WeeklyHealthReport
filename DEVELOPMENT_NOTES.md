@@ -1343,3 +1343,20 @@ Private evidence: `whr-build22-delivery-accounting-final.json`; signed source an
 Boundary: `2026-10-04T20:51:18.447Z` → `2026-10-04T21:59:41.693Z`. Baseline: input 140,687,858, cached 138,765,952, output 359,629, total 141,047,487. Endpoint: input 167,626,975, cached 165,457,536, output 398,362, total 168,025,337. 172 reconciled requests; maximum input 211,671; 0 long-context threshold crossings. Reasoning delta 13,109 is already included in output. Exact API-equivalent USD 31.103564.
 
 The final endpoint precedes only numeric insertion, final review and commit; those and subsequent receipt delivery are outside this measured row.
+
+## WHR-INTERNAL-23-2026-10-04 — current-main exporter release
+
+Two contiguous bounded `gpt-6-astra` child-session phases are recorded here. The first covers the previous build22 ledger's numeric insertion/review/commit, receipt PR188 delivery/rebase, durable evidence supplements, bounded CI checks and initial read-only triage of the user's new exporter-build request. The second starts at the explicit new-release baseline and covers isolated protected508 source preparation, incremental independent-review coordination, current-source software/native gates, fresh Apple inventory/privacy checks, archive/local export, one internal-only upload, package verification, Testing readback, durable retention and this receipt. Root/producer/independent-reviewer tokens are excluded; subsequent receipt-PR delivery is outside the final endpoint.
+
+Exact raw JSONL reconciliation verifies the child/fork identity, per-request model and cumulative deltas. Pricing checked4October2026: [official rates](https://developers.openai.com/api/docs/models/gpt-6-astra), USD10/M uncached input,1/M cached input,12.50/M cache-write,50/M output; per-request input above272,000 uses2× input and1.5× output. Reasoning remains a subset of output. API-equivalent estimates are comparisons, not ChatGPT subscription charges. Private reports retain exact endpoints and arithmetic.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Build22 receipt delivery and next-request triage | 3,900,529 (3,877,504) | 0 | 5,527 | 3,906,056 | $4.38 |
+| Current-main build23 release | 19,088,075 (18,797,824) | 0 | 22,674 | 19,110,749 | $22.83 |
+
+Build22 receipt delivery and next-request triage: `2026-10-04T21:59:41.693Z` → `2026-10-04T22:09:45.876Z`. Baseline: input 167,626,975, cached 165,457,536, output 398,362, total 168,025,337. Endpoint: input 171,527,504, cached 169,335,040, output 403,889, total 171,931,393. 37 reconciled requests; maximum input 112,424; 0 long-context crossings. Reasoning delta 633 is included in output. Exact API-equivalent USD 4.384104.
+
+Current-main build23 release: `2026-10-04T22:09:45.876Z` → `2026-10-04T22:31:32.442Z`. Baseline: input 171,527,504, cached 169,335,040, output 403,889, total 171,931,393. Endpoint: input 190,615,579, cached 188,132,864, output 426,563, total 191,042,142. 123 reconciled requests; maximum input 204,268; 0 long-context crossings. Reasoning delta 4,264 is included in output. Exact API-equivalent USD 22.834034.
+
+The final endpoint precedes only numeric insertion, final accounting review and commit. Those actions and later receipt delivery are outside these rows. Private reports: `whr-build22-receipt-delivery-accounting-end.json` and `whr-build23-delivery-accounting-final.json`.
