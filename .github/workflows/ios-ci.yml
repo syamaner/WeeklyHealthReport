@@ -29,6 +29,7 @@ jobs:
           python3 -m unittest discover -s Tools/NutritionEvaluationSpike/tests -v
           python3 -m unittest discover -s Tools/NutritionAcceptanceReadiness/tests -v
           python3 -m unittest discover -s Tools/FoodSourceEvaluation/tests -v
+          python3 -m unittest discover -s Tools/GenericFoodProposalEvaluation -p 'test_*.py' -v
 
   food-healthkit-planning:
     name: HealthKit planning reference contracts
