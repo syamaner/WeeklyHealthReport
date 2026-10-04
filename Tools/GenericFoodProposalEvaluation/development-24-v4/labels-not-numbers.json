@@ -1,0 +1,57 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "line",
+      "locator" : "line:1;projection:swift-food-document-blocks-v4",
+      "text" : "Plain tofu"
+    },
+    {
+      "id" : "b2",
+      "kind" : "line",
+      "locator" : "line:2;projection:swift-food-document-blocks-v4",
+      "text" : "Per 100 g"
+    },
+    {
+      "id" : "b3",
+      "kind" : "line",
+      "locator" : "line:3;projection:swift-food-document-blocks-v4",
+      "text" : "Energy 90 kcal"
+    },
+    {
+      "id" : "b4",
+      "kind" : "line",
+      "locator" : "line:4;projection:swift-food-document-blocks-v4",
+      "text" : "Protein 8 g"
+    },
+    {
+      "id" : "b5",
+      "kind" : "line",
+      "locator" : "line:5;projection:swift-food-document-blocks-v4",
+      "text" : "Carbohydrate 2 g"
+    },
+    {
+      "id" : "b6",
+      "kind" : "line",
+      "locator" : "line:6;projection:swift-food-document-blocks-v4",
+      "text" : "Fat 6 g"
+    },
+    {
+      "id" : "b7",
+      "kind" : "line",
+      "locator" : "line:7;projection:swift-food-document-blocks-v4",
+      "text" : "Fibre 1 g"
+    },
+    {
+      "id" : "b8",
+      "kind" : "line",
+      "locator" : "line:8;projection:swift-food-document-blocks-v4",
+      "text" : "Sodium 10 mg"
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_6a94cc1a7145b626",
+  "raw_sha256" : "6a94cc1a7145b6260dd8c3c941a393cf89b8f515c004622cc4b5a191ff34ddc2",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/labels-not-numbers"
+}

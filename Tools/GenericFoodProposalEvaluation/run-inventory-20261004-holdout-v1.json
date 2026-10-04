@@ -1,0 +1,17 @@
+{
+  "previous_inventory": "/Users/sertanyamaner/.codex/worktrees/nutrition-generic-review/WeeklyHealthReport/Tools/GenericFoodProposalEvaluation/run-inventory-20261004-0813.json",
+  "previous_inventory_sha256": "6211cf8621a24a709a6e30750d506fd77418fcd8591ff964e2de1bf9d174dcde",
+  "new_scopes": {
+    "request_count": 26,
+    "known_cost_requests": 26,
+    "unknown_cost_requests": 0,
+    "known_reported_cost_usd": "0.584324675"
+  },
+  "all_recorded_scopes": {
+    "request_count": 387,
+    "known_cost_requests": 381,
+    "unknown_cost_requests": 6,
+    "known_reported_cost_usd": "3.415415425",
+    "qualification": "Historical unknown charges remain unknown. This inventory is reported-run evidence, not an account credit statement."
+  }
+}

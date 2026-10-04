@@ -20,14 +20,25 @@ public enum FoodNamedServingPolicy {
 
 extension FoodConfirmationState {
     public var isSourceRecipe: Bool { FoodNamedServingPolicy.applies(input, candidate: selectedCandidate) }
+    public var usesSourceDeclaredServing: Bool { FoodSourceServingPolicy.applies(input, candidate: selectedCandidate) }
+    public var reviewedWebProposalScope: FoodProposalReviewScope? { FoodReviewedWebProposalPolicy.scope(input, candidate: selectedCandidate) }
     /// A source recipe serving is a user-entered fraction/count of that recipe, not food pieces.
     public func calculatedEdibleQuantity() throws -> PositiveQuantity {
-        guard isSourceRecipe else { return try quantity.calculatedEdibleQuantity() }
+        guard usesSourceDeclaredServing else { return try quantity.calculatedEdibleQuantity() }
         let basis = (correction?.identity ?? reopened?.productVersion.identity ?? selectedCandidate.candidate.identity).servingBasis
-        guard basis == FoodSourceRecipeProfile.basis, quantity.unit == .count,
+        let expected = isSourceRecipe ? FoodSourceRecipeProfile.basis : selectedCandidate.candidate.identity.servingBasis
+        guard basis == expected, quantity.unit == .count,
               quantity.directWeight == nil, quantity.conversion == nil, quantity.plateChoice == .foodOnly else {
             throw FoodLedgerValidationError.invalidUnit
         }
         return try quantity.calculationInput()
+    }
+}
+
+public enum FoodSourceServingPolicy {
+    public static let version = "food-source-declared-serving-v1"
+    public static func applies(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> Bool {
+        FoodNamedServingPolicy.applies(input, candidate: candidate)
+            || FoodReviewedWebProposalPolicy.allowsNamedServing(input, candidate: candidate)
     }
 }

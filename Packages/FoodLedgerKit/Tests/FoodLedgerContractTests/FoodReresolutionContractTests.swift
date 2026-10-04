@@ -79,7 +79,7 @@ final class FoodReresolutionContractTests: XCTestCase {
             XCTAssertNotNil(current.candidateDecision.assertionID)
             XCTAssertEqual(current.assertions.last?.author, .user)
             XCTAssertEqual(current.productVersion, fixture.record.productVersion)
-            let confirmations = FoodConfirmationService(ledger: fixture.ledger, reader: harness.reader, clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator())
+            let confirmations = FoodConfirmationService(ledger: fixture.ledger, reader: harness.reader, clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: SHA256Digester())
             var reopened = try XCTUnwrap(confirmations.reopen(logItemID: current.logItem.logItemID))
             reopened.quantity.value = 70
             let quantityCorrection = try confirmations.save(reopened, operationID: LedgerFixtures.operationID(700))
@@ -120,7 +120,7 @@ final class FoodReresolutionContractTests: XCTestCase {
         var state = FoodConfirmationState(input: input)
         state.decision = .accepted
         state.quantity.value = 60
-        let record = try FoodConfirmationService(ledger: ledger, reader: harness.reader, clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator()).save(state, operationID: LedgerFixtures.operationID(600))
+        let record = try FoodConfirmationService(ledger: ledger, reader: harness.reader, clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: SHA256Digester()).save(state, operationID: LedgerFixtures.operationID(600))
         return Fixture(record: record, ledger: ledger, archive: archive, reader: harness.reader)
     }
     private func makeService(_ fixture: Fixture, provider: UpgradeProvider) -> FoodReresolutionService {

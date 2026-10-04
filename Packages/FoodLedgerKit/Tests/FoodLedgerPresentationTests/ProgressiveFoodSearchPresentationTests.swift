@@ -278,6 +278,7 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
     func testPersistedOptInCannotEnableAnAbsentProvider() throws {
         let preferences = InMemorySearchPreferences()
         preferences.onlineDatabaseEnabled = true
+        preferences.geminiEnabled = true
         let model = try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()),
             locale: LedgerText("en_GB"), preferences: preferences)
         XCTAssertFalse(model.onlineDatabaseAvailable)
@@ -285,6 +286,12 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
         model.search()
         XCTAssertNil(model.activeEnrichmentStage)
         guard case .results = model.phase else { return XCTFail("Local results remain available") }
+        XCTAssertFalse(model.geminiAvailable)
+        XCTAssertNil(model.geminiSetupMessage)
+        let details = try XCTUnwrap(model.searchStatus?.details)
+        XCTAssertEqual(details.count, 1)
+        XCTAssertTrue(details[0].hasPrefix("On-device foods:"))
+        XCTAssertFalse(details.contains { $0.contains("Gemini") || $0.contains("Open Food Facts") })
     }
 
     func testLiteralPercentageTravelsThroughUIAndCoordinatorWithoutQuantityPrefill() async throws {
@@ -409,8 +416,9 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
         model.query = "milk"; model.search()
         XCTAssertEqual(model.stageReports.map(\.stage), [.local])
         XCTAssertEqual(model.searchStatus?.title, "Search finished")
-        XCTAssertTrue(model.searchStatus?.details.contains("Open Food Facts: Off") == true)
-        XCTAssertTrue(model.searchStatus?.details.contains("Gemini: Off") == true)
+        let details = try XCTUnwrap(model.searchStatus?.details)
+        XCTAssertEqual(details.count, 1)
+        XCTAssertTrue(details[0].hasPrefix("On-device foods:"))
         XCTAssertEqual(model.onlineAddedIDs, [])
         model.query = "rice"
         XCTAssertNil(model.searchStatus)

@@ -1,0 +1,57 @@
+{
+  "version": "repair-discovery-adjudication-v1",
+  "reviewer": "agent",
+  "criterion": "Frozen protocol: exact product and market, primary source within three native leads; does not prove capture or basis.",
+  "top1": {
+    "numerator": 6,
+    "denominator": 6
+  },
+  "any3": {
+    "numerator": 6,
+    "denominator": 6
+  },
+  "cases": [
+    {
+      "id": "weetabix-original",
+      "primary_match_rank": 1,
+      "matched_url": "https://weetabix.co.uk/our-products/weetabix/weetabix/",
+      "reason": "Exact UK original product; primary URL alias, no added milk.",
+      "discovery_sha256": "caa2d6d4482c70c096c22bd41c37c3ed0dce473954038124fab01c1d994c9f98"
+    },
+    {
+      "id": "topcake-taro",
+      "primary_match_rank": 1,
+      "matched_url": "https://www.topcake.com.tw/product/Taro-Pastry",
+      "reason": "Exact classic taro pastry primary page; lava variant is a separate lead.",
+      "discovery_sha256": "1fdb911f52a2bbea34b903b41600471e5d8a68cae533402382ebe8c29c494576"
+    },
+    {
+      "id": "hershey-cocoa",
+      "primary_match_rank": 1,
+      "matched_url": "https://www.hersheyland.com/products/hersheys-cocoa-100-cacao-natural-unsweetened-8-oz-can.html",
+      "reason": "Exact US natural unsweetened cocoa. Search finds canonical .html; initial capture .html.html HTTP406 remains a failure.",
+      "discovery_sha256": "c53b3cae1a3b0a0baf98770622bcd4ed44b1343751a94c7ee0dd04f9fa22044d"
+    },
+    {
+      "id": "salico-nougat",
+      "primary_match_rank": 1,
+      "matched_url": "https://www.salico.com.tw/pages/nutrition-facts",
+      "reason": "Primary multi-product page includes exact milk peanut nougat panel, separate chocolate panel.",
+      "discovery_sha256": "21a2e373206f5d3d607ee0903e6f0cb61d6fc412c8accab812ce0e20b54bd710"
+    },
+    {
+      "id": "lurpak-butter",
+      "primary_match_rank": 1,
+      "matched_url": "https://www.lurpak.com/en-au/products/lurpak-slightly-salted-butter-250g/",
+      "reason": "Exact Australian slightly salted butter; spreadable third lead is not equivalent.",
+      "discovery_sha256": "b327cbeed63b97dba3a5ce2d2bf37ed5356f541dd76a032e9ee991d5f4e925c9"
+    },
+    {
+      "id": "oatly-creamy-basis",
+      "primary_match_rank": 1,
+      "matched_url": "https://www.oatly.com/en-gb/products/cream/creamy-oat-organic-250ml",
+      "reason": "Exact UK organic cream source. Finding it does not resolve requested100g versus source100ml.",
+      "discovery_sha256": "282a39fd9d69d5e081ae9fa7291d6ac4670a67cc73616fb136c687b60d632f96"
+    }
+  ]
+}

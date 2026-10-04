@@ -1,0 +1,296 @@
+{
+  "version": "matched-food-route-comparison-v1",
+  "left": {
+    "run": "workflow-extraction-luna-6-v2",
+    "plan_sha256": "10dd3d2f6806b3e15b111d87ea24e92a3a41d1760a4117d8f275203d75cd4568",
+    "extractor": "luna",
+    "baseline": {
+      "whole_case": {
+        "numerator": 3,
+        "denominator": 6,
+        "rate": 0.5
+      },
+      "answerable_case_success": {
+        "numerator": 1,
+        "denominator": 3,
+        "rate": 0.3333333333333333
+      },
+      "correct_abstention": {
+        "numerator": 2,
+        "denominator": 3,
+        "rate": 0.6666666666666666
+      },
+      "selected_case_count": 2,
+      "availability": {
+        "numerator": 6,
+        "denominator": 6,
+        "rate": 1.0
+      },
+      "declared_field_precision": {
+        "numerator": 5,
+        "denominator": 9,
+        "rate": 0.5555555555555556
+      },
+      "required_declared_field_recall": {
+        "numerator": 5,
+        "denominator": 11,
+        "rate": 0.45454545454545453
+      },
+      "unknown_field_preservation": {
+        "numerator": 1,
+        "denominator": 7,
+        "rate": 0.14285714285714285
+      },
+      "invented_unknown_fields": 0
+    },
+    "operations": {
+      "request_count": 6,
+      "known_cost_requests": 6,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.005042910",
+      "cost_complete": true,
+      "cost_per_usable_panel_usd": "0.005042910",
+      "usable_correct_panels": 1,
+      "latency_observed_requests": 6,
+      "median_request_seconds": 3.121189792,
+      "p90_request_seconds": 4.728018208,
+      "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+    }
+  },
+  "right": {
+    "run": "workflow-extraction-grok-6-v2",
+    "plan_sha256": "3c7449570bf4ac7f57c4ade58b5464d7b3700952c5c55f57fae69b38cea42f08",
+    "extractor": "grok",
+    "baseline": {
+      "whole_case": {
+        "numerator": 6,
+        "denominator": 6,
+        "rate": 1.0
+      },
+      "answerable_case_success": {
+        "numerator": 3,
+        "denominator": 3,
+        "rate": 1.0
+      },
+      "correct_abstention": {
+        "numerator": 3,
+        "denominator": 3,
+        "rate": 1.0
+      },
+      "selected_case_count": 3,
+      "availability": {
+        "numerator": 6,
+        "denominator": 6,
+        "rate": 1.0
+      },
+      "declared_field_precision": {
+        "numerator": 11,
+        "denominator": 11,
+        "rate": 1.0
+      },
+      "required_declared_field_recall": {
+        "numerator": 11,
+        "denominator": 11,
+        "rate": 1.0
+      },
+      "unknown_field_preservation": {
+        "numerator": 7,
+        "denominator": 7,
+        "rate": 1.0
+      },
+      "invented_unknown_fields": 0
+    },
+    "operations": {
+      "request_count": 6,
+      "known_cost_requests": 6,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.212160",
+      "cost_complete": true,
+      "cost_per_usable_panel_usd": "0.070720",
+      "usable_correct_panels": 3,
+      "latency_observed_requests": 6,
+      "median_request_seconds": 42.797245166500005,
+      "p90_request_seconds": 49.206346125,
+      "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+    }
+  },
+  "paired": {
+    "planned_pairs": 6,
+    "both_pass": 3,
+    "left_only_pass": 0,
+    "right_only_pass": 3,
+    "neither_pass": 0,
+    "groups": {
+      "family": {
+        "fage-total-0": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "kongyen-black-natto": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "mugu-apple-rice-cracker": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "itsu-chicken-gyoza": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "tilda-dry-basmati": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "ikari-toast-100g-abstain": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        }
+      },
+      "domain": {
+        "ie.fage": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "kongyen.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "www.muguo-organic.com": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "www.itsu-staging.ns-client.xyz": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.tilda.com": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "ikari.com.tw": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        }
+      }
+    },
+    "cases": [
+      {
+        "case": "fage-total-0",
+        "family": "fage-total-0",
+        "domain": "ie.fage",
+        "left_pass": false,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "kongyen-black-natto",
+        "family": "kongyen-black-natto",
+        "domain": "kongyen.com.tw",
+        "left_pass": false,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "mugu-apple-rice-cracker",
+        "family": "mugu-apple-rice-cracker",
+        "domain": "www.muguo-organic.com",
+        "left_pass": false,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "itsu-chicken-gyoza",
+        "family": "itsu-chicken-gyoza",
+        "domain": "www.itsu-staging.ns-client.xyz",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "tilda-dry-basmati",
+        "family": "tilda-dry-basmati",
+        "domain": "www.tilda.com",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "ikari-toast-100g-abstain",
+        "family": "ikari-toast-100g-abstain",
+        "domain": "ikari.com.tw",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      }
+    ]
+  },
+  "qualification": "Descriptive matched development comparison. Repeated foods and shared families are not independent samples; no statistical superiority or calibrated-confidence claim.",
+  "scope": "Extraction and binding on identical captured documents. Does not measure discovery, acquisition, source truth, saved entries or physical-device behaviour."
+}

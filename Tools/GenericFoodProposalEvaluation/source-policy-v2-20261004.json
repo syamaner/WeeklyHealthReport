@@ -1,0 +1,35 @@
+{
+  "version": "nutrition-source-policy-refinement-v2",
+  "lead_contract": "offline-lead-selection-v2",
+  "review_choice_policy": "food-proposal-review-choice-v3",
+  "source_control_passed": 7,
+  "source_control_denominator": 8,
+  "workflow_completed": 2,
+  "workflow_denominator": 2,
+  "provider_calls": 24,
+  "known_cost_usd": "0.077246825",
+  "unknown_cost_calls": 0,
+  "independent_acceptance": false,
+  "fallback_live_coverage": "not exercised by these two live workflows; deterministic port tests cover empty/unreadable first sources and cap/stop conditions",
+  "physical_acceptance": "pending; installed build21 predates this refinement",
+  "source_control_prompt_sha256": "3d747e049e6b9377dd964d2a97465cc1e6c76b3bcaf3508f7201f30f1bcbd190",
+  "prior_source_controls": {
+    "passed": 8,
+    "denominator": 8,
+    "historical_prompt": true
+  },
+  "source_control_known_miss": "manufacturer-panel: abstained where frozen gold expected representative selection",
+  "offline_replay_scope": "request/schema and actual response decoding; separate from model accuracy",
+  "workflow_final_prompt_rerun": false,
+  "validation": {
+    "package_cases": 709,
+    "package_skips": 5,
+    "package_failures": 0,
+    "simulator_passed": 318,
+    "simulator_skips": 1,
+    "simulator_failures": 0,
+    "static_analysis": "succeeded",
+    "offline_response_replays": 8,
+    "main_checked": "22df0958244d790ca8021b734e056f4c1140afd5"
+  }
+}

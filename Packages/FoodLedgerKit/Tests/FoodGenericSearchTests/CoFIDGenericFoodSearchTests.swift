@@ -27,7 +27,7 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             let service = FoodConfirmationService(
                 ledger: FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store,
                     clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()),
-                reader: store, clock: FixedClock(), ids: ids)
+                reader: store, clock: FixedClock(), ids: ids, digester: SHA256Digester())
             XCTAssertThrowsError(try service.save(state, operationID: draft.operationID)) { error in
                 XCTAssertEqual(error as? FoodConfirmationSaveError, .noAcceptedCandidate)
             }
@@ -61,7 +61,7 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             let service = FoodConfirmationService(
                 ledger: FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store,
                     clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()),
-                reader: store, clock: FixedClock(), ids: ids)
+                reader: store, clock: FixedClock(), ids: ids, digester: SHA256Digester())
             XCTAssertThrowsError(try service.save(state, operationID: draft.operationID)) { error in
                 if count { XCTAssertEqual(error as? FoodQuantityValidationError, .missingConversion) }
                 else { XCTAssertEqual(error as? FoodConfirmationSaveError, .invalidQuantity) }
@@ -130,7 +130,8 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
         let service = FoodConfirmationService(
             ledger: FoodLedgerService(actorID: try id(919, ActorTag.self), committer: store,
                 clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()),
-            reader: store, clock: FixedClock(), ids: ids
+            reader: store, clock: FixedClock(), ids: ids,
+            digester: SHA256Digester()
         )
         let saved = try service.save(state, operationID: id(920, OperationTag.self))
         XCTAssertEqual(saved.logItemVersion.edibleQuantity.value, 206)
@@ -250,7 +251,7 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
         FoodConfirmationReducer.reduce(state: &state, action: .accept)
         let ledger = FoodLedgerService(actorID: try id(999, ActorTag.self), committer: store,
             clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
-        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: FixedClock(), ids: ids)
+        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: FixedClock(), ids: ids, digester: SHA256Digester())
         let saved = try service.save(state, operationID: id(905, OperationTag.self))
         XCTAssertFalse(try store.exactLibraryEntries(alias: LedgerText("food:name:rice")).isEmpty)
         guard case let .confirmation(nextRoute) = try search.search(request("rice")) else { return XCTFail("rice") }
@@ -273,7 +274,7 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
         FoodConfirmationReducer.reduce(state: &state, action: .accept)
         let ledger = FoodLedgerService(actorID: try id(999, ActorTag.self), committer: store,
             clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
-        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: FixedClock(), ids: ids)
+        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: FixedClock(), ids: ids, digester: SHA256Digester())
         let saved = try service.save(state, operationID: id(905, OperationTag.self))
         XCTAssertFalse(try store.exactLibraryEntries(alias: LedgerText("food:name:200g cooked porridge made with water")).isEmpty)
         guard case let .confirmation(nextRoute) = try search.search(request("200g cooked porridge made with water")) else { return XCTFail("200g cooked porridge made with water") }
@@ -332,7 +333,8 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             ledger: ledger,
             reader: store,
             clock: FixedClock(),
-            ids: ids
+            ids: ids,
+            digester: SHA256Digester()
         ).save(state, operationID: try id(901, OperationTag.self))
         XCTAssertEqual(try store.foodConfirmation(logItemID: saved.logItem.logItemID)?.evidence.last, scan)
         XCTAssertTrue(try store.exactLibraryEntries(alias: LedgerText("barcode:gtin:04006381333931")).isEmpty)

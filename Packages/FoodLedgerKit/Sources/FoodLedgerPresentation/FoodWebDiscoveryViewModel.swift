@@ -14,6 +14,9 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
     @Published public private(set) var result: FoodWebDiscoveryResult?
     private let provider: any FoodWebDiscovering
     private let keys: any FoodWebKeyStoring
+    public let providerName: String
+    private let operatorName: String
+    private let keyManagementName: String
     // Transient identity of the credential that actually passed validation; never persisted or displayed.
     private var validatedKey: String?
     private var generation = 0
@@ -21,9 +24,11 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
     private var validation: Task<Void, Error>?
     private var search: Task<FoodWebDiscoveryResult, Error>?
 
-    public init(provider: any FoodWebDiscovering, keys: any FoodWebKeyStoring) {
+    public init(provider: any FoodWebDiscovering, keys: any FoodWebKeyStoring,
+                providerName: String = "Gemini", operatorName: String = "Google", keyManagementName: String = "AI Studio") {
         self.provider = provider
         self.keys = keys
+        self.providerName = providerName; self.operatorName = operatorName; self.keyManagementName = keyManagementName
         do {
             let key = try keys.load()
             hasSavedKey = key != nil
@@ -111,7 +116,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
             if error as? FoodWebDiscoveryError == .credentialRejected, (try? keys.load()) == key {
                 invalidateRejectedKey(expectedKey: key)
             }
-            keyMessage = Self.message(for: error) + (saveNewKey ? " The new key was not saved." : "")
+            keyMessage = message(for: error) + (saveNewKey ? " The new key was not saved." : "")
         }
         isValidating = false
         validation = nil
@@ -124,7 +129,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         do {
             guard let saved = try keys.load(), FoodWebKeySyntax.isValid(saved) else {
                 invalidateUsability()
-                searchMessage = "Add and validate your Gemini API key first."
+                searchMessage = "Add and validate your \(providerName) API key first."
                 return
             }
             guard saved == validatedKey else {
@@ -167,7 +172,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
                 invalidateUsability()
                 hasSavedKey = (try? keys.load()) != nil
             }
-            searchMessage = Self.message(for: error)
+            searchMessage = message(for: error)
         }
         isSearching = false
         search = nil
@@ -232,7 +237,7 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         do {
             try keys.delete()
             hasSavedKey = false
-            keyMessage = "Key removed from this device. Requests already received by Google cannot be recalled. Revoke the key in AI Studio if needed."
+            keyMessage = "Key removed from this device. Requests already received by \(operatorName) cannot be recalled. Revoke the key in \(keyManagementName) if needed."
         } catch {
             keyMessage = "Could not remove the key from Keychain. Web search is disabled here; unlock the device and retry removal."
         }
@@ -257,16 +262,16 @@ public final class FoodWebDiscoveryViewModel: ObservableObject, FoodWebCredentia
         searchMessage = nil
     }
 
-    private static func message(for error: Error) -> String {
+    private func message(for error: Error) -> String {
         switch error as? FoodWebDiscoveryError {
-        case .credentialRejected: "Google rejected the API key. Replace or revalidate it."
-        case .permissionDenied: "Google refused access. Check API restrictions and project permissions; this does not establish that the key is invalid."
-        case .quotaExceeded: "Google reports a quota or rate limit. Check your quota and billing before trying again."
+        case .credentialRejected: "\(operatorName) rejected the API key. Replace or revalidate it."
+        case .permissionDenied: "\(operatorName) refused access. Check API restrictions and project permissions; this does not establish that the key is invalid."
+        case .quotaExceeded: "\(operatorName) reports a quota or rate limit. Check your quota and billing before trying again."
         case .timedOut: "The web search timed out. You can try again."
         case .connectionFailed: "The web search could not connect. Check your connection and try again."
-        case .requestRejected: "Google could not accept this request or model. Check provider availability before trying again."
+        case .requestRejected: "\(operatorName) could not accept this request or model. Check provider availability before trying again."
         case .invalidQuery: "Enter between 1 and 300 characters of food terms."
-        case .invalidResponse: "Google returned an unsupported or incomplete response. No food was selected or saved."
+        case .invalidResponse: "\(operatorName) returned an unsupported or incomplete response. No food was selected or saved."
         default: "The request could not complete. Check your connection and try again. Offline search is still available."
         }
     }

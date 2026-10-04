@@ -1,0 +1,39 @@
+{
+  "blocks" : [
+    {
+      "id" : "b1",
+      "kind" : "line",
+      "locator" : "line:1;projection:swift-food-document-blocks-v4",
+      "text" : "豆花"
+    },
+    {
+      "id" : "b2",
+      "kind" : "line",
+      "locator" : "line:2;projection:swift-food-document-blocks-v4",
+      "text" : "每份一碗"
+    },
+    {
+      "id" : "b3",
+      "kind" : "line",
+      "locator" : "line:3;projection:swift-food-document-blocks-v4",
+      "text" : "熱量150大卡"
+    },
+    {
+      "id" : "b4",
+      "kind" : "line",
+      "locator" : "line:4;projection:swift-food-document-blocks-v4",
+      "text" : "蛋白質6公克"
+    },
+    {
+      "id" : "b5",
+      "kind" : "line",
+      "locator" : "line:5;projection:swift-food-document-blocks-v4",
+      "text" : "未標示其他營養素；沒有提供每碗重量。"
+    }
+  ],
+  "capture_origin" : "authored_development_fixture",
+  "id" : "doc_e1766dd1c4e8db25",
+  "raw_sha256" : "e1766dd1c4e8db2516f9b328cbf9bffce54bbea4aba03fc9a47320ef07ac1457",
+  "retrieved_at" : "2026-10-04T00:00:00Z",
+  "url" : "https:\/\/synthetic.example\/douhua-partial"
+}

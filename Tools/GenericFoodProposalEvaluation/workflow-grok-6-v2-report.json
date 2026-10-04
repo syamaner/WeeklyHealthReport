@@ -1,0 +1,250 @@
+{
+  "original_query_count": 6,
+  "metrics": {
+    "search_available": {
+      "numerator": 6,
+      "denominator": 6,
+      "rate": 1.0
+    },
+    "captured": {
+      "numerator": 6,
+      "denominator": 6,
+      "rate": 1.0
+    },
+    "source_eligible": {
+      "numerator": 4,
+      "denominator": 6,
+      "rate": 0.6666666666666666
+    },
+    "extraction_available": {
+      "numerator": 6,
+      "denominator": 6,
+      "rate": 1.0
+    },
+    "correct_review_outcome": {
+      "numerator": 4,
+      "denominator": 6,
+      "rate": 0.6666666666666666
+    },
+    "useful_panel": {
+      "numerator": 3,
+      "denominator": 6,
+      "rate": 0.5
+    },
+    "source_supported_abstention": {
+      "numerator": 1,
+      "denominator": 6,
+      "rate": 0.16666666666666666
+    },
+    "wrong_source_selection": {
+      "numerator": 0,
+      "denominator": 6,
+      "rate": 0.0
+    },
+    "wrong_source_safe_abstention": {
+      "numerator": 2,
+      "denominator": 6,
+      "rate": 0.3333333333333333
+    },
+    "wrong_source_reviewable_offer": {
+      "numerator": 2,
+      "denominator": 6,
+      "rate": 0.3333333333333333
+    },
+    "abstention_with_reviewable_offers": {
+      "numerator": 2,
+      "denominator": 6,
+      "rate": 0.3333333333333333
+    }
+  },
+  "cases": [
+    {
+      "id": "fage-total-0",
+      "query": "Find the UK FAGE Total 0% plain strained yoghurt nutrition per 100 g. Do not substitute the 5% variant.",
+      "first_url": "https://ie.fage/yoghurts/fage-total-0",
+      "search_available": true,
+      "captured": true,
+      "source_eligible": false,
+      "source_review_reason": "First lead is Ireland FAGE at ie.fage; UK is requested and only uk.fage was predeclared. Do not transfer Ireland composition to UK.",
+      "extraction_available": true,
+      "correct_review_outcome": false,
+      "useful_panel": false,
+      "source_supported_abstention": false,
+      "wrong_source_selection": false,
+      "wrong_source_reviewable_offer": true,
+      "abstention_with_reviewable_offers": true,
+      "eligible_offer_count": 1,
+      "wrong_source_safe_abstention": true,
+      "capture_status": "captured",
+      "extraction_status": "completed"
+    },
+    {
+      "id": "kongyen-black-natto",
+      "query": "工研養生黑豆納豆（45公克杯裝），請找每100公克的營養標示。",
+      "first_url": "https://kongyen.com.tw/product/33209/",
+      "search_available": true,
+      "captured": true,
+      "source_eligible": true,
+      "source_review_reason": "Exact requested food and nutrition basis supported by actual source on predeclared official host.",
+      "extraction_available": true,
+      "correct_review_outcome": true,
+      "useful_panel": true,
+      "source_supported_abstention": false,
+      "wrong_source_selection": false,
+      "wrong_source_reviewable_offer": false,
+      "abstention_with_reviewable_offers": false,
+      "eligible_offer_count": 2,
+      "wrong_source_safe_abstention": false,
+      "capture_status": "captured",
+      "extraction_status": "completed"
+    },
+    {
+      "id": "mugu-apple-rice-cracker",
+      "query": "牧菓Baby Secret 4M+盒裝有機米菓蘋果口味，每份6g的營養資料。",
+      "first_url": "https://www.muguo-organic.com/blog/posts/mugu-rice-crackers-faq",
+      "search_available": true,
+      "captured": true,
+      "source_eligible": true,
+      "source_review_reason": "Exact requested food and nutrition basis supported by actual source on predeclared official host.",
+      "extraction_available": true,
+      "correct_review_outcome": true,
+      "useful_panel": true,
+      "source_supported_abstention": false,
+      "wrong_source_selection": false,
+      "wrong_source_reviewable_offer": false,
+      "abstention_with_reviewable_offers": false,
+      "eligible_offer_count": 1,
+      "wrong_source_safe_abstention": false,
+      "capture_status": "captured",
+      "extraction_status": "completed"
+    },
+    {
+      "id": "itsu-chicken-gyoza",
+      "query": "Find itsu frozen grocery chicken gyoza in the 240g pack, per100g, using its published product nutrition.",
+      "first_url": "https://www.itsu-staging.ns-client.xyz/grocery/products/gyoza-and-bao/chicken-gyoza/",
+      "search_available": true,
+      "captured": true,
+      "source_eligible": false,
+      "source_review_reason": "First lead is www.itsu-staging.ns-client.xyz, outside predeclared itsu.com hosts. No domain expansion or authority inference after search.",
+      "extraction_available": true,
+      "correct_review_outcome": false,
+      "useful_panel": false,
+      "source_supported_abstention": false,
+      "wrong_source_selection": false,
+      "wrong_source_reviewable_offer": true,
+      "abstention_with_reviewable_offers": true,
+      "eligible_offer_count": 1,
+      "wrong_source_safe_abstention": true,
+      "capture_status": "captured",
+      "extraction_status": "completed"
+    },
+    {
+      "id": "tilda-dry-basmati",
+      "query": "Tilda Pure Basmati Rice 1kg, dry rice nutrition per100g.",
+      "first_url": "https://www.tilda.com/products/pure-basmati-rice-1kg/",
+      "search_available": true,
+      "captured": true,
+      "source_eligible": true,
+      "source_review_reason": "Exact requested food and nutrition basis supported by actual source on predeclared official host.",
+      "extraction_available": true,
+      "correct_review_outcome": true,
+      "useful_panel": true,
+      "source_supported_abstention": false,
+      "wrong_source_selection": false,
+      "wrong_source_reviewable_offer": false,
+      "abstention_with_reviewable_offers": false,
+      "eligible_offer_count": 2,
+      "wrong_source_safe_abstention": false,
+      "capture_status": "captured",
+      "extraction_status": "completed"
+    },
+    {
+      "id": "ikari-toast-100g-abstain",
+      "query": "怡客咖啡「現烤吐司-奶油」，請找每100公克的營養；不要把整份餐點數字當成每100公克。",
+      "first_url": "https://ikari.com.tw/wp-content/uploads/2025/07/%E9%A3%9F%E7%89%A9%E6%88%90%E5%88%86%E7%87%9F%E9%A4%8A%E6%A8%99%E7%A4%BA%E8%A1%A8.pdf",
+      "search_available": true,
+      "captured": true,
+      "source_eligible": true,
+      "source_review_reason": "Exact food on predeclared official host. Requested100g basis absent; source-grounded abstention remains appropriate.",
+      "extraction_available": true,
+      "correct_review_outcome": true,
+      "useful_panel": false,
+      "source_supported_abstention": true,
+      "wrong_source_selection": false,
+      "wrong_source_reviewable_offer": false,
+      "abstention_with_reviewable_offers": false,
+      "eligible_offer_count": 0,
+      "wrong_source_safe_abstention": false,
+      "capture_status": "captured",
+      "extraction_status": "completed"
+    }
+  ],
+  "version": "staged-food-discovery-workflow-v1",
+  "stages": {
+    "discovery": {
+      "run": "workflow-discovery-6-v1",
+      "plan_sha256": "0d20c4a204817bae2c56df0d383de9f5d378208d90d6cbaa50a41bca365dda84"
+    },
+    "capture": {
+      "run": "workflow-first-lead-capture-6-v1",
+      "plan_sha256": "36dea09557812edab2eb036d09acbaae839a1832a6d3a6cd34edb192e19d8d85"
+    },
+    "extraction": {
+      "run": "workflow-extraction-grok-6-v2",
+      "plan_sha256": "3c7449570bf4ac7f57c4ade58b5464d7b3700952c5c55f57fae69b38cea42f08"
+    }
+  },
+  "operations": {
+    "request_count": 12,
+    "known_cost_requests": 12,
+    "unknown_cost_requests": 0,
+    "known_reported_cost_usd": "0.255651125",
+    "cost_complete": true,
+    "cost_per_usable_panel_usd": "0.08521704166666666666666666667",
+    "usable_correct_panels": 3,
+    "latency_observed_requests": 12,
+    "median_request_seconds": 14.54626275,
+    "p90_request_seconds": 45.4239045,
+    "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+  },
+  "extraction_baseline": {
+    "whole_case": {
+      "numerator": 6,
+      "denominator": 6,
+      "rate": 1.0
+    },
+    "answerable_case_success": {
+      "numerator": 3,
+      "denominator": 3,
+      "rate": 1.0
+    },
+    "correct_abstention": {
+      "numerator": 3,
+      "denominator": 3,
+      "rate": 1.0
+    },
+    "selected_case_count": 3,
+    "availability": {
+      "numerator": 6,
+      "denominator": 6,
+      "rate": 1.0
+    },
+    "declared_field_precision": {
+      "numerator": 11,
+      "denominator": 11,
+      "rate": 1.0
+    },
+    "required_declared_field_recall": {
+      "numerator": 11,
+      "denominator": 11,
+      "rate": 1.0
+    },
+    "unknown_field_preservation": {
+      "numerator": 7,
+      "denominator": 7,
+      "rate": 1.0
+    },
+    "invented_unknown_fields": 0
+  },
+  "qualification": "Development workflow through actual adapters, staged with source review before extraction. Not independent acceptance, calibrated confidence, or a timed single app tap. Preferred-choice abstention does not imply that no other reviewable candidates were offered; those are counted separately. Wrong-source abstention never counts as coverage success. Capture has no provider inference cost."
+}

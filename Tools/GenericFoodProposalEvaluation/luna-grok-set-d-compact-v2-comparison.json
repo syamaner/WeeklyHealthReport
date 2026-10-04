@@ -1,0 +1,242 @@
+{
+  "version": "matched-food-route-comparison-v1",
+  "left": {
+    "run": "prospective-luna-4-compact-v2",
+    "plan_sha256": "70b3c30753379b7ffd0e7990826c3eed32ffb8f519c2590aecac28287fe29bb4",
+    "extractor": "luna",
+    "baseline": {
+      "whole_case": {
+        "numerator": 3,
+        "denominator": 4,
+        "rate": 0.75
+      },
+      "answerable_case_success": {
+        "numerator": 3,
+        "denominator": 4,
+        "rate": 0.75
+      },
+      "correct_abstention": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "selected_case_count": 3,
+      "availability": {
+        "numerator": 4,
+        "denominator": 4,
+        "rate": 1.0
+      },
+      "declared_field_precision": {
+        "numerator": 15,
+        "denominator": 15,
+        "rate": 1.0
+      },
+      "required_declared_field_recall": {
+        "numerator": 15,
+        "denominator": 16,
+        "rate": 0.9375
+      },
+      "unknown_field_preservation": {
+        "numerator": 3,
+        "denominator": 8,
+        "rate": 0.375
+      },
+      "invented_unknown_fields": 0
+    },
+    "operations": {
+      "request_count": 4,
+      "known_cost_requests": 4,
+      "unknown_cost_requests": 0,
+      "known_reported_cost_usd": "0.003887940",
+      "cost_complete": true,
+      "cost_per_usable_panel_usd": "0.001295980",
+      "usable_correct_panels": 3,
+      "latency_observed_requests": 4,
+      "median_request_seconds": 2.6318447705,
+      "p90_request_seconds": 2.80195325,
+      "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+    }
+  },
+  "right": {
+    "run": "grok-set-d-compact-v2",
+    "plan_sha256": "bb35fe03c6990244ff8af2afabdc30dda755491eae7adee1f5fcadaf68529396",
+    "extractor": "grok",
+    "baseline": {
+      "whole_case": {
+        "numerator": 3,
+        "denominator": 4,
+        "rate": 0.75
+      },
+      "answerable_case_success": {
+        "numerator": 3,
+        "denominator": 4,
+        "rate": 0.75
+      },
+      "correct_abstention": {
+        "numerator": 0,
+        "denominator": 0,
+        "rate": null
+      },
+      "selected_case_count": 3,
+      "availability": {
+        "numerator": 3,
+        "denominator": 4,
+        "rate": 0.75
+      },
+      "declared_field_precision": {
+        "numerator": 11,
+        "denominator": 11,
+        "rate": 1.0
+      },
+      "required_declared_field_recall": {
+        "numerator": 11,
+        "denominator": 16,
+        "rate": 0.6875
+      },
+      "unknown_field_preservation": {
+        "numerator": 7,
+        "denominator": 8,
+        "rate": 0.875
+      },
+      "invented_unknown_fields": 0
+    },
+    "operations": {
+      "request_count": 4,
+      "known_cost_requests": 3,
+      "unknown_cost_requests": 1,
+      "known_reported_cost_usd": "0.095002",
+      "cost_complete": false,
+      "cost_per_usable_panel_usd": null,
+      "usable_correct_panels": 3,
+      "latency_observed_requests": 4,
+      "median_request_seconds": 26.6276780205,
+      "p90_request_seconds": 90.348462375,
+      "latency_scope": "Observed request latency, including reported failures; not end-to-end UI latency. Missing timings are not zero."
+    }
+  },
+  "paired": {
+    "planned_pairs": 4,
+    "both_pass": 2,
+    "left_only_pass": 1,
+    "right_only_pass": 1,
+    "neither_pass": 0,
+    "groups": {
+      "family": {
+        "dl-original-tofu-biscuits": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "shengchi-spicy-tofu": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "mugu-apple-rice-cracker": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "tilda-dry-basmati": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        }
+      },
+      "domain": {
+        "www.dl-food.com": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.shengchi-steak.com": {
+          "planned_pairs": 1,
+          "both_pass": 1,
+          "left_only_pass": 0,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": true
+        },
+        "www.muguo-organic.com": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 0,
+          "right_only_pass": 1,
+          "neither_pass": 0,
+          "left_all_pass": false,
+          "right_all_pass": true
+        },
+        "www.tilda.com": {
+          "planned_pairs": 1,
+          "both_pass": 0,
+          "left_only_pass": 1,
+          "right_only_pass": 0,
+          "neither_pass": 0,
+          "left_all_pass": true,
+          "right_all_pass": false
+        }
+      }
+    },
+    "cases": [
+      {
+        "case": "dl-original-tofu-biscuits",
+        "family": "dl-original-tofu-biscuits",
+        "domain": "www.dl-food.com",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "shengchi-spicy-tofu",
+        "family": "shengchi-spicy-tofu",
+        "domain": "www.shengchi-steak.com",
+        "left_pass": true,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "mugu-apple-rice-cracker",
+        "family": "mugu-apple-rice-cracker",
+        "domain": "www.muguo-organic.com",
+        "left_pass": false,
+        "right_pass": true,
+        "left_available": true,
+        "right_available": true
+      },
+      {
+        "case": "tilda-dry-basmati",
+        "family": "tilda-dry-basmati",
+        "domain": "www.tilda.com",
+        "left_pass": true,
+        "right_pass": false,
+        "left_available": true,
+        "right_available": false
+      }
+    ]
+  },
+  "qualification": "Descriptive matched development comparison. Repeated foods and shared families are not independent samples; no statistical superiority or calibrated-confidence claim.",
+  "scope": "Extraction and binding on identical captured documents. Does not measure discovery, acquisition, source truth, saved entries or physical-device behaviour."
+}

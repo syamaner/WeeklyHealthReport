@@ -1,0 +1,132 @@
+{
+  "version": "prospective-public-discovery-roster-v1",
+  "qualification": "Source coverage only; numeric gold will be reviewed after independent capture and before extraction.",
+  "cases": [
+    {
+      "id": "olympus",
+      "task": "discovery",
+      "query": "Official UK Olympus Greek yoghurt 10% fat nutrition per 100 g",
+      "family": "yoghurt",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "authorised_food_list",
+      "reference_status": "source_discovery_coverage_no_numeric_gold",
+      "descriptor_seed_case_id": "scenario-olympus-yoghurt"
+    },
+    {
+      "id": "ortiz",
+      "task": "discovery",
+      "query": "Official Ortiz canned tuna in olive oil nutrition per 100 g drained solids",
+      "family": "tuna",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "authorised_food_list",
+      "reference_status": "source_discovery_coverage_no_numeric_gold",
+      "descriptor_seed_case_id": "scenario-drained-tuna"
+    },
+    {
+      "id": "quaker",
+      "task": "discovery",
+      "query": "Official UK Quaker rolled oats dry nutrition per 100 g before adding milk",
+      "family": "oats",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "authorised_food_list",
+      "reference_status": "source_discovery_coverage_no_numeric_gold",
+      "descriptor_seed_case_id": "scenario-quaker-oats"
+    },
+    {
+      "id": "kirkland",
+      "task": "discovery",
+      "query": "Kirkland Three Berry Blend declared nutrition, source serving size and variant",
+      "family": "berries",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "authorised_food_list",
+      "reference_status": "source_discovery_coverage_no_numeric_gold",
+      "descriptor_seed_case_id": "scenario-berry-blend"
+    },
+    {
+      "id": "big-arch",
+      "task": "discovery",
+      "query": "Official UK McDonald’s Big Arch burger nutrition per burger",
+      "family": "burger",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "authorised_food_list",
+      "reference_status": "source_discovery_coverage_no_numeric_gold",
+      "descriptor_seed_case_id": "scenario-big-arch"
+    },
+    {
+      "id": "rude-health",
+      "task": "discovery",
+      "query": "Official UK Rude Health Coconut Drink nutrition per 100 ml",
+      "family": "milk",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "authorised_food_list",
+      "reference_status": "source_discovery_coverage_no_numeric_gold",
+      "descriptor_seed_case_id": "explore-unfamiliar-manufacturer"
+    },
+    {
+      "id": "mos-fries",
+      "task": "discovery",
+      "query": "請找台灣摩斯漢堡「薯條」官方單份營養標示，保留來源份量與未標示欄位。",
+      "family": "fries",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "taiwan_market",
+      "reference_status": "source_discovery_coverage_no_numeric_gold"
+    },
+    {
+      "id": "soy-drink",
+      "task": "discovery",
+      "query": "請找義美「無加糖豆奶」官方營養標示，保留包裝版本與每份或每100毫升的來源基準。",
+      "family": "milk",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "taiwan_market",
+      "reference_status": "source_discovery_coverage_no_numeric_gold"
+    },
+    {
+      "id": "potsticker",
+      "task": "discovery",
+      "query": "請找八方雲集「招牌鍋貼」台灣官方營養標示，保留單顆或每份的來源基準。",
+      "family": "dumpling",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "taiwan_market",
+      "reference_status": "source_discovery_coverage_no_numeric_gold"
+    },
+    {
+      "id": "braised-rice",
+      "task": "discovery",
+      "query": "請找鬍鬚張「滷肉飯小碗」台灣官方營養標示，保留份量，不推算缺漏營養素。",
+      "family": "rice",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "taiwan_market",
+      "reference_status": "source_discovery_coverage_no_numeric_gold"
+    },
+    {
+      "id": "tea-egg",
+      "task": "discovery",
+      "query": "請找台灣7-ELEVEN「茶葉蛋」官方每顆營養標示；不要使用一般雞蛋資料代替。",
+      "family": "egg",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "taiwan_market",
+      "reference_status": "source_discovery_coverage_no_numeric_gold"
+    },
+    {
+      "id": "night-market-recipe",
+      "task": "discovery",
+      "query": "Find declared nutrition per recipe serving for Taiwan night-market steak with noodles, egg and sauce; clearly identify it as a recipe estimate, not a specific stall’s measured serving.",
+      "family": "beef",
+      "layout": "unobserved",
+      "domain": "unobserved",
+      "slice": "taiwan_market",
+      "reference_status": "source_discovery_coverage_no_numeric_gold"
+    }
+  ]
+}

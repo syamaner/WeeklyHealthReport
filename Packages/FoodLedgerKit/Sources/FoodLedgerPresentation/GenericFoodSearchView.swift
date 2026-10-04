@@ -32,7 +32,10 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         if case .failed = phase { return nil }
         if case .declined = phase { return nil }
         guard activeEnrichmentStage != nil || !stageReports.isEmpty || stoppedSearchStage != nil else { return nil }
-        return FoodSearchStatusPresentation(reports: stageReports, pending: activeEnrichmentStage ?? stoppedSearchStage, stopped: searchWasStopped, services: services)
+        let configuredStages: [FoodSearchStage] = [.local]
+            + (onlineDatabaseAvailable ? [.onlineDatabase] : []) + (geminiAvailable ? [.gemini] : [])
+        return FoodSearchStatusPresentation(reports: stageReports, pending: activeEnrichmentStage ?? stoppedSearchStage,
+            stopped: searchWasStopped, services: services, configuredStages: configuredStages)
     }
     /// Explain a skipped web search beside completed results, without making a call.
     public var geminiSetupMessage: String? {
@@ -298,11 +301,14 @@ public struct GenericFoodSearchView: View {
     @State private var showsServices = false
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private let webDiscovery: FoodWebDiscoveryViewModel?
+    private let reviewWebNutrition: (() -> Void)?
     private let review: (PopulatedFoodConfirmation) -> Void
 
     public init(model: GenericFoodSearchViewModel, webDiscovery: FoodWebDiscoveryViewModel? = nil,
+                reviewWebNutrition: (() -> Void)? = nil,
                 review: @escaping (PopulatedFoodConfirmation) -> Void) {
         self.model = model; self.webDiscovery = webDiscovery; self.review = review
+        self.reviewWebNutrition = reviewWebNutrition
     }
 
     public var body: some View {
@@ -324,6 +330,10 @@ public struct GenericFoodSearchView: View {
                         .buttonStyle(.borderedProminent)
                         .frame(maxWidth: .infinity)
                         .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.searchStatus?.isSearching == true)
+                    if let reviewWebNutrition {
+                        Button("Review web nutrition", action: reviewWebNutrition)
+                            .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.searchStatus?.isSearching == true)
+                    }
                 }
                 if let message = model.geminiSetupMessage {
                     Section {
@@ -418,6 +428,7 @@ public struct GenericFoodSearchView: View {
                         Text("Community product data can be incomplete. Compare the package and nutrition basis before choosing. Changing this setting takes effect on your next search.").font(.caption)
                         Link("Open Food Facts terms and data licences", destination: URL(string: "https://world.openfoodfacts.org/terms-of-use")!)
                     }
+                    if model.geminiAvailable {
                     Section("Gemini") {
                         Toggle("Automatic Gemini search", isOn: Binding(get: { model.geminiEnabled }, set: { model.setGeminiEnabled($0) }))
                             .disabled(!model.geminiAvailable)
@@ -429,6 +440,12 @@ public struct GenericFoodSearchView: View {
                             }
                         }
                         Text(model.geminiCredentialReady ? "Validated key available for this session." : "Add or revalidate your key before automatic Gemini search is available.").font(.caption)
+                    }
+                    }
+                    if reviewWebNutrition != nil {
+                        Section("Web nutrition") {
+                            Text("Use Review web nutrition from the food search screen to find and review sources with OpenRouter. Its API key and privacy settings are on that screen.")
+                        }
                     }
                     Section("Advanced") {
                         Toggle("Developer tools", isOn: $developerToolsEnabled)

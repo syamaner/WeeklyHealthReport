@@ -6,6 +6,20 @@ import FoodLedgerPresentation
 import XCTest
 
 final class FoodSearchStatusPresentationTests: XCTestCase {
+    func testOnlyConfiguredServicesAppearWhenThereIsNoRecordedActivity() {
+        let status = FoodSearchStatusPresentation(reports: [.init(stage: .local)], pending: nil, stopped: false,
+            services: .init(onlineDatabase: .disabled, gemini: .unavailable), configuredStages: [.local, .onlineDatabase])
+        XCTAssertEqual(status.details, ["On-device foods: No extra matches", "Open Food Facts: Off"])
+    }
+
+    func testActualFailureOrPendingActivityCannotBeHiddenByConfiguration() {
+        let failed = FoodSearchStatusPresentation(reports: [.init(stage: .gemini, failure: .timedOut)],
+            pending: nil, stopped: false, configuredStages: [.local])
+        XCTAssertEqual(failed.details, ["On-device foods: Not searched", "Gemini: Search timed out"])
+        let pending = FoodSearchStatusPresentation(reports: [], pending: .onlineDatabase, stopped: false, configuredStages: [.local])
+        XCTAssertEqual(pending.details, ["On-device foods: Not searched", "Open Food Facts: Searching"])
+    }
+
     func testCitationOnlySourceNeverClaimsNutritionOrAnAddedMatch() {
         let status = FoodSearchStatusPresentation(reports: [.init(stage: .local),
             .init(stage: .gemini, hasSourceLinks: true)], pending: nil, stopped: false)

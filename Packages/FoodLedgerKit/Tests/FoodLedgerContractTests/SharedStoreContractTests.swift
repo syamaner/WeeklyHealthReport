@@ -32,7 +32,8 @@ final class SharedStoreContractTests: XCTestCase {
             FoodConfirmationReducer.reduce(state: &state, action: .accept)
             let service = FoodConfirmationService(
                 ledger: ledger, reader: harness.reader,
-                clock: LedgerFixtures.clock, ids: ContractSequenceIDs()
+                clock: LedgerFixtures.clock, ids: ContractSequenceIDs(),
+                digester: SHA256Digester()
             )
             let saved = try service.save(state, operationID: LedgerFixtures.operationID(215))
             let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
@@ -66,7 +67,8 @@ final class SharedStoreContractTests: XCTestCase {
             )
             let service = FoodConfirmationService(
                 ledger: ledger, reader: harness.reader,
-                clock: LedgerFixtures.clock, ids: ContractSequenceIDs()
+                clock: LedgerFixtures.clock, ids: ContractSequenceIDs(),
+                digester: SHA256Digester()
             )
             var original = FoodConfirmationState(input: originalInput)
             FoodConfirmationReducer.reduce(state: &original, action: .setQuantity(200, .millilitres))
@@ -690,7 +692,7 @@ final class SharedStoreContractTests: XCTestCase {
             var state = FoodConfirmationState(input: route.confirmation)
             FoodConfirmationReducer.reduce(state: &state, action: .accept)
             let service = FoodConfirmationService(ledger: ledger, reader: harness.reader,
-                clock: LedgerFixtures.clock, ids: ContractSequenceIDs())
+                clock: LedgerFixtures.clock, ids: ContractSequenceIDs(), digester: SHA256Digester())
             XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(510)))
             XCTAssertEqual(try harness.reader.counts().operations, 0)
             let corrected = try DecisiveIdentity(preparation: PreparationState(kind: .asSold), bone: .notApplicable,
@@ -730,7 +732,7 @@ final class SharedStoreContractTests: XCTestCase {
                 let unit: QuantityUnit = kind == .arla ? .grams : .millilitres
                 var state = FoodConfirmationState(input: route.confirmation)
                 let service = FoodConfirmationService(ledger: ledger, reader: harness.reader,
-                    clock: LedgerFixtures.clock, ids: ContractSequenceIDs())
+                    clock: LedgerFixtures.clock, ids: ContractSequenceIDs(), digester: SHA256Digester())
                 FoodConfirmationReducer.reduce(state: &state, action: .accept)
                 XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(520)))
                 let corrected = try DecisiveIdentity(preparation: PreparationState(kind: .asSold), bone: .notApplicable,
@@ -801,7 +803,8 @@ final class SharedStoreContractTests: XCTestCase {
                 ledger: ledger,
                 reader: harness.reader,
                 clock: LedgerFixtures.clock,
-                ids: ContractSequenceIDs()
+                ids: ContractSequenceIDs(),
+                digester: SHA256Digester()
             )
             let saved = try confirmation.save(
                 state,
@@ -810,7 +813,8 @@ final class SharedStoreContractTests: XCTestCase {
             )
             // Recreate the service as after a lost response; fresh generated IDs must not duplicate the log.
             let retryService = FoodConfirmationService(
-                ledger: ledger, reader: harness.reader, clock: LedgerFixtures.clock, ids: ContractSequenceIDs()
+                ledger: ledger, reader: harness.reader, clock: LedgerFixtures.clock, ids: ContractSequenceIDs(),
+                digester: SHA256Digester()
             )
             var changed = state
             changed.quantity.value = 200
@@ -843,7 +847,7 @@ final class SharedStoreContractTests: XCTestCase {
             FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(100, .grams))
             FoodConfirmationReducer.reduce(state: &state, action: .accept)
             let confirmation = FoodConfirmationService(ledger: ledger, reader: harness.reader,
-                clock: LedgerFixtures.clock, ids: ids)
+                clock: LedgerFixtures.clock, ids: ids, digester: SHA256Digester())
             let saved = try confirmation.save(state, operationID: LedgerFixtures.operationID(152))
             XCTAssertEqual(saved.productVersion.identity, route.matches[0].candidate.candidate.identity, harness.name)
             XCTAssertEqual(saved.resolutionVersion.nutrients, route.matches[0].candidate.candidate.nutrients, harness.name)
@@ -864,7 +868,7 @@ final class SharedStoreContractTests: XCTestCase {
             let route = try XCTUnwrap(RecipeAdmissionFixtures.route())
             var state = FoodConfirmationState(input: route.confirmation)
             let service = FoodConfirmationService(ledger: ledger, reader: harness.reader,
-                clock: LedgerFixtures.clock, ids: ContractSequenceIDs())
+                clock: LedgerFixtures.clock, ids: ContractSequenceIDs(), digester: SHA256Digester())
             XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(530)))
             FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(0.5, .count))
             FoodConfirmationReducer.reduce(state: &state, action: .accept)
@@ -903,7 +907,7 @@ final class SharedStoreContractTests: XCTestCase {
                 capturedAt: LedgerFixtures.clock.now(), locale: LedgerText("en_GB"))) else { return XCTFail() }
             var state = FoodConfirmationState(input: route.confirmation)
             let service = FoodConfirmationService(ledger: ledger, reader: harness.reader,
-                clock: LedgerFixtures.clock, ids: ContractSequenceIDs())
+                clock: LedgerFixtures.clock, ids: ContractSequenceIDs(), digester: SHA256Digester())
             XCTAssertNil(state.quantity.value)
             XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(540)))
             FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(150, .grams))

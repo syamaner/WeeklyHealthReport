@@ -1,0 +1,785 @@
+{
+  "version": "authored-source-fixtures-v1",
+  "qualification": "All values fictional; development only. Never use as actual food nutrition.",
+  "cases": [
+    {
+      "id": "milk-volume",
+      "task": "provided_document",
+      "query": "200 ml whole milk",
+      "document": "milk-volume.json",
+      "raw_source": "milk-volume.html",
+      "family": "milk",
+      "slice": "local_general",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-whole-milk",
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Whole milk"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "ml"
+        },
+        "nutrients": {
+          "energy": "60",
+          "protein": "3",
+          "carbohydrate": "5",
+          "fat": "3",
+          "fibre": "0",
+          "sodium": "40"
+        }
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "soy-salt",
+      "task": "provided_document",
+      "query": "Unsweetened soya drink per 100 ml",
+      "document": "soy-salt.json",
+      "raw_source": "soy-salt.html",
+      "family": "milk",
+      "slice": "local_general",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": null,
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Unsweetened soya drink"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "ml"
+        },
+        "nutrients": {
+          "energy": "33",
+          "protein": "3",
+          "carbohydrate": "1",
+          "fat": "2",
+          "fibre": "1",
+          "sodium": null
+        }
+      },
+      "reason": "Salt cannot be converted to sodium.",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "yoghurt-variant",
+      "task": "provided_document",
+      "query": "Plain Greek yoghurt, not strawberry yoghurt",
+      "document": "yoghurt-variant.json",
+      "raw_source": "yoghurt-variant.html",
+      "family": "yoghurt",
+      "slice": "local_general",
+      "layout": "two-panels",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-olympus-yoghurt",
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Plain Greek yoghurt"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": "120",
+          "protein": "6",
+          "carbohydrate": "4",
+          "fat": "9",
+          "fibre": null,
+          "sodium": null
+        }
+      },
+      "reason": "A complete wrong variant must not outrank a partial correct one.",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "tuna-drained",
+      "task": "provided_document",
+      "query": "55 g drained tuna solids, without the packing oil",
+      "document": "tuna-drained.json",
+      "raw_source": "tuna-drained.html",
+      "family": "tuna",
+      "slice": "local_general",
+      "layout": "two-panels",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-drained-tuna",
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Tuna, drained solids"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": "150",
+          "protein": "25",
+          "carbohydrate": "0",
+          "fat": "6",
+          "fibre": null,
+          "sodium": "200"
+        }
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "ribeye-cooked",
+      "task": "provided_document",
+      "query": "125 g cooked-weight ribeye steak",
+      "document": "ribeye-cooked.json",
+      "raw_source": "ribeye-cooked.html",
+      "family": "beef",
+      "slice": "local_general",
+      "layout": "two-panels",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-cooked-ribeye",
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Ribeye steak, cooked"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": "250",
+          "protein": "27",
+          "carbohydrate": "0",
+          "fat": "16",
+          "fibre": "0",
+          "sodium": "60"
+        }
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "oats-dry",
+      "task": "provided_document",
+      "query": "30 g dry rolled oats before adding water or milk",
+      "document": "oats-dry.json",
+      "raw_source": "oats-dry.html",
+      "family": "oats",
+      "slice": "local_general",
+      "layout": "two-panels",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-quaker-oats",
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Rolled oats, dry"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": "380",
+          "protein": "12",
+          "carbohydrate": "60",
+          "fat": "8",
+          "fibre": "10",
+          "sodium": "2"
+        }
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "coffee-grounds",
+      "task": "provided_document",
+      "query": "One mug of black filter coffee made with 15 g grounds; find the brewed drink nutrition",
+      "document": "coffee-grounds.json",
+      "raw_source": "coffee-grounds.html",
+      "family": "coffee",
+      "slice": "local_general",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-coffee-grounds",
+      "gold": {
+        "outcome": "abstain",
+        "allowed_choices": [
+          "none",
+          "clarify"
+        ]
+      },
+      "reason": "Grounds are not the consumed brewed beverage.",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "granola-no-recipe",
+      "task": "provided_document",
+      "query": "42 g homemade granola with plenty of nuts",
+      "document": "granola-no-recipe.json",
+      "raw_source": "granola-no-recipe.html",
+      "family": "granola",
+      "slice": "local_general",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-homemade-granola",
+      "gold": {
+        "outcome": "abstain",
+        "allowed_choices": [
+          "none",
+          "clarify"
+        ]
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "chicken-no-half-weight",
+      "task": "provided_document",
+      "query": "Half a roast chicken; show the source basis without inventing a half-chicken gram weight",
+      "document": "chicken-no-half-weight.json",
+      "raw_source": "chicken-no-half-weight.html",
+      "family": "chicken",
+      "slice": "local_general",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-half-roast-chicken",
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Roast chicken"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": "210",
+          "protein": "25",
+          "carbohydrate": "0",
+          "fat": "12",
+          "fibre": "0",
+          "sodium": "100"
+        }
+      },
+      "reason": "Intake weight remains unknown; extraction may still return a per-100-g proposal.",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "berry-zero",
+      "task": "provided_document",
+      "query": "Three berry blend",
+      "document": "berry-zero.json",
+      "raw_source": "berry-zero.html",
+      "family": "berries",
+      "slice": "local_general",
+      "layout": "jsonld",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-berry-blend",
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Three berry blend"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": "40",
+          "protein": "0",
+          "carbohydrate": "8",
+          "fat": "0",
+          "fibre": "0",
+          "sodium": "0"
+        }
+      },
+      "reason": "Explicit zero is not missing data.",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "carrot-no-basis",
+      "task": "provided_document",
+      "query": "100 g raw carrot",
+      "document": "carrot-no-basis.json",
+      "raw_source": "carrot-no-basis.html",
+      "family": "carrot",
+      "slice": "local_general",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-raw-carrot",
+      "gold": {
+        "outcome": "abstain",
+        "allowed_choices": [
+          "none",
+          "clarify"
+        ]
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "avocado-inequality",
+      "task": "provided_document",
+      "query": "38 g Hass avocado flesh without skin or stone",
+      "document": "avocado-inequality.json",
+      "raw_source": "avocado-inequality.html",
+      "family": "avocado",
+      "slice": "local_general",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-avocado-flesh",
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Hass avocado flesh"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": "160",
+          "protein": "2",
+          "carbohydrate": "8",
+          "fat": "15",
+          "fibre": null,
+          "sodium": null
+        }
+      },
+      "reason": "Bounds and approximate declarations cannot become exact values.",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "douhua-partial",
+      "task": "provided_document",
+      "query": "豆花，每份一碗，保留未標示營養素為未知",
+      "document": "douhua-partial.json",
+      "raw_source": "douhua-partial.txt",
+      "family": "tofu",
+      "slice": "taiwan_market",
+      "layout": "plain",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": null,
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "豆花",
+          "豆花（每份一碗）"
+        ],
+        "basis": {
+          "amount": "1",
+          "unit": "serving"
+        },
+        "nutrients": {
+          "energy": "150",
+          "protein": "6",
+          "carbohydrate": null,
+          "fat": null,
+          "fibre": null,
+          "sodium": null
+        }
+      },
+      "reason": "A source bowl does not imply grams.",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "popcorn-chicken-serving",
+      "task": "provided_document",
+      "query": "鹽酥雞單份，請保留來源份量，不推算克數",
+      "document": "popcorn-chicken-serving.json",
+      "raw_source": "popcorn-chicken-serving.html",
+      "family": "chicken",
+      "slice": "taiwan_market",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-popcorn-chicken",
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "鹽酥雞"
+        ],
+        "basis": {
+          "amount": "1",
+          "unit": "serving"
+        },
+        "nutrients": {
+          "energy": "320",
+          "protein": "20",
+          "carbohydrate": "16",
+          "fat": "20",
+          "fibre": null,
+          "sodium": "600"
+        }
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "beef-noodles-recipe",
+      "task": "provided_document",
+      "query": "紅燒牛肉麵食譜每份的營養，作為食譜估算，不是特定店家的實測值",
+      "document": "beef-noodles-recipe.json",
+      "raw_source": "beef-noodles-recipe.html",
+      "family": "beef",
+      "slice": "taiwan_market",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-beef-noodle-soup",
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "紅燒牛肉麵食譜"
+        ],
+        "basis": {
+          "amount": "1",
+          "unit": "serving"
+        },
+        "nutrients": {
+          "energy": "500",
+          "protein": "30",
+          "carbohydrate": "60",
+          "fat": "15",
+          "fibre": "4",
+          "sodium": "900"
+        }
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "pork-rice-conflict",
+      "task": "provided_document",
+      "query": "滷肉飯，同一產品同一份量，兩個營養表互相衝突",
+      "document": "pork-rice-conflict.json",
+      "raw_source": "pork-rice-conflict.html",
+      "family": "rice",
+      "slice": "taiwan_market",
+      "layout": "conflicting-panels",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-braised-pork-rice",
+      "gold": {
+        "outcome": "abstain",
+        "allowed_choices": [
+          "none",
+          "clarify"
+        ]
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "bubble-tea-ambiguous",
+      "task": "provided_document",
+      "query": "珍珠奶茶，50%糖，未指定杯型、奶類或配料份量；需要先釐清",
+      "document": "bubble-tea-ambiguous.json",
+      "raw_source": "bubble-tea-ambiguous.html",
+      "family": "tea",
+      "slice": "taiwan_market",
+      "layout": "two-panels",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-bubble-tea",
+      "gold": {
+        "outcome": "abstain",
+        "allowed_choices": [
+          "none",
+          "clarify"
+        ]
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "scallion-frozen",
+      "task": "provided_document",
+      "query": "冷凍蔥油餅，未煎熟，每100公克",
+      "document": "scallion-frozen.json",
+      "raw_source": "scallion-frozen.html",
+      "family": "pancake",
+      "slice": "taiwan_market",
+      "layout": "two-panels",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": null,
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "冷凍蔥油餅"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": "280",
+          "protein": "6",
+          "carbohydrate": "40",
+          "fat": "10",
+          "fibre": "2",
+          "sodium": "450"
+        }
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "water-spinach-added-oil",
+      "task": "provided_document",
+      "query": "蒜炒空心菜，需包含蒜頭與炒菜油，不能以生空心菜代替",
+      "document": "water-spinach-added-oil.json",
+      "raw_source": "water-spinach-added-oil.html",
+      "family": "greens",
+      "slice": "taiwan_market",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": null,
+      "gold": {
+        "outcome": "abstain",
+        "allowed_choices": [
+          "none",
+          "clarify"
+        ]
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "omelette-kj-only",
+      "task": "provided_document",
+      "query": "蚵仔煎每份，只使用直接標示值，不將kJ轉換成kcal",
+      "document": "omelette-kj-only.json",
+      "raw_source": "omelette-kj-only.html",
+      "family": "omelette",
+      "slice": "taiwan_market",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": "scenario-oyster-omelette",
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "蚵仔煎"
+        ],
+        "basis": {
+          "amount": "1",
+          "unit": "serving"
+        },
+        "nutrients": {
+          "energy": null,
+          "protein": "12",
+          "carbohydrate": "40",
+          "fat": "15",
+          "fibre": null,
+          "sodium": "650"
+        }
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "labels-not-numbers",
+      "task": "provided_document",
+      "query": "Plain tofu",
+      "document": "labels-not-numbers.json",
+      "raw_source": "labels-not-numbers.txt",
+      "family": "tofu",
+      "slice": "local_general",
+      "layout": "plain",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": null,
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Plain tofu"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": "90",
+          "protein": "8",
+          "carbohydrate": "2",
+          "fat": "6",
+          "fibre": "1",
+          "sodium": "10"
+        }
+      },
+      "reason": "Protein and fat must follow their own labels even though both values occur nearby.",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "source-injection",
+      "task": "provided_document",
+      "query": "Plain rice, cooked",
+      "document": "source-injection.json",
+      "raw_source": "source-injection.html",
+      "family": "rice",
+      "slice": "local_general",
+      "layout": "injection-plus-table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": null,
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Plain rice, cooked"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": "130",
+          "protein": "3",
+          "carbohydrate": "28",
+          "fat": "0",
+          "fibre": "1",
+          "sodium": "0"
+        }
+      },
+      "reason": "",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "invalid-negative",
+      "task": "provided_document",
+      "query": "Plain yoghurt",
+      "document": "invalid-negative.json",
+      "raw_source": "invalid-negative.html",
+      "family": "yoghurt",
+      "slice": "local_general",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": null,
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Plain yoghurt"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": "60",
+          "protein": "4",
+          "carbohydrate": "5",
+          "fat": "3",
+          "fibre": null,
+          "sodium": null
+        }
+      },
+      "reason": "An invalid negative must not become positive by dropping its sign.",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    },
+    {
+      "id": "range-not-point",
+      "task": "provided_document",
+      "query": "Bean soup",
+      "document": "range-not-point.json",
+      "raw_source": "range-not-point.html",
+      "family": "soup",
+      "slice": "local_general",
+      "layout": "table",
+      "domain": "synthetic.example",
+      "reference_status": "Previously exposed authored fictional fixture; original gold unchanged, not independent acceptance",
+      "descriptor_seed_case_id": null,
+      "gold": {
+        "outcome": "selected",
+        "allowed_names": [
+          "Bean soup"
+        ],
+        "basis": {
+          "amount": "100",
+          "unit": "g"
+        },
+        "nutrients": {
+          "energy": null,
+          "protein": "5",
+          "carbohydrate": "12",
+          "fat": "2",
+          "fibre": null,
+          "sodium": "100"
+        }
+      },
+      "reason": "Neither endpoint of a range may become an exact declaration.",
+      "numeric_values_are_fictional": true,
+      "selection": false,
+      "extractor": "luna"
+    }
+  ],
+  "minimum_interval_seconds": 15,
+  "previous_gold_changed": false,
+  "previous_unresolved_cost_requests": 3,
+  "experiment": "24-case fictional edge-case regression under binding/projection v4, evidence catalogue v1, wire v3 and instruction v9."
+}

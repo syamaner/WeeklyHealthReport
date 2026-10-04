@@ -63,7 +63,7 @@ final class DirectWeightContractTests: XCTestCase {
                 let ledger = try LedgerFixtures.service(harness.committer)
                 let service = FoodConfirmationService(
                     ledger: ledger, reader: harness.reader,
-                    clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator())
+                    clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: SHA256Digester())
                 let input = try fixtureInput()
                 var state = FoodConfirmationState(input: input)
                 state.decision = .accepted
@@ -142,7 +142,7 @@ final class DirectWeightContractTests: XCTestCase {
             let ledger = try LedgerFixtures.service(harness.committer)
             let confirmations = FoodConfirmationService(
                 ledger: ledger, reader: harness.reader,
-                clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator())
+                clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: SHA256Digester())
             var state = FoodConfirmationState(input: try fixtureInput())
             state.decision = .accepted
             state.quantity.directWeight = DirectWeightDraft(totalGrams: 125, basis: .measured)
@@ -193,7 +193,7 @@ final class DirectWeightContractTests: XCTestCase {
             let ledger = try LedgerFixtures.service(harness.committer)
             let service = FoodConfirmationService(
                 ledger: ledger, reader: harness.reader,
-                clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator())
+                clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: SHA256Digester())
             var state = FoodConfirmationState(input: try fixtureInput())
             state.decision = .accepted
             state.quantity = FoodQuantityDraft(
@@ -247,7 +247,7 @@ final class DirectWeightContractTests: XCTestCase {
         let harness = try XCTUnwrap(harnesses.first)
         let service = FoodConfirmationService(
             ledger: try LedgerFixtures.service(harness.committer), reader: harness.reader,
-            clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator())
+            clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: SHA256Digester())
         var state = FoodConfirmationState(input: try fixtureInput())
         state.decision = .accepted
         state.quantity.directWeight = DirectWeightDraft(totalGrams: 150, basis: .measured)
@@ -295,7 +295,7 @@ final class DirectWeightContractTests: XCTestCase {
         let store = InMemoryFoodLedgerStore()
         let service = FoodConfirmationService(
             ledger: try LedgerFixtures.service(store), reader: store,
-            clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator())
+            clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: SHA256Digester())
         var state = FoodConfirmationState(input: try fixtureInput())
         state.decision = .accepted
         state.quantity.directWeight = DirectWeightDraft(totalGrams: 150, basis: .measured)
@@ -330,7 +330,7 @@ final class DirectWeightContractTests: XCTestCase {
         let store = try FoodLedgerGRDBStore.temporary(directory: directory)
         let service = FoodConfirmationService(
             ledger: try LedgerFixtures.service(store), reader: store,
-            clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator())
+            clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: SHA256Digester())
         var state = FoodConfirmationState(input: try fixtureInput())
         state.decision = .accepted
         state.quantity = FoodQuantityDraft(
@@ -378,7 +378,7 @@ final class DirectWeightContractTests: XCTestCase {
         let alternateService = FoodConfirmationService(
             ledger: try LedgerFixtures.service(InMemoryFoodLedgerStore()),
             reader: FixedConfirmationReader(record: alternate), clock: LedgerFixtures.clock,
-            ids: RandomLedgerIDGenerator())
+            ids: RandomLedgerIDGenerator(), digester: SHA256Digester())
         XCTAssertThrowsError(try alternateService.reopen(logItemID: badLog.logItemID))
     }
 

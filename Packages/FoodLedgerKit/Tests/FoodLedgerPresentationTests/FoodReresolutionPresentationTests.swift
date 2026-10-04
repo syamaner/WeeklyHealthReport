@@ -85,7 +85,7 @@ final class FoodReresolutionPresentationTests: XCTestCase {
             let input = try PopulatedFoodConfirmation(evidence: [evidence], sourceReleases: [release], candidates: [populated], expectedIdentity: identity, expectedEdibleQuantity: candidate.edibleQuantity)
             var state = FoodConfirmationState(input: input)
             state.decision = .accepted
-            record = try FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids).save(state, operationID: ids.makeID(OperationTag.self))
+            record = try FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids, digester: SHA256Digester()).save(state, operationID: ids.makeID(OperationTag.self))
             let target = FoodReresolutionTarget(sourceRelease: try Self.release("synthetic-v2"), methodVersion: try LedgerText("synthetic-matcher-v2"))
             provider = try TestProvider(target: target, record: record)
             model = FoodReresolutionViewModel(service: FoodReresolutionService(ledger: ledger, reader: FoodReresolutionHistory(archive: store, confirmations: store), provider: provider, clock: clock, ids: ids))
