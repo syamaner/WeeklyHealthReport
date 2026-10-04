@@ -213,6 +213,23 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, 16)
     }
 
+    func testUserPresentationCorrectionDoesNotRenameTheRetainedSourceCandidate() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
+            XCTFail("Editing presentation does not save"); throw CocoaError(.fileWriteUnknown)
+        }
+        let original = model.state.selectedCandidate
+        let changed = try FoodCorrection(name: LedgerText("User-observed food name"), brand: LedgerText("User-observed brand"),
+            variant: LedgerText("User variant"), identity: original.candidate.identity, nutrients: original.candidate.nutrients,
+            reason: LedgerText("Observed identity correction with unchanged source nutrition."))
+        model.send(.applyCorrection(changed))
+        XCTAssertEqual(model.displayedName, changed.name)
+        XCTAssertEqual(model.displayedBrand, changed.brand)
+        XCTAssertEqual(model.displayedVariant, changed.variant)
+        XCTAssertEqual(model.displayedIdentity, changed.identity)
+        XCTAssertEqual(model.state.selectedCandidate, original)
+        XCTAssertTrue(FoodConfirmationViewModel.message(for: FoodConfirmationSaveError.invalidReviewedSource).contains("serving basis changed"))
+    }
+
     func testDirectWeightFieldRequirementsAndEstimatedConsumedPreview() throws {
         let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in throw CocoaError(.fileWriteUnknown) }
         model.send(.setQuantity(200, .millilitres))

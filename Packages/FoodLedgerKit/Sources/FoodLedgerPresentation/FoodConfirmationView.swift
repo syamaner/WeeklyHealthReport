@@ -10,6 +10,10 @@ public final class FoodConfirmationViewModel: ObservableObject {
     private let volumeConversionOffering: (any FoodVolumeConversionOffering)?
     private let searchInterpretation: FoodQueryInterpretation?
     public var quantitySuggestion: ParsedFoodQuery.Quantity? { searchInterpretation?.quantitySuggestion }
+    public var displayedName: LedgerText { state.correction?.name ?? state.reopened?.productVersion.name ?? state.selectedCandidate.name }
+    public var displayedBrand: LedgerText? { state.correction?.brand ?? state.reopened?.productVersion.brand ?? state.selectedCandidate.brand }
+    public var displayedVariant: LedgerText? { state.correction?.variant ?? state.reopened?.productVersion.variant ?? state.selectedCandidate.variant }
+    public var displayedIdentity: DecisiveIdentity { state.correction?.identity ?? state.reopened?.productVersion.identity ?? state.selectedCandidate.candidate.identity }
     public var selectionCaution: String? {
         FoodSearchResultText.caution(query: searchInterpretation?.parsedQuery, candidate: state.selectedCandidate,
             requestedPreparation: searchInterpretation?.preparation, isRecipe: state.isSourceRecipe)
@@ -64,6 +68,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
         let unit = (try? state.quantity.calculationInput().unit) ?? state.quantity.unit
         if state.isSourceRecipe && unit != .count {
             return "This recipe declares nutrition per source serving. Its cooked gram weight is unknown, so grams or mL cannot be converted to servings. Choose recipe servings or a source with a measured weight basis."
+        }
+        if state.usesSourceDeclaredServing && unit != .count {
+            return "This source declares nutrition per serving. Its gram weight is unknown. Enter source servings or choose a source with a weight or volume basis."
         }
         if basis == .per100Grams && unit == .millilitres {
             if let conversion = state.quantity.conversion, usesOfferedVolumeEstimate {
@@ -176,8 +183,11 @@ public final class FoodConfirmationViewModel: ObservableObject {
         if state.isSourceRecipe && (state.quantity.unit != .count || state.quantity.directWeight != nil || state.quantity.conversion != nil || state.quantity.plateChoice != .foodOnly) {
             result.append("Enter the number of source recipe servings eaten. A weighed portion cannot be converted because cooked serving weight is unknown.")
         }
+        if state.usesSourceDeclaredServing && !state.isSourceRecipe && (state.quantity.unit != .count || state.quantity.directWeight != nil || state.quantity.conversion != nil || state.quantity.plateChoice != .foodOnly) {
+            result.append("Enter the number of source servings eaten. The source does not provide a serving weight for conversion.")
+        }
         result += directWeightRequirements
-        if state.quantity.directWeight == nil && state.quantity.unit == .count && state.quantity.conversion == nil && !state.isSourceRecipe {
+        if state.quantity.directWeight == nil && state.quantity.unit == .count && state.quantity.conversion == nil && !state.usesSourceDeclaredServing {
             result.append("For a count, enter the measured total edible weight or volume and how it was measured, or change the amount to g or mL.")
         }
         result += plateRequirements
@@ -229,6 +239,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
             "Choose or accept a populated match before saving."
         case FoodConfirmationSaveError.invalidQuantity:
             "Enter a finite quantity greater than zero."
+        case FoodConfirmationSaveError.invalidReviewedSource:
+            "The reviewed source values or their serving basis changed. Return to the source review; identity corrections cannot change its nutrition."
         case FoodQuantityValidationError.missingConversion:
             "This unit needs the displayed conversion before it can be saved."
         case FoodQuantityValidationError.missingPlateWeight:
@@ -315,9 +327,9 @@ public struct FoodConfirmationView: View {
         .navigationTitle("Confirm food")
         .animation(reduceMotion ? nil : .default, value: model.state.selectedCandidateIndex)
         .onAppear {
-            correctionName = model.state.selectedCandidate.name.value
-            correctionBrand = model.state.selectedCandidate.brand?.value ?? ""
-            correctionVariant = model.state.selectedCandidate.variant?.value ?? ""
+            correctionName = model.displayedName.value
+            correctionBrand = model.displayedBrand?.value ?? ""
+            correctionVariant = model.displayedVariant?.value ?? ""
             loadIdentityCorrection(model.state.selectedCandidate)
             if let value = model.state.quantity.value { totalText = Self.editableNumber(value) }
             directWeightText = model.state.quantity.directWeight?.totalGrams.map(Self.editableNumber) ?? ""
@@ -331,14 +343,17 @@ public struct FoodConfirmationView: View {
 
     private var identitySection: some View {
         Section("Food") {
-            Text(model.state.selectedCandidate.name.value).font(.headline)
-            if let brand = model.state.selectedCandidate.brand {
+            Text(model.displayedName.value).font(.headline)
+            if model.displayedName != model.state.selectedCandidate.name {
+                LabeledContent("Source food", value: model.state.selectedCandidate.name.value).font(.caption)
+            }
+            if let brand = model.displayedBrand {
                 LabeledContent("Brand", value: brand.value)
             }
-            if !model.state.isGenericEstimate, let variant = model.state.selectedCandidate.variant {
+            if !model.state.isGenericEstimate, let variant = model.displayedVariant {
                 LabeledContent("Variant", value: variant.value)
             }
-            let identity = model.state.selectedCandidate.candidate.identity
+            let identity = model.displayedIdentity
             if identity.preparation.kind != .unknown {
                 LabeledContent("Preparation", value: Self.preparationLabel(identity.preparation))
             }
@@ -389,6 +404,11 @@ public struct FoodConfirmationView: View {
                 if let metadata = model.state.selectedCandidate.candidate.matchMetadata {
                     ForEach(metadata.materialDifferences, id: \.value) { Text($0.value).font(.caption) }
                 }
+            } else if let scope = model.state.reviewedWebProposalScope {
+                Text(scope == .representativeEstimate ? "Reviewed web estimate" : "Reviewed web product proposal").font(.caption)
+                if let metadata = model.state.selectedCandidate.candidate.matchMetadata {
+                    ForEach(metadata.materialDifferences, id: \.value) { Text($0.value).font(.caption) }
+                }
             } else if model.state.isGenericEstimate {
                 Text("Generic food estimate").font(.caption)
             }
@@ -433,8 +453,11 @@ public struct FoodConfirmationView: View {
             if model.state.isSourceRecipe {
                 Text("Representative recipe: enter how many servings of this source recipe you ate, for example 0.5. Check the source recipe yield in the reference details; a vendor’s plate may differ. Cooked serving weight is unknown.").font(.caption)
             }
+            if model.state.usesSourceDeclaredServing && !model.state.isSourceRecipe {
+                Text("Enter source servings eaten, for example 0.5. Review the source's portion description; its gram weight remains unknown.").font(.caption)
+            }
             if let suggestion = model.quantitySuggestion, model.state.quantity.value == nil,
-               model.state.quantity.directWeight == nil, !model.state.isSourceRecipe {
+               model.state.quantity.directWeight == nil, !model.state.usesSourceDeclaredServing {
                 Button("Use \(FoodNutritionReviewPresentation.number(suggestion.value)) count from description") {
                     model.send(.setQuantity(suggestion.value, .count))
                     totalText = Self.editableNumber(suggestion.value)
@@ -442,7 +465,7 @@ public struct FoodConfirmationView: View {
                 Text("Count only. Edible weight still needs confirmation.").font(.caption)
             }
             Button("Enter measured weight") { model.send(.beginDirectWeight); directWeightText = "" }
-                .disabled(model.state.quantity.directWeight != nil || model.state.isSourceRecipe)
+                .disabled(model.state.quantity.directWeight != nil || model.state.usesSourceDeclaredServing)
             if model.state.quantity.directWeight != nil {
                 Text("Weigh edible food as eaten—peeled, boiled or fried. Exclude peel, shell, bone and anything you did not eat.").font(.caption)
                 TextField(usesPlate ? "Total food and plate weight (g)" : "Total edible weight (g)", text: $directWeightText)
@@ -460,7 +483,7 @@ public struct FoodConfirmationView: View {
                 Text("Original amount below is retained separately; changing a count does not replace your gram total.").font(.caption)
                 Button("Use original amount instead") { model.send(.endDirectWeight) }
             }
-            TextField(model.state.isSourceRecipe ? "Recipe servings eaten" : model.state.quantity.directWeight == nil ? "Quantity" : "Original amount (optional)", text: $totalText)
+            TextField(model.state.isSourceRecipe ? "Recipe servings eaten" : model.state.usesSourceDeclaredServing ? "Source servings eaten" : model.state.quantity.directWeight == nil ? "Quantity" : "Original amount (optional)", text: $totalText)
                 .onChange(of: totalText) { _, value in
                     model.send(.setQuantityText(value))
                 }
@@ -468,7 +491,7 @@ public struct FoodConfirmationView: View {
             Picker("Unit", selection: quantityUnitBinding) {
                 Text("g").tag(QuantityUnit.grams)
                 Text("mL").tag(QuantityUnit.millilitres)
-                Text(model.state.isSourceRecipe ? "recipe servings" : "count").tag(QuantityUnit.count)
+                Text(model.state.isSourceRecipe ? "recipe servings" : model.state.usesSourceDeclaredServing ? "source servings" : "count").tag(QuantityUnit.count)
             }
             if let requirement = model.originalAmountRequirement { Text(requirement).font(.caption) }
             if let warning = model.quantityBasisWarning {
@@ -495,7 +518,7 @@ public struct FoodConfirmationView: View {
                     Button("Remove volume estimate") { model.removeOfferedVolumeConversion() }
                 }
             }
-            if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil && !model.state.isSourceRecipe {
+            if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil && !model.state.usesSourceDeclaredServing {
                 Text("No source-backed size guide is available for this food. Enter the total edible weight, excluding shell, bone or other parts you did not eat.").font(.caption)
                 TextField("Converted edible amount", text: $conversionText)
                     .onChange(of: conversionText) { _, _ in updateConversion() }
@@ -544,7 +567,7 @@ public struct FoodConfirmationView: View {
                 LabeledContent(row.title, value: row.value)
                     .accessibilityLabel("\(row.title), \(row.value), \(review.basis)")
             }
-            if review.includesEstimates || model.state.isGenericEstimate || model.state.isSourceRecipe {
+            if review.includesEstimates || model.state.isGenericEstimate || model.state.isSourceRecipe || model.state.reviewedWebProposalScope != nil {
                 Text("Estimated nutrition").font(.caption)
             }
             if model.state.correction != nil { Text("Uses your food correction").font(.caption) }
@@ -778,7 +801,7 @@ public struct FoodConfirmationView: View {
     }
 
     private func loadIdentityCorrection(_ selected: PopulatedFoodCandidate) {
-        let identity = selected.candidate.identity
+        let identity = model.displayedIdentity
         correctionPreparation = identity.preparation.kind.rawValue
         correctionPreparationMethod = identity.preparation.method?.value ?? ""
         correctionBone = identity.bone.rawValue
@@ -790,7 +813,7 @@ public struct FoodConfirmationView: View {
             correctionPackingMedium = ""
         }
         correctionFortification = identity.fortification.rawValue
-        correctionItemClass = selected.itemClass.rawValue
+        correctionItemClass = (model.state.correction?.itemClass ?? model.state.reopened?.productVersion.itemClass ?? selected.itemClass).rawValue
         correctionBasis = .keepPopulated
     }
 

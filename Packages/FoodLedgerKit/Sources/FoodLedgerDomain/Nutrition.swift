@@ -149,6 +149,7 @@ public enum ProvenanceSourceKind: String, Codable, Sendable {
     case exactProductDataset = "exact_product_dataset"
     case genericCompositionDataset = "generic_composition_dataset"
     case recipeReconstruction = "recipe_reconstruction"
+    case reviewedWebProposal = "reviewed_web_proposal"
 }
 
 public struct NutrientProvenance: Codable, Equatable, Sendable {
@@ -340,7 +341,7 @@ public struct NutrientEntry: Codable, Equatable, Sendable {
             guard exact.provenance.allSatisfy({
                 switch $0.sourceKind {
                 case .userVerifiedPanel, .manualDeclaration, .exactProductDataset: true
-                case .genericCompositionDataset, .recipeReconstruction: false
+                case .genericCompositionDataset, .recipeReconstruction, .reviewedWebProposal: false
                 }
             }) else { throw FoodLedgerValidationError.invalidProvenance }
         case let .augmented(exact):
@@ -351,6 +352,9 @@ public struct NutrientEntry: Codable, Equatable, Sendable {
                     provenance.recordID != nil
                 case .recipeReconstruction:
                     true
+                case .reviewedWebProposal:
+                    provenance.recordID != nil && provenance.evidenceID != nil
+                        && provenance.responseHash != nil && provenance.manifestReference != nil
                 case .userVerifiedPanel, .manualDeclaration:
                     false
                 }

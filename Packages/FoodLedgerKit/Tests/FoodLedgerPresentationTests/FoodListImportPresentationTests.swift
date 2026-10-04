@@ -213,7 +213,7 @@ final class FoodListImportPresentationTests: XCTestCase {
             actorID: try ids.makeID(ActorTag.self), committer: store, clock: ListClock(),
             encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()
         )
-        let confirmations = FoodConfirmationService(ledger: ledger, reader: store, clock: ListClock(), ids: ids)
+        let confirmations = FoodConfirmationService(ledger: ledger, reader: store, clock: ListClock(), ids: ids, digester: SHA256Digester())
         let search = ListSearch()
         return (FoodListImportViewModel(
             service: FoodListImportService(searcher: search), locale: try LedgerText("en_GB"), ids: ids,

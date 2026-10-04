@@ -162,7 +162,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         let clock = SystemLedgerClock()
         let ledger = FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store,
                                        clock: clock, encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
-        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids)
+        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids, digester: SHA256Digester())
         let searcher = try CoFIDGenericFoodSearch(ids: ids)
         for query in ["200g whole milk", "200ml whole milk"] {
             let search = try GenericFoodSearchViewModel(searcher: searcher, locale: LedgerText("en_GB"))
@@ -267,6 +267,210 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         XCTAssertFalse(model.canSearch)
         let calls = await provider.calls
         XCTAssertEqual(calls, 0)
+    }
+
+    func testOpenRouterReviewRendersWithoutImplicitProviderCalls() async throws {
+        for (name, size) in [("standard", DynamicTypeSize.large), ("large-text", .accessibility3)] {
+            let provider = NativeWebDiscoverySpy()
+            let credentials = FoodWebDiscoveryViewModel(provider: provider, keys: NativeEmptyWebKeys(),
+                providerName: "OpenRouter", operatorName: "OpenRouter", keyManagementName: "OpenRouter")
+            let reviewer = NativeProposalReviewSpy()
+            let model = GenericFoodProposalReviewViewModel(reviewer: reviewer, credentials: credentials,
+                confirmation: ReviewedFoodProposalConfirmation(ids: NativeQuantityIDs(), clock: SystemLedgerClock(),
+                    encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
+            let host = NativeHostingController(rootView: NavigationStack {
+                GenericFoodProposalReviewView(model: model, credentials: credentials) { _ in XCTFail("Rendering cannot confirm") }
+                    .environment(\.dynamicTypeSize, size)
+            })
+            let scene = try testScene(); let previous = scene.windows.first(where: \.isKeyWindow)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            window.rootViewController = host; window.makeKeyAndVisible()
+            defer { window.isHidden = true; previous?.makeKey() }
+            try await waitForHostAppearance(host, window: window)
+            model.foodTerms = "Synthetic tofu pudding"
+            try await Task.sleep(for: .milliseconds(250))
+            host.view.layoutIfNeeded()
+            XCTAssertFalse(credentials.keyIsUsable)
+            XCTAssertNil(model.result); XCTAssertFalse(model.isSearching)
+            let providerCalls = await provider.calls; let reviewCalls = await reviewer.calls
+            XCTAssertEqual(providerCalls, 0); XCTAssertEqual(reviewCalls, 0)
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            let request = VNRecognizeTextRequest(); request.recognitionLevel = .accurate
+            try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+            let visible = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
+            let normalized = visible.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            XCTAssertTrue(normalized.contains("Find nutrition to review"), visible)
+            if size == .large { XCTAssertTrue(visible.contains("Web nutrition review"), visible) }
+            XCTAssertFalse(visible.contains("Gemini"), visible)
+            let attachment = XCTAttachment(image: image); attachment.name = "OpenRouter review \(name)"
+            attachment.lifetime = .keepAlways; add(attachment)
+            let path = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("whr-openrouter-review-\(name).png")
+            try image.pngData()?.write(to: path)
+            print("OPENROUTER_REVIEW_SCREENSHOT \(path.path)")
+        }
+    }
+
+    func testReviewedProposalShowsModelAbstentionAndBlocksConfirmation() async throws {
+        let provider = NativeWebDiscoverySpy()
+        let credentials = FoodWebDiscoveryViewModel(provider: provider, keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
+        await credentials.revalidateSavedKey()
+        XCTAssertTrue(credentials.keyIsUsable)
+        let source = try GenericFoodDocumentProjector.project(Data("Synthetic tofu Per 100g Protein 6g".utf8),
+            url: URL(string: "https://example.com/synthetic-tofu")!, mediaType: "text/plain",
+            retrievedAt: Date(timeIntervalSince1970: 0), origin: "synthetic_fixture")
+        let reference: [[String: Any]] = [["block_id": "b1", "quote": source.blocks[0].text]]
+        let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
+            ["key": key.rawValue, "state": key == .protein ? "declared" : "unknown",
+             "value": key == .protein ? "6" as Any : NSNull(), "unit": key == .protein ? "g" as Any : NSNull(),
+             "evidence": key == .protein ? reference : [], "unknown_reason": key == .protein ? NSNull() : "not_observed" as Any]
+        }
+        let payload: [String: Any] = ["version": FoodProposalExtraction.schemaVersion, "preferred_id": "none", "candidates": [[
+            "id": "c1", "document_id": source.id, "name": "Synthetic tofu", "brand": NSNull(), "preparation": NSNull(),
+            "identity_evidence": reference, "panel_evidence": reference,
+            "basis": ["amount": "100", "unit": "g", "label": "Per 100g", "evidence": reference],
+            "nutrients": nutrients, "limitations": ["Synthetic fixture: source applicability is declined."]]]]
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let extraction = try decoder.decode(FoodProposalExtraction.self, from: JSONSerialization.data(withJSONObject: payload))
+        let validation = try FoodProposalBinding.validate(extraction, documents: [source])
+        let review = GenericFoodProposalReview(foodTerms: "Synthetic tofu", discovery: nil, documents: [source],
+            validation: validation, selection: nil, attemptedSourceURL: URL(string: source.url))
+        let model = GenericFoodProposalReviewViewModel(reviewer: NativeCompletedProposalReview(result: review), credentials: credentials,
+            confirmation: ReviewedFoodProposalConfirmation(ids: NativeQuantityIDs(), clock: SystemLedgerClock(),
+                encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
+        model.foodTerms = review.foodTerms
+        await model.search()
+        let proposal = try XCTUnwrap(model.result?.validation.candidates.first)
+        XCTAssertTrue(proposal.selectionEligible)
+        XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: review.foodTerms, scope: .representativeEstimate,
+            acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true)))
+        let host = NativeHostingController(rootView: NavigationStack {
+            GenericFoodProposalReviewView(model: model, credentials: credentials) { _ in XCTFail("No confirmation") }
+        })
+        let scene = try testScene(); let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        window.rootViewController = host; window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        try await waitForHostAppearance(host, window: window)
+        var found = false
+        for _ in 0..<8 {
+            try await Task.sleep(for: .milliseconds(150)); host.view.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            let request = VNRecognizeTextRequest(); request.recognitionLevel = .accurate
+            try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+            let visible = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
+            if visible.contains("No suitable candidate suggested") {
+                found = true
+                let attachment = XCTAttachment(image: image); attachment.name = "Declined proposal remains inspectable"
+                attachment.lifetime = .keepAlways; add(attachment)
+                let path = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("whr-openrouter-declined-proposal.png")
+                try image.pngData()?.write(to: path)
+                print("OPENROUTER_DECLINED_SCREENSHOT \(path.path)")
+                break
+            }
+            if let scroll = descendants(host.view).compactMap({ $0 as? UIScrollView }).first {
+                scroll.setContentOffset(CGPoint(x: 0, y: min(scroll.contentOffset.y + 180,
+                    max(0, scroll.contentSize.height - scroll.bounds.height))), animated: false)
+            }
+        }
+        XCTAssertTrue(found, "Native result must display the extractor's abstention even without Jev")
+        let calls = await provider.calls
+        XCTAssertEqual(calls, 1, "Only synthetic key validation; no live requests")
+    }
+
+    /// Opt-in native interaction harness. A human or UI automation operates the
+    /// actual review/confirmation controls; only synthetic data enters a temporary ledger.
+    func testInteractiveReviewedPartialProposalSavesOnlyAfterExplicitReview() async throws {
+        guard ProcessInfo.processInfo.environment["NUTRITION_NATIVE_REVIEW_INTERACTION"] == "1" else {
+            throw XCTSkip("Explicit native interaction session only; no live provider or personal ledger")
+        }
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("review-interaction-" + UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        // Fixed whole-second clock keeps exact persistence equality deterministic.
+        let ids = NativeQuantityIDs(); let clock = NativeReviewClock()
+        let store = try FoodLedgerGRDBStore(databaseURL: directory.appendingPathComponent("ledger.sqlite"),
+            attachmentsRoot: directory.appendingPathComponent("attachments"))
+        let ledger = FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store, clock: clock,
+            encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids, digester: SHA256Digester())
+        let provider = NativeWebDiscoverySpy()
+        let credentials = FoodWebDiscoveryViewModel(provider: provider, keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
+        await credentials.revalidateSavedKey()
+        let source = try GenericFoodDocumentProjector.project(Data("Synthetic tofu Per 100g Protein 6g".utf8),
+            url: URL(string: "https://example.com/synthetic-tofu")!, mediaType: "text/plain",
+            retrievedAt: Date(timeIntervalSince1970: 0), origin: "synthetic_fixture")
+        let reference: [[String: Any]] = [["block_id": "b1", "quote": source.blocks[0].text]]
+        let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
+            ["key": key.rawValue, "state": key == .protein ? "declared" : "unknown",
+             "value": key == .protein ? "6" as Any : NSNull(), "unit": key == .protein ? "g" as Any : NSNull(),
+             "evidence": key == .protein ? reference : [], "unknown_reason": key == .protein ? NSNull() : "not_observed" as Any]
+        }
+        let payload: [String: Any] = ["version": FoodProposalExtraction.schemaVersion, "preferred_id": "c1", "candidates": [[
+            "id": "c1", "document_id": source.id, "name": "Synthetic tofu", "brand": NSNull(), "preparation": NSNull(),
+            "identity_evidence": reference, "panel_evidence": reference,
+            "basis": ["amount": "100", "unit": "g", "label": "Per 100g", "evidence": reference],
+            "nutrients": nutrients, "limitations": ["Synthetic source. Only protein is declared; all other target nutrients are unknown."]]]]
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let extraction = try decoder.decode(FoodProposalExtraction.self, from: JSONSerialization.data(withJSONObject: payload))
+        let review = GenericFoodProposalReview(foodTerms: "Synthetic tofu", discovery: nil, documents: [source],
+            validation: try FoodProposalBinding.validate(extraction, documents: [source]),
+            selection: try FoodProposalSelection(unscoredChoice: "c1", validation: FoodProposalBinding.validate(extraction, documents: [source])),
+            attemptedSourceURL: URL(string: source.url))
+        let model = GenericFoodProposalReviewViewModel(reviewer: NativeCompletedProposalReview(result: review), credentials: credentials,
+            confirmation: ReviewedFoodProposalConfirmation(ids: ids, clock: clock,
+                encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
+        model.foodTerms = review.foodTerms; await model.search()
+        let driver = NativeReviewedSaveDriver { input in
+            let state = FoodConfirmationState(input: input, prefillSourceQuantity: false)
+            XCTAssertNil(state.quantity.value, "Review must not invent an amount eaten")
+            XCTAssertEqual(state.decision, .undecided)
+            XCTAssertEqual(try store.counts().operations, 0)
+            let operationID = try ids.makeID(OperationTag.self)
+            return FoodConfirmationViewModel(state: state) { state in
+                try service.save(state, operationID: operationID)
+            }
+        }
+        let host = NativeHostingController(rootView: NativeReviewedSaveHarness(model: model, credentials: credentials, driver: driver))
+        let scene = try testScene(); let previous = scene.windows.first(where: \.isKeyWindow)
+        let window = UIWindow(windowScene: scene); window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        window.rootViewController = host; window.makeKeyAndVisible()
+        defer { window.isHidden = true; previous?.makeKey() }
+        try await waitForHostAppearance(host, window: window)
+        print("NATIVE_REVIEW_INTERACTION_READY synthetic-only temporary ledger")
+        let deadline = ContinuousClock.now.advanced(by: .seconds(300))
+        while driver.confirmation?.savedResult == nil && ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(250))
+        }
+        let confirmation = try XCTUnwrap(driver.confirmation, "Operate the proposal's native review controls")
+        let saved = try XCTUnwrap(confirmation.savedResult, "Complete the native confirmation with 50 g and save")
+        XCTAssertEqual(try store.counts().operations, 1)
+        XCTAssertEqual(saved.logItemVersion.edibleQuantity, try PositiveQuantity(value: 50, unit: .grams))
+        let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+        XCTAssertTrue(reopened.isGenericEstimate)
+        XCTAssertEqual(reopened.input.evidence, confirmation.state.input.evidence)
+        XCTAssertEqual(reopened.selectedCandidate.candidate.nutrients, confirmation.state.selectedCandidate.candidate.nutrients)
+        let totals = FoodIntakeSummary(contributions: [.init(quantity: try reopened.calculatedEdibleQuantity(),
+            basis: reopened.selectedCandidate.candidate.identity.servingBasis, nutrients: reopened.selectedCandidate.candidate.nutrients)])
+        XCTAssertEqual(totals.totals.first { $0.key == .protein }?.knownAmount, 3)
+        XCTAssertNil(totals.totals.first { $0.key == .energyConsumed }?.knownAmount)
+        XCTAssertNil(totals.totals.first { $0.key == .sodium }?.knownAmount)
+        XCTAssertTrue(totals.totals.first { $0.key == .protein }?.includesEstimates == true)
+        let providerCalls = await provider.calls
+        XCTAssertEqual(providerCalls, 1, "Only synthetic credential validation")
+        try await Task.sleep(for: .milliseconds(300)); host.view.layoutIfNeeded()
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        let attachment = XCTAttachment(image: image); attachment.name = "Native reviewed partial proposal saved"
+        attachment.lifetime = .keepAlways; add(attachment)
+        let path = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("whr-reviewed-partial-native-saved.png")
+        try image.pngData()?.write(to: path)
+        print("NATIVE_REVIEW_SAVED_SCREENSHOT \(path.path)")
     }
 
     func testGeminiSuggestionsRenderWithoutScriptsOrPersistentStorage() async throws {
@@ -408,10 +612,28 @@ private actor NativeWebDiscoverySpy: FoodWebDiscovering {
         return FoodWebDiscoveryResult(leads: [], searchSuggestionsHTML: nil)
     }
 }
+private actor NativeProposalReviewSpy: GenericFoodProposalReviewing {
+    private(set) var calls = 0
+    func review(foodTerms: String, sourceURL: URL?, key: String) async throws -> GenericFoodProposalReview {
+        calls += 1
+        throw GenericFoodProposalReviewError.noSourceLinks
+    }
+}
 private struct NativeEmptyWebKeys: FoodWebKeyStoring {
     func load() throws -> String? { nil }
     func save(_ key: String) throws {}
     func delete() throws {}
+}
+
+private struct NativeSyntheticWebKeys: FoodWebKeyStoring {
+    func load() throws -> String? { "synthetic-native-review-key-not-real" }
+    func save(_ key: String) throws {}
+    func delete() throws {}
+}
+
+private struct NativeCompletedProposalReview: GenericFoodProposalReviewing {
+    let result: GenericFoodProposalReview
+    func review(foodTerms: String, sourceURL: URL?, key: String) async throws -> GenericFoodProposalReview { result }
 }
 
 private struct NativeSearchRecoverySource: FoodSearchEnriching {
@@ -420,4 +642,37 @@ private struct NativeSearchRecoverySource: FoodSearchEnriching {
         guard let outcome else { throw FoodSearchEnrichmentError.timedOut }
         return outcome
     }
+}
+
+
+@MainActor
+private final class NativeReviewedSaveDriver: ObservableObject {
+    @Published var confirmation: FoodConfirmationViewModel?
+    @Published var showsConfirmation = false
+    private let make: (PopulatedFoodConfirmation) throws -> FoodConfirmationViewModel
+    init(make: @escaping (PopulatedFoodConfirmation) throws -> FoodConfirmationViewModel) { self.make = make }
+    func open(_ input: PopulatedFoodConfirmation) {
+        do { confirmation = try make(input); showsConfirmation = true }
+        catch { XCTFail("Synthetic confirmation could not be prepared: \(error)") }
+    }
+}
+
+private struct NativeReviewedSaveHarness: View {
+    let model: GenericFoodProposalReviewViewModel
+    let credentials: FoodWebDiscoveryViewModel
+    @ObservedObject var driver: NativeReviewedSaveDriver
+    var body: some View {
+        NavigationStack {
+            GenericFoodProposalReviewView(model: model, credentials: credentials) { driver.open($0) }
+                .navigationDestination(isPresented: $driver.showsConfirmation) {
+                    if let confirmation = driver.confirmation {
+                        FoodConfirmationView(model: confirmation) { driver.showsConfirmation = false }
+                    }
+                }
+        }
+    }
+}
+
+private struct NativeReviewClock: LedgerClock {
+    func now() -> Date { Date(timeIntervalSince1970: 1_791_122_400) }
 }

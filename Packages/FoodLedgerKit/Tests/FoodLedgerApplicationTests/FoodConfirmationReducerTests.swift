@@ -454,7 +454,7 @@ final class FoodConfirmationReducerTests: XCTestCase {
             encoder: FoundationCanonicalJSONEncoder(),
             digester: SHA256Digester()
         )
-        return FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids, calendar: calendar)
+        return FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids, digester: SHA256Digester(), calendar: calendar)
     }
 
     private func fixtureInput(candidateCount: Int = 1, kind: CaptureKind = .synthetic, identityOverride: DecisiveIdentity? = nil) throws -> PopulatedFoodConfirmation {

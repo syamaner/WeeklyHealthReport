@@ -1,0 +1,693 @@
+{
+  "type": "object",
+  "properties": {
+    "version": {
+      "type": "string",
+      "enum": [
+        "openrouter-food-extraction-wire-v2"
+      ]
+    },
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "enum": [
+              "c1",
+              "c2",
+              "c3"
+            ]
+          },
+          "document_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "brand": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "preparation": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "identity_evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "block_id": {
+                  "type": "string"
+                },
+                "quote": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "block_id",
+                "quote"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "panel_evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "block_id": {
+                  "type": "string"
+                },
+                "quote": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "block_id",
+                "quote"
+              ],
+              "additionalProperties": false
+            }
+          },
+          "basis": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "string",
+                    "description": "Positive decimal using ASCII digits, for example 100 or 250.5. Never spelled-out numbers or Chinese numerals."
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "g",
+                      "ml"
+                    ]
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "block_id": {
+                          "type": "string"
+                        },
+                        "quote": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "block_id",
+                        "quote"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "amount",
+                  "unit",
+                  "label",
+                  "evidence"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": "string",
+                    "enum": [
+                      "1"
+                    ]
+                  },
+                  "unit": {
+                    "type": "string",
+                    "enum": [
+                      "serving"
+                    ]
+                  },
+                  "label": {
+                    "type": "string"
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "block_id": {
+                          "type": "string"
+                        },
+                        "quote": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "block_id",
+                        "quote"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "amount",
+                  "unit",
+                  "label",
+                  "evidence"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "amount": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      null
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      null
+                    ]
+                  },
+                  "label": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      null
+                    ]
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "block_id": {
+                          "type": "string"
+                        },
+                        "quote": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "block_id",
+                        "quote"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "amount",
+                  "unit",
+                  "label",
+                  "evidence"
+                ],
+                "additionalProperties": false
+              }
+            ]
+          },
+          "nutrients": {
+            "type": "object",
+            "properties": {
+              "energy": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "declared",
+                      "unknown"
+                    ]
+                  },
+                  "value": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "kcal",
+                      null
+                    ]
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "block_id": {
+                          "type": "string"
+                        },
+                        "quote": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "block_id",
+                        "quote"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "unknown_reason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "not_observed",
+                      "conflict",
+                      "unreadable",
+                      "unsupported_representation",
+                      null
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "value",
+                  "unit",
+                  "evidence",
+                  "unknown_reason"
+                ],
+                "additionalProperties": false
+              },
+              "protein": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "declared",
+                      "unknown"
+                    ]
+                  },
+                  "value": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "g",
+                      null
+                    ]
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "block_id": {
+                          "type": "string"
+                        },
+                        "quote": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "block_id",
+                        "quote"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "unknown_reason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "not_observed",
+                      "conflict",
+                      "unreadable",
+                      "unsupported_representation",
+                      null
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "value",
+                  "unit",
+                  "evidence",
+                  "unknown_reason"
+                ],
+                "additionalProperties": false
+              },
+              "carbohydrate": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "declared",
+                      "unknown"
+                    ]
+                  },
+                  "value": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "g",
+                      null
+                    ]
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "block_id": {
+                          "type": "string"
+                        },
+                        "quote": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "block_id",
+                        "quote"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "unknown_reason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "not_observed",
+                      "conflict",
+                      "unreadable",
+                      "unsupported_representation",
+                      null
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "value",
+                  "unit",
+                  "evidence",
+                  "unknown_reason"
+                ],
+                "additionalProperties": false
+              },
+              "fat": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "declared",
+                      "unknown"
+                    ]
+                  },
+                  "value": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "g",
+                      null
+                    ]
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "block_id": {
+                          "type": "string"
+                        },
+                        "quote": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "block_id",
+                        "quote"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "unknown_reason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "not_observed",
+                      "conflict",
+                      "unreadable",
+                      "unsupported_representation",
+                      null
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "value",
+                  "unit",
+                  "evidence",
+                  "unknown_reason"
+                ],
+                "additionalProperties": false
+              },
+              "fibre": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "declared",
+                      "unknown"
+                    ]
+                  },
+                  "value": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "g",
+                      null
+                    ]
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "block_id": {
+                          "type": "string"
+                        },
+                        "quote": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "block_id",
+                        "quote"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "unknown_reason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "not_observed",
+                      "conflict",
+                      "unreadable",
+                      "unsupported_representation",
+                      null
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "value",
+                  "unit",
+                  "evidence",
+                  "unknown_reason"
+                ],
+                "additionalProperties": false
+              },
+              "sodium": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "declared",
+                      "unknown"
+                    ]
+                  },
+                  "value": {
+                    "type": [
+                      "string",
+                      "null"
+                    ]
+                  },
+                  "unit": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "mg",
+                      null
+                    ]
+                  },
+                  "evidence": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "block_id": {
+                          "type": "string"
+                        },
+                        "quote": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "block_id",
+                        "quote"
+                      ],
+                      "additionalProperties": false
+                    }
+                  },
+                  "unknown_reason": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "not_observed",
+                      "conflict",
+                      "unreadable",
+                      "unsupported_representation",
+                      null
+                    ]
+                  }
+                },
+                "required": [
+                  "state",
+                  "value",
+                  "unit",
+                  "evidence",
+                  "unknown_reason"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "energy",
+              "protein",
+              "carbohydrate",
+              "fat",
+              "fibre",
+              "sodium"
+            ],
+            "additionalProperties": false
+          },
+          "limitations": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "document_id",
+          "name",
+          "brand",
+          "preparation",
+          "identity_evidence",
+          "panel_evidence",
+          "basis",
+          "nutrients",
+          "limitations"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "preferred_id": {
+      "type": "string",
+      "enum": [
+        "c1",
+        "c2",
+        "c3",
+        "none",
+        "clarify"
+      ]
+    }
+  },
+  "required": [
+    "version",
+    "candidates",
+    "preferred_id"
+  ],
+  "additionalProperties": false
+}

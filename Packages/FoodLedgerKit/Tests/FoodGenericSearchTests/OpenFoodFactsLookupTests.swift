@@ -359,7 +359,7 @@ final class OpenFoodFactsLookupTests: XCTestCase {
             let store = InMemoryFoodLedgerStore()
             let ledger = FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store, clock: clock,
                 encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
-            let saved = try FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids).save(state, operationID: ids.makeID(OperationTag.self))
+            let saved = try FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids, digester: SHA256Digester()).save(state, operationID: ids.makeID(OperationTag.self))
             let projection = try CanonicalFoodProjection(records: store.archiveState().records)
             let bytes = try FoundationCanonicalJSONEncoder().encode(projection)
             let decoder = JSONDecoder()

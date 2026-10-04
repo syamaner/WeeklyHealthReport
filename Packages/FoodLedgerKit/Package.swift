@@ -9,6 +9,7 @@ let package = Package(
         .macOS(.v14)
     ],
     products: [
+        .executable(name: "FoodProposalProbe", targets: ["FoodProposalProbe"]),
         .library(name: "FoodLedgerDomain", targets: ["FoodLedgerDomain"]),
         .library(name: "FoodLedgerApplication", targets: ["FoodLedgerApplication"]),
         .library(name: "FoodLedgerPresentation", targets: ["FoodLedgerPresentation"]),
@@ -24,6 +25,7 @@ let package = Package(
         .package(url: "https://github.com/scinfu/SwiftSoup.git", exact: "2.13.9")
     ],
     targets: [
+        .executableTarget(name: "FoodProposalProbe", dependencies: ["FoodGenericSearch", "FoodLedgerApplication", "FoodLedgerDomain"], path: "Tools/FoodProposalProbe"),
         .target(name: "FoodLedgerDomain"),
         .target(
             name: "FoodLedgerApplication",

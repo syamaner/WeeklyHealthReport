@@ -1303,3 +1303,26 @@ Private accounting evidence: `/private/tmp/whr-build20-native-investigation-acco
 Validation for the repair: 134 focused and 334 complete simulator tests passed; domain coverage 96.93% exceeded 95%; static analysis passed on 83 unchanged application/test/project/policy inputs. The separately generated native harness passed 13 cases through both actual selected-day phone queries and archive projections,728 independent fields per transport,26 canonical payloads and 13 exact direct/archive pairs. Eight naturally timed sample attempts were retained; no isolated final-only overlap was observed, and that limitation is explicit. Source-bound collection rejects stale outputs, changed source and zero-test results. Prior terminated/zero-test attempts remain retained and excluded, not relabelled as successful gates. Independent source and durable-harness review reported no remaining P1/P2 findings.
 
 Implementation endpoint `2026-10-04T20:28:10.496Z`: input 129,686,698, cached 127,943,552, output 336,089, total 130,022,787; reasoning delta 32,720 is within output. Reconciled 209 requests, largest input 204,410, 0 above 272,000. Exact token-only API-equivalent USD 37.374688. Evidence: `/private/tmp/whr-accepted-distance-accounting-final.json`. The endpoint immediately precedes this final numeric insertion and commit.
+
+## Preserve shipped build21 beside the workout reader — 4 October 2026
+
+Change `WHR-BUILD21-COMPATIBILITY-2026-10-04` covers an isolated import of already distributed nutrition source, not new nutrition features or unpublished owner changes. The source-delivery/preflight phase and integration phase are contiguous exact child-session measurements; final counters are inserted immediately before committing. Parent, producer and independent reviewer usage are excluded, not estimated.
+
+The first phase includes the preceding reader ledger insertion/commit, protected PR185 delivery, read-only App Store Connect discovery of build21, and frozen-source overlap preparation. The second begins before worktree creation/import and includes the architecture/provenance note, exact frozen-source import, combined privacy text, narrow boundary-check repair, offline tests, generated native consumer execution, full simulator/coverage/static-analysis gates, independent-review coordination and this documentation. It excludes subsequent protected integration delivery and signing/upload. Neither phase uploaded an app.
+
+Model: `gpt-6-astra`, child session `01a10423-e413-7cd2-9170-60633cbb7eda`. Exact raw JSONL reconciliation verifies child/fork identity, per-event model and cumulative/request deltas; reasoning is a subset of output. Official rates checked 4 October 2026 remain USD 10/M uncached input, 1/M cached, 12.50/M cache-write and 50/M output, with documented long-context multipliers where triggered. Figures are API-equivalent comparisons, not subscription charges.
+
+Validation: all 340 release-snapshot files verified; all 303 baseline app/test/project/package/config paths retained; 59 executable/package/test/resource/tool imports hash-identical. Only two prose changes and one boundary-check script deviation are declared. Offline food tests:689 passed,6 opt-in skips,0 failures. Boundary gate: normal pass,8 negative controls rejected,normal pass. Combined app:336 passed,1 explicit interactive skip,0 failures;96.93% domain coverage;analysis succeeded. Integrated native harness:13 cases,728 independent fields per transport,13 equal direct/archive pairs,2 named test methods passed,986 retained hashes verified. No personal Health access, provider calls or new Health writes. Initial sandbox/old-guard failures are retained and excluded from passing evidence.
+
+Private evidence includes `/private/tmp/whr-accepted-source-delivery-accounting.json`, `/private/tmp/whr-build21-integration-accounting-baseline.json`, `/private/tmp/whr-build21-integrated-native-frozen`, and the `/private/tmp/whr-build21-integration-*` gate reports. The published [integration note](docs/build21-reader-compatibility.md) describes source provenance and remaining device/release boundaries.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Source delivery and preflight | 4,686,784 (4,575,616) | 0 | 8,178 | 4,694,962 | $6.10 |
+| Frozen build21 integration | 6,314,376 (6,246,784) | 0 | 15,362 | 6,329,738 | $7.69 |
+
+Source delivery/preflight: `2026-10-04T20:28:10.496Z` → `2026-10-04T20:38:45.643Z`. Baseline input 129,686,698, cached 127,943,552, output 336,089, total 130,022,787; endpoint input 134,373,482, cached 132,519,168, output 344,267, total 134,717,749. 41 reconciled requests, maximum input 196,552, 0 above 272,000. Reasoning delta 1,545 is already in output. Exact API-equivalent USD 6.096196.
+
+Integration: `2026-10-04T20:38:45.643Z` → `2026-10-04T20:51:18.447Z`. Baseline input 134,373,482, cached 132,519,168, output 344,267, total 134,717,749; endpoint input 140,687,858, cached 138,765,952, output 359,629, total 141,047,487. 51 reconciled requests, maximum input 143,257, 0 above 272,000. Reasoning delta 2,372 is already in output. Exact API-equivalent USD 7.690804.
+
+The final endpoint precedes only this numeric insertion and commit. Those actions and subsequent delivery start the next measured phase; they are not counted twice.
