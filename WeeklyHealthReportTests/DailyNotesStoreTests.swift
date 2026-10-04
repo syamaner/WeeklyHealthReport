@@ -3,6 +3,66 @@ import XCTest
 
 @MainActor
 final class DailyNotesStoreTests: XCTestCase {
+    func testStoragePreparationExcludesExistingAndFutureDescendantsWithoutChangingBytes() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "PrivacyStorage-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let existing = directory.appending(path: "FoodLedger/v1/Attachments/evidence.txt")
+        try FileManager.default.createDirectory(at: existing.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let bytes = Data("synthetic retained evidence".utf8)
+        try bytes.write(to: existing)
+        for _ in 0..<2 { try LocalHealthStorageDirectory.prepare(directory) }
+        XCTAssertEqual(try directory.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+        XCTAssertEqual(try Data(contentsOf: existing), bytes)
+        let future = directory.appending(path: "Inventory/v1/inventory.sqlite-wal")
+        try FileManager.default.createDirectory(at: future.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try bytes.write(to: future)
+        // Descendants are covered by the parent directory exclusion, including
+        // SQLite sidecars created after the directory was prepared.
+        XCTAssertEqual(try directory.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+        XCTAssertEqual(try Data(contentsOf: future), bytes)
+    }
+
+    func testNotesReadUpgradesExistingDirectoryAndReplacementKeepsExclusion() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "PrivacyNotes-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let file = directory.appending(path: "notes.json")
+        let bytes = try JSONEncoder().encode(DailyNotesDocument())
+        try bytes.write(to: file)
+        let store = FileDailyNotesStore(fileURL: file)
+        XCTAssertNotNil(try store.load())
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+        for _ in 0..<2 { try store.save(DailyNotesDocument()) }
+        XCTAssertEqual(try directory.resourceValues(forKeys: [.isExcludedFromBackupKey]).isExcludedFromBackup, true)
+    }
+
+    func testBackupProtectionFailureBlocksNotesReadAndWriteAndIsVisible() throws {
+        let directory = FileManager.default.temporaryDirectory.appending(path: "PrivacyFailure-\(UUID().uuidString)")
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let file = directory.appending(path: "notes.json")
+        let bytes = try JSONEncoder().encode(DailyNotesDocument())
+        try bytes.write(to: file)
+        let store = FileDailyNotesStore(fileURL: file, prepareDirectory: { _ in
+            throw LocalHealthStorageDirectory.PreparationError.backupExclusionNotApplied
+        })
+        XCTAssertThrowsError(try store.load())
+        XCTAssertThrowsError(try store.save(DailyNotesDocument()))
+        XCTAssertEqual(try Data(contentsOf: file), bytes)
+        let controller = DailyNotesController(store: store, calendar: londonCalendar, now: { self.londonDate(2026, 9, 8, 10) })
+        XCTAssertFalse(controller.storageAvailable)
+        XCTAssertNotNil(controller.errorMessage)
+        XCTAssertFalse(controller.beginNewDraft())
+    }
+
+    func testPrivacyPolicyIsBundledAndNavigationRestoresWithoutHealthOrFoodAccess() throws {
+        let policy = try PrivacyPolicy.bundledText()
+        XCTAssertTrue(policy.contains("WeeklyHealthReport privacy policy"))
+        XCTAssertTrue(policy.contains("Food-log removal is reversible"))
+        XCTAssertTrue(policy.contains("proxy@sertan.com"))
+        XCTAssertEqual(WeeklyReportView.restoredNavigationPath(from: WeeklyReportRoute.privacy.rawValue, hasDraft: false), [.privacy])
+    }
+
     func testHistoricalSelectionKeepsOtherDateDraftAndUnverifiedNotesAcrossMidnight() throws {
         let store = MemoryDailyNotesStore()
         var now = londonDate(2026, 9, 10, 10)

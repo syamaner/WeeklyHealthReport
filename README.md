@@ -82,7 +82,7 @@ review that snapshot and tap **Export prepared snapshot**.
    selection changed, because the previous preview is deliberately made stale
    rather than silently altered.
 
-The normal version 3 JSON envelope records `schema_version`, `report_date`, `time_zone`,
+The current version 6 JSON envelope records `schema_version`, `report_date`, `time_zone`,
 `data_as_of`, `exported_at` and `day_window`. Its `today` object contains the
 selected day's values through the frozen cutoff and an ordered `notes` array.
 `app_context` contains deterministic completed-day summaries and trends.
@@ -247,10 +247,18 @@ in a local build should also read the
 
 ## Privacy
 
-All HealthKit reading and calculation happens on the iPhone. Nothing leaves the
-device unless you copy the text report yourself or explicitly open **Daily JSON
-Export**, review the automatically prepared or manually refreshed snapshot, and
-choose **Export prepared snapshot**.
+Read the [privacy policy](docs/privacy-policy.txt), also available offline from **Today → Privacy policy**.
+
+All HealthKit reading and calculation happens on the iPhone. HealthKit report
+content leaves through a copy/share action you choose or when you open **Daily JSON
+Export**, review the prepared snapshot, and choose **Export prepared snapshot**.
+Optional online food searches have separate consent and send the displayed food
+terms or barcode; they do not attach HealthKit records or diary history.
+
+The app-owned health-data directory is excluded from system backups before local
+notes and food stores are opened. Existing paths and records are preserved. A
+protection failure leaves the affected feature unavailable. This cannot remove
+copies made by older builds or files already exported to another destination.
 
 Daily JSON schema 6 includes visible workout and activity heart-rate minimum/average/maximum, HealthKit-estimated active energy, accepted PacePrompt workout distance, planned/executed interval metadata and observed interval-distance windows. Native heart-rate zone durations, thresholds and source are included when available on iOS 27 or later; older systems mark zones unsupported. No raw heart-rate series or arbitrary HealthKit metadata is exported. Unavailable reads stay unavailable, and partial observation-window distance is not labelled a full interval distance. Independent workout and daily energy totals are never combined with interval totals.
 

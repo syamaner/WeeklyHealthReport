@@ -1,0 +1,39 @@
+WeeklyHealthReport privacy policy
+Effective 4 October 2026 — applies from internal build 0.1.1 (19)
+
+WeeklyHealthReport is a local health-reporting and food-recording app developed by Sertan Yamaner / qbq Solutions Ltd. Contact: proxy@sertan.com. We do not operate an app account service, analytics service, advertising system or backend that receives your health records. We do not sell your data, track you across apps, or use your health data for advertising or model training.
+
+Apple Health
+
+With your permission, the app reads selected HealthKit information to calculate reports on your iPhone. This can include body measurements, glucose, blood pressure, oxygen saturation, heart rate and variability, cardiorespiratory fitness, steps, walking/running distance, sleep, activity, workouts, selected dietary data and, on supported systems, individually selected medications. Access is read-only: the app does not write to Apple Health. You can change permission in Apple Health or iOS Settings. Missing visible data is not treated as a definite denial or as zero.
+
+Health reports and export previews are calculated locally. Daily JSON export can include the date, time zone, selected-source nutrition, medications, saved notes and workout/activity details: timestamps, duration, heart-rate minimum/average/maximum, HealthKit-estimated energy, distance, recognised PacePrompt planned and executed intervals, speed/inclination and their provenance, observed distance windows and optional native heart-rate zones, boundaries and source. It does not include raw heart-rate sample series or arbitrary HealthKit metadata. Availability varies by device, source and permission.
+
+Sharing and Google Drive
+
+Copying or sharing a report puts that content in the destination you select, such as the clipboard or a share-sheet recipient. Daily JSON Export lets you review a prepared snapshot and explicitly send those exact bytes to your chosen Google Drive destination. No automatic export, background sync or offline upload queue runs. The app talks directly to Google, using the limited drive.file scope, and reads back the exported bytes to check delivery. Google account/destination details, OAuth credentials and export identity are stored in this-device-only Keychain items. Signing out, disconnecting or revoking access stops future authorised use but does not delete files already in Drive. Delete those files separately in Drive, including its bin if appropriate. Google's storage, access and retention terms apply to your account and any people you share files with: https://policies.google.com/privacy
+
+Local food records and notes
+
+Food confirmations, intake history, personal-library items, favourites, aliases, quantities, draft food lists, inventory and imported evidence are stored locally. Receipt text you paste and text extracted from a PDF you select can be retained as evidence. Camera access is optional and used to scan food barcodes; the current app does not offer label-photo OCR upload. Offline food catalogues work without an online provider. Inventory backup files are created only through an explicit export to a destination you choose; they are separate from the HealthKit JSON export.
+
+The app-owned health-data directory, including notes, food databases, attachments and drafts, uses iOS file protection and is marked excluded from system backups before the app opens it. The app sets and verifies this exclusion request; the operating system controls backup and restore, so it is not an absolute guarantee that no copy can exist. It does not remove copies already made by older builds or files you exported elsewhere. If the directory cannot be protected, the affected local feature is unavailable rather than continuing without the protection. Review older backups and exported copies in the relevant Apple or storage-provider settings. Excluded local records may be lost if the device or app data is lost; there is no automatic cloud recovery.
+
+Food-log removal is reversible: the app retains versioned history so an entry can be restored. It is not permanent erasure. There is currently no app-wide erase command. You can delete notes or discard drafts in the app. Unchanged saved notes from earlier days can be removed locally after the app verifies the same revision in Drive; drafts are retained. Deleting the app through iOS removes its app-container data, but exported files, earlier backups and Keychain items require separate attention. Remove the Gemini key and disconnect Drive before deleting the app if you want to remove those credentials; you can also revoke them at their providers. We cannot remotely read or erase your local records.
+
+Optional online food search
+
+Online services are optional and disabled by default. Open Food Facts receives a barcode for an explicitly authorised lookup or the displayed terms of a submitted search when its search service is enabled. Gemini food discovery requires your own API key and validation in the current session. Automatic enrichment additionally requires enabling its search service; the separate Developer tools “Search the web” action is an explicit manual request even when automatic enrichment is off. Validation contacts Google to check the key; a submitted search can send displayed food terms and fixed source-finding instructions. A discovered source page may then be fetched directly from an allowed publisher. These services receive ordinary network information, such as your IP address and request details. The app does not attach HealthKit records, saved food history, diary history, notes, receipts, photos or audio to these requests. Avoid putting private or sensitive information in search terms. Disable Search services to stop automatic online enrichment, and avoid the separate manual web-search or barcode-lookup actions to keep searches offline. Removing a credential does not erase prior provider requests.
+
+Your Gemini key is kept in this-device-only Keychain storage. Google may charge for requests. Interaction storage is disabled by the app, but Google's terms allow grounding content to be retained for 30 days; unpaid-service content can be used for improvement and human review, with paid-service and regional differences. Providers and publishers apply their own policies; the app cannot erase their logs or guarantee their retention. Read the linked terms before enabling a service:
+Google Gemini: https://ai.google.dev/gemini-api/terms
+Open Food Facts: https://world.openfoodfacts.org/privacy
+Google privacy: https://policies.google.com/privacy
+
+Voice
+
+The app's optional note and food microphone paths request microphone/speech permission when invoked and require on-device speech recognition, with no server-recognition fallback. Audio is not saved, logged or uploaded by the app. Recognised text remains editable and is stored only through the relevant draft or confirmation flow. Ordinary iOS keyboard Dictation is a separate system feature governed by your Apple settings.
+
+Permissions, diagnostics and policy changes
+
+You can revoke Health, microphone, speech and camera permissions in Apple's settings, disable food-search services in the app, and revoke Google access in your Google account. No app analytics or tracking SDK is included. Apple may process TestFlight feedback, crash or diagnostic information under its own settings and terms; information you voluntarily send in feedback is separate from app data collection. Please avoid including health records or credentials in public bug reports. This policy is available offline in the app and at https://github.com/syamaner/WeeklyHealthReport/blob/main/docs/privacy-policy.txt. A later release may update it when its data flows change.
