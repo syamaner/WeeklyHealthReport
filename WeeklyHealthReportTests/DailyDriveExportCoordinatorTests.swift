@@ -12,6 +12,29 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         refresh ? "refreshed-token" : "initial-token"
     }
 
+    func testSchemaSixHistoricalReplacementAndRecoveryKeepsOneCanonicalFile() async throws {
+        let store = MemoryDailyIdentityStore()
+        let server = MockDailyDriveServer()
+        let coordinator = DailyDriveExportCoordinator(transport: server, store: store)
+        let date = "2026-09-05"
+        let first = try payload(hour: 8, selectedDate: date, enriched: true)
+        let later = try payload(hour: 18, selectedDate: date, enriched: true)
+        _ = try await coordinator.export(payload: first, reportDate: date, accountID: accountID, folderID: folderID, tokenProvider: token)
+        await server.enqueueUpdate(.transientAfterCommit)
+        _ = try await coordinator.export(payload: later, reportDate: date, accountID: accountID, folderID: folderID, tokenProvider: token)
+        let identity = try XCTUnwrap(store.snapshot()?.identities.first)
+        let restored = DailyDriveExportCoordinator(transport: server, store: MemoryDailyIdentityStore())
+        _ = try await restored.recover(selectedFileID: identity.fileID, reportDate: date, accountID: accountID, folderID: folderID, tokenProvider: token)
+        let stored = await server.storedContent(id: identity.fileID)
+        XCTAssertEqual(stored, later)
+        let creates = await server.createIDs
+        XCTAssertEqual(creates, [identity.fileID])
+        do {
+            _ = try await coordinator.export(payload: first, reportDate: date, accountID: accountID, folderID: folderID, tokenProvider: token)
+            XCTFail("Earlier historical encoding must be rejected")
+        } catch DailyDriveExportFailure.staleSnapshot {}
+    }
+
     func testHistoricalOrderingRefinementPreservesCutoffAndConflictGuards() throws {
         let policy = DailyHealthExportIdentityPolicy()
         let first = try policy.validate(payload: payload(hour: 8, selectedDate: "2026-09-05"), reportDate: "2026-09-05")
@@ -633,7 +656,7 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         } catch DailyDriveExportFailure.invalidPayload {}
     }
 
-    private func payload(hour: Int, selectedDate: String? = nil) throws -> Data {
+    private func payload(hour: Int, selectedDate: String? = nil, enriched: Bool = false) throws -> Data {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Europe/London")!
         let cutoff = calendar.date(from: DateComponents(
@@ -688,7 +711,8 @@ final class DailyDriveExportCoordinatorTests: XCTestCase {
         let envelope = try DailyHealthExportBuilder.make(
             window: window,
             exportedAt: cutoff.addingTimeInterval(1),
-            inputs: inputs
+            inputs: inputs,
+            includeWorkoutEnrichment: enriched
         )
         let bytes = try DailyHealthExportSerializer.encode(envelope)
         let decoder = JSONDecoder()

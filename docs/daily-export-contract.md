@@ -22,7 +22,7 @@ Claude Cowork consumes a daily JSON report for the following morning's 06:00 exe
 
 Include useful daily breakdowns and the app's existing deterministic HealthKit-derived summaries and trends. Weight has one value and recording time for the day, not a list or daily average in the daily detail. Existing weight trend calculations retain their daily-first aggregation internally.
 
-Use manual, user-initiated Google Drive API export after consent. A newly connected or restored account with definitively no prior binding must explicitly choose an existing folder by Drive ID or create and bind one dedicated “WeeklyHealthReport Exports” folder. Folder names are never searched or treated as identity. Revalidate and reuse a stored account-specific destination, but never replace a missing, inaccessible or trashed binding automatically. Keep `drive.file` access and an application-enforced destination restriction; do not request whole-Drive scopes. This supersedes the original Files-only/no-OAuth transport restriction. Evening automation and treadmill intervals remain deferred. Google configuration, real-device acceptance, canonical transport and personal-data export remain separate gated work.
+Use manual, user-initiated Google Drive API export after consent. A newly connected or restored account with definitively no prior binding must explicitly choose an existing folder by Drive ID or create and bind one dedicated “WeeklyHealthReport Exports” folder. Folder names are never searched or treated as identity. Revalidate and reuse a stored account-specific destination, but never replace a missing, inaccessible or trashed binding automatically. Keep `drive.file` access and an application-enforced destination restriction; do not request whole-Drive scopes. This supersedes the original Files-only/no-OAuth transport restriction. Evening automation remains deferred; workout intervals are now covered by the schema-6 contract below. Google configuration, real-device acceptance, canonical transport and personal-data export remain separate gated work.
 
 Foreground preparation is serial and idempotent: restore and revalidate the secure
 Google session, validate the account destination or require an explicit choose/create
@@ -54,7 +54,7 @@ recovery, or queues later work.
   rejected, never relabelled. Changing selection clears the preview and requires
   a fresh review; upload stays bound to the frozen canonical date and exact bytes.
 - Historical canonical ordering is explicitly versioned as `historical-v2`.
-  Schema-3 full historical-day snapshots use the opaque metadata/registry token
+  Schema-3 and schema-6 full historical-day snapshots use the opaque metadata/registry token
   `historical-v2|data_as_of|exported_at`. Compare cutoff first, then encoding time
   only for equal cutoffs. Timestamp-only legacy identities retain their original
   ordering; when compared with v2 their secondary time is the cutoff. A later
@@ -75,7 +75,11 @@ recovery, or queues later work.
 
 ## JSON envelope
 
-Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `exported_at`, `day_window`, `today`, `app_context`. The normal HealthKit-and-notes envelope remains schema version 3. Schema version 4 is an additive projection produced only when a canonical food document and its matching daily food summary are explicitly supplied. Schema versions 1 and 2 remain valid only for verifying and safely replacing an existing canonical same-date Drive file.
+Workout enrichment uses schema **6** under [the interval contract](workout-interval-enrichment-contract.md). This preserves v3 notes/nutrition and adds optional `today.workouts.data[].enrichment` with `enrichment_version: 1`; v4 remains the separate canonical-food projection and v5 remains reserved for the proposed food-write plan. Runtime previews emit v6. Existing v3/v4 fixtures keep their meanings. Drive admits v6 with the reviewed exact-byte and historical-v2 ordering rules, and rejects both canonical-food fields at every admitted version. There is no food transport expansion.
+
+The enrichment carries end time, independently available workout/activity heart-rate summaries and active energy, native zone availability/boundaries/source, recognised PacePrompt ownership/identity/completeness, and ordered activities retaining planned segment/executed sub-interval identity. Timestamps retain reporting-time-zone offsets; nested observation timestamps include milliseconds. Whole-workout distance requires accepted producer provenance and visible statistics. V2 interval distance retains actual endpoint observations and complete/partial coverage; v1 interval distance is unavailable. Basic workouts and available statistics survive invalid/unsupported metadata. No raw sample query, energy allocation, invented zone threshold or distance interpolation is permitted.
+
+Top-level fields: `schema_version`, `report_date`, `time_zone`, `data_as_of`, `exported_at`, `day_window`, `today`, `app_context`. The runtime HealthKit-and-notes envelope now uses schema version 6; legacy schema-3 projections remain byte-stable. Schema version 4 is an additive projection produced only when a canonical food document and its matching daily food summary are explicitly supplied. Schema versions 1 and 2 remain valid only for verifying and safely replacing an existing canonical same-date Drive file.
 
 Schema v3 always includes `today.notes: [String]`. No saved notes is `[]`, never
 `null` or an availability wrapper. Strings retain intentional embedded line breaks
@@ -233,7 +237,7 @@ product iOS client remains an external acceptance gate.
 
 ### Deferred work
 
-- Treadmill intervals: duration/speed/incline, recording-source investigation and planned-versus-observed semantics. Do not infer these from existing workout type/duration.
+- Raw treadmill/heart-rate time-series export, custom zone calculation and food transport remain deferred; interval enrichment is now specified separately above.
 - Evening automation around 23:00: scheduling feasibility, unattended provider access, retries, retained reporting date and stale-write protection. No guarantee of exact execution time yet.
 - No new weekly report generator, medical interpretation, backend, telemetry or background Google uploads in the manual-export scope.
 

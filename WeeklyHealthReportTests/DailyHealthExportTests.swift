@@ -9,6 +9,70 @@ import XCTest
 
 // Every health value in this file is invented. These tests never access HealthKit.
 final class DailyHealthExportTests: XCTestCase {
+    func testSchemaSixEnrichmentRoundTripsWithLocalDatesAndIndependentDailyTotals() throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let selected = DailyExportWindow.availableDays(at: now, calendar: calendar)[1]
+        let window = try DailyExportWindow.capture(at: now, calendar: calendar, selectedDay: selected)
+        let start = window.day.start.addingTimeInterval(3600.125)
+        let stats = WorkoutStatistics(provenance: "healthKitWorkoutStatistics", average: 110, energy: 5)
+        let enrichment = WorkoutEnrichmentReader.read(.init(start: start, end: start.addingTimeInterval(60), activity: "walking", metadata: [:], statistics: stats, distanceMetres: nil, activities: []))
+        let record = WorkoutRecord(id: UUID(uuidString: "00000000-0000-4000-8000-000000000001")!, startDate: start, duration: 60, activityName: "Walking", enrichment: enrichment)
+        let outside = WorkoutRecord(id: UUID(), startDate: window.day.end, duration: 60, activityName: "Walking", enrichment: enrichment)
+        let inputs = emptyInputs(window: window, workouts: [outside, record])
+        let envelope = try DailyHealthExportBuilder.make(window: window, exportedAt: now, inputs: inputs, includeWorkoutEnrichment: true)
+        XCTAssertEqual(envelope.schemaVersion, 6)
+        XCTAssertEqual(envelope.today.workouts.data?.count, 1)
+        XCTAssertEqual(envelope.today.workouts.data?.first?.enrichment?.statistics.activeEnergyKilocalories, 5)
+        XCTAssertNil(envelope.today.activity.activeEnergy.data)
+        let bytes = try DailyHealthExportSerializer.encode(envelope)
+        let text = try XCTUnwrap(String(data: bytes, encoding: .utf8))
+        XCTAssertTrue(text.contains("2026-09-09T01:01:00.125+01:00"))
+        XCTAssertTrue(text.contains("heart_rate_average_bpm"))
+        let identity = try DailyHealthExportIdentityPolicy().validate(payload: bytes, reportDate: window.reportDate)
+        XCTAssertTrue(identity.orderingToken.hasPrefix("historical-v2|"))
+        let badZones = text.replacingOccurrences(of: "\"heart_rate_zones\":{\"state\":\"unsupported\",\"zones\":[]}", with: "\"heart_rate_zones\":{\"state\":\"future\",\"zones\":[]}")
+        XCTAssertNotEqual(badZones, text)
+        XCTAssertThrowsError(try DailyHealthExportIdentityPolicy().validate(payload: Data(badZones.utf8), reportDate: window.reportDate))
+        let legacy = try DailyHealthExportBuilder.make(window: window, exportedAt: now, inputs: inputs)
+        XCTAssertEqual(legacy.schemaVersion, 3)
+        XCTAssertNil(legacy.today.workouts.data?.first?.enrichment)
+    }
+
+    func testSchemaSixNestedWorkoutDatesRetainDSTOffsetChange() throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 10, 26, 12, calendar: calendar)
+        let selected = DailyExportWindow.availableDays(at: now, calendar: calendar)[1]
+        let window = try DailyExportWindow.capture(at: now, calendar: calendar, selectedDay: selected)
+        let start = window.day.start.addingTimeInterval(3600)
+        let end = window.day.start.addingTimeInterval(10800)
+        let statistics = WorkoutStatistics(provenance: "healthKitWorkoutStatistics")
+        let activity = WorkoutActivityInput(id: UUID(), start: start, end: end, duration: 7200, activity: "walking", indoor: true, metadata: [:], statistics: .init(provenance: "healthKitActivityStatistics"))
+        let enrichment = WorkoutEnrichmentReader.read(.init(start: start, end: end, activity: "walking", metadata: [:], statistics: statistics, distanceMetres: nil, activities: [activity]))
+        let record = WorkoutRecord(id: UUID(), startDate: start, duration: 7200, activityName: "Walking", enrichment: enrichment)
+        let envelope = try DailyHealthExportBuilder.make(window: window, exportedAt: now, inputs: emptyInputs(window: window, workouts: [record]), includeWorkoutEnrichment: true)
+        let bytes = try DailyHealthExportSerializer.encode(envelope)
+        let text = try XCTUnwrap(String(data: bytes, encoding: .utf8))
+        XCTAssertTrue(text.contains("2026-10-25T01:00:00.000+01:00"))
+        XCTAssertTrue(text.contains("2026-10-25T02:00:00.000Z"))
+        XCTAssertNoThrow(try DailyHealthExportIdentityPolicy().validate(payload: bytes, reportDate: window.reportDate))
+    }
+
+    func testCancelledSnapshotNeverPublishesSchemaSixBytes() async throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let provider = RecordingDailyProvider { window in
+            withUnsafeCurrentTask { $0?.cancel() }
+            return self.emptyInputs(window: window)
+        }
+        let service = DailyHealthExportService(healthData: provider, calendar: calendar, now: { now })
+        let operation = Task { try await service.refresh(nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier) }
+        do {
+            _ = try await operation.value
+            XCTFail("Cancelled coherent snapshot must not be published")
+        } catch is CancellationError {}
+    }
+
     func testRetrospectiveWindowUsesSelectedDayAndHistoricalCutoff() throws {
         let calendar = londonCalendar()
         let now = date(2026, 9, 10, 15, calendar: calendar)
@@ -65,6 +129,7 @@ final class DailyHealthExportTests: XCTestCase {
         for offset in [5, 1, 7, 3, 0] {
             let result = try await service.refresh(nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier, selectedDay: choices[offset])
             XCTAssertEqual(result.envelope.reportDate, choices[offset].reportDate)
+            XCTAssertEqual(result.envelope.schemaVersion, 6)
             XCTAssertEqual(result.notesSnapshot.notes, ["Invented note for \(choices[offset].reportDate)"])
             XCTAssertEqual(result.envelope.exportedAt, "2026-09-10T15:00:00+01:00")
             XCTAssertEqual(store.document, original)
@@ -363,6 +428,8 @@ final class DailyHealthExportTests: XCTestCase {
             XCTAssertEqual(schemaV4.today.foodNutritionSummary?.nutrients.entries.count, 39)
             let schemaV4Bytes = try DailyHealthExportSerializer.encode(schemaV4)
             let text = try XCTUnwrap(String(data: schemaV4Bytes, encoding: .utf8))
+            let forbiddenV6 = Data(text.replacingOccurrences(of: "\"schema_version\":4", with: "\"schema_version\":6").utf8)
+            XCTAssertThrowsError(try DailyHealthExportIdentityPolicy().validate(payload: forbiddenV6, reportDate: "2026-09-06"))
             XCTAssertTrue(text.contains("\"schema_version\":4"))
             XCTAssertTrue(text.contains("\"food_contract_version\":\(version)"))
             XCTAssertTrue(text.contains("\"food_log\":"))
@@ -2227,7 +2294,7 @@ final class DailyHealthExportTests: XCTestCase {
         }
     }
 
-    private func emptyInputs(window: DailyExportWindow) -> DailyHealthExportInputs {
+    private func emptyInputs(window: DailyExportWindow, workouts: [WorkoutRecord] = []) -> DailyHealthExportInputs {
         let emptyTodayHeart = DailyHeartMetricValue(
             day: window.day,
             value: nil,
@@ -2255,7 +2322,7 @@ final class DailyHealthExportTests: XCTestCase {
             todayWatchSampleDates: [],
             todayActiveEnergyKilocalories: nil,
             todayExerciseMinutes: nil,
-            todayWorkouts: [],
+            todayWorkouts: workouts,
             todayAsleepIntervals: [],
             todayMedicationDoses: [],
             supportsMedicationData: true,

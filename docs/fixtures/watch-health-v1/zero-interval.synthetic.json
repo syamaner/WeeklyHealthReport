@@ -1,0 +1,40 @@
+{
+  "fixtureSchemaVersion": 1,
+  "contractRevision": "1.1",
+  "synthetic": true,
+  "summaryID": "11400000-0000-4000-8000-000000000003",
+  "scenarios": [
+    {
+      "name": "no-manifest",
+      "intervals": [],
+      "workoutStart": "2026-01-01T10:00:00.000Z",
+      "workoutEnd": "2026-01-01T10:01:00.000Z"
+    },
+    {
+      "name": "all-intervals-outside-recording-bounds",
+      "intervals": [
+        {
+          "startedAt": "2026-01-01T09:59:00.000Z",
+          "endedAt": "2026-01-01T09:59:30.000Z"
+        }
+      ],
+      "workoutStart": "2026-01-01T10:00:00.000Z",
+      "workoutEnd": "2026-01-01T10:01:00.000Z"
+    },
+    {
+      "name": "recovered-empty-prefix",
+      "intervals": [],
+      "workoutStart": "2026-01-01T10:00:00.000Z",
+      "workoutEnd": "2026-01-01T10:01:00.000Z"
+    }
+  ],
+  "expected": {
+    "workout": null,
+    "readerState": "noWorkout",
+    "finishCalls": 0,
+    "discardCalls": 1,
+    "phoneSaveCalls": 0,
+    "treadmillEffects": 0,
+    "display": "Workout not saved: no execution intervals were received or usable."
+  }
+}

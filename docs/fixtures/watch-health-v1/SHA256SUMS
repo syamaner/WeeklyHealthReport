@@ -1,0 +1,3 @@
+9a7c0fa3c1449b4fdbc9b19378da8caafe9dbe2f2117675fab86204c04688d33  docs/fixtures/watch-health-v1/complete.synthetic.json
+5a4449adc0404bbd9798bb928a3e390da751a0130e97aa2d179f76daec6a1e5c  docs/fixtures/watch-health-v1/incomplete.synthetic.json
+68a1813e6fa0ceec4fb02a27be62dca1c65d863fe9869dd50fe87304338246b0  docs/fixtures/watch-health-v1/zero-interval.synthetic.json

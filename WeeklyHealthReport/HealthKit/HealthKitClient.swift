@@ -143,6 +143,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
               ),
               let exerciseType = HKObjectType.quantityType(forIdentifier: .appleExerciseTime),
               let activeEnergyType = HKObjectType.quantityType(forIdentifier: .activeEnergyBurned),
+              let distanceType = HKObjectType.quantityType(forIdentifier: .distanceWalkingRunning),
               let sleepType = HKObjectType.categoryType(forIdentifier: .sleepAnalysis)
         else {
             throw HealthDataError.missingType("required metric")
@@ -158,7 +159,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
                 heartRateType, restingHeartRateType, hrvType, vo2MaxType,
                 oxygenSaturationType, bloodPressureSystolicType,
                 bloodPressureDiastolicType, exerciseType, activeEnergyType,
-                workoutType, sleepType
+                workoutType, sleepType, distanceType
             ]
         )
     }
@@ -689,12 +690,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         )
         let workouts = try await descriptor.result(for: store)
         return workouts.map {
-            WorkoutRecord(
-                id: $0.uuid,
-                startDate: $0.startDate,
-                duration: $0.duration,
-                activityName: Self.workoutName($0.workoutActivityType)
-            )
+            WorkoutHealthKitProjection.record($0, activityName: Self.workoutName($0.workoutActivityType))
         }
     }
 

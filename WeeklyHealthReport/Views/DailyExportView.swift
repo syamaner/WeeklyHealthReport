@@ -31,6 +31,8 @@ struct DailyExportView: View {
             }
             Section("Private until you export") {
                 Text("Opening this screen restores known choices and prepares a fresh snapshot in memory. Nothing is sent until you choose Export.")
+                Text("Workouts include available heart-rate summaries, HealthKit-estimated active energy, distance, PacePrompt execution intervals and native heart-rate zones. Missing data stays explicitly unavailable. Interval distance may cover only part of an interval. No raw heart-rate series is exported.")
+                    .font(.caption)
                 Text(session.status)
                     .font(.caption)
                 if session.busy { ProgressView() }

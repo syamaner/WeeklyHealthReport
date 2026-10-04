@@ -246,8 +246,10 @@ struct DailyWorkoutData: Codable, Equatable {
     let activity: String
     let startedAt: String
     let durationSeconds: Double
+    var enrichment: WorkoutEnrichment? = nil
 
     private enum CodingKeys: String, CodingKey {
+        case enrichment
         case recordID = "recordId"
         case activity
         case startedAt
@@ -570,7 +572,8 @@ enum DailyHealthExportBuilder {
         window: DailyExportWindow,
         exportedAt: Date,
         inputs: DailyHealthExportInputs,
-        notes: [String] = []
+        notes: [String] = [],
+        includeWorkoutEnrichment: Bool = false
     ) throws -> DailyHealthExportEnvelope {
         guard exportedAt >= window.cutoff else {
             throw DailyHealthExportError.invalidWindow
@@ -801,7 +804,8 @@ enum DailyHealthExportBuilder {
                         recordID: $0.id.uuidString.lowercased(),
                         activity: $0.activityName,
                         startedAt: timestamp($0.startDate),
-                        durationSeconds: $0.duration
+                        durationSeconds: $0.duration,
+                        enrichment: includeWorkoutEnrichment ? $0.enrichment : nil
                     )
                 }),
             watchCoverage: inputs.todayWatchSampleDates.contains {
@@ -820,7 +824,7 @@ enum DailyHealthExportBuilder {
             nutrition: nutrition.context
         )
         return DailyHealthExportEnvelope(
-            schemaVersion: 3,
+            schemaVersion: includeWorkoutEnrichment ? 6 : 3,
             reportDate: window.reportDate,
             timeZone: window.timeZoneIdentifier,
             dataAsOf: timestamp(window.cutoff),
@@ -1394,6 +1398,14 @@ enum DailyHealthExportBuilder {
 enum DailyHealthExportSerializer {
     static func encode(_ envelope: DailyHealthExportEnvelope) throws -> Data {
         let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .custom { date, encoder in
+            var container = encoder.singleValueContainer()
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(identifier: envelope.timeZone)
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSXXXXX"
+            try container.encode(formatter.string(from: date))
+        }
         encoder.keyEncodingStrategy = .convertToSnakeCase
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         return try encoder.encode(envelope)

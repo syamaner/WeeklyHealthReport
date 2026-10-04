@@ -1192,3 +1192,46 @@ do not measure productivity, quality or provider causation.
 Earlier rows remain frozen. Adding this row to the prior recorded subtotal yields
 **346,054,080 tracked tokens / $211.36**, summing recorded rounded comparison
 amounts. This is a tracked-ledger subtotal, not complete account/session usage.
+
+
+## 4 October 2026 — workout interval enrichment #80
+
+| Date | Feature or change | Commit(s) | Input tokens (cached) | Output tokens | Total tokens | API-equivalent |
+| --- | --- | --- | ---: | ---: | ---: | ---: |
+| 4 Oct | Schema-6 workout/activity statistics, intervals, distance, zones and strict Drive admission — GPT-6 Astra | `WHR-20261004-80` commit trailer | 8,356,219 (8,186,112) | 42,456 | 8,398,675 | USD 12.01 |
+
+Exact reader-agent phase from session `01a10423-e413-7cd2-9170-60633cbb7eda`, verified model
+`gpt-6-astra` at every metered event. First recorded pre-edit snapshot is
+line 60 at `2026-10-03T23:40:29.312Z`: input 38,141,
+cached 22,528, cache-write 0,
+output 58, total 38,199. End is line
+632 at `2026-10-04T00:16:34.561Z`: input 8,394,360,
+cached 8,208,640, cache-write 0,
+output 42,514, total 8,436,874.
+
+The exact delta covers 74 requests, largest input
+153,625, with 0 requests above
+272,000 input tokens. Cache-write delta is 0;
+reasoning 9,117 is already included in output.
+The ordinary helper rejected the inherited parent plus child session metadata.
+Independent raw JSONL reconciliation verified the explicit fork IDs, all token
+events after child creation, every request delta and model; the original
+transcript was not altered. Private report: `/private/tmp/whr80-accounting-final.json`;
+reproduction script: `/private/tmp/whr80-usage-report.py`.
+
+This row includes reader implementation, synthetic tests, validation, review
+coordination and documentation. It excludes the first recorded prompt, root
+coordination (accounted only in PacePrompt), independent reviewer sessions,
+this numeric insertion and subsequent delivery. Missing usage is not estimated.
+Official [GPT-6 Astra pricing](https://developers.openai.com/api/docs/models/gpt-6-astra)
+checked 4 October 2026: standard USD 10/M uncached input, 1/M cached input,
+12.50/M cache writes and 50/M output; above 272,000 input, 2 times input/cache
+and 1.5 times output. Exact comparison USD 12.009982.
+This is a token-only API-equivalent comparison, not a ChatGPT subscription bill.
+
+Full simulator validation passed 308 tests, 97.27% domain coverage and Xcode
+analysis. Focused checks passed 112 tests; the native iOS-27 synthetic adapter
+check also passed. Independent review found no remaining P1/P2 issues. All
+79 frozen Swift/project hashes and all five shared fixture digests are unchanged.
+See [the acceptance runbook](docs/workout-reader-acceptance.md) for evidence and
+the separately authorised signed-device, HealthKit and real Drive boundaries.
