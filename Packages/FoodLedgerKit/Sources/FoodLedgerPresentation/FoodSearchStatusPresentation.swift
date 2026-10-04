@@ -8,7 +8,8 @@ public struct FoodSearchStatusPresentation: Equatable, Sendable {
     public let details: [String]
     public let isSearching: Bool
 
-    public init(reports: [FoodSearchStageReport], pending: FoodSearchStage?, stopped: Bool, services: FoodSearchServiceAvailability? = nil) {
+    public init(reports: [FoodSearchStageReport], pending: FoodSearchStage?, stopped: Bool, services: FoodSearchServiceAvailability? = nil,
+                configuredStages: [FoodSearchStage] = [.local, .onlineDatabase, .gemini]) {
         let count = reports.flatMap(\.addedCandidateIDs).count
         let online = reports.filter { $0.stage != .local }.flatMap(\.addedCandidateIDs).count
         let matches = "\(count) \(count == 1 ? "match" : "matches")"
@@ -34,7 +35,11 @@ public struct FoodSearchStatusPresentation: Equatable, Sendable {
                 summary = matches + (online > 0 ? " · \(online) added online" : " · on device")
             }
         }
-        details = [FoodSearchStage.local, .onlineDatabase, .gemini].map { stage in
+        // Omit providers that are not composed, while always retaining actual
+        // activity/failures if a caller supplies historical reports.
+        details = [FoodSearchStage.local, .onlineDatabase, .gemini].filter { stage in
+            configuredStages.contains(stage) || pending == stage || reports.contains { $0.stage == stage }
+        }.map { stage in
             let result: String
             if pending == stage && !stopped { result = "Searching" }
             else if let report = reports.first(where: { $0.stage == stage }) {

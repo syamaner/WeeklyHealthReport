@@ -51,7 +51,7 @@ public protocol FoodWebKeyStoring: Sendable {
 }
 
 /// Validate header-safe input without assuming a provider key prefix or alphabet.
-/// Google validates the credential itself; this only excludes whitespace and control bytes.
+/// The provider validates the credential itself; this only excludes whitespace and control bytes.
 public enum FoodWebKeySyntax {
     public static func isValid(_ key: String) -> Bool {
         (20...512).contains(key.utf8.count) && key.utf8.allSatisfy { (33...126).contains($0) }

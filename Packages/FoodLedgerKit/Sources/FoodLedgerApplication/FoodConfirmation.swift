@@ -202,12 +202,20 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
         } else {
             quantity = FoodQuantityDraft()
         }
-        if reopened == nil, FoodNamedServingPolicy.applies(input, candidate: input.candidates[0]) {
+        if reopened == nil, FoodReviewedWebProposalPolicy.scope(input, candidate: input.candidates[0]) != nil {
+            switch input.candidates[0].candidate.identity.servingBasis {
+            case .per100Millilitres: quantity = FoodQuantityDraft(unit: .millilitres)
+            case let .named(_, sourceQuantity) where sourceQuantity.unit == .millilitres:
+                quantity = FoodQuantityDraft(unit: .millilitres)
+            default: break
+            }
+        }
+        if reopened == nil, FoodSourceServingPolicy.applies(input, candidate: input.candidates[0]) {
             quantity = FoodQuantityDraft(unit: .count)
         }
         // A parsed exact amount is consumed quantity, distinct from the source's 100-unit basis.
         // No conversion or portion weight is inferred here; count/cross-basis saving stays explicit.
-        if reopened == nil, !FoodNamedServingPolicy.applies(input, candidate: input.candidates[0]),
+        if reopened == nil, !FoodSourceServingPolicy.applies(input, candidate: input.candidates[0]),
            let queryQuantity, queryQuantity.value.isFinite, queryQuantity.value > 0,
            let unit = QuantityUnit(rawValue: queryQuantity.unit == "ml" ? "mL" : queryQuantity.unit) {
             quantity = FoodQuantityDraft(value: queryQuantity.value, unit: unit)
@@ -252,7 +260,7 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
             case .edibleQuantity: input.expectedEdibleQuantity != selectedCandidate.candidate.edibleQuantity
             }
         }
-        if isSourceRecipe && reopened == nil && !filtered.contains(.edibleQuantity) { filtered.append(.edibleQuantity) }
+        if usesSourceDeclaredServing && reopened == nil && !filtered.contains(.edibleQuantity) { filtered.append(.edibleQuantity) }
         return filtered
     }
 }
@@ -282,14 +290,14 @@ public enum FoodConfirmationReducer {
         case let .selectCandidate(index):
             guard state.input.candidates.indices.contains(index) else { return }
             let changed = state.selectedCandidateIndex != index
-            let wasRecipe = state.isSourceRecipe
+            let wasServing = state.usesSourceDeclaredServing
             if changed {
                 state.quantity.directWeight?.needsReconfirmation = true
                 state.quantity.conversion = nil
             }
             state.selectedCandidateIndex = index
-            if changed && (wasRecipe || state.isSourceRecipe) {
-                state.quantity = FoodQuantityDraft(unit: state.isSourceRecipe ? .count : .grams)
+            if changed && (wasServing || state.usesSourceDeclaredServing) {
+                state.quantity = FoodQuantityDraft(unit: state.usesSourceDeclaredServing ? .count : .grams)
             }
             state.decision = .undecided
             state.correction = nil
@@ -363,6 +371,7 @@ public enum FoodConfirmationSaveError: Error, Equatable, Sendable {
     case unexplainedMaterialDifferences([IdentityContradiction])
     case unresolvedMandatoryIdentity([IdentityContradiction])
     case invalidQuantity
+    case invalidReviewedSource
 }
 
 public final class FoodConfirmationService: @unchecked Sendable {
@@ -370,6 +379,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
     private let reader: any FoodConfirmationReading
     private let clock: any LedgerClock
     private let ids: any LedgerIDGenerating
+    private let digester: any Digesting
     private let calendar: Calendar
 
     public init(
@@ -377,12 +387,14 @@ public final class FoodConfirmationService: @unchecked Sendable {
         reader: any FoodConfirmationReading,
         clock: any LedgerClock,
         ids: any LedgerIDGenerating,
+        digester: any Digesting,
         calendar: Calendar = .autoupdatingCurrent
     ) {
         self.ledger = ledger
         self.reader = reader
         self.clock = clock
         self.ids = ids
+        self.digester = digester
         self.calendar = calendar
     }
 
@@ -397,6 +409,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 throw FoodLedgerStoreError.integrityFailure("committed confirmation could not be recovered")
             }
             try stored.logItemVersion.validateWeightDeclaration(emptyPlate: stored.plateWeightVersion)
+            _ = try restoredConfirmationInput(stored)
             return stored
         }
         switch state.decision {
@@ -418,6 +431,15 @@ public final class FoodConfirmationService: @unchecked Sendable {
         // A reopened entry already has a user-confirmed product identity. The
         // retained source candidate may still contain explicitly asserted gaps.
         let identity = state.correction?.identity ?? state.reopened?.productVersion.identity ?? selected.candidate.identity
+        if FoodReviewedWebProposalPolicy.applies(state.input, candidate: selected) {
+            guard FoodReviewedWebProposalPolicy.manifestDigestIsValid(evidence: state.input.evidence,
+                    releases: state.input.sourceReleases, candidate: selected.candidate, digester: digester),
+                  FoodReviewedWebProposalPolicy.scope(state.input, candidate: selected) != nil,
+                  identity.servingBasis == selected.candidate.identity.servingBasis,
+                  (state.correction?.nutrients ?? state.reopened?.resolutionVersion.nutrients ?? selected.candidate.nutrients) == selected.candidate.nutrients else {
+                throw FoodConfirmationSaveError.invalidReviewedSource
+            }
+        }
         let unresolved = state.unresolvedIdentity
         guard unresolved.isEmpty else {
             throw FoodConfirmationSaveError.unresolvedMandatoryIdentity(unresolved)
@@ -427,7 +449,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         let declaration = try state.quantity.declaration()
         let entered = try state.quantity.calculationInput()
         let conversion = declaration == nil
-            ? try makeConversion(state.quantity, entered: entered, previous: previous, at: now, sourceRecipe: state.isSourceRecipe)
+            ? try makeConversion(state.quantity, entered: entered, previous: previous, at: now, sourceRecipe: state.usesSourceDeclaredServing)
             : (version: nil, isNew: false)
         let plate = try makePlate(state.quantity.plateChoice, previous: previous, at: now)
         let edibleQuantity = try state.calculatedEdibleQuantity()
@@ -595,6 +617,14 @@ public final class FoodConfirmationService: @unchecked Sendable {
     public func reopen(logItemID: LogItemID) throws -> FoodConfirmationState? {
         guard let saved = try reader.foodConfirmation(logItemID: logItemID) else { return nil }
         try saved.logItemVersion.validateWeightDeclaration(emptyPlate: saved.plateWeightVersion)
+        let input = try restoredConfirmationInput(saved)
+        var state = FoodConfirmationState(input: input, reopened: saved)
+        state.decision = .accepted
+        return state
+    }
+
+    /// Reopen and idempotent recovery share the same retained-source admission.
+    private func restoredConfirmationInput(_ saved: StoredFoodConfirmation) throws -> PopulatedFoodConfirmation {
         // The immutable source candidate and the user-corrected saved product are distinct.
         // A corrected fortified category cannot be paired with an originally unknown source identity.
         let original = saved.candidateDecision.candidate
@@ -613,7 +643,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
             itemClass: sourceItemClass,
             packFacts: saved.productVersion.packFacts
         )
-        let input = try PopulatedFoodConfirmation(
+        var input = try PopulatedFoodConfirmation(
             evidence: saved.evidence,
             sourceReleases: saved.sourceReleases,
             candidates: [populated],
@@ -623,9 +653,18 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 conversionVersionID: saved.logItemVersion.quantityConversionVersionID
             )
         )
-        var state = FoodConfirmationState(input: input, reopened: saved)
-        state.decision = .accepted
-        return state
+        if FoodReviewedWebProposalPolicy.applies(input, candidate: populated) {
+            guard FoodReviewedWebProposalPolicy.manifestDigestIsValid(evidence: input.evidence,
+                    releases: input.sourceReleases, candidate: populated.candidate, digester: digester),
+                  let restored = try FoodReviewedWebProposalPolicy.restoredSourceCandidate(input, candidate: populated),
+                  saved.resolutionVersion.nutrients == restored.candidate.nutrients,
+                  saved.productVersion.identity.servingBasis == restored.candidate.identity.servingBasis else {
+                throw FoodLedgerStoreError.integrityFailure("reviewed web source manifest does not match the retained candidate")
+            }
+            input = try PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: input.sourceReleases,
+                candidates: [restored], expectedIdentity: input.expectedIdentity, expectedEdibleQuantity: input.expectedEdibleQuantity)
+        }
+        return input
     }
 
     private func makeConversion(

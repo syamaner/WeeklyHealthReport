@@ -111,7 +111,7 @@ final class SearchQuantityHandoffTests: XCTestCase {
             let ids = HandoffIDs(seed: 10000)
             let ledger = FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store,
                 clock: HandoffClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
-            let service = FoodConfirmationService(ledger: ledger, reader: store, clock: HandoffClock(), ids: ids)
+            let service = FoodConfirmationService(ledger: ledger, reader: store, clock: HandoffClock(), ids: ids, digester: SHA256Digester())
             var state = FoodConfirmationState(input: input, queryQuantity: search.parsedQuery?.quantity)
             XCTAssertTrue(state.isGenericEstimate, query)
             XCTAssertTrue(state.materialDifferences.isEmpty, query)

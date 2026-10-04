@@ -19,7 +19,8 @@ final class FoodLedgerCompositionRoot {
     private let offSearchTransport: OFFHTTPSearchTransport
     private let searchPreferences: FoodSearchUserDefaultsPreferences
     let webDiscovery: FoodWebDiscoveryViewModel
-    private let geminiSourceReview: GeminiGroundedSourceReview
+    private let proposalReviewer: GenericFoodProposalReviewer
+    private let proposalConfirmation: ReviewedFoodProposalConfirmation
     private let offLookup: OpenFoodFactsLookup
     private let ids: RandomLedgerIDGenerator
     private var activeFoodList: FoodListImportViewModel?
@@ -54,14 +55,14 @@ final class FoodLedgerCompositionRoot {
         offLookup = OpenFoodFactsLookup(transport: OFFHTTPSProductTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)"))
         offSearchTransport = OFFHTTPSearchTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)")
         searchPreferences = FoodSearchUserDefaultsPreferences(defaults: userDefaults)
-        let discovery = GeminiFoodWebDiscovery()
-        webDiscovery = FoodWebDiscoveryViewModel(provider: discovery, keys: GeminiKeychainStore())
-        let contentHosts = GroundedFoodSourceCandidateAdmission.contentHosts
-        let sourceAcquirer = try HTTPSFoodSourcePageAcquirer(
-            allowedHosts: contentHosts.union([GeminiGroundedSourceReview.citationResolverHost]),
-            userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)")
-        geminiSourceReview = try GeminiGroundedSourceReview(discovery: discovery, acquisition: sourceAcquirer, contentHosts: contentHosts)
         let clock = SystemLedgerClock()
+        let openRouter = OpenRouterFoodProvider(extractionRoute: .grok, selectionRoute: .applicability)
+        webDiscovery = FoodWebDiscoveryViewModel(provider: openRouter, keys: OpenRouterKeychainStore(),
+            providerName: "OpenRouter", operatorName: "OpenRouter", keyManagementName: "OpenRouter settings")
+        proposalReviewer = GenericFoodProposalReviewer(discovery: openRouter, capture: PublicFoodSourceCapture(),
+            extraction: openRouter, sourceSelection: openRouter, selection: openRouter)
+        proposalConfirmation = ReviewedFoodProposalConfirmation(ids: ids, clock: clock,
+            encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
         ledger = FoodLedgerService(
             actorID: try Self.actorID(userDefaults: userDefaults),
             committer: store,
@@ -73,7 +74,8 @@ final class FoodLedgerCompositionRoot {
             ledger: ledger,
             reader: store,
             clock: clock,
-            ids: ids
+            ids: ids,
+            digester: SHA256Digester()
         )
         genericFoodSearch = try CompositeGenericFoodSearch(sources: [
             CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
@@ -138,10 +140,15 @@ final class FoodLedgerCompositionRoot {
             locale: try LedgerText(locale.identifier),
             additionalEvidence: additionalEvidence,
             database: OpenFoodFactsSearch(transport: offSearchTransport, locale: try LedgerText(locale.identifier), ids: ids),
-            gemini: GeminiFoodSearch(credentials: webDiscovery, reviewer: geminiSourceReview,
-                admission: GroundedFoodSourceCandidateAdmission(), locale: try LedgerText(locale.identifier), ids: ids),
-            preferences: searchPreferences, geminiCredentialReady: webDiscovery.keyIsUsable
+            preferences: searchPreferences
         )
+    }
+
+    func proposalReviewModel(initialQuery: String) throws -> GenericFoodProposalReviewViewModel {
+        let model = try GenericFoodProposalReviewViewModel(reviewer: proposalReviewer, credentials: webDiscovery,
+            confirmation: proposalConfirmation, locale: LedgerText(Locale.current.identifier))
+        model.foodTerms = initialQuery
+        return model
     }
 
     func lookupOFF(_ route: BarcodeFallbackRoute) async throws -> PackagedFoodLookupOutcome {
@@ -291,31 +298,57 @@ struct FoodListImportFlowView: View {
 
 struct GenericFoodSearchFlowView: View {
     private let root: FoodLedgerCompositionRoot
-    @StateObject private var webDiscovery: FoodWebDiscoveryViewModel
     @StateObject private var searchModel: GenericFoodSearchViewModel
     @State private var confirmationModel: FoodConfirmationViewModel?
     @State private var showsConfirmation = false
+    @State private var showsWebReview = false
 
     init?(root: FoodLedgerCompositionRoot, additionalEvidence: [CaptureEvidence] = [], initialQuery: String = "") {
         guard let model = try? root.genericFoodSearchModel(additionalEvidence: additionalEvidence) else { return nil }
         self.root = root
         model.query = initialQuery
         _searchModel = StateObject(wrappedValue: model)
-        _webDiscovery = StateObject(wrappedValue: root.webDiscovery)
     }
 
     var body: some View {
-        GenericFoodSearchView(model: searchModel, webDiscovery: webDiscovery) { input in
+        GenericFoodSearchView(model: searchModel, reviewWebNutrition: { showsWebReview = true }) { input in
             // Snapshot selection and parsed quantity once; navigation renders reuse this model.
             confirmationModel = root.model(for: input, queryQuantity: searchModel.parsedQuery?.quantity, searchInterpretation: searchModel.interpretation, prefillSourceQuantity: false)
             showsConfirmation = true
         }
-        .onReceive(webDiscovery.$keyIsUsable) { searchModel.setGeminiCredentialReady($0) }
+        .navigationDestination(isPresented: $showsWebReview) {
+            if let flow = OpenRouterFoodReviewFlowView(root: root, initialQuery: searchModel.query) { flow }
+        }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {
                     showsConfirmation = false
                 }
+            }
+        }
+    }
+}
+
+struct OpenRouterFoodReviewFlowView: View {
+    private let root: FoodLedgerCompositionRoot
+    @StateObject private var credentials: FoodWebDiscoveryViewModel
+    @StateObject private var reviewModel: GenericFoodProposalReviewViewModel
+    @State private var confirmationModel: FoodConfirmationViewModel?
+    @State private var showsConfirmation = false
+    init?(root: FoodLedgerCompositionRoot, initialQuery: String) {
+        guard let model = try? root.proposalReviewModel(initialQuery: initialQuery) else { return nil }
+        self.root = root
+        _credentials = StateObject(wrappedValue: root.webDiscovery)
+        _reviewModel = StateObject(wrappedValue: model)
+    }
+    var body: some View {
+        GenericFoodProposalReviewView(model: reviewModel, credentials: credentials) { input in
+            confirmationModel = root.model(for: input, prefillSourceQuantity: false)
+            showsConfirmation = true
+        }
+        .navigationDestination(isPresented: $showsConfirmation) {
+            if let confirmationModel {
+                FoodConfirmationView(model: confirmationModel) { showsConfirmation = false }
             }
         }
     }
