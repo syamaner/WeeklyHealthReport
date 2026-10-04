@@ -9,6 +9,11 @@ import workflow_smoke as w
 class SmokeTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);self.root=Path(self.tmp.name)
+        # Freeze hashes the loader code as runtime provenance, never credentials.
+        # Offline contracts use synthetic code and must not depend on a host path.
+        loader=self.root/'synthetic_private_loader.py'
+        loader.write_text('def load_credentials(*args):\n    raise AssertionError("Offline fixture must never load credentials")\n')
+        loader_patch=patch.object(w,'LOADER',loader);loader_patch.start();self.addCleanup(loader_patch.stop)
     def plan(self):
         return dict(cases=[dict(id=f'case-{i}',query=f'public food {i}')for i in range(6)],minimum_interval_seconds=0,
                     subset_denominator=6,subset_ids=[f'case-{i}'for i in range(6)],excluded_case_ids=[],maximum_requests=24,
