@@ -30,7 +30,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             let window=UIWindow(windowScene:scene);window.frame=CGRect(x:0,y:0,width:430,height:932);window.rootViewController=host
             window.makeKeyAndVisible()
             defer { window.isHidden=true; previousKeyWindow?.makeKey() }
-            try await waitForHostAppearance(host, window: window)
+            try await waitForRenderHost(host, window: window)
             host.view.layoutIfNeeded()
             var field:UITextField?
             for _ in 0..<24 {
@@ -222,7 +222,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
             window.rootViewController = host; window.makeKeyAndVisible()
             defer { window.isHidden = true; previous?.makeKey() }
-            try await waitForHostAppearance(host, window: window)
+            try await waitForRenderHost(host, window: window)
             try await Task.sleep(for: .milliseconds(250))
             host.view.layoutIfNeeded()
             let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
@@ -482,17 +482,27 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         window.frame = CGRect(x: 0, y: 0, width: 430, height: 600)
         window.rootViewController = host; window.makeKeyAndVisible()
         defer { window.isHidden = true; previous?.makeKey() }
-        try await waitForHostAppearance(host, window: window)
+        try await waitForRenderHost(host, window: window)
         let webView = try XCTUnwrap(descendants(host.view).compactMap { $0 as? WKWebView }.first)
         XCTAssertFalse(webView.configuration.websiteDataStore.isPersistent)
         XCTAssertFalse(webView.configuration.defaultWebpagePreferences.allowsContentJavaScript)
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(30))
         var text = ""
-        for _ in 0..<50 {
+        var readyState = "unknown"
+        var lastJavaScriptError: String?
+        repeat {
+            do {
+                readyState = try await webView.evaluateJavaScript("document.readyState") as? String ?? "unknown"
+                text = try await webView.evaluateJavaScript("document.body.innerText") as? String ?? ""
+            } catch {
+                lastJavaScriptError = String(describing: error)
+            }
+            if readyState == "complete" && text.contains("Synthetic Google suggestions") { break }
             try await Task.sleep(for: .milliseconds(100))
-            text = (try? await webView.evaluateJavaScript("document.body.innerText")) as? String ?? ""
-            if text.contains("Synthetic Google suggestions") { break }
-        }
-        XCTAssertTrue(text.contains("Synthetic Google suggestions"))
+        } while clock.now < deadline
+        XCTAssertEqual(readyState, "complete", "loading=\(webView.isLoading); URL=\(String(describing: webView.url)); lastJSerror=\(lastJavaScriptError ?? "none")")
+        XCTAssertTrue(text.contains("Synthetic Google suggestions"), "DOM=\(text); loading=\(webView.isLoading); URL=\(String(describing: webView.url)); lastJSerror=\(lastJavaScriptError ?? "none")")
         let ran = try await webView.evaluateJavaScript("document.body.dataset.executed || 'no'") as? String
         XCTAssertEqual(ran, "no")
     }
@@ -502,11 +512,25 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         return try XCTUnwrap(scenes.first { $0.activationState == .foregroundActive } ?? scenes.first)
     }
 
+    /// Static rendering asserts the real content below; UIKit's viewDidAppear callback
+    /// is a separate requirement for tests that present or reopen a controller.
+    private func waitForRenderHost<Content: View>(_ host: NativeHostingController<Content>, window: UIWindow) async throws {
+        try await waitForNativeState("Render host should own a visible, laid-out active window",
+            diagnostics: { "\(self.nativeSnapshot(host, window: window, driver: nil)); hostAppeared=\(host.hasAppeared); bounds=\(host.view.bounds)" }) {
+            window.layoutIfNeeded()
+            host.view.layoutIfNeeded()
+            return window.rootViewController === host && host.view.window === window
+                && !window.isHidden && window.isKeyWindow && !host.view.isHidden
+                && !host.view.bounds.isEmpty && window.windowScene?.activationState == .foregroundActive
+                && !host.isBeingPresented && !host.isBeingDismissed && host.presentedViewController == nil
+        }
+    }
+
     private func waitForHostAppearance<Content: View>(
         _ host: NativeHostingController<Content>, window: UIWindow, driver: SavedSheetDriver? = nil
     ) async throws {
         try await waitForNativeState("Host should appear in its owned active window before presentation",
-            diagnostics: { self.nativeSnapshot(host, window: window, driver: driver) }) {
+            diagnostics: { "\(self.nativeSnapshot(host, window: window, driver: driver)); hostAppeared=\(host.hasAppeared)" }) {
             host.view.layoutIfNeeded()
             return host.hasAppeared && host.view.window === window && !window.isHidden && window.isKeyWindow
                 && window.windowScene?.activationState == .foregroundActive
