@@ -31,7 +31,7 @@ struct DailyExportView: View {
             }
             Section("Private until you export") {
                 Text("Opening this screen restores known choices and prepares a fresh snapshot in memory. Nothing is sent until you choose Export.")
-                Text("Workouts include available heart-rate summaries, HealthKit-estimated active energy, native distance and separately evidenced accepted treadmill distance, PacePrompt execution intervals and native heart-rate zones. Missing data stays explicitly unavailable. Interval distance may cover only part of an interval. No raw heart-rate series is exported.")
+                Text("Workouts include available heart-rate summaries, HealthKit-estimated active energy, native distance and separately evidenced accepted treadmill distance, PacePrompt execution intervals and native heart-rate zones. Missing data stays explicitly unavailable. Interval distance may cover only part of an interval. Individual associated heart-rate readings include timestamps, BPM and source identifiers when available. Gaps are retained; readings are not interpolated.")
                     .font(.caption)
                 Text(session.status)
                     .font(.caption)

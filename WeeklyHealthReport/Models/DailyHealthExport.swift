@@ -824,7 +824,7 @@ enum DailyHealthExportBuilder {
             nutrition: nutrition.context
         )
         return DailyHealthExportEnvelope(
-            schemaVersion: includeWorkoutEnrichment ? 7 : 3,
+            schemaVersion: includeWorkoutEnrichment ? (today.workouts.data?.contains { $0.enrichment?.enrichmentVersion == 3 } == true ? 8 : 7) : 3,
             reportDate: window.reportDate,
             timeZone: window.timeZoneIdentifier,
             dataAsOf: timestamp(window.cutoff),
@@ -1400,6 +1400,10 @@ enum DailyHealthExportSerializer {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .custom { date, encoder in
             var container = encoder.singleValueContainer()
+            if envelope.schemaVersion == 8 {
+                try container.encode(date.timeIntervalSinceReferenceDate)
+                return
+            }
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.timeZone = TimeZone(identifier: envelope.timeZone)

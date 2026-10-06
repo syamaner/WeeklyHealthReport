@@ -6,6 +6,75 @@ import HealthKit
 final class WorkoutEnrichmentTests: XCTestCase {
     private let prefix = WorkoutEnrichmentReader.namespace
 
+    func testIndividualHeartRateBoundaryMappingAndGapRemainExact() throws {
+        let workout = WorkoutEnrichmentReader.read(try fixture("complete"))
+        let first = workout.activities[0]
+        let second = workout.activities[1]
+        let boundary = try XCTUnwrap(first.endedAt)
+        func entry(_ start: Date, _ end: Date, index: Int) -> WorkoutHeartRateReadings.Entry {
+            .init(sampleID: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!,
+                  entryIndex: index, startedAt: start, endedAt: end,
+                  beatsPerMinute: 90, sourceBundleIdentifier: "synthetic.test")
+        }
+        let result = WorkoutHeartRateReadings.project([
+            entry(first.startedAt, first.startedAt, index: 0),
+            entry(boundary, boundary, index: 2),
+            entry(first.startedAt, second.endedAt!, index: 1)
+        ], into: workout)
+        XCTAssertEqual(result.state, "available")
+        XCTAssertEqual(result.entries.first { $0.entryIndex == 0 }?.activityIDs, [first.activityID])
+        XCTAssertFalse(result.entries.first { $0.entryIndex == 2 }!.activityIDs.contains(first.activityID))
+        XCTAssertEqual(result.entries.first { $0.entryIndex == 1 }?.activityIDs, [first.activityID, second.activityID])
+        XCTAssertTrue(result.isValid(for: workout))
+    }
+
+    func testIndividualHeartRateLimitsAndForgedMappingsFailClosed() throws {
+        let workout = WorkoutEnrichmentReader.read(try fixture("complete"))
+        let entry = WorkoutHeartRateReadings.Entry(sampleID: UUID(), entryIndex: 0,
+            startedAt: workout.startedAt, endedAt: workout.startedAt,
+            beatsPerMinute: 90, sourceBundleIdentifier: "synthetic.test")
+        XCTAssertEqual(WorkoutHeartRateReadings.project(Array(repeating: entry,
+            count: WorkoutHeartRateReadings.maximumEntries + 1), into: workout).state, "limitExceeded")
+        var forged = entry
+        forged.activityIDs = [UUID()]
+        XCTAssertFalse(WorkoutHeartRateReadings(schemaVersion: 1, state: "available",
+            provenance: "healthKitWorkoutAssociatedQuantitySeries", entries: [forged]).isValid(for: workout))
+        for state in ["failed", "limitExceeded", "invalidEvidence", "noDataOrAccess"] {
+            XCTAssertTrue(WorkoutHeartRateReadings.unavailable(state).isValid(for: workout))
+            XCTAssertFalse(WorkoutHeartRateReadings(schemaVersion: 1, state: state,
+                provenance: "healthKitWorkoutAssociatedQuantitySeries", entries: [entry]).isValid(for: workout))
+        }
+        XCTAssertFalse(WorkoutHeartRateReadings.unavailable("future").isValid(for: workout))
+        func point(_ index: Int, _ offset: Double, source: String = "synthetic.test") -> WorkoutHeartRateReadings.Entry {
+            .init(sampleID: entry.sampleID, entryIndex: index,
+                  startedAt: workout.startedAt.addingTimeInterval(offset), endedAt: workout.startedAt.addingTimeInterval(offset),
+                  beatsPerMinute: 90, sourceBundleIdentifier: source)
+        }
+        for malformed in [[point(999, 1)], [point(1, 1), point(0, 2)],
+                          [point(0, 1), point(1, 2, source: "synthetic.other")]] {
+            XCTAssertEqual(WorkoutHeartRateReadings.project(malformed, into: workout).state, "invalidEvidence")
+        }
+        let invalid = WorkoutHeartRateReadings.Entry(sampleID: UUID(), entryIndex: 0,
+            startedAt: workout.startedAt.addingTimeInterval(-0.0001), endedAt: workout.startedAt,
+            beatsPerMinute: 90, sourceBundleIdentifier: "synthetic.test")
+        XCTAssertEqual(WorkoutHeartRateReadings.project([invalid], into: workout).state, "invalidEvidence")
+    }
+
+    func testIndividualHeartRateInvalidOrMissingEvidenceNeverBecomesZero() throws {
+        let workout = WorkoutEnrichmentReader.read(try fixture("complete"))
+        XCTAssertEqual(WorkoutHeartRateReadings.project([], into: workout).state, "noDataOrAccess")
+        let entry = WorkoutHeartRateReadings.Entry(sampleID: UUID(), entryIndex: 0,
+            startedAt: workout.startedAt, endedAt: workout.startedAt,
+            beatsPerMinute: 90, sourceBundleIdentifier: "synthetic.test")
+        XCTAssertEqual(WorkoutHeartRateReadings.project([entry, entry], into: workout).state, "invalidEvidence")
+        var enriched = workout
+        enriched.enrichmentVersion = 3
+        enriched.heartRateReadings = .project([entry], into: workout)
+        XCTAssertTrue(WorkoutEnrichmentReader.validatesExport(enriched))
+        enriched.enrichmentVersion = 2
+        XCTAssertFalse(WorkoutEnrichmentReader.validatesExport(enriched))
+    }
+
     func testSharedV2FixturesRetainPartialDistanceAndResetState() throws {
         let complete = WorkoutEnrichmentReader.read(try fixture("complete", version: 2))
         XCTAssertEqual(complete.recognition, .supportedComplete)

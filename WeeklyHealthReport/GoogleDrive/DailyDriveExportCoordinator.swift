@@ -12,14 +12,18 @@ struct DailyHealthExportIdentityPolicy: DrivePayloadIdentityPolicy {
         let decoder = JSONDecoder()
         decoder.keyDecodingStrategy = .convertFromSnakeCase
         decoder.dateDecodingStrategy = .custom { decoder in
-            let value = try decoder.singleValueContainer().decode(String.self)
+            let container = try decoder.singleValueContainer()
+            if let seconds = try? container.decode(Double.self), seconds.isFinite {
+                return Date(timeIntervalSinceReferenceDate: seconds)
+            }
+            let value = try container.decode(String.self)
             let formatter = ISO8601DateFormatter()
             formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
             guard let date = formatter.date(from: value) else { throw DailyDriveExportFailure.invalidPayload }
             return date
         }
         guard let envelope = try? decoder.decode(DailyHealthExportEnvelope.self, from: payload),
-              [1, 2, 3, 6, 7].contains(envelope.schemaVersion),
+              [1, 2, 3, 6, 7, 8].contains(envelope.schemaVersion),
               envelope.today.foodLog == nil, envelope.today.foodNutritionSummary == nil,
               envelope.reportDate == reportDate,
               try DailyHealthExportSerializer.encode(envelope) == payload,
@@ -32,7 +36,8 @@ struct DailyHealthExportIdentityPolicy: DrivePayloadIdentityPolicy {
             guard workouts.allSatisfy({ workout in
                 guard let enrichment = workout.enrichment else { return true }
                 return ((envelope.schemaVersion == 6 && enrichment.enrichmentVersion == 1)
-                    || (envelope.schemaVersion == 7 && enrichment.enrichmentVersion == 2))
+                    || (envelope.schemaVersion == 7 && enrichment.enrichmentVersion == 2)
+                    || (envelope.schemaVersion == 8 && enrichment.enrichmentVersion == 3))
                     && WorkoutEnrichmentReader.validatesExport(enrichment)
             }) else { throw DailyDriveExportFailure.invalidPayload }
         }
@@ -66,7 +71,7 @@ struct DailyHealthExportIdentityPolicy: DrivePayloadIdentityPolicy {
             }
         }
         let orderingToken: String
-        if [3, 6, 7].contains(envelope.schemaVersion), try isHistorical(envelope) {
+        if [3, 6, 7, 8].contains(envelope.schemaVersion), try isHistorical(envelope) {
             orderingToken = "\(Self.historicalOrderingVersion)|\(envelope.dataAsOf)|\(envelope.exportedAt)"
         } else {
             orderingToken = envelope.dataAsOf

@@ -34,7 +34,7 @@ enum WorkoutHealthKitProjection {
 
     /// Query only exact associated legacy aggregate identities, in bounded batches.
     /// New v3 metadata and unrelated workouts cause no sample query.
-    static func records(_ workouts: [HKWorkout], store: HKHealthStore, recoverAcceptedDistance: Bool = true, activityName: (HKWorkoutActivityType) -> String) async throws -> [WorkoutRecord] {
+    static func records(_ workouts: [HKWorkout], store: HKHealthStore, recoverAcceptedDistance: Bool = true, includeHeartRateReadings: Bool = false, activityName: (HKWorkoutActivityType) -> String) async throws -> [WorkoutRecord] {
         var records = workouts.map { record($0, activityName: activityName($0.workoutActivityType)) }
         let native = Dictionary(workouts.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
         let requests = zip(workouts, records).compactMap { workout, record in
@@ -56,8 +56,58 @@ enum WorkoutHealthKitProjection {
         for index in records.indices {
             if let distance = recovered[records[index].id] { records[index].enrichment?.acceptedDistance = distance }
         }
+        if includeHeartRateReadings {
+            for index in records.indices {
+                try Task.checkCancellation()
+                guard let enrichment = records[index].enrichment else { continue }
+                let readings = try await heartRateReadings(workouts[index], store: store, enrichment: enrichment)
+                records[index].enrichment?.enrichmentVersion = 3
+                records[index].enrichment?.heartRateReadings = readings
+            }
+        }
         try Task.checkCancellation()
         return records
+    }
+
+    /// Expand native quantity series; never substitute the parent sample's summary.
+    private static func heartRateReadings(_ workout: HKWorkout, store: HKHealthStore,
+                                         enrichment: WorkoutEnrichment) async throws -> WorkoutHeartRateReadings {
+        let descriptor = HKQuantitySeriesSampleQueryDescriptor(
+            predicate: .quantitySample(type: HKQuantityType(.heartRate),
+                                       predicate: HKQuery.predicateForObjects(from: workout)),
+            options: [.includeSample])
+        var grouped: [UUID: [WorkoutHeartRateReadings.Entry]] = [:]
+        var count = 0
+        do {
+            for try await result in descriptor.results(for: store) {
+                try Task.checkCancellation()
+                guard let sample = result.sample else { return .unavailable("invalidEvidence") }
+                count += 1
+                guard count <= WorkoutHeartRateReadings.maximumEntries else { return .unavailable("limitExceeded") }
+                let entry = WorkoutHeartRateReadings.Entry(sampleID: sample.uuid, entryIndex: 0,
+                    startedAt: result.dateInterval.start, endedAt: result.dateInterval.end,
+                    beatsPerMinute: result.quantity.doubleValue(for: HKUnit.count().unitDivided(by: .minute())),
+                    sourceBundleIdentifier: sample.sourceRevision.source.bundleIdentifier)
+                grouped[sample.uuid, default: []].append(entry)
+                guard grouped.count <= WorkoutHeartRateReadings.maximumParents else { return .unavailable("limitExceeded") }
+            }
+        } catch {
+            try Task.checkCancellation()
+            if error is CancellationError { throw error }
+            return .unavailable("failed")
+        }
+        let entries = grouped.values.flatMap { entries in
+            entries.sorted {
+                if $0.startedAt != $1.startedAt { return $0.startedAt < $1.startedAt }
+                if $0.endedAt != $1.endedAt { return $0.endedAt < $1.endedAt }
+                return $0.beatsPerMinute < $1.beatsPerMinute
+            }.enumerated().map { index, entry in
+                WorkoutHeartRateReadings.Entry(sampleID: entry.sampleID, entryIndex: index,
+                    startedAt: entry.startedAt, endedAt: entry.endedAt,
+                    beatsPerMinute: entry.beatsPerMinute, sourceBundleIdentifier: entry.sourceBundleIdentifier)
+            }
+        }
+        return .project(entries, into: enrichment)
     }
 
     static func legacyDistanceSample(_ sample: HKQuantitySample) -> LegacyWorkoutDistanceSample {
