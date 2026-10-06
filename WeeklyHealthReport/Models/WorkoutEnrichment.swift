@@ -172,7 +172,7 @@ struct EnrichedWorkoutActivity: Codable, Equatable {
 
 struct WorkoutEnrichment: Codable, Equatable {
     enum Recognition: String, Codable { case notPacePrompt, supportedComplete, supportedIncomplete, unsupported, invalid }
-    let enrichmentVersion: Int
+    var enrichmentVersion: Int
     let activity: String
     let startedAt: Date
     let endedAt: Date
@@ -188,12 +188,13 @@ struct WorkoutEnrichment: Codable, Equatable {
     let distanceMetres: Double?
     let distanceProvenance: String?
     let activities: [EnrichedWorkoutActivity]
+    var heartRateReadings: WorkoutHeartRateReadings? = nil
     var acceptedDistance: WorkoutAcceptedDistance? = nil
     var nativeDistanceSample: WorkoutNativeDistanceSample? = nil
     private enum CodingKeys: String, CodingKey {
         case summaryID = "summaryId"
         case enrichmentVersion, activity, startedAt, endedAt, statistics, heartRateZones, recognition, interchangeSchemaVersion
-        case ownership, manifestRevision, expectedIntervalCount, distanceState, distanceMetres, distanceProvenance, activities, acceptedDistance, nativeDistanceSample
+        case ownership, manifestRevision, expectedIntervalCount, distanceState, distanceMetres, distanceProvenance, activities, acceptedDistance, nativeDistanceSample, heartRateReadings
     }
 }
 
@@ -337,7 +338,7 @@ enum WorkoutEnrichmentReader {
     /// Canonical bytes are necessary but not sufficient for recovering a remote v6 file.
     /// Reuse the reader's closed invariants; never trust a serialized complete label.
     static func validatesExport(_ value: WorkoutEnrichment) -> Bool {
-        guard [1, 2].contains(value.enrichmentVersion), value.startedAt.timeIntervalSinceReferenceDate.isFinite,
+        guard [1, 2, 3].contains(value.enrichmentVersion), value.startedAt.timeIntervalSinceReferenceDate.isFinite,
               value.endedAt.timeIntervalSinceReferenceDate.isFinite, value.endedAt >= value.startedAt,
               value.statistics.provenance == "healthKitWorkoutStatistics", value.heartRateZones.isValid,
               value.ownership == nil || value.ownership == "watchPrimary",
@@ -345,6 +346,9 @@ enum WorkoutEnrichmentReader {
               value.manifestRevision == nil || value.manifestRevision! >= 0,
               value.expectedIntervalCount == nil || (1...64).contains(value.expectedIntervalCount!)
         else { return false }
+        guard value.enrichmentVersion == 3
+            ? value.heartRateReadings?.isValid(for: value) == true
+            : value.heartRateReadings == nil else { return false }
         switch value.distanceState {
         case "available":
             guard let distance = value.distanceMetres, distance.isFinite, distance > 0,
@@ -527,5 +531,80 @@ enum WorkoutEnrichmentReader {
             startCumulativeMetres: start, endCumulativeMetres: end, startObservedAt: startTime,
             endObservedAt: endTime, provenance: provenance,
             coverage: startTime == activity.start && endTime == activity.end ? "completeInterval" : "partialObservationWindow")
+    }
+}
+
+/// Original native entries, never allocated or interpolated across activity boundaries.
+struct WorkoutHeartRateReadings: Codable, Equatable {
+    struct Entry: Codable, Equatable {
+        let sampleID: UUID
+        let entryIndex: Int
+        let startedAt: Date
+        let endedAt: Date
+        let beatsPerMinute: Double
+        let sourceBundleIdentifier: String
+        var activityIDs: [UUID] = []
+        private enum CodingKeys: String, CodingKey {
+            case sampleID = "sampleId", activityIDs = "activityIds"
+            case entryIndex, startedAt, endedAt, beatsPerMinute, sourceBundleIdentifier
+        }
+    }
+    let schemaVersion: Int
+    let state: String
+    let provenance: String
+    let entries: [Entry]
+    static let maximumEntries = 100_000
+    static let maximumParents = 10_000
+    static func unavailable(_ state: String) -> Self {
+        Self(schemaVersion: 1, state: state, provenance: "healthKitWorkoutAssociatedQuantitySeries", entries: [])
+    }
+    static func project(_ entries: [Entry], into workout: WorkoutEnrichment) -> Self {
+        guard entries.count <= maximumEntries, Set(entries.map(\.sampleID)).count <= maximumParents else { return .unavailable("limitExceeded") }
+        guard !entries.isEmpty else { return .unavailable("noDataOrAccess") }
+        var identities = Set<String>()
+        var ordered = entries.sorted(by: before)
+        for index in ordered.indices {
+            let entry = ordered[index]
+            guard entry.entryIndex >= 0, entry.beatsPerMinute.isFinite, entry.beatsPerMinute > 0,
+                  !entry.sourceBundleIdentifier.isEmpty,
+                  entry.startedAt.timeIntervalSinceReferenceDate.isFinite,
+                  entry.endedAt.timeIntervalSinceReferenceDate.isFinite,
+                  entry.startedAt >= workout.startedAt, entry.endedAt <= workout.endedAt,
+                  entry.endedAt >= entry.startedAt,
+                  identities.insert("\(entry.sampleID)/\(entry.entryIndex)").inserted else {
+                return .unavailable("invalidEvidence")
+            }
+            ordered[index].activityIDs = workout.activities.compactMap { activity in
+                guard let end = activity.endedAt, activity.pacePrompt != nil else { return nil }
+                let overlaps = entry.startedAt == entry.endedAt
+                    ? activity.startedAt <= entry.startedAt && entry.startedAt < end
+                    : entry.startedAt < end && entry.endedAt > activity.startedAt
+                return overlaps ? activity.activityID : nil
+            }
+        }
+        for parent in Dictionary(grouping: ordered, by: \.sampleID).values {
+            let nativeOrder = parent.sorted {
+                if $0.startedAt != $1.startedAt { return $0.startedAt < $1.startedAt }
+                if $0.endedAt != $1.endedAt { return $0.endedAt < $1.endedAt }
+                if $0.beatsPerMinute != $1.beatsPerMinute { return $0.beatsPerMinute < $1.beatsPerMinute }
+                return $0.entryIndex < $1.entryIndex
+            }
+            guard Set(parent.map(\.sourceBundleIdentifier)).count == 1,
+                  nativeOrder.enumerated().allSatisfy({ $0.offset == $0.element.entryIndex }) else {
+                return .unavailable("invalidEvidence")
+            }
+        }
+        return Self(schemaVersion: 1, state: "available", provenance: "healthKitWorkoutAssociatedQuantitySeries", entries: ordered)
+    }
+    func isValid(for workout: WorkoutEnrichment) -> Bool {
+        guard schemaVersion == 1, provenance == "healthKitWorkoutAssociatedQuantitySeries" else { return false }
+        if state == "available" { return Self.project(entries, into: workout) == self }
+        return ["noDataOrAccess", "failed", "limitExceeded", "invalidEvidence"].contains(state) && entries.isEmpty
+    }
+    private static func before(_ a: Entry, _ b: Entry) -> Bool {
+        if a.startedAt != b.startedAt { return a.startedAt < b.startedAt }
+        if a.endedAt != b.endedAt { return a.endedAt < b.endedAt }
+        if a.sampleID != b.sampleID { return a.sampleID.uuidString < b.sampleID.uuidString }
+        return a.entryIndex < b.entryIndex
     }
 }

@@ -1,0 +1,25 @@
+# Workout heart-rate readings, revision 1 (#190)
+
+Architecture gate: HealthKit owns exact workout association, series expansion and unit conversion; pure models validate readings and associate their original time intervals with executed activities; Daily orchestration requests the detail only for enriched selected-day exports. The existing canonical serializer and Drive identity policy own version admission. No provider abstraction or second Health writer is needed.
+
+Daily schema 8 adds enrichment version 3 and `heart_rate_readings` at workout level. Schema 3/6/7 retain their meaning and bytes. The existing workout-details choice includes these readings and disclosure states this explicitly; the manual preview/copy/Drive confirmation shows the exact payload. No background, new scope, personal-store test or automatic transport is added.
+
+Read only heart-rate quantities explicitly associated with that workout. Expand series entries using the native series query, retaining sample UUID, entry index, original start/end, BPM and source bundle. A parent average must never masquerade as an individual reading. Do not filter different sources into a fabricated single-source series, resample, interpolate, deduplicate equal values with different identity or change native statistics/zones.
+
+Sort entries deterministically by start/end/sample UUID/entry index. Entry indexes are assigned within each parent after sorting native entries by start/end/value; retain equal entries separately. Require finite positive BPM, finite dates, ordered dates, exact workout bounds and nonempty source identity. Point entries belong to an activity iff start <= point < end; nonpoint entries list activities with positive half-open overlap. Entries outside executed intervals remain with an empty activity identity list; no invented interval or target value. A reading spanning multiple activities preserves its original interval and all overlapping identities, not a fabricated split.
+
+States: available, noDataOrAccess, failed, limitExceeded, invalidEvidence. Complete means all visible associated entries were retrieved/validated, not a complete physiological recording or permission proof. Empty successful read is noDataOrAccess. No partial list is labelled available after failure, malformed evidence or a 100000-entry/10000-parent safety bound; fail closed with explicit state and empty entries. Cancellation propagates and prevents payload delivery. Series expansion is queried only for enriched selected-day workouts, never 30-day context aggregates.
+
+Validate series fields and interval mappings at strict export admission, including legacy prohibition of new detail. Preserve both statistics and accepted/native distance independent of raw readings. Synthetic fixtures only. Full native simulator read -> projection -> builder -> serializer -> identity validation proves software association/transport; a device re-export remains separate acceptance.
+
+Apple API references: https://developer.apple.com/documentation/healthkit/hkquery/predicateforobjects(from:)-5irg9 ; https://developer.apple.com/documentation/healthkit/hkquantityseriessamplequerydescriptor ; https://developer.apple.com/documentation/healthkit/hkquantitysample/count .
+
+## Timestamp precision
+
+Schema 8 encodes Codable native `Date` values as finite JSON numbers containing seconds since Apple's reference epoch (2001-01-01 00:00:00 UTC). This preserves the original binary `Date` precision across canonical decoding, including sub-millisecond interval boundaries. Envelope reporting timestamps already represented as text remain text. Schemas 3, 6 and 7 retain their existing ISO 8601 millisecond encoding and exact bytes. Consumers must branch on the envelope version before interpreting native timestamp values. The canonical validator accepts the numeric representation only through schema 8 re-encoding; numeric dates in legacy envelopes fail exact-byte admission.
+
+## Implementation validation, 6 October 2026
+
+The final simulator suite executed 341 tests with zero failures and one existing expected opt-in skip. Static analysis passed. Model/formatting/presentation coverage was 96.94%, above the 95% gate. Independent source review identified a per-parent indexing admission gap; the correction now rejects forged or reversed indices and mixed parent sources, including through canonical Drive admission.
+
+The optional native probe ran on a fresh, dedicated iOS 27 simulator. Both native/precision tests executed and passed. It retained one ordinary reading and two individual quantity-series readings with exact native timestamps and parent identities, excluded an unassociated same-time decoy, and passed the production selected-day HealthKitClient fetch, projection, Daily builder, serializer and strict identity validator. Production sources in the private native assembly were verified byte-identical to the tested worktree. No personal-store or physical-device result is claimed. A released build and a user re-export remain separate acceptance.

@@ -1360,3 +1360,11 @@ Build22 receipt delivery and next-request triage: `2026-10-04T21:59:41.693Z` →
 Current-main build23 release: `2026-10-04T22:09:45.876Z` → `2026-10-04T22:31:32.442Z`. Baseline: input 171,527,504, cached 169,335,040, output 403,889, total 171,931,393. Endpoint: input 190,615,579, cached 188,132,864, output 426,563, total 191,042,142. 123 reconciled requests; maximum input 204,268; 0 long-context crossings. Reasoning delta 4,264 is included in output. Exact API-equivalent USD 22.834034.
 
 The final endpoint precedes only numeric insertion, final accounting review and commit. Those actions and later receipt delivery are outside these rows. Private reports: `whr-build22-receipt-delivery-accounting-end.json` and `whr-build23-delivery-accounting-final.json`.
+
+## WHR-190-1: individual workout heart-rate readings
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Issue 190 implementation and synthetic validation | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Not calculated |
+
+An exact bounded usage baseline was not captured for this implementation phase; this row makes no token or cost estimate. The work includes implementation, schema/privacy documentation, regression tests, native synthetic-store validation and source review. No subscription charge or productivity inference is asserted.

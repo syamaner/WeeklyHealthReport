@@ -266,3 +266,7 @@ separate device and Google gates pass.
 Schema 7 reserves `accepted_distance` (closed schema 1) independently of the existing native `distance_metres` field. Metadata-v3 evidence preserves the exact canonical producer decimal, including an observed zero. Strict legacy recovery preserves one persisted associated quantity, with different evidence; it does not recreate its pre-Double precision. Native writer decisions are optional `native_distance_sample` objects for Health interchange 3 only. Unknown, absent, invalid and unsupported evidence stays explicit. No native statistic is rescaled or replaced.
 
 Legacy recovery is the narrow exception to the earlier no-sample-fan-out scope: bounded batches of at most 32 exact workout-association plus summary-sync predicates, matching one trusted-source sample per valid legacy header. There is no raw HR query or time-series export. Query errors/cancellation block the coherent export; access uncertainty is noDataOrAccess. Schema 3/4/6 byte meaning and strict Drive historical ordering remain unchanged; schema 7 still excludes food transport.
+
+## Schema 8 amendment: individual heart-rate readings
+
+The versioned [heart-rate readings contract](workout-heart-rate-readings-contract.md) adds enrichment version 3 and individual associated quantity-series readings. Earlier versions retain their original exclusions and byte representation. Schema 8 native timestamps use reference-epoch seconds to preserve sub-millisecond interval boundaries; report timestamps remain text.

@@ -677,7 +677,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         try await fetchWorkouts(in: period.interval)
     }
 
-    func fetchWorkouts(in interval: DateInterval, recoverAcceptedDistance: Bool = false) async throws -> [WorkoutRecord] {
+    func fetchWorkouts(in interval: DateInterval, recoverAcceptedDistance: Bool = false, includeHeartRateReadings: Bool = false) async throws -> [WorkoutRecord] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         let datePredicate = HKQuery.predicateForSamples(
             withStart: interval.start,
@@ -690,7 +690,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         )
         let workouts = try await descriptor.result(for: store)
         return try await WorkoutHealthKitProjection.records(workouts, store: store,
-            recoverAcceptedDistance: recoverAcceptedDistance, activityName: Self.workoutName)
+            recoverAcceptedDistance: recoverAcceptedDistance, includeHeartRateReadings: includeHeartRateReadings, activityName: Self.workoutName)
     }
 
     func fetchAsleepIntervals(
@@ -806,7 +806,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
             todayWatchSamples = try await fetchAppleWatchHeartRateSampleDates(in: window.day)
             todayActiveEnergy = try await fetchActiveEnergyKilocalories(in: window.day)
             todayExercise = try await fetchExerciseMinutes(in: window.day)
-            todayWorkouts = try await fetchWorkouts(in: window.day, recoverAcceptedDistance: includeWorkoutEnrichment)
+            todayWorkouts = try await fetchWorkouts(in: window.day, recoverAcceptedDistance: includeWorkoutEnrichment, includeHeartRateReadings: includeWorkoutEnrichment)
         }
         let todaySleep = try await fetchAsleepIntervals(in: window.sleep)
         let todayMedications = supportsMedicationData && window.day.duration > 0

@@ -43,3 +43,7 @@ Use shared synthetic complete/incomplete/zero-prefix v1 files unchanged, plus v2
 ## Versioned accepted-distance correction
 
 The [approved aggregate-distance amendment](accepted-workout-distance-amendment.md) supersedes the original single native-distance assumption for new Wire3/Health3 and Daily7/enrichment2. Historical Wire1/2, Health1/2 and Daily6 retain their meanings. The reader performs only the explicitly bounded legacy associated-distance recovery described there; raw HR sample queries remain excluded.
+
+## Schema 8 amendment: individual heart-rate readings
+
+The versioned [heart-rate readings contract](workout-heart-rate-readings-contract.md) adds enrichment version 3 and individual associated quantity-series readings. Earlier versions retain their original exclusions and byte representation. Schema 8 native timestamps use reference-epoch seconds to preserve sub-millisecond interval boundaries; report timestamps remain text.

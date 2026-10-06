@@ -72,3 +72,11 @@ python3 Tools/WorkoutNativeInterop/collect.py \
 ```
 
 It verifies every frozen source/helper/input and assembled file hash, the compiled assembly ID/source-input digest in every current-case diagnostic, and byte equality, then retains the assembled snapshot, inputs, selected outputs, log/result bundle, index and SHA-256 manifest. It requires exactly the two named native test methods to pass on the declared simulator; zero tests, skipped/failed tests and the wrong destination are rejected. Independently inspect the retained `xcresult` summary too.
+
+## Individual heart-rate series (#190)
+
+`HeartRateStoreProbe.swift` is an optional synthetic-only test assembly, excluded from normal application and test targets. In a private copy of the current worktree, append it to `WeeklyHealthReportTests/DailyHealthExportTests.swift` after replacing `__SYNTHETIC_HR_PHONE_UDID__` with the exact UUID of a newly created, dedicated iOS simulator. Retain the creation record and hashes of all production sources; never nominate an existing personal simulator. Leave production authorization read-only. The test alone requests write access to workout and heart-rate types to seed its isolated store.
+
+Use the local simulator-signing configuration above and select only `DailyHealthExportTests/testSyntheticNativeHeartRateSeriesToCanonicalDailyJSON` and `DailyHealthExportTests/testSchemaEightPreservesIndividualReadingsAndSubmillisecondDates`. Approve the two read/write types only in that nominated synthetic store. The guard skips other destinations and excludes physical devices. Require both tests to execute and pass; skipped tests are not native acceptance.
+
+The fixture saves a native synthetic workout, associates an ordinary point reading and a two-entry native quantity series, and adds a same-time unassociated decoy. It then queries the saved workout and runs the actual projection, Daily builder, serializer and strict identity validator. It checks all individual values, parent UUIDs and decoy exclusion, and the disabled detail path. Retain `Documents/synthetic-heart-rate-schema8.json`, the result bundle, log and source manifest. This proves the consumer's native series expansion; the synthetic fixture does not execute the Watch producer or prove paired-device sync. Existing producer round-trip evidence remains separate.

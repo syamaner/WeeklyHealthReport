@@ -9,6 +9,47 @@ import XCTest
 
 // Every health value in this file is invented. These tests never access HealthKit.
 final class DailyHealthExportTests: XCTestCase {
+    func testSchemaEightPreservesIndividualReadingsAndSubmillisecondDates() throws {
+        let calendar = londonCalendar()
+        let now = date(2026, 9, 10, 15, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: now, calendar: calendar)
+        let start = window.day.start.addingTimeInterval(3600.000123)
+        var enrichment = WorkoutEnrichmentReader.read(.init(start: start, end: start.addingTimeInterval(60),
+            activity: "walking", metadata: [:], statistics: .init(provenance: "healthKitWorkoutStatistics"),
+            distanceMetres: nil, activities: []))
+        let point = start.addingTimeInterval(0.000234)
+        let sample = WorkoutHeartRateReadings.Entry(sampleID: UUID(), entryIndex: 0,
+            startedAt: point, endedAt: point, beatsPerMinute: 93.25, sourceBundleIdentifier: "synthetic.test")
+        enrichment.enrichmentVersion = 3
+        enrichment.heartRateReadings = .project([sample], into: enrichment)
+        let record = WorkoutRecord(id: UUID(), startDate: start, duration: 60, activityName: "Walking", enrichment: enrichment)
+        let inputs = emptyInputs(window: window, workouts: [record])
+        let envelope = try DailyHealthExportBuilder.make(window: window, exportedAt: now, inputs: inputs, includeWorkoutEnrichment: true)
+        XCTAssertEqual(envelope.schemaVersion, 8)
+        let bytes = try DailyHealthExportSerializer.encode(envelope)
+        XCTAssertNoThrow(try DailyHealthExportIdentityPolicy().validate(payload: bytes, reportDate: window.reportDate))
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        decoder.dateDecodingStrategy = .custom { Date(timeIntervalSinceReferenceDate: try $0.singleValueContainer().decode(Double.self)) }
+        let decoded = try decoder.decode(DailyHealthExportEnvelope.self, from: bytes)
+        XCTAssertEqual(decoded.today.workouts.data?.first?.enrichment?.heartRateReadings?.entries.first?.startedAt, point)
+        XCTAssertEqual(decoded.today.workouts.data?.first?.enrichment?.startedAt, start)
+        XCTAssertEqual(try DailyHealthExportSerializer.encode(decoded), bytes)
+        var forged = enrichment
+        forged.heartRateReadings = .init(schemaVersion: 1, state: "available",
+            provenance: "healthKitWorkoutAssociatedQuantitySeries", entries: [
+                .init(sampleID: sample.sampleID, entryIndex: 999, startedAt: point, endedAt: point,
+                      beatsPerMinute: sample.beatsPerMinute, sourceBundleIdentifier: sample.sourceBundleIdentifier)])
+        let bad = WorkoutRecord(id: record.id, startDate: start, duration: 60, activityName: "Walking", enrichment: forged)
+        let forgedEnvelope = try DailyHealthExportBuilder.make(window: window, exportedAt: now,
+            inputs: emptyInputs(window: window, workouts: [bad]), includeWorkoutEnrichment: true)
+        XCTAssertThrowsError(try DailyHealthExportIdentityPolicy().validate(
+            payload: DailyHealthExportSerializer.encode(forgedEnvelope), reportDate: window.reportDate))
+        let basic = try DailyHealthExportBuilder.make(window: window, exportedAt: now, inputs: inputs)
+        XCTAssertEqual(basic.schemaVersion, 3)
+        XCTAssertNil(basic.today.workouts.data?.first?.enrichment)
+    }
+
     func testSchemaSevenEnrichmentRoundTripsWithLocalDatesAndIndependentDailyTotals() throws {
         let calendar = londonCalendar()
         let now = date(2026, 9, 10, 15, calendar: calendar)
