@@ -486,23 +486,30 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         let webView = try XCTUnwrap(descendants(host.view).compactMap { $0 as? WKWebView }.first)
         XCTAssertFalse(webView.configuration.websiteDataStore.isPersistent)
         XCTAssertFalse(webView.configuration.defaultWebpagePreferences.allowsContentJavaScript)
+        let productionDelegate = try XCTUnwrap(webView.navigationDelegate)
+        let navigation = SuggestionsNavigationObserver(forwarding: productionDelegate)
+        webView.navigationDelegate = navigation
+        defer { webView.navigationDelegate = productionDelegate }
+        // SwiftUI can finish the initial load before the observer is attached.
+        var alreadyRendered = ""
+        var initialProbeError: String?
+        do { alreadyRendered = try await webView.evaluateJavaScript("document.body.innerText") as? String ?? "" }
+        catch { initialProbeError = String(describing: error) }
         let clock = ContinuousClock()
-        let deadline = clock.now.advanced(by: .seconds(30))
-        var text = ""
-        var readyState = "unknown"
-        var lastJavaScriptError: String?
-        repeat {
-            do {
-                readyState = try await webView.evaluateJavaScript("document.readyState") as? String ?? "unknown"
-                text = try await webView.evaluateJavaScript("document.body.innerText") as? String ?? ""
-            } catch {
-                lastJavaScriptError = String(describing: error)
-            }
-            if readyState == "complete" && text.contains("Synthetic Google suggestions") { break }
+        let deadline = clock.now.advanced(by: .seconds(60))
+        while !alreadyRendered.contains("Synthetic Google suggestions") && !navigation.finished
+                && navigation.failure == nil && clock.now < deadline {
             try await Task.sleep(for: .milliseconds(100))
-        } while clock.now < deadline
-        XCTAssertEqual(readyState, "complete", "loading=\(webView.isLoading); URL=\(String(describing: webView.url)); lastJSerror=\(lastJavaScriptError ?? "none")")
-        XCTAssertTrue(text.contains("Synthetic Google suggestions"), "DOM=\(text); loading=\(webView.isLoading); URL=\(String(describing: webView.url)); lastJSerror=\(lastJavaScriptError ?? "none")")
+        }
+        window.layoutIfNeeded(); host.view.layoutIfNeeded(); webView.layoutIfNeeded()
+        let readyState = try await webView.evaluateJavaScript("document.readyState") as? String ?? "unknown"
+        let text = try await webView.evaluateJavaScript("document.body.innerText") as? String ?? ""
+        let outerHTML = try await webView.evaluateJavaScript("document.documentElement.outerHTML") as? String ?? "unknown"
+        let diagnostics = "initialProbeError=\(initialProbeError ?? "none"); events=\(navigation.events); failure=\(navigation.failure ?? "none"); outerHTML=\(outerHTML); bounds=\(webView.bounds); window=\(webView.window === window); loading=\(webView.isLoading)"
+        XCTAssertNil(navigation.failure, diagnostics)
+        XCTAssertTrue(navigation.finished || alreadyRendered.contains("Synthetic Google suggestions"), diagnostics)
+        XCTAssertEqual(readyState, "complete", diagnostics)
+        XCTAssertTrue(text.contains("Synthetic Google suggestions"), diagnostics)
         let ran = try await webView.evaluateJavaScript("document.body.dataset.executed || 'no'") as? String
         XCTAssertEqual(ran, "no")
     }
@@ -699,4 +706,39 @@ private struct NativeReviewedSaveHarness: View {
 
 private struct NativeReviewClock: LedgerClock {
     func now() -> Date { Date(timeIntervalSince1970: 1_791_122_400) }
+}
+
+/// Observes the production load without replacing its HTML or navigation policy.
+@MainActor
+private final class SuggestionsNavigationObserver: NSObject, WKNavigationDelegate {
+    let productionDelegate: WKNavigationDelegate
+    var finished = false
+    var failure: String?
+    var events: [String] = []
+    init(forwarding delegate: WKNavigationDelegate) { productionDelegate = delegate }
+    func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction,
+                 decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
+        let event = "action=\(action.navigationType.rawValue); URL=\(action.request.url?.absoluteString ?? "nil"); mainFrame=\(action.targetFrame?.isMainFrame ?? false)"
+        guard productionDelegate.webView?(webView, decidePolicyFor: action, decisionHandler: { policy in
+            self.events.append("\(event); policy=\(policy.rawValue)")
+            decisionHandler(policy)
+        }) != nil else {
+            failure = "Production navigation policy callback unavailable"
+            decisionHandler(.cancel)
+            return
+        }
+    }
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) { events.append("committed") }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        events.append("finished"); finished = true
+    }
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        failure = "navigation failed: \(error)"; events.append(failure!)
+    }
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        failure = "provisional navigation failed: \(error)"; events.append(failure!)
+    }
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        failure = "WebContent process terminated"; events.append(failure!)
+    }
 }
