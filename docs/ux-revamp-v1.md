@@ -48,7 +48,7 @@ All destinations are values of one route type handled by one navigation coordina
 | Saved entry | Read-only amount, time, nutrition, source, history; Edit; Remove with confirmation | Loading, missing, unsupported conversion, failed | #197 |
 | Favourites | Quick-add order (first four on Home), other favourites, create from search, barcode or web lookup; photos "Not yet available" | Empty | #198 |
 | Health | Period picker with visible range, summary tiles, grouped sections, Copy all; Full Page via the iOS screenshot buttons | No data per metric, no access, loading, failed | #200 |
-| Export | Day, "Included" preview, one Export action, verified result; Drive setup lives in Settings | Not set up, preparing, exporting, verified, failed | #200 |
+| Export | Day (today up to the refresh cutoff, or one of the previous seven days), "Included" preview, one Export action, verified result; Drive setup lives in Settings | Not set up, preparing, exporting, verified, failed | #200 |
 | Settings | Food search (online database, web lookup key, market), export (Drive account, folder), data (backup, receipts, nutrition updates), Apple Health (medication access), about (privacy, developer tools) | Key missing, Drive disconnected | #194 |
 
 Copy follows the existing house style: British spelling, sentence-case buttons, no emoji, no interpretation, and absence named as a state ("No glucose data is visible, or Health access was not granted.").
@@ -62,7 +62,7 @@ Each change is versioned; existing stored records, archives and exports decode a
 Home may show provisional health values for the current local day: cumulative metrics so far (steps, active energy) and latest measurements with their time (weight, blood pressure), plus last night's sleep. Values are labelled "so far" or carry their timestamp.
 
 - A new pure projection with injected calendar and clock, separate from completed-day report and export code. HealthKit statistics are still used for cumulative values; sources are never summed manually.
-- The Health report and daily export keep completed-day periods. Tests prove their outputs are unchanged.
+- Three distinct day semantics stay distinct: Health report period averages use completed days; the Daily JSON export keeps its selected-day rule under [daily-export-contract.md](daily-export-contract.md) (today from local midnight to the frozen refresh cutoff, or one of the previous seven complete days); Home's today-so-far values are a separate provisional projection. Tests prove the report and export outputs are unchanged.
 - Unavailable reads are "no visible data or no access", never zero.
 
 ### 2. Confirmation v3 (#195)
@@ -84,12 +84,15 @@ Amends the review manifest in `generic-food-proposal-integration-v1.md`.
 - The three acknowledgements (identity, basis, nutrients and unknowns) are replaced by one review action: the user chooses the match type (exact product or similar food estimate) on a screen that shows the source, basis, values and unknowns together, then chooses "Use this source".
 - A new manifest version records that single acknowledgement and the screen content it covered. Source binding, hashes, the chosen scope and every existing save blocker for exact products are unchanged.
 - Only a bound, non-conflicting proposal can be used, as today.
+- The applicability gate is retained unchanged: confirmation still requires a successful applicability check, only the current suggested eligible candidate can prepare confirmation, and `none`, `clarify`, rejected IDs, non-preferred alternatives and unavailable checking remain blocking. The single review step changes presentation and the manifest acknowledgement only. Regression tests cover each blocking outcome through the new screen.
 
 ### 4. Quick add (#198)
 
 - A favourite stores its source-bound product, resolution and default amount. Quick add logs a new version through the same confirmation policy with a one-step sheet; nothing logs on a single tap.
 - Plain water uses one fixed reference record that contributes water (mL) and no energy. Water totals aggregate daily-first.
 - Editing a favourite never rewrites past entries.
+- Confirmation v2 reuse rules are retained. A favourite with known identity uses the one-step sheet. An unknown-identity estimate is not eligible for exact personal-library reuse, so a favourite made from one keeps the estimate label and its provenance and always opens the full Confirm screen for fresh explicit confirmation. Re-resolution keeps its strict identity requirements. Relaxing either rule needs its own versioned contract.
+- Contract tests: quick add produces the same versioned, source-bound log entry as Confirm; an unknown-identity favourite cannot use the one-step sheet; water aggregates daily-first in mL.
 
 ## Architecture gate
 
