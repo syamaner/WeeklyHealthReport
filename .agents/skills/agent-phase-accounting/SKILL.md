@@ -1,6 +1,6 @@
 ---
 name: agent-phase-accounting
-description: Measure a bounded Codex or Claude Code work phase from local session transcripts, calculate an explicitly assumed API-equivalent cost, and update an existing usage ledger. Use only when the user requests token or cost accounting; never use totals as productivity benchmarks or infer missing usage.
+description: Measure a bounded Codex or Claude Code work phase from local session transcripts, calculate an explicitly assumed API-equivalent cost, and update the DEVELOPMENT_NOTES.md usage ledger. Use for every phase PR and whenever the user asks for token or cost accounting; never use totals as productivity benchmarks or infer missing usage.
 ---
 
 # Agent Phase Accounting
