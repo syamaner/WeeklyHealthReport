@@ -79,6 +79,7 @@ Line 36 ("one main screen", "Copy Report" becomes Copy all and the current shell
 
 - **Remote trashed or missing file.** These two export failures used to be rethrown before `applyExportOutcome`. They now pass through `applyExportOutcome(.failure(...))`, which rethrows the same error, so the status, presentation state and replacement candidate are unchanged and the failure is still recorded in `lastExportOutcome`. `lastExportOutcome` is still set nowhere else.
 - **Clearing on preparation.** `prepareForPresentation()` clears the outcome whenever it is not refused as busy, including when the build has no OAuth configuration.
+- **Further clearing (review fix).** The outcome is also cleared whenever a new preview is installed (so Refresh after an export reads "Ready to export", not a stale verified or failed result) and on an authorisation error.
 - **Phase precedence.** `preparing`, then `attempting`, then a failed outcome (`attemptedNotVerified`), then `notSetUp` or `needsAttention` from the setup summary, then a verified or cancelled outcome, then `prepared`. A later problem is therefore never hidden behind an earlier verified export, and `verified` still survives `preview == nil`. `needsNutritionSource` reads as needs attention, because the source is chosen on Export.
 - **Settings folder actions.** "Choose existing folder" appears once the session has validated an account in this run (the screen never restores it by itself); "Create new export folder" appears only when the state's actions include it, as before. "Recover existing canonical JSON" stays on Export beside the action buttons, with its previous enablement.
 - **Export screen.** The "Included" list replaces "Prepared daily snapshot" and the notes section; the completed-day window rows are no longer shown on screen (the exact file still contains them). The fixed line reads "Food-log entries are not exported yet."
@@ -95,3 +96,14 @@ Line 36 ("one main screen", "Copy Report" becomes Copy all and the current shell
 6. Settings: spies record zero calls on open; connect, create and choose follow unchanged paths.
 7. Navigation: restoration table row for `exportDestination` in `AppNavigationTests`; `dailyExport` unchanged; app boundary check.
 8. Native renders of Health and Export at default and accessibility sizes, light and dark; simulator suite, static analysis, device check.
+- **Review and tap-through fixes (12 October 2026).**
+  - The controller gains one more read-only member, `hasValidatedAccount` (`account != nil`, no request), so Settings shows "Choose existing folder" only after this run validated an account, including in needs-attention states.
+  - Settings > Export buttons go through `DriveDestinationAction` and a small `DriveDestinationControlling` protocol, so a spy test proves each button reaches the matching controller method.
+  - A day change while Drive is not set up keeps the not-set-up state (or the no-configuration state) instead of moving to needs attention; otherwise the status now names the "Retry preparation" button that is shown. This is the only edit to the state transitions.
+  - Export hides the "Needs attention" section when it has no visible action; the verified result shows a readable day and cutoff; "Exact file" and a separate, visibly disabled "Review exact JSON" button replace the hint-only row.
+  - Settings uses the Export status wording for a build without OAuth configuration.
+  - Tiles show the short "Query failed" term for any failure row; the full message stays in the section row, Copy all and Full Page. Tiles are otherwise verbatim.
+  - The in-form Copy all button is a full-width, centred title and icon in its own section; Health uses compact section spacing to reduce the gap under collapsed sections.
+  - The period choice resets to "Last 7 days" on relaunch on main as well (it was never persisted); unchanged here.
+  - `Tools/check-app-boundaries.sh` now scans subfolders and allows `@preconcurrency import Foundation` and trailing comments.
+  - README period names follow the picker titles; the README export screenshot still shows the pre-#200 screen (alt text updated). A synthetic recapture is a follow-up.

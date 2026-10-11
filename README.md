@@ -10,7 +10,7 @@ It is a personal informational utility, not medical software.
 <table>
   <tr>
     <td><img src="docs/images/weekly-health-report-simulator.png" alt="Weekly Health Report running on an iPhone simulator with synthetic health data" width="360"></td>
-    <td><img src="docs/images/weekly-health-report-daily-export-synthetic.png" alt="Synthetic Daily JSON Export screen showing a prepared snapshot and explicit export action" width="360"></td>
+    <td><img src="docs/images/weekly-health-report-daily-export-synthetic.png" alt="Synthetic export screen from before the #200 redesign, showing a prepared snapshot and an explicit export action" width="360"></td>
   </tr>
   <tr>
     <td align="center">Weekly report</td>
@@ -392,11 +392,13 @@ On iOS 26 or later, Health presents a separate medication chooser. To change acc
 
 All dates use the iPhone's local calendar and time zone. Date-and-time values use the shared `dd/MM/yy - HH:mm` 24-hour format throughout the app and copied report. The start is included and the end is excluded.
 
-- **Last 7 Completed Days** is the default. It runs from local midnight seven calendar days ago to local midnight today.
-- **Current Week** runs from the locale-aware start of this week to local midnight today. It excludes today's partial data.
-- **Previous Week** is the previous complete locale-aware calendar week.
+The Health screen's period picker shows short titles; copied text and Full Page keep the full period name (for example "Last 7 Completed Days").
 
-These are calendar periods, not a rolling 168-hour window. Last 7 Completed Days still contains seven calendar days when daylight-saving time changes.
+- **Last 7 days** is the default. It runs from local midnight seven calendar days ago to local midnight today.
+- **This week** runs from the locale-aware start of this week to local midnight today. It excludes today's partial data.
+- **Last week** is the previous complete locale-aware calendar week.
+
+These are calendar periods, not a rolling 168-hour window. Last 7 days still contains seven calendar days when daylight-saving time changes.
 
 ## What gets copied
 
@@ -520,7 +522,7 @@ Apple does not fully document the sleep source precedence used by the Health app
 
 Daily Steps totals have been compared successfully with Apple Health on a real iPhone. A one-step difference can still appear in the final average when two interfaces round the same daily inputs differently.
 
-For your own check, run a Debug build, select **Last 7 Completed Days**, and use the same dates and local time zone in both apps. Open **Settings → Developer tools → Developer Diagnostics** from Today to see daily values and exact totals.
+For your own check, run a Debug build, select **Last 7 days** on the Health screen, and use the same dates and local time zone in both apps. Open **Settings → Developer tools → Developer Diagnostics** from Today to see daily values and exact totals.
 
 <details>
 <summary>See the complete validation checklist</summary>
