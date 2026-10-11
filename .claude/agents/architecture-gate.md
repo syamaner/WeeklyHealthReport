@@ -1,0 +1,1 @@
+../../.agents/agents/architecture-gate.md
