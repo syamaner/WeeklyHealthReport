@@ -35,7 +35,7 @@ enum FoodSearchSettingsContribution {
     ) -> SettingsSection {
         let onlineDatabase = SettingsToggle(
             title: "Online food database",
-            caption: "Open Food Facts. When local matches need more evidence, a submitted search can send the displayed food terms. Changing this takes effect on your next search.",
+            caption: "Open Food Facts. When local matches need more evidence, a submitted search can send the displayed food terms. Changing this takes effect on your next search. Community product data can be incomplete. Compare the package and nutrition basis before choosing.",
             isEnabled: onlineDatabaseAvailable,
             read: { preferences.onlineDatabaseEnabled },
             write: { preferences.onlineDatabaseEnabled = $0 }
@@ -44,6 +44,10 @@ enum FoodSearchSettingsContribution {
             id: .foodSearch,
             title: "Food search",
             footer: "Online sources receive only the food terms you search for. Your Health data and food log stay on this device.",
+            footerLink: SettingsExternalLink(
+                title: "Open Food Facts terms and data licences",
+                url: URL(string: "https://world.openfoodfacts.org/terms-of-use")!
+            ),
             rows: [
                 .toggle("onlineFoodDatabase", onlineDatabase),
                 .link("Web lookup", route: .webLookupKey) { [weak webLookup] in

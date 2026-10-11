@@ -8,20 +8,20 @@ struct MedicationAccessHelpView: View {
 
     var body: some View {
         List {
-            Section("Change Existing Access") {
+            Section("Change existing access") {
                 Text("Open Health, tap your profile picture, then Apps, WeeklyHealthReport, and change which medications the app may read.")
             }
 
-            Section("New Medications") {
+            Section("New medications") {
                 Text("When you add a medication in Health, turn on WeeklyHealthReport on the final screen before saving it.")
             }
 
             Section {
-                Text("Apple manages medication access in Health after the initial chooser. Return here and tap Refresh after making a change.")
+                Text("Apple manages medication access in Health after the initial chooser. Then tap Refresh on the Health report.")
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("Medication Access")
+        .navigationTitle("Medication access")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if let done {

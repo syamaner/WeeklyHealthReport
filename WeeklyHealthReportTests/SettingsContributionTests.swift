@@ -97,6 +97,10 @@ final class SettingsContributionTests: XCTestCase {
             }
             XCTAssertEqual(details, [savedKey == nil ? "Key missing" : "Revalidate key", "Unspecified"])
             XCTAssertEqual(provider.requestCount, 0)
+            XCTAssertEqual(section.footerLink?.title, "Open Food Facts terms and data licences")
+            XCTAssertEqual(section.footerLink?.url, URL(string: "https://world.openfoodfacts.org/terms-of-use"))
+            guard case let .toggle(toggle) = section.rows.first?.kind else { return XCTFail("Expected the database toggle") }
+            XCTAssertTrue(toggle.caption?.contains("Community product data can be incomplete.") == true)
         }
     }
 

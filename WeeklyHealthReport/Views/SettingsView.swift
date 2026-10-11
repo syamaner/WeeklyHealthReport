@@ -78,10 +78,17 @@ struct SettingsRow: Identifiable {
     }
 }
 
+/// An external reference shown under a section, such as a data licence.
+struct SettingsExternalLink {
+    let title: String
+    let url: URL
+}
+
 struct SettingsSection: Identifiable {
     let id: SettingsSectionID
     let title: String
     var footer: String?
+    var footerLink: SettingsExternalLink? = nil
     let rows: [SettingsRow]
 }
 
@@ -129,7 +136,10 @@ struct SettingsView: View {
                 } header: {
                     Text(section.title)
                 } footer: {
-                    if let footer = section.footer { Text(footer) }
+                    VStack(alignment: .leading, spacing: 6) {
+                        if let footer = section.footer { Text(footer) }
+                        if let link = section.footerLink { Link(link.title, destination: link.url) }
+                    }
                 }
             }
         }
