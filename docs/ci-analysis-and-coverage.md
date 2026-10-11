@@ -72,10 +72,35 @@ test activity can overlap, so those durations must not be added together. The
 launch-to-first-suite interval is an observable preparation boundary, not proof
 that every second was simulator startup.
 
-This workflow does not add a stable required policy check or make any repository
-rule change. GitHub currently has no branch protection or ruleset for `main`.
-Selective execution and any required-check configuration remain separate,
-explicitly authorised work.
+The shadow decision above remains evidence only. The one enforced selection is
+the documentation-only gate below.
+
+## Documentation-only gate
+
+The `main required CI` ruleset requires `Build and test`, the two DriveExportKit
+checks and the four Synthetic Drive checks, and requires branches to be up to
+date. Workflow-level `paths` filters would leave those checks unreported and
+block every documentation pull request, so selection happens inside the
+workflow instead.
+
+A first `Classify changes` job runs `.github/scripts/ci_changes.py` on the
+changed paths (three-dot diff for pull requests, `before..after` for `main`
+pushes). Every other job depends on it and runs unless its output is exactly
+`false`; a job skipped through its condition reports as skipped, which satisfies
+a required check.
+
+Only an allowlist counts as documentation: `README.md`, `AGENTS.md`,
+`CLAUDE.md`, `DEVELOPMENT_NOTES.md`, `LICENSE`, `docs/`, `.agents/` and
+`.claude/`. Paths under `docs/` that code, tests or CI read
+(`docs/fixtures/`, `docs/privacy-policy.txt`, `docs/food-healthkit-write-plan.md`)
+always run the full workflow, as does Markdown under `Tools/` or `Packages/`,
+which can be test data or checked inventory. A drift-guard test fails when a
+non-documentation file starts referencing a `docs/` path the classifier would
+skip.
+
+The gate fails closed. Unknown paths, an empty diff, missing or zero
+revisions, unsupported events, a `git` failure, a classifier exception or a
+failed `Classify changes` job all run every job.
 
 ## Codecov disclosure boundary
 
