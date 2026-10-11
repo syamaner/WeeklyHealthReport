@@ -328,10 +328,18 @@ private struct FoodProposalDetailView: View {
     }
 }
 
-private struct OpenRouterFoodKeyView: View {
+/// Key entry and privacy terms for OpenRouter web lookup.
+/// Only the explicit save and revalidate buttons contact OpenRouter; opening this screen sends nothing.
+public struct OpenRouterFoodKeyView: View {
     @ObservedObject var model: FoodWebDiscoveryViewModel
     @Environment(\.dismiss) private var dismiss
-    var body: some View {
+    private let showsDone: Bool
+
+    public init(model: FoodWebDiscoveryViewModel, showsDone: Bool = true) {
+        self.model = model; self.showsDone = showsDone
+    }
+
+    public var body: some View {
         Form {
             Section("Privacy and charges") {
                 Text("OpenRouter finds public food sources and reads their nutrition into proposals for you to review.")
@@ -356,7 +364,7 @@ private struct OpenRouterFoodKeyView: View {
             }
         }
         .navigationTitle("OpenRouter API key")
-        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        .toolbar { if showsDone { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } } }
         .onDisappear { model.closeCredentialEditor() }
     }
 }

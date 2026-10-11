@@ -227,11 +227,22 @@ final class ProgressiveFoodSearchPresentationTests: XCTestCase {
         }
     }
 
+    func testRejectedKeyRecoveryPointsToSettings() {
+        XCTAssertEqual(
+            FoodSearchStatusPresentation.recoveryMessage(.credentialRejected, stage: .gemini),
+            "Gemini rejected the API key. Revalidate it in Settings."
+        )
+    }
+
+    func testDeveloperToolsKeyIsTheExistingStoredKey() {
+        XCTAssertEqual(FoodSearchDeveloperTools.storageKey, "foodSearchDeveloperToolsEnabled")
+    }
+
     func testDatabasePreferenceDefaultsOffPersistsAndDoesNotReuseDebugOptIn() throws {
         let suite = "food-search-test-" + UUID().uuidString
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
-        defaults.set(true, forKey: "foodSearchDeveloperToolsEnabled")
+        defaults.set(true, forKey: FoodSearchDeveloperTools.storageKey)
         let preferences = FoodSearchUserDefaultsPreferences(defaults: defaults)
         XCTAssertFalse(preferences.onlineDatabaseEnabled)
         XCTAssertFalse(preferences.geminiEnabled)

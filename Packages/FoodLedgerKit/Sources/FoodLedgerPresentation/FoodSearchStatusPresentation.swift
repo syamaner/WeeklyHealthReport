@@ -92,7 +92,7 @@ public struct FoodSearchStatusPresentation: Equatable, Sendable {
         case .timedOut: return "\(service) timed out. You can search again."
         case .connectionFailed: return "\(service) could not connect. Check your connection and search again."
         case .unavailable: return "\(service) could not complete the search. You can try again."
-        case .credentialRejected: return "\(service) rejected the API key. Revalidate it in Search settings."
+        case .credentialRejected: return "\(service) rejected the API key. Revalidate it in Settings."
         case .permissionDenied: return "\(service) refused access. Check your provider permissions."
         case .quotaExceeded: return "\(service) reached a usage limit. Check your provider quota before searching again."
         case .requestRejected: return "\(service) rejected the request or model. Check provider availability before searching again."

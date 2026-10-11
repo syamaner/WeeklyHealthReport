@@ -295,20 +295,25 @@ public final class GenericFoodSearchViewModel: ObservableObject {
     }
 }
 
+/// The developer tools preference shared by Settings and the search screen.
+public enum FoodSearchDeveloperTools {
+    public static let storageKey = "foodSearchDeveloperToolsEnabled"
+}
+
 public struct GenericFoodSearchView: View {
     @ObservedObject private var model: GenericFoodSearchViewModel
-    @AppStorage("foodSearchDeveloperToolsEnabled") private var developerToolsEnabled = false
-    @State private var showsServices = false
+    @AppStorage private var developerToolsEnabled: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-    private let webDiscovery: FoodWebDiscoveryViewModel?
     private let reviewWebNutrition: (() -> Void)?
     private let review: (PopulatedFoodConfirmation) -> Void
 
-    public init(model: GenericFoodSearchViewModel, webDiscovery: FoodWebDiscoveryViewModel? = nil,
+    /// `preferences` must be the store Settings writes the developer tools toggle to.
+    public init(model: GenericFoodSearchViewModel, preferences: UserDefaults = .standard,
                 reviewWebNutrition: (() -> Void)? = nil,
                 review: @escaping (PopulatedFoodConfirmation) -> Void) {
-        self.model = model; self.webDiscovery = webDiscovery; self.review = review
+        self.model = model; self.review = review
         self.reviewWebNutrition = reviewWebNutrition
+        _developerToolsEnabled = AppStorage(wrappedValue: false, FoodSearchDeveloperTools.storageKey, store: preferences)
     }
 
     public var body: some View {
@@ -336,13 +341,7 @@ public struct GenericFoodSearchView: View {
                     }
                 }
                 if let message = model.geminiSetupMessage {
-                    Section {
-                        HStack {
-                            Text(message).font(.subheadline)
-                            Spacer()
-                            Button("Search settings") { showsServices = true }.frame(minHeight: 44)
-                        }
-                    }
+                    Section { Text(message).font(.subheadline) }
                 }
                 if let discovery = model.sourceDiscovery {
                     Section {
@@ -370,6 +369,21 @@ public struct GenericFoodSearchView: View {
                     }
                 }
                 resultSection
+                if developerToolsEnabled, case let .results(route) = model.phase {
+                    Section("Developer tools") {
+                        DisclosureGroup("Search diagnostics") {
+                            ForEach(route.matches, id: \.searchID) { match in
+                                Text(match.candidate.name.value)
+                                if let metadata = match.candidate.candidate.matchMetadata {
+                                    Text("Lexical score \(metadata.score.formatted()); not a probability.").font(.caption)
+                                    ForEach(metadata.materialDifferences, id: \.value) { Text($0.value).font(.caption) }
+                                }
+                                Text("Source: \(match.candidate.candidate.sourceReleaseID.value)").font(.caption)
+                                Text("Record: \(match.candidate.candidate.recordID.value)").font(.caption)
+                            }
+                        }
+                    }
+                }
                 if !model.additionalEvidence.isEmpty {
                     Section {
                         DisclosureGroup("Entry source") {
@@ -418,71 +432,6 @@ public struct GenericFoodSearchView: View {
             }
         }
         .navigationTitle("Find a food")
-        .sheet(isPresented: $showsServices) {
-            NavigationStack {
-                Form {
-                    Section("Online food database") {
-                        Toggle("Open Food Facts", isOn: Binding(get: { model.onlineDatabaseEnabled }, set: { model.setOnlineDatabaseEnabled($0) }))
-                            .disabled(!model.onlineDatabaseAvailable)
-                        Text("When local matches need more evidence, a submitted search can send the displayed food terms to Open Food Facts. No account or API key is needed. Your HealthKit data, food log and saved-food history are not sent.")
-                        Text("Community product data can be incomplete. Compare the package and nutrition basis before choosing. Changing this setting takes effect on your next search.").font(.caption)
-                        Link("Open Food Facts terms and data licences", destination: URL(string: "https://world.openfoodfacts.org/terms-of-use")!)
-                    }
-                    if model.geminiAvailable {
-                    Section("Gemini") {
-                        Toggle("Automatic Gemini search", isOn: Binding(get: { model.geminiEnabled }, set: { model.setGeminiEnabled($0) }))
-                            .disabled(!model.geminiAvailable)
-                        Text("When other results need more evidence, a submitted search can send the displayed food terms to Google and check one cited source page. Your HealthKit data, food log and saved-food history are not sent.")
-                        Text("Your Google account may be charged. Nutrition is added only from supported source pages. Adding a key does not enable automatic search.").font(.caption)
-                        if let webDiscovery {
-                            NavigationLink("Gemini API key and privacy") {
-                                FoodWebDiscoveryView(model: webDiscovery, showsManualSearch: false)
-                            }
-                        }
-                        Text(model.geminiCredentialReady ? "Validated key available for this session." : "Add or revalidate your key before automatic Gemini search is available.").font(.caption)
-                    }
-                    }
-                    if reviewWebNutrition != nil {
-                        Section("Web nutrition") {
-                            Text("Use Review web nutrition from the food search screen to find and review sources with OpenRouter. Its API key and privacy settings are on that screen.")
-                        }
-                    }
-                    Section("Advanced") {
-                        Toggle("Developer tools", isOn: $developerToolsEnabled)
-                    }
-                    if developerToolsEnabled {
-                        Section("Developer tools") {
-                            if case let .results(route) = model.phase {
-                                DisclosureGroup("Search diagnostics") {
-                                    ForEach(route.matches, id: \.searchID) { match in
-                                        Text(match.candidate.name.value)
-                                        if let metadata = match.candidate.candidate.matchMetadata {
-                                            Text("Lexical score \(metadata.score.formatted()); not a probability.").font(.caption)
-                                            ForEach(metadata.materialDifferences, id: \.value) { Text($0.value).font(.caption) }
-                                        }
-                                        Text("Source: \(match.candidate.candidate.sourceReleaseID.value)").font(.caption)
-                                        Text("Record: \(match.candidate.candidate.recordID.value)").font(.caption)
-                                    }
-                                }
-                            }
-                            if let webDiscovery, model.canOfferWebDiscovery {
-                                NavigationLink("Debug Gemini source discovery") {
-                                    FoodWebDiscoveryView(model: webDiscovery).onAppear { webDiscovery.foodTerms = model.query }
-                                }
-                            }
-                        }
-                    }
-                }
-                .navigationTitle("Search settings")
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { showsServices = false } } }
-            }
-        }
-        .toolbar {
-            ToolbarItem {
-                Button { model.stopEnrichment(); showsServices = true } label: { Image(systemName: "gearshape") }
-                    .accessibilityLabel("Search settings")
-            }
-        }
         .onDisappear { model.stopEnrichment() }
     }
 
