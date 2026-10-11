@@ -56,7 +56,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             XCTAssertEqual(saves,0);XCTAssertEqual(model.state.decision,.undecided)
         }
     }
-    func testNutritionFirstScreenHasReferenceValuesWithoutDefaultIntakeAndHidesSourceIDs() async throws {
+    func testConfirmScreenLeadsWithFoodAndLogThenNutritionWithoutDefaultIntakeOrSourceIDs() async throws {
         let ids = NativeQuantityIDs()
         let searcher = try CoFIDGenericFoodSearch(ids: ids)
         let search = try GenericFoodSearchViewModel(searcher: searcher, locale: LedgerText("en_GB"))
@@ -82,17 +82,39 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             XCTAssertNil(model.state.quantity.value)
             XCTAssertFalse(model.nutritionReview.isConsumed)
             XCTAssertEqual(model.nutritionReview.mainRows.count, 4)
-            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            // #195 order: food, inline decisions, amount and When, then nutrition for the amount.
+            // The first screen shows the food, the estimate notice and the Log bar with its reason.
+            func recognise() throws -> (UIImage, String) {
+                let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                    window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+                }
+                let request = VNRecognizeTextRequest()
+                request.recognitionLevel = .accurate; request.usesLanguageCorrection = false
+                try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+                return (image, (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n"))
             }
-            let request = VNRecognizeTextRequest()
-            request.recognitionLevel = .accurate; request.usesLanguageCorrection = false
-            try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
-            let visible = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
-            XCTAssertTrue(visible.contains("Nutrition"), visible)
+            var (image, visible) = try recognise()
+            XCTAssertTrue(visible.contains("Confirm food"), visible)
+            XCTAssertTrue(visible.contains("Log"), visible)
             if size == .large {
-                for label in ["Energy", "Protein", "Carbohydrate", "Fat"] { XCTAssertTrue(visible.contains(label), visible) }
+                XCTAssertTrue(visible.contains("Logged as an estimate"), visible)
+                XCTAssertTrue(visible.contains("Enter an amount greater than zero"), visible)
             }
+            var seen = visible
+            for _ in 0..<12 where !(seen.contains("Nutrition") && ["Energy", "Protein", "Carbohydrate", "Fat"].allSatisfy(seen.contains)) {
+                guard let scroll = descendants(host.view).compactMap({ $0 as? UIScrollView }).first else { break }
+                scroll.setContentOffset(CGPoint(x: 0, y: min(scroll.contentOffset.y + 300,
+                    max(0, scroll.contentSize.height - scroll.bounds.height))), animated: false)
+                try await Task.sleep(for: .milliseconds(150))
+                host.view.layoutIfNeeded()
+                (image, visible) = try recognise()
+                seen += "\n" + visible
+            }
+            XCTAssertTrue(seen.contains("Nutrition"), seen)
+            if size == .large {
+                for label in ["Energy", "Protein", "Carbohydrate", "Fat"] { XCTAssertTrue(seen.contains(label), seen) }
+            }
+            visible = seen
             XCTAssertFalse(visible.contains(input.candidates[0].candidate.recordID.value), "Identifiers belong inside source details")
             let attachment = XCTAttachment(image: image)
             attachment.name = "Nutrition first \(name)"; attachment.lifetime = .keepAlways
@@ -188,10 +210,11 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
                     XCTAssertEqual(reopened.selectedCandidate.candidate.nutrients, state.selectedCandidate.candidate.nutrients)
                     return FoodConfirmationViewModel(state: reopened) { _ in throw CocoaError(.fileWriteUnknown) }
                 }
-                try await waitForPresentation(host, title: "Confirm food", window: window, driver: driver)
+                // A saved entry reopens the same Confirm screen, titled for editing (#195).
+                try await waitForPresentation(host, title: "Edit food", window: window, driver: driver)
                 let presented = try XCTUnwrap(host.presentedViewController, query)
                 let labels = nativeText(presented.view)
-                XCTAssertTrue(labels.contains("Confirm food"), "Native sheet must contain confirmation: \(labels)")
+                XCTAssertTrue(labels.contains("Edit food"), "Native sheet must contain confirmation: \(labels)")
                 guard case .loaded = driver.session?.phase else { return XCTFail("Saved record did not load") }
                 driver.session = nil
                 try await waitForDismissal(host, window: window, driver: driver)
