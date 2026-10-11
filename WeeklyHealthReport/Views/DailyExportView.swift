@@ -15,54 +15,35 @@ struct DailyExportView: View {
 
     var body: some View {
         Form {
-            Section("Report date") {
-                Picker("Local reporting date", selection: Binding(
-                    get: { session.selectedReportDay },
-                    set: { session.selectReportDay($0) }
-                )) {
-                    Text("Today (partial)").tag(Optional<DailyNoteDayID>.none)
-                    ForEach(Array(session.availableReportDays.dropFirst()), id: \.self) { day in
-                        Text(day.reportDate).tag(Optional(day))
-                    }
-                }
-                .disabled(session.busy)
-                Text("Earlier dates include the full local day as currently visible in Apple Health. Changing the date discards the old preview, not saved notes.")
-                    .font(.caption)
-            }
-            Section("Private until you export") {
-                Text("Opening this screen restores known choices and prepares a fresh snapshot in memory. Nothing is sent until you choose Export.")
-                Text("Workouts include available heart-rate summaries, HealthKit-estimated active energy, native distance and separately evidenced accepted treadmill distance, PacePrompt execution intervals and native heart-rate zones. Missing data stays explicitly unavailable. Interval distance may cover only part of an interval. Individual associated heart-rate readings include timestamps, BPM and source identifiers when available. Gaps are retained; readings are not interpolated.")
-                    .font(.caption)
-                Text(session.status)
-                    .font(.caption)
-                if session.busy { ProgressView() }
-            }
+            daySection
+            resultSection
 
             switch session.presentationState {
             case .preparing:
-                EmptyView()
+                includedSection
             case .needsGoogleConnection:
-                googleConnectionSection
-                notesSection
+                includedSection
             case .needsNutritionSource:
-                accountContextSection
                 nutritionSourceSection
-                notesSection
+                includedSection
             case .readyToExport:
-                accountContextSection
-                notesSection
-                snapshotSection
+                includedSection
                 exportSection
             case .needsAttention:
-                accountContextSection
                 attentionSection
                 if session.presentationState.actions.contains(.authorizeNutrition) {
                     nutritionSourceSection
                 }
-                notesSection
-                if session.preview != nil {
-                    snapshotSection
-                }
+                includedSection
+            }
+
+            driveSection
+
+            Section {
+                Text("Workouts include available heart-rate summaries, HealthKit-estimated active energy, native distance and separately evidenced accepted treadmill distance, PacePrompt execution intervals and native heart-rate zones. Missing data stays explicitly unavailable. Interval distance may cover only part of an interval. Individual associated heart-rate readings include timestamps, BPM and source identifiers when available. Gaps are retained; readings are not interpolated.")
+                    .font(.caption)
+            } header: {
+                Text("About the file")
             }
         }
         .sheet(item: $exactJSON) { inspection in
@@ -105,7 +86,7 @@ struct DailyExportView: View {
         } message: {
             Text(session.fileReplacementReason?.confirmationMessage ?? "")
         }
-        .navigationTitle("Daily JSON Export")
+        .navigationTitle("Export")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             Task { await session.prepareForPresentation() }
@@ -123,51 +104,151 @@ struct DailyExportView: View {
         }
     }
 
-    private var googleConnectionSection: some View {
-        Section("Google account") {
-            if !session.isConfigured {
-                Text("Drive is disabled because this build has no production OAuth client configuration.")
-                    .foregroundStyle(.secondary)
-            } else {
-                Button("Connect with Google") { Task { await session.connect() } }
-                    .disabled(session.busy)
-                if session.hasStoredGoogleSession {
-                    Menu("Stored account options") {
-                        Button("Sign out locally") { session.signOut() }
-                        Button("Revoke Google access", role: .destructive) {
-                            Task { await session.disconnect() }
-                        }
-                    }
-                    .disabled(session.busy)
+    private var phase: DailyExportPhase {
+        DailyExportPhase.resolve(
+            setup: session.presentationState.phaseSetup,
+            exporting: session.exporting,
+            hasPreview: session.preview != nil,
+            lastExportOutcome: session.lastExportOutcome
+        )
+    }
+
+    private var todayID: DailyNoteDayID? { session.availableReportDays.first }
+
+    private var daySection: some View {
+        Section {
+            Picker("Day", selection: Binding(
+                get: { session.selectedReportDay },
+                set: { session.selectReportDay($0) }
+            )) {
+                Text(todayLabel).tag(Optional<DailyNoteDayID>.none)
+                ForEach(Array(session.availableReportDays.dropFirst()), id: \.self) { day in
+                    Text(DailyExportDayLabel.previousDay(
+                        reportDate: day.reportDate,
+                        locale: .autoupdatingCurrent
+                    ))
+                    .tag(Optional(day))
                 }
-                Text("Connection requests drive.file only. Consent never runs merely because this screen opened.")
-                    .font(.caption)
             }
+            .disabled(session.busy)
+        } header: {
+            Text("Day")
+        } footer: {
+            Text("Today runs from local midnight to the refresh cutoff. Earlier days include the full local day as currently visible in Apple Health. Changing the day discards the old preview, not saved notes.")
         }
     }
 
-    private var accountContextSection: some View {
-        Section("Export destination") {
-            LabeledContent("Account", value: session.accountLabel)
-            LabeledContent("Folder", value: session.destinationLabel)
-            Menu("Account and folder options") {
-                Button("Choose existing folder") {
-                    Task { await session.chooseDestination() }
+    /// The cutoff appears only once a snapshot of today is prepared; the
+    /// clock is never read for this label.
+    private var todayLabel: String {
+        guard let todayID else { return "Today" }
+        let summary = session.selectedReportDay == nil ? session.previewSummary : nil
+        return DailyExportDayLabel.today(
+            todayReportDate: todayID.reportDate,
+            previewDataAsOf: summary?.reportDate == todayID.reportDate ? summary?.dataAsOf : nil
+        )
+    }
+
+    private var resultSection: some View {
+        Section {
+            switch phase {
+            case .notSetUp:
+                Label("Not set up", systemImage: "exclamationmark.circle")
+                if session.isConfigured {
+                    NavigationLink("Set up Google Drive", value: AppRoute.exportDestination)
                 }
-                if session.presentationState.actions.contains(.recoverCanonicalFile) {
-                    Button("Recover existing canonical JSON") {
-                        Task { await session.recoverSelectedFile() }
-                    }
-                    .disabled(session.preview == nil)
+            case .preparing:
+                HStack {
+                    ProgressView()
+                    Text("Preparing")
                 }
-                Button("Sign out locally") { session.signOut() }
-                Button("Revoke Google access", role: .destructive) {
-                    Task { await session.disconnect() }
+            case .prepared:
+                Label("Ready to export", systemImage: "doc.badge.clock")
+            case .attempting:
+                HStack {
+                    ProgressView()
+                    Text("Exporting")
+                }
+            case .verified:
+                Label("Exported and verified", systemImage: "checkmark.seal")
+                if let outcome = session.lastExportOutcome {
+                    LabeledContent("Day", value: outcome.reportDate)
+                    LabeledContent("Data up to", value: outcome.dataAsOf)
+                }
+            case .cancelledBeforeSending:
+                Label("Cancelled before sending", systemImage: "xmark.circle")
+            case .attemptedNotVerified:
+                Label("Export attempted, not verified", systemImage: "exclamationmark.triangle")
+            case .needsAttention:
+                Label("Needs attention", systemImage: "exclamationmark.triangle")
+            }
+            Text(session.status)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            LabeledContent("Last verified", value: session.lastVerifiedLabel)
+                .font(.caption)
+        } header: {
+            Text("Status")
+        } footer: {
+            Text("Opening this screen restores known choices and prepares a fresh snapshot in memory. Nothing is sent until you choose Export.")
+        }
+    }
+
+    private var includedSection: some View {
+        Section {
+            if let summary = session.previewSummary {
+                LabeledContent("Health data", value: "As of \(summary.dataAsOf)")
+                LabeledContent("Nutrition", value: summary.nutritionSource)
+            } else {
+                LabeledContent("Health data", value: "Not prepared")
+                    .foregroundStyle(.secondary)
+                LabeledContent("Nutrition", value: session.nutritionSourceLabel)
+            }
+            NavigationLink(value: AppRoute.notes) {
+                LabeledContent(
+                    "Notes for \(notes.currentDayID.reportDate)",
+                    value: notes.storageAvailable ? notes.noteCountLabel : "Unavailable"
+                )
+            }
+            .disabled(!notes.storageAvailable)
+            if let status = notes.storageStatusMessage {
+                Text(status)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                if notes.storageState == .protectedDataUnavailable {
+                    Button("Retry notes access") { notes.retryStorageAccess() }
                 }
             }
-            .disabled(session.busy || !session.isConfigured)
-            Text("Sign-out clears this installation’s credential. Revocation also withdraws the grant. Neither deletes Drive files.")
+            Button {
+                if let text = session.makeExactPreviewText() {
+                    exactJSON = ExactJSONInspection(text: text)
+                }
+            } label: {
+                LabeledContent("Exact file") {
+                    if let summary = session.previewSummary {
+                        Text("\(summary.encodedByteCount.formatted()) bytes")
+                    }
+                }
+            }
+            .disabled(session.busy || session.preview == nil)
+            .accessibilityHint("Review exact JSON")
+            Text("Food-log entries are not exported yet.")
                 .font(.caption)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text("Included")
+        } footer: {
+            Text("Drafts remain local. A saved-note change invalidates the prepared snapshot and disables export until refresh finishes again. The exact file is constructed only when you review it.")
+        }
+    }
+
+    private var driveSection: some View {
+        Section {
+            NavigationLink(value: AppRoute.exportDestination) {
+                LabeledContent("Google Drive", value: session.destinationLabel)
+            }
+        } footer: {
+            Text("Account and folder are managed in Settings.")
         }
     }
 
@@ -203,69 +284,33 @@ struct DailyExportView: View {
         }
     }
 
-    private var notesSection: some View {
-        Section("Notes for \(notes.currentDayID.reportDate)") {
-            LabeledContent("Saved", value: notes.storageAvailable ? notes.noteCountLabel : "Unavailable")
-            NavigationLink("Manage notes", value: AppRoute.notes)
-                .disabled(!notes.storageAvailable)
-            Text("Drafts remain local. A saved-note change invalidates the prepared snapshot and disables export until refresh finishes again.")
-                .font(.caption)
-            if let status = notes.storageStatusMessage {
-                Text(status)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                if notes.storageState == .protectedDataUnavailable {
-                    Button("Retry notes access") { notes.retryStorageAccess() }
-                }
-            }
-        }
-    }
-
-    private var snapshotSection: some View {
-        Section("Prepared daily snapshot") {
-            if let summary = session.previewSummary {
-                LabeledContent("Report date", value: summary.reportDate)
-                LabeledContent("Data cutoff", value: summary.dataAsOf)
-                LabeledContent("Nutrition source", value: summary.nutritionSource)
-                LabeledContent("Saved notes", value: summary.savedNoteCount.formatted())
-                LabeledContent("Current completed days", value: summary.currentWindow)
-                LabeledContent("Previous completed days", value: summary.previousWindow)
-                LabeledContent(
-                    "Encoded JSON",
-                    value: "\(summary.encodedByteCount.formatted()) bytes"
-                )
-                Button("Review exact JSON") {
-                    if let text = session.makeExactPreviewText() {
-                        exactJSON = ExactJSONInspection(text: text)
-                    }
-                }
-                .disabled(session.busy)
-                Text("The inspector shows the exact compact canonical bytes. It is constructed only when opened.")
-                    .font(.caption)
-            } else {
-                Text("No preview in memory.")
-                    .foregroundStyle(.secondary)
-            }
-        }
-    }
-
     private var exportSection: some View {
-        Section("Export") {
-            Button("Export prepared snapshot") {
+        Section {
+            Button {
                 Task { await session.exportPreview() }
+            } label: {
+                Text("Export")
+                    .frame(maxWidth: .infinity, minHeight: 44)
             }
+            .buttonStyle(.borderedProminent)
             .disabled(!session.canExport)
+            .accessibilityIdentifier("export.export")
             Button("Refresh") {
                 Task { await session.refreshPreview() }
             }
             .disabled(!session.canRefreshPreview)
-            Button("Cancel active export", role: .cancel) {
+            Button("Cancel export", role: .cancel) {
                 session.cancelExport()
             }
             .disabled(!session.exporting)
-            LabeledContent("Last verified", value: session.lastVerifiedLabel)
+            if session.presentationState.actions.contains(.recoverCanonicalFile) {
+                Button("Recover existing canonical JSON") {
+                    Task { await session.recoverSelectedFile() }
+                }
+                .disabled(session.busy || !session.isConfigured || session.preview == nil)
+            }
+        } footer: {
             Text("Export preserves these frozen bytes, verifies remote metadata and exact bytes, and never queues an automatic retry.")
-                .font(.caption)
         }
     }
 

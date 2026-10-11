@@ -11,7 +11,7 @@ final class SettingsContributionTests: XCTestCase {
 
         XCTAssertEqual(settings.sections.map(\.id), [.foodSearch, .export, .data, .appleHealth, .about])
         XCTAssertEqual(settings.linkedRoutes, [
-            .webLookupKey, .foodMarket, .dailyExport, .dataBackup, .inventoryReview,
+            .webLookupKey, .foodMarket, .exportDestination, .dataBackup, .inventoryReview,
             .foodReresolution, .medicationAccess, .privacy, .developerTools
         ])
         XCTAssertEqual(Set(settings.linkedRoutes).count, settings.linkedRoutes.count)
@@ -21,7 +21,7 @@ final class SettingsContributionTests: XCTestCase {
     func testSectionsWithoutFoodLedgerOrMedicationAccess() {
         let settings = WeeklyHealthReportApp.makeSettings(foodLedger: nil, defaults: isolatedDefaults(), medicationAccessAvailable: false)
         XCTAssertEqual(settings.sections.map(\.id), [.export, .about])
-        XCTAssertEqual(settings.linkedRoutes, [.dailyExport, .privacy, .developerTools])
+        XCTAssertEqual(settings.linkedRoutes, [.exportDestination, .privacy, .developerTools])
         XCTAssertFalse(settings.availableRoutes.contains(.medicationAccess))
         XCTAssertFalse(settings.availableRoutes.contains(.dataBackup))
     }
@@ -124,7 +124,7 @@ final class SettingsContributionTests: XCTestCase {
 
     func testExportRowsHaveNoDetail() {
         let section = ExportSettingsContribution.section()
-        XCTAssertEqual(section.rows.map(\.route), [.dailyExport])
+        XCTAssertEqual(section.rows.map(\.route), [.exportDestination])
         for row in section.rows {
             guard case let .link(detail, _) = row.kind else { return XCTFail("Expected a link") }
             XCTAssertNil(detail())

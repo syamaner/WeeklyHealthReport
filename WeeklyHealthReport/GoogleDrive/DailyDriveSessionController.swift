@@ -214,12 +214,17 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         selectedReportDay = day
         notes.selectReportDay(day)
         preview = nil
+        lastExportOutcome = nil
         destinationCoordinator.clearFileReplacementCandidate(unlessReportDate: day?.reportDate ?? "")
         mirrorDestinationState()
         presentationState = .needsAttention(.notesChanged)
         status = "Report date changed. Refresh and review a new snapshot before exporting."
     }
     @Published private(set) var lastVerifiedLabel = "No verified Drive upload in this session"
+    /// The typed outcome of the latest export attempt. Set only in
+    /// `applyExportOutcome`; cleared on day change, saved-note invalidation,
+    /// sign-out, revocation and `prepareForPresentation()`.
+    @Published private(set) var lastExportOutcome: DailyExportOutcomeRecord?
     @Published private(set) var canForgetTrashedDestination = false
     @Published private(set) var fileReplacementReason: FileReplacementReason?
     @Published private(set) var nutritionSources: [NutritionSource] = []
@@ -371,6 +376,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     func prepareForPresentation() async {
+        if !busy { lastExportOutcome = nil }
         guard !busy, isConfigured else {
             if !isConfigured {
                 applyPresentationState(.needsAttention(.configurationUnavailable))
@@ -542,7 +548,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                     reason: .trashed
                 )
                 self.mirrorDestinationState()
-                throw DailyDriveExportFailure.remoteTrashed
+                try self.applyExportOutcome(.failure(.remoteTrashed), exportedPreview: preview)
+                return
             } catch DailyDriveExportFailure.remoteMissing {
                 self.destinationCoordinator.markFileForReplacement(
                     accountID: account.id,
@@ -551,7 +558,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                     reason: .missingOrInaccessible
                 )
                 self.mirrorDestinationState()
-                throw DailyDriveExportFailure.remoteMissing
+                try self.applyExportOutcome(.failure(.remoteMissing), exportedPreview: preview)
+                return
             } catch let failure as DailyDriveExportFailure {
                 try self.applyExportOutcome(.failure(failure), exportedPreview: preview)
                 return
@@ -570,6 +578,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         _ outcome: Result<DailyDriveExportResult, DailyDriveExportFailure>,
         exportedPreview: DailyHealthExportResult
     ) throws {
+        lastExportOutcome = DailyExportOutcomeRecord(
+            outcome: outcome,
+            exportedPreview: exportedPreview
+        )
         let result = try outcome.get()
         lastVerifiedLabel = result.verifiedLabel
         status = result.userFacingLabel
@@ -668,6 +680,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             accountLabel = "Not connected"
             destinationLabel = "No active destination"
             preview = nil
+            lastExportOutcome = nil
             presentationState = .needsGoogleConnection
             status = "Signed out locally. Drive access was not revoked and exports were not deleted."
         } catch {
@@ -694,6 +707,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 self.accountLabel = "Not connected"
                 self.destinationLabel = "No active destination"
                 self.preview = nil
+                self.lastExportOutcome = nil
                 self.presentationState = .needsGoogleConnection
                 self.status = "Access revoked and local credentials cleared. Drive files were not deleted."
             case .keepCredentialsAndReportFailure:
@@ -967,6 +981,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         guard let preview, preview.notesSnapshot.dayID == snapshot.dayID,
               preview.notesSnapshot != snapshot else { return }
         self.preview = nil
+        lastExportOutcome = nil
         presentationState = .needsAttention(.notesChanged)
         status = "Saved notes changed. Refresh and review a new preview before exporting."
     }
@@ -978,6 +993,51 @@ private extension DailyDriveSessionController.AuthorizationPurpose {
         case .connect: .connect
         case .chooseFolder: .chooseFolder
         case .recoverFile: .recoverFile
+        }
+    }
+}
+
+extension DailyExportOutcomeRecord {
+    /// Maps every export result and failure. Verified kinds record the cutoff
+    /// Drive verified; the others record the cutoff of the attempted snapshot.
+    init(
+        outcome: Result<DailyDriveExportResult, DailyDriveExportFailure>,
+        exportedPreview: DailyHealthExportResult
+    ) {
+        let reportDate = exportedPreview.envelope.reportDate
+        let attemptedDataAsOf = exportedPreview.envelope.dataAsOf
+        switch outcome {
+        case .success(.verified(let dataAsOf, _)):
+            self.init(reportDate: reportDate, dataAsOf: dataAsOf, kind: .verified)
+        case .success(.unchangedVerified(let dataAsOf)):
+            self.init(reportDate: reportDate, dataAsOf: dataAsOf, kind: .unchangedVerified)
+        case .success(.cancelledBeforeSubmission):
+            self.init(
+                reportDate: reportDate,
+                dataAsOf: attemptedDataAsOf,
+                kind: .cancelledBeforeSubmission
+            )
+        case .success(.cancelledAfterSubmissionVerified(let dataAsOf, _)):
+            self.init(
+                reportDate: reportDate,
+                dataAsOf: dataAsOf,
+                kind: .cancelledAfterSubmissionVerified
+            )
+        case .failure:
+            self.init(reportDate: reportDate, dataAsOf: attemptedDataAsOf, kind: .failed)
+        }
+    }
+}
+
+extension DailyExportPresentationState {
+    /// The plain summary `DailyExportPhase` takes.
+    var phaseSetup: DailyExportPhase.Setup {
+        switch self {
+        case .preparing: .preparing
+        case .needsGoogleConnection, .needsAttention(.configurationUnavailable): .notSetUp
+        case .needsNutritionSource: .needsNutritionSource
+        case .readyToExport: .ready
+        case .needsAttention: .needsAttention
         }
     }
 }

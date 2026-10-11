@@ -248,7 +248,7 @@ enum ReportPreviewFixtures {
             ReportDocumentSectionView(section: ReportPreviewFixtures.section(
                 .weight,
                 state: state
-            ))
+            ), isExpanded: .constant(true))
         }
     }
 }
@@ -261,6 +261,7 @@ enum ReportPreviewFixtures {
                 .foregroundStyle(.secondary)
             BloodPressureReportSection(
                 section: ReportPreviewFixtures.section(.bloodPressure, state: state),
+                isExpanded: .constant(true),
                 showsMorningDetails: .constant(true),
                 showsEveningDetails: .constant(true)
             )
@@ -276,6 +277,7 @@ enum ReportPreviewFixtures {
                 .foregroundStyle(.secondary)
             MedicationReportSection(
                 section: ReportPreviewFixtures.section(.medications, state: state),
+                isExpanded: .constant(true),
                 requestAccess: {}
             )
         }

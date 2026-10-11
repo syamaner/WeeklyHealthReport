@@ -188,6 +188,8 @@ struct AppShellView: View {
         case .addFood:
             if let foodLedger { AddFoodFlowView(root: foodLedger) }
             else { ContentUnavailableView("Add food unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
+        case .exportDestination:
+            DriveDestinationSettingsView(session: dailyExport)
         }
     }
 
@@ -204,16 +206,9 @@ struct AppShellView: View {
                 return nil
             }
 
-            guard let snapshot = viewModel.screenshotSnapshot(
-                includesMedicationSection: HealthReportView.includesMedicationSection,
-                showsMorningBloodPressureDetails:
-                    presentationState.showsMorningBloodPressureDetails,
-                showsEveningBloodPressureDetails:
-                    presentationState.showsEveningBloodPressureDetails
-            ) else {
-                return nil
-            }
-            return HealthReportView.reportDocument(snapshot: snapshot)
+            // Full Page is always the expanded document, independent of
+            // what is expanded on screen.
+            return HealthReportView.fullPageDocument(viewModel: viewModel)
         }
     }
 }

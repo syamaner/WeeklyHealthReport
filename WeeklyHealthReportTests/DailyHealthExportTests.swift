@@ -3,6 +3,8 @@ import DriveExportOAuth
 import FoodLedgerApplication
 import FoodLedgerDomain
 import HealthKit
+import SwiftUI
+import UIKit
 import XCTest
 @testable import DriveExportKit
 @testable import WeeklyHealthReport
@@ -2819,6 +2821,8 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
         let folderReadCount: Int
         let folderCount: Int
         let uploadCount: Int
+        var accountCount = 0
+        var revokeCount = 0
     }
 
     private var accountValue = DailyDriveAccount(
@@ -2832,6 +2836,8 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
     private var createIDs: [String] = []
     private var folderReadCount = 0
     private var uploadCount = 0
+    private var accountCount = 0
+    private var revokeCount = 0
     private let revokeStatus: Int
 
     init(createOutcomes: [CreateOutcome], revokeStatus: Int = 200) {
@@ -2859,11 +2865,16 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
             createIDs: createIDs,
             folderReadCount: folderReadCount,
             folderCount: folders.count,
-            uploadCount: uploadCount
+            uploadCount: uploadCount,
+            accountCount: accountCount,
+            revokeCount: revokeCount
         )
     }
 
-    func account(accessToken: String) async throws -> DailyDriveAccount { accountValue }
+    func account(accessToken: String) async throws -> DailyDriveAccount {
+        accountCount += 1
+        return accountValue
+    }
 
     func generateFileID(accessToken: String) async throws -> String {
         generatedCount += 1
@@ -2911,7 +2922,10 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
         return folder
     }
 
-    func revoke(token: String) async throws -> Int { revokeStatus }
+    func revoke(token: String) async throws -> Int {
+        revokeCount += 1
+        return revokeStatus
+    }
 
     func createFile(
         _ descriptor: DailyDriveUploadDescriptor,
@@ -2950,6 +2964,8 @@ private final class FakeDriveOAuthSession: DriveOAuthSessionProviding {
     var onAuthorizationError: (@MainActor (DailyDriveCredentialFailure) -> Void)?
     var accessTokenFailure: DailyDriveCredentialFailure?
     private(set) var clearCount = 0
+    private(set) var authorizeCount = 0
+    private(set) var accessTokenCount = 0
 
     func restoreWithoutNetwork() throws {}
 
@@ -2958,6 +2974,7 @@ private final class FakeDriveOAuthSession: DriveOAuthSessionProviding {
         configuration: DriveOAuthClientConfiguration,
         userAgent: any OIDExternalUserAgent
     ) async throws -> DriveAuthorizationOutcome {
+        authorizeCount += 1
         throw ProbeError.queryFailed
     }
 
@@ -2965,6 +2982,7 @@ private final class FakeDriveOAuthSession: DriveOAuthSessionProviding {
     func discardPendingAuthorization() {}
 
     func accessToken(forceRefresh: Bool) async throws -> String {
+        accessTokenCount += 1
         if let accessTokenFailure { throw accessTokenFailure }
         return "invented-token"
     }
@@ -3050,6 +3068,7 @@ private final class RecordingDailyProvider: DailyHealthExportDataProviding {
     private(set) var fetchCount = 0
     private(set) var readAuthorizationCount = 0
     private(set) var nutritionAuthorizationCount = 0
+    private(set) var sourceFetchCount = 0
 
     init(makeInputs: @escaping (DailyExportWindow) -> DailyHealthExportInputs) {
         sources = [NutritionSource(
@@ -3074,7 +3093,8 @@ private final class RecordingDailyProvider: DailyHealthExportDataProviding {
         nutritionAuthorizationCount += 1
     }
     func fetchVisibleNutritionSources() async throws -> [NutritionSource] {
-        NutritionSource.orderedUnique(sources)
+        sourceFetchCount += 1
+        return NutritionSource.orderedUnique(sources)
     }
 
     func fetchDailyHealthExportInputs(
@@ -3130,5 +3150,175 @@ extension DailyHealthExportTests {
         let enriched = try await service.refresh(nutritionSourceBundleIdentifier: fixtureNutritionSource.bundleIdentifier)
         XCTAssertEqual(provider.requestedWorkoutEnrichment, true)
         XCTAssertEqual(enriched.envelope.schemaVersion, 7)
+    }
+}
+
+// MARK: #200 typed export outcome and Settings > Export
+
+extension DailyHealthExportTests {
+    @MainActor
+    func testExportOutcomeRecordMapsEveryResultAndFailure() async throws {
+        let verifiedAsOf = "2026-09-06T08:00:00+01:00"
+        let cases: [(Result<DailyDriveExportResult, DailyDriveExportFailure>, DailyExportOutcomeRecord.Kind, Bool, DailyExportPhase)] = [
+            (.success(.verified(dataAsOf: verifiedAsOf, created: true)), .verified, false, .verified),
+            (.success(.unchangedVerified(dataAsOf: verifiedAsOf)), .unchangedVerified, false, .verified),
+            (.success(.cancelledBeforeSubmission), .cancelledBeforeSubmission, true, .cancelledBeforeSending),
+            (.success(.cancelledAfterSubmissionVerified(dataAsOf: verifiedAsOf, created: false)), .cancelledAfterSubmissionVerified, true, .verified),
+            (.failure(.transportFailure), .failed, true, .attemptedNotVerified)
+        ]
+        for (outcome, kind, keepsPreview, phase) in cases {
+            let (session, _) = await makePreviewLifecycleSession()
+            let exportedPreview = try XCTUnwrap(session.preview)
+            XCTAssertNil(session.lastExportOutcome)
+            _ = try? session.applyExportOutcome(outcome, exportedPreview: exportedPreview)
+
+            let record = try XCTUnwrap(session.lastExportOutcome, "\(kind)")
+            XCTAssertEqual(record.kind, kind)
+            XCTAssertEqual(record.reportDate, exportedPreview.envelope.reportDate)
+            let expectedAsOf = (kind == .cancelledBeforeSubmission || kind == .failed)
+                ? exportedPreview.envelope.dataAsOf : verifiedAsOf
+            XCTAssertEqual(record.dataAsOf, expectedAsOf, "\(kind)")
+            XCTAssertEqual(session.preview != nil, keepsPreview, "\(kind)")
+            XCTAssertEqual(
+                DailyExportPhase.resolve(
+                    setup: .ready,
+                    exporting: false,
+                    hasPreview: session.preview != nil,
+                    lastExportOutcome: session.lastExportOutcome
+                ),
+                phase,
+                "\(kind)"
+            )
+        }
+    }
+
+    @MainActor
+    func testExportOutcomeIsClearedOnDayChangeAndPreparation() async throws {
+        let (session, _) = await makePreviewLifecycleSession()
+        try session.applyExportOutcome(
+            .success(.verified(dataAsOf: "2026-09-06T08:00:00+01:00", created: true)),
+            exportedPreview: try XCTUnwrap(session.preview)
+        )
+        XCTAssertNotNil(session.lastExportOutcome)
+        session.selectReportDay(session.availableReportDays[2])
+        XCTAssertNil(session.lastExportOutcome)
+
+        let (preparing, _) = await makePreviewLifecycleSession()
+        try preparing.applyExportOutcome(
+            .success(.verified(dataAsOf: "2026-09-06T08:00:00+01:00", created: true)),
+            exportedPreview: try XCTUnwrap(preparing.preview)
+        )
+        await preparing.prepareForPresentation()
+        XCTAssertNil(preparing.lastExportOutcome)
+    }
+
+    @MainActor
+    func testExportOutcomeIsClearedOnSavedNoteInvalidation() async throws {
+        let (session, _) = await makePreviewLifecycleSession()
+        let preview = try XCTUnwrap(session.preview)
+        try session.applyExportOutcome(.success(.cancelledBeforeSubmission), exportedPreview: preview)
+        XCTAssertEqual(session.lastExportOutcome?.kind, .cancelledBeforeSubmission)
+
+        XCTAssertTrue(session.notes.beginNewDraft())
+        session.notes.updateDraftText("Invented context")
+        XCTAssertTrue(session.notes.saveDraft())
+
+        XCTAssertNil(session.preview)
+        XCTAssertNil(session.lastExportOutcome)
+    }
+
+    @MainActor
+    func testExportOutcomeIsClearedOnSignOutAndRevocation() async throws {
+        let (signingOut, _) = await makePreviewLifecycleSession(oauthSession: FakeDriveOAuthSession())
+        try signingOut.applyExportOutcome(
+            .success(.unchangedVerified(dataAsOf: "2026-09-06T08:00:00+01:00")),
+            exportedPreview: try XCTUnwrap(signingOut.preview)
+        )
+        signingOut.signOut()
+        XCTAssertNil(signingOut.lastExportOutcome)
+
+        let (revoking, _) = await makePreviewLifecycleSession(
+            drive: PreparationDriveTransportFixture(createOutcomes: [], revokeStatus: 200),
+            oauthSession: FakeDriveOAuthSession()
+        )
+        try revoking.applyExportOutcome(
+            .success(.unchangedVerified(dataAsOf: "2026-09-06T08:00:00+01:00")),
+            exportedPreview: try XCTUnwrap(revoking.preview)
+        )
+        await revoking.disconnect()
+        XCTAssertEqual(revoking.presentationState, .needsGoogleConnection)
+        XCTAssertNil(revoking.lastExportOutcome)
+    }
+
+    @MainActor
+    func testDayPickerOffersTodayAndSevenPreviousDays() async {
+        let (session, _) = await makePreviewLifecycleSession()
+        XCTAssertEqual(session.availableReportDays.count, 8)
+        XCTAssertEqual(session.availableReportDays.first?.reportDate, "2026-09-06")
+        XCTAssertEqual(session.exactJSONConstructionCount, 0)
+        let today = DailyExportDayLabel.today(
+            todayReportDate: "2026-09-06",
+            previewDataAsOf: session.previewSummary?.dataAsOf
+        )
+        XCTAssertEqual(today, "Today, up to 08:00")
+    }
+
+    /// Opening Settings > Export sends no HealthKit, OAuth or Drive request
+    /// and never prepares an export.
+    @MainActor
+    func testOpeningDriveSettingsMakesNoHealthOAuthOrDriveCalls() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [])
+        let oauth = FakeDriveOAuthSession()
+        let provider = RecordingDailyProvider { self.emptyInputs(window: $0) }
+        let notesStore = MutableDailyNotesStore()
+        let session = DailyDriveSessionController(
+            keychain: MemoryDailySessionStore(),
+            drive: drive,
+            exportService: DailyHealthExportService(healthData: provider, notesStore: notesStore),
+            identityStore: ControllerMemoryDailyIdentityStore(),
+            nutritionSourceSelection: FixedNutritionSourceSelection(
+                bundleIdentifier: fixtureNutritionSource.bundleIdentifier
+            ),
+            notes: DailyNotesController(store: notesStore),
+            oauthSession: oauth
+        )
+        let stateBefore = session.presentationState
+        let statusBefore = session.status
+
+        let settings = WeeklyHealthReportApp.makeSettings(
+            foodLedger: nil,
+            defaults: UserDefaults(suiteName: "drive-settings-" + UUID().uuidString)!,
+            medicationAccessAvailable: false
+        )
+        XCTAssertEqual(settings.sections.first { $0.id == .export }?.rows.compactMap(\.route), [.exportDestination])
+
+        let host = UIHostingController(rootView: NavigationStack {
+            DriveDestinationSettingsView(session: session)
+        })
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = host
+        window.isHidden = false
+        host.view.setNeedsLayout()
+        host.view.layoutIfNeeded()
+        try await Task.sleep(for: .milliseconds(200))
+        window.isHidden = true
+
+        let snapshot = await drive.snapshot()
+        XCTAssertEqual(snapshot.accountCount, 0)
+        XCTAssertEqual(snapshot.folderReadCount, 0)
+        XCTAssertEqual(snapshot.generatedCount, 0)
+        XCTAssertEqual(snapshot.uploadCount, 0)
+        XCTAssertEqual(snapshot.revokeCount, 0)
+        XCTAssertEqual(oauth.authorizeCount, 0)
+        XCTAssertEqual(oauth.accessTokenCount, 0)
+        XCTAssertEqual(oauth.clearCount, 0)
+        XCTAssertEqual(provider.fetchCount, 0)
+        XCTAssertEqual(provider.sourceFetchCount, 0)
+        XCTAssertEqual(provider.readAuthorizationCount, 0)
+        XCTAssertEqual(provider.nutritionAuthorizationCount, 0)
+        XCTAssertNil(session.preview)
+        XCTAssertFalse(session.busy)
+        XCTAssertEqual(session.presentationState, stateBefore)
+        XCTAssertEqual(session.status, statusBefore)
     }
 }

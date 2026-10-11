@@ -1,9 +1,14 @@
 import Foundation
 
-private enum MetricRowVocabulary {
+/// Short state terms shared by metric rows and Health summary tiles.
+/// "Unavailable" (no Health data on this device) and "No completed days"
+/// (the period has not finished a day yet) are distinct states and must
+/// never be merged.
+enum MetricRowVocabulary {
     static let loading = "Loading…"
     static let noData = "No data"
     static let unavailable = "Unavailable"
+    static let noCompletedDays = "No completed days"
     static let queryFailed = "Query failed"
     static let insufficientHistory = "Insufficient history"
     static let noPeriodData = "No period data"

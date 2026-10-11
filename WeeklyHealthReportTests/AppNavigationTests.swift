@@ -30,7 +30,8 @@ final class AppNavigationTests: XCTestCase {
             .dataBackup: ([.settings, .dataBackup], [.settings, .dataBackup]),
             .medicationAccess: ([.settings, .medicationAccess], [.settings, .medicationAccess]),
             .developerTools: ([.settings, .developerTools], [.settings, .developerTools]),
-            .addFood: ([.addFood], [.addFood])
+            .addFood: ([.addFood], [.addFood]),
+            .exportDestination: ([.settings, .exportDestination], [.settings, .exportDestination])
         ]
         XCTAssertEqual(Set(expected.keys), Set(AppRoute.allCases))
         for (route, paths) in expected {
@@ -46,6 +47,18 @@ final class AppNavigationTests: XCTestCase {
         XCTAssertFalse(GenericFoodSearchFlowView.searchesOnAppear(initialQuery: "150 g rice", requested: false))
         XCTAssertFalse(GenericFoodSearchFlowView.searchesOnAppear(initialQuery: "   ", requested: true))
         XCTAssertTrue(GenericFoodSearchFlowView.searchesOnAppear(initialQuery: "150 g rice", requested: true))
+    }
+
+    /// #200: Drive setup restores inside Settings; a stored Export screen
+    /// still restores to Export alone, and opening it is the only preparation.
+    func testExportDestinationRestoresInsideSettingsAndDailyExportIsUnchanged() {
+        XCTAssertEqual(AppRoute.allCases.last, .exportDestination)
+        XCTAssertEqual(AppRoute.exportDestination.rawValue, "exportDestination")
+        XCTAssertTrue(AppRoute.fixedRoutes.contains(.exportDestination))
+        for available in [allAvailable, withoutComposedSettings] {
+            XCTAssertEqual(AppRoute.restoredPath(from: "exportDestination", hasDraft: false, availableRoutes: available), [.settings, .exportDestination])
+            XCTAssertEqual(AppRoute.restoredPath(from: "dailyExport", hasDraft: true, availableRoutes: available), [.dailyExport])
+        }
     }
 
     func testLegacyRawValuesAreUnchanged() {
