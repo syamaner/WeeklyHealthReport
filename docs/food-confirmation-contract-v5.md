@@ -104,6 +104,8 @@ The service refuses the save unless the decided facets equal `materialDifference
 
 A `differs` or `notSure` choice makes the entry a labelled estimate. Product identity and nutrients remain the source's; nothing is recalculated or inferred.
 
+Implementation note: a facet that is also in `unresolvedIdentity` is excluded from inline decisions, because `sourceIdentityMissing` always blocks it and no inline answer could resolve it.
+
 ### Rules kept from v1 and v2
 
 - `sourceIdentityMissing` is not an inline decision. Unknown preparation, bone, skin, drained state, packing medium or fortification on an exact product or panel still blocks; unknown serving basis blocks for every source; corrections cannot opt an exact product into the estimate rule.
@@ -121,7 +123,7 @@ A `differs` or `notSure` choice makes the entry a labelled estimate. Product ide
 
 ## 5. Estimate status projection
 
-`FoodEntryEstimateStatus` is a pure application projection over a `StoredFoodConfirmation`: estimate when (a) `FoodConfirmationPolicy.isGenericEstimate` holds for the input rebuilt by `restoredConfirmationInput` from stored evidence and provenance (this includes representative web scope), or (b) the decision record contains any `differs` or `notSure`. Legacy closest-match entries are not relabelled unless (a) holds. The saved entry, Food Log and Developer Diagnostics use it. Measured versus estimated weight stays the separate existing quantity flag.
+`FoodEntryEstimateStatus` is a pure application projection over a `StoredFoodConfirmation`: estimate when (a) `FoodConfirmationPolicy.isGenericEstimate` holds for the input rebuilt by `restoredConfirmationInput` from stored evidence and provenance (this includes representative web scope), or (b) the decision record contains any `differs` or `notSure`. Legacy closest-match entries are not relabelled unless (a) holds. Status follows the current version: the assertions read are those of the current product and resolution versions, so after a correction (which carries no decisions) an entry is an estimate only if (a) holds. The same rule decides, before saving, whether a save is an estimate (`FoodLogPolicy.savesEstimate`), including for a corrected generic estimate. The Confirm screen and the existing Food Log entry rows (an "Estimate" prefix on the source line) use it. Developer Diagnostics does not list food entries today, so adding it there is deferred to the Food Log and saved-entry redesign (#197). Measured versus estimated weight stays the separate existing quantity flag.
 
 Whenever a save will write an estimate, the estimate label and "Unknown details stay unknown" appear on the primary screen beside the food, not inside Details.
 
@@ -136,7 +138,7 @@ An estimate save (generic, or any `differs` / `notSure`) creates no `LibraryEntr
 ## 8. Compatibility and admission (D1)
 
 - `UserAssertion` gains optional `confirmation: FoodLogDecisionRecord`, omitted when nil, so v1 to v4 assertions re-encode byte for byte.
-- New operation `confirm_food_v3`, added to `LedgerOperationType.declaredQuantityTypes` and `LedgerOperationRegistry.builtInV4`. `requireSupported` rejects an assertion carrying `confirmation` under any other type. `FoodLedgerService.confirmedLogItemID` accepts `confirm_food_v3` so idempotent retry recovers it.
+- New operation `confirm_food_v3`, added to `LedgerOperationType.declaredQuantityTypes` and `LedgerOperationRegistry.builtInV4`. `requireSupported` rejects an assertion carrying `confirmation` under any other type. It also rejects a `confirm_food_v3` mutation without such an assertion, and archive verification requires food contract 4 for any `confirm_food_v3` operation. `FoodLedgerService.confirmedLogItemID` accepts `confirm_food_v3` so idempotent retry recovers it.
 - Food contract **4**, migration identifier `food-ledger-v4`. `minimumContractVersion` returns 4 when any assertion carries `confirmation`. A v5 binary always exports contract 4; older binaries (contract 3 and below) cannot import any archive from it. v1 to v3 archives keep importing with identical canonical bytes.
 - SQLite migration `v4_confirmation_decisions` sets `user_version = 4` and `schema_identity = food-ledger-v4`, rewriting no rows. A schema-3 opener throws `unknownSchema(4)`.
 - Release note: after updating, downgrading the app is not possible and archives cannot be restored into older builds.
