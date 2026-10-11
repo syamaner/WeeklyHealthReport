@@ -155,7 +155,7 @@ No contract changes, so the gate is pure, store-parity contract, view-model, ren
    - `FoodLogDayNavigationTests`: keys only from `FoodReportingDay.key`; previous and next across month and year ends; next disabled on today; no key later than today is offered, including after a time-zone change that leaves entries ahead; `Europe/London` 29 March and 25 October 2026 and `Pacific/Auckland` 27 September 2026; a non-Gregorian display calendar (Buddhist and Japanese) yields the same keys.
    - `FoodLogEditComparisonTests` and `FoodLogPolicyContractTests` additions: `editChanges` false for an untouched reopen (gram, converted, plate, direct weight); true for amount, unit, time, a `.new` plate, a declaration change or a correction.
 2. **Contract, memory and GRDB stores (`FoodLedgerContractTests`)**
-   1. `FoodLogReadingService` day content is identical from both stores for the same records.
+   1. `FoodLogReadingService` day content is identical from both stores for the same records, and a day with only removed entries has no totals and lists its Removed rows.
    2. Remove then restore through the service writes versions with the fixed reason strings, from the Food Log and from the saved entry alike.
    3. A weight-declared entry is removed and restored with `removeLogItemV2` / `restoreLogItemV2`; an undeclared one with the v1 types.
    4. A head that moved between load and action returns `.changedElsewhere` for both `staleVersion` and `conflictingVersions`, and writes nothing.
