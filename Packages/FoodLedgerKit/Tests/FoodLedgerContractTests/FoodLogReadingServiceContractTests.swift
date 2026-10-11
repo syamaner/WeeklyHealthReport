@@ -215,6 +215,22 @@ final class FoodLogReadingServiceContractTests: XCTestCase {
         }
     }
 
+    /// D7: with a mixed source (protein augmented, energy measured) only the augmented value is marked.
+    func testOnlyAugmentedValuesAreMarkedOnTheSavedEntry() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let (service, confirmations) = try services(harness)
+            let saved = try confirmations.save(try state(grams: 150, evidence: 68, augmented: [.protein]),
+                                               operationID: LedgerFixtures.operationID(1_040))
+            let detail = try XCTUnwrap(service.savedEntry(saved.logItem.logItemID))
+            XCTAssertEqual(detail.augmentedKeys, [.protein], harness.name)
+            XCTAssertFalse(detail.weightIsEstimated)
+            guard case let .calculated(totals) = detail.nutrition else { return XCTFail("calculated") }
+            let marked = totals.filter { $0.knownAmount != nil && detail.augmentedKeys.contains($0.key) }.map(\.key)
+            XCTAssertEqual(marked, [.protein], "Estimated only beside protein, never beside energy")
+        }
+    }
+
     /// Review fix 4: a plate-only change is a weight-details event, never "saved again without changes".
     func testPlateOnlyEditIsAWeightDetailsEvent() throws {
         for harness in try LedgerFixtures.harnesses() {
@@ -364,19 +380,23 @@ final class FoodLogReadingServiceContractTests: XCTestCase {
         return (service, confirmations)
     }
 
-    private func nutrients(_ evidenceID: EvidenceID) throws -> NutrientSet {
+    private func nutrients(_ evidenceID: EvidenceID, augmented: Set<NutrientKey> = []) throws -> NutrientSet {
         let provenance = NutrientProvenance(sourceKind: .userVerifiedPanel, sourceID: try ExternalIdentifier("physical_package"),
             sourceReleaseID: try ExternalIdentifier("package:fixture-v1"), evidenceID: evidenceID, capturedAt: LedgerFixtures.date)
+        // Augmented values need dataset provenance with a record (domain rule).
+        let datasetProvenance = NutrientProvenance(sourceKind: .exactProductDataset, sourceID: try ExternalIdentifier("physical_package"),
+            sourceReleaseID: try ExternalIdentifier("package:fixture-v1"), recordID: try ExternalIdentifier("fixture:augmented"))
         let known: [NutrientKey: Double] = [.energyConsumed: 200, .protein: 10]
         return try NutrientSet(entries: NutrientKey.allCases.map { key in
             guard let amount = known[key] else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }
-            return try NutrientEntry(key: key, value: .measured(ExactNutrientValue(amount: amount, unit: key.canonicalUnit,
+            let value = try ExactNutrientValue(amount: amount, unit: key.canonicalUnit,
                 sourceValue: .exact(SourceExactNutrientValue(amount: amount, unit: LedgerText(key.canonicalUnit.rawValue), basis: .per100Grams)),
-                provenance: [provenance])))
+                provenance: [augmented.contains(key) ? datasetProvenance : provenance])
+            return try NutrientEntry(key: key, value: augmented.contains(key) ? .augmented(value) : .measured(value))
         })
     }
 
-    private func state(grams: Double, evidence number: Int) throws -> FoodConfirmationState {
+    private func state(grams: Double, evidence number: Int, augmented: Set<NutrientKey> = []) throws -> FoodConfirmationState {
         let evidenceID: EvidenceID = try LedgerFixtures.id(number, EvidenceTag.self)
         let evidence = try CaptureEvidence(evidenceID: evidenceID, kind: .synthetic, capturedAt: LedgerFixtures.date,
             locale: LedgerText("en_GB"), captureMethod: LedgerText("synthetic_fixture"), captureMethodVersion: LedgerText("v1"),
@@ -385,7 +405,7 @@ final class FoodLogReadingServiceContractTests: XCTestCase {
         let candidate = try PopulatedFoodCandidate(
             candidate: ProviderNeutralCandidate(sourceReleaseID: try ExternalIdentifier("package:fixture-v1"),
                 recordID: try ExternalIdentifier("fixture:food-log-\(number)"), identity: try LedgerFixtures.identity(),
-                edibleQuantity: .known(quantity, conversionVersionID: nil), nutrients: try nutrients(evidenceID),
+                edibleQuantity: .known(quantity, conversionVersionID: nil), nutrients: try nutrients(evidenceID, augmented: augmented),
                 evidenceIDs: [evidenceID]),
             name: try LedgerText("Fixture food \(number)"), itemClass: .food)
         let input = try PopulatedFoodConfirmation(evidence: [evidence], sourceReleases: [try LedgerFixtures.packageSourceRelease()],

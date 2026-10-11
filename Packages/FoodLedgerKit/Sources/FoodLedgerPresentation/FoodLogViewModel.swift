@@ -103,9 +103,11 @@ public final class FoodLogViewModel: ObservableObject {
 
     public func cancelRemoval() { pendingRemoval = nil }
 
-    /// Removes the confirmed entry once, however many times it is pressed.
-    public func confirmRemoval() async {
-        guard let entry = pendingRemoval, !isChanging else { return }
+    /// Removes the confirmed entry once, however many times it is pressed. The entry is passed in
+    /// (captured when the alert was shown), because the alert's dismissal clears `pendingRemoval`
+    /// before the Remove action's task runs (#211, D9).
+    public func confirmRemoval(_ entry: FoodLogDayContent.Entry) async {
+        guard !isChanging else { return }
         pendingRemoval = nil
         await change { await $0.remove(entry.logItemID, expected: entry.logItemVersionID) }
     }

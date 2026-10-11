@@ -161,6 +161,9 @@ No new `AppRoute` case. A saved entry needs a `LogItemID`, and `AppRoute` is a r
 - The focus day is published and the Food Log consumes it on appear and on change, so it is selected whether the log reappears or is already showing.
 - Entry rows stack at accessibility text sizes, use plain styling (primary names, grey secondary text) and a chevron; Add food on the Food Log is a full-width filled button.
 - The single-exit test renders the real hosts (pushed Add food Confirm, the saved entry's edit host, the list-import host and a plain sheet) and checks the navigation bar: the Confirm title is on top, there is no back button and no bar item. Hosted SwiftUI text is not visible to UIKit, so the one remaining exit is checked through `FoodConfirmationView.exitTitles` and `ListConfirmationHost.toolbarTitles`, the lists those views render from.
+- Remove in the Food Log (swipe or context menu) now writes the removal. The alert's dismissal cleared the pending entry before the Remove action's task ran, so nothing was removed; the alert now captures the entry when it appears (`presenting:`) and passes it to `confirmRemoval(_:)`. The saved entry's Remove reads its loaded detail, not alert state, so it was not affected; Home has no removal.
+- Add food on the Food Log is a Button that appends the route through the coordinator, styled as a full-width filled button; a NavigationLink inside a Form ignored the button style.
+- CoFID records every numeric value as augmented (a generic composition source), so a CoFID entry such as grilled chicken shows "Estimated" beside every known value; that is correct, not a repeat. A mixed fixture test shows measured values are not marked.
 - The no-egress test now also reopens a reviewed web entry. Its guarantee comes from types and review (the service depends only on local stores); the test is a tripwire.
 
 ## Specification amendment

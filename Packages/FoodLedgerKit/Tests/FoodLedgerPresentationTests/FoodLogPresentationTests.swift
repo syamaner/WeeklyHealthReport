@@ -71,8 +71,8 @@ final class FoodLogPresentationTests: XCTestCase {
         guard case let .loaded(day) = model.phase, let entry = day.entries.first else { return XCTFail("entry") }
         model.requestRemoval(entry)
         XCTAssertEqual(world.store.removeCalls, 0, "nothing is removed before confirmation")
-        async let first: Void = model.confirmRemoval()
-        async let second: Void = model.confirmRemoval()
+        async let first: Void = model.confirmRemoval(entry)
+        async let second: Void = model.confirmRemoval(entry)
         _ = await (first, second)
         XCTAssertEqual(world.store.removeCalls, 1, "a double tap removes once")
         guard case let .loaded(after) = model.phase else { return XCTFail("loaded") }
@@ -94,7 +94,7 @@ final class FoodLogPresentationTests: XCTestCase {
         let outcome = await world.store.remove(saved.logItem.logItemID, expected: saved.logItemVersion.logItemVersionID)
         XCTAssertEqual(outcome, .applied)
         model.requestRemoval(entry)
-        await model.confirmRemoval()
+        await model.confirmRemoval(entry)
         XCTAssertEqual(model.changeAlert, .changedElsewhere)
         XCTAssertEqual(FoodLogText.changeAlert(.changedElsewhere), "This entry changed elsewhere. The log has been refreshed.")
         guard case let .loaded(reloaded) = model.phase else { return XCTFail("loaded") }
@@ -108,6 +108,25 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertEqual(model.selectedKey, "2023-11-13")
         await model.showDay("2030-01-01")
         XCTAssertEqual(model.selectedKey, model.navigation.todayKey)
+    }
+
+    /// D9: the alert's dismissal clears the pending entry before the Remove task runs; the
+    /// removal must still be written for the captured entry.
+    func testRemovalIsWrittenWhenDismissalClearsThePendingEntryFirst() async throws {
+        let world = try World(now: now, calendar: calendar)
+        _ = try world.save(grams: 150)
+        let model = FoodLogViewModel(store: world.store, now: { [now] in now }, calendar: calendar)
+        await model.load()
+        guard case let .loaded(day) = model.phase, let entry = day.entries.first else { return XCTFail("entry") }
+        model.requestRemoval(entry)
+        let captured = try XCTUnwrap(model.pendingRemoval, "presenting captures the entry")
+        model.cancelRemoval()  // the isPresented binding setter, which SwiftUI calls before the action's task
+        XCTAssertNil(model.pendingRemoval)
+        await model.confirmRemoval(captured)
+        XCTAssertEqual(world.store.removeCalls, 1)
+        guard case let .loaded(after) = model.phase else { return XCTFail("loaded") }
+        XCTAssertTrue(after.entries.isEmpty, "the removal was written")
+        XCTAssertEqual(after.removed.map(\.logItemID), [entry.logItemID])
     }
 
     // MARK: Saved entry view model
@@ -259,6 +278,8 @@ final class FoodLogPresentationTests: XCTestCase {
         let estimated = FoodIntakeSummaryProbe.total(key: .protein, amount: 10, incomplete: 0, augmented: true)
         XCTAssertEqual(FoodLogText.nutrient(estimated, augmented: true, locale: locale), "10 g · Estimated")
         XCTAssertEqual(FoodLogText.nutrient(estimated, augmented: false, locale: locale), "10 g")
+        let measuredEnergy = FoodIntakeSummaryProbe.total(key: .energyConsumed, amount: 200, incomplete: 0)
+        XCTAssertEqual(FoodLogText.nutrient(measuredEnergy, augmented: false, locale: locale), "200 kcal")
     }
 
     /// Review fix 5: exactly one exit after a save, whatever the host.

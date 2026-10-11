@@ -66,11 +66,14 @@ struct FoodLogView: View {
             SavedFoodEntryView(model: root.savedEntryModel(id), calendar: model.calendar, now: { root.confirmationNow })
         }
         .onChange(of: openedEntry) { _, entry in if entry == nil { Task { await model.load() } } }
+        // `presenting` captures the entry when the alert appears; dismissal clears pendingRemoval
+        // before the Remove task runs, so the action must not read it (#211, D9).
         .alert(FoodLogText.removeAlertTitle, isPresented: Binding(get: { model.pendingRemoval != nil },
-                                                               set: { if !$0 { model.cancelRemoval() } })) {
+                                                               set: { if !$0 { model.cancelRemoval() } }),
+               presenting: model.pendingRemoval) { entry in
             Button("Cancel", role: .cancel) { model.cancelRemoval() }
-            Button("Remove", role: .destructive) { Task { await model.confirmRemoval() } }
-        } message: { Text(FoodLogText.removeAlertMessage) }
+            Button("Remove", role: .destructive) { Task { await model.confirmRemoval(entry) } }
+        } message: { _ in Text(FoodLogText.removeAlertMessage) }
         .alert("Entry unchanged", isPresented: Binding(get: { model.changeAlert != nil }, set: { if !$0 { model.changeAlert = nil } })) {
             Button("OK") { model.changeAlert = nil }
         } message: { Text(model.changeAlert.map(FoodLogText.changeAlert) ?? "") }
@@ -148,7 +151,8 @@ struct FoodLogView: View {
 
     private var addFoodSection: some View {
         Section {
-            NavigationLink(value: AppRoute.addFood) {
+            // A Button, not a NavigationLink: inside a Form a link ignores the button style.
+            Button { navigation.append(.addFood) } label: {
                 Label("Add food", systemImage: "plus").font(.headline)
                     .frame(maxWidth: .infinity, minHeight: 50)
             }
