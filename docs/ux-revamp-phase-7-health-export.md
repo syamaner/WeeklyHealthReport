@@ -1,6 +1,6 @@
 # UX revamp phase 7: Health summary and simplified Export (architecture gate)
 
-Status: **gate passed with changes, 11 October 2026; changes folded in below.** Issue #200 (carries #146's acceptance); spec [ux-revamp-v1.md](ux-revamp-v1.md); wireframes `docs/designs/ux-revamp-v1/Health.dc.html` and `Export.dc.html`.
+Status: **gate passed with changes, 11 October 2026; changes folded in below. Implemented 12 October 2026 (see "Implementation notes").** Issue #200 (carries #146's acceptance); spec [ux-revamp-v1.md](ux-revamp-v1.md); wireframes `docs/designs/ux-revamp-v1/Health.dc.html` and `Export.dc.html`.
 
 Presentation only. No contract, schema, HealthKit query, aggregation, egress, Drive transport or Daily JSON byte change. The three day rules stay distinct: the Health report uses completed days; the Daily JSON export keeps its selected-day rule (today up to the frozen refresh cutoff, or one of the previous seven local days) under [daily-export-contract.md](daily-export-contract.md); Home's today-so-far projection (#199) is untouched. Refresh, review and export stay manual.
 
@@ -66,14 +66,24 @@ Views depend on `Presentation` (`ReportDocument`, `HealthSummaryTiles`, `DailyEx
 
 Line 36 ("one main screen", "Copy Report" becomes Copy all and the current shell); the Full Page paragraph (always expanded, tiles excluded); validation step 14 (Copy all).
 
-## Open questions
+## Open questions (answered: the recommended answers were taken)
 
-1. Ship 28 days and Custom now? No; file a follow-up with a semantics and README amendment and amend #200's scope.
-2. Accept Full Page always expanded? Yes; #200's acceptance requires it.
-3. Tiles in Copy all? No; plain text stays as the expanded document.
-4. Nutrition source picker location? Export, shown only when the state's actions include it.
-5. Per-day "Last export of this day"? Defer; it is an additional identity read in the controller.
-6. Keep Refresh and Cancel beside Export? Yes, secondary, with today's enablement.
+1. Ship 28 days and Custom now? No; file a follow-up with a semantics and README amendment and amend #200's scope. **Taken.**
+2. Accept Full Page always expanded? Yes; #200's acceptance requires it. **Taken.**
+3. Tiles in Copy all? No; plain text stays as the expanded document. **Taken.**
+4. Nutrition source picker location? Export, shown only when the state's actions include it. **Taken.**
+5. Per-day "Last export of this day"? Defer; it is an additional identity read in the controller. **Taken.**
+6. Keep Refresh and Cancel beside Export? Yes, secondary, with today's enablement. **Taken.**
+
+## Implementation notes
+
+- **Remote trashed or missing file.** These two export failures used to be rethrown before `applyExportOutcome`. They now pass through `applyExportOutcome(.failure(...))`, which rethrows the same error, so the status, presentation state and replacement candidate are unchanged and the failure is still recorded in `lastExportOutcome`. `lastExportOutcome` is still set nowhere else.
+- **Clearing on preparation.** `prepareForPresentation()` clears the outcome whenever it is not refused as busy, including when the build has no OAuth configuration.
+- **Phase precedence.** `preparing`, then `attempting`, then a failed outcome (`attemptedNotVerified`), then `notSetUp` or `needsAttention` from the setup summary, then a verified or cancelled outcome, then `prepared`. A later problem is therefore never hidden behind an earlier verified export, and `verified` still survives `preview == nil`. `needsNutritionSource` reads as needs attention, because the source is chosen on Export.
+- **Settings folder actions.** "Choose existing folder" appears once the session has validated an account in this run (the screen never restores it by itself); "Create new export folder" appears only when the state's actions include it, as before. "Recover existing canonical JSON" stays on Export beside the action buttons, with its previous enablement.
+- **Export screen.** The "Included" list replaces "Prepared daily snapshot" and the notes section; the completed-day window rows are no longer shown on screen (the exact file still contains them). The fixed line reads "Food-log entries are not exported yet."
+- **App boundary check.** `Tools/check-app-boundaries.sh`, run in CI beside the FoodLedgerKit boundary step.
+- **README.** Besides the three listed passages, the export workflow and privacy paragraphs were updated for the renamed **Export** action and Drive setup in Settings. The README screenshot of the old export screen is unchanged and needs a fresh synthetic capture.
 
 ## Tests
 
