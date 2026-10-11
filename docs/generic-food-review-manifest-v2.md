@@ -109,19 +109,21 @@ A new public builder `FoodConfirmationService.relogInput(_ saved: StoredFoodConf
 
 ## 7. Contract tests (written first)
 
-1. **v1 fixture:** literal manifest bytes captured from a real build, with a fractional-millisecond `reviewedAt`. Decode as V1, rehash to the stored hash; save, reopen and retry-recover on memory and GRDB stores with unchanged scope. Re-encoding byte for byte is asserted as a test-only property.
-2. **v2 golden fixture:** literal bytes with a `[market: United Kingdom]` query; the same round trip; key names and order pinned.
-3. **Cross-version rejection:** a v2 payload carrying `acknowledgement`; mismatched `version` versus `captureMethodVersion` or `schemaVersion`; a v1 record relabelled v2; an admission-v4 or other unknown triple.
-4. **Strict v2 decoding:** extra key, missing key, unknown `action`, `presentation` or `choicePolicy`, empty `selectionChoice`, at the top level and in `review` and `gate`.
-5. **Gate at preparation:** `none`, `clarify`, a rejected ID, a non-preferred eligible alternative, ranking unavailable, no selection, a query basis conflict and a stale query each refuse `prepare(review:proposal:scope:)`; only the current suggested eligible candidate prepares.
-6. **Recorded gate at save and reopen:** `rankingAvailable` false, `selectionChoice` not the candidate, `none` or `clarify`, and `representativeSourceOnly` with exact scope are each rejected (`invalidReviewedSource` at save, `integrityFailure` at reopen), with the digest valid.
-7. **Retained reviewed-source contracts run against v2:** altered bytes, numbers, unknowns, identity, references, times or basis fail at save, reopen and recovery; exact products stay blocked despite review; corrections cannot change nutrients or denominator; source serving is not weight; schema change cannot promote exact to estimate. `testEveryReviewAcknowledgementIsRequired` stays for v1 with a v2 counterpart (action required).
-8. **Presentation identifier:** an unknown `presentation` is rejected; `FoodWebLookupReviewContent` golden outputs for a complete panel, a partial panel and a source serving; admission does not call the projection.
-9. **v5 composition:** a representative v2 save writes the generic-estimate assertion and reports an estimate; an exact v2 save is blocked by `sourceIdentityMissing` until a correction, then writes `food_confirmation_v5` with no extra assertion.
-10. **Re-log builder:** re-logging a corrected exact web product raises `sourceIdentityMissing` again with no carried decisions; quantity prefill is value and unit only; a tampered manifest refuses the builder.
-11. **Re-log evidence:** on memory and GRDB stores, for v1 and v2 sources, a re-log saves, writes no new evidence or release rows, and `minimumContractVersion` stays 4 for a v1 source.
-12. **Admission and storage:** `minimumContractVersion` is 5 with v2 evidence and 4 otherwise; contract-4 import rejects a contract-5 archive; schema-4 opener throws `unknownSchema(5)`; the migration rewrites no row bytes; Daily JSON rejects food contracts 4 and 5.
-13. **Egress:** preparing, saving and re-logging issue no network request (fake transports record zero calls).
+The architecture gate's list, adjusted only for the recorded choices (V1 stays lenient, so no "v1 with extra keys" case; presentation is a known-identifier check).
+
+1. **Literal v1 bytes from a real build** (fractional-millisecond `reviewedAt`): decode as V1, rehash to the stored hash, then save, reopen and retry-recover on memory and GRDB stores with scope unchanged; re-encoding is checked against the stored bytes as a test-only property.
+2. **Golden v2 bytes:** key names and order pinned; the query includes the `[market: United Kingdom]` suffix; the whole `gate` block (`choicePolicy`, `rankingAvailable`, `selectionChoice`, `representativeSourceOnly`) and the `review` block are present.
+3. **Cross-version rejection:** mismatched `version`, `captureMethodVersion` or `schemaVersion`; an unknown `pipelineVersion` triple; the admission-v4 triple; a v1 record relabelled v2; a v2 payload carrying `acknowledgement`.
+4. **Strict v2 decoding:** an unknown key, a missing `review` or `gate`, an unknown `action`, `presentation` or `choicePolicy`, and an empty `selectionChoice` are each rejected.
+5. **Gate at preparation and from the record:** through `prepare(review:proposal:scope:)`, and at save and reopen from the recorded gate: `none`, `clarify`, a rejected ID, a non-preferred eligible alternative, ranking unavailable, no selection, a query basis conflict, a stale query, and representative-only with exact scope. One tampered-gate v2 record with a valid digest fails as `invalidReviewedSource` at save and `integrityFailure` at reopen.
+6. **Existing suite on both versions:** every existing `ReviewedFoodProposalConfirmationTests` case runs against v1 and v2 manifests, plus a v2 test that the action is required.
+7. **v5 composition:** a representative v2 save writes the generic-estimate assertion and reports an estimate; an exact v2 save is blocked by `sourceIdentityMissing` until corrected, then writes `food_confirmation_v5` with no extra assertion.
+8. **Admission:** `minimumContractVersion` is 5 with v2 evidence and 4 otherwise; a contract-4 build rejects a contract-5 archive; a schema-4 opener throws `unknownSchema(5)`; the migration rewrites no rows; Daily JSON rejects food contracts 4 and 5.
+9. **Re-log evidence:** re-logging reuses v1 and v2 manifest evidence on memory and GRDB stores without duplicate evidence or release rows; the contract version stays 4 for a v1 source.
+10. **Re-log builder:** no corrected identity or edible quantity is carried (a corrected exact web product raises `sourceIdentityMissing` again with no carried decisions); only value and unit are prefilled; a tap never saves; an unrestorable manifest is omitted from recent foods.
+11. **Recent projection:** removed, superseded and removed-then-restored entries; de-duplication by source release and record; `occurredAt` order and window across the `Europe/London` DST changes (29 March, 25 October 2026) and midnight; the limit; estimate status kept.
+12. **Energy for the amount:** g against per 100 g only and mL against per 100 mL only; oz, count, named serving and unknown energy are basis-only; mL against per 100 g is basis-only; rounding pinned.
+13. **Egress:** fake transports record zero calls during prepare, save, re-log, restoring a route and editing the search field.
 
 ## 8. Owner decisions (recommended, awaiting approval)
 
