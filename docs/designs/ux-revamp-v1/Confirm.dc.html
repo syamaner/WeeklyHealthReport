@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Confirm food</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#007aff}a:hover{color:#0062cc}
+.s{width:390px;height:1000px;box-sizing:border-box;background:#f2f2f7;color:#000;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-size:17px;line-height:22px;letter-spacing:-0.41px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.nb{min-height:44px;padding:8px 8px 0 4px;display:flex;align-items:center;justify-content:space-between}
+.back{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 8px;text-decoration:none}
+.sh{font-size:13px;line-height:18px;color:#6b6b70;text-transform:uppercase;letter-spacing:.06em;padding:0 20px 7px 36px;margin-top:22px}
+.g{background:#fff;border-radius:10px;margin:0 20px;overflow:hidden}
+.r{min-height:44px;box-sizing:border-box;padding:11px 16px;display:flex;align-items:center;gap:12px;color:#000;text-decoration:none}
+.r:hover{color:#000}
+.r+.r{border-top:.5px solid rgba(60,60,67,.29)}
+.v{color:#6b6b70;margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;line-height:18px;color:#6b6b70}
+.ft{font-size:13px;line-height:18px;color:#6b6b70;padding:8px 36px 0}
+.chev{color:#c7c7cc;flex:none}
+.sc{overflow-y:auto;flex:1;padding-bottom:20px}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;background:#e3e3e8;border-radius:9px;padding:2px}
+.sb{min-height:36px;border:0;border-radius:7px;background:transparent;font:inherit;font-size:15px;color:#000;cursor:pointer}
+.sbOn{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:600}
+.amt{width:110px;font:inherit;font-size:28px;line-height:34px;font-weight:600;border:0;border-bottom:1px solid #c6c6c8;padding:2px 0;font-variant-numeric:tabular-nums;outline:none;background:transparent}
+.need{background:#fff4e5;border-radius:10px;margin:16px 20px 0;padding:12px 16px}
+.bar{padding:12px 20px 30px;background:rgba(249,249,249,.94);border-top:.5px solid rgba(60,60,67,.29)}
+.btn{display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:12px;background:#007aff;color:#fff;font-weight:600;text-decoration:none}
+.btn:hover{color:#fff;background:#0062cc}
+.btnOff{display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:12px;background:#007aff;color:#fff;font-weight:600;opacity:.3}
+.tb{background:none;border:0;color:#007aff;font:inherit;min-height:44px;padding:0 8px;cursor:pointer}
+</style>
+</helmet>
+<div class="s">
+  <div class="nb">
+    <a class="back" href="SearchResults.dc.html">Cancel</a>
+    <span style="font-weight:600">Confirm food</span>
+    <span style="width:64px"></span>
+  </div>
+  <div class="sc">
+    <div class="g" style="margin-top:8px">
+      <div style="padding:14px 16px">
+        <div style="font-size:20px;line-height:25px;font-weight:600">Chicken breast, grilled, meat only</div>
+        <div class="sub" style="margin-top:2px">UK reference food · cooked</div>
+      </div>
+      <a class="r" href="SearchResults.dc.html" style="border-top:.5px solid rgba(60,60,67,.29)"><span style="color:#007aff">Choose a different match</span></a>
+    </div>
+
+    <sc-if value="{{blocked}}" hint-placeholder-val="{{true}}">
+      <div class="need" role="group" aria-labelledby="skinq">
+        <div id="skinq" style="font-weight:600">Was the skin eaten?</div>
+        <div class="sub" style="color:#5c3c00;margin:2px 0 10px">This match is skinless. Choose what you ate before logging.</div>
+        <div class="seg">
+          <button type="button" class="sb" onClick="{{pickNo}}">No skin</button>
+          <button type="button" class="sb" onClick="{{pickYes}}">With skin</button>
+          <button type="button" class="sb" onClick="{{pickUnsure}}">Not sure</button>
+        </div>
+      </div>
+    </sc-if>
+
+    <div class="sh">Amount eaten</div>
+    <div class="g">
+      <div style="padding:12px 16px;display:flex;align-items:flex-end;gap:12px">
+        <label for="amt" style="position:absolute;left:-9999px">Amount eaten</label>
+        <input id="amt" class="amt" value="150" inputmode="decimal">
+        <div class="seg" style="flex:1;grid-template-columns:repeat(2,minmax(0,1fr))">
+          <button type="button" class="sb sbOn">g</button>
+          <button type="button" class="sb">portion</button>
+        </div>
+      </div>
+      <div class="r"><span>Weighed on a plate</span><span class="v">Off</span>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+      <div class="r"><span>When</span><span class="v">Today, 12:40</span>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+    <div class="ft">Filled in from your search: 150 g. Weigh food as eaten, without bone or skin you left.</div>
+
+    <div class="sh">Nutrition for 150 g</div>
+    <div class="g">
+      <div class="r"><span>Energy</span><span class="v" style="color:#000;font-weight:600">248 kcal</span></div>
+      <div class="r"><span>Protein</span><span class="v">46.5 g</span></div>
+      <div class="r"><span>Carbohydrates</span><span class="v">0 g</span></div>
+      <div class="r"><span>Fat</span><span class="v">5.4 g</span></div>
+      <details style="border-top:.5px solid rgba(60,60,67,.29)">
+        <summary style="min-height:44px;padding:11px 16px;box-sizing:border-box;cursor:pointer;color:#007aff">More nutrients</summary>
+        <div class="r"><span>Fibre</span><span class="v">0 g</span></div>
+        <div class="r"><span>Salt</span><span class="v">0.2 g</span></div>
+        <div class="r"><span>Vitamin D</span><span class="v">Unknown</span></div>
+      </details>
+    </div>
+
+    <div class="sh">Source</div>
+    <div class="g">
+      <details>
+        <summary style="min-height:44px;padding:11px 16px;box-sizing:border-box;cursor:pointer;display:flex;gap:12px"><span>UK CoFID reference</span><span class="v">Details</span></summary>
+        <div class="sub" style="padding:0 16px 12px">Record: chicken, breast, grilled without skin, meat only. Values per 100 g. Release and record identifiers are kept with the entry and shown in Developer tools.</div>
+      </details>
+      <div class="r" style="border-top:.5px solid rgba(60,60,67,.29)"><span>Save as favourite</span>
+        <span style="margin-left:auto;width:51px;height:31px;border-radius:999px;background:#e3e3e8;position:relative" aria-hidden="true"><span style="position:absolute;left:2px;top:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)"></span></span></div>
+    </div>
+    <div class="ft">Need to correct the food itself? Choose a different match, or edit details from the entry after logging.</div>
+  </div>
+  <div class="bar">
+    <sc-if value="{{blocked}}" hint-placeholder-val="{{true}}">
+      <div class="btnOff" aria-disabled="true">Log food</div>
+      <div class="sub" style="text-align:center;margin-top:6px">Answer the skin question to log.</div>
+    </sc-if>
+    <sc-if value="{{ready}}" hint-placeholder-val="{{false}}">
+      <a class="btn" href="FoodLog.dc.html">Log 248 kcal</a>
+      <div class="sub" style="text-align:center;margin-top:6px">{{readyNote}} <button type="button" class="tb" style="font-size:13px;min-height:24px" onClick="{{reset}}">Change</button></div>
+    </sc-if>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1000}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { skin: null }; }
+  renderVals() {
+    const skin = this.state.skin;
+    const notes = { no: 'No skin, matches the source.', yes: 'With skin: logged as a closer estimate.', unsure: 'Skin not known: logged as an estimate.' };
+    return {
+      blocked: skin === null,
+      ready: skin !== null,
+      readyNote: skin ? notes[skin] : '',
+      pickNo: () => this.setState({ skin: 'no' }),
+      pickYes: () => this.setState({ skin: 'yes' }),
+      pickUnsure: () => this.setState({ skin: 'unsure' }),
+      reset: () => this.setState({ skin: null })
+    };
+  }
+}
+</script>
+</body>
+</html>

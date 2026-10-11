@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Quick add water</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#007aff}a:hover{color:#0062cc}
+.s{width:390px;height:844px;box-sizing:border-box;background:#8e8e93;color:#000;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-size:17px;line-height:22px;letter-spacing:-0.41px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;position:relative}
+.behind{position:absolute;inset:0;background:#f2f2f7;opacity:.55;padding:60px 20px;box-sizing:border-box}
+.sheet{position:relative;background:#f2f2f7;border-radius:10px 10px 0 0;box-shadow:0 -2px 24px rgba(0,0,0,.16);padding:8px 0 34px}
+.grab{width:36px;height:5px;border-radius:3px;background:#c7c7cc;margin:0 auto 8px}
+.nb{display:flex;align-items:center;justify-content:space-between;padding:0 8px;min-height:44px}
+.lk{display:inline-flex;align-items:center;min-height:44px;padding:0 8px;text-decoration:none}
+.sh{font-size:13px;line-height:18px;color:#6b6b70;text-transform:uppercase;letter-spacing:.06em;padding:0 20px 7px 36px;margin-top:18px}
+.g{background:#fff;border-radius:10px;margin:0 20px;overflow:hidden}
+.r{min-height:44px;box-sizing:border-box;padding:11px 16px;display:flex;align-items:center;gap:12px}
+.r+.r{border-top:.5px solid rgba(60,60,67,.29)}
+.v{color:#6b6b70;margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;line-height:18px;color:#6b6b70}
+.ft{font-size:13px;line-height:18px;color:#6b6b70;padding:8px 36px 0}
+.amts{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;padding:0 20px}
+.a{min-height:56px;border-radius:10px;border:0;background:#fff;font:inherit;font-weight:600;font-variant-numeric:tabular-nums;cursor:pointer;color:#000}
+.aOn{background:#007aff;color:#fff}
+.btn{display:flex;align-items:center;justify-content:center;min-height:50px;border-radius:12px;background:#007aff;color:#fff;font-weight:600;text-decoration:none;margin:18px 20px 0}
+.btn:hover{color:#fff;background:#0062cc}
+</style>
+</helmet>
+<div class="s">
+  <div class="behind" aria-hidden="true">
+    <div style="font-size:34px;font-weight:700">Today</div>
+  </div>
+  <div class="sheet" role="dialog" aria-labelledby="qt">
+    <div class="grab" aria-hidden="true"></div>
+    <div class="nb">
+      <a class="lk" href="Main.dc.html">Cancel</a>
+      <span id="qt" style="font-weight:600">Water</span>
+      <a class="lk" href="Favourites.dc.html" style="font-size:15px">Edit</a>
+    </div>
+    <div class="sh">Amount</div>
+    <div class="amts">
+      <sc-for list="{{amounts}}" as="item" hint-placeholder-count="4">
+        <button type="button" class="{{item.cls}}" aria-pressed="{{item.pressed}}" onClick="{{item.pick}}">{{item.label}}</button>
+      </sc-for>
+    </div>
+    <div class="g" style="margin-top:10px">
+      <div class="r"><label for="custom">Other amount</label>
+        <input id="custom" placeholder="mL" inputmode="decimal" style="margin-left:auto;width:90px;text-align:right;border:0;font:inherit;outline:none;background:transparent"></div>
+      <div class="r"><span>When</span><span class="v">Now, 12:52</span></div>
+    </div>
+    <div class="ft">Plain water. Counts towards water intake and adds no energy.</div>
+    <a class="btn" href="Main.dc.html">Log {{chosen}} water</a>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { ml: 250 }; }
+  renderVals() {
+    const values = [150, 250, 330, 500];
+    return {
+      chosen: this.state.ml + ' mL',
+      amounts: values.map((ml) => ({
+        label: ml + ' mL',
+        cls: ml === this.state.ml ? 'a aOn' : 'a',
+        pressed: ml === this.state.ml ? 'true' : 'false',
+        pick: () => this.setState({ ml })
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

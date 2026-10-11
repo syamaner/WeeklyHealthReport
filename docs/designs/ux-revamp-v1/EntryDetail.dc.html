@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Saved entry</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#007aff}a:hover{color:#0062cc}
+.s{width:390px;height:844px;box-sizing:border-box;background:#f2f2f7;color:#000;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-size:17px;line-height:22px;letter-spacing:-0.41px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.nb{min-height:44px;padding:8px 8px 0 4px;display:flex;align-items:center;justify-content:space-between}
+.back{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 8px;text-decoration:none}
+.sh{font-size:13px;line-height:18px;color:#6b6b70;text-transform:uppercase;letter-spacing:.06em;padding:0 20px 7px 36px;margin-top:22px}
+.g{background:#fff;border-radius:10px;margin:0 20px;overflow:hidden}
+.r{min-height:44px;box-sizing:border-box;padding:11px 16px;display:flex;align-items:center;gap:12px;color:#000;text-decoration:none}
+.r+.r{border-top:.5px solid rgba(60,60,67,.29)}
+.v{color:#6b6b70;margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;line-height:18px;color:#6b6b70}
+.ft{font-size:13px;line-height:18px;color:#6b6b70;padding:8px 36px 0}
+.sc{overflow-y:auto;flex:1;padding-bottom:34px}
+.rb{width:100%;min-height:44px;border:0;background:#fff;border-radius:10px;font:inherit;color:#d70015;cursor:pointer}
+.scrim{position:absolute;inset:0;background:rgba(0,0,0,.2);display:flex;align-items:center;justify-content:center}
+.alert{width:270px;background:rgba(242,242,247,.96);border-radius:14px;box-shadow:0 20px 60px rgba(0,0,0,.22);text-align:center;overflow:hidden}
+.ab{width:100%;min-height:44px;border:0;border-top:.5px solid rgba(60,60,67,.29);background:transparent;font:inherit;cursor:pointer}
+</style>
+</helmet>
+<div class="s">
+  <div class="nb">
+    <a class="back" href="FoodLog.dc.html">
+      <svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2L2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>Food Log</a>
+    <a class="back" href="Confirm.dc.html">Edit</a>
+  </div>
+  <div class="sc">
+    <div style="padding:4px 20px 0">
+      <div style="font-size:28px;line-height:34px;font-weight:700">Chicken breast, grilled</div>
+      <div class="sub" style="font-size:15px;margin-top:4px">150 g · today, 12:40</div>
+    </div>
+
+    <div class="sh">Nutrition</div>
+    <div class="g">
+      <div class="r"><span>Energy</span><span class="v" style="color:#000;font-weight:600">248 kcal</span></div>
+      <div class="r"><span>Protein</span><span class="v">46.5 g</span></div>
+      <div class="r"><span>Carbohydrates</span><span class="v">0 g</span></div>
+      <div class="r"><span>Fat</span><span class="v">5.4 g</span></div>
+      <details style="border-top:.5px solid rgba(60,60,67,.29)">
+        <summary style="min-height:44px;padding:11px 16px;box-sizing:border-box;cursor:pointer;color:#007aff">All nutrients</summary>
+        <div class="r"><span>Salt</span><span class="v">0.2 g</span></div>
+        <div class="r"><span>Vitamin D</span><span class="v">Unknown</span></div>
+      </details>
+    </div>
+
+    <div class="sh">Source</div>
+    <div class="g">
+      <div class="r"><div><div>UK CoFID reference</div><div class="sub">Chicken, breast, grilled without skin, meat only · per 100 g</div></div></div>
+      <div class="r"><span>Skin</span><span class="v">None eaten</span></div>
+    </div>
+
+    <div class="sh">History</div>
+    <div class="g">
+      <div class="r"><div><div>Amount changed 120 g to 150 g</div><div class="sub">Today, 13:02</div></div></div>
+      <div class="r"><div><div>Logged</div><div class="sub">Today, 12:41</div></div></div>
+    </div>
+
+    <div style="margin:28px 20px 0">
+      <button type="button" class="rb" onClick="{{ask}}">Remove from log</button>
+    </div>
+    <div class="ft">Edit keeps the original as history. Exports already sent are not changed.</div>
+  </div>
+  <sc-if value="{{asking}}" hint-placeholder-val="{{false}}">
+    <div class="scrim">
+      <div class="alert" role="alertdialog" aria-labelledby="at">
+        <div style="padding:18px 16px 14px">
+          <div id="at" style="font-weight:600">Remove this entry?</div>
+          <div style="font-size:13px;line-height:18px;margin-top:4px">It leaves today's totals. You can restore it from Removed in the Food Log.</div>
+        </div>
+        <button type="button" class="ab" style="color:#007aff" onClick="{{cancel}}">Cancel</button>
+        <a href="FoodLog.dc.html" class="ab" style="display:flex;align-items:center;justify-content:center;color:#d70015;text-decoration:none;font-weight:600;box-sizing:border-box">Remove</a>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { asking: false }; }
+  renderVals() {
+    return {
+      asking: this.state.asking,
+      ask: () => this.setState({ asking: true }),
+      cancel: () => this.setState({ asking: false })
+    };
+  }
+}
+</script>
+</body>
+</html>
