@@ -1442,3 +1442,17 @@ Pricing as in the previous section (checked 11 October 2026): USD 4/M base input
 Boundary: `2026-10-11T12:16:08.483Z` → `2026-10-11T15:29:00Z`. Phase 3: 492 requests (139 main session, 353 subagents); maximum input 964,357; cache writes 1,765,772 5-minute, 390,003 1-hour; exact USD 53.9251246. Drafting: 162 requests; maximum input 164,120; cache writes 678,611 5-minute, 0 1-hour; exact USD 6.8941184. The main session's high maximum input reflects a long-running orchestration context before compaction.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-197-2026-10-11: Claude Code phase 4 Food Log and saved entry
+
+Same `claude-opus-5-5` session, continuing from the phase 3 endpoint. The row covers the main session (orchestration of phases 4 and 7, the phase 3 delivery after its ledger edit, handovers and the phase 7 plan PR) plus four phase 4 subagents (plan, implementation and fix agent; architecture gate; invariant review; journey QA with two retests). The main session is attributed here rather than split, because its turns interleave both phases; phase 7's own subagents are recorded with that phase. This ledger edit, PR delivery and merge are outside the row.
+
+Pricing as in the previous section (checked 11 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output; standard speed, global inference, no paid server tools. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 4 Food Log and saved entry (#197), with subagents and shared orchestration | 123,231,570 (120,453,920) | 2,776,522 | 177,264 | 123,408,834 | $41.86 |
+
+Boundary: `2026-10-11T15:29:00Z` → `2026-10-11T17:23:44Z`. 525 requests (75 main session, 450 subagents); maximum input 525,235. Cache writes: 2,664,005 5-minute, 112,517 1-hour. Exact API-equivalent USD 41.860737.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
