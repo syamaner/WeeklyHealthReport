@@ -49,7 +49,7 @@ Shared rules for every coding agent in this repository (Codex reads this file di
 
 ## Delivery
 
-- One branch per issue (`feat/<issue>-<slug>`, `fix/…`, `docs/…`, `chore/…`), one PR per phase, `Closes #<issue>` in the body. Stage only files in scope.
+- One branch per issue (`feat/<issue>-<slug>`, `fix/…`, `docs/…`, `chore/…`), one PR per phase, `Closes #<issue>` in the body. Stage only files in scope. Include the phase's ledger row (see Skills).
 - Commit, push and open PRs only when the user asks for delivery. Never merge, push to `main`, tag, release, upload to TestFlight or change other remote state unless asked; the user owns the merge decision.
 - Before handoff, review `git diff --check`, the final diff and the final `git status`. After pushing, confirm local and remote heads match. Report tests, analysis, device result, commit or PR state and any manual validation still outstanding.
 - For HealthKit changes, document a reproducible Apple Health comparison using Developer tools.
@@ -94,4 +94,4 @@ On pickup, read this file, the issue thread and the PR before acting.
 Canonical skills live in `.agents/skills/` with relative symlinks in `.claude/skills/`; keep `SKILL.md` compatible with both agents and check both paths after changing one.
 
 - `healthkit-metric-delivery`: HealthKit query-to-report changes.
-- `agent-phase-accounting`: token and API-equivalent cost for a phase, only when the user asks or the task already includes it. Record rows in `DEVELOPMENT_NOTES.md` with the rate assumptions documented there; label costs as comparisons, state exclusions, and never present totals as productivity or quality evidence.
+- `agent-phase-accounting`: token and API-equivalent cost, measured from the agent's own transcript. **Every phase PR adds its ledger row** to `DEVELOPMENT_NOTES.md`, whichever agent (Codex or Claude Code) did the work: capture the boundary when the phase starts, use official rates checked on the day, label costs as comparisons, state exclusions, and never present totals as productivity or quality evidence. If a boundary was not captured, record the row as Unmeasured rather than estimating it.

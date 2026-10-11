@@ -1368,3 +1368,29 @@ The final endpoint precedes only numeric insertion, final accounting review and 
 | Issue 190 implementation and synthetic validation | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Not calculated |
 
 An exact bounded usage baseline was not captured for this implementation phase; this row makes no token or cost estimate. The work includes implementation, schema/privacy documentation, regression tests, native synthetic-store validation and source review. No subscription charge or productivity inference is asserted.
+
+## UX-REVAMP-V1-2026-10-11: Claude Code planning and rules
+
+First Claude Code rows in this ledger. One top-level `claude-opus-5-5` session (session `7521cbba-58e0-451b-ad06-633ab6b5a737`) covers four contiguous phases bounded by the user's own messages: orientation and the UX revamp wireframes; GitHub issue restructuring (#193 to #200, six superseded issues closed) and the wireframe-source PR; the UX revamp spec plus the agent-rules, named-agent and docs-index revamp (#201, #202); and the Codex review responses, branch update and merges. No subagents ran in these phases. Codex's independent reviews of #201 and #202 ran in Codex and are not included. This accounting, the CI documentation-only gate (#203) and later work start the next phase and are outside these rows.
+
+Measured with `agent-phase-accounting` from the session JSONL: assistant usage is de-duplicated by message ID (streaming writes one record per content block) and windowed by timestamp. Input is total input: uncached plus cache reads plus cache writes; "cached" is cache reads. Every cache write in the session used the 1-hour cache; every request ran at standard speed with global inference, and no paid server tools were called.
+
+Pricing checked 11 October 2026: [official model rates](https://platform.claude.com/docs/en/about-claude/pricing), `claude-opus-5-5` USD 4/M base input, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. The full 1M context is billed at standard rates. The work ran under a Claude subscription; these are API-equivalent comparisons, not charges.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Orientation and UX revamp wireframes | 7,857,459 (7,673,782) | 183,583 | 66,504 | 7,923,963 | $4.33 |
+| Issue restructuring and wireframe-source PR | 4,040,509 (4,013,022) | 27,455 | 16,619 | 4,057,128 | $1.35 |
+| UX revamp spec and agent-rules revamp (#201, #202) | 10,732,286 (10,652,512) | 79,704 | 46,558 | 10,778,844 | $3.70 |
+| Codex review fixes, branch update and merges | 15,637,764 (15,589,835) | 47,845 | 29,033 | 15,666,797 | $4.08 |
+| **Session subtotal** | **38,268,018 (37,929,151)** | **338,587** | **158,714** | **38,426,732** | **$13.47** |
+
+Orientation and wireframes: `2026-10-11T07:19:03.979Z` → `2026-10-11T07:40:00.669Z`. 47 requests; maximum input 232,422. Exact API-equivalent USD 4.3338764.
+
+Issue restructuring and wireframe-source PR: `2026-10-11T07:40:00.669Z` → `2026-10-11T07:45:54.360Z`. 16 requests; maximum input 261,084. Exact API-equivalent USD 1.3547524.
+
+Spec and agent-rules revamp: `2026-10-11T07:45:54.360Z` → `2026-10-11T08:00:24.611Z`. 35 requests; maximum input 341,832. Exact API-equivalent USD 3.6995744.
+
+Review fixes and merges: `2026-10-11T08:00:24.611Z` → `2026-10-11T08:55:01.358Z`. 42 requests; maximum input 394,126. Exact API-equivalent USD 4.081723.
+
+The four rows sum exactly to a single whole-window measurement over `2026-10-11T07:19:03.979Z` → `2026-10-11T08:55:01.358Z` (38,426,732 tokens, USD 13.4699262). Token totals are not evidence of productivity, quality or provider efficiency, and these rows are not comparable to the Codex rows above without accounting for the different scope and rates.
