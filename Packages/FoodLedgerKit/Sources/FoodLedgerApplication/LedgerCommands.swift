@@ -150,6 +150,8 @@ public struct LedgerOperationType: RawRepresentable, Codable, Hashable, Sendable
     public static let installSourceRelease = Self(rawValue: "install_source_release_v1")!
     public static let confirmFood = Self(rawValue: "confirm_food_v1")!
     public static let confirmFoodV2 = Self(rawValue: "confirm_food_v2")!
+    /// Confirmation carrying typed inline decisions (food_confirmation_v5).
+    public static let confirmFoodV3 = Self(rawValue: "confirm_food_v3")!
     public static let recordLogItemV2 = Self(rawValue: "record_log_item_v2")!
     public static let correctLogItemV2 = Self(rawValue: "correct_log_item_v2")!
     public static let correctResolutionV2 = Self(rawValue: "correct_resolution_v2")!
@@ -157,7 +159,7 @@ public struct LedgerOperationType: RawRepresentable, Codable, Hashable, Sendable
     public static let restoreLogItemV2 = Self(rawValue: "restore_log_item_v2")!
     public static let compositeV2 = Self(rawValue: "composite_v2")!
     public static let declaredQuantityTypes: Set<Self> = [
-        .confirmFoodV2, .recordLogItemV2, .correctLogItemV2, .correctResolutionV2,
+        .confirmFoodV2, .confirmFoodV3, .recordLogItemV2, .correctLogItemV2, .correctResolutionV2,
         .removeLogItemV2, .restoreLogItemV2, .compositeV2
     ]
 
@@ -188,11 +190,19 @@ public struct LedgerOperationRegistry: Sendable {
            !LedgerOperationType.declaredQuantityTypes.contains(type) {
             throw FoodLedgerStoreError.unsupportedOperation
         }
+        if mutation.assertions.contains(where: { $0.confirmation != nil }), type != .confirmFoodV3 {
+            throw FoodLedgerStoreError.unsupportedOperation
+        }
     }
+
+    /// Adds `confirm_food_v3` (typed inline decisions, food contract 4, schema food-ledger-v4).
+    public static let builtInV4 = LedgerOperationRegistry(supported:
+        LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem])
+            .union(LedgerOperationType.declaredQuantityTypes))
 
     public static let builtInV3 = LedgerOperationRegistry(supported:
         LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem])
-            .union(LedgerOperationType.declaredQuantityTypes))
+            .union(LedgerOperationType.declaredQuantityTypes.subtracting([.confirmFoodV3])))
 
     public static let builtInV1 = LedgerOperationRegistry(supported: LedgerOperationType.builtInV1)
     public static let builtInV2 = LedgerOperationRegistry(supported: LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem]))
@@ -414,7 +424,7 @@ public struct OperationVerifier: Sendable {
     public init(
         encoder: any CanonicalEncoding,
         digester: any Digesting,
-        operationRegistry: LedgerOperationRegistry = .builtInV3
+        operationRegistry: LedgerOperationRegistry = .builtInV4
     ) {
         self.encoder = encoder
         self.digester = digester

@@ -106,7 +106,7 @@ final class GRDBFailureTests: XCTestCase {
     }
 
     func testHistoricalMigrationsPreserveEveryCanonicalRecordAndOperationHash() throws {
-        for oldVersion in [1, 2] {
+        for oldVersion in [1, 2, 3] {
             let directory = try temporaryDirectory()
             defer { try? FileManager.default.removeItem(at: directory) }
             let database = directory.appendingPathComponent("food-ledger-v1.sqlite")
@@ -117,13 +117,15 @@ final class GRDBFailureTests: XCTestCase {
                     type: .createProduct, operationID: LedgerFixtures.operationID(880))
                 before = try store.archiveState()
             }
+            let rowsBefore = try Self.payloadRows(database)
             // Historical upgrades only added identity markers; reconstruct each old
             // schema with its unchanged payloads, triggers and migration records.
             do {
                 let queue = try DatabaseQueue(path: database.path)
                 try queue.write { db in
                     if oldVersion == 1 { try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v2_log_removal'") }
-                    try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v3_weight_declaration'")
+                    if oldVersion <= 2 { try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v3_weight_declaration'") }
+                    try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v4_confirmation_decisions'")
                     try db.execute(sql: "UPDATE ledger_metadata SET value = ? WHERE key = 'schema_identity'", arguments: ["food-ledger-v\(oldVersion)"])
                     try db.execute(sql: "PRAGMA user_version = \(oldVersion)")
                 }
@@ -133,11 +135,46 @@ final class GRDBFailureTests: XCTestCase {
             XCTAssertEqual(try LedgerFixtures.encoder.encode(before.records), try LedgerFixtures.encoder.encode(after.records))
             XCTAssertEqual(before.operations, after.operations)
             try migrated.verifyIntegrity()
+            XCTAssertEqual(try Self.payloadRows(database), rowsBefore, "Migration must not rewrite any row bytes")
             let queue = try DatabaseQueue(path: database.path)
             try queue.read { db in
                 XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), FoodLedgerGRDBStore.schemaVersion)
-                XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v3")
+                XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v4")
         }
+        }
+    }
+
+    /// Every payload blob and operation row, in a stable order, for byte-for-byte comparison.
+    private static func payloadRows(_ database: URL) throws -> [String: [Data]] {
+        let queue = try DatabaseQueue(path: database.path)
+        return try queue.read { db in
+            let tables = try String.fetchAll(db, sql: "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'grdb_%' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+            var result: [String: [Data]] = [:]
+            for table in tables where table != "ledger_metadata" {
+                let rows = try Row.fetchAll(db, sql: "SELECT * FROM \(table)")
+                result[table] = rows.map { row in
+                    Data(row.columnNames.map { "\($0)=\(row[$0] as DatabaseValue)" }.joined(separator: "|").utf8)
+                }.sorted { $0.lexicographicallyPrecedes($1) }
+            }
+            return result
+        }
+    }
+
+    func testSchemaFourIsDeclinedByAnOlderOpenerAndNewerSchemasAreDeclinedHere() throws {
+        let directory = try temporaryDirectory()
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let database = directory.appendingPathComponent("food-ledger-v1.sqlite")
+        _ = try FoodLedgerGRDBStore.temporary(directory: directory)
+        let queue = try DatabaseQueue(path: database.path)
+        try queue.read { db in
+            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 4)
+            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v4")
+        }
+        // A schema-3 binary applies the same pre-migration rule (user_version > its schemaVersion):
+        // simulate it by presenting this build with the next schema.
+        try queue.write { db in try db.execute(sql: "PRAGMA user_version = 5") }
+        XCTAssertThrowsError(try FoodLedgerGRDBStore.temporary(directory: directory)) {
+            XCTAssertEqual($0 as? FoodLedgerStoreError, .unknownSchema(5))
         }
     }
 

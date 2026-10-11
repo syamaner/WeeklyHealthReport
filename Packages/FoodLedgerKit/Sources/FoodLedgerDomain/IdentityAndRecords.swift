@@ -246,6 +246,9 @@ public struct UserAssertion: Codable, Equatable, Sendable {
     public let createdAt: Date
     public let reason: LedgerText
     public let claim: LedgerText
+    /// Typed inline decisions (food_confirmation_v5). Omitted from the encoding when nil,
+    /// so every earlier assertion re-encodes byte for byte.
+    public let confirmation: FoodLogDecisionRecord?
 
     public init(
         assertionID: AssertionID,
@@ -254,8 +257,10 @@ public struct UserAssertion: Codable, Equatable, Sendable {
         author: AssertionAuthor,
         createdAt: Date,
         reason: LedgerText,
-        claim: LedgerText
+        claim: LedgerText,
+        confirmation: FoodLogDecisionRecord? = nil
     ) {
+        self.confirmation = confirmation
         self.assertionID = assertionID
         self.evidenceID = evidenceID
         self.supersedesAssertionID = supersedesAssertionID

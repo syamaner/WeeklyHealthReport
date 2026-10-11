@@ -18,6 +18,7 @@ public enum FoodLedgerValidationError: Error, Equatable, Sendable {
     case invalidConflict
     case duplicateValue(String)
     case hardIdentityContradiction([IdentityContradiction])
+    case invalidConfirmationDecision
 }
 
 public struct LedgerText: Codable, Hashable, Sendable {
