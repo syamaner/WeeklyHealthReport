@@ -8,6 +8,10 @@ public struct FoodIntakeContribution: Sendable {
     public init(quantity: PositiveQuantity, basis: ResolutionBasis, nutrients: NutrientSet?, quantityIsEstimate: Bool = false) {
         self.quantity = quantity; self.basis = basis; self.nutrients = nutrients; self.quantityIsEstimate = quantityIsEstimate
     }
+
+    /// Whether the quantity can be scaled against the basis: the same predicate the summary
+    /// applies, exposed so callers never keep a second scaling rule.
+    public var isScalable: Bool { FoodIntakeSummary.scale(quantity: quantity, basis: basis) != nil }
 }
 
 public struct FoodIntakeTotal: Equatable, Sendable {
@@ -51,7 +55,7 @@ public struct FoodIntakeSummary: Equatable, Sendable {
         }
     }
 
-    private static func scale(quantity: PositiveQuantity, basis: ResolutionBasis) -> Double? {
+    static func scale(quantity: PositiveQuantity, basis: ResolutionBasis) -> Double? {
         let value: Double, unit: QuantityUnit
         switch basis {
         case .per100Grams: value = 100; unit = .grams

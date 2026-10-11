@@ -131,20 +131,16 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         }
     }
 
-    func testSavedEntrySessionMissingFailureAndRetry() throws {
+    func testSavedEntryModelMissingFailureAndRetry() async throws {
         let id = try NativeQuantityIDs().makeID(LogItemTag.self)
-        var attempts = 0
-        let session = SavedFoodEntrySession(id: id) {
-            attempts += 1
-            if attempts == 1 { throw CocoaError(.fileReadUnknown) }
-            return nil
-        }
-        guard case .loading = session.phase else { return XCTFail("Initial loading state") }
-        session.load()
-        guard case .failed = session.phase else { return XCTFail("Visible failure state") }
-        session.load()
-        guard case .missing = session.phase else { return XCTFail("Missing record is distinct from failure") }
-        XCTAssertEqual(attempts, 2)
+        let store = ScriptedSavedEntryStore(failures: 1)
+        let model = SavedFoodEntryViewModel(logItemID: id, store: store) { nil }
+        XCTAssertEqual(model.phase, .loading, "initial loading state")
+        await model.load()
+        XCTAssertEqual(model.phase, .failed, "visible failure state")
+        await model.load()
+        XCTAssertEqual(model.phase, .missing, "a missing record is distinct from failure")
+        XCTAssertEqual(store.attempts, 2)
     }
 
     func testMissingAndFailedSavedEntriesRenderRecoveryAndDismiss() async throws {
@@ -158,19 +154,14 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         defer { window.isHidden = true; previousKeyWindow?.makeKey() }
         for missing in [true, false] {
             try await waitForHostAppearance(host, window: window, driver: driver)
-            driver.session = SavedFoodEntrySession(id: try NativeQuantityIDs().makeID(LogItemTag.self)) {
-                if missing { return nil }
-                throw CocoaError(.fileReadUnknown)
-            }
+            let store = ScriptedSavedEntryStore(failures: missing ? 0 : 99)
+            driver.session = SavedEntryPresentation(model: SavedFoodEntryViewModel(
+                logItemID: try NativeQuantityIDs().makeID(LogItemTag.self), store: store) { nil })
             let title = missing ? "Saved entry unavailable" : "Could not open saved food"
             try await waitForPresentation(host, title: title, window: window, driver: driver)
             let presented = try XCTUnwrap(host.presentedViewController)
             XCTAssertTrue(nativeText(presented.view).contains(title))
-            if missing {
-                guard case .missing = driver.session?.phase else { return XCTFail("Expected missing state") }
-            } else {
-                guard case .failed = driver.session?.phase else { return XCTFail("Expected failure state") }
-            }
+            XCTAssertEqual(driver.session?.model.phase, missing ? .missing : .failed)
             driver.session = nil
             try await waitForDismissal(host, window: window, driver: driver)
             XCTAssertNil(host.presentedViewController)
@@ -183,6 +174,9 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         try await exerciseStoredSavedEntries(directory: directory)
     }
 
+    /// #165 regression: first presentation and reopen of a gram and a volume entry show the
+    /// read-only saved entry, never a blank screen; the volume entry states that nutrition
+    /// cannot be calculated instead of showing zero.
     private func exerciseStoredSavedEntries(directory: URL) async throws {
         let ids = NativeQuantityIDs()
         let store = try FoodLedgerGRDBStore(databaseURL: directory.appendingPathComponent("ledger.sqlite"),
@@ -191,6 +185,8 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         let ledger = FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store,
                                        clock: clock, encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
         let service = FoodConfirmationService(ledger: ledger, reader: store, clock: clock, ids: ids, digester: SHA256Digester())
+        let foodLog = FoodLogStoreAdapter(service: FoodLogReadingService(ledger: ledger, archive: store, confirmationReader: store,
+            history: ArchiveFoodLogHistoryReader(archive: store), confirmations: service, clock: clock, ids: ids))
         let searcher = try CoFIDGenericFoodSearch(ids: ids)
         for query in ["200g whole milk", "200ml whole milk"] {
             let search = try GenericFoodSearchViewModel(searcher: searcher, locale: LedgerText("en_GB"))
@@ -209,19 +205,24 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             defer { window.isHidden = true; previousKeyWindow?.makeKey() }
             for _ in 0..<2 {
                 try await waitForHostAppearance(host, window: window, driver: driver)
-                driver.session = SavedFoodEntrySession(id: saved.logItem.logItemID) {
+                let model = SavedFoodEntryViewModel(logItemID: saved.logItem.logItemID, store: foodLog) {
                     guard let reopened = try service.reopen(logItemID: saved.logItem.logItemID) else { return nil }
                     XCTAssertEqual(reopened.quantity.value, 200)
                     XCTAssertEqual(reopened.quantity.unit, state.quantity.unit)
                     XCTAssertEqual(reopened.selectedCandidate.candidate.nutrients, state.selectedCandidate.candidate.nutrients)
                     return FoodConfirmationViewModel(state: reopened) { _ in throw CocoaError(.fileWriteUnknown) }
                 }
-                // A saved entry reopens the same Confirm screen, titled for editing (#195).
-                try await waitForPresentation(host, title: "Edit food", window: window, driver: driver)
-                let presented = try XCTUnwrap(host.presentedViewController, query)
-                let labels = nativeText(presented.view)
-                XCTAssertTrue(labels.contains("Edit food"), "Native sheet must contain confirmation: \(labels)")
-                guard case .loaded = driver.session?.phase else { return XCTFail("Saved record did not load") }
+                driver.session = SavedEntryPresentation(model: model)
+                try await waitForPresentation(host, title: "Saved entry", window: window, driver: driver)
+                try await waitForNativeState("Saved entry should load", diagnostics: { "\(model.phase)" }) { model.phase == .loaded }
+                let detail = try XCTUnwrap(model.detail, query)
+                if state.quantity.unit == .millilitres {
+                    guard case .notCalculable = detail.nutrition else { return XCTFail("\(query): volume against per 100 g is not calculable") }
+                } else {
+                    guard case .calculated = detail.nutrition else { return XCTFail("\(query): gram entry is calculated") }
+                }
+                let edit = try XCTUnwrap(model.beginEdit(), "Edit opens Confirm in edit mode")
+                XCTAssertEqual(edit.logButtonTitle, "Save changes")
                 driver.session = nil
                 try await waitForDismissal(host, window: window, driver: driver)
                 XCTAssertNil(host.presentedViewController)
@@ -822,14 +823,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
 
     private func nativeSnapshot(_ host: UIViewController, window: UIWindow,
                                 driver: SavedSheetDriver?) -> String {
-        let phase: String
-        switch driver?.session?.phase {
-        case .none: phase = "no session"
-        case .some(.loading): phase = "loading"
-        case .some(.loaded): phase = "loaded"
-        case .some(.missing): phase = "missing"
-        case .some(.failed): phase = "failed"
-        }
+        let phase = driver?.session.map { "\($0.model.phase)" } ?? "no session"
         let presented = host.presentedViewController
         let hostTitles = host.isViewLoaded ? nativeText(host.view) : []
         let sheetTitles = presented?.isViewLoaded == true ? nativeText(presented!.view) : []
@@ -855,17 +849,40 @@ private final class NativeQuantityIDs:LedgerIDGenerating,@unchecked Sendable {
 }
 
 @MainActor
+private struct SavedEntryPresentation: Identifiable {
+    let id = UUID()
+    let model: SavedFoodEntryViewModel
+}
+
+@MainActor
 private final class SavedSheetDriver: ObservableObject {
-    @Published var session: SavedFoodEntrySession?
+    @Published var session: SavedEntryPresentation?
 }
 private struct SavedSheetHarness: View {
     @ObservedObject var driver: SavedSheetDriver
     var body: some View {
         Text("Synthetic food log")
             .sheet(item: $driver.session) { session in
-                SavedFoodEntrySheet(session: session) { driver.session = nil }
+                NavigationStack {
+                    SavedFoodEntryView(model: session.model, calendar: .current, now: { Date() })
+                }
             }
     }
+}
+
+/// Fails the first `failures` loads, then reports the entry as missing.
+private final class ScriptedSavedEntryStore: FoodLogStore, @unchecked Sendable {
+    private var failures: Int
+    private(set) var attempts = 0
+    init(failures: Int) { self.failures = failures }
+    func day(_ reportingDate: String) async throws -> FoodLogDayContent { throw CocoaError(.fileReadUnknown) }
+    func savedEntry(_ id: LogItemID) async throws -> SavedFoodEntryDetail? {
+        attempts += 1
+        if failures > 0 { failures -= 1; throw CocoaError(.fileReadUnknown) }
+        return nil
+    }
+    func remove(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome { .notSaved }
+    func restore(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome { .notSaved }
 }
 
 @MainActor

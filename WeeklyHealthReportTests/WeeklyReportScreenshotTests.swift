@@ -26,7 +26,8 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         )
         XCTAssertEqual(try root.intakeProjection(for: Date()).summary.itemCount, 0)
         renderFoodView(NavigationStack { FoodIntakeHomeView(root: root) }, name: "Today - empty log")
-        renderFoodView(NavigationStack { FoodIntakeHomeView(root: root, isHome: false) }, name: "Food Log - empty log")
+        let navigation = AppNavigationCoordinator(defaults: defaults)
+        renderFoodView(NavigationStack { FoodLogView(root: root, navigation: navigation) }, name: "Food Log - empty log")
 
         let search = try root.genericFoodSearchModel(locale: Locale(identifier: "en_GB"))
         search.query = "clementine"
@@ -62,18 +63,19 @@ final class WeeklyReportScreenshotTests: XCTestCase {
                 FoodIntakeHomeView(root: root).environment(\.dynamicTypeSize, size)
             }, name: "Today - populated - \(size)")
             renderFoodView(NavigationStack {
-                FoodIntakeHomeView(root: root, isHome: false).environment(\.dynamicTypeSize, size)
+                FoodLogView(root: root, navigation: navigation).environment(\.dynamicTypeSize, size)
             }, name: "Food Log - populated - \(size)")
         }
         let row = try XCTUnwrap(populated.rows.first)
-        try root.changeLogEntry(row, restoring: false)
+        XCTAssertEqual(root.foodLogService.remove(row.logItemID, expected: row.logItemVersionID), .applied)
         let removed = try root.intakeProjection(for: Date())
         XCTAssertEqual(removed.summary.itemCount, 0)
         XCTAssertEqual(removed.removedRows.count, 1)
         renderFoodView(NavigationStack {
-            FoodIntakeHomeView(root: root, isHome: false).environment(\.dynamicTypeSize, .accessibility3)
+            FoodLogView(root: root, navigation: navigation).environment(\.dynamicTypeSize, .accessibility3)
         }, name: "Food Log - retained removed entry - large text")
-        try root.changeLogEntry(try XCTUnwrap(removed.removedRows.first), restoring: true)
+        let removedRow = try XCTUnwrap(removed.removedRows.first)
+        XCTAssertEqual(root.foodLogService.restore(removedRow.logItemID, expected: removedRow.logItemVersionID), .applied)
         XCTAssertEqual(try root.intakeProjection(for: Date()).summary.itemCount, 1)
     }
 

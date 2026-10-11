@@ -10,12 +10,15 @@
 		F1940000000000000000001C /* IsolatedApplicationSupportFileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000001B /* IsolatedApplicationSupportFileManager.swift */; };
 		F1940000000000000000001A /* SettingsContributionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000019 /* SettingsContributionTests.swift */; };
 		F19400000000000000000018 /* AppNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000017 /* AppNavigationTests.swift */; };
+		F19700000000000000000007 /* FoodLogAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19700000000000000000006 /* FoodLogAppTests.swift */; };
 		F19400000000000000000016 /* FoodLedgerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000015 /* FoodLedgerSettings.swift */; };
 		F19400000000000000000014 /* DeveloperToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000013 /* DeveloperToolsSettingsView.swift */; };
 		F19400000000000000000012 /* SettingsContributions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000011 /* SettingsContributions.swift */; };
 		F19400000000000000000010 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000F /* SettingsView.swift */; };
-		F1940000000000000000000E /* SavedFoodEntrySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000D /* SavedFoodEntrySheet.swift */; };
+		F1940000000000000000000E /* SavedFoodEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000D /* SavedFoodEntryView.swift */; };
 		F1940000000000000000000C /* FoodIntakeHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000B /* FoodIntakeHomeView.swift */; };
+		F19700000000000000000005 /* FoodEntryFinish.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19700000000000000000004 /* FoodEntryFinish.swift */; };
+		F19700000000000000000003 /* FoodLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19700000000000000000002 /* FoodLogView.swift */; };
 		F1940000000000000000000A /* MedicationAccessHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000009 /* MedicationAccessHelpView.swift */; };
 		F19400000000000000000008 /* HealthReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000007 /* HealthReportView.swift */; };
 		F19400000000000000000006 /* AppShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000005 /* AppShellView.swift */; };
@@ -134,12 +137,15 @@
 		F1940000000000000000001B /* IsolatedApplicationSupportFileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IsolatedApplicationSupportFileManager.swift; sourceTree = "<group>"; };
 		F19400000000000000000019 /* SettingsContributionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsContributionTests.swift; sourceTree = "<group>"; };
 		F19400000000000000000017 /* AppNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationTests.swift; sourceTree = "<group>"; };
+		F19700000000000000000006 /* FoodLogAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLogAppTests.swift; sourceTree = "<group>"; };
 		F19400000000000000000015 /* FoodLedgerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLedgerSettings.swift; sourceTree = "<group>"; };
 		F19400000000000000000013 /* DeveloperToolsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsSettingsView.swift; sourceTree = "<group>"; };
 		F19400000000000000000011 /* SettingsContributions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsContributions.swift; sourceTree = "<group>"; };
 		F1940000000000000000000F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
-		F1940000000000000000000D /* SavedFoodEntrySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedFoodEntrySheet.swift; sourceTree = "<group>"; };
+		F1940000000000000000000D /* SavedFoodEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedFoodEntryView.swift; sourceTree = "<group>"; };
 		F1940000000000000000000B /* FoodIntakeHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodIntakeHomeView.swift; sourceTree = "<group>"; };
+		F19700000000000000000004 /* FoodEntryFinish.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodEntryFinish.swift; sourceTree = "<group>"; };
+		F19700000000000000000002 /* FoodLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLogView.swift; sourceTree = "<group>"; };
 		F19400000000000000000009 /* MedicationAccessHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationAccessHelpView.swift; sourceTree = "<group>"; };
 		F19400000000000000000007 /* HealthReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthReportView.swift; sourceTree = "<group>"; };
 		F19400000000000000000005 /* AppShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShellView.swift; sourceTree = "<group>"; };
@@ -350,8 +356,10 @@
 				F19400000000000000000013 /* DeveloperToolsSettingsView.swift */,
 				F19400000000000000000011 /* SettingsContributions.swift */,
 				F1940000000000000000000F /* SettingsView.swift */,
-				F1940000000000000000000D /* SavedFoodEntrySheet.swift */,
+				F1940000000000000000000D /* SavedFoodEntryView.swift */,
 				F1940000000000000000000B /* FoodIntakeHomeView.swift */,
+				F19700000000000000000004 /* FoodEntryFinish.swift */,
+				F19700000000000000000002 /* FoodLogView.swift */,
 				F19400000000000000000009 /* MedicationAccessHelpView.swift */,
 				F19400000000000000000007 /* HealthReportView.swift */,
 				F19400000000000000000005 /* AppShellView.swift */,
@@ -397,6 +405,7 @@
 				B0000000000000000000003F /* DailyNotesStoreTests.swift */,
 				F19400000000000000000019 /* SettingsContributionTests.swift */,
 				F19400000000000000000017 /* AppNavigationTests.swift */,
+				F19700000000000000000006 /* FoodLogAppTests.swift */,
 				B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */,
 				B00000000000000000000300 /* FoodSearchQuantityNativeTests.swift */,
 				B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */,
@@ -621,8 +630,10 @@
 				F19400000000000000000014 /* DeveloperToolsSettingsView.swift in Sources */,
 				F19400000000000000000012 /* SettingsContributions.swift in Sources */,
 				F19400000000000000000010 /* SettingsView.swift in Sources */,
-				F1940000000000000000000E /* SavedFoodEntrySheet.swift in Sources */,
+				F1940000000000000000000E /* SavedFoodEntryView.swift in Sources */,
 				F1940000000000000000000C /* FoodIntakeHomeView.swift in Sources */,
+				F19700000000000000000005 /* FoodEntryFinish.swift in Sources */,
+				F19700000000000000000003 /* FoodLogView.swift in Sources */,
 				F1940000000000000000000A /* MedicationAccessHelpView.swift in Sources */,
 				F19400000000000000000008 /* HealthReportView.swift in Sources */,
 				F19400000000000000000006 /* AppShellView.swift in Sources */,
@@ -703,6 +714,7 @@
 				F1940000000000000000001C /* IsolatedApplicationSupportFileManager.swift in Sources */,
 				F1940000000000000000001A /* SettingsContributionTests.swift in Sources */,
 				F19400000000000000000018 /* AppNavigationTests.swift in Sources */,
+				F19700000000000000000007 /* FoodLogAppTests.swift in Sources */,
 				A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */,
 				A00000000000000000000300 /* FoodSearchQuantityNativeTests.swift in Sources */,
 				A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */,

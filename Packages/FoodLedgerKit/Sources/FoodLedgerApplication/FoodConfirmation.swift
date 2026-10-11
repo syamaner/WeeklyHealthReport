@@ -746,11 +746,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
             return (nil, false)
         }
         if let old = previous?.quantityConversion,
-           old.sourceQuantity == entered,
-           old.convertedQuantity == value.convertedQuantity,
-           old.methodVersion == value.methodVersion,
-           old.sourceReleaseID == value.sourceReleaseID,
-           old.evidenceID == value.evidenceID {
+           FoodLogEditComparison.reusesConversion(old, entered: entered, draft: value) {
             return (old, false)
         }
         return (try QuantityConversionVersion(

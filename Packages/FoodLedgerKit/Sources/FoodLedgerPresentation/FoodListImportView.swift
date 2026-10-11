@@ -371,18 +371,10 @@ public struct FoodListImportView: View {
         .sheet(isPresented: Binding(get: { model.confirmation != nil }, set: { if !$0 { model.finishReview() } })) {
             if let confirmation = model.confirmation {
                 NavigationStack {
-                    FoodConfirmationView(
-                        model: confirmation,
+                    ListConfirmationHost(confirmation: confirmation,
                         context: model.selectedRow.map { row in
                             ([row.draft.parsed.original] + row.draft.parsed.notices.map(\.message)).joined(separator: "\n")
-                        },
-                        completionTitle: "Next line", leave: { model.finishReview() }
-                    )
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Back to list") { model.finishReview() }
-                            }
-                        }
+                        }, finish: { model.finishReview() })
                 }
             }
         }
@@ -471,5 +463,31 @@ public struct FoodListImportView: View {
                 model.edit(draft)
             }
         )
+    }
+}
+
+/// Observes the confirmation so the host's "Back to list" disappears once the item is saved,
+/// leaving "Next line" as the single exit (#197).
+public struct ListConfirmationHost: View {
+    @ObservedObject var confirmation: FoodConfirmationViewModel
+    let context: String?
+    let finish: () -> Void
+
+    public init(confirmation: FoodConfirmationViewModel, context: String?, finish: @escaping () -> Void) {
+        self.confirmation = confirmation; self.context = context; self.finish = finish
+    }
+
+    /// The host's own toolbar: "Back to list" only until the item is saved.
+    public static func toolbarTitles(isSaved: Bool) -> [String] { isSaved ? [] : ["Back to list"] }
+
+    public var body: some View {
+        FoodConfirmationView(model: confirmation, context: context, completionTitle: "Next line", leave: finish)
+            .toolbar {
+                if !Self.toolbarTitles(isSaved: confirmation.savedResult != nil).isEmpty {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Back to list", action: finish)
+                    }
+                }
+            }
     }
 }

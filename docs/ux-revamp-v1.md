@@ -32,7 +32,7 @@ Home ─┬─ Food Log ─┬─ Saved entry ── Edit (Confirm)
       └─ Settings
 ```
 
-All destinations are values of one route type handled by one navigation coordinator. Sheets (quick add, alerts) are presentation state of the screen that owns them.
+All destinations are values of one route type handled by one navigation coordinator. Sheets (quick add, alerts) are presentation state of the screen that owns them. Destinations that need an identifier (a saved entry, a search result, a web lookup) are also presentation state of the screen that owns them; they are not route values and restore to that screen.
 
 ## Screens
 
