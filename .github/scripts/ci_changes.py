@@ -25,22 +25,28 @@ DOCUMENTATION_FILES = {
     "LICENSE",
     "README.md",
 }
-DOCUMENTATION_PREFIXES = (
-    ".agents/",
-    ".claude/",
-    "docs/",
-)
+DOCUMENTATION_PREFIXES = ("docs/",)
+# Agent configuration: only Markdown (role and skill files) is documentation.
+# Scripts and other configuration under these folders need a full run.
+AGENT_MARKDOWN_PREFIXES = (".agents/", ".claude/")
 # Paths under docs/ that code, tests or CI read. They always need a full run.
 CODE_READ_DOCS = {
     "docs/food-healthkit-write-plan.md",
     "docs/privacy-policy.txt",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
+# Never documentation, whatever the lists above say: CI, its scripts and this
+# classifier must always be validated by a full run.
+NEVER_DOCUMENTATION_PREFIXES = (".github/",)
 
 
 def is_documentation(path: str) -> bool:
+    if path.startswith(NEVER_DOCUMENTATION_PREFIXES):
+        return False
     if path in CODE_READ_DOCS or path.startswith(CODE_READ_DOC_PREFIXES):
         return False
+    if path.startswith(AGENT_MARKDOWN_PREFIXES):
+        return path.endswith(".md")
     return path in DOCUMENTATION_FILES or path.startswith(DOCUMENTATION_PREFIXES)
 
 

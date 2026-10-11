@@ -90,8 +90,10 @@ pushes). Every other job depends on it and runs unless its output is exactly
 a required check.
 
 Only an allowlist counts as documentation: `README.md`, `AGENTS.md`,
-`CLAUDE.md`, `DEVELOPMENT_NOTES.md`, `LICENSE`, `docs/`, `.agents/` and
-`.claude/`. Paths under `docs/` that code, tests or CI read
+`CLAUDE.md`, `DEVELOPMENT_NOTES.md`, `LICENSE`, `docs/`, and Markdown files
+under `.agents/` and `.claude/` (role and skill files; scripts and other
+configuration there run the full workflow). `.github/` is never documentation,
+whatever the allowlist says. Paths under `docs/` that code, tests or CI read
 (`docs/fixtures/`, `docs/privacy-policy.txt`, `docs/food-healthkit-write-plan.md`)
 always run the full workflow, as does Markdown under `Tools/` or `Packages/`,
 which can be test data or checked inventory. A drift-guard test fails when a
@@ -101,6 +103,13 @@ skip.
 The gate fails closed. Unknown paths, an empty diff, missing or zero
 revisions, unsupported events, a `git` failure, a classifier exception or a
 failed `Classify changes` job all run every job.
+
+The gate cannot loosen itself. `Classify changes` runs the classifier tests
+unconditionally before any decision, and decides with the base revision's
+reviewed `ci_changes.py` (falling back to the change's own copy only when the
+base has none). A change that edits the allowlist is therefore judged by the
+previous rules, and because it touches `.github/` it always runs every job,
+including the helper tests in `Build and test`.
 
 ## Codecov disclosure boundary
 

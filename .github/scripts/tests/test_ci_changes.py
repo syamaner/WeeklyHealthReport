@@ -39,6 +39,28 @@ class ClassificationTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertTrue(changes.needs_code_ci([path])[0])
 
+    def test_agent_scripts_and_config_run_code_ci(self) -> None:
+        for path in (
+            ".agents/skills/agent-phase-accounting/scripts/phase_usage.py",
+            ".agents/skills/agent-phase-accounting/agents/openai.yaml",
+            ".claude/settings.json",
+        ):
+            with self.subTest(path=path):
+                self.assertTrue(changes.needs_code_ci([path])[0])
+
+    def test_agent_markdown_is_documentation(self) -> None:
+        self.assertFalse(changes.needs_code_ci([".agents/agents/validator.md", ".agents/skills/x/SKILL.md"])[0])
+
+    def test_github_is_never_documentation_even_if_allowlisted(self) -> None:
+        original = changes.DOCUMENTATION_PREFIXES
+        setattr(changes, "DOCUMENTATION_PREFIXES", original + (".github/",))
+        try:
+            for path in (".github/scripts/ci_changes.py", ".github/workflows/ios-ci.yml", ".github/README.md"):
+                with self.subTest(path=path):
+                    self.assertTrue(changes.needs_code_ci([path])[0])
+        finally:
+            setattr(changes, "DOCUMENTATION_PREFIXES", original)
+
     def test_empty_change_runs_code_ci(self) -> None:
         self.assertTrue(changes.needs_code_ci([])[0])
 
