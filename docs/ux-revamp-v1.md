@@ -48,7 +48,7 @@ All destinations are values of one route type handled by one navigation coordina
 | Saved entry | Read-only amount, time, nutrition, source, history; Edit; Remove with confirmation | Loading, missing, unsupported conversion, failed | #197 |
 | Favourites | Quick-add order (first four on Home), other favourites, create from search, barcode or web lookup; photos "Not yet available" | Empty | #198 |
 | Health | Period picker with visible range, summary tiles, grouped sections, Copy all; Full Page via the iOS screenshot buttons | No data per metric, no access, loading, failed | #200 |
-| Export | Day (today up to the refresh cutoff, or one of the previous seven days), "Included" preview, one Export action, verified result; Drive setup lives in Settings | Not set up, preparing, exporting, verified, failed | #200 |
+| Export | Day (today up to the refresh cutoff, or one of the previous seven days), "Included" preview (health data, nutrition from the selected Health source, notes, exact file), one Export action, verified result; Drive setup lives in Settings. Food-log entries are not exported today; adding them is #97 | Not set up, preparing, exporting, verified, failed | #200 |
 | Settings | Food search (online database, web lookup key, market), export (Drive account, folder), data (backup, receipts, nutrition updates), Apple Health (medication access), about (privacy, developer tools) | Key missing, Drive disconnected | #194 |
 
 Copy follows the existing house style: British spelling, sentence-case buttons, no emoji, no interpretation, and absence named as a state ("No glucose data is visible, or Health access was not granted.").
