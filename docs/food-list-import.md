@@ -4,7 +4,7 @@ Issue: [#127](https://github.com/syamaner/WeeklyHealthReport/issues/127)
 
 ## Flow
 
-**Food logging → Paste Food List** prepares a newline-separated list for review.
+**Food Log → Paste or dictate food list** prepares a newline-separated list for review.
 Every nonblank line keeps its original text and line number, including duplicates.
 Blank lines remain in the original input and do not become food items. A compact
 queue shows saved, pending, unresolved, failed, deferred, declined and context

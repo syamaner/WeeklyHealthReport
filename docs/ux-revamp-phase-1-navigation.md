@@ -13,7 +13,7 @@ Files sit flat in the existing `Views` and `FoodLedger` groups; the project uses
 | `Views/AppRoute.swift` | `AppRoute` enum, `restoredPath(from:hasDraft:availableRoutes:)` (pure) |
 | `Views/AppNavigationCoordinator.swift` | Path, protected path, restoration and destination persistence; no UIKit |
 | `Views/AppShellView.swift` | Root `NavigationStack`, route-to-screen mapping, gear, lifecycle notification subscriptions, screenshot registration, medication authorisation request |
-| `Views/HealthReportView.swift` | Current `reportForm`, `WeeklyReportPresentationState`, the report's medication help sheet |
+| `Views/HealthReportView.swift` | Current `reportForm` and `WeeklyReportPresentationState`; the shell still presents the report's medication help sheet from that state |
 | `Views/MedicationAccessHelpView.swift` | Help content; optional `done` action injected only by the report sheet |
 | `Views/FoodIntakeHomeView.swift`, `Views/SavedFoodEntrySheet.swift` | Moved verbatim apart from the link changes below |
 | `Views/SettingsView.swift` | `SettingsSectionID`, `SettingsSection`, `SettingsRow`, `SettingsToggle`, `AppSettings`, generic rendering |
@@ -67,7 +67,7 @@ Why this shape: the real variation is which features are composed (food ledger m
 | Section (factory) | Rows mapped to existing code |
 |---|---|
 | Food search (food ledger) | Toggle "Online food database" through the root's existing `FoodSearchPreferences` (`foodSearch.openFoodFacts.automatic.v1`). Link "Web lookup" to `.webLookupKey` (public `OpenRouterFoodKeyView`), detail from `hasSavedKey` and `keyIsUsable` only: "Key missing", "Revalidate key", "Key added". Settings never calls `validateAndSaveKey` or `revalidateSavedKey`. Link "Food market" to `.foodMarket`, detail the current market. Footer: existing privacy line. |
-| Export (no dependency) | "Google Drive" and "Folder", both to `.dailyExport`, with no detail until #200. The factory takes no session, so building Settings cannot call `prepareForPresentation` or any network path. |
+| Export (no dependency) | One row, "Google Drive account and folder", to `.dailyExport`, with no detail until #200 (two rows would link one route twice). The factory takes no session, so building Settings cannot call `prepareForPresentation` or any network path. |
 | Data (food ledger) | "Backup and restore" to `.dataBackup`; "Receipts and food inventory" to `.inventoryReview`; "Nutrition updates" to `.foodReresolution`. |
 | Apple Health (iOS 26 only) | "Medication access" to `.medicationAccess`. |
 | About | "Privacy policy" to `.privacy`; "Developer tools" to `.developerTools`. |
