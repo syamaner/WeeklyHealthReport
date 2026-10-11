@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Health</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#007aff}a:hover{color:#0062cc}
+.s{width:390px;height:1100px;box-sizing:border-box;background:#f2f2f7;color:#000;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-size:17px;line-height:22px;letter-spacing:-0.41px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.nb{min-height:44px;padding:8px 4px 0 4px;display:flex;align-items:center;justify-content:space-between}
+.back{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 8px;text-decoration:none}
+.ib{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;color:#007aff;background:none;border:0;cursor:pointer;text-decoration:none}
+.lt{font-size:34px;line-height:41px;font-weight:700;letter-spacing:0.37px;margin:0;padding:0 20px 4px}
+.sh{font-size:13px;line-height:18px;color:#6b6b70;text-transform:uppercase;letter-spacing:.06em;padding:0 20px 7px 36px;margin-top:22px}
+.g{background:#fff;border-radius:10px;margin:0 20px;overflow:hidden}
+.r{min-height:44px;box-sizing:border-box;padding:11px 16px;display:flex;align-items:center;gap:12px;color:#000}
+.r+.r{border-top:.5px solid rgba(60,60,67,.29)}
+.v{color:#6b6b70;margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;line-height:18px;color:#6b6b70}
+.ft{font-size:13px;line-height:18px;color:#6b6b70;padding:8px 36px 0}
+.sc{overflow-y:auto;flex:1;padding-bottom:34px}
+.seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px;background:#e3e3e8;border-radius:9px;padding:2px;margin:6px 20px 0}
+.sb{min-height:36px;border:0;border-radius:7px;background:transparent;font:inherit;font-size:15px;color:#000;cursor:pointer}
+.sbOn{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:600}
+.tiles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 20px}
+.tile{background:#fff;border-radius:10px;padding:12px 14px}
+.tv{font-size:22px;line-height:28px;font-weight:600;font-variant-numeric:tabular-nums}
+details.sec{border-top:.5px solid rgba(60,60,67,.29)}
+details.sec:first-child{border-top:0}
+details.sec summary{min-height:44px;padding:11px 16px;box-sizing:border-box;cursor:pointer;display:flex;gap:12px;align-items:center;list-style:none}
+details.sec .r{padding-left:32px;border-top:.5px solid rgba(60,60,67,.29)}
+.wide{display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px;border-radius:12px;font-weight:600;text-decoration:none;border:0;font:inherit;font-weight:600;cursor:pointer;flex:1}
+</style>
+</helmet>
+<div class="s">
+  <div class="nb">
+    <a class="back" href="Main.dc.html">
+      <svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2L2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>Today</a>
+    <div style="display:flex">
+      <button type="button" class="ib" aria-label="{{copyLabel}}" onClick="{{copy}}">
+        <sc-if value="{{copied}}" hint-placeholder-val="{{false}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></sc-if>
+        <sc-if value="{{notCopied}}" hint-placeholder-val="{{true}}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"></rect><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"></path></svg></sc-if>
+      </button>
+      <a class="ib" href="Export.dc.html" aria-label="Export">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M7.5 7.5L12 3l4.5 4.5M5 11v8a2 2 0 002 2h10a2 2 0 002-2v-8"></path></svg></a>
+    </div>
+  </div>
+  <h1 class="lt">Health</h1>
+  <div class="seg" role="radiogroup" aria-label="Period">
+    <sc-for list="{{periods}}" as="p" hint-placeholder-count="3">
+      <button type="button" role="radio" aria-checked="{{p.checked}}" class="{{p.cls}}" onClick="{{p.pick}}">{{p.label}}</button>
+    </sc-for>
+  </div>
+  <div class="sub" style="padding:8px 36px 0">{{range}} · completed days</div>
+  <div class="sc">
+    <div class="sh">Summary</div>
+    <div class="tiles">
+      <div class="tile"><div class="sub">Steps per day</div><div class="tv">8,214</div><div class="sub">↑ 6% vs previous</div></div>
+      <div class="tile"><div class="sub">Sleep per night</div><div class="tv">7 h 05</div><div class="sub">7 of 7 nights</div></div>
+      <div class="tile"><div class="sub">Resting heart rate</div><div class="tv">58 bpm</div><div class="sub">↓ 1 vs previous</div></div>
+      <div class="tile"><div class="sub">Weight</div><div class="tv">72.4 kg</div><div class="sub">↓ 0.6 kg in period</div></div>
+      <div class="tile"><div class="sub">Logged energy</div><div class="tv">2,010 kcal</div><div class="sub">per day · 6 of 7 days</div></div>
+      <div class="tile"><div class="sub">Morning BP</div><div class="tv">123/78</div><div class="sub">5 readings</div></div>
+    </div>
+
+    <div class="sh">Details</div>
+    <div class="g">
+      <details class="sec" open="">
+        <summary><span style="font-weight:600">Activity</span><span class="v">3 metrics</span></summary>
+        <div class="r"><span>Average daily steps</span><span class="v">8,214</span></div>
+        <div class="r"><span>Active energy</span><span class="v">486 kcal/day</span></div>
+        <div class="r"><span>Workouts</span><span class="v">3 · 2 h 40 min</span></div>
+      </details>
+      <details class="sec"><summary><span style="font-weight:600">Food and water</span><span class="v">6 of 7 days logged</span></summary>
+        <div class="r"><span>Protein</span><span class="v">96 g/day</span></div></details>
+      <details class="sec"><summary><span style="font-weight:600">Body</span><span class="v">Weight, waist</span></summary>
+        <div class="r"><span>Weight</span><span class="v">72.4 kg</span></div></details>
+      <details class="sec"><summary><span style="font-weight:600">Heart and sleep</span><span class="v">4 metrics</span></summary>
+        <div class="r"><span>Resting heart rate</span><span class="v">58 bpm</span></div></details>
+      <details class="sec"><summary><span style="font-weight:600">Blood pressure</span><span class="v">Morning, evening</span></summary>
+        <div class="r"><span>Morning average</span><span class="v">123/78 mmHg</span></div></details>
+      <details class="sec"><summary><span style="font-weight:600">Fitness estimates</span><span class="v">VO₂ Max</span></summary>
+        <div class="r"><span>VO₂ Max</span><span class="v">42.1 mL/kg/min</span></div></details>
+      <details class="sec"><summary><span style="font-weight:600">Glucose</span><span class="v">No data</span></summary>
+        <div class="r"><span class="sub">No glucose data is visible, or Health access was not granted.</span></div></details>
+      <details class="sec"><summary><span style="font-weight:600">Medications</span><span class="v">2 taken</span></summary>
+        <div class="r"><span>Medication A</span><span class="v">7 of 7 days</span></div></details>
+    </div>
+
+    <div style="display:flex;gap:10px;margin:22px 20px 0">
+      <button type="button" class="wide" style="background:#007aff;color:#fff" onClick="{{copy}}">{{copyText}}</button>
+    </div>
+    <div class="ft">Copy all includes every section, expanded. For an image of the whole report, take a screenshot with the side and volume-up buttons, then choose Full Page.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":1100}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { period: '7d', copied: false }; }
+  renderVals() {
+    const ranges = { '7d': '4–10 Oct 2026', '28d': '13 Sep–10 Oct 2026', custom: 'Choose dates' };
+    const list = [['7d', '7 days'], ['28d', '28 days'], ['custom', 'Custom']];
+    return {
+      range: ranges[this.state.period],
+      copied: this.state.copied,
+      notCopied: !this.state.copied,
+      copyText: this.state.copied ? 'Copied' : 'Copy all',
+      copyLabel: this.state.copied ? 'Copied' : 'Copy all',
+      copy: () => { this.setState({ copied: true }); setTimeout(() => this.setState({ copied: false }), 2000); },
+      periods: list.map(([id, label]) => ({
+        label,
+        cls: id === this.state.period ? 'sb sbOn' : 'sb',
+        checked: id === this.state.period ? 'true' : 'false',
+        pick: () => this.setState({ period: id })
+      }))
+    };
+  }
+}
+</script>
+</body>
+</html>

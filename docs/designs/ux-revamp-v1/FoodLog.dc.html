@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Food Log</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#007aff}a:hover{color:#0062cc}
+.s{width:390px;height:844px;box-sizing:border-box;background:#f2f2f7;color:#000;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-size:17px;line-height:22px;letter-spacing:-0.41px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.nb{min-height:44px;padding:8px 8px 0 4px;display:flex;align-items:center;justify-content:space-between}
+.back{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 8px;text-decoration:none}
+.ib{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;color:#007aff;background:none;border:0;cursor:pointer}
+.lt{font-size:34px;line-height:41px;font-weight:700;letter-spacing:0.37px;margin:0;padding:0 20px 4px}
+.sh{font-size:13px;line-height:18px;color:#6b6b70;text-transform:uppercase;letter-spacing:.06em;padding:0 20px 7px 36px;margin-top:22px}
+.g{background:#fff;border-radius:10px;margin:0 20px;overflow:hidden}
+.r{min-height:44px;box-sizing:border-box;padding:10px 16px;display:flex;align-items:center;gap:12px;color:#000;text-decoration:none}
+.r:hover{color:#000;background:#f7f7f9}
+.r+.r{border-top:.5px solid rgba(60,60,67,.29)}
+.v{color:#6b6b70;margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;line-height:18px;color:#6b6b70}
+.ft{font-size:13px;line-height:18px;color:#6b6b70;padding:8px 36px 0}
+.chev{color:#c7c7cc;flex:none}
+.sc{overflow-y:auto;flex:1;padding-bottom:34px}
+.t{width:44px;flex:none;font-size:15px;color:#6b6b70;font-variant-numeric:tabular-nums}
+.warn{font-size:13px;line-height:18px;color:#8a5300}
+.day{display:flex;align-items:center;justify-content:space-between;margin:0 12px}
+.tot{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;padding:12px 16px}
+.add{display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px;border-radius:12px;background:#007aff;color:#fff;font-weight:600;text-decoration:none;margin:14px 20px 0}
+.add:hover{color:#fff;background:#0062cc}
+</style>
+</helmet>
+<div class="s">
+  <div class="nb">
+    <a class="back" href="Main.dc.html">
+      <svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2L2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>Today</a>
+    <a class="ib" href="AddFood.dc.html" aria-label="Add food">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg></a>
+  </div>
+  <h1 class="lt">Food Log</h1>
+  <div class="day">
+    <button type="button" class="ib" aria-label="Previous day"><svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2L2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+    <button type="button" class="ib" style="font:inherit;font-weight:600;color:#000">Sunday 11 October</button>
+    <button type="button" class="ib" aria-label="Next day" disabled="" style="opacity:.3"><svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M2 2l8 8-8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+  </div>
+  <div class="sc">
+    <div class="g" style="margin-top:6px">
+      <div class="tot">
+        <div><div class="sub">Energy</div><div style="font-weight:600;font-variant-numeric:tabular-nums">1,240</div></div>
+        <div><div class="sub">Protein</div><div style="font-weight:600">68 g</div></div>
+        <div><div class="sub">Carbs</div><div style="font-weight:600">142 g</div></div>
+        <div><div class="sub">Fat</div><div style="font-weight:600">41 g+</div></div>
+        <div><div class="sub">Water</div><div style="font-weight:600">1.25 L</div></div>
+      </div>
+    </div>
+    <div class="ft">Known values only. “+” means at least one entry has this nutrient unknown.</div>
+
+    <a class="add" href="AddFood.dc.html">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"></path></svg>Add food</a>
+
+    <div class="sh">Entries</div>
+    <div class="g">
+      <a class="r" href="EntryDetail.dc.html"><span class="t">07:45</span><div style="flex:1"><div>Porridge made with whole milk</div><div class="sub">300 g</div></div><span class="v">348 kcal</span></a>
+      <a class="r" href="EntryDetail.dc.html"><span class="t">08:00</span><div style="flex:1"><div>Water</div><div class="sub">500 mL</div></div><span class="v">0 kcal</span></a>
+      <a class="r" href="EntryDetail.dc.html"><span class="t">10:30</span><div style="flex:1"><div>Coffee with semi-skimmed milk</div><div class="sub">1 mug · 240 mL</div></div><span class="v">38 kcal</span></a>
+      <a class="r" href="EntryDetail.dc.html"><span class="t">12:40</span><div style="flex:1"><div>Chicken breast, grilled</div><div class="sub">150 g</div></div><span class="v">248 kcal</span></a>
+      <a class="r" href="EntryDetail.dc.html"><span class="t">12:40</span><div style="flex:1"><div>Chicken caesar wrap</div><div class="sub">1 wrap · web source</div><div class="warn">Salt unknown</div></div><span class="v">489 kcal</span></a>
+      <a class="r" href="EntryDetail.dc.html"><span class="t">15:10</span><div style="flex:1"><div>Banana</div><div class="sub">1 medium · 118 g</div><div class="warn">Fat unknown</div></div><span class="v">117 kcal</span></a>
+    </div>
+    <div class="ft">Swipe an entry to remove it. Removed entries can be restored.</div>
+
+    <div class="g" style="margin-top:22px">
+      <details>
+        <summary style="min-height:44px;padding:11px 16px;box-sizing:border-box;cursor:pointer;display:flex"><span>Removed</span><span class="v">1 entry</span></summary>
+        <div class="r" style="border-top:.5px solid rgba(60,60,67,.29)"><div style="flex:1"><div style="color:#6b6b70">Apple, raw</div><div class="sub">Removed 11:02 · not in totals</div></div><button type="button" class="ib" style="font:inherit;font-size:15px;width:auto;padding:0 4px">Restore</button></div>
+      </details>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

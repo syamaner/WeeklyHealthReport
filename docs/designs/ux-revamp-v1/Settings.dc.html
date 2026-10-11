@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Settings</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#007aff}a:hover{color:#0062cc}
+.s{width:390px;height:844px;box-sizing:border-box;background:#f2f2f7;color:#000;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-size:17px;line-height:22px;letter-spacing:-0.41px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.nb{min-height:44px;padding:8px 8px 0 4px;display:flex;align-items:center;justify-content:flex-end}
+.back{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 8px;text-decoration:none;font-weight:600}
+.lt{font-size:34px;line-height:41px;font-weight:700;letter-spacing:0.37px;margin:0;padding:0 20px 4px}
+.sh{font-size:13px;line-height:18px;color:#6b6b70;text-transform:uppercase;letter-spacing:.06em;padding:0 20px 7px 36px;margin-top:22px}
+.g{background:#fff;border-radius:10px;margin:0 20px;overflow:hidden}
+.r{min-height:44px;box-sizing:border-box;padding:11px 16px;display:flex;align-items:center;gap:12px;color:#000;text-decoration:none}
+.r:hover{color:#000;background:#f7f7f9}
+.r+.r{border-top:.5px solid rgba(60,60,67,.29)}
+.v{color:#6b6b70;margin-left:auto;text-align:right}
+.sub{font-size:13px;line-height:18px;color:#6b6b70}
+.ft{font-size:13px;line-height:18px;color:#6b6b70;padding:8px 36px 0}
+.chev{color:#c7c7cc;flex:none}
+.sc{overflow-y:auto;flex:1;padding-bottom:34px}
+.sw{margin-left:auto;width:51px;height:31px;border-radius:999px;border:0;position:relative;cursor:pointer;flex:none}
+.knob{position:absolute;top:2px;width:27px;height:27px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+</style>
+</helmet>
+<div class="s">
+  <div class="nb"><a class="back" href="Main.dc.html">Done</a></div>
+  <h1 class="lt">Settings</h1>
+  <div class="sc">
+    <div class="sh">Food search</div>
+    <div class="g">
+      <div class="r"><label for="off">Online food database</label>
+        <button id="off" type="button" class="sw" role="switch" aria-checked="{{offChecked}}" style="background:{{offBg}}" onClick="{{toggleOff}}"><span class="knob" style="left:{{offKnob}}"></span></button></div>
+      <a class="r" href="WebLookup.dc.html"><span>Web lookup</span><span class="v">Key added</span>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+      <div class="r"><span>Food market</span><span class="v">United Kingdom</span>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+    <div class="ft">Online sources receive only the food terms you search for. Your Health data and food log stay on this device.</div>
+
+    <div class="sh">Export</div>
+    <div class="g">
+      <div class="r"><span>Google Drive</span><span class="v">Connected</span>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+      <div class="r"><span>Folder</span><span class="v">Health exports</span>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+
+    <div class="sh">Data</div>
+    <div class="g">
+      <div class="r"><span>Backup and restore</span>
+        <svg class="chev" style="margin-left:auto" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+      <div class="r"><span>Receipts and food inventory</span>
+        <svg class="chev" style="margin-left:auto" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+      <div class="r"><span>Nutrition updates</span><span class="v">2 to review</span>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+
+    <div class="sh">Apple Health</div>
+    <div class="g">
+      <div class="r"><span>Medication access</span>
+        <svg class="chev" style="margin-left:auto" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+
+    <div class="sh">About</div>
+    <div class="g">
+      <div class="r"><span>Privacy policy</span>
+        <svg class="chev" style="margin-left:auto" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+      <div class="r"><span>Developer tools</span><span class="v">Diagnostics, search details</span>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { off: true }; }
+  renderVals() {
+    const on = this.state.off;
+    return {
+      offChecked: on ? 'true' : 'false',
+      offBg: on ? '#34c759' : '#e3e3e8',
+      offKnob: on ? '22px' : '2px',
+      toggleOff: () => this.setState({ off: !on })
+    };
+  }
+}
+</script>
+</body>
+</html>

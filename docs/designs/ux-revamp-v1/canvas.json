@@ -1,0 +1,34 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-10-11T12:00:00Z"},
+  "title": "Weekly Health Report UX Revamp",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 390, "h": 844, "title": "Home", "is_interactive": true, "radius": 40},
+    "AddFood.dc.html": {"x": 470, "y": 0, "w": 390, "h": 844, "title": "Add food", "is_interactive": true, "radius": 40},
+    "SearchResults.dc.html": {"x": 940, "y": 0, "w": 390, "h": 844, "title": "Search results", "is_interactive": true, "radius": 40},
+    "WebLookup.dc.html": {"x": 1410, "y": 0, "w": 390, "h": 844, "title": "Web lookup (fallback)", "is_interactive": true, "radius": 40},
+    "Confirm.dc.html": {"x": 1880, "y": 0, "w": 390, "h": 1000, "title": "Confirm food (one action)", "is_interactive": true, "radius": 40},
+    "QuickAdd.dc.html": {"x": 2350, "y": 0, "w": 390, "h": 844, "title": "Quick add sheet (water, favourites)", "is_interactive": true, "radius": 40},
+    "FoodLog.dc.html": {"x": 0, "y": 1420, "w": 390, "h": 844, "title": "Food Log", "is_interactive": true, "radius": 40},
+    "EntryDetail.dc.html": {"x": 470, "y": 1420, "w": 390, "h": 844, "title": "Saved entry (view, then Edit)", "is_interactive": true, "radius": 40},
+    "Favourites.dc.html": {"x": 940, "y": 1420, "w": 390, "h": 844, "title": "Favourites management", "is_interactive": true, "radius": 40},
+    "Health.dc.html": {"x": 0, "y": 2684, "w": 390, "h": 1100, "title": "Health summary", "is_interactive": true, "radius": 40},
+    "Export.dc.html": {"x": 470, "y": 2684, "w": 390, "h": 844, "title": "Export (recurring task only)", "is_interactive": true, "radius": 40},
+    "Settings.dc.html": {"x": 940, "y": 2684, "w": 390, "h": 844, "title": "Settings (gear)", "is_interactive": true, "radius": 40}
+  },
+  "order": [
+    "Main.dc.html", "AddFood.dc.html", "SearchResults.dc.html", "WebLookup.dc.html", "Confirm.dc.html", "QuickAdd.dc.html",
+    "FoodLog.dc.html", "EntryDetail.dc.html", "Favourites.dc.html",
+    "Health.dc.html", "Export.dc.html", "Settings.dc.html"
+  ],
+  "notes": {
+    "row1": {"x": 0, "y": -300, "text": "Log something I ate", "kind": "title1", "maxW": 2740},
+    "row2": {"x": 0, "y": 1120, "text": "Review the day and manage favourites", "kind": "title1", "maxW": 1330},
+    "row3": {"x": 0, "y": 2384, "text": "Health, export and settings", "kind": "title1", "maxW": 1330}
+  },
+  "designSystems": [
+    {"title": "Weekly Health Report Design System", "namespace": "whr", "artifact": "https://claude.ai/artifact/WWL8En6vytXCjwc31BEVJb", "version": "1791626661-9ff9", "copiedAt": "2026-10-11T12:00:00Z"}
+  ]
+}
