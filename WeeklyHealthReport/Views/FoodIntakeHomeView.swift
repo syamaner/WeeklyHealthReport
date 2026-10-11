@@ -55,7 +55,7 @@ struct FoodIntakeHomeView: View {
                     NavigationLink(value: AppRoute.foodListImport) { Label("Paste or dictate food list", systemImage: "list.bullet") }
                 } header: { Text("Log food") } footer: {
                     if !Calendar.current.isDateInToday(selectedDate) {
-                        Text("New foods are logged for today. Existing entries on this day can be reviewed below. Changes do not update an already exported snapshot.")
+                        Text("New foods are logged for now. To log on this day, set When on the confirm screen. Changes do not update an already exported snapshot.")
                     }
                 }
             }
@@ -78,7 +78,7 @@ struct FoodIntakeHomeView: View {
                                             .font(.subheadline).foregroundStyle(.secondary)
                                         Text(Self.amount(total)).font(.title2.weight(.semibold)).monospacedDigit()
                                             .fixedSize(horizontal: false, vertical: true)
-                                        Text(total.incompleteContributions > 0 ? "\(total.incompleteContributions) entries incomplete" : total.includesEstimates ? "Includes estimates" : "Known values")
+                                        Text(total.incompleteContributions > 0 ? "\(Self.entryCount(total.incompleteContributions)) incomplete" : total.includesEstimates ? "Includes estimates" : "Known values")
                                             .font(.caption).foregroundStyle(.secondary)
                                     }
                                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -91,7 +91,7 @@ struct FoodIntakeHomeView: View {
                         .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                     }
                 } header: {
-                    Text("Logged intake · \(projection.summary.itemCount) entries")
+                    Text("Logged intake · \(Self.entryCount(projection.summary.itemCount))")
                 } footer: {
                     Text("Totals cover known values only. Missing or bounded nutrients are not counted as zero.")
                 }
@@ -157,7 +157,7 @@ struct FoodIntakeHomeView: View {
                                 Spacer()
                                 if let summary = day.summary {
                                     VStack(alignment: .trailing, spacing: 4) {
-                                        Text(summary.itemCount == 0 ? "No entries" : "\(summary.itemCount) entries")
+                                        Text(summary.itemCount == 0 ? "No entries" : Self.entryCount(summary.itemCount))
                                         if summary.itemCount > 0,
                                            let energy = summary.totals.first(where: { $0.key == .energyConsumed }) {
                                             Text(Self.amount(energy)).font(.caption)
@@ -309,6 +309,10 @@ struct FoodIntakeHomeView: View {
 
     private static func label(_ key: NutrientKey) -> String {
         switch key { case .energyConsumed: "Energy"; case .protein: "Protein"; case .carbohydrates: "Carbohydrates"; case .fiber: "Fibre"; default: "Fat" }
+    }
+
+    static func entryCount(_ count: Int) -> String {
+        count == 1 ? "1 entry" : "\(count) entries"
     }
 
     private static func amount(_ total: FoodIntakeTotal) -> String {

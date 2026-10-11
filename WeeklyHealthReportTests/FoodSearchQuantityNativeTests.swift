@@ -12,6 +12,12 @@ import Vision
 
 @MainActor
 final class FoodSearchQuantityNativeTests: XCTestCase {
+    func testFoodLogEntryCountsUseSingularForOne() {
+        XCTAssertEqual(FoodIntakeHomeView.entryCount(1), "1 entry")
+        XCTAssertEqual(FoodIntakeHomeView.entryCount(0), "0 entries")
+        XCTAssertEqual(FoodIntakeHomeView.entryCount(3), "3 entries")
+    }
+
     func testSelectedCandidateRendersEditableParsedQuantityWithoutAutomaticSave() async throws {
         let ids = NativeQuantityIDs()
         let searcher = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: ids),USDAGenericFoodSearch(ids: ids)],ids:ids)
