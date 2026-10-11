@@ -160,7 +160,7 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertNotNil(edit.savedResult)
         await model.finishEdit()
         XCTAssertEqual(model.detail?.history.count, 2)
-        XCTAssertEqual(model.detail.map { FoodLogText.history($0.history[0].kind, time: { _ in "" }, locale: locale) },
+        XCTAssertEqual(model.detail.map { FoodLogText.history($0.history[0].kind, now: now, calendar: calendar, locale: locale) },
                        "Amount changed 120 g to 150 g")
 
         await model.confirmRemoval()
@@ -175,6 +175,103 @@ final class FoodLogPresentationTests: XCTestCase {
         }
         XCTAssertEqual(model.logButtonTitle, "Log 300 kcal")
         XCTAssertTrue(model.hasChangesToSave)
+    }
+
+    // MARK: Review fixes (#211)
+
+    /// Fix 3: after midnight or a time-zone change, a log showing "today" moves to the new
+    /// today; a past day stays where it is.
+    func testRefreshAfterMidnightAndTimeZoneChangeReanchorsOnlyWhenTodayWasShown() async throws {
+        final class Box: @unchecked Sendable { var now: Date; init(_ now: Date) { self.now = now } }
+        let world = try World(now: now, calendar: calendar)
+        let beforeMidnight = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-10-11T23:50:00Z"))
+        let clock = Box(beforeMidnight)
+        let model = FoodLogViewModel(store: world.store, now: { clock.now }, calendar: calendar)
+        await model.load()
+        XCTAssertEqual(model.selectedKey, "2026-10-12", "23:50 UTC is 00:50 BST")
+        clock.now = beforeMidnight.addingTimeInterval(24 * 3600)
+        await model.refreshAfterTimeChange()
+        XCTAssertEqual(model.selectedKey, "2026-10-13", "today was shown, so the log follows the new today")
+
+        await model.previousDay()
+        clock.now = clock.now.addingTimeInterval(24 * 3600)
+        await model.refreshAfterTimeChange()
+        XCTAssertEqual(model.selectedKey, "2026-10-12", "a past day stays selected")
+
+        // A time-zone change: the same instant, a calendar that now reads Auckland time.
+        final class CalendarBox: @unchecked Sendable { var calendar: Calendar; init(_ calendar: Calendar) { self.calendar = calendar } }
+        let zone = CalendarBox(calendar)
+        let instant = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-10-11T12:00:00Z"))
+        let zoned = FoodLogViewModel(store: world.store, now: { instant }, calendarProvider: { zone.calendar })
+        await zoned.load()
+        XCTAssertEqual(zoned.selectedKey, "2026-10-11", "13:00 in London")
+        zone.calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Pacific/Auckland"))
+        await zoned.refreshAfterTimeChange()
+        XCTAssertEqual(zoned.selectedKey, "2026-10-12", "01:00 on 12 October in Auckland: today moved, so the log follows")
+    }
+
+    /// Fix 1: a time change across days names both days.
+    func testCrossDayTimeChangeNamesTheDays() throws {
+        let today = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-10-11T11:40:00Z"))
+        let yesterday = today.addingTimeInterval(-86_400)
+        let sameDay = FoodLogText.history(.changed(amount: nil, time: .init(from: today.addingTimeInterval(-3600), to: today)),
+                                          now: today, calendar: calendar, locale: locale)
+        XCTAssertEqual(sameDay, "Time changed 11:40 to 12:40")
+        let crossDay = FoodLogText.history(.changed(amount: nil, time: .init(from: today, to: yesterday)),
+                                           now: today, calendar: calendar, locale: locale)
+        XCTAssertEqual(crossDay, "Time changed today, 12:40 to yesterday, 12:40")
+        XCTAssertEqual(FoodLogText.history(.weightDetailsChanged, now: today, calendar: calendar, locale: locale), "Weight details changed")
+    }
+
+    /// Fix 8: a removal on a later day says which day.
+    func testRemovedLineUsesTheRelativeDayWhenNotTheSameDay() throws {
+        let occurred = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-10-10T10:00:00Z"))
+        func removed(after seconds: TimeInterval) throws -> FoodLogDayContent.RemovedEntry {
+            .init(logItemID: try LedgerID("00000000-0000-0000-0000-000000000abc"),
+                  logItemVersionID: try LedgerID("00000000-0000-0000-0000-000000000abd"), occurredAt: occurred,
+                  name: "Fixture food", quantity: try PositiveQuantity(value: 150, unit: .grams),
+                  removedAt: occurred.addingTimeInterval(seconds))
+        }
+        let today = occurred.addingTimeInterval(86_400 + 120)
+        XCTAssertEqual(FoodLogText.removedLine(try removed(after: 3600), now: today, calendar: calendar, locale: locale),
+                       "Removed 12:00 · not in totals")
+        XCTAssertEqual(FoodLogText.removedLine(try removed(after: 86_400 + 60), now: today, calendar: calendar, locale: locale),
+                       "Removed today, 11:01 · not in totals")
+    }
+
+    /// Fix 2: totals whose known values include estimates are labelled, on screen and spoken.
+    func testEstimatedTotalsAreLabelled() {
+        let estimated = FoodIntakeSummaryProbe.total(key: .protein, amount: 10, incomplete: 0, augmented: true)
+        XCTAssertTrue(estimated.includesEstimates)
+        XCTAssertEqual(FoodLogText.totalCaption(estimated), "Includes estimates")
+        XCTAssertEqual(FoodLogText.totalAccessibility(estimated, locale: locale), "Protein, 10 grams, includes estimates")
+        let measured = FoodIntakeSummaryProbe.total(key: .protein, amount: 10, incomplete: 0)
+        XCTAssertNil(FoodLogText.totalCaption(measured))
+        XCTAssertNil(FoodLogText.totalCaption(FoodIntakeSummaryProbe.total(key: .protein, amount: nil, incomplete: 1)))
+    }
+
+    /// Journey QA D5 to D7: one time format, a short strip label, and "Estimated" only beside augmented values.
+    func testSharedTimeShortStripLabelAndAugmentedOnlyMarker() throws {
+        let earlyMorning = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-10-10T23:18:00Z"))
+        XCTAssertEqual(FoodLogText.time(earlyMorning, calendar: calendar, locale: locale), "00:18")
+        XCTAssertEqual(FoodLogText.stripLabel(.carbohydrates), "Carbs")
+        XCTAssertEqual(FoodLogText.label(.carbohydrates), "Carbohydrates")
+        let estimated = FoodIntakeSummaryProbe.total(key: .protein, amount: 10, incomplete: 0, augmented: true)
+        XCTAssertEqual(FoodLogText.nutrient(estimated, augmented: true, locale: locale), "10 g · Estimated")
+        XCTAssertEqual(FoodLogText.nutrient(estimated, augmented: false, locale: locale), "10 g")
+    }
+
+    /// Review fix 5: exactly one exit after a save, whatever the host.
+    func testConfirmExitsBeforeAndAfterSave() {
+        XCTAssertEqual(FoodConfirmationView.exitTitles(isSaved: false, showsCancelButton: true, completionTitle: "Done"), ["Cancel"])
+        XCTAssertEqual(FoodConfirmationView.exitTitles(isSaved: false, showsCancelButton: false, completionTitle: "Done"), [])
+        for title in ["Done", "Next line"] {
+            for cancel in [true, false] {
+                XCTAssertEqual(FoodConfirmationView.exitTitles(isSaved: true, showsCancelButton: cancel, completionTitle: title), [title])
+            }
+        }
+        XCTAssertEqual(ListConfirmationHost.toolbarTitles(isSaved: false), ["Back to list"])
+        XCTAssertEqual(ListConfirmationHost.toolbarTitles(isSaved: true), [])
     }
 
     // MARK: Copy
@@ -221,16 +318,17 @@ final class FoodLogPresentationTests: XCTestCase {
 
 /// Builds `FoodIntakeTotal` values through the public summary, so golden strings use real inputs.
 enum FoodIntakeSummaryProbe {
-    static func total(key: NutrientKey, amount: Double?, incomplete: Int) -> FoodIntakeTotal {
+    static func total(key: NutrientKey, amount: Double?, incomplete: Int, augmented: Bool = false) -> FoodIntakeTotal {
         var contributions: [FoodIntakeContribution] = []
         let unit: QuantityUnit = .grams
         if let amount {
             let nutrients = try! NutrientSet(entries: NutrientKey.allCases.map { entryKey in
                 guard entryKey == key else { return try NutrientEntry(key: entryKey, value: .unknown(.notDeclared)) }
-                return try NutrientEntry(key: entryKey, value: .measured(ExactNutrientValue(amount: amount, unit: entryKey.canonicalUnit,
+                let value = try ExactNutrientValue(amount: amount, unit: entryKey.canonicalUnit,
                     sourceValue: .exact(SourceExactNutrientValue(amount: amount, unit: LedgerText(entryKey.canonicalUnit.rawValue), basis: .per100Grams)),
                     provenance: [NutrientProvenance(sourceKind: .exactProductDataset, sourceID: ExternalIdentifier("synthetic"),
-                        sourceReleaseID: ExternalIdentifier("synthetic:v1"), recordID: ExternalIdentifier("probe"))])))
+                        sourceReleaseID: ExternalIdentifier("synthetic:v1"), recordID: ExternalIdentifier("probe"))])
+                return try NutrientEntry(key: entryKey, value: augmented ? .augmented(value) : .measured(value))
             })
             contributions.append(FoodIntakeContribution(quantity: try! PositiveQuantity(value: 100, unit: unit), basis: .per100Grams, nutrients: nutrients))
         }

@@ -97,4 +97,15 @@ final class FoodLogDayContentTests: XCTestCase {
             try F.id(810, LogItemTag.self).rawValue, try F.id(820, LogItemTag.self).rawValue, try F.id(800, LogItemTag.self).rawValue
         ])
     }
+
+    /// Review fix 2: an estimated weight labels the row even when the saved decisions do not.
+    func testEstimatedWeightLabelsTheRowOnce() throws {
+        let declaration = try EdibleWeightDeclaration(basis: .estimated, total: PositiveQuantity(value: 150, unit: .grams), originalInput: nil)
+        let estimateID: LogItemID = try F.id(800, LogItemTag.self)
+        let day = try content([F.log(800, version: 801, declaration: declaration)], estimates: [estimateID])
+        XCTAssertTrue(day.entries[0].isEstimate)
+        XCTAssertTrue(try XCTUnwrap(day.totals).first { $0.key == .protein }?.includesEstimates == true)
+        let unflagged = try content([F.log(800, version: 801, declaration: declaration)])
+        XCTAssertTrue(unflagged.entries[0].isEstimate, "the contribution alone raises the flag")
+    }
 }

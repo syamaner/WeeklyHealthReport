@@ -468,15 +468,22 @@ public struct FoodListImportView: View {
 
 /// Observes the confirmation so the host's "Back to list" disappears once the item is saved,
 /// leaving "Next line" as the single exit (#197).
-private struct ListConfirmationHost: View {
+public struct ListConfirmationHost: View {
     @ObservedObject var confirmation: FoodConfirmationViewModel
     let context: String?
     let finish: () -> Void
 
-    var body: some View {
+    public init(confirmation: FoodConfirmationViewModel, context: String?, finish: @escaping () -> Void) {
+        self.confirmation = confirmation; self.context = context; self.finish = finish
+    }
+
+    /// The host's own toolbar: "Back to list" only until the item is saved.
+    public static func toolbarTitles(isSaved: Bool) -> [String] { isSaved ? [] : ["Back to list"] }
+
+    public var body: some View {
         FoodConfirmationView(model: confirmation, context: context, completionTitle: "Next line", leave: finish)
             .toolbar {
-                if confirmation.savedResult == nil {
+                if !Self.toolbarTitles(isSaved: confirmation.savedResult != nil).isEmpty {
                     ToolbarItem(placement: .cancellationAction) {
                         Button("Back to list", action: finish)
                     }

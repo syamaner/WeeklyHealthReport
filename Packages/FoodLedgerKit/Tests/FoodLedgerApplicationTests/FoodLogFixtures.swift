@@ -51,13 +51,16 @@ enum FoodLogFixtures {
     static func log(_ item: Int, version: Int, ordinal: Int = 1, supersedes: Int? = nil, product: Int = 3,
                     resolution: Int = 5, value: Double = 150, unit: QuantityUnit = .grams,
                     occurredAt: Date = date, removed: Int? = nil, conversion: Int? = nil,
+                    plate: Int? = nil, declaration: EdibleWeightDeclaration? = nil,
                     createdAt: Date = date) throws -> LogItemVersion {
         try LogItemVersion(logItemVersionID: id(version, LogItemVersionTag.self), logItemID: id(item, LogItemTag.self),
             ordinal: VersionOrdinal(ordinal), supersedesLogItemVersionID: try supersedes.map { try id($0, LogItemVersionTag.self) },
             occurredAt: occurredAt, reportingDate: LedgerText(day),
             composition: try removed.map { .removed(try id($0, LogItemVersionTag.self)) } ?? .product(id(product, ProductVersionTag.self)),
             edibleQuantity: PositiveQuantity(value: value, unit: unit),
+            weightDeclaration: declaration,
             quantityConversionVersionID: try conversion.map { try id($0, QuantityConversionVersionTag.self) },
+            plateWeightVersionID: try plate.map { try id($0, PlateWeightVersionTag.self) },
             originalResolutionVersionID: id(5, ResolutionVersionTag.self),
             effectiveResolutionVersionID: id(resolution, ResolutionVersionTag.self),
             correctionReason: supersedes == nil ? nil : LedgerText("Fixture change"), createdAt: createdAt)

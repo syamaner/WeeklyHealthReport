@@ -27,6 +27,10 @@ public struct SavedFoodEntryDetail: Sendable {
     /// The edible amount used for nutrition.
     public let edibleQuantity: PositiveQuantity
     public let isEstimate: Bool
+    /// The whole entry is an estimate because its weight was estimated (stated once, in the header).
+    public let weightIsEstimated: Bool
+    /// Nutrients whose source value is augmented (estimated); marked beside that value only.
+    public let augmentedKeys: Set<NutrientKey>
     public let nutrition: Nutrition
     public let basis: ResolutionBasis
     public let sourceFamily: FoodSearchResultSummary.SourceFamily
@@ -45,6 +49,10 @@ public struct SavedFoodEntryDetail: Sendable {
         enteredAmount = (try? PositiveQuantity(value: entered.value, unit: entered.unit)) ?? log.edibleQuantity
         edibleQuantity = log.edibleQuantity
         self.isEstimate = isEstimate
+        weightIsEstimated = log.weightDeclaration?.basis == .estimated
+        augmentedKeys = Set(stored.resolutionVersion.nutrients.entries.compactMap { entry in
+            if case .augmented = entry.value { return entry.key } else { return nil }
+        })
         basis = stored.resolution.basis
         nutrition = Self.nutrition(quantity: log.edibleQuantity, basis: stored.resolution.basis,
                                    nutrients: stored.resolutionVersion.nutrients,

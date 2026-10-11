@@ -29,15 +29,24 @@ public final class FoodLogViewModel: ObservableObject {
 
     private let store: any FoodLogStore
     private let now: @Sendable () -> Date
-    public let calendar: Calendar
+    private let calendarProvider: () -> Calendar
+    /// Read on every use, so a time-zone change (an auto-updating calendar) is seen at once.
+    public var calendar: Calendar { calendarProvider() }
     private var loadToken = 0
+    /// The key that was today when the log last loaded, so a later midnight or time-zone change
+    /// can tell that the user was looking at "today" (the clock has already moved by then).
+    private var loadedTodayKey: String?
     private var isChanging = false
 
-    public init(store: any FoodLogStore, now: @escaping @Sendable () -> Date, calendar: Calendar) {
+    public convenience init(store: any FoodLogStore, now: @escaping @Sendable () -> Date, calendar: Calendar) {
+        self.init(store: store, now: now, calendarProvider: { calendar })
+    }
+
+    public init(store: any FoodLogStore, now: @escaping @Sendable () -> Date, calendarProvider: @escaping () -> Calendar) {
         self.store = store
         self.now = now
-        self.calendar = calendar
-        selectedKey = FoodLogDayNavigation(now: now(), calendar: calendar).todayKey
+        self.calendarProvider = calendarProvider
+        selectedKey = FoodLogDayNavigation(now: now(), calendar: calendarProvider()).todayKey
     }
 
     public var navigation: FoodLogDayNavigation { FoodLogDayNavigation(now: now(), calendar: calendar) }
@@ -51,6 +60,7 @@ public final class FoodLogViewModel: ObservableObject {
         loadToken += 1
         let token = loadToken
         let key = selectedKey
+        loadedTodayKey = navigation.todayKey
         if case .loaded = phase {} else { phase = .loading }
         do {
             let content = try await store.day(key)
@@ -81,10 +91,11 @@ public final class FoodLogViewModel: ObservableObject {
 
     public func choose(_ date: Date) async { await showDay(navigation.clampedKey(for: date)) }
 
-    /// Re-anchors on today after midnight or a time-zone change when today was selected.
-    public func refreshAfterTimeChange(wasToday: Bool) async {
-        if wasToday { selectedKey = navigation.todayKey }
-        if selectedKey > navigation.todayKey { selectedKey = navigation.todayKey }
+    /// Re-anchors on today after midnight or a time-zone change when the day shown was today at
+    /// the last load; a past day stays selected, and no day after today is kept.
+    public func refreshAfterTimeChange() async {
+        let today = navigation.todayKey
+        if selectedKey == loadedTodayKey || selectedKey > today { selectedKey = today }
         await load()
     }
 

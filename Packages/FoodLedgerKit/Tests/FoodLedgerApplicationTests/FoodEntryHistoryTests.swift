@@ -91,4 +91,20 @@ final class FoodEntryHistoryTests: XCTestCase {
         let events = FoodEntryHistory.events(versions: [original, edited], conversions: [])
         XCTAssertEqual(events[0].kind, .changed(amount: .init(from: try q(150), to: try q(160), edibleFrom: nil, edibleTo: nil), time: nil))
     }
+
+    /// Review fix 4: a plate-only or declaration-only change is a weight-details event.
+    func testPlateOrDeclarationOnlyChangeIsWeightDetailsChanged() throws {
+        let plateOnly = FoodEntryHistory.events(versions: [
+            try F.log(800, version: 801),
+            try F.log(800, version: 802, ordinal: 2, supersedes: 801, plate: 950)
+        ], conversions: [])
+        XCTAssertEqual(plateOnly[0].kind, .weightDetailsChanged)
+        let measured = try EdibleWeightDeclaration(basis: .measured, total: q(150), originalInput: nil)
+        let estimated = try EdibleWeightDeclaration(basis: .estimated, total: q(150), originalInput: nil)
+        let declarationOnly = FoodEntryHistory.events(versions: [
+            try F.log(800, version: 801, declaration: measured),
+            try F.log(800, version: 802, ordinal: 2, supersedes: 801, declaration: estimated)
+        ], conversions: [])
+        XCTAssertEqual(declarationOnly[0].kind, .weightDetailsChanged)
+    }
 }

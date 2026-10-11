@@ -16,6 +16,9 @@ public struct FoodLogDayContent: Sendable {
         public let quantity: PositiveQuantity
         /// Energy for the amount; nil when it is unknown, bounded or cannot be scaled.
         public let energyKcal: Double?
+        /// A labelled estimate: the saved decisions say so (`FoodEntryEstimateStatus`) or the
+        /// entry's own contribution includes estimated values (augmented nutrients or an estimated
+        /// weight). Shown once.
         public let isEstimate: Bool
         /// Strip nutrients this entry cannot contribute, in strip order.
         public let unknownKeys: [NutrientKey]
@@ -28,6 +31,12 @@ public struct FoodLogDayContent: Sendable {
         public let name: String
         public let quantity: PositiveQuantity
         public let removedAt: Date?
+
+        public init(logItemID: LogItemID, logItemVersionID: LogItemVersionID, occurredAt: Date, name: String,
+                    quantity: PositiveQuantity, removedAt: Date?) {
+            self.logItemID = logItemID; self.logItemVersionID = logItemVersionID; self.occurredAt = occurredAt
+            self.name = name; self.quantity = quantity; self.removedAt = removedAt
+        }
     }
 
     public let reportingDate: String
@@ -48,7 +57,7 @@ public struct FoodLogDayContent: Sendable {
             return Entry(logItemID: row.logItemID, logItemVersionID: row.logItemVersionID, occurredAt: row.occurredAt,
                          name: row.name, quantity: row.quantity,
                          energyKcal: known[.energyConsumed] ?? nil,
-                         isEstimate: estimates.contains(row.logItemID),
+                         isEstimate: estimates.contains(row.logItemID) || row.totals.contains { $0.includesEstimates },
                          unknownKeys: Self.stripKeys.filter { (known[$0] ?? nil) == nil })
         }
         removed = projection.removedRows.map { row in

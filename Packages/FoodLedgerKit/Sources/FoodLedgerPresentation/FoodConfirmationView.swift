@@ -307,6 +307,12 @@ public struct FoodConfirmationView: View {
         _totalText = State(initialValue: model.state.quantity.value.map(Self.editableNumber) ?? "")
     }
 
+    /// The exits Confirm offers (#197): before a save, Cancel when the host shows one; after a
+    /// save, exactly one, the host's completion action. The view renders from this list.
+    public static func exitTitles(isSaved: Bool, showsCancelButton: Bool, completionTitle: String) -> [String] {
+        isSaved ? [completionTitle] : (showsCancelButton ? ["Cancel"] : [])
+    }
+
     public var body: some View {
         Form {
             if let context { Section("From your list") { Text(context) } }
@@ -332,7 +338,8 @@ public struct FoodConfirmationView: View {
         // bar's place. No back button and no toolbar action (#197).
         .navigationBarBackButtonHidden(showsCancelButton || model.savedResult != nil)
         .toolbar {
-            if showsCancelButton && model.savedResult == nil {
+            if Self.exitTitles(isSaved: model.savedResult != nil, showsCancelButton: showsCancelButton,
+                               completionTitle: completionTitle) == ["Cancel"] {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         model.send(.decline)
@@ -492,7 +499,8 @@ public struct FoodConfirmationView: View {
 
     @ViewBuilder
     private var logBar: some View {
-        if model.savedResult != nil {
+        if Self.exitTitles(isSaved: model.savedResult != nil, showsCancelButton: showsCancelButton,
+                           completionTitle: completionTitle) == [completionTitle], model.savedResult != nil {
             Button(action: leave) {
                 Text(completionTitle).frame(maxWidth: .infinity, minHeight: 44)
             }

@@ -33,6 +33,8 @@ public struct FoodEntryHistoryEvent: Equatable, Sendable {
         /// Only the effective nutrition resolution changed (re-resolution).
         case nutritionUpdated
         case changed(amount: AmountChange?, time: TimeChange?)
+        /// Only the weight declaration or the plate changed; amount and time are the same.
+        case weightDetailsChanged
     }
 
     public let kind: Kind
@@ -77,6 +79,10 @@ public enum FoodEntryHistory {
         if previous.composition != next.composition { return .corrected(amount: amount, time: time) }
         if previous.effectiveResolutionVersionID != next.effectiveResolutionVersionID, amount == nil, time == nil {
             return .nutritionUpdated
+        }
+        if amount == nil, time == nil,
+           previous.weightDeclaration != next.weightDeclaration || previous.plateWeightVersionID != next.plateWeightVersionID {
+            return .weightDetailsChanged
         }
         return .changed(amount: amount, time: time)
     }

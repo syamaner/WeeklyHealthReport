@@ -28,6 +28,9 @@ public enum FoodLogText {
 
     public static func label(_ key: NutrientKey) -> String { FoodNutritionReviewPresentation.label(key) }
 
+    /// The narrow totals strip abbreviates carbohydrates; VoiceOver keeps the full word.
+    public static func stripLabel(_ key: NutrientKey) -> String { key == .carbohydrates ? "Carbs" : label(key) }
+
     // MARK: Totals strip
 
     /// "1,240", "68 g", "41 g+", or "Unknown" when no entry has a known value.
@@ -39,6 +42,12 @@ public enum FoodLogText {
         return total.incompleteContributions > 0 ? value + "+" : value
     }
 
+    /// A caption under a strip total whose known values include estimates (augmented values or an
+    /// estimated weight); nil otherwise.
+    public static func totalCaption(_ total: FoodIntakeTotal) -> String? {
+        total.knownAmount != nil && total.includesEstimates ? "Includes estimates" : nil
+    }
+
     /// Spoken form: "Fat, at least 41 grams", "Energy, 1,240 kilocalories", "Fat, unknown".
     public static func totalAccessibility(_ total: FoodIntakeTotal, locale: Locale = .current) -> String {
         let name = label(total.key)
@@ -46,7 +55,8 @@ public enum FoodLogText {
         let value = total.key == .energyConsumed
             ? "\(kcal(amount, locale: locale)) kilocalories"
             : "\(number(amount, locale: locale)) \(spokenUnit(total.key.canonicalUnit))"
-        return total.incompleteContributions > 0 ? "\(name), at least \(value)" : "\(name), \(value)"
+        let spoken = total.incompleteContributions > 0 ? "\(name), at least \(value)" : "\(name), \(value)"
+        return totalCaption(total) == nil ? spoken : "\(spoken), includes estimates"
     }
 
     static func spokenUnit(_ unit: NutrientUnit) -> String {
@@ -90,9 +100,37 @@ public enum FoodLogText {
             .filter { !$0.isEmpty }.joined(separator: ", ")
     }
 
-    /// "Removed 11:02 · not in totals".
+    /// "Removed 11:02 · not in totals" on the day shown, otherwise "Removed yesterday, 11:02 · …".
     public static func removedLine(removedAt: String?) -> String {
         removedAt.map { "Removed \($0) · not in totals" } ?? "Removed · not in totals"
+    }
+
+    public static func removedLine(_ entry: FoodLogDayContent.RemovedEntry, now: Date, calendar: Calendar,
+                                   locale: Locale = .current) -> String {
+        guard let removedAt = entry.removedAt else { return removedLine(removedAt: nil) }
+        let sameDay = calendar.isDate(removedAt, inSameDayAs: entry.occurredAt)
+        return removedLine(removedAt: sameDay ? time(removedAt, calendar: calendar, locale: locale)
+                                              : when(removedAt, now: now, calendar: calendar, locale: locale))
+    }
+
+    // MARK: Times
+
+    /// "00:18" (two-digit hour, as Confirm's time picker shows it) in the calendar's time zone;
+    /// 12-hour locales keep their AM/PM marker. One formatter for the Food Log, history and Home.
+    public static func time(_ date: Date, calendar: Calendar, locale: Locale = .current) -> String {
+        date.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone)
+            .hour(.twoDigits(amPM: .abbreviated)).minute(.twoDigits))
+    }
+
+    /// "today, 12:40", "yesterday, 08:00" or "9 Oct, 12:40".
+    public static func when(_ date: Date, now: Date, calendar: Calendar, locale: Locale = .current) -> String {
+        let day: String
+        if calendar.isDate(date, inSameDayAs: now) { day = "today" }
+        else if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) { day = "yesterday" }
+        else {
+            day = date.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone).day().month(.abbreviated))
+        }
+        return "\(day), \(time(date, calendar: calendar, locale: locale))"
     }
 
     public static func removedHeader(_ count: Int) -> String { count == 1 ? "Removed · 1 entry" : "Removed · \(count) entries" }
@@ -144,13 +182,21 @@ public enum FoodLogText {
         switch unit { case .grams: "g"; case .millilitres: "mL"; case .count: "units" }
     }
 
-    /// "Unknown" for unknown, bounded or unscalable values; "Estimated" beside augmented values.
-    public static func nutrient(_ total: FoodIntakeTotal, locale: Locale = .current) -> String {
+    /// "Unknown" for unknown, bounded or unscalable values; "Estimated" only beside a value the
+    /// source augmented. A whole-entry estimate (an estimated weight) is stated once in the header.
+    public static func nutrient(_ total: FoodIntakeTotal, augmented: Bool = false, locale: Locale = .current) -> String {
         guard let amount = total.knownAmount else { return "Unknown" }
         let value = total.key == .energyConsumed
             ? "\(kcal(amount, locale: locale)) kcal"
             : "\(number(amount, locale: locale)) \(total.key.canonicalUnit.rawValue)"
-        return total.includesEstimates ? "\(value) · Estimated" : value
+        return augmented ? "\(value) · Estimated" : value
+    }
+
+    /// The header's estimate line, or nil: "Estimate · Unknown details stay unknown".
+    public static func headerEstimate(_ detail: SavedFoodEntryDetail) -> String? {
+        if detail.isEstimate { return "Estimate · \(estimateNotice)" }
+        if detail.weightIsEstimated { return "Estimate · The weight was estimated" }
+        return nil
     }
 
     public static func source(_ detail: SavedFoodEntryDetail) -> String {
@@ -174,13 +220,24 @@ public enum FoodLogText {
         FoodLogRequirementText.choice(decision.choice, facet: decision.facet, source: decision.sourceState)
     }
 
-    /// One history line without its time: "Logged", "Amount changed 120 g to 150 g", ...
-    public static func history(_ kind: FoodEntryHistoryEvent.Kind, time: (Date) -> String, locale: Locale = .current) -> String {
+    /// One history line without its time: "Logged", "Amount changed 120 g to 150 g", ... A time
+    /// change across days names both days ("yesterday, 12:40 to today, 12:40").
+    public static func history(_ kind: FoodEntryHistoryEvent.Kind, now: Date, calendar: Calendar,
+                               locale: Locale = .current) -> String {
+        history(kind, time: { [calendar] from, to in
+            calendar.isDate(from, inSameDayAs: to)
+                ? (time(from, calendar: calendar, locale: locale), time(to, calendar: calendar, locale: locale))
+                : (when(from, now: now, calendar: calendar, locale: locale), when(to, now: now, calendar: calendar, locale: locale))
+        }, locale: locale)
+    }
+
+    static func history(_ kind: FoodEntryHistoryEvent.Kind, time: (Date, Date) -> (String, String), locale: Locale) -> String {
         switch kind {
         case .logged: return "Logged"
         case .removed: return "Removed"
         case .restored: return "Restored"
         case .nutritionUpdated: return "Nutrition updated"
+        case .weightDetailsChanged: return "Weight details changed"
         case let .corrected(amount, change):
             return (["Food details corrected"] + changes(amount, change, time: time, locale: locale)).joined(separator: " · ")
         case let .changed(amount, change):
@@ -190,7 +247,7 @@ public enum FoodLogText {
     }
 
     private static func changes(_ amount: FoodEntryHistoryEvent.AmountChange?, _ change: FoodEntryHistoryEvent.TimeChange?,
-                                time: (Date) -> String, locale: Locale) -> [String] {
+                                time: (Date, Date) -> (String, String), locale: Locale) -> [String] {
         var parts: [String] = []
         if let amount {
             var text = "Amount changed \(self.amount(amount.from, locale: locale)) to \(self.amount(amount.to, locale: locale))"
@@ -199,7 +256,10 @@ public enum FoodLogText {
             }
             parts.append(text)
         }
-        if let change { parts.append("Time changed \(time(change.from)) to \(time(change.to))") }
+        if let change {
+            let (from, to) = time(change.from, change.to)
+            parts.append("Time changed \(from) to \(to)")
+        }
         return parts
     }
 }

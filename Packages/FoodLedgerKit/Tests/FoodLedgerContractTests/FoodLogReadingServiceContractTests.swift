@@ -145,6 +145,92 @@ final class FoodLogReadingServiceContractTests: XCTestCase {
         }
     }
 
+    /// Review fix 7: untouched plate and direct-weight entries are unchanged; a declaration change
+    /// and a correction are changes, for the button and the save path alike.
+    func testEditComparisonCoversPlateDirectWeightDeclarationAndCorrection() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let (_, confirmations) = try services(harness)
+            var plated = try state(grams: 170, evidence: 60)
+            plated.quantity.plateChoice = .new(emptyWeight: try PositiveQuantity(value: 20, unit: .grams), superseding: nil)
+            func weighed(_ evidence: Int) throws -> FoodConfirmationState {
+                var weighed = try state(grams: 2, evidence: evidence)
+                weighed.quantity = FoodQuantityDraft(value: 2, unit: .count, directWeight: DirectWeightDraft(totalGrams: 125, basis: .measured))
+                return weighed
+            }
+            let cases: [(String, FoodConfirmationState, (inout FoodConfirmationState) throws -> Void, Bool)] = [
+                ("untouched saved plate", plated, { _ in }, false),
+                ("untouched direct weight", try weighed(61), { _ in }, false),
+                ("declaration basis", try weighed(67), { $0.quantity.directWeight?.basis = .estimated }, true),
+                ("correction", try state(grams: 150, evidence: 62), { state in
+                    FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(FoodCorrection(
+                        name: try LedgerText("Corrected fixture food"), brand: nil, variant: nil,
+                        identity: try LedgerFixtures.identity(), nutrients: state.selectedCandidate.candidate.nutrients,
+                        reason: try LedgerText("Fixture correction"))))
+                }, true)
+            ]
+            for (index, (name, initial, edit, expected)) in cases.enumerated() {
+                let saved = try confirmations.save(initial, operationID: LedgerFixtures.operationID(1_000 + index))
+                if name == "untouched saved plate" { XCTAssertNotNil(saved.logItemVersion.plateWeightVersionID) }
+                if name == "untouched direct weight" { XCTAssertNotNil(saved.logItemVersion.weightDeclaration) }
+                try assertParity(name, harness, confirmations, saved, edit: edit, expected: expected, operation: 1_010 + index)
+            }
+        }
+    }
+
+    /// Review fix 7: saved-entry detail for an estimate, a plate-weighed entry and a converted entry.
+    func testSavedEntryDetailEstimatePlateAndConversion() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let (service, confirmations) = try services(harness)
+            var estimated = try state(grams: 2, evidence: 63)
+            estimated.quantity = FoodQuantityDraft(value: 2, unit: .count, directWeight: DirectWeightDraft(totalGrams: 125, basis: .estimated))
+            let estimate = try confirmations.save(estimated, operationID: LedgerFixtures.operationID(1_020))
+            let estimateDetail = try XCTUnwrap(service.savedEntry(estimate.logItem.logItemID))
+            XCTAssertEqual(estimateDetail.enteredAmount, try PositiveQuantity(value: 2, unit: .count))
+            XCTAssertEqual(estimateDetail.edibleQuantity, try PositiveQuantity(value: 125, unit: .grams))
+            guard case let .calculated(totals) = estimateDetail.nutrition else { return XCTFail("calculated") }
+            XCTAssertTrue(totals.first { $0.key == .protein }?.includesEstimates == true, "an estimated weight is labelled")
+            XCTAssertTrue(estimateDetail.weightIsEstimated, "stated once in the header")
+            XCTAssertTrue(estimateDetail.augmentedKeys.isEmpty, "no per-value marker for measured values")
+            let row = try XCTUnwrap(service.day(reportingDate: estimateDetail.reportingDate).entries.first { $0.logItemID == estimate.logItem.logItemID })
+            XCTAssertTrue(row.isEstimate, "\(harness.name): the row says Estimate for an estimated weight")
+
+            var plated = try state(grams: 170, evidence: 64)
+            plated.quantity.plateChoice = .new(emptyWeight: try PositiveQuantity(value: 20, unit: .grams), superseding: nil)
+            let plate = try confirmations.save(plated, operationID: LedgerFixtures.operationID(1_021))
+            let plateDetail = try XCTUnwrap(service.savedEntry(plate.logItem.logItemID))
+            XCTAssertEqual(plateDetail.edibleQuantity, try PositiveQuantity(value: 150, unit: .grams), "edible weight, plate excluded")
+
+            var converted = try state(grams: 1, evidence: 65)
+            converted.quantity = FoodQuantityDraft(value: 1, unit: .count, conversion: QuantityConversionDraft(
+                convertedQuantity: try PositiveQuantity(value: 120, unit: .grams), methodVersion: try LedgerText("fixture-conversion-v1"),
+                sourceReleaseID: nil, evidenceID: nil))
+            let conversion = try confirmations.save(converted, operationID: LedgerFixtures.operationID(1_022))
+            let conversionDetail = try XCTUnwrap(service.savedEntry(conversion.logItem.logItemID))
+            XCTAssertEqual(conversionDetail.enteredAmount, try PositiveQuantity(value: 1, unit: .count))
+            XCTAssertEqual(conversionDetail.edibleQuantity, try PositiveQuantity(value: 120, unit: .grams))
+            XCTAssertEqual(conversionDetail.sourceFamily, .yourFoods)
+            XCTAssertTrue(conversionDetail.decisions.isEmpty)
+        }
+    }
+
+    /// Review fix 4: a plate-only change is a weight-details event, never "saved again without changes".
+    func testPlateOnlyEditIsAWeightDetailsEvent() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let (service, confirmations) = try services(harness)
+            let saved = try confirmations.save(try state(grams: 150, evidence: 66), operationID: LedgerFixtures.operationID(1_030))
+            var reopened = try XCTUnwrap(confirmations.reopen(logItemID: saved.logItem.logItemID))
+            reopened.quantity.plateChoice = .new(emptyWeight: try PositiveQuantity(value: 20, unit: .grams), superseding: nil)
+            reopened.quantity.value = 170
+            XCTAssertTrue(FoodLogPolicy.editChanges(reopened))
+            FoodConfirmationReducer.reduce(state: &reopened, action: .accept)
+            _ = try confirmations.save(reopened, operationID: LedgerFixtures.operationID(1_031))
+            XCTAssertEqual(try service.historyEvents(saved.logItem.logItemID).first?.kind, .weightDetailsChanged, harness.name)
+        }
+    }
+
     private func assertParity(_ name: String, _ harness: TestHarness, _ confirmations: FoodConfirmationService,
                               _ saved: StoredFoodConfirmation, edit: (inout FoodConfirmationState) throws -> Void,
                               expected: Bool, operation: Int) throws {
