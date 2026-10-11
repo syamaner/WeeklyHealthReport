@@ -31,10 +31,8 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         let task = Task { await model.search() }; await reviewer.waitForRequest()
         await reviewer.complete(restricted); await task.value
         let proposal = try XCTUnwrap(model.result?.validation.candidates.first)
-        XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: "milk", scope: .exactProduct,
-            acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true)))
-        _ = try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate,
-            acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true))
+        XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: "milk", scope: .exactProduct))
+        _ = try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate)
     }
 
     func testMarketIsExplicitAndChangingItDiscardsLateResults() async throws {
@@ -79,8 +77,7 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
                 XCTAssertTrue(proposal.selectionEligible, "This test requires an otherwise bound proposal")
                 XCTAssertEqual(result.suggestedChoice, choice)
                 XCTAssertFalse(result.permitsConfirmation(of: proposal))
-                XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate,
-                    acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true)))
+                XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate))
             }
         }
     }
@@ -173,8 +170,7 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
             // Navigating into detail preserves a completed result and its grant.
             model.cancel(clearResult: false)
             if replacement { keys.version += 1 } else { keys.usable = false }
-            XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate,
-                acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true)))
+            XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate))
             XCTAssertNil(model.result)
             XCTAssertEqual(keys.rejections, 0)
             let count = await reviewer.callCount; XCTAssertEqual(count, 1)
@@ -201,8 +197,7 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         await reviewer.complete(try ProposalPresentationFixture.result(name: "Yoghurt")); await nextTask.value
         XCTAssertEqual(model.result?.validation.candidates.first?.id, original.id)
         XCTAssertEqual(model.result?.validation.candidates.first?.document.rawSha256, original.document.rawSha256)
-        XCTAssertThrowsError(try model.prepare(original, querySnapshot: "milk", scope: .representativeEstimate,
-            acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true)))
+        XCTAssertThrowsError(try model.prepare(original, querySnapshot: "milk", scope: .representativeEstimate))
     }
 
     func testReviewedSnapshotPreparesConfirmationWithoutAcceptingOrSupplyingIntake() async throws {
@@ -212,13 +207,11 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         await reviewer.complete(try ProposalPresentationFixture.result()); await task.value
         let proposal = try XCTUnwrap(model.result?.validation.candidates.first)
         model.cancel(clearResult: false)
-        let input = try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate,
-            acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true))
+        let input = try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate)
         let state = FoodConfirmationState(input: input)
         XCTAssertEqual(state.decision, .undecided); XCTAssertNil(state.quantity.value)
         model.cancel()
-        XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate,
-            acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true)))
+        XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate))
     }
 
     func testInsecureSourceIsRejectedWithoutReadingCredentialOrCallingProvider() async {
@@ -292,6 +285,34 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         XCTAssertEqual(model.alternativeSources, leads)
         XCTAssertTrue(model.message?.contains("different country") == true)
         XCTAssertEqual(keys.rejections, 0)
+    }
+
+    /// #196: a market change while a result is open makes it stale; Use this source cannot prepare it.
+    func testMarketChangeWithOpenResultInvalidatesItAndBlocksPreparation() async throws {
+        let reviewer = ControlledProposalReview(); let model = make(reviewer, initialMarket: .unspecified)
+        model.foodTerms = "milk"
+        let task = Task { await model.search() }; await reviewer.waitForRequest()
+        await reviewer.complete(try ProposalPresentationFixture.result()); await task.value
+        let proposal = try XCTUnwrap(model.suggestedProposal)
+        XCTAssertNoThrow(try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate))
+        model.market = .unitedKingdom
+        XCTAssertNil(model.result); XCTAssertNil(model.suggestedProposal)
+        XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate))
+        let calls = await reviewer.callCount
+        XCTAssertEqual(calls, 1, "Changing the market never starts a lookup")
+    }
+
+    func testOnlyTheSuggestedEligibleSourceIsOfferedAndDiagnosticsHoldNoKey() async throws {
+        for (choice, offered) in [("c1", true), ("none", false), ("clarify", false)] {
+            let reviewer = ControlledProposalReview(); let model = make(reviewer)
+            model.foodTerms = "milk"
+            let task = Task { await model.search() }; await reviewer.waitForRequest()
+            await reviewer.complete(try ProposalPresentationFixture.result(selection: choice)); await task.value
+            XCTAssertEqual(model.suggestedProposal != nil, offered, choice)
+            XCTAssertFalse(model.diagnosticLines.isEmpty)
+            XCTAssertFalse(model.diagnosticLines.joined().contains("synthetic-proposal-key-contract-only"), choice)
+            XCTAssertTrue(model.diagnosticLines.contains("Suggested choice: \(choice)"))
+        }
     }
 
     private func make(_ reviewer: any GenericFoodProposalReviewing, keys: ProposalCredentials = ProposalCredentials(),

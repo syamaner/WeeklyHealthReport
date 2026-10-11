@@ -29,7 +29,8 @@ final class AppNavigationTests: XCTestCase {
             .foodMarket: ([.settings, .foodMarket], [.settings, .foodMarket]),
             .dataBackup: ([.settings, .dataBackup], [.settings, .dataBackup]),
             .medicationAccess: ([.settings, .medicationAccess], [.settings, .medicationAccess]),
-            .developerTools: ([.settings, .developerTools], [.settings, .developerTools])
+            .developerTools: ([.settings, .developerTools], [.settings, .developerTools]),
+            .addFood: ([.addFood], [.addFood])
         ]
         XCTAssertEqual(Set(expected.keys), Set(AppRoute.allCases))
         for (route, paths) in expected {

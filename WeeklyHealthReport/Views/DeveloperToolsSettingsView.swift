@@ -1,13 +1,17 @@
 import SwiftUI
 
+import FoodLedgerPresentation
+
 struct DeveloperToolsSettingsView: View {
     let toggle: SettingsToggle
+    var diagnostics: FoodSearchDiagnosticsLog?
 
     var body: some View {
         Form {
             Section("Food search") {
                 SettingsToggleRow(toggle: toggle)
             }
+            if let diagnostics { FoodSearchDiagnosticsSection(log: diagnostics) }
             #if DEBUG
             Section("Health report") {
                 NavigationLink(value: AppRoute.diagnostics) {
@@ -18,5 +22,28 @@ struct DeveloperToolsSettingsView: View {
         }
         .navigationTitle("Developer tools")
         .onAppear { toggle.reload() }
+    }
+}
+
+/// Last search and web lookup details: scores, identifiers and stage details. Held in memory
+/// for this session only; never persisted and never includes a key.
+private struct FoodSearchDiagnosticsSection: View {
+    @ObservedObject var log: FoodSearchDiagnosticsLog
+    var body: some View {
+        Section {
+            if log.searchLines.isEmpty && log.webLookupLines.isEmpty {
+                Text("No search in this session yet.").foregroundStyle(.secondary)
+            }
+            if !log.searchLines.isEmpty {
+                DisclosureGroup("Last search") {
+                    ForEach(Array(log.searchLines.enumerated()), id: \.offset) { Text($0.element).font(.caption).textSelection(.enabled) }
+                }
+            }
+            if !log.webLookupLines.isEmpty {
+                DisclosureGroup("Last web lookup") {
+                    ForEach(Array(log.webLookupLines.enumerated()), id: \.offset) { Text($0.element).font(.caption).textSelection(.enabled) }
+                }
+            }
+        } header: { Text("Search details") } footer: { Text("Kept in memory for this session only.") }
     }
 }

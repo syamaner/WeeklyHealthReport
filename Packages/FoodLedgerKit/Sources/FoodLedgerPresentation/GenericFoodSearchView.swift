@@ -12,10 +12,16 @@ public enum GenericFoodSearchPhase: Equatable, Sendable {
 
 @MainActor
 public final class GenericFoodSearchViewModel: ObservableObject {
-    @Published public var query = "" { didSet { if query != oldValue { invalidateSearch() } } }
+    @Published public var query = "" { didSet { if query != oldValue { amountOverride = nil; invalidateSearch() } } }
     @Published public private(set) var parsedQuery: ParsedFoodQuery?
     @Published public private(set) var interpretation: FoodQueryInterpretation?
     @Published public var preparationFilter: PreparationKind? { didSet { if preparationFilter != oldValue { invalidateSearch() } } }
+    /// The amount chip's edited value. Cleared when the description changes.
+    @Published public var amountOverride: ParsedFoodQuery.Quantity?
+    /// The amount handed to Confirm and used for energy in result rows.
+    public var effectiveAmount: ParsedFoodQuery.Quantity? { amountOverride ?? parsedQuery?.quantity }
+    /// The preparation actually constraining results (chip or parsed text), if any.
+    public var effectivePreparation: PreparationKind? { preparationFilter ?? interpretation?.preparation }
     @Published public private(set) var phase: GenericFoodSearchPhase = .idle
     public var canOfferWebDiscovery: Bool {
         switch phase {
@@ -289,6 +295,40 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         return confirmation(at: index)
     }
 
+    /// Structured row facts for a match in the current results.
+    public func summary(for match: GenericFoodMatch) -> FoodSearchResultSummary? {
+        guard case let .results(route) = phase else { return nil }
+        return FoodSearchResultSummary(candidate: match.candidate, releases: route.confirmation.sourceReleases, amount: effectiveAmount)
+    }
+    public var bestMatches: [GenericFoodMatch] {
+        guard case let .results(route) = phase else { return [] }
+        let online = Set(onlineAddedIDs)
+        return route.matches.filter { !online.contains($0.searchID) }
+    }
+    public var onlineMatches: [GenericFoodMatch] {
+        guard case let .results(route) = phase else { return [] }
+        let online = Set(onlineAddedIDs)
+        return route.matches.filter { online.contains($0.searchID) }
+    }
+    /// Developer tools lines for the last search: terms, stage details, lexical scores and
+    /// identifiers. Held in memory only; contains no credential.
+    public var diagnosticLines: [String] {
+        var lines = ["Search terms: \(query)"]
+        if let status = searchStatus { lines += status.details }
+        if case let .results(route) = phase {
+            for match in route.matches {
+                lines.append(match.candidate.name.value)
+                if let metadata = match.candidate.candidate.matchMetadata {
+                    lines.append("Lexical score \(metadata.score.formatted()); not a probability.")
+                    lines += metadata.materialDifferences.map(\.value)
+                }
+                lines.append("Source: \(match.candidate.candidate.sourceReleaseID.value)")
+                lines.append("Record: \(match.candidate.candidate.recordID.value)")
+            }
+        }
+        return lines
+    }
+
     public func decline() {
         stopEnrichment()
         phase = .declined
@@ -303,136 +343,165 @@ public enum FoodSearchDeveloperTools {
 public struct GenericFoodSearchView: View {
     @ObservedObject private var model: GenericFoodSearchViewModel
     @AppStorage private var developerToolsEnabled: Bool
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private let reviewWebNutrition: (() -> Void)?
+    private let scanBarcode: (() -> Void)?
+    private let recordDiagnostics: ([String]) -> Void
     private let review: (PopulatedFoodConfirmation) -> Void
+    @State private var editsAmount = false
 
     /// `preferences` must be the store Settings writes the developer tools toggle to.
     public init(model: GenericFoodSearchViewModel, preferences: UserDefaults = .standard,
-                reviewWebNutrition: (() -> Void)? = nil,
+                reviewWebNutrition: (() -> Void)? = nil, scanBarcode: (() -> Void)? = nil,
+                recordDiagnostics: @escaping ([String]) -> Void = { _ in },
                 review: @escaping (PopulatedFoodConfirmation) -> Void) {
         self.model = model; self.review = review
         self.reviewWebNutrition = reviewWebNutrition
+        self.scanBarcode = scanBarcode
+        self.recordDiagnostics = recordDiagnostics
         _developerToolsEnabled = AppStorage(wrappedValue: false, FoodSearchDeveloperTools.storageKey, store: preferences)
     }
 
     public var body: some View {
-        ScrollViewReader { proxy in
-            Form {
-                Section {
-                    TextField("Food or dish, e.g. scallion pancake", text: $model.query)
-                        .accessibilityLabel("Food to search")
-                        .submitLabel(.search)
-                        .onSubmit { if model.activeEnrichmentStage == nil { model.search() } }
-                    DisclosureGroup(model.preparationFilter.map { "Preparation: \($0.rawValue.capitalized)" } ?? "Preparation") {
-                        Picker("Preparation", selection: $model.preparationFilter) {
-                            Text("Any").tag(Optional<PreparationKind>.none)
-                            Text("Raw").tag(Optional(PreparationKind.raw))
-                            Text("Cooked").tag(Optional(PreparationKind.cooked))
-                        }.pickerStyle(.segmented)
-                    }
+        Form {
+            Section {
+                TextField("Food and amount, e.g. 150 g grilled chicken", text: $model.query)
+                    .accessibilityLabel("Food and amount")
+                    .submitLabel(.search)
+                    .onSubmit { if model.activeEnrichmentStage == nil { model.search() } }
+                chips
+                if model.phase == .idle, model.activeEnrichmentStage == nil {
                     Button("Search") { model.search() }
-                        .buttonStyle(.borderedProminent)
-                        .frame(maxWidth: .infinity)
-                        .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.searchStatus?.isSearching == true)
-                    if let reviewWebNutrition {
-                        Button("Review web nutrition", action: reviewWebNutrition)
-                            .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || model.searchStatus?.isSearching == true)
-                    }
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .disabled(model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
-                if let message = model.geminiSetupMessage {
-                    Section { Text(message).font(.subheadline) }
+            }
+            if let line = progressLine {
+                Section { line }
+            }
+            if let message = model.searchRecoveryMessage {
+                Section("Search information") {
+                    Text(message)
+                    if model.canRetrySearch { Button("Search again") { model.search() } }
                 }
-                if let discovery = model.sourceDiscovery {
-                    Section {
-                        NavigationLink("Web sources") {
-                            Form {
-                                Section("Source pages") {
-                                    if let message = model.sourceReviewMessage { Text(message).font(.caption) }
-                                    ForEach(Array(discovery.leads.enumerated()), id: \.offset) { _, lead in
-                                        if FoodWebLinkPolicy.isAllowed(lead.url) { Link(lead.title, destination: lead.url) }
-                                    }
-                                }
-                                if let html = discovery.searchSuggestionsHTML {
-                                    Section("Google Search suggestions") {
-                                        FoodWebSearchSuggestions(html: html).frame(minHeight: 200, idealHeight: 240, maxHeight: 320)
-                                    }
-                                }
-                            }.navigationTitle("Web sources")
-                        }
-                    }
-                }
-                if let message = model.searchRecoveryMessage {
-                    Section("Search information") {
-                        Text(message)
-                        if model.canRetrySearch { Button("Search again") { model.search() } }
-                    }
-                }
-                resultSection
-                if developerToolsEnabled, case let .results(route) = model.phase {
-                    Section("Developer tools") {
-                        DisclosureGroup("Search diagnostics") {
-                            ForEach(route.matches, id: \.searchID) { match in
-                                Text(match.candidate.name.value)
-                                if let metadata = match.candidate.candidate.matchMetadata {
-                                    Text("Lexical score \(metadata.score.formatted()); not a probability.").font(.caption)
-                                    ForEach(metadata.materialDifferences, id: \.value) { Text($0.value).font(.caption) }
-                                }
-                                Text("Source: \(match.candidate.candidate.sourceReleaseID.value)").font(.caption)
-                                Text("Record: \(match.candidate.candidate.recordID.value)").font(.caption)
-                            }
-                        }
-                    }
-                }
-                if !model.additionalEvidence.isEmpty {
-                    Section {
-                        DisclosureGroup("Entry source") {
-                            ForEach(model.additionalEvidence, id: \.evidenceID) { evidence in
-                                if case let .barcode(value, _) = evidence.originalPayload {
-                                    Text(value.value).textSelection(.enabled)
-                                } else if evidence.captureMethod.value == "local-inventory-selection" {
-                                    Text("Selected from your reviewed inventory.")
+            }
+            if let discovery = model.sourceDiscovery {
+                Section {
+                    NavigationLink("Web sources") {
+                        Form {
+                            Section("Source pages") {
+                                if let message = model.sourceReviewMessage { Text(message).font(.caption) }
+                                ForEach(Array(discovery.leads.enumerated()), id: \.offset) { _, lead in
+                                    if FoodWebLinkPolicy.isAllowed(lead.url) { Link(lead.title, destination: lead.url) }
                                 }
                             }
-                        }
+                        }.navigationTitle("Web sources")
                     }
                 }
             }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                if let status = model.searchStatus {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack {
-                            if status.isSearching { ProgressView().accessibilityHidden(true) }
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(status.title).font(.subheadline.weight(.semibold))
-                                Text(status.summary).font(.caption).foregroundStyle(.secondary)
-                            }.accessibilityElement(children: .combine)
-                            Spacer(minLength: 8)
-                            if status.isSearching {
-                                Button("Stop") { model.stopEnrichment() }.frame(minHeight: 44).accessibilityLabel("Stop searching more sources")
-                            }
-                        }
-                        let layout = dynamicTypeSize.isAccessibilitySize
-                            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 6))
-                            : AnyLayout(HStackLayout(alignment: .top))
-                        layout {
-                            DisclosureGroup("Search details") {
-                                ForEach(status.details, id: \.self) { Text($0).font(.caption) }
-                            }.font(.caption).frame(minHeight: 44)
-                            if let id = model.onlineAddedIDs.first {
-                                Button("See added matches") { proxy.scrollTo(id, anchor: .center) }
-                                    .font(.caption).fixedSize(horizontal: false, vertical: true).frame(minHeight: 44)
+            resultSection
+            if showsMissOptions {
+                Section("Not what you ate?") {
+                    if let reviewWebNutrition {
+                        Button(action: reviewWebNutrition) {
+                            missRow("Look it up on the web", detail: "Finds a published nutrition source for you to check")
+                        }.buttonStyle(.plain)
+                    }
+                    if let scanBarcode {
+                        Button(action: scanBarcode) { missRow("Scan the package barcode", detail: nil) }.buttonStyle(.plain)
+                    }
+                }
+            }
+            if let footnote {
+                Section { Text(footnote).font(.footnote).foregroundStyle(.secondary) }
+            }
+            if !model.additionalEvidence.isEmpty {
+                Section {
+                    DisclosureGroup("Entry source") {
+                        ForEach(model.additionalEvidence, id: \.evidenceID) { evidence in
+                            if case let .barcode(value, _) = evidence.originalPayload {
+                                Text(value.value).textSelection(.enabled)
+                            } else if evidence.captureMethod.value == "local-inventory-selection" {
+                                Text("Selected from your reviewed inventory.")
                             }
                         }
                     }
-                    .padding(.horizontal).padding(.vertical, 10)
-                    .background(.bar)
-                    .overlay(alignment: .bottom) { Divider() }
                 }
             }
         }
-        .navigationTitle("Find a food")
+        .navigationTitle("Search results")
+        .sheet(isPresented: $editsAmount) {
+            NavigationStack { FoodSearchAmountEditor(initial: model.effectiveAmount) { model.amountOverride = $0 } }
+        }
+        .onChange(of: model.diagnosticLines) { _, lines in recordDiagnostics(lines) }
         .onDisappear { model.stopEnrichment() }
+    }
+
+    @ViewBuilder private var chips: some View {
+        HStack(spacing: 8) {
+            Button { editsAmount = true } label: {
+                Text(model.effectiveAmount.map { "Amount: " + FoodSearchResultText.amount($0) } ?? "Add amount")
+            }
+            .buttonStyle(.bordered).buttonBorderShape(.capsule).font(.footnote)
+            .accessibilityHint("Change the amount used for energy and on the confirmation")
+            Menu {
+                Button("Any preparation") { choosePreparation(nil) }
+                Button("Raw") { choosePreparation(.raw) }
+                Button("Cooked") { choosePreparation(.cooked) }
+            } label: {
+                Text(model.effectivePreparation.map(FoodSearchResultText.preparation) ?? "Any preparation")
+            }
+            .buttonStyle(.bordered).buttonBorderShape(.capsule).font(.footnote)
+            .accessibilityHint("Raw and cooked are different foods")
+        }
+        .frame(minHeight: 44)
+    }
+
+    private func choosePreparation(_ kind: PreparationKind?) {
+        model.preparationFilter = kind
+        if !model.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { model.search() }
+    }
+
+    private var progressLine: AnyView? {
+        if model.activeEnrichmentStage != nil {
+            return AnyView(HStack {
+                ProgressView().accessibilityHidden(true)
+                Text(model.activeEnrichmentStage == .local ? "Searching…" : "Looking for more matches online…").font(.subheadline)
+                Spacer(minLength: 8)
+                Button("Stop") { model.stopEnrichment() }.frame(minHeight: 44).accessibilityLabel("Stop searching")
+            }.accessibilityElement(children: .contain))
+        }
+        if model.searchWasStopped {
+            return AnyView(Text("Stopped. These are the matches found so far.").font(.subheadline))
+        }
+        return nil
+    }
+
+    private var showsMissOptions: Bool {
+        guard model.activeEnrichmentStage == nil, reviewWebNutrition != nil || scanBarcode != nil else { return false }
+        switch model.phase {
+        case .results, .noResult, .declined: return true
+        case .idle, .failed: return false
+        }
+    }
+
+    private var footnote: String? {
+        var parts: [String] = []
+        if case .results = model.phase, let preparation = model.effectivePreparation, preparation == .raw || preparation == .cooked {
+            parts.append("Raw and cooked are different foods, so only \(preparation.rawValue) matches are shown.")
+        }
+        if developerToolsEnabled, model.phase != .idle { parts.append("Search details are in Settings › Developer tools.") }
+        return parts.isEmpty ? nil : parts.joined(separator: " ")
+    }
+
+    private func missRow(_ title: String, detail: String?) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(title)
+                if let detail { Text(detail).font(.caption).foregroundStyle(.secondary) }
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
+        }.frame(minHeight: 44).contentShape(Rectangle())
     }
 
     @ViewBuilder private var resultSection: some View {
@@ -446,7 +515,7 @@ public struct GenericFoodSearchView: View {
             Section(model.activeEnrichmentStage != nil ? "No matches yet" : model.stageReports.contains(where: { $0.failure != nil }) ? "Search incomplete" : "No match found") {
                 if model.activeEnrichmentStage == nil {
                     if model.searchRecoveryMessage == nil {
-                        Text(route.suggestedQueries.isEmpty ? "Try a different food name or leave this entry unselected." : route.guidance)
+                        Text(route.suggestedQueries.isEmpty ? "No food matched this description." : route.guidance)
                     } else {
                         Text("Leave this entry unselected until you have a suitable nutrition match.")
                     }
@@ -458,35 +527,72 @@ public struct GenericFoodSearchView: View {
         case .declined:
             Section("No food selected") { Text("Change the description to try again.") }
         case let .results(route):
-            Section("Choose a match") {
-                ForEach(route.matches, id: \.searchID) { match in
-                    Button {
-                        if let confirmation = model.confirmation(id: match.searchID) { review(confirmation) }
-                    } label: {
-                        HStack(alignment: .center, spacing: 12) {
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(match.candidate.name.value).font(.headline)
-                                if let brand = match.candidate.brand { Text(brand.value).font(.subheadline) }
-                                Text(model.sourceLabel(for: match) + " · " + FoodSearchResultText.basisLabel(match.candidate.candidate.identity.servingBasis))
-                                    .font(.caption).foregroundStyle(.secondary)
-                                if let note = FoodSearchResultText.caution(query: model.parsedQuery, candidate: match.candidate,
-                                    requestedPreparation: model.preparationFilter,
-                                    isRecipe: FoodNamedServingPolicy.applies(route.confirmation, candidate: match.candidate)) {
-                                    Text(note).font(.caption).foregroundStyle(.secondary)
-                                }
-                                if model.onlineAddedIDs.contains(match.searchID) {
-                                    Text("Added online").font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary)
-                        }.foregroundStyle(.primary).frame(minHeight: 44)
+            if !model.bestMatches.isEmpty {
+                Section("Best matches") { ForEach(model.bestMatches, id: \.searchID) { row($0, route: route) } }
+            }
+            if !model.onlineMatches.isEmpty {
+                Section("Added from online database") { ForEach(model.onlineMatches, id: \.searchID) { row($0, route: route) } }
+            }
+        }
+    }
+
+    private func row(_ match: GenericFoodMatch, route: GenericFoodConfirmationRoute) -> some View {
+        Button {
+            if let confirmation = model.confirmation(id: match.searchID) { review(confirmation) }
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(match.candidate.name.value).font(.body)
+                    if let brand = match.candidate.brand { Text(brand.value).font(.subheadline) }
+                    if let summary = model.summary(for: match) {
+                        Text(FoodSearchResultText.summaryLine(summary)).font(.caption).foregroundStyle(.secondary)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityHint("Review this food and the amount before saving")
-                    .id(match.searchID)
+                    if let note = FoodSearchResultText.caution(query: model.parsedQuery, candidate: match.candidate,
+                        requestedPreparation: model.preparationFilter,
+                        isRecipe: FoodNamedServingPolicy.applies(route.confirmation, candidate: match.candidate)) {
+                        Text(note).font(.caption).foregroundStyle(.secondary)
+                    }
                 }
-                Button("None of these", role: .cancel) { model.decline() }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
+            }.foregroundStyle(.primary).frame(minHeight: 44).contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Review this food and the amount before saving")
+        .id(match.searchID)
+    }
+}
+
+/// Edits the amount chip: a positive value in grams, millilitres or pieces.
+struct FoodSearchAmountEditor: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var value: String
+    @State private var unit: String
+    private let apply: (ParsedFoodQuery.Quantity?) -> Void
+    init(initial: ParsedFoodQuery.Quantity?, apply: @escaping (ParsedFoodQuery.Quantity?) -> Void) {
+        _value = State(initialValue: initial.map { $0.value.formatted() } ?? "")
+        _unit = State(initialValue: ["g", "ml", "count"].contains(initial?.unit ?? "") ? initial!.unit : "g")
+        self.apply = apply
+    }
+    var body: some View {
+        Form {
+            TextField("Amount", text: $value)
+                #if os(iOS)
+                .keyboardType(.decimalPad)
+                #endif
+            Picker("Unit", selection: $unit) {
+                Text("g").tag("g"); Text("mL").tag("ml"); Text("pieces").tag("count")
+            }.pickerStyle(.segmented)
+        }
+        .navigationTitle("Amount")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+            ToolbarItem(placement: .confirmationAction) {
+                Button("Done") {
+                    let number = Double(value.replacingOccurrences(of: ",", with: "."))
+                    if let number, number.isFinite, number > 0 { apply(.init(value: number, unit: unit)) }
+                    dismiss()
+                }
             }
         }
     }

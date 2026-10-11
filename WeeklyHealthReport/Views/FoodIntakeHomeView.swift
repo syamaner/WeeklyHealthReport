@@ -49,10 +49,7 @@ struct FoodIntakeHomeView: View {
             }
             if !isHome {
                 Section {
-                    NavigationLink(value: AppRoute.genericFoodSearch) { Label("Search foods", systemImage: "magnifyingglass") }
-                    NavigationLink(value: AppRoute.barcodeFoodCapture) { Label("Scan barcode", systemImage: "barcode.viewfinder") }
-                    NavigationLink(value: AppRoute.commonFoods) { Label("Common foods & favourites", systemImage: "star") }
-                    NavigationLink(value: AppRoute.foodListImport) { Label("Paste or dictate food list", systemImage: "list.bullet") }
+                    NavigationLink(value: AppRoute.addFood) { Label("Add food", systemImage: "plus.circle") }
                 } header: { Text("Log food") } footer: {
                     if !Calendar.current.isDateInToday(selectedDate) {
                         Text("New foods are logged for now. To log on this day, set When on the confirm screen. Changes do not update an already exported snapshot.")
@@ -97,8 +94,11 @@ struct FoodIntakeHomeView: View {
                 }
                 if isHome {
                     Section {
+                        NavigationLink(value: AppRoute.addFood) {
+                            actionLabel("Add food", subtitle: "Search, scan a barcode or log a recent food", symbol: "plus.circle.fill")
+                        }
                         NavigationLink(value: AppRoute.foodLog) {
-                            actionLabel("Manage food intake", subtitle: "Review entries, search foods or scan a barcode", symbol: "fork.knife.circle.fill")
+                            actionLabel("Manage food intake", subtitle: "Review and change today's entries", symbol: "fork.knife.circle.fill")
                         }
                         NavigationLink(value: AppRoute.dailyExport) {
                             actionLabel("Export health data", subtitle: "Prepare and review your Apple Health export", symbol: "square.and.arrow.up.circle.fill")

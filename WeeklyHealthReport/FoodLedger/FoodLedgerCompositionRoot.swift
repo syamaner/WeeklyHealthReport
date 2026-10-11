@@ -21,6 +21,8 @@ final class FoodLedgerCompositionRoot {
     /// The store shared by food search preferences and Settings.
     let userDefaults: UserDefaults
     let foodMarket: FoodMarketPreference
+    /// The last search and web lookup diagnostics for Settings › Developer tools. In memory only.
+    let searchDiagnostics = FoodSearchDiagnosticsLog()
     let webDiscovery: FoodWebDiscoveryViewModel
     private let proposalReviewer: GenericFoodProposalReviewer
     private let proposalConfirmation: ReviewedFoodProposalConfirmation
@@ -126,6 +128,31 @@ final class FoodLedgerCompositionRoot {
             }
         }
         return (prepared, offering)
+    }
+
+    /// Confirm for logging a recent food again as a new entry: source re-verified, last value
+    /// and unit prefilled, nothing saved until Log.
+    func model(relogging logItemID: LogItemID) throws -> FoodConfirmationViewModel? {
+        guard var state = try confirmations.relogState(logItemID: logItemID) else { return nil }
+        let (prepared, offering) = withMilkVolumeSource(state.input)
+        if prepared != state.input {
+            let quantity = state.quantity
+            state = FoodConfirmationState(input: prepared, prefillSourceQuantity: false)
+            state.relogSource = logItemID
+            state.quantity = quantity
+        }
+        let clock = confirmationClock
+        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering,
+                                         now: { clock.now() }, calendar: confirmationCalendar) { [confirmations, ids] state in
+            try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
+        }
+    }
+
+    /// Recent foods for Add food: 10 items within 30 days, each source re-verified (P1, P3).
+    func recentFoods(now: Date = Date()) -> [FoodRecentRelogItem] {
+        guard let records = try? store.archiveState().records else { return [] }
+        return FoodRecentItemsService(reader: store, confirmations: confirmations)
+            .items(records: records, now: now, calendar: confirmationCalendar)
     }
 
     func model(reopening logItemID: LogItemID) throws -> FoodConfirmationViewModel? {
@@ -327,32 +354,102 @@ struct FoodListImportFlowView: View {
 
 struct GenericFoodSearchFlowView: View {
     private let root: FoodLedgerCompositionRoot
+    private let searchesOnAppear: Bool
+    private let offersBarcode: Bool
     @StateObject private var searchModel: GenericFoodSearchViewModel
     @State private var confirmationModel: FoodConfirmationViewModel?
     @State private var showsConfirmation = false
     @State private var showsWebReview = false
+    @State private var showsBarcode = false
+    @State private var searchedOnAppear = false
 
-    init?(root: FoodLedgerCompositionRoot, additionalEvidence: [CaptureEvidence] = [], initialQuery: String = "") {
+    /// `initialQuery` is searched once on appear only when the user submitted it on Add food
+    /// (`searchesOnAppear`); a restored route starts empty and never searches by itself.
+    init?(root: FoodLedgerCompositionRoot, additionalEvidence: [CaptureEvidence] = [], initialQuery: String = "",
+          searchesOnAppear: Bool = false, offersBarcode: Bool = true) {
         guard let model = try? root.genericFoodSearchModel(additionalEvidence: additionalEvidence) else { return nil }
         self.root = root
+        self.searchesOnAppear = searchesOnAppear && !initialQuery.isEmpty
+        self.offersBarcode = offersBarcode && additionalEvidence.isEmpty
         model.query = initialQuery
         _searchModel = StateObject(wrappedValue: model)
     }
 
     var body: some View {
-        GenericFoodSearchView(model: searchModel, preferences: root.userDefaults, reviewWebNutrition: { showsWebReview = true }) { input in
-            // Snapshot selection and parsed quantity once; navigation renders reuse this model.
-            confirmationModel = root.model(for: input, queryQuantity: searchModel.parsedQuery?.quantity, searchInterpretation: searchModel.interpretation, prefillSourceQuantity: false)
+        GenericFoodSearchView(model: searchModel, preferences: root.userDefaults,
+                              reviewWebNutrition: { showsWebReview = true },
+                              scanBarcode: offersBarcode ? { showsBarcode = true } : nil,
+                              recordDiagnostics: { [diagnostics = root.searchDiagnostics] in diagnostics.recordSearch($0) }) { input in
+            // Snapshot selection and amount once; navigation renders reuse this model.
+            confirmationModel = root.model(for: input, queryQuantity: searchModel.effectiveAmount, searchInterpretation: searchModel.interpretation, prefillSourceQuantity: false)
             showsConfirmation = true
+        }
+        .onAppear {
+            guard searchesOnAppear, !searchedOnAppear else { return }
+            searchedOnAppear = true
+            searchModel.search()
         }
         .navigationDestination(isPresented: $showsWebReview) {
             if let flow = OpenRouterFoodReviewFlowView(root: root, initialQuery: searchModel.query) { flow }
         }
+        .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root) }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {
                     showsConfirmation = false
                 }
+            }
+        }
+    }
+}
+
+/// Add food (#196): one field, the other entry routes and recent foods. Every route ends on Confirm.
+struct AddFoodFlowView: View {
+    private let root: FoodLedgerCompositionRoot
+    @State private var recents: [FoodRecentRelogItem] = []
+    @State private var submittedQuery: String?
+    @State private var showsSearch = false
+    @State private var showsBarcode = false
+    @State private var showsList = false
+    @State private var showsFavourites = false
+    @State private var confirmationModel: FoodConfirmationViewModel?
+    @State private var showsConfirmation = false
+    @State private var relogFailed = false
+
+    init(root: FoodLedgerCompositionRoot) { self.root = root }
+
+    var body: some View {
+        AddFoodView(recents: recents,
+                    search: { submittedQuery = $0; showsSearch = true },
+                    scanBarcode: { showsBarcode = true },
+                    pasteOrDictate: { showsList = true },
+                    favourites: { showsFavourites = true },
+                    relog: { recent in
+                        if let model = try? root.model(relogging: recent.item.logItemID) {
+                            confirmationModel = model; showsConfirmation = true
+                        } else { relogFailed = true }
+                    })
+        .onAppear { recents = root.recentFoods() }
+        .alert("This food could not be opened", isPresented: $relogFailed) {
+            Button("OK", role: .cancel) {}
+        } message: { Text("Its saved source could not be verified. Search for it instead. Nothing was saved.") }
+        .navigationDestination(isPresented: $showsSearch) {
+            if let flow = GenericFoodSearchFlowView(root: root, initialQuery: submittedQuery ?? "", searchesOnAppear: true) {
+                flow.id(submittedQuery)
+            } else { ContentUnavailableView("Food search unavailable", systemImage: "exclamationmark.triangle") }
+        }
+        .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root) }
+        .navigationDestination(isPresented: $showsList) {
+            if let flow = FoodListImportFlowView(root: root) { flow }
+            else { ContentUnavailableView("Food list unavailable", systemImage: "exclamationmark.triangle") }
+        }
+        .navigationDestination(isPresented: $showsFavourites) {
+            if let flow = CommonFoodsFlowView(root: root) { flow }
+            else { ContentUnavailableView("Common foods unavailable", systemImage: "exclamationmark.triangle") }
+        }
+        .navigationDestination(isPresented: $showsConfirmation) {
+            if let confirmationModel {
+                FoodConfirmationView(model: confirmationModel) { showsConfirmation = false; recents = root.recentFoods() }
             }
         }
     }
@@ -371,7 +468,8 @@ struct OpenRouterFoodReviewFlowView: View {
         _reviewModel = StateObject(wrappedValue: model)
     }
     var body: some View {
-        GenericFoodProposalReviewView(model: reviewModel, credentials: credentials) { input in
+        GenericFoodProposalReviewView(model: reviewModel, credentials: credentials,
+                                      recordDiagnostics: { [diagnostics = root.searchDiagnostics] in diagnostics.recordWebLookup($0) }) { input in
             confirmationModel = root.model(for: input, prefillSourceQuantity: false)
             showsConfirmation = true
         }
