@@ -95,6 +95,7 @@ public enum FoodLogPolicy {
         }
         return FoodEntryEstimateStatus.isEstimate(
             sourceIsGeneric: state.isGenericEstimate,
+            identity: state.correction?.identity ?? state.selectedCandidate.candidate.identity,
             decisions: pendingDifferences(state).compactMap { state.decisions[$0] })
     }
 
@@ -135,9 +136,13 @@ public enum FoodLogPolicy {
 /// Pure projection: whether a saved entry is a labelled estimate. Legacy closest-match
 /// entries are not relabelled unless the generic-estimate rule holds for their stored source.
 public enum FoodEntryEstimateStatus {
-    /// The single estimate rule: a generic composition source, or any estimate decision.
-    public static func isEstimate(sourceIsGeneric: Bool, decisions: [FoodLogDecisionChoice]) -> Bool {
-        sourceIsGeneric || decisions.contains { $0.isEstimate }
+    /// The single estimate rule: a generic composition source whose saved identity still has an
+    /// unknown decisive detail (the v2 unknown-identity estimate, whether or not a correction was
+    /// applied), or any non-matching or uncertain decision. A generic match whose identity the user
+    /// fully resolved keeps v2's known-identity exact reuse.
+    public static func isEstimate(sourceIsGeneric: Bool, identity: DecisiveIdentity, decisions: [FoodLogDecisionChoice]) -> Bool {
+        let unresolved = !FoodConfirmationPolicy.unresolvedIdentity(identity, allowingEstimate: false).isEmpty
+        return (sourceIsGeneric && unresolved) || decisions.contains { $0.isEstimate }
     }
 
     /// Status of the current saved version. Assertions are those of the current product and
@@ -145,7 +150,7 @@ public enum FoodEntryEstimateStatus {
     /// only when its source is generic.
     public static func isEstimate(_ stored: StoredFoodConfirmation, restoredInput: PopulatedFoodConfirmation) -> Bool {
         let generic = restoredInput.candidates.first.map { FoodConfirmationPolicy.isGenericEstimate(restoredInput, candidate: $0) } ?? false
-        return isEstimate(sourceIsGeneric: generic,
+        return isEstimate(sourceIsGeneric: generic, identity: stored.productVersion.identity,
                           decisions: stored.assertions.flatMap { $0.confirmation?.decisions.map(\.choice) ?? [] })
     }
 }

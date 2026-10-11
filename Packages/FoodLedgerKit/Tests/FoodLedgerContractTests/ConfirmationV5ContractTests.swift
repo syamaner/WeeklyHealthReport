@@ -217,6 +217,33 @@ final class ConfirmationV5ContractTests: XCTestCase {
         }
     }
 
+    /// The same rule keeps v2's known-identity reuse: a generic match whose identity the user fully
+    /// resolved is not an estimate before or after saving, and keeps its exact library alias.
+    func testFullyResolvedCorrectedGenericKeepsExactAliasAndMatchingStatus() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let ledger = try LedgerFixtures.service(harness.committer)
+            let ids = SharedIDs()
+            let search = try CoFIDGenericFoodSearch(ids: ids)
+            guard case let .confirmation(route) = try search.search(GenericFoodSearchRequest(text: try LedgerText("rice"),
+                capturedAt: LedgerFixtures.date, locale: try LedgerText("en_GB"))) else { return XCTFail("rice") }
+            var state = FoodConfirmationState(input: route.confirmation)
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(100, .grams))
+            let known = try DecisiveIdentity(preparation: PreparationState(kind: .cooked), bone: .notApplicable, skin: .notApplicable,
+                drained: .notApplicable, packingMedium: .named(LedgerText("none")), fortification: .unfortified,
+                servingBasis: state.selectedCandidate.candidate.identity.servingBasis)
+            FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(FoodCorrection(
+                name: state.selectedCandidate.name, brand: nil, variant: nil, identity: known,
+                nutrients: state.selectedCandidate.candidate.nutrients, reason: try LedgerText("Resolved every detail"))))
+            XCTAssertFalse(FoodLogPolicy.savesEstimate(state), harness.name)
+            let saved = try service(ledger, harness, ids: ids).save(state, operationID: LedgerFixtures.operationID(972))
+            let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
+            XCTAssertEqual(try archive.archiveState().records.libraryEntries.count, 1, harness.name)
+            let stored = try XCTUnwrap(harness.reader.foodConfirmation(logItemID: saved.logItem.logItemID))
+            XCTAssertFalse(try service(ledger, harness, ids: ids).isEstimate(stored), harness.name)
+        }
+    }
+
     /// Status follows the current version: a correction carries no decisions, so a corrected
     /// exact entry that was logged as "Not sure" is no longer an estimate.
     func testCorrectionAfterNotSureFollowsTheCurrentVersion() throws {
