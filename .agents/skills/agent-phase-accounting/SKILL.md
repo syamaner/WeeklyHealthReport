@@ -35,12 +35,12 @@ python3 scripts/phase_usage.py SESSION \
 
 # Claude Code phase, including its subagents
 python3 scripts/phase_usage.py SESSION --since 2026-10-11T09:00:00Z --include-subagents \
-  --uncached-input-rate RATE --cached-input-rate RATE --cache-write-rate RATE --output-rate RATE
+  --uncached-input-rate RATE --cached-input-rate RATE --cache-write-rate RATE --cache-write-5m-rate RATE --output-rate RATE
 ```
 
 Compatibility with the former `codex-phase-accounting` script: Codex counting, baseline subtraction, pricing and exit statuses are unchanged. The output adds `format` and `cache_write_input_tokens` (always 0 for Codex) and some error messages differ, so update any tooling that parses the exact output.
 
-Claude reports cache writes separately from cache reads; the script requires a cache-write rate whenever cache writes are present rather than pricing them as ordinary input. The script validates counters and performs decimal arithmetic. It does not edit any ledger.
+Claude reports cache writes separately from cache reads, and splits them into 5-minute and 1-hour writes, which are priced differently (subagents often use 5-minute writes while the main session uses 1-hour). The script requires `--cache-write-rate` (1-hour) and `--cache-write-5m-rate` whenever the matching writes are present, rather than pricing them as ordinary input or at one rate. The script validates counters and performs decimal arithmetic. It does not edit any ledger.
 
 ## Update the ledger
 

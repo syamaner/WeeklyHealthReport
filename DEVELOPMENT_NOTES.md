@@ -1394,3 +1394,22 @@ Spec and agent-rules revamp: `2026-10-11T07:45:54.360Z` → `2026-10-11T08:00:24
 Review fixes and merges: `2026-10-11T08:00:24.611Z` → `2026-10-11T08:55:01.358Z`. 42 requests; maximum input 394,126. Exact API-equivalent USD 4.081723.
 
 The four rows sum exactly to a single whole-window measurement over `2026-10-11T07:19:03.979Z` → `2026-10-11T08:55:01.358Z` (38,426,732 tokens, USD 13.4699262). Token totals are not evidence of productivity, quality or provider efficiency, and these rows are not comparable to the Codex rows above without accounting for the different scope and rates.
+
+## WHR-194-2026-10-11: Claude Code CI gate and phase 1 navigation shell
+
+Same `claude-opus-5-5` session as the previous section, continuing from its final boundary. Two contiguous phases bounded by user messages: accounting plus the documentation-only CI gate (#203, #204) up to the user's "I am out" message, then phase 1 (#194) through to this ledger edit. Phase 1 includes four subagents launched from this session (`phase1-implementer`, `architecture-gate`, `invariant-reviewer`, `journey-qa`), all on `claude-opus-5-5`; their transcripts are under the session's `subagents/` folder and are included. Codex's independent review of #203 ran in Codex and is excluded. This ledger edit, PR delivery and merge are outside the rows.
+
+Pricing checked 11 October 2026: [official model rates](https://platform.claude.com/docs/en/about-claude/pricing), `claude-opus-5-5` USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output; full 1M context at standard rates. Every request ran at standard speed with global inference and no paid server tools. API-equivalent comparisons under a Claude subscription, not charges.
+
+Measurement correction: subagents mostly write the 5-minute cache while the main session writes the 1-hour cache. `phase_usage.py` previously priced all cache writes at one rate, which would have overstated phase 1 as USD 13.35. It now splits writes by duration and refuses to price 5-minute writes without a 5-minute rate. The previous section's rows had no 5-minute writes and are unchanged.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Accounting and documentation-only CI gate (#203, #204) | 21,424,080 (21,324,251) | 99,737 | 40,957 | 21,465,037 | $5.88 |
+| Phase 1 navigation shell and Settings (#194), with subagents | 30,143,626 (29,350,929) | 792,351 | 57,094 | 30,200,720 | $11.12 |
+
+Accounting and CI gate: `2026-10-11T08:55:01.358Z` → `2026-10-11T09:42:01.694Z`. 46 requests; maximum input 497,790; all cache writes 1-hour. Exact API-equivalent USD 5.8822542.
+
+Phase 1: `2026-10-11T09:42:01.694Z` → `2026-10-11T10:15:51.739Z`. 169 requests (20 main session, 149 subagents: implementer 87, architecture gate 18, invariant review 20, journey QA 24); maximum input 548,635. Cache writes: 742,693 5-minute, 49,658 1-hour. Exact API-equivalent USD 11.1241788.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

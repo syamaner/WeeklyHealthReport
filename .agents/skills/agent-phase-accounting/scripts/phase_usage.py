@@ -13,7 +13,13 @@ from typing import Any, Iterable, Iterator
 
 
 CODEX_FIELDS = ("input_tokens", "cached_input_tokens", "output_tokens")
-FIELDS = ("input_tokens", "cached_input_tokens", "cache_write_input_tokens", "output_tokens")
+FIELDS = (
+    "input_tokens",
+    "cached_input_tokens",
+    "cache_write_input_tokens",
+    "cache_write_5m_input_tokens",
+    "output_tokens",
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -53,7 +59,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--cache-write-rate",
         type=Decimal,
-        help="Claude only: rate for cache-write input; required when cache writes are present",
+        help="Claude only: rate for 1-hour (or unclassified) cache writes; required when any are present",
+    )
+    parser.add_argument(
+        "--cache-write-5m-rate",
+        type=Decimal,
+        help="Claude only: rate for 5-minute cache writes; required when any are present",
     )
     parser.add_argument("--json", action="store_true", dest="as_json")
     return parser.parse_args()
@@ -99,6 +110,7 @@ def codex_counter(events: Iterable[Any]) -> dict[str, int]:
     if latest is None:
         raise ValueError("no complete token-count event found")
     latest["cache_write_input_tokens"] = 0
+    latest["cache_write_5m_input_tokens"] = 0
     validate(latest, "session")
     return latest
 
@@ -129,6 +141,10 @@ def claude_counter(paths: list[Path], since: str | None, until: str | None) -> d
             usage = message["usage"]
             keys = ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens", "output_tokens")
             values = {k: usage.get(k, 0) for k in keys}
+            breakdown = usage.get("cache_creation")
+            values["cache_write_5m"] = (
+                breakdown.get("ephemeral_5m_input_tokens", 0) if isinstance(breakdown, dict) else 0
+            )
             if not all(isinstance(v, int) for v in values.values()):
                 continue
             ident = f"{path.name}:{message.get('id') or event.get('uuid')}"
@@ -142,6 +158,8 @@ def claude_counter(paths: list[Path], since: str | None, until: str | None) -> d
         "input_tokens": uncached + read + write,
         "cached_input_tokens": read,
         "cache_write_input_tokens": write,
+        # 5-minute writes are priced differently from 1-hour writes.
+        "cache_write_5m_input_tokens": sum(m["cache_write_5m"] for m in messages.values()),
         "output_tokens": sum(m["output_tokens"] for m in messages.values()),
     }
     validate(counter, "session")
@@ -153,6 +171,8 @@ def validate(counter: dict[str, int], label: str) -> None:
         raise ValueError(f"{label} counters must be non-negative")
     if counter["cached_input_tokens"] + counter["cache_write_input_tokens"] > counter["input_tokens"]:
         raise ValueError(f"{label} cached input exceeds total input")
+    if counter["cache_write_5m_input_tokens"] > counter["cache_write_input_tokens"]:
+        raise ValueError(f"{label} 5-minute cache writes exceed total cache writes")
 
 
 def codex_phase(current: dict[str, int], baseline_values: list[int] | None) -> tuple[str, dict[str, int]]:
@@ -160,6 +180,7 @@ def codex_phase(current: dict[str, int], baseline_values: list[int] | None) -> t
         return "whole-session", current
     baseline: dict[str, int] = dict(zip(CODEX_FIELDS, baseline_values, strict=True))
     baseline["cache_write_input_tokens"] = 0
+    baseline["cache_write_5m_input_tokens"] = 0
     validate(baseline, "baseline")
     delta = {f: current[f] - baseline[f] for f in FIELDS}
     if any(v < 0 for v in delta.values()):
@@ -170,20 +191,26 @@ def codex_phase(current: dict[str, int], baseline_values: list[int] | None) -> t
 
 def calculate_cost(usage: dict[str, int], args: argparse.Namespace) -> tuple[Decimal | None, Decimal | None]:
     rates = (args.uncached_input_rate, args.cached_input_rate, args.output_rate)
-    if all(r is None for r in rates) and args.cache_write_rate is None:
+    if all(r is None for r in rates) and args.cache_write_rate is None and args.cache_write_5m_rate is None:
         return None, None
     if any(r is None for r in rates):
         raise ValueError("provide uncached input, cached input and output rates together")
-    if usage["cache_write_input_tokens"] and args.cache_write_rate is None:
-        raise ValueError("cache writes are present; provide --cache-write-rate")
-    if any(r < 0 for r in (*rates, args.cache_write_rate or Decimal(0))):
+    write_5m = usage["cache_write_5m_input_tokens"]
+    write_other = usage["cache_write_input_tokens"] - write_5m
+    if write_other and args.cache_write_rate is None:
+        raise ValueError("1-hour cache writes are present; provide --cache-write-rate")
+    if write_5m and args.cache_write_5m_rate is None:
+        raise ValueError("5-minute cache writes are present; provide --cache-write-5m-rate")
+    extra = (args.cache_write_rate or Decimal(0), args.cache_write_5m_rate or Decimal(0))
+    if any(r < 0 for r in (*rates, *extra)):
         raise ValueError("rates must be non-negative")
     million = Decimal(1_000_000)
     uncached = usage["input_tokens"] - usage["cached_input_tokens"] - usage["cache_write_input_tokens"]
     exact = (
         Decimal(uncached) * args.uncached_input_rate
         + Decimal(usage["cached_input_tokens"]) * args.cached_input_rate
-        + Decimal(usage["cache_write_input_tokens"]) * (args.cache_write_rate or Decimal(0))
+        + Decimal(write_other) * extra[0]
+        + Decimal(write_5m) * extra[1]
         + Decimal(usage["output_tokens"]) * args.output_rate
     ) / million
     return exact, exact.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
@@ -194,7 +221,7 @@ def main() -> int:
     try:
         fmt = detect_format(read_events(args.session)) if args.format == "auto" else args.format
         if fmt == "codex":
-            if args.since or args.until or args.include_subagents or args.cache_write_rate is not None:
+            if args.since or args.until or args.include_subagents or args.cache_write_rate is not None or args.cache_write_5m_rate is not None:
                 raise ValueError("--since, --until, --include-subagents and --cache-write-rate are Claude-only")
             boundary, usage = codex_phase(codex_counter(read_events(args.session)), args.baseline)
         else:
