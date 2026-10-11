@@ -1,73 +1,87 @@
 # UX revamp phase 7: Health summary and simplified Export (architecture gate)
 
-Status: **draft for gate review, 11 October 2026.** Issue #200 (carries #146's acceptance); spec [ux-revamp-v1.md](ux-revamp-v1.md); wireframes `docs/designs/ux-revamp-v1/Health.dc.html` and `Export.dc.html`.
+Status: **gate passed with changes, 11 October 2026; changes folded in below.** Issue #200 (carries #146's acceptance); spec [ux-revamp-v1.md](ux-revamp-v1.md); wireframes `docs/designs/ux-revamp-v1/Health.dc.html` and `Export.dc.html`.
 
 Presentation only. No contract, schema, HealthKit query, aggregation, egress, Drive transport or Daily JSON byte change. The three day rules stay distinct: the Health report uses completed days; the Daily JSON export keeps its selected-day rule (today up to the frozen refresh cutoff, or one of the previous seven local days) under [daily-export-contract.md](daily-export-contract.md); Home's today-so-far projection (#199) is untouched. Refresh, review and export stay manual.
 
-## Wireframe items deferred because they would need a contract change
+## Deferred wireframe items (each becomes a follow-up issue to file)
 
-| Wireframe item | Why it is out of this phase | Phase 7 instead |
+| Wireframe item | Why it is deferred | Phase 7 instead |
 |---|---|---|
-| Period picker "28 days" and "Custom" | `ReportPeriodSelection` has `currentWeek`, `previousWeek`, `lastSevenCompletedDays`; new periods change query windows, equivalent-period comparisons, "Weekly Total" wording and README semantics | Segmented picker over the existing three selections with the visible range; new periods become a follow-up issue |
-| "Logged energy" tile and "Food and water" section | Food-log data is not in `ReportDocument`; adding it changes Copy all, Full Page and Diagnostics parity | Omitted; Home (#199) owns food |
-| "↑ 6% vs previous" on steps | The report computes no steps trend or percentages | Steps tile shows average and coverage only |
-| Wireframe group names (Activity, Body, Heart and sleep) | Regrouping rows changes the copied text and Full Page structure | Keep `ReportDocument` sections, order and titles |
-| Export "14 metrics · 2 workouts" and "Last export of this day" | Needs new envelope counting and a per-day identity read | Existing `DailyExportPreviewSummary` fields and `lastVerifiedLabel` |
+| Period "28 days" and "Custom" | **Needs a semantics change:** new query windows, equivalent-period comparisons, "Weekly Total" wording and README period rules. #200's scope line must be amended | Segmented picker over the existing three `ReportPeriodSelection` cases with the visible range |
+| "Logged energy" tile, "Food and water" section | **Needs a contract change:** food-log data is not in `ReportDocument`; adding it changes Copy all, Full Page and Diagnostics parity | Omitted; Home (#199) owns food |
+| "↑ 6% vs previous" on steps | **Needs a semantics change:** the report computes no steps trend or percentages | Steps tile shows average and coverage |
+| Regrouping (Activity, Body, Heart and sleep) | Outside presentation-only scope: it changes copied text and Full Page structure | Keep `ReportDocument` sections, order and titles |
+| "14 metrics · 2 workouts", "Last export of this day" | Outside presentation-only scope: new envelope counting and a per-day identity read | Existing `DailyExportPreviewSummary` fields and `lastVerifiedLabel` |
 
 ## Health screen
 
 | Element | Existing code | Restyled or new |
 |---|---|---|
-| Period picker with visible range | `HealthReportView` `Picker` over `ReportPeriodSelection`, `periodText` | Restyled (segmented, range beneath, "completed days") |
+| Period picker with visible range | `HealthReportView` picker, `periodText` | Restyled (segmented, range beneath, "completed days") |
 | Summary tiles | None | New: `Presentation/HealthSummaryTiles.swift` plus a tile view |
-| Grouped sections | `ReportDocumentSectionView`, `BloodPressureReportSection`, `MedicationReportSection` | Restyled: each section a disclosure group with one shared expansion policy |
-| Copy all (toolbar and button) | Inline `Copy Report` button calling `plainText(generatedAt:)` | Restyled and renamed; one `copyAll()` used by both |
-| Full Page | `WeeklyReportScreenshotService`, `WeeklyReportPDFView`, `AppShellView.configureScreenshotProvider` | Unchanged renderer; provider passes details expanded |
+| Grouped sections | `ReportDocumentSectionView`, `BloodPressureReportSection`, `MedicationReportSection` | Restyled: one disclosure style and one expansion policy for every section |
+| Copy all (toolbar and button) | Inline `Copy Report` button | Restyled and renamed; one `copyAll()` and one enablement expression (`!viewModel.isRefreshing`) shared by both |
+| Full Page | `WeeklyReportScreenshotService`, `WeeklyReportPDFView`, `AppShellView.configureScreenshotProvider` | Renderer unchanged; provider passes details expanded |
 | Export entry | "Export" section at the top of the form | Restyled to a trailing row linking `AppRoute.dailyExport` |
 
-**Tile projection.** `enum HealthSummaryTiles { static func make(from: ReportDocument) -> [HealthSummaryTile] }` is pure Foundation: no SwiftUI, HealthKit, clock or locale beyond the strings already formatted in the document. It selects rows by their stable ids (`steps-average` with `steps-coverage`, `sleep-average`, `resting-heart-rate-average` with `resting-heart-rate-trend`, `weight-average` with `weight-trend`, `blood-pressure-morning-average` with its coverage) and copies `value` verbatim. A trend appears only when the document already contains that trend row with `.standard` style. When the row is absent or its section reports no data, loading or failure, the tile shows "No data", "Loading" or "Failed" and the section keeps the full sentence. No new HealthKit query, threshold, colour coding or interpretation. Tiles duplicate section values, so they add no metric and are not added to copied text.
+**Expanded document.** One helper builds `ReportDocument` with both blood-pressure detail flags `true`. Copy all, Full Page and the tiles all use it, never the on-screen document, so tiles and copied text cannot depend on expansion (for example `blood-pressure-morning-coverage` exists only when morning details are shown). `WeeklyReportPresentationState` gains `expandedSections: Set<ReportDocument.SectionID>` (default all expanded) for the screen only. Full Page changes from mirroring on-screen detail state to always expanded.
 
-**Expansion.** `WeeklyReportPresentationState` gains `expandedSections: Set<ReportDocument.SectionID>` (default all expanded) beside the existing morning/evening blood-pressure flags. Copy all and Full Page ignore expansion: both build the document with `showsMorningBloodPressureDetails` and `showsEveningBloodPressureDetails` set to `true`. This changes Full Page from mirroring the on-screen detail state to always expanded, so README's Full Page paragraph and validation step 14 are updated in the same PR.
+**Tile projection.** `enum HealthSummaryTiles { static func make(from: ReportDocument) -> [HealthSummaryTile] }` imports Foundation only and reads no clock or locale. It selects rows by pinned ids (`steps-average` with `steps-coverage`, `sleep-average`, `resting-heart-rate-average` with `resting-heart-rate-trend`, `weight-average` with `weight-trend`, `blood-pressure-morning-average` with `blood-pressure-morning-coverage`) and copies each row's `label`, `value` and `style` verbatim, so windows such as "7-day Average" stay visible. A trend appears only when the document contains that trend row. When a section reports a state instead of values, the tile copies that row's value and style; steps state rows map to the shared `MetricRowVocabulary` terms (made internal rather than private), keeping "Unavailable" and "No completed days" distinct. No new query, threshold, colour coding or interpretation. Tiles repeat section values, add no metric and never appear in plain text.
 
-**Full Page eligibility** is unchanged: `navigationPath == [.healthReport]`, no transient UI, and `screenshotSnapshot` still returns `nil` during a refresh or period mismatch. Other screens keep the ordinary screenshot.
+**Full Page eligibility** is unchanged: `navigationPath == [.healthReport]`, no transient UI, and `screenshotSnapshot` returns `nil` during a refresh or period mismatch.
 
 ## Export screen
 
 | Element | Existing code | Restyled or new |
 |---|---|---|
-| Day picker | `DailyExportView` "Report date" over `session.availableReportDays` and `selectReportDay` | Restyled: "Today, up to <cutoff>" from `previewSummary.dataAsOf`, weekday names for the previous seven days; same binding and `busy` gate |
-| Included preview | "Prepared daily snapshot" section and `DailyExportPreviewSummary` | Restyled: Health data (as of cutoff), Nutrition (selected source name), Notes (`savedNoteCount`, link to `AppRoute.notes`), Exact file (`Review exact JSON` sheet); a fixed line that food-log entries are not exported (#97) |
-| One Export action | `Export prepared snapshot`, `Refresh`, `Cancel active export` | Restyled: one primary Export; Refresh and Cancel remain, secondary, with today's enablement |
-| Prepared, attempted, verified | `presentationState`, `exporting`, `status`, `lastVerifiedLabel`, last outcome (`.verified`, `.unchangedVerified`) | New pure `DailyExportPhase` projection over those values; the state machine is not edited |
-| Nutrition source choice | "Apple Health nutrition source" section | Kept on Export, shown only when the state's actions include it |
-| Needs attention | `attentionSection`, trashed-destination and file-replacement confirmations | Kept on Export; they depend on the prepared snapshot |
+| Day picker | "Report date" over `session.availableReportDays`, `selectReportDay`, `busy` gate | Restyled: "Today, up to <cutoff>" only from `previewSummary.dataAsOf`; with no preview just "Today" (the clock is never read for the label); weekday names for the previous seven days |
+| Included preview | "Prepared daily snapshot", `DailyExportPreviewSummary` | Restyled: Health data (as of cutoff), Nutrition (selected source), Notes (`savedNoteCount`, link to `AppRoute.notes`), Exact file (`Review exact JSON`); a fixed line that food-log entries are not exported (#97) |
+| One Export action | `Export prepared snapshot`, `Refresh`, `Cancel active export` | One primary Export; Refresh and Cancel secondary with today's enablement |
+| Export result | `exporting`, `status`, `lastVerifiedLabel` strings | New additive `lastExportOutcome` plus pure `DailyExportPhase` |
+| Nutrition source, Needs attention | Existing sections and confirmations | Kept on Export; they depend on the prepared snapshot and state actions |
 | Drive account and folder | `googleConnectionSection`, `accountContextSection` | Moved to Settings > Export |
 
-`DailyExportPhase` (`notSetUp`, `preparing`, `prepared`, `exporting`, `verified`, `failed`, `needsAttention`) is a display mapping in the app's `GoogleDrive` group with no Drive or HealthKit import. "Verified" is shown only from a verified outcome for the current preview identity; an HTTP response alone stays "attempted". Snapshot invalidation (saved-note change, date change, background) keeps clearing the preview and disabling Export exactly as now. `onAppear` and scene-phase `prepareForPresentation()` calls are unchanged.
+**Outcome.** The controller publishes no typed outcome today, and `applyExportOutcome` sets `preview = nil` after success. Add one published `lastExportOutcome: DailyExportOutcomeRecord?` (plain app type: `reportDate`, `dataAsOf`, `kind`), set only in `applyExportOutcome`, mapping all four `DailyDriveExportResult` cases (`verified`, `unchangedVerified`, `cancelledBeforeSubmission`, `cancelledAfterSubmissionVerified`) and failure. It is cleared on day change, saved-note invalidation, sign-out, revoke and `prepareForPresentation()`. Label strings are never parsed.
+
+**Phase.** `DailyExportPhase` lives in `WeeklyHealthReport/Presentation/` and takes plain inputs (a presentation-state summary, `exporting`, `hasPreview`, `lastExportOutcome`). Cases: `notSetUp`, `preparing`, `prepared`, `attempting` (submission in flight), `verified` (both verified results and `cancelledAfterSubmissionVerified`), `cancelledBeforeSending`, `attemptedNotVerified` (failure), `needsAttention`. Verified comes only from the recorded outcome and survives `preview == nil`. The state machine, invalidation rules and `onAppear` and scene-phase preparation are not edited.
 
 ## Settings > Export contribution
 
-`ExportSettingsContribution.section()` keeps taking no session, so building Settings still sends no request. Its row points at a new `AppRoute.exportDestination` (a fixed route; restores to `[settings, exportDestination]`) whose `DriveDestinationSettingsView` hosts the moved connect, sign-out, revoke, choose existing folder and create folder controls, calling existing `DailyDriveSessionController` methods. It must not call `prepareForPresentation()`, so opening it never prepares a Health snapshot. Export's "Not set up" state links to this route. Phase 3 (PR #207) adds `.addFood`; `.exportDestination` is appended after it on rebase, and the restoration table gains one row.
+`ExportSettingsContribution.section()` keeps taking no session, so building Settings sends no request. Its row links a new `AppRoute.exportDestination`, appended after `.addFood` (#207), a fixed route with an explicit `restoredPath` case `[.settings, .exportDestination]`; stored `dailyExport` still restores to `[dailyExport]`. `DriveDestinationSettingsView` hosts connect, sign-out, revoke, choose existing folder and create folder, calling the existing controller methods. Opening it makes zero HealthKit, OAuth or Drive calls and never calls `prepareForPresentation()`. Tapping connect, create or choose still runs `prepareAfterGoogleConnection` and `refreshPreviewWithoutAuthorization` (HealthKit read, snapshot build, network destination validation); this is user-initiated and unchanged from today, and accepted. Export's "Not set up" state links to this route.
 
-## Responsibilities and dependency direction
+## Responsibilities, dependency direction and boundaries
 
-Views depend on `Presentation` (`ReportDocument`, `HealthSummaryTiles`) and on `DailyExportPhase`; those depend only on Models and Foundation. `WeeklyReportViewModel`, `HealthKitClient`, `ReportDocument` row ids and `plainText` output are not edited. `DailyDriveSessionController` gains no new state; any helper needed by the Settings view is an additive read of existing published values. The shell remains the composition root and sole owner of `WeeklyReportPresentationState`.
+Views depend on `Presentation` (`ReportDocument`, `HealthSummaryTiles`, `DailyExportPhase`), which depends only on Models and Foundation. `WeeklyReportViewModel`, `HealthKitClient`, row ids and `plainText` output are not edited. The controller gains only `lastExportOutcome`. A new app-level boundary step (beside `Packages/FoodLedgerKit/Scripts/check-boundaries.sh`) fails if any `WeeklyHealthReport/Presentation/*.swift` imports anything but Foundation. The shell stays the composition root and sole owner of `WeeklyReportPresentationState`.
 
 ## Risks
 
-- **Export guarantees:** moving controls could bypass `busy` or `canExport` gates. Mitigation: the moved buttons keep their exact enablement expressions; the phase projection is read-only.
-- **Settings causing work:** a Drive view that calls `prepareForPresentation()` would query HealthKit from Settings. Mitigation: a test asserts no preparation on appear.
-- **Metric consistency:** tiles drifting from sections, or a renamed row id silently blanking a tile. Mitigation: tile values are copied from rows, and a test pins every id the projection reads.
-- **Full Page change:** always-expanded output differs from today; README and the device checklist must say so.
-- **Route conflict with #207:** both edit `AppRoute`; resolve by rebase, not reordering raw values.
+- **Export guarantees:** moved controls keep their exact `busy`, `canExport` and `isConfigured` expressions; "verified" never appears without a verified result.
+- **Settings causing work:** a spy test proves opening Settings > Export calls nothing.
+- **Metric consistency:** tiles copy rows from the expanded document; pinned ids catch renames.
+- **Full Page change:** always expanded output; README and the device checklist record it.
+- **Route conflict with #207:** resolved by rebase and append, never by reordering raw values.
+
+## README updates in the implementation PR
+
+Line 36 ("one main screen", "Copy Report" becomes Copy all and the current shell); the Full Page paragraph (always expanded, tiles excluded); validation step 14 (Copy all).
+
+## Open questions
+
+1. Ship 28 days and Custom now? No; file a follow-up with a semantics and README amendment and amend #200's scope.
+2. Accept Full Page always expanded? Yes; #200's acceptance requires it.
+3. Tiles in Copy all? No; plain text stays as the expanded document.
+4. Nutrition source picker location? Export, shown only when the state's actions include it.
+5. Per-day "Last export of this day"? Defer; it is an additional identity read in the controller.
+6. Keep Refresh and Cancel beside Export? Yes, secondary, with today's enablement.
 
 ## Tests
 
-1. `HealthSummaryTiles`: synthetic documents for available, no data, loading, failed and no completed days; trend only when the trend row exists; values equal row values byte for byte.
-2. Copy all equals `ReportDocument(details expanded).plainText` regardless of `expandedSections` and blood-pressure flags; toolbar and button share one path.
-3. Full Page: eligibility table unchanged; provider returns the expanded document; `nil` during refresh.
-4. `DailyExportPhase`: every `DailyExportPresentationState` plus `exporting` and outcome combination; verified never derived from attempted alone.
-5. Export state machine unchanged: existing `DailyDriveSessionController` and orchestration tests pass untouched; day picker offers today plus seven days; invalidation on note change and date change.
-6. Settings: `ExportSettingsContribution` links `.exportDestination`; restoration `[settings, exportDestination]`; the destination view never prepares a snapshot.
-7. Native render tests for Health and Export at default and accessibility sizes, light and dark.
-8. Simulator suite, Xcode static analysis, `git diff --check`, and a device check comparing Health, Copy all, Full Page and Diagnostics.
+1. Tiles: per state (available, no data, unavailable, no completed days, loading, failed) byte for byte against rows; independent of on-screen expansion; pinned row ids.
+2. Copy all equals the expanded document's `plainText` for every flag and `expandedSections` combination; toolbar and button share one path and gate; tiles never in plain text.
+3. Full Page: provider returns the expanded document; eligibility table unchanged; `nil` during refresh.
+4. `DailyExportPhase`: exhaustive mapping including all four results and failure; clearing on each trigger; verified after `preview == nil`.
+5. Existing controller and orchestration tests pass unmodified; day picker offers today plus seven days and honours `busy`; `exactJSONConstructionCount` stays 0 until review.
+6. Settings: spies record zero calls on open; connect, create and choose follow unchanged paths.
+7. Navigation: restoration table row for `exportDestination` in `AppNavigationTests`; `dailyExport` unchanged; app boundary check.
+8. Native renders of Health and Export at default and accessibility sizes, light and dark; simulator suite, static analysis, device check.
