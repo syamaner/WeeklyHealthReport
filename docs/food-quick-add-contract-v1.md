@@ -1,16 +1,20 @@
 # Food quick add contract v1 (#198)
 
-Status: **draft for owner review, 11 October 2026. Documents only; no code has changed.**
+Status: **draft for owner review, 11 October 2026, revised after the architecture gate. Documents only; no code has changed.**
 This is the change [ux-revamp-v1.md](ux-revamp-v1.md) calls "Quick add" (section "Contract changes > 4"). It builds on [food-confirmation-contract-v5.md](food-confirmation-contract-v5.md) (one Log action, `FoodLogPolicy`, D4 and D6) and sequences after phase 3 (#196, PR #207: recent foods, `FoodConfirmationService.relogInput`, food archive contract 5, schema `food-ledger-v5`). Phase plan: [ux-revamp-phase-5-favourites.md](ux-revamp-phase-5-favourites.md). Wireframes: [`Favourites.dc.html`](designs/ux-revamp-v1/Favourites.dc.html), [`QuickAdd.dc.html`](designs/ux-revamp-v1/QuickAdd.dc.html).
+
+**Entry condition:** PR #207 is merged and its archive contract 5, `relogInput` and `minimumContractVersion` are as described here. If not, sections 3 and 6 are re-derived before implementation.
+
+**Amendment to the specification:** ux-revamp-v1 says quick add "logs a new version". Quick add creates a **new log item at version 1**; it never supersedes an earlier entry.
 
 ## Baseline at `9fc734d` plus PR #207
 
 | Concept | Where it lives today | Can it hold a source-bound favourite? |
 |---|---|---|
-| Common foods "favourites" | `InventoryProductVersion.favourite` and `usualPortion` in the local inventory (`FoodLedgerDomain/LocalInventory.swift`, inventory backup format 2), shown by `CommonFoodsView` | No. They are names, aliases and usual portions with no source, product, resolution or evidence. "Quick-add for review" adds a line to the review queue; it asserts nothing. |
-| Personal library | `LibraryEntry` and `LibraryEntryVersion` in the food ledger (`IdentityAndRecords.swift`): product version, non-empty aliases, optional reusable quantity and conversion, append-only versions | Not safely. A library entry is an **exact alias** found by `exactLibraryEntries(alias:)`. Under v5 D6 an estimate save creates none, and v2 forbids exact personal-library reuse of an unknown-identity estimate. A favourite made from an estimate must exist without becoming an exact alias. It also has no resolution pin, order or removal state. |
-| Recent foods (PR #207) | `FoodRecentItemsProjection` plus `relogInput(_:)`, which restores the saved entry's **source** candidate (never corrected identity, decisions or edible quantity), re-verifies reviewed web manifests and reuses retained evidence via `relogSource` | Yes, as the construction pattern. Quick add reuses it. |
-| Water | `NutrientKey.water` (canonical unit mL) already exists and is summed by `FoodIntakeSummary` within one reporting date | No reference record exists. |
+| Common foods "favourites" | `InventoryProductVersion.favourite` and `usualPortion` in the local inventory (`LocalInventory.swift`, inventory backup format 2), shown by `CommonFoodsView` | No. Names, aliases and usual portions with no source, product, resolution or evidence. "Quick-add for review" asserts nothing. |
+| Personal library | `LibraryEntry` and `LibraryEntryVersion` (`IdentityAndRecords.swift`), created at a first exact confirm from the candidate's `libraryAliases` | Not safely. A library entry is an **exact alias** found by `exactLibraryEntries(alias:)`. v5 D6 and v2 forbid exact reuse of estimates. |
+| Recent foods (PR #207) | `relogInput(_:)` restores the saved entry's **source** candidate and re-verifies reviewed web manifests; `relogSource: LogItemID` lets `save` skip evidence retained by that entry's current head | The construction pattern is reused; the evidence-skip mechanism is not sufficient (section 3). |
+| Water | `NutrientKey.water` (mL) and `ItemClass.water` exist; `FoodIntakeSummary` sums within one reporting date | No reference record. |
 
 ## 1. What a favourite stores
 
@@ -20,31 +24,34 @@ Favourites are new append-only food-ledger records, not inventory rows and not l
 FavouriteEntry        { favouriteID, createdAt }
 FavouriteVersion      { favouriteVersionID, favouriteID, ordinal, supersedesFavouriteVersionID?,
                         binding, label, defaultAmount, state (active | removed), createdAt }
-FavouriteBinding      = .savedEntry(logItemID, logItemVersionID, productVersionID, resolutionVersionID)
+FavouriteBinding      = .savedEntry(logItemVersionID)
                       | .reference(ReferenceFoodID)          // only .plainWaterV1 in this contract
 FavouriteAmount       { value (finite, > 0), unit (QuantityUnit) }
 FavouriteArrangement  { arrangementVersionID, ordinal, supersedes?, order: [FavouriteID], createdAt }
 ```
 
-- **Source-bound product and resolution.** A `.savedEntry` binding pins the exact log item version the favourite was made from, together with that version's product version and resolution version. Quick add rebuilds its input from those pinned records (section 3), so later edits, corrections or removal of the source entry never change the favourite.
-- **Default amount.** Value and unit only, as `FoodConfirmationService.lastEnteredAmount` reads them (weight declaration original input, then conversion source quantity, then edible quantity). No conversion, plate or decision is carried.
-- **Label.** The display name, defaulting to the source product name. It is presentation data; it never alters product identity, nutrients or provenance.
-- **Estimate status is derived, never stored.** `FoodEntryEstimateStatus` is evaluated over the pinned stored confirmation. A favourite made from an estimate keeps the estimate label and its provenance.
-- **Display order.** One `FavouriteArrangement` lists active favourites in quick-add order. The first four are the Home chips and the "On Today's quick add" group; the rest are "Other favourites". Reordering writes one new arrangement version and no favourite version. Removed favourites are dropped from the projection even if an older arrangement lists them; active favourites missing from the arrangement are appended by `createdAt`.
-- **Strict decoding** rejects a non-positive or non-finite amount, an empty label, a duplicate ID in `order`, an unknown binding or reference case and a `.reference` binding whose amount unit is not mL.
+- **Binding by log item version only.** `.savedEntry` stores one `LogItemVersionID`. Product version, resolution version and evidence are read through that immutable version (a read-only reader addition, `foodConfirmation(logItemVersionID:)`), so the binding cannot hold inconsistent IDs. The store rejects a binding to a version that does not exist.
+- **Default amount.** Value and unit only, as `FoodConfirmationService.lastEnteredAmount` reads them. No conversion, plate or decision is carried.
+- **Label.** Display name, defaulting to the source product name; never alters identity, nutrients or provenance.
+- **Estimate status is derived, never stored**, from `FoodEntryEstimateStatus` over the pinned stored confirmation. A favourite made from an estimate keeps the estimate label and provenance.
+- **Display order.** One `FavouriteArrangement` lists favourites in quick-add order. The first four are the Home chips and "On Today's quick add"; the rest are "Other favourites". Reordering writes one arrangement version and no favourite version. Removed favourites are dropped even if listed; active favourites missing from the arrangement are appended by `createdAt`.
+- **Competing heads** of any `FavouriteVersion` chain **or** of the `FavouriteArrangement` chain stop the Favourites projection with an explicit failed state, as the intake projection does for log heads. Nothing chooses by ordinal or time.
+- **Strict decoding** rejects a non-positive or non-finite amount, an empty label, a duplicate ID in `order`, an unknown binding or reference case and a `.reference` binding whose unit is not mL.
 
-### Creation (Q2)
+### Creation and idempotency (Q2)
 
-A favourite is created from a logged entry: "Save as favourite" on Confirm (the v5 D4 slot), or from a saved entry or recent food. "Create a favourite from Food search, Barcode or Web lookup" on the Favourites screen opens that route with Save as favourite preset, and the Confirm bar reads "Log and save favourite". The log save is unchanged; the favourite is written by a **separate** operation `save_favourite_v1` immediately afterwards, so every confirm operation payload stays byte-identical to v5. If the second operation fails, the entry stays logged and the screen says "Logged. Favourite not saved" with Try again (idempotent on its own key).
+A favourite is created from a logged entry: "Save as favourite" on Confirm (the v5 D4 slot), or from a saved entry or recent food. "Create a favourite from Food search, Barcode or Web lookup" opens that route with Save as favourite preset; the Confirm bar reads "Log and save favourite". The log save is unchanged; the favourite is written by a **separate** operation `save_favourite_v1` immediately afterwards, so confirm operation payloads stay byte-identical to v5.
 
-Estimate entries may be saved as favourites (D6 forbids exact aliases, not favourites). Photo routes show "Not yet available" and create nothing until #93 or a separately approved image contract.
+- **Idempotency key** is derived from the logged `LogItemVersionID` (`save_favourite_v1:<logItemVersionID>`). A retry after failure returns the existing favourite. Favouriting the same entry version again while an active favourite binds it returns that favourite (no duplicate); after removal it writes a new favourite.
+- **Failure between the two operations:** the entry stays logged and the screen says "Logged. Favourite not saved" with Try again. An app kill between them is accepted; recovery is "Save as favourite" from the saved entry.
+- Estimate entries may be favourites (D6 forbids exact aliases, not favourites). Photo routes show "Not yet available" until #93 or a separately approved image contract.
 
 ## 2. Relationship to common foods and the library
 
-- **New record, no reuse of either store.** Reusing inventory favourites would lose source binding; reusing `LibraryEntry` would turn every favourite into an exact alias, contradicting D6 and v2. Favourites therefore never appear in `exactLibraryEntries(alias:)` and never feed generic or personal-library search.
-- **No migration.** Existing inventory favourites and usual portions are untouched, keep backup format 2 and remain in Common foods. They cannot be converted automatically because they carry no source. Q6 covers the duplicate wording.
-- **Append-only edits.** Rename and default-amount changes write a new `FavouriteVersion` superseding the head; removal writes a `removed` version (a tombstone, not a delete). Changing the bound food is not an edit: it is a new favourite. No favourite operation contains a log item, log item version, product, resolution or assertion, so past entries cannot be rewritten by construction; a contract test proves their bytes and hashes are unchanged.
-- Competing favourite heads stop the Favourites projection with an explicit failed state, as the intake projection does for log heads; nothing chooses by ordinal or time.
+- **New record, no reuse of either store.** Reusing inventory favourites loses source binding; reusing `LibraryEntry` would make every favourite an exact alias. Favourites never appear in `exactLibraryEntries(alias:)` and never feed search.
+- **No alias growth.** The library alias is created only at the first exact confirm, as today. `favouriteInput` strips the source candidate's `libraryAliases`, and the water input has none, so N quick adds create no `LibraryEntry` or version.
+- **No migration.** Inventory favourites and usual portions are untouched (backup format 2) and cannot be converted, as they carry no source. Q6 covers the wording.
+- **Append-only edits.** Rename and default-amount changes write a new `FavouriteVersion`; removal writes a `removed` version (a tombstone). Changing the bound food is a new favourite. No favourite operation contains a log, product, resolution or assertion record, so past entries cannot be rewritten by construction.
 
 ## 3. Quick add: a one-step confirmation sheet
 
@@ -52,96 +59,124 @@ Quick add is a sheet presenting a pre-built `FoodConfirmationState`. Tapping a c
 
 ### Input construction (relogInput style)
 
-- `.savedEntry`: `favouriteInput(_:)` restores the pinned stored confirmation through the same code as `relogInput` (generalised so `restoredConfirmationInput` can be addressed by a pinned log item version, a read-only reader addition), re-verifying reviewed web manifests and carrying only the source candidate. The state's `relogSource` equivalent points at the pinned entry so retained evidence is reused, never rewritten.
+- `.savedEntry`: `favouriteInput(_:)` reads the pinned log item version and restores it through the same code as `relogInput` (`restoredConfirmationInput` generalised to a pinned version), re-verifying reviewed web manifests, carrying only the source candidate, stripping `libraryAliases`.
 - `.reference(.plainWaterV1)`: the fixed reference input from section 4.
-- The state's quantity is the chosen preset or custom amount in the favourite's unit; `occurredAt` is nil for Now or the chosen time.
-- Saving calls the unchanged `FoodConfirmationService.save`. The operation type, assertion, `methodVersion = food_confirmation_v5`, reporting day and alias rule are whatever Confirm would produce for the same state. Quick add adds **no new log operation type** and records no favourite reference on the entry (Q4), so a quick-add entry is indistinguishable from the same Confirm save.
+- Quantity is the chosen preset or custom amount in the favourite's unit; `occurredAt` is nil for Now or the chosen time.
+- Every quick add writes a **new** product, product version and resolution, exactly as a Confirm save of the same input does; it never reuses the pinned entry's product or resolution IDs.
 
-The result is a **new log item** (version 1), not a new version of an earlier entry.
+### Named save change: retained evidence by existence (replaces "save unchanged")
+
+`relogSource` keys evidence reuse on a `LogItemID` head, which is nil after removal, differs after correction or re-timing, and does not exist for water. `FoodConfirmationService.save` therefore changes in one named way: **before writing, each input evidence member that already exists in the store and is byte-identical is skipped**, via a reader check, exactly as `missingReleases` already skips stored source releases. An existing evidence ID with different bytes still fails as `immutableRecord`. This subsumes `relogSource` (kept as a no-op hint for PR #207 tests) and covers favourites and water. It does not change any operation type, payload shape or hash of a save that writes new evidence.
+
+The operation type, assertion, `methodVersion = food_confirmation_v5`, reporting day and alias rule are otherwise whatever Confirm would produce for the same state. Quick add adds **no new log operation type** and records no favourite reference on the entry (Q4).
 
 ### Eligibility (pure `QuickAddPolicy`, application layer)
 
 The one-step sheet is offered only when all hold:
 
 1. the input rebuilds and re-verifies; otherwise the favourite shows "Source can no longer be verified" and offers removal;
-2. `FoodLogPolicy.savesEstimate` is false (the v2 unknown-identity estimate, representative web scope, or any recorded `differs` / `notSure` all fail this);
-3. `FoodLogPolicy.requirements` for the state with the default amount and Now contains only the **sheet-resolvable** cases below.
+2. the pinned entry's derived `FoodEntryEstimateStatus` is **not** estimate, **and** `FoodLogPolicy.savesEstimate` for the rebuilt state is false;
+3. the pinned entry carried **no identity correction** (its product version is not a correction); a corrected source always reopens Confirm because the rebuilt source candidate drops the correction;
+4. `FoodLogPolicy.requirements` for the state with the default amount and Now contains only the sheet-resolvable cases below.
 
 | May appear in the sheet (blocks Log, fixed inline) | Never in the sheet: opens the full Confirm |
 |---|---|
-| `amountMissing`, `amountTextInvalid` (custom amount), `occurredAtInFuture`, `occurredAtTooEarly` (When, same seven-day window as v5) | `decideDifference`, `sourceIdentityMissing`, `recipeServingsRequired`, `sourceServingsRequired`, `measuredWeightMissing`, `weightBasisMissing`, `retainedWeightNeedsConfirmation`, `countNeedsMeasuredAmount`, `emptyPlateWeightMissing`, `plateNeedsGramTotal`, `plateNotLighterThanTotal` |
+| `amountMissing`, `amountTextInvalid` (custom amount, including the Q10 bound), `occurredAtInFuture`, `occurredAtTooEarly` (same seven-day window as v5) | `decideDifference`, `sourceIdentityMissing`, `recipeServingsRequired`, `sourceServingsRequired`, `measuredWeightMissing`, `weightBasisMissing`, `retainedWeightNeedsConfirmation`, `countNeedsMeasuredAmount`, `emptyPlateWeightMissing`, `plateNeedsGramTotal`, `plateNotLighterThanTotal` |
 
-Ineligible favourites open the full Confirm screen with the same state for fresh explicit confirmation, per the specification and v5 D6. Re-resolution keeps its strict identity requirements. The service evaluates `FoodLogPolicy` again at save, so a bypassed view model still cannot log an unmet requirement. The sheet's "Edit" opens the full Confirm with the current sheet state.
+Ineligible favourites open the full Confirm with the same state for fresh explicit confirmation (specification and v5 D6). Re-resolution keeps strict identity requirements. The service evaluates `FoodLogPolicy` again at save. The sheet's "Edit" opens Confirm with the current sheet state.
 
 ### Sheet content
 
-Title "Quick add <label>", food line, presets, Other amount, When (Now by default), a plain source line and "Log <amount>". No estimate label is needed because estimates never reach the sheet. Water presets are 150, 250, 330 and 500 mL with the favourite's default selected. Food favourites offer the default amount plus Other amount in the same unit; changing unit opens Confirm (Q5).
+Title "Quick add <label>", food line, presets, Other amount, When (Now by default), a plain source line and "Log <amount>". Estimates never reach the sheet. Water presets: 150, 250, 330 and 500 mL. Food favourites offer the default amount plus Other amount in the same unit; a unit change opens Confirm (Q5). The Q10 upper bound is a **sheet-only input bound** surfaced as `amountTextInvalid`; Confirm is not bounded and no policy version changes.
 
 ## 4. Water: one fixed reference record
 
-- **Identity.** `ReferenceFoodID.plainWaterV1`. Source ID `weeklyhealthreport.reference`, source release `plain-water-v1`, record ID `plain-water`, new provenance kind `app_reference_definition` (Q3). The definition is a constant canonical JSON document compiled into the app; the release `artifactHash` and `manifestHash` are its SHA-256, pinned by a golden test. It is stored like any source release and evidence; the byte-identical evidence member is reused by later water entries.
-- **Product identity.** Exact and fully known: item class food, preparation `as_sold`, every other facet `not_applicable`, so v5 raises no difference or missing identity and the save is never an estimate.
-- **Resolution.** Basis `per100Millilitres`; water 100 mL exact; energy 0 kcal, protein, carbohydrates and fat 0 g exact; every other nutrient omitted and therefore unknown (Q1). Amounts are mL only; no density or gram conversion is inferred.
-- **Versioning.** The definition is immutable. Any change is `plain-water-v2` with a new release, while v1 entries keep resolving to v1. Water favourites use the `.reference` binding, so they never depend on a saved entry.
-- **Built-in default (Q7).** With no stored arrangement, the projection shows a built-in Water 250 mL quick-add item first. Nothing is written until the user logs, edits or reorders; the first edit or reorder writes the favourite and arrangement records.
+- **Source release.** Source ID `weeklyhealthreport.reference`, release `plain-water-v1`, `releasedAt` 2026-10-11T00:00:00Z, schema `reference-food-v1`, pipeline `plain-water-v1`, licence "App-defined reference; no third-party data", attribution "WeeklyHealthReport plain water reference". `artifactHash` and `manifestHash` are the SHA-256 of the constant canonical definition JSON compiled into the app, computed with the injected digester and pinned by a golden test.
+- **Evidence.** One member with a fixed `EvidenceID` constant, new `CaptureKind.referenceDefinition` (`reference_definition`), fixed `capturedAt` 2026-10-11T00:00:00Z, locale `en_GB`, capture method `app_reference_definition` version `plain-water-v1`, payload `.descriptor("weeklyhealthreport.reference/plain-water-v1/plain-water")`, `byteHash` the definition hash. The first water save writes it; later saves skip it by the existence rule in section 3.
+- **Identity.** Exact and fully known: item class `water` (existing case), preparation `as_sold`, every other facet `not_applicable`, so v5 raises no difference or missing identity and the save is never an estimate. Provenance kind is the new `app_reference_definition`, record ID `plain-water`.
+- **Resolution (Q1).** Basis `per100Millilitres`; water 100 mL exact; energy 0 kcal exact; protein, carbohydrates, total fat, saturated, monounsaturated and polyunsaturated fat, sugar and fibre 0 g exact and cholesterol 0 mg exact (implied by fat and carbohydrate being exactly 0); minerals, vitamins and caffeine omitted, so unknown. Effect on completeness: energy, protein, carbohydrates, fat, fat subtypes, sugar, fibre and cholesterol stay complete on a day of only water; sodium and other minerals become known minimums. Amounts are mL only; no density is inferred.
+- **Versioning.** Immutable; any change is `plain-water-v2` with a new release and evidence ID, and v1 entries keep resolving to v1.
+- **Plain water entry predicate.** A current log head whose effective resolution has provenance `app_reference_definition`, source release `plain-water-v1` and record ID `plain-water`. A corrected entry whose resolution no longer has that provenance leaves the set.
+- **Built-in water (Q7).** A built-in Water 250 mL quick-add item is shown first unless a `FavouriteVersion` chain with binding `.reference(.plainWaterV1)` exists (active or removed). Logging from it writes only the log entry, never a favourite. Editing or reordering it writes the favourite (and arrangement) records; removing it writes the favourite record plus a `removed` version, which hides the built-in item for good.
 
 ### Daily-first aggregation in mL
 
-- Water contributions use the existing `FoodIntakeSummary` scaling (consumed mL divided by the 100 mL basis), so units always agree.
-- Within a reporting date, current log heads are summed first; removed and superseded versions contribute nothing; backdated entries count on the reporting date derived from `occurredAt`.
-- A day with no entries shows No data, not 0 mL. Any multi-day water figure averages completed daily totals with equal weight; none is added in this phase.
-- Home's water figure is the **plain water logged** total (Q8), complete by construction. The dietary water nutrient total keeps the existing completeness rule (a food without a declared water value marks it as a known minimum).
-- HealthKit is untouched: nothing is written to Health, and `toShare` stays empty.
+- Contributions use the existing `FoodIntakeSummary` scaling (consumed mL over the 100 mL basis).
+- Within a reporting date, current heads are summed first; removed and superseded versions contribute nothing; backdated entries count on the date derived from `occurredAt`.
+- An empty day shows No data, not 0 mL. Any multi-day figure averages daily totals with equal weight; none is added in this phase.
+- Home's water figure is **plain water logged** (Q8), the sum over the plain water predicate, complete by construction. The dietary water nutrient total keeps the existing known-minimum rule.
+- HealthKit is untouched: nothing is written to Health; `toShare` stays empty.
 
-## 5. Versions and compatibility
+## 5. Where favourite records travel
+
+`LedgerMutation` uses synthesised `Codable` and is encoded in operation payloads (`payloadHash`) and in `CanonicalFoodProjection.records`, which feeds the archive and the Daily JSON food projection. Adding keys to it would change every encoded mutation. Favourite records therefore travel in a **separate `FavouriteMutation` payload**, never inside `LedgerMutation`, and in a separate `favourites` member of the canonical projection that is encoded only when non-empty (`decodeIfPresent`). Pre-v6 operation payloads, their hashes and `CanonicalFoodProjection` bytes are pinned by literal fixtures.
+
+## 6. Versions and compatibility
 
 | Change | Version |
 |---|---|
-| `FavouriteEntry`, `FavouriteVersion`, `FavouriteArrangement`; operations `save_favourite_v1`, `revise_favourite_v1`, `arrange_favourites_v1`; provenance kind `app_reference_definition` | Food archive contract **6**, migration identifier `food-ledger-v6` |
-| SQLite | Migration `v6_favourites` creates `favourite`, `favourite_version` (with `supersedes_id` and binding foreign keys) and `favourite_arrangement_version` tables, sets `user_version = 6` and `schema_identity = food-ledger-v6`, and rewrites no existing row |
-| Registry | New `LedgerOperationRegistry` version admitting the three operations; earlier registries reject them; `requireSupported` rejects favourite records under any other operation type |
-| Archive admission | `minimumContractVersion` returns 6 for any favourite record or any `app_reference_definition` provenance, so a water entry alone requires contract 6 |
+| Favourite records and `FavouriteMutation`; operations `save_favourite_v1`, `revise_favourite_v1`, `arrange_favourites_v1`; `ProvenanceSourceKind.appReferenceDefinition`; `CaptureKind.referenceDefinition` | Food archive contract **6**, migration identifier `food-ledger-v6` |
+| SQLite | Migration `v6_favourites` creates `favourite`, `favourite_version` (with `supersedes_id` and a `log_item_version` foreign key) and `favourite_arrangement_version`, sets `user_version = 6` and `schema_identity = food-ledger-v6`, rewrites no row |
+| Registry | New `LedgerOperationRegistry` version admitting the three operations; earlier registries reject them |
+| Archive admission | `minimumContractVersion` checks contract 6 conditions before contract 5 ones and returns 6 for any favourite record, `app_reference_definition` provenance or `reference_definition` evidence, so a water-only ledger requires contract 6 |
 
-- Every v1 to v5 record, operation, hash and frozen archive decodes and re-encodes byte for byte; archives of contracts 1 to 5 keep importing with identical canonical bytes.
-- Older binaries fail safely: a contract-5 importer rejects a contract-6 archive with `unsupportedFoodContract(6)`; a schema-5 opener throws `unknownSchema(6)`. Release note: downgrading is not possible after updating.
-- **Daily JSON stays pinned to food contract `<= 3`**, with a `DailyHealthExportTests` case rejecting a contract-6 document alongside the existing 4 and 5 cases.
+- Every exhaustive switch over `ProvenanceSourceKind` and `CaptureKind` classifies the new cases explicitly (generic policy: not generic; reviewed web policy: not applicable; presentation: "App reference"), with a test per switch site.
+- Every v1 to v5 record, operation, hash and frozen archive decodes and re-encodes byte for byte; contracts 1 to 5 keep importing with identical canonical bytes.
+- Older binaries fail safely: a contract-5 importer rejects contract 6 with `unsupportedFoodContract(6)`; a schema-5 opener throws `unknownSchema(6)`. Release note: downgrading is not possible after updating.
+- **Daily JSON stays pinned to food contract `<= 3`**, with a test rejecting a contract-6 document alongside the 4 and 5 cases.
 - Inventory backup format 2 and the receipt and list checkpoints are unchanged.
 
-## 6. Egress
+## 7. Egress
 
-Unchanged. Favourites and quick add are local only. No network call, no OpenRouter or online lookup at quick-add time (rebuild uses retained evidence only), no HealthKit write, no Drive export of food entries (#97), no analytics. Creating a favourite through search or web lookup uses those routes' existing egress unchanged.
+Unchanged. Favourites and quick add are local only: no network call at quick-add time (rebuild uses retained evidence), no HealthKit write, no Drive export of food entries (#97), no analytics. Creating a favourite through search or web lookup uses those routes' existing egress.
 
-## 7. Contract tests (written first)
+## 8. Contract tests (written first)
 
-1. **Same entry as Confirm.** For an exact barcode favourite and plain water, the sheet save and a Confirm save of the same state (fixed clock and IDs) produce identical mutation payloads, operation type, assertion (or none), `methodVersion` and reporting date.
-2. **No single-tap log.** Opening the sheet from a chip writes no operation; only Log does, once.
-3. **Estimate favourites never use the sheet.** Generic CoFID, representative web and `differs` / `notSure` favourites are ineligible in `QuickAddPolicy` and the service still refuses an unmet requirement with the view model bypassed.
-4. **Requirement split.** Each `FoodLogRequirement` case is classified exactly once as sheet-resolvable or Confirm-only; a new case fails the test until classified.
-5. **Favourite edits never rewrite entries.** Rename, amount change, removal and reorder leave every log item, version, product, resolution, assertion, payload hash and operation hash byte-identical.
-6. **Pinned binding.** Correcting, editing or removing the source entry leaves `favouriteInput` unchanged; a tampered reviewed web manifest makes the favourite unverifiable.
-7. **No alias.** Saving any favourite creates no `LibraryEntry`; `exactLibraryEntries(alias:)` never returns a favourite.
-8. **Water reference.** Golden canonical bytes and SHA-256; exact identity raises no requirement; energy and macros exactly 0; other nutrients unknown; evidence reused byte-identically.
-9. **Water daily-first.** 150 + 250 + 330 mL on one day is 730 mL; a removed entry and a superseded version contribute nothing; an empty day is No data; a backdated entry and DST days (`Europe/London`, `Pacific/Auckland`, 29 March and 25 October 2026) land on the derived reporting date.
-10. **Strict decoding and arrangement.** Every invalid shape in section 1 is rejected; competing heads fail the projection; removed favourites drop out; the first four drive Home.
-11. **Compatibility.** Literal v1 to v5 payloads and frozen archives byte for byte; contract-5 import rejects contract 6; v6 export is contract 6 only when required; `unknownSchema(6)`; migration rewrites no row bytes; registry admission; retry recovery for `save_favourite_v1`.
-12. **Memory and GRDB parity.** Tests 5 to 10 run against both stores and after an archive round trip.
-13. **Daily JSON** rejects a contract-6 food document.
+1. **Same entry as Confirm.** For an exact barcode favourite and plain water, sheet and Confirm saves of the same state (fixed clock and IDs) produce identical mutations, operation type, assertion (or none), `methodVersion` and reporting date.
+2. **No single-tap log.** Opening the sheet writes nothing; one Log writes once.
+3. **Eligibility union.** Ineligible when the pinned entry is a derived estimate, when `savesEstimate(rebuilt)` is true, or when the pinned entry carried an identity correction; covered for generic CoFID, representative web, `differs` / `notSure` and a corrected exact product. The service still refuses unmet requirements with the view model bypassed.
+4. **Requirement split.** Every `FoodLogRequirement` case is classified exactly once; a new case fails until classified.
+5. **Favourite edits never rewrite entries.** Rename, amount change, removal and reorder leave every log, product, resolution and assertion record and every payload and operation hash byte-identical.
+6. **Pinned binding.** After the source entry is removed, restored, corrected or re-timed, `favouriteInput` is unchanged and a quick-add save succeeds with no duplicate evidence; a tampered reviewed web manifest makes the favourite unverifiable.
+7. **No alias growth.** N quick adds of an exact favourite and N water logs create no `LibraryEntry` or version; `exactLibraryEntries(alias:)` never returns a favourite.
+8. **Water reference.** Golden canonical bytes and SHA-256 via the injected digester; exact identity raises no requirement; nutrients exactly as Q1; a water-only day keeps energy and macros complete and sodium a known minimum.
+9. **Water daily-first.** 150 + 250 + 330 mL is 730 mL; removed and superseded versions contribute nothing; empty day is No data; backdated and DST days (`Europe/London`, `Pacific/Auckland`, 29 March and 25 October 2026) land on the derived date.
+10. **Decoding and heads.** Every invalid shape in section 1 is rejected; competing favourite heads and competing arrangement heads each fail the projection; removed favourites drop out; the first four drive Home.
+11. **Compatibility.** Literal v1 to v5 payloads and frozen archives byte for byte; registry admission; `unknownSchema(6)`; migration rewrites no row; Daily JSON rejects contract 6.
 
-## 8. Not changing, or deferred
+Additional tests from the architecture gate:
 
-Confirmation v5 policy, requirement set, assertion grammar and estimate projection; the reviewed web gate; search and recent foods; inventory and Common foods data. Deferred: photo routes (#93), favourite-only save without logging, quick add from widgets or Siri, writing water to HealthKit, food in Daily JSON (#97).
+- **A.** Second and third water saves write no duplicate evidence or release, on memory and GRDB stores.
+- **B.** Save from a favourite after its source entry is removed, restored, corrected and re-timed (each separately).
+- **C.** Literal pre-v6 operation payloads with `payloadHash` and `operationHash`, and `CanonicalFoodProjection` bytes, unchanged; a projection without favourites omits the `favourites` key.
+- **D.** Eligibility union as in test 3, each condition alone.
+- **E.** Binding consistency: a binding to a missing log item version is rejected; quick-add entries never reuse the pinned product or resolution IDs.
+- **F.** No alias growth as in test 7.
+- **G.** Competing arrangement heads produce the failed state.
+- **H.** Built-in water: shown with no water favourite; logging from it writes no favourite; hidden once a `.reference(.plainWaterV1)` chain exists, active or removed; removal writes the record plus a removed version.
+- **I.** `save_favourite_v1` idempotency: retry after a failure between the log and favourite operations returns one favourite; favouriting the same entry version twice returns the existing favourite.
+- **J.** Provenance and capture kind classification at every switch site; `minimumContractVersion` returns 6 for a water-only ledger; a contract-5 binary rejects it.
+- **K.** Water nutrients and completeness as in test 8.
+- **L.** Plain water predicate: a water entry is in the set; a corrected entry whose resolution leaves the reference provenance is not.
+- **M.** Q10 bound: 0 and 5000.0001 mL fail as `amountTextInvalid` in the sheet; 5000 mL passes; Confirm accepts 5000.0001 mL.
+- **N.** Memory and GRDB store parity for tests 5 to 10 and A to L, including after an archive round trip.
 
-## 9. Owner decisions (recommended, awaiting approval)
+## 9. Not changing, or deferred
+
+Confirmation v5 policy, requirement set, assertion grammar and estimate projection; the reviewed web gate; search and recent foods behaviour; inventory and Common foods data. Deferred: photo routes (#93), favourite-only save without logging, widgets or Siri, writing water to HealthKit, food in Daily JSON (#97).
+
+## 10. Owner decisions (recommended, awaiting approval)
 
 | ID | Decision | Recommendation |
 |---|---|---|
-| Q1 | Plain water nutrients beyond water | Energy, protein, carbohydrates and fat exactly 0; minerals and all else unknown (tap water varies) |
-| Q2 | How a favourite is created | Only from a logged entry (Confirm "Save as favourite", saved entry, recent food) via a separate `save_favourite_v1`; favourite-only save deferred |
-| Q3 | Water provenance | New kind `app_reference_definition` with an app-compiled, hashed definition, not a CoFID record (a generic record is an estimate and could never use the sheet) |
+| Q1 | Plain water nutrients beyond water | Energy, protein, carbohydrates, total fat, fat subtypes, sugar, fibre and cholesterol exactly 0; minerals, vitamins and caffeine unknown (tap water varies), so minerals become known minimums on water days |
+| Q2 | How a favourite is created | Only from a logged entry via a separate `save_favourite_v1` keyed on the log item version; favourite-only save deferred |
+| Q3 | Water provenance | New `app_reference_definition` with an app-compiled, hashed definition, not a CoFID record (a generic record is an estimate and could never use the sheet) |
 | Q4 | Record the favourite on the log entry | No; the entry is identical to a Confirm save |
 | Q5 | Sheet amounts for food favourites | Default amount plus Other amount in the same unit; a unit change opens Confirm |
-| Q6 | Two meanings of "favourite" | Keep inventory data unchanged; rename its copy to "Usual foods" and "Add to review" in presentation only |
-| Q7 | Water as the first quick-add item | Built-in default projection, written only on first edit or reorder; no records seeded without user action |
-| Q8 | Home water figure | Plain water logged (complete); dietary water nutrient total keeps the existing known-minimum rule |
+| Q6 | Two meanings of "favourite" | Keep inventory data; rename its copy to "Usual foods" and "Add to review" in presentation only |
+| Q7 | Water as the first quick-add item | Built-in item, hidden once a water favourite chain exists; logging from it writes no favourite |
+| Q8 | Home water figure | Plain water logged (complete); dietary water nutrient total keeps the known-minimum rule |
 | Q9 | Version bump | Archive contract 6 and schema `food-ledger-v6` after phase 3's contract 5; Daily JSON pin stays `<= 3` |
-| Q10 | Custom water amount bounds | Greater than 0 and at most 5000 mL per entry |
+| Q10 | Custom water amount bound | Sheet-only: greater than 0 and at most 5000 mL, surfaced as `amountTextInvalid`; Confirm unbounded; no policy version change |
+| Q11 | Retained-evidence mechanism | Skip byte-identical stored evidence by existence in `save`, replacing reliance on `relogSource` |
