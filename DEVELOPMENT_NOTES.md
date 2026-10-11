@@ -1413,3 +1413,17 @@ Accounting and CI gate: `2026-10-11T08:55:01.358Z` → `2026-10-11T09:42:01.694Z
 Phase 1: `2026-10-11T09:42:01.694Z` → `2026-10-11T10:15:51.739Z`. 169 requests (20 main session, 149 subagents: implementer 87, architecture gate 18, invariant review 20, journey QA 24); maximum input 548,635. Cache writes: 742,693 5-minute, 49,658 1-hour. Exact API-equivalent USD 11.1241788.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-195-2026-10-11: Claude Code phase 2 Confirm food
+
+Same `claude-opus-5-5` session, continuing from the phase 1 endpoint. One phase covering the #205 merge, an unsuccessful simulator-control attempt, the confirmation v5 contract and phase gate, the owner's approval, implementation, the review fixes and the rendered Confirm states, up to this ledger edit. Includes five subagents on `claude-opus-5-5` (contract and implementation agent, architecture gate, invariant review, two journey-QA runs counted as one transcript each). This ledger edit, PR delivery and merge are outside the row.
+
+Pricing as in the previous section (checked 11 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output; standard speed, global inference, no paid server tools. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 2 Confirm food (#195), with subagents | 92,429,236 (90,496,429) | 1,932,157 | 87,482 | 92,516,718 | $29.71 |
+
+Boundary: `2026-10-11T10:15:51.739Z` → `2026-10-11T12:16:08.483Z`. 317 requests (31 main session, 286 subagents); maximum input 617,196. Cache writes: 1,867,104 5-minute, 65,053 1-hour. Exact API-equivalent USD 29.7074698.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
