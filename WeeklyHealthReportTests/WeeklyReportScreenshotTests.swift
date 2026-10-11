@@ -1142,4 +1142,3 @@ private struct UnusedDailyHealthDataProvider: DailyHealthExportDataProviding {
         throw HealthDataError.unavailable
     }
 }
-
