@@ -11,7 +11,7 @@ extension UIScreenshotService: ScreenshotServiceRegistering {}
 
 enum WeeklyReportScreenshotEligibility {
     static func isEligible(
-        navigationPath: [WeeklyReportRoute],
+        navigationPath: [AppRoute],
         isTransientUIPresented: Bool
     ) -> Bool {
         navigationPath == [.healthReport] && !isTransientUIPresented

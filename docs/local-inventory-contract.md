@@ -66,7 +66,7 @@ source or entered explicitly with product, category, aliases, pack description,
 remaining amount, assertion date and notes. Table extraction is a proposal, not
 an exact reading of spatial PDF cells. Every row needs review.
 
-Open **Food logging → Review Receipts (Optional)**. Choose receipt or catalogue,
+Open **Settings → Receipts and food inventory**. Choose receipt or catalogue,
 paste text or choose a file, then expand a line to compare its original with the
 proposal. Select a suggested local product or explicitly create one; editing the
 description clears that choice. Select rows individually before batch acceptance.

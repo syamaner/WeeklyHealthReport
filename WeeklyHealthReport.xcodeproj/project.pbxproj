@@ -7,6 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F1940000000000000000001C /* IsolatedApplicationSupportFileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000001B /* IsolatedApplicationSupportFileManager.swift */; };
+		F1940000000000000000001A /* SettingsContributionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000019 /* SettingsContributionTests.swift */; };
+		F19400000000000000000018 /* AppNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000017 /* AppNavigationTests.swift */; };
+		F19400000000000000000016 /* FoodLedgerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000015 /* FoodLedgerSettings.swift */; };
+		F19400000000000000000014 /* DeveloperToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000013 /* DeveloperToolsSettingsView.swift */; };
+		F19400000000000000000012 /* SettingsContributions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000011 /* SettingsContributions.swift */; };
+		F19400000000000000000010 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000F /* SettingsView.swift */; };
+		F1940000000000000000000E /* SavedFoodEntrySheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000D /* SavedFoodEntrySheet.swift */; };
+		F1940000000000000000000C /* FoodIntakeHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000B /* FoodIntakeHomeView.swift */; };
+		F1940000000000000000000A /* MedicationAccessHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000009 /* MedicationAccessHelpView.swift */; };
+		F19400000000000000000008 /* HealthReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000007 /* HealthReportView.swift */; };
+		F19400000000000000000006 /* AppShellView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000005 /* AppShellView.swift */; };
+		F19400000000000000000004 /* AppNavigationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000003 /* AppNavigationCoordinator.swift */; };
+		F19400000000000000000002 /* AppRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000001 /* AppRoute.swift */; };
 		A00000000000000000000001 /* WeeklyHealthReportApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000001 /* WeeklyHealthReportApp.swift */; };
 		A00000000000000000000002 /* ReportPeriod.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000002 /* ReportPeriod.swift */; };
 		A00000000000000000000003 /* StepSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000003 /* StepSummary.swift */; };
@@ -14,7 +28,6 @@
 		A00000000000000000000005 /* HealthKitClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000005 /* HealthKitClient.swift */; };
 		F11600000000000000000002 /* WorkoutHealthKitProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11700000000000000000002 /* WorkoutHealthKitProjection.swift */; };
 		A00000000000000000000006 /* WeeklyReportViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000006 /* WeeklyReportViewModel.swift */; };
-		A00000000000000000000007 /* WeeklyReportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000007 /* WeeklyReportView.swift */; };
 		A00000000000000000000008 /* HealthKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B00000000000000000000008 /* HealthKit.framework */; };
 		A00000000000000000000009 /* ReportPeriodTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000009 /* ReportPeriodTests.swift */; };
 		A0000000000000000000000A /* StepSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000000A /* StepSummaryTests.swift */; };
@@ -118,6 +131,20 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F1940000000000000000001B /* IsolatedApplicationSupportFileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IsolatedApplicationSupportFileManager.swift; sourceTree = "<group>"; };
+		F19400000000000000000019 /* SettingsContributionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsContributionTests.swift; sourceTree = "<group>"; };
+		F19400000000000000000017 /* AppNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationTests.swift; sourceTree = "<group>"; };
+		F19400000000000000000015 /* FoodLedgerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLedgerSettings.swift; sourceTree = "<group>"; };
+		F19400000000000000000013 /* DeveloperToolsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsSettingsView.swift; sourceTree = "<group>"; };
+		F19400000000000000000011 /* SettingsContributions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsContributions.swift; sourceTree = "<group>"; };
+		F1940000000000000000000F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		F1940000000000000000000D /* SavedFoodEntrySheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedFoodEntrySheet.swift; sourceTree = "<group>"; };
+		F1940000000000000000000B /* FoodIntakeHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodIntakeHomeView.swift; sourceTree = "<group>"; };
+		F19400000000000000000009 /* MedicationAccessHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationAccessHelpView.swift; sourceTree = "<group>"; };
+		F19400000000000000000007 /* HealthReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthReportView.swift; sourceTree = "<group>"; };
+		F19400000000000000000005 /* AppShellView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppShellView.swift; sourceTree = "<group>"; };
+		F19400000000000000000003 /* AppNavigationCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationCoordinator.swift; sourceTree = "<group>"; };
+		F19400000000000000000001 /* AppRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoute.swift; sourceTree = "<group>"; };
 		B00000000000000000000001 /* WeeklyHealthReportApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyHealthReportApp.swift; sourceTree = "<group>"; };
 		B00000000000000000000002 /* ReportPeriod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPeriod.swift; sourceTree = "<group>"; };
 		B00000000000000000000003 /* StepSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepSummary.swift; sourceTree = "<group>"; };
@@ -125,7 +152,6 @@
 		B00000000000000000000005 /* HealthKitClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitClient.swift; sourceTree = "<group>"; };
 		F11700000000000000000002 /* WorkoutHealthKitProjection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutHealthKitProjection.swift; sourceTree = "<group>"; };
 		B00000000000000000000006 /* WeeklyReportViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportViewModel.swift; sourceTree = "<group>"; };
-		B00000000000000000000007 /* WeeklyReportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyReportView.swift; sourceTree = "<group>"; };
 		B00000000000000000000008 /* HealthKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = HealthKit.framework; path = System/Library/Frameworks/HealthKit.framework; sourceTree = SDKROOT; };
 		B00000000000000000000009 /* ReportPeriodTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPeriodTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000000A /* StepSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepSummaryTests.swift; sourceTree = "<group>"; };
@@ -321,7 +347,16 @@
 			isa = PBXGroup;
 			children = (
 				B00000000000000000000006 /* WeeklyReportViewModel.swift */,
-				B00000000000000000000007 /* WeeklyReportView.swift */,
+				F19400000000000000000013 /* DeveloperToolsSettingsView.swift */,
+				F19400000000000000000011 /* SettingsContributions.swift */,
+				F1940000000000000000000F /* SettingsView.swift */,
+				F1940000000000000000000D /* SavedFoodEntrySheet.swift */,
+				F1940000000000000000000B /* FoodIntakeHomeView.swift */,
+				F19400000000000000000009 /* MedicationAccessHelpView.swift */,
+				F19400000000000000000007 /* HealthReportView.swift */,
+				F19400000000000000000005 /* AppShellView.swift */,
+				F19400000000000000000003 /* AppNavigationCoordinator.swift */,
+				F19400000000000000000001 /* AppRoute.swift */,
 				B0000000000000000000004A /* MedicationAccessRequest.swift */,
 				B0000000000000000000004E /* ReportDocumentSectionView.swift */,
 				B0000000000000000000004F /* ReportPreviewFixtures.swift */,
@@ -360,6 +395,8 @@
 				B00000000000000000000036 /* WeeklyReportViewModelTests.swift */,
 				B0000000000000000000003E /* DailyNotesTests.swift */,
 				B0000000000000000000003F /* DailyNotesStoreTests.swift */,
+				F19400000000000000000019 /* SettingsContributionTests.swift */,
+				F19400000000000000000017 /* AppNavigationTests.swift */,
 				B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */,
 				B00000000000000000000300 /* FoodSearchQuantityNativeTests.swift */,
 				B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */,
@@ -373,6 +410,7 @@
 			children = (
 				B00000000000000000000047 /* FixtureClock.swift */,
 				B00000000000000000000048 /* FakeHealthDataProvider.swift */,
+				F1940000000000000000001B /* IsolatedApplicationSupportFileManager.swift */,
 			);
 			path = TestSupport;
 			sourceTree = "<group>";
@@ -441,6 +479,7 @@
 			isa = PBXGroup;
 			children = (
 				B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */,
+				F19400000000000000000015 /* FoodLedgerSettings.swift */,
 				B96000000000000000000001 /* FoodVoiceCapture.swift */,
 				B96000000000000000000002 /* FoodVoiceInputView.swift */,
 			);
@@ -579,7 +618,16 @@
 				F11600000000000000000002 /* WorkoutHealthKitProjection.swift in Sources */,
 				A00000000000000000000043 /* NutritionQueryCatalogue.swift in Sources */,
 				A00000000000000000000006 /* WeeklyReportViewModel.swift in Sources */,
-				A00000000000000000000007 /* WeeklyReportView.swift in Sources */,
+				F19400000000000000000014 /* DeveloperToolsSettingsView.swift in Sources */,
+				F19400000000000000000012 /* SettingsContributions.swift in Sources */,
+				F19400000000000000000010 /* SettingsView.swift in Sources */,
+				F1940000000000000000000E /* SavedFoodEntrySheet.swift in Sources */,
+				F1940000000000000000000C /* FoodIntakeHomeView.swift in Sources */,
+				F1940000000000000000000A /* MedicationAccessHelpView.swift in Sources */,
+				F19400000000000000000008 /* HealthReportView.swift in Sources */,
+				F19400000000000000000006 /* AppShellView.swift in Sources */,
+				F19400000000000000000004 /* AppNavigationCoordinator.swift in Sources */,
+				F19400000000000000000002 /* AppRoute.swift in Sources */,
 				A00000000000000000000044 /* MedicationAccessRequest.swift in Sources */,
 				A00000000000000000000048 /* ReportDocumentSectionView.swift in Sources */,
 				A00000000000000000000049 /* ReportPreviewFixtures.swift in Sources */,
@@ -622,6 +670,7 @@
 				A00000000000000000000037 /* DailyNotesView.swift in Sources */,
 				A0000000000000000000003A /* DailyNoteSpeechCapture.swift in Sources */,
 				P00000000000000000000008 /* FoodLedgerCompositionRoot.swift in Sources */,
+				F19400000000000000000016 /* FoodLedgerSettings.swift in Sources */,
 				A96000000000000000000001 /* FoodVoiceCapture.swift in Sources */,
 				A96000000000000000000002 /* FoodVoiceInputView.swift in Sources */,
 			);
@@ -651,6 +700,9 @@
 				A00000000000000000000030 /* WeeklyReportViewModelTests.swift in Sources */,
 				A00000000000000000000038 /* DailyNotesTests.swift in Sources */,
 				A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */,
+				F1940000000000000000001C /* IsolatedApplicationSupportFileManager.swift in Sources */,
+				F1940000000000000000001A /* SettingsContributionTests.swift in Sources */,
+				F19400000000000000000018 /* AppNavigationTests.swift in Sources */,
 				A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */,
 				A00000000000000000000300 /* FoodSearchQuantityNativeTests.swift in Sources */,
 				A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */,

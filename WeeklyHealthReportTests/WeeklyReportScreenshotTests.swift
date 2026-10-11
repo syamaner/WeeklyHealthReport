@@ -179,12 +179,16 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         )
         let store = HKHealthStore()
 
-        let view = WeeklyReportView(
+        let view = AppShellView(
             viewModel: viewModel,
             dailyExport: dailyExport,
-            navigation: WeeklyReportNavigationController(),
+            navigation: AppNavigationCoordinator(defaults: UserDefaults(suiteName: "shell-construction-" + UUID().uuidString)!),
             medicationAccess: MedicationAccessRequest(store: store),
-            foodLedger: nil
+            foodLedger: nil,
+            settings: WeeklyHealthReportApp.makeSettings(
+                foodLedger: nil, defaults: UserDefaults(suiteName: "shell-construction-" + UUID().uuidString)!,
+                medicationAccessAvailable: false
+            )
         )
 
         XCTAssertTrue(view.viewModel === viewModel)
@@ -502,17 +506,24 @@ final class WeeklyReportScreenshotTests: XCTestCase {
     }
 
     func testOnlyVisibleHealthReportWithoutTransientPresentationIsEligible() {
-        XCTAssertTrue(WeeklyReportScreenshotEligibility.isEligible(
-            navigationPath: [.healthReport], isTransientUIPresented: false))
-        XCTAssertFalse(WeeklyReportScreenshotEligibility.isEligible(
-            navigationPath: [.healthReport], isTransientUIPresented: true))
-        XCTAssertFalse(WeeklyReportScreenshotEligibility.isEligible(
-            navigationPath: [], isTransientUIPresented: false))
-        XCTAssertFalse(WeeklyReportScreenshotEligibility.isEligible(
-            navigationPath: [.foodLog], isTransientUIPresented: false))
-        for route in WeeklyReportRoute.allCasesForScreenshotTesting {
-            XCTAssertFalse(WeeklyReportScreenshotEligibility.isEligible(
-                navigationPath: [route], isTransientUIPresented: false))
+        var paths: [[AppRoute]] = [[]]
+        paths += AppRoute.allCases.map { [$0] }
+        paths += [
+            [.settings, .medicationAccess],
+            [.healthReport, .diagnostics],
+            [.foodLog, .healthReport],
+            [.settings, .developerTools, .diagnostics],
+            [.dailyExport, .notes, .noteEditor]
+        ]
+        for path in paths {
+            for transient in [false, true] {
+                XCTAssertEqual(
+                    WeeklyReportScreenshotEligibility.isEligible(
+                        navigationPath: path, isTransientUIPresented: transient),
+                    path == [.healthReport] && !transient,
+                    "\(path) transient: \(transient)"
+                )
+            }
         }
     }
 
@@ -1082,14 +1093,6 @@ private struct DocumentStateRowTarget {
     let label: String
 }
 
-private extension WeeklyReportRoute {
-    static let allCasesForScreenshotTesting: [WeeklyReportRoute] = [
-        .dailyExport,
-        .notes,
-        .noteEditor,
-        .diagnostics
-    ]
-}
 
 @MainActor
 private final class FakeScreenshotService: ScreenshotServiceRegistering {
@@ -1137,20 +1140,5 @@ private struct UnusedDailyHealthDataProvider: DailyHealthExportDataProviding {
         includeWorkoutEnrichment: Bool
     ) async throws -> DailyHealthExportInputs {
         throw HealthDataError.unavailable
-    }
-}
-
-/// Redirect only the existing application-support capability to an isolated test directory.
-private final class IntakeRenderFileManager: FileManager, @unchecked Sendable {
-    private let directory: URL
-    init(directory: URL) { self.directory = directory; super.init() }
-    override func url(for directory: FileManager.SearchPathDirectory,
-                      in domain: FileManager.SearchPathDomainMask,
-                      appropriateFor url: URL?, create shouldCreate: Bool) throws -> URL {
-        guard directory == .applicationSupportDirectory else {
-            return try super.url(for: directory, in: domain, appropriateFor: url, create: shouldCreate)
-        }
-        if shouldCreate { try createDirectory(at: self.directory, withIntermediateDirectories: true) }
-        return self.directory
     }
 }

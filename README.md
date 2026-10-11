@@ -225,7 +225,7 @@ explicit action alongside local and optional OFF search. Live quality, device an
 TestFlight acceptance remain separate from compilation and synthetic tests.
 
 The [pasted food-list input](docs/food-list-import.md) adds local quantity/unit
-parsing and a per-line review queue under **Food logging → Paste Food List**.
+parsing and a per-line review queue under **Today → Manage food intake → Paste or dictate food list**.
 Every saved line still requires explicit candidate confirmation.
 The [food-dictation flow](docs/archive/food-voice-delivery.md) adds an optional **Dictate**
 button to that editor. On supported devices it uses on-device speech, then requires
@@ -246,7 +246,7 @@ consumed food stay separate. Google is not required; a Drive importer is a later
 feature. [Common foods and draft recovery](docs/food-drafts-and-common-foods.md)
 provide favourites, aliases, usual portions and quick-add to an explicit review.
 Pasted lists resume after reopening the app. Inventory has its own versioned
-backup, available from the receipt-review Backup menu; existing food-ledger
+backup, available from **Settings → Backup and restore**; existing food-ledger
 archives and daily health exports remain separate.
 
 [Nutrition-update review](docs/archive/food-reresolution-delivery.md) compares saved product
@@ -271,7 +271,7 @@ in a local build should also read the
 
 ## Privacy
 
-Read the [privacy policy](docs/privacy-policy.txt), also available offline from **Today → Privacy policy**.
+Read the [privacy policy](docs/privacy-policy.txt), also available offline from **Today → Settings → Privacy policy**.
 
 All HealthKit reading and calculation happens on the iPhone. HealthKit report
 content leaves through a copy/share action you choose or when you open **Daily JSON
@@ -517,7 +517,7 @@ Apple does not fully document the sleep source precedence used by the Health app
 
 Daily Steps totals have been compared successfully with Apple Health on a real iPhone. A one-step difference can still appear in the final average when two interfaces round the same daily inputs differently.
 
-For your own check, run a Debug build, select **Last 7 Completed Days**, and use the same dates and local time zone in both apps. Open **Developer Diagnostics** at the bottom of the report screen to see daily values and exact totals.
+For your own check, run a Debug build, select **Last 7 Completed Days**, and use the same dates and local time zone in both apps. Open **Settings → Developer tools → Developer Diagnostics** from Today to see daily values and exact totals.
 
 <details>
 <summary>See the complete validation checklist</summary>

@@ -55,12 +55,11 @@ final class DailyNotesStoreTests: XCTestCase {
         XCTAssertFalse(controller.beginNewDraft())
     }
 
-    func testPrivacyPolicyIsBundledAndNavigationRestoresWithoutHealthOrFoodAccess() throws {
+    func testPrivacyPolicyIsBundledWithoutHealthOrFoodAccess() throws {
         let policy = try PrivacyPolicy.bundledText()
         XCTAssertTrue(policy.contains("WeeklyHealthReport privacy policy"))
         XCTAssertTrue(policy.contains("Food-log removal is reversible"))
         XCTAssertTrue(policy.contains("proxy@sertan.com"))
-        XCTAssertEqual(WeeklyReportView.restoredNavigationPath(from: WeeklyReportRoute.privacy.rawValue, hasDraft: false), [.privacy])
     }
 
     func testHistoricalSelectionKeepsOtherDateDraftAndUnverifiedNotesAcrossMidnight() throws {
@@ -89,82 +88,6 @@ final class DailyNotesStoreTests: XCTestCase {
         XCTAssertEqual(relaunched.document.savedNotes(for: historical).map(\.text), ["Saved historical note"])
         controller.selectReportDay(nil)
         XCTAssertEqual(controller.currentDayID.reportDate, "2026-09-25")
-    }
-
-    func testNavigationRestoresFoodListReviewRoute() {
-        XCTAssertEqual(
-            WeeklyReportView.restoredNavigationPath(from: WeeklyReportRoute.foodListImport.rawValue, hasDraft: false),
-            [.foodListImport]
-        )
-    }
-
-    func testNavigationRestoresBarcodeRoute() {
-        XCTAssertEqual(
-            WeeklyReportView.restoredNavigationPath(from: WeeklyReportRoute.barcodeFoodCapture.rawValue, hasDraft: false),
-            [.barcodeFoodCapture]
-        )
-    }
-
-    func testNavigationRestoresOptionalInventoryReview() {
-        XCTAssertEqual(WeeklyReportView.restoredNavigationPath(from: WeeklyReportRoute.inventoryReview.rawValue, hasDraft: false), [.inventoryReview])
-    }
-
-    func testNavigationRestoresNutritionUpdateReview() {
-        XCTAssertEqual(WeeklyReportView.restoredNavigationPath(from: WeeklyReportRoute.foodReresolution.rawValue, hasDraft: false), [.foodReresolution])
-    }
-
-    func testNavigationRestoresEditorAfterSettingsWhenDraftExists() {
-        XCTAssertEqual(
-            WeeklyReportView.restoredNavigationPath(
-                from: WeeklyReportRoute.noteEditor.rawValue,
-                hasDraft: true
-            ),
-            [.dailyExport, .notes, .noteEditor]
-        )
-    }
-
-    func testNavigationDoesNotRestoreEditorWithoutDraft() {
-        XCTAssertEqual(
-            WeeklyReportView.restoredNavigationPath(
-                from: WeeklyReportRoute.noteEditor.rawValue,
-                hasDraft: false
-            ),
-            [.dailyExport, .notes]
-        )
-    }
-
-    func testNavigationRejectsLifecyclePopsUntilActivationCompletes() {
-        let navigation = WeeklyReportNavigationController()
-        let editorPath: [WeeklyReportRoute] = [.dailyExport, .notes, .noteEditor]
-        navigation.replacePath(editorPath)
-
-        navigation.protectCurrentPath()
-        navigation.acceptPathChange([.dailyExport, .notes])
-        navigation.acceptPathChange([])
-
-        XCTAssertEqual(navigation.path, editorPath)
-
-        navigation.restoreProtectedPath()
-        navigation.acceptPathChange([.dailyExport, .notes])
-
-        XCTAssertEqual(navigation.path, [.dailyExport, .notes])
-
-        navigation.acceptPathChange([])
-
-        XCTAssertTrue(navigation.path.isEmpty)
-    }
-
-    func testNavigationProtectionSupportsRepeatedLifecycleCycles() {
-        let navigation = WeeklyReportNavigationController()
-        let notesPath: [WeeklyReportRoute] = [.dailyExport, .notes]
-        navigation.replacePath(notesPath)
-
-        for _ in 0..<10 {
-            navigation.protectCurrentPath()
-            navigation.acceptPathChange([])
-            navigation.restoreProtectedPath()
-            XCTAssertEqual(navigation.path, notesPath)
-        }
     }
 
     func testFileStorePersistsSavedNotesAndDraftAcrossRelaunch() throws {

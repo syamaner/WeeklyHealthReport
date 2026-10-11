@@ -240,7 +240,7 @@ GTIN-14 is not admitted. The selected product JSON is hashed independently, and
 retrieval time/licences are carried in the source release. The original local query
 and remote-query evidence remain distinct; no barcode scan is fabricated.
 
-The settings screen is **Search options → Search services → Open Food Facts**.
+The setting is **Settings › Food search › Online food database** (Open Food Facts).
 Its v1 preference defaults off and is independent of debug tools or Gemini key
 presence. Enable/disable cancels without resubmitting. Gemini has no misleading
 operational switch while its nutrition adapter is absent. Existing debug credentials
