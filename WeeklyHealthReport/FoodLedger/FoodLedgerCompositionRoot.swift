@@ -295,17 +295,24 @@ final class FoodLedgerCompositionRoot {
         })
     }
 
-    func changeLogEntry(_ row: FoodIntakeLogRow, restoring: Bool) throws {
-        let management = FoodLogManagementService(ledger: ledger,
-            reader: ArchiveFoodLogHistoryReader(archive: store), clock: SystemLedgerClock(), ids: ids)
-        let operationID = try ids.makeID(OperationTag.self)
-        let reason = try LedgerText(restoring ? "Restored by user from Food Log" : "Removed by user from Food Log")
-        if restoring {
-            try management.restore(logItemID: row.logItemID, expectedVersion: row.logItemVersionID,
-                                   reason: reason, operationID: operationID)
-        } else {
-            try management.remove(logItemID: row.logItemID, expectedVersion: row.logItemVersionID,
-                                  reason: reason, operationID: operationID)
+    /// Food Log orchestration (#197). Built with the confirmation clock, so removal times and
+    /// Confirm agree; the adapter below only forwards.
+    var foodLogService: FoodLogReadingService {
+        FoodLogReadingService(ledger: ledger, archive: store, confirmationReader: store,
+            history: ArchiveFoodLogHistoryReader(archive: store), confirmations: confirmations,
+            clock: confirmationClock, ids: ids)
+    }
+
+    var foodLogStore: any FoodLogStore { FoodLogStoreAdapter(service: foodLogService) }
+
+    func foodLogModel() -> FoodLogViewModel {
+        let clock = confirmationClock
+        return FoodLogViewModel(store: foodLogStore, now: { clock.now() }, calendar: confirmationCalendar)
+    }
+
+    func savedEntryModel(_ logItemID: LogItemID) -> SavedFoodEntryViewModel {
+        SavedFoodEntryViewModel(logItemID: logItemID, store: foodLogStore) { [weak self] in
+            try self?.model(reopening: logItemID)
         }
     }
 
@@ -322,6 +329,16 @@ final class FoodLedgerCompositionRoot {
         userDefaults.set(created.rawValue, forKey: key)
         return created
     }
+}
+
+/// Forwards the Food Log port to the application service. Loading is synchronous and bounded
+/// by one local archive read; the port is async so it can move off the main actor later.
+struct FoodLogStoreAdapter: FoodLogStore {
+    let service: FoodLogReadingService
+    func day(_ reportingDate: String) async throws -> FoodLogDayContent { try service.day(reportingDate: reportingDate) }
+    func savedEntry(_ id: LogItemID) async throws -> SavedFoodEntryDetail? { try service.savedEntry(id) }
+    func remove(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome { service.remove(id, expected: expected) }
+    func restore(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome { service.restore(id, expected: expected) }
 }
 
 struct FoodListImportFlowView: View {
@@ -357,6 +374,7 @@ struct FoodListImportFlowView: View {
 }
 
 struct GenericFoodSearchFlowView: View {
+    @Environment(\.finishFoodEntry) private var finishFoodEntry
     private let root: FoodLedgerCompositionRoot
     private let searchesOnAppear: Bool
     private let offersBarcode: Bool
@@ -406,7 +424,11 @@ struct GenericFoodSearchFlowView: View {
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {
-                    showsConfirmation = false
+                    if let saved = confirmationModel.savedResult, let finishFoodEntry {
+                        finishFoodEntry(saved.logItemVersion.reportingDate.value)
+                    } else {
+                        showsConfirmation = false
+                    }
                 }
             }
         }
@@ -415,6 +437,7 @@ struct GenericFoodSearchFlowView: View {
 
 /// Add food (#196): one field, the other entry routes and recent foods. Every route ends on Confirm.
 struct AddFoodFlowView: View {
+    @Environment(\.finishFoodEntry) private var finishFoodEntry
     private let root: FoodLedgerCompositionRoot
     @State private var recents: [FoodRecentRelogItem] = []
     @State private var submittedQuery: String?
@@ -461,7 +484,11 @@ struct AddFoodFlowView: View {
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {
-                    showsConfirmation = false; now = root.confirmationNow; recents = root.recentFoods()
+                    if let saved = confirmationModel.savedResult, let finishFoodEntry {
+                        finishFoodEntry(saved.logItemVersion.reportingDate.value)
+                    } else {
+                        showsConfirmation = false; now = root.confirmationNow; recents = root.recentFoods()
+                    }
                 }
             }
         }
@@ -469,6 +496,7 @@ struct AddFoodFlowView: View {
 }
 
 struct OpenRouterFoodReviewFlowView: View {
+    @Environment(\.finishFoodEntry) private var finishFoodEntry
     private let root: FoodLedgerCompositionRoot
     @StateObject private var credentials: FoodWebDiscoveryViewModel
     @StateObject private var reviewModel: GenericFoodProposalReviewViewModel
@@ -488,7 +516,13 @@ struct OpenRouterFoodReviewFlowView: View {
         }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
-                FoodConfirmationView(model: confirmationModel) { showsConfirmation = false }
+                FoodConfirmationView(model: confirmationModel) {
+                    if let saved = confirmationModel.savedResult, let finishFoodEntry {
+                        finishFoodEntry(saved.logItemVersion.reportingDate.value)
+                    } else {
+                        showsConfirmation = false
+                    }
+                }
             }
         }
         // The market is set in Settings. Re-read it whenever Web lookup appears, so a change made
@@ -582,6 +616,7 @@ struct FoodReresolutionFlowView: View {
 }
 
 struct BarcodeFoodFlowView: View {
+    @Environment(\.finishFoodEntry) private var finishFoodEntry
     private let root: FoodLedgerCompositionRoot
     @StateObject private var model: BarcodeCaptureViewModel
     @State private var offTask: Task<Void, Never>?
@@ -659,7 +694,13 @@ struct BarcodeFoodFlowView: View {
         }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
-                FoodConfirmationView(model: confirmationModel) { showsConfirmation = false }
+                FoodConfirmationView(model: confirmationModel) {
+                    if let saved = confirmationModel.savedResult, let finishFoodEntry {
+                        finishFoodEntry(saved.logItemVersion.reportingDate.value)
+                    } else {
+                        showsConfirmation = false
+                    }
+                }
             }
         }
     }

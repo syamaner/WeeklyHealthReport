@@ -9,6 +9,8 @@ final class AppNavigationCoordinator: ObservableObject {
     static let destinationKey = "weeklyReport.navigationDestination.v1"
 
     @Published private(set) var path: [AppRoute] = []
+    /// A reporting-day key the Food Log selects when it next appears (#197, F4). Never persisted.
+    private(set) var foodLogFocusDay: String?
     private var protectedPath: [AppRoute]?
     private(set) var hasRestored = false
     private let defaults: UserDefaults
@@ -33,6 +35,24 @@ final class AppNavigationCoordinator: ObservableObject {
 
     func append(_ route: AppRoute) {
         path.append(route)
+    }
+
+    /// Done after Log from Add food. Opened from the Food Log, it returns there with the saved
+    /// entry's reporting day selected; otherwise (Home or a restored Add food) it returns Home.
+    func finishFoodEntry(reportingDay: String?) {
+        if let index = path.lastIndex(of: .addFood), index > 0, path[index - 1] == .foodLog {
+            foodLogFocusDay = reportingDay
+            path = Array(path[..<index])
+        } else {
+            foodLogFocusDay = nil
+            path = []
+        }
+    }
+
+    /// Returns and clears the focus day.
+    func takeFoodLogFocusDay() -> String? {
+        defer { foodLogFocusDay = nil }
+        return foodLogFocusDay
     }
 
     /// The gear entry point on Home.
