@@ -206,7 +206,7 @@ struct DailyExportView: View {
     private var notesSection: some View {
         Section("Notes for \(notes.currentDayID.reportDate)") {
             LabeledContent("Saved", value: notes.storageAvailable ? notes.noteCountLabel : "Unavailable")
-            NavigationLink("Manage notes", value: WeeklyReportRoute.notes)
+            NavigationLink("Manage notes", value: AppRoute.notes)
                 .disabled(!notes.storageAvailable)
             Text("Drafts remain local. A saved-note change invalidates the prepared snapshot and disables export until refresh finishes again.")
                 .font(.caption)

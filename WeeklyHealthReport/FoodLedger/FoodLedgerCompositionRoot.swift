@@ -18,8 +18,9 @@ final class FoodLedgerCompositionRoot {
     private let milkVolumeConversion: CoFIDWholeMilkVolumeConversion
     private let offSearchTransport: OFFHTTPSearchTransport
     private let searchPreferences: FoodSearchUserDefaultsPreferences
-    private let foodMarketDefaults: UserDefaults
-    private static let foodMarketPreferenceKey = "food.webReview.market.v1"
+    /// The store shared by food search preferences and Settings.
+    let userDefaults: UserDefaults
+    let foodMarket: FoodMarketPreference
     let webDiscovery: FoodWebDiscoveryViewModel
     private let proposalReviewer: GenericFoodProposalReviewer
     private let proposalConfirmation: ReviewedFoodProposalConfirmation
@@ -57,7 +58,8 @@ final class FoodLedgerCompositionRoot {
         offLookup = OpenFoodFactsLookup(transport: OFFHTTPSProductTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)"))
         offSearchTransport = OFFHTTPSearchTransport(userAgent: "WeeklyHealthReport/0.1.1 (proxy@sertan.com)")
         searchPreferences = FoodSearchUserDefaultsPreferences(defaults: userDefaults)
-        foodMarketDefaults = userDefaults
+        self.userDefaults = userDefaults
+        foodMarket = FoodMarketPreference(defaults: userDefaults)
         let clock = SystemLedgerClock()
         let openRouter = OpenRouterFoodProvider(extractionRoute: .grok, selectionRoute: .applicability)
         webDiscovery = FoodWebDiscoveryViewModel(provider: openRouter, keys: OpenRouterKeychainStore(),
@@ -135,6 +137,8 @@ final class FoodLedgerCompositionRoot {
         }
     }
 
+    var searchPreferencesForSettings: any FoodSearchPreferences { searchPreferences }
+
     func genericFoodSearchModel(
         locale: Locale = .current, additionalEvidence: [CaptureEvidence] = []
     ) throws -> GenericFoodSearchViewModel {
@@ -150,11 +154,8 @@ final class FoodLedgerCompositionRoot {
     func proposalReviewModel(initialQuery: String) throws -> GenericFoodProposalReviewViewModel {
         let model = try GenericFoodProposalReviewViewModel(reviewer: proposalReviewer, credentials: webDiscovery,
             confirmation: proposalConfirmation, locale: LedgerText(Locale.current.identifier),
-            initialMarket: FoodReviewMarket(rawValue: foodMarketDefaults.string(forKey: Self.foodMarketPreferenceKey) ?? "") ?? .unspecified,
-            saveMarket: { [foodMarketDefaults] market in
-                if market == .unspecified { foodMarketDefaults.removeObject(forKey: Self.foodMarketPreferenceKey) }
-                else { foodMarketDefaults.set(market.rawValue, forKey: Self.foodMarketPreferenceKey) }
-            })
+            initialMarket: foodMarket.market,
+            saveMarket: { [foodMarket] market in foodMarket.market = market })
         model.foodTerms = initialQuery
         return model
     }
@@ -319,7 +320,7 @@ struct GenericFoodSearchFlowView: View {
     }
 
     var body: some View {
-        GenericFoodSearchView(model: searchModel, reviewWebNutrition: { showsWebReview = true }) { input in
+        GenericFoodSearchView(model: searchModel, preferences: root.userDefaults, reviewWebNutrition: { showsWebReview = true }) { input in
             // Snapshot selection and parsed quantity once; navigation renders reuse this model.
             confirmationModel = root.model(for: input, queryQuantity: searchModel.parsedQuery?.quantity, searchInterpretation: searchModel.interpretation, prefillSourceQuantity: false)
             showsConfirmation = true
@@ -384,7 +385,6 @@ struct LocalInventoryFlowView: View {
                 showsSearch = true
             } catch { model.report(error) }
         }
-        .modifier(InventoryBackupControls(root: root, model: model))
         .fileImporter(isPresented: $showsFilePicker, allowedContentTypes: [.plainText, .pdf]) { result in
             do {
                 let url = try result.get()
@@ -405,42 +405,6 @@ struct LocalInventoryFlowView: View {
                 flow.id(evidence.map(\.evidenceID))
             }
         }
-    }
-}
-
-private struct InventoryBackupControls: ViewModifier {
-    let root: FoodLedgerCompositionRoot
-    @ObservedObject var model: LocalInventoryViewModel
-    @State private var showsExport = false
-    @State private var showsImport = false
-    @State private var backup = InventoryBackupDocument()
-
-    func body(content: Content) -> some View {
-        content
-            .toolbar {
-                Menu("Backup") {
-                    Text("Includes original receipts and saved review history. Exported files are not encrypted.")
-                    Button("Export inventory backup") {
-                        do { backup = InventoryBackupDocument(data: try root.inventoryBackup()); showsExport = true }
-                        catch { model.report(error) }
-                    }
-                    Button("Restore inventory backup") { showsImport = true }
-                }.disabled(model.pendingCommand != nil)
-            }
-            .fileExporter(isPresented: $showsExport, document: backup, contentType: .json, defaultFilename: "inventory-backup") { result in
-                if case let .failure(error) = result { model.report(error) }
-            }
-            .fileImporter(isPresented: $showsImport, allowedContentTypes: [.json]) { result in
-                do {
-                    let url = try result.get()
-                    let scoped = url.startAccessingSecurityScopedResource()
-                    defer { if scoped { url.stopAccessingSecurityScopedResource() } }
-                    let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
-                    guard size > 0, size <= InventoryBackupCodec.maximumBytes else { throw InventoryStoreError.corruptStore }
-                    try root.restoreInventoryBackup(Data(contentsOf: url))
-                } catch let error as CocoaError where error.code == .userCancelled { }
-                catch { model.report(error) }
-            }
     }
 }
 
@@ -470,7 +434,6 @@ struct CommonFoodsFlowView: View {
                 showsList = true
             } catch { model.report(error) }
         }
-        .modifier(InventoryBackupControls(root: root, model: model))
         .navigationDestination(isPresented: $showsList) { if let view = FoodListImportFlowView(root: root) { view } }
     }
 }
