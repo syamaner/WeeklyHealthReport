@@ -15,7 +15,8 @@ Default to `git diff origin/main...HEAD` unless told otherwise. Read surrounding
 - HealthKit `toShare` stays empty; unavailable reads are "no visible data or no access", never zero.
 - Every network call matches a destination and payload in `docs/privacy-and-egress.md`; no new automatic, background or per-keystroke requests; credentials stay in this-device-only Keychain.
 - Unknown and bounded nutrients never become zero; empty is not zero; estimates stay labelled; partial totals stay known minimums.
-- Completed-day periods (start included, end excluded, today omitted) and daily-first aggregation for reports and exports; the Home today-so-far projection stays separate.
+- The three day rules stay distinct: Health report averages use completed days (start included, end excluded, today omitted) with daily-first aggregation; the Daily JSON export covers one selected day, including today up to the frozen refresh cutoff, under `docs/daily-export-contract.md`; Home's today-so-far projection is separate and labelled.
+- User-directed egress (Daily JSON, copy, share, screenshot, backup file) stays user-initiated and matches the payloads listed in `docs/privacy-and-egress.md`.
 - HealthKit statistics used for cumulative values; no manual summing across sources; correlated pairs intact.
 - Food saves are explicit, source-bound and append-only; no automatic selection; model output alone never authorises nutrition.
 - Persisted payloads, archives and exports keep their version and decode/re-encode unchanged; new cases are versioned.

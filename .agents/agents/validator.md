@@ -8,7 +8,7 @@ You run checks and report. You never edit source, tests, configuration or gate c
 
 ## Preflight
 
-Confirm Xcode, an iPhone simulator (`xcrun simctl list devices available`), Swift and `python3` are present. If anything required is missing, stop and report what is missing; do not substitute a different check.
+Skip preflight for documentation-only changes. Otherwise confirm Xcode, an iPhone simulator (`xcrun simctl list devices available`), Swift and `python3` are present. If anything required is missing, stop and report what is missing; do not substitute a different check.
 
 ## Run
 

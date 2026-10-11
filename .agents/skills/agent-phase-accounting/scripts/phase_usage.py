@@ -9,7 +9,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import json
 from pathlib import Path
 import sys
-from typing import Any
+from typing import Any, Iterable, Iterator
 
 
 CODEX_FIELDS = ("input_tokens", "cached_input_tokens", "output_tokens")
@@ -59,22 +59,22 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def read_events(path: Path) -> list[Any]:
+def read_events(path: Path) -> Iterator[Any]:
+    """Stream events line by line so large transcripts are never held in memory."""
     try:
-        lines = path.read_text(encoding="utf-8").splitlines()
+        handle = path.open(encoding="utf-8")
     except OSError as error:
         raise ValueError(f"cannot read session: {error}") from error
-    events = []
-    for line in lines:
-        try:
-            events.append(json.loads(line))
-        except json.JSONDecodeError:
-            # A live writer may leave its final line temporarily incomplete.
-            continue
-    return events
+    with handle:
+        for line in handle:
+            try:
+                yield json.loads(line)
+            except json.JSONDecodeError:
+                # A live writer may leave its final line temporarily incomplete.
+                continue
 
 
-def detect_format(events: list[Any]) -> str:
+def detect_format(events: Iterable[Any]) -> str:
     for event in events:
         if not isinstance(event, dict):
             continue
@@ -85,7 +85,7 @@ def detect_format(events: list[Any]) -> str:
     raise ValueError("cannot detect transcript format; pass --format")
 
 
-def codex_counter(events: list[Any]) -> dict[str, int]:
+def codex_counter(events: Iterable[Any]) -> dict[str, int]:
     latest: dict[str, int] | None = None
     for event in events:
         if not isinstance(event, dict) or event.get("type") != "event_msg":
@@ -192,12 +192,11 @@ def calculate_cost(usage: dict[str, int], args: argparse.Namespace) -> tuple[Dec
 def main() -> int:
     args = parse_args()
     try:
-        events = read_events(args.session)
-        fmt = detect_format(events) if args.format == "auto" else args.format
+        fmt = detect_format(read_events(args.session)) if args.format == "auto" else args.format
         if fmt == "codex":
             if args.since or args.until or args.include_subagents or args.cache_write_rate is not None:
                 raise ValueError("--since, --until, --include-subagents and --cache-write-rate are Claude-only")
-            boundary, usage = codex_phase(codex_counter(events), args.baseline)
+            boundary, usage = codex_phase(codex_counter(read_events(args.session)), args.baseline)
         else:
             if args.baseline:
                 raise ValueError("--baseline is Codex-only; use --since/--until for Claude")

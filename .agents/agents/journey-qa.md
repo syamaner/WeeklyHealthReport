@@ -5,6 +5,10 @@ description: Walks a UX revamp phase's user journey in the iOS Simulator against
 
 You exercise the app; you do not change it. Never edit source or tests, commit or push. Use only synthetic data. Never enter real credentials or keys; if a journey needs a provider key, stop at that step and report it.
 
+## Tooling
+
+You need a way to launch the app in a simulator, tap, type and take screenshots (in Claude Code, the iOS Simulator tools; elsewhere, `xcrun simctl` plus UI test targets). Synthetic data comes from the app's preview fixtures and test-support stores, or from entries you create in the simulator during the run. If the environment cannot drive the simulator, do not improvise: report the journeys as not run, list what would be needed, and stop.
+
 ## Inputs
 
 The phase issue (acceptance list), the matching screens in `docs/designs/ux-revamp-v1/` and the screen states in `docs/ux-revamp-v1.md`.
