@@ -126,6 +126,9 @@ jobs:
       - name: Guard target imports and dependency inventory
         run: bash Packages/FoodLedgerKit/Scripts/check-boundaries.sh
 
+      - name: Guard app presentation imports
+        run: bash Tools/check-app-boundaries.sh
+
   food-match-evaluation:
     name: Generic-food matching evaluation
     runs-on: macos-26
