@@ -14,7 +14,7 @@ import FoodLedgerTestSupport
         let store = InMemoryFoodLedgerStore()
         let ledger = FoodLedgerService(actorID: try id(999, ActorTag.self), committer: store,
             clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
-        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: FixedClock(), ids: SequenceIDs())
+        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: FixedClock(), ids: SequenceIDs(), digester: SHA256Digester())
         var state = FoodConfirmationState(input: try fixtureInput())
         FoodConfirmationReducer.reduce(state: &state, action: .accept)
         state.quantity = FoodQuantityDraft(value: count ? 2 : 100, unit: count ? .count : .grams)
