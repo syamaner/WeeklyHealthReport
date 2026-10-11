@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Export</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#007aff}a:hover{color:#0062cc}
+.s{width:390px;height:844px;box-sizing:border-box;background:#f2f2f7;color:#000;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-size:17px;line-height:22px;letter-spacing:-0.41px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.nb{min-height:44px;padding:8px 8px 0 4px;display:flex;align-items:center;justify-content:space-between}
+.back{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 8px;text-decoration:none}
+.ib{display:inline-flex;align-items:center;justify-content:center;min-width:44px;min-height:44px;color:#007aff;background:none;border:0;cursor:pointer}
+.lt{font-size:34px;line-height:41px;font-weight:700;letter-spacing:0.37px;margin:0;padding:0 20px 4px}
+.sh{font-size:13px;line-height:18px;color:#6b6b70;text-transform:uppercase;letter-spacing:.06em;padding:0 20px 7px 36px;margin-top:22px}
+.g{background:#fff;border-radius:10px;margin:0 20px;overflow:hidden}
+.r{min-height:44px;box-sizing:border-box;padding:11px 16px;display:flex;align-items:center;gap:12px;color:#000;text-decoration:none}
+.r:hover{color:#000}
+.r+.r{border-top:.5px solid rgba(60,60,67,.29)}
+.v{color:#6b6b70;margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;line-height:18px;color:#6b6b70}
+.ft{font-size:13px;line-height:18px;color:#6b6b70;padding:8px 36px 0}
+.chev{color:#c7c7cc;flex:none}
+.sc{overflow-y:auto;flex:1;padding-bottom:34px}
+.day{display:flex;align-items:center;justify-content:space-between;padding:0 4px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 40px);min-height:50px;border-radius:12px;background:#007aff;color:#fff;font:inherit;font-weight:600;border:0;margin:20px 20px 0;cursor:pointer}
+.spin{width:16px;height:16px;border-radius:50%;border:2px solid rgba(255,255,255,.4);border-top-color:#fff}
+</style>
+</helmet>
+<div class="s">
+  <div class="nb">
+    <a class="back" href="Health.dc.html">
+      <svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2L2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>Health</a>
+  </div>
+  <h1 class="lt">Export</h1>
+  <div class="sc">
+    <div class="g" style="margin-top:8px">
+      <div class="day">
+        <button type="button" class="ib" aria-label="Previous day"><svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2L2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+        <span style="font-weight:600">Saturday 10 October</span>
+        <button type="button" class="ib" aria-label="Next day"><svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M2 2l8 8-8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg></button>
+      </div>
+    </div>
+
+    <div class="sh">Included</div>
+    <div class="g">
+      <div class="r"><span>Health</span><span class="v">14 metrics · 2 workouts</span></div>
+      <div class="r"><span>Nutrition</span><span class="v">Selected Health source</span></div>
+      <a class="r" href="Main.dc.html"><span>Notes</span><span class="v">1 note</span>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+      <div class="r"><span style="color:#007aff">View exact file</span></div>
+    </div>
+
+    <sc-if value="{{idle}}" hint-placeholder-val="{{true}}">
+      <button type="button" class="btn" onClick="{{start}}">Export to Google Drive</button>
+      <div class="ft">Nothing is sent until you choose Export. Last export of this day: none.</div>
+    </sc-if>
+    <sc-if value="{{busy}}" hint-placeholder-val="{{false}}">
+      <button type="button" class="btn" style="opacity:.6" aria-disabled="true"><span class="spin" aria-hidden="true"></span>Exporting…</button>
+    </sc-if>
+    <sc-if value="{{done}}" hint-placeholder-val="{{false}}">
+      <div class="g" style="margin-top:20px">
+        <div class="r"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#248a3d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.8 2.8L16 10"></path></svg>
+          <div><div>Exported and verified</div><div class="sub">11/10/26 - 13:05 · Health exports folder</div></div></div>
+      </div>
+      <div class="ft">Changing notes for this day later needs a new export. <button type="button" class="ib" style="font:inherit;font-size:13px;min-height:24px;padding:0" onClick="{{reset}}">Reset demo</button></div>
+    </sc-if>
+
+    <div class="g" style="margin-top:28px">
+      <a class="r" href="Settings.dc.html"><span>Drive account and folder</span><span class="v">Settings</span>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { phase: 'idle' }; }
+  renderVals() {
+    const p = this.state.phase;
+    return {
+      idle: p === 'idle', busy: p === 'busy', done: p === 'done',
+      start: () => { this.setState({ phase: 'busy' }); setTimeout(() => this.setState({ phase: 'done' }), 1200); },
+      reset: () => this.setState({ phase: 'idle' })
+    };
+  }
+}
+</script>
+</body>
+</html>

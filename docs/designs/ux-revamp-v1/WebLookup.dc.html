@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<title>Web lookup</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+a{color:#007aff}a:hover{color:#0062cc}
+.s{width:390px;height:844px;box-sizing:border-box;background:#f2f2f7;color:#000;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;font-size:17px;line-height:22px;letter-spacing:-0.41px;display:flex;flex-direction:column;overflow:hidden;position:relative}
+.nb{min-height:44px;padding:8px 8px 0 4px;display:flex;align-items:center;justify-content:space-between}
+.back{display:inline-flex;align-items:center;gap:4px;min-height:44px;padding:0 8px;text-decoration:none}
+.lt{font-size:28px;line-height:34px;font-weight:700;margin:0;padding:0 20px 2px}
+.sh{font-size:13px;line-height:18px;color:#6b6b70;text-transform:uppercase;letter-spacing:.06em;padding:0 20px 7px 36px;margin-top:22px}
+.g{background:#fff;border-radius:10px;margin:0 20px;overflow:hidden}
+.r{min-height:44px;box-sizing:border-box;padding:11px 16px;display:flex;align-items:center;gap:12px;color:#000;text-decoration:none}
+.r:hover{color:#000;background:#f7f7f9}
+.r+.r{border-top:.5px solid rgba(60,60,67,.29)}
+.v{color:#6b6b70;margin-left:auto;text-align:right;font-variant-numeric:tabular-nums}
+.sub{font-size:13px;line-height:18px;color:#6b6b70}
+.ft{font-size:13px;line-height:18px;color:#6b6b70;padding:8px 36px 0}
+.chev{color:#c7c7cc;flex:none}
+.sc{overflow-y:auto;flex:1;padding-bottom:34px}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:50px;border-radius:12px;background:#007aff;color:#fff;font-weight:600;text-decoration:none;margin:16px 20px 0}
+.btn:hover{color:#fff;background:#0062cc}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px;background:#e3e3e8;border-radius:9px;padding:2px;margin:0 16px 12px}
+.sb{min-height:36px;border:0;border-radius:7px;background:transparent;font:inherit;font-size:13px;color:#000;cursor:pointer}
+.sbOn{background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.12);font-weight:600}
+.quote{margin:0 16px 12px;padding:10px 12px;border-radius:8px;background:#f2f2f7;font-size:13px;line-height:18px;color:#3a3a3c}
+</style>
+</helmet>
+<div class="s">
+  <div class="nb">
+    <a class="back" href="SearchResults.dc.html">
+      <svg width="12" height="20" viewBox="0 0 12 20" aria-hidden="true"><path d="M10 2L2 10l8 8" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>Results</a>
+    <a class="back" href="Settings.dc.html" style="font-size:15px">United Kingdom</a>
+  </div>
+  <h1 class="lt">Chicken caesar wrap</h1>
+  <div class="sub" style="padding:0 20px">Found 3 sources · 1 suits this food</div>
+  <div class="sc">
+    <div class="sh">Suggested source</div>
+    <div class="g">
+      <div style="padding:12px 16px 8px">
+        <div style="font-weight:600">[Source site name]</div>
+        <div class="sub">[source-site.example] · product page · per wrap (1 serving, 215 g)</div>
+      </div>
+      <div class="seg" role="radiogroup" aria-label="How this source applies">
+        <button type="button" role="radio" aria-checked="{{exactChecked}}" class="{{exactClass}}" onClick="{{pickExact}}">Exact product</button>
+        <button type="button" role="radio" aria-checked="{{estChecked}}" class="{{estClass}}" onClick="{{pickEstimate}}">Similar food estimate</button>
+      </div>
+      <div class="r"><span>Energy</span><span class="v">489 kcal</span></div>
+      <div class="r"><span>Protein</span><span class="v">31 g</span></div>
+      <div class="r"><span>Carbohydrates</span><span class="v">41 g</span></div>
+      <div class="r"><span>Fat</span><span class="v">22 g</span></div>
+      <div class="r"><span>Salt</span><span class="v">Not stated</span></div>
+      <details style="border-top:.5px solid rgba(60,60,67,.29)">
+        <summary style="min-height:44px;padding:11px 16px;box-sizing:border-box;color:#007aff;cursor:pointer">Show the quoted text</summary>
+        <div class="quote">“Per wrap (215g): Energy 2046kJ / 489kcal, Fat 22g, Carbohydrate 41g, Protein 31g”</div>
+      </details>
+    </div>
+    <div class="ft">Values are copied only where the quoted text supports them. Anything missing stays unknown. Check the values against the page before you continue.</div>
+
+    <a class="btn" href="Confirm.dc.html">Use this source</a>
+
+    <div class="sh">Other sources</div>
+    <div class="g">
+      <a class="r" href="WebLookup.dc.html"><div style="flex:1"><div>[Recipe site]</div><div class="sub">Recipe estimate · per serving, weight not stated</div></div>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+      <a class="r" href="WebLookup.dc.html"><div style="flex:1"><div>[Retailer page]</div><div class="sub">Needs more information · no nutrition basis</div></div>
+        <svg class="chev" width="8" height="14" viewBox="0 0 8 14" aria-hidden="true"><path d="M1 1l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+    </div>
+    <div class="ft">Only the food name and captured page text are sent to the web lookup service.</div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { scope: 'exact' }; }
+  renderVals() {
+    const exact = this.state.scope === 'exact';
+    return {
+      exactClass: exact ? 'sb sbOn' : 'sb',
+      estClass: exact ? 'sb' : 'sb sbOn',
+      exactChecked: exact ? 'true' : 'false',
+      estChecked: exact ? 'false' : 'true',
+      pickExact: () => this.setState({ scope: 'exact' }),
+      pickEstimate: () => this.setState({ scope: 'estimate' })
+    };
+  }
+}
+</script>
+</body>
+</html>
