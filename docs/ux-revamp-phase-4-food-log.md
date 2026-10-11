@@ -149,6 +149,20 @@ No new `AppRoute` case. A saved entry needs a `LogItemID`, and `AppRoute` is a r
 - Missing and failed saved entries keep their own navigation titles ("Saved entry unavailable", "Could not open saved food"), as before, so they stay distinct to VoiceOver and to the native tests.
 - No XCUITest target exists, so the simulator journey (section 8 of the tests) is left to `journey-qa`; hosted native tests cover first open and reopen (#165), recovery states and the single post-save exit per host.
 
+### Invariant review and journey QA fixes (PR #211)
+
+- Estimates stay labelled. A row says "Estimate" (once) when the saved decisions say so or its own contribution includes estimated values (augmented nutrients or an estimated weight); Home rows follow the same rule. Strip totals whose known values include estimates carry "Includes estimates", and VoiceOver says so.
+- Food Log totals abbreviate carbohydrates to "Carbs" in the four-column strip; VoiceOver keeps the full word.
+- On the saved entry, "Estimated" appears only beside a value the source augmented; an estimated weight is stated once in the header.
+- After midnight or a time-zone change the log follows the new today only when the day shown was today at the last load. The view model reads its calendar on every use, so an auto-updating calendar's time-zone change is seen.
+- History names both days when a time change crosses days ("Time changed today, 12:40 to yesterday, 12:40") and records a plate-only or declaration-only change as "Weight details changed". A removal on a later day reads "Removed yesterday, 11:02".
+- One time formatter (two-digit hour, as Confirm's picker shows it) serves the Food Log, history, removed rows and Home.
+- Done after Log from any Add food route (typed search, web lookup, barcode, recent) finishes through the coordinator. The finish is passed explicitly from the Add food route to each nested host instead of through the environment, which did not reach destinations pushed from inside those hosts. Tests check that each host holds the finish and that leaving after a save finishes through the coordinator; the pushed navigation itself is rechecked by journey QA.
+- The focus day is published and the Food Log consumes it on appear and on change, so it is selected whether the log reappears or is already showing.
+- Entry rows stack at accessibility text sizes, use plain styling (primary names, grey secondary text) and a chevron; Add food on the Food Log is a full-width filled button.
+- The single-exit test renders the real hosts (pushed Add food Confirm, the saved entry's edit host, the list-import host and a plain sheet) and checks the navigation bar: the Confirm title is on top, there is no back button and no bar item. Hosted SwiftUI text is not visible to UIKit, so the one remaining exit is checked through `FoodConfirmationView.exitTitles` and `ListConfirmationHost.toolbarTitles`, the lists those views render from.
+- The no-egress test now also reopens a reviewed web entry. Its guarantee comes from types and review (the service depends only on local stores); the test is a tripwire.
+
 ## Specification amendment
 
 Add to the Navigation section of [ux-revamp-v1.md](ux-revamp-v1.md): "Destinations that need an identifier (a saved entry, a search result, a web lookup) are presentation state of the screen that owns them; they are not route values and restore to that screen."

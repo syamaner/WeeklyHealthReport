@@ -129,11 +129,13 @@ struct FoodIntakeHomeView: View {
                         .foregroundStyle(.tertiary)
                 }
                 Text(Self.entryDetail(row)).font(.subheadline).foregroundStyle(.secondary)
-                if estimates.contains(row.logItemID) {
+                if estimates.contains(row.logItemID) || row.totals.contains(where: { $0.includesEstimates }) {
                     Text("Estimate").font(.caption).foregroundStyle(.secondary)
                 }
             }.padding(.vertical, 4)
-        }.accessibilityHint("Opens the saved entry")
+        }
+        .buttonStyle(.plain)
+        .accessibilityHint("Opens the saved entry")
     }
 
     private func actionLabel(_ title: String, subtitle: String, symbol: String) -> some View {
@@ -147,7 +149,7 @@ struct FoodIntakeHomeView: View {
     }
 
     private static func entryDetail(_ row: FoodIntakeLogRow) -> String {
-        "\(row.occurredAt.formatted(date: .omitted, time: .shortened)) · \(FoodLogText.amount(row.quantity))"
+        "\(FoodLogText.time(row.occurredAt, calendar: .autoupdatingCurrent)) · \(FoodLogText.amount(row.quantity))"
     }
 
     private static func symbol(_ key: NutrientKey) -> String {

@@ -32,7 +32,7 @@ struct SavedFoodEntryView: View {
             .task { await model.load() }
             .navigationDestination(isPresented: $showsEdit) {
                 if let edit = model.editModel {
-                    FoodConfirmationView(model: edit) {
+                    SavedEntryEditHost(model: edit) {
                         showsEdit = false
                         Task { await model.finishEdit() }
                     }
@@ -76,10 +76,10 @@ struct SavedFoodEntryView: View {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(detail.name).font(.title3.weight(.semibold))
-                    Text("\(FoodLogText.savedAmount(detail)) · \(Self.when(detail.occurredAt, now: now(), calendar: calendar))")
+                    Text("\(FoodLogText.savedAmount(detail)) · \(FoodLogText.when(detail.occurredAt, now: now(), calendar: calendar))")
                         .foregroundStyle(.secondary)
-                    if detail.isEstimate {
-                        Text("Estimate · \(FoodLogText.estimateNotice)").font(.subheadline).foregroundStyle(.secondary)
+                    if let estimate = FoodLogText.headerEstimate(detail) {
+                        Text(estimate).font(.subheadline).foregroundStyle(.secondary)
                     }
                 }
                 .padding(.vertical, 4)
@@ -102,8 +102,8 @@ struct SavedFoodEntryView: View {
             }
             Section("History") {
                 ForEach(Array(detail.history.enumerated()), id: \.offset) { _, event in
-                    LabeledContent(FoodLogText.history(event.kind, time: { Self.time($0) }),
-                                   value: Self.when(event.at, now: now(), calendar: calendar))
+                    LabeledContent(FoodLogText.history(event.kind, now: now(), calendar: calendar),
+                                   value: FoodLogText.when(event.at, now: now(), calendar: calendar))
                 }
             }
             Section {
@@ -120,12 +120,12 @@ struct SavedFoodEntryView: View {
             Section("Nutrition") {
                 ForEach(FoodLogDayContent.stripKeys, id: \.rawValue) { key in
                     if let total = totals.first(where: { $0.key == key }) {
-                        LabeledContent(FoodLogText.label(key), value: FoodLogText.nutrient(total))
+                        LabeledContent(FoodLogText.label(key), value: FoodLogText.nutrient(total, augmented: detail.augmentedKeys.contains(key)))
                     }
                 }
                 DisclosureGroup("All nutrients") {
                     ForEach(totals.filter { !FoodLogDayContent.stripKeys.contains($0.key) }, id: \.key.rawValue) { total in
-                        LabeledContent(FoodLogText.label(total.key), value: FoodLogText.nutrient(total))
+                        LabeledContent(FoodLogText.label(total.key), value: FoodLogText.nutrient(total, augmented: detail.augmentedKeys.contains(total.key)))
                     }
                 }
             }
@@ -147,15 +147,15 @@ struct SavedFoodEntryView: View {
             Button("Back") { dismiss() }
         }
     }
+}
 
-    static func time(_ date: Date) -> String { date.formatted(date: .omitted, time: .shortened) }
+/// Confirm in edit mode, hosted by the saved entry (#197). Its own type so tests render the
+/// real host.
+struct SavedEntryEditHost: View {
+    @ObservedObject var model: FoodConfirmationViewModel
+    let finish: () -> Void
 
-    /// "today, 12:40", "yesterday, 08:00" or "9 Oct, 12:40".
-    static func when(_ date: Date, now: Date, calendar: Calendar) -> String {
-        let day: String
-        if calendar.isDate(date, inSameDayAs: now) { day = "today" }
-        else if let yesterday = calendar.date(byAdding: .day, value: -1, to: now), calendar.isDate(date, inSameDayAs: yesterday) { day = "yesterday" }
-        else { day = date.formatted(.dateTime.day().month(.abbreviated)) }
-        return "\(day), \(time(date))"
+    var body: some View {
+        FoodConfirmationView(model: model, leave: finish)
     }
 }

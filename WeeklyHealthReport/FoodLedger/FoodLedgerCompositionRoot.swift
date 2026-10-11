@@ -374,7 +374,7 @@ struct FoodListImportFlowView: View {
 }
 
 struct GenericFoodSearchFlowView: View {
-    @Environment(\.finishFoodEntry) private var finishFoodEntry
+    private let finish: FoodEntryFinish?
     private let root: FoodLedgerCompositionRoot
     private let searchesOnAppear: Bool
     private let offersBarcode: Bool
@@ -388,9 +388,10 @@ struct GenericFoodSearchFlowView: View {
     /// `initialQuery` is searched once on appear only when the user submitted it on Add food
     /// (`searchesOnAppear`); a restored route starts empty and never searches by itself.
     init?(root: FoodLedgerCompositionRoot, additionalEvidence: [CaptureEvidence] = [], initialQuery: String = "",
-          searchesOnAppear: Bool = false, offersBarcode: Bool = true) {
+          searchesOnAppear: Bool = false, offersBarcode: Bool = true, finish: FoodEntryFinish? = nil) {
         guard let model = try? root.genericFoodSearchModel(additionalEvidence: additionalEvidence) else { return nil }
         self.root = root
+        self.finish = finish
         self.searchesOnAppear = Self.searchesOnAppear(initialQuery: initialQuery, requested: searchesOnAppear)
         self.offersBarcode = offersBarcode && additionalEvidence.isEmpty
         model.query = initialQuery
@@ -418,15 +419,13 @@ struct GenericFoodSearchFlowView: View {
             searchModel.search()
         }
         .navigationDestination(isPresented: $showsWebReview) {
-            if let flow = OpenRouterFoodReviewFlowView(root: root, initialQuery: searchModel.query) { flow }
+            if let flow = OpenRouterFoodReviewFlowView(root: root, initialQuery: searchModel.query, finish: finish) { flow }
         }
-        .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root) }
+        .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root, finish: finish) }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {
-                    if let saved = confirmationModel.savedResult, let finishFoodEntry {
-                        finishFoodEntry(saved.logItemVersion.reportingDate.value)
-                    } else {
+                    if !FoodEntryFinish.complete(finish, saved: confirmationModel.savedResult) {
                         showsConfirmation = false
                     }
                 }
@@ -437,7 +436,7 @@ struct GenericFoodSearchFlowView: View {
 
 /// Add food (#196): one field, the other entry routes and recent foods. Every route ends on Confirm.
 struct AddFoodFlowView: View {
-    @Environment(\.finishFoodEntry) private var finishFoodEntry
+    private let finish: FoodEntryFinish?
     private let root: FoodLedgerCompositionRoot
     @State private var recents: [FoodRecentRelogItem] = []
     @State private var submittedQuery: String?
@@ -450,7 +449,7 @@ struct AddFoodFlowView: View {
     @State private var relogFailed = false
     @State private var now = Date()
 
-    init(root: FoodLedgerCompositionRoot) { self.root = root }
+    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) { self.root = root; self.finish = finish }
 
     var body: some View {
         AddFoodView(recents: recents, now: now, calendar: root.confirmationDayCalendar,
@@ -468,11 +467,11 @@ struct AddFoodFlowView: View {
             Button("OK", role: .cancel) {}
         } message: { Text("Its saved source could not be verified. Search for it instead. Nothing was saved.") }
         .navigationDestination(isPresented: $showsSearch) {
-            if let flow = GenericFoodSearchFlowView(root: root, initialQuery: submittedQuery ?? "", searchesOnAppear: true) {
+            if let flow = GenericFoodSearchFlowView(root: root, initialQuery: submittedQuery ?? "", searchesOnAppear: true, finish: finish) {
                 flow.id(submittedQuery)
             } else { ContentUnavailableView("Food search unavailable", systemImage: "exclamationmark.triangle") }
         }
-        .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root) }
+        .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root, finish: finish) }
         .navigationDestination(isPresented: $showsList) {
             if let flow = FoodListImportFlowView(root: root) { flow }
             else { ContentUnavailableView("Food list unavailable", systemImage: "exclamationmark.triangle") }
@@ -484,9 +483,7 @@ struct AddFoodFlowView: View {
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {
-                    if let saved = confirmationModel.savedResult, let finishFoodEntry {
-                        finishFoodEntry(saved.logItemVersion.reportingDate.value)
-                    } else {
+                    if !FoodEntryFinish.complete(finish, saved: confirmationModel.savedResult) {
                         showsConfirmation = false; now = root.confirmationNow; recents = root.recentFoods()
                     }
                 }
@@ -496,15 +493,16 @@ struct AddFoodFlowView: View {
 }
 
 struct OpenRouterFoodReviewFlowView: View {
-    @Environment(\.finishFoodEntry) private var finishFoodEntry
+    private let finish: FoodEntryFinish?
     private let root: FoodLedgerCompositionRoot
     @StateObject private var credentials: FoodWebDiscoveryViewModel
     @StateObject private var reviewModel: GenericFoodProposalReviewViewModel
     @State private var confirmationModel: FoodConfirmationViewModel?
     @State private var showsConfirmation = false
-    init?(root: FoodLedgerCompositionRoot, initialQuery: String) {
+    init?(root: FoodLedgerCompositionRoot, initialQuery: String, finish: FoodEntryFinish? = nil) {
         guard let model = try? root.proposalReviewModel(initialQuery: initialQuery) else { return nil }
         self.root = root
+        self.finish = finish
         _credentials = StateObject(wrappedValue: root.webDiscovery)
         _reviewModel = StateObject(wrappedValue: model)
     }
@@ -517,9 +515,7 @@ struct OpenRouterFoodReviewFlowView: View {
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {
-                    if let saved = confirmationModel.savedResult, let finishFoodEntry {
-                        finishFoodEntry(saved.logItemVersion.reportingDate.value)
-                    } else {
+                    if !FoodEntryFinish.complete(finish, saved: confirmationModel.savedResult) {
                         showsConfirmation = false
                     }
                 }
@@ -616,7 +612,7 @@ struct FoodReresolutionFlowView: View {
 }
 
 struct BarcodeFoodFlowView: View {
-    @Environment(\.finishFoodEntry) private var finishFoodEntry
+    private let finish: FoodEntryFinish?
     private let root: FoodLedgerCompositionRoot
     @StateObject private var model: BarcodeCaptureViewModel
     @State private var offTask: Task<Void, Never>?
@@ -633,8 +629,9 @@ struct BarcodeFoodFlowView: View {
     @State private var evidence: [CaptureEvidence] = []
     @State private var confirmationModel: FoodConfirmationViewModel?
 
-    init(root: FoodLedgerCompositionRoot) {
+    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) {
         self.root = root
+        self.finish = finish
         _model = StateObject(wrappedValue: root.barcodeModel())
     }
 
@@ -688,16 +685,14 @@ struct BarcodeFoodFlowView: View {
             Text("The barcode will be sent to Open Food Facts. Your food history, quantities, photos and health data stay on this device. Returned community data needs your review. Selected source records retain attribution and licence notices in local records and exports.")
         }
         .navigationDestination(isPresented: $showsSearch) {
-            if let view = GenericFoodSearchFlowView(root: root, additionalEvidence: evidence) {
+            if let view = GenericFoodSearchFlowView(root: root, additionalEvidence: evidence, finish: finish) {
                 view.id(evidence.map(\.evidenceID))
             }
         }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {
-                    if let saved = confirmationModel.savedResult, let finishFoodEntry {
-                        finishFoodEntry(saved.logItemVersion.reportingDate.value)
-                    } else {
+                    if !FoodEntryFinish.complete(finish, saved: confirmationModel.savedResult) {
                         showsConfirmation = false
                     }
                 }

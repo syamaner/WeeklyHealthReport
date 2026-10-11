@@ -10,7 +10,7 @@ final class AppNavigationCoordinator: ObservableObject {
 
     @Published private(set) var path: [AppRoute] = []
     /// A reporting-day key the Food Log selects when it next appears (#197, F4). Never persisted.
-    private(set) var foodLogFocusDay: String?
+    @Published private(set) var foodLogFocusDay: String?
     private var protectedPath: [AppRoute]?
     private(set) var hasRestored = false
     private let defaults: UserDefaults

@@ -53,10 +53,13 @@ struct FoodLogView: View {
             }
         }
         .navigationTitle("Food Log")
-        .task { await appear() }
-        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await model.refreshAfterTimeChange(wasToday: model.isToday) } } }
+        // onAppear (not task) so returning from Add food reloads, and the focus day set by Done
+        // is consumed whether the log reappears or was already showing.
+        .onAppear { Task { await appear() } }
+        .onReceive(navigation.$foodLogFocusDay.compactMap { $0 }) { _ in Task { await appear() } }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await model.refreshAfterTimeChange() } } }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
-            Task { await model.refreshAfterTimeChange(wasToday: model.isToday) }
+            Task { await model.refreshAfterTimeChange() }
         }
         .refreshable { await model.load() }
         .navigationDestination(item: $openedEntry) { id in
@@ -125,9 +128,13 @@ struct FoodLogView: View {
                                      count: dynamicTypeSize.isAccessibilitySize ? 1 : 4), alignment: .leading, spacing: 8) {
                 ForEach(totals, id: \.key.rawValue) { total in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(FoodLogText.label(total.key)).font(.caption).foregroundStyle(.secondary)
+                        Text(FoodLogText.stripLabel(total.key)).font(.caption).foregroundStyle(.secondary)
+                            .lineLimit(1)
                         Text(FoodLogText.total(total)).font(.headline).monospacedDigit()
                             .fixedSize(horizontal: false, vertical: true)
+                        if let caption = FoodLogText.totalCaption(total) {
+                            Text(caption).font(.caption2).foregroundStyle(.secondary)
+                        }
                     }
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel(FoodLogText.totalAccessibility(total))
@@ -142,8 +149,12 @@ struct FoodLogView: View {
     private var addFoodSection: some View {
         Section {
             NavigationLink(value: AppRoute.addFood) {
-                Label("Add food", systemImage: "plus.circle.fill").font(.headline).frame(minHeight: 44)
+                Label("Add food", systemImage: "plus").font(.headline)
+                    .frame(maxWidth: .infinity, minHeight: 50)
             }
+            .buttonStyle(.borderedProminent)
+            .listRowInsets(EdgeInsets())
+            .listRowBackground(Color.clear)
         } footer: {
             if !model.isToday { Text(FoodLogText.pastDayFootnote) }
         }
@@ -154,7 +165,8 @@ struct FoodLogView: View {
     private func entriesSection(_ entries: [FoodLogDayContent.Entry]) -> some View {
         Section {
             ForEach(entries, id: \.logItemID) { entry in
-                Button { openedEntry = entry.logItemID } label: { row(entry) }
+                Button { openedEntry = entry.logItemID } label: { row(entry).contentShape(Rectangle()) }
+                    .buttonStyle(.plain)
                     .swipeActions(allowsFullSwipe: false) {
                         Button("Remove", role: .destructive) { model.requestRemoval(entry) }
                     }
@@ -162,28 +174,43 @@ struct FoodLogView: View {
                         Button("Remove from log", role: .destructive) { model.requestRemoval(entry) }
                     }
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(FoodLogText.entryAccessibility(entry, time: Self.time(entry.occurredAt)))
+                    .accessibilityLabel(FoodLogText.entryAccessibility(entry, time: time(entry.occurredAt)))
                     .accessibilityHint("Opens the saved entry")
                     .accessibilityAction(named: "Remove from log") { model.requestRemoval(entry) }
             }
         } header: { Text("Entries") } footer: { Text(FoodLogText.swipeFootnote) }
     }
 
+    @ViewBuilder
     private func row(_ entry: FoodLogDayContent.Entry) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(Self.time(entry.occurredAt)).font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
-                .frame(minWidth: 44, alignment: .leading)
-            VStack(alignment: .leading, spacing: 2) {
+        let flags = FoodLogText.flags(entry)
+        if dynamicTypeSize.isAccessibilitySize {
+            // Stacked at accessibility sizes so words never break mid-word.
+            VStack(alignment: .leading, spacing: 4) {
                 Text(entry.name).foregroundStyle(.primary)
-                Text(FoodLogText.amount(entry.quantity)).font(.subheadline).foregroundStyle(.secondary)
-                let flags = FoodLogText.flags(entry)
-                if !flags.isEmpty { Text(flags).font(.caption).foregroundStyle(.secondary) }
+                Text("\(time(entry.occurredAt)) · \(FoodLogText.amount(entry.quantity))").foregroundStyle(.secondary)
+                Text(FoodLogText.entryEnergy(entry)).foregroundStyle(.secondary)
+                if !flags.isEmpty { Text(flags).foregroundStyle(.secondary) }
             }
-            Spacer(minLength: 8)
-            Text(FoodLogText.entryEnergy(entry)).font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
-                .multilineTextAlignment(.trailing)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+        } else {
+            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                Text(time(entry.occurredAt)).font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
+                    .frame(minWidth: 44, alignment: .leading)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(entry.name).foregroundStyle(.primary)
+                    Text(FoodLogText.amount(entry.quantity)).font(.subheadline).foregroundStyle(.secondary)
+                    if !flags.isEmpty { Text(flags).font(.caption).foregroundStyle(.secondary) }
+                }
+                Spacer(minLength: 8)
+                Text(FoodLogText.entryEnergy(entry)).font(.subheadline).monospacedDigit().foregroundStyle(.secondary)
+                    .multilineTextAlignment(.trailing)
+                Image(systemName: "chevron.right").font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
+                    .accessibilityHidden(true)
+            }
+            .frame(minHeight: 44)
         }
-        .frame(minHeight: 44)
     }
 
     private func removedSection(_ removed: [FoodLogDayContent.RemovedEntry]) -> some View {
@@ -193,7 +220,7 @@ struct FoodLogView: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(entry.name)
-                            Text(FoodLogText.removedLine(removedAt: entry.removedAt.map(Self.time)))
+                            Text(FoodLogText.removedLine(entry, now: root.confirmationNow, calendar: model.calendar))
                                 .font(.caption).foregroundStyle(.secondary)
                         }
                         Spacer()
@@ -206,5 +233,5 @@ struct FoodLogView: View {
         }
     }
 
-    static func time(_ date: Date) -> String { date.formatted(date: .omitted, time: .shortened) }
+    private func time(_ date: Date) -> String { FoodLogText.time(date, calendar: model.calendar) }
 }
