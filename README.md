@@ -110,9 +110,15 @@ raw media and transient capture data. Creating schema v4 does not enable or call
 provider; local food-archive export/import remains a separate explicit action.
 
 The app opens on **Today**, showing confirmed local food intake so far and links to
-**Manage food intake**, **Export health data** and the health report. Food Log supports
-a selected reporting date, source-aware totals, saved-entry review and existing
-food capture routes. The [intake projection contract](docs/intake-home-projection-v1.md)
+**Manage food intake**, **Export health data** and the health report. The Food Log
+([phase 4 plan](docs/ux-revamp-phase-4-food-log.md)) has previous and next day buttons
+and a date picker; a totals strip for energy, protein, carbohydrates and fat, where "+"
+marks a known minimum and an empty day shows no totals; entries by time with an
+estimate label and per-entry unknown flags; swipe to remove, with a collapsed Removed
+section and Restore; and a read-only saved entry with nutrition for the amount, source,
+history, Edit (which saves a new version and keeps the original as history) and Remove
+from log. Edits, removal and restoration never change an export already sent.
+The [intake projection contract](docs/intake-home-projection-v1.md)
 keeps unknown/bounded contributions incomplete and current-day food intake separate
 from completed-day HealthKit reporting.
 Direct [edible-weight entry](docs/direct-edible-weight-contract-v1.md) keeps original input separate from an explicitly declared measured or estimated gram total, with legacy archive compatibility.

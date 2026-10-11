@@ -1,6 +1,6 @@
 # UX revamp phase 4: Food Log and saved entry (#197) architecture gate
 
-Status: **draft for owner review, 11 October 2026. Architecture gate passed with changes, folded in.** Builds on phase 3 (`feat/196-add-food-search`, PR #207). Specification: [ux-revamp-v1.md](ux-revamp-v1.md). Wireframes: [`FoodLog`](designs/ux-revamp-v1/FoodLog.dc.html), [`EntryDetail`](designs/ux-revamp-v1/EntryDetail.dc.html). Carries the outstanding acceptance of #143 and #165.
+Status: **approved for implementation under the owner's overnight authority, 11 October 2026; implemented on `feat/197-food-log`.** Architecture gate passed with changes, folded in. Builds on phase 3 (`feat/196-add-food-search`, PR #207). Specification: [ux-revamp-v1.md](ux-revamp-v1.md). Wireframes: [`FoodLog`](designs/ux-revamp-v1/FoodLog.dc.html), [`EntryDetail`](designs/ux-revamp-v1/EntryDetail.dc.html). Carries the outstanding acceptance of #143 and #165.
 
 **Presentation only.** No persisted format, schema, archive contract, confirmation policy version, `food-intake-summary-v2` behaviour, Daily JSON or egress change. Every write in this phase goes through services that already exist (`FoodConfirmationService.save` for edits, `FoodLogManagementService` for remove and restore), now reached through one application service. Anything that would need a contract is listed under Deferrals with the reason.
 
@@ -138,6 +138,16 @@ No new `AppRoute` case. A saved entry needs a `LogItemID`, and `AppRoute` is a r
 | `addFood` | `[.addFood]` | Unchanged from phase 3; Done after Log returns Home |
 
 **Future days.** Navigation never moves past today's key. If a time-zone change leaves entries on a key later than today, the Food Log does not offer that day; the entries reappear when the local day reaches it, and Developer tools still list them. This keeps "next day" honest and is recorded as a known edge.
+
+## Deviations recorded during implementation
+
+- `FoodLogReadingService` also takes the archive (the day projection needs the records) and a `FoodConfirmationReading` (the saved entry needs the stored confirmation); the history reader alone cannot supply either.
+- The app-level no-egress test drives the composition root through load, open, edit, remove and restore with a recording `URLProtocol`. The root has no transport injection seam, so the recorder sees shared-session traffic only; the service's dependencies are local stores by type.
+- The archive round trip compares the canonical projection and the re-verified archive document, not raw record bytes, because import does not preserve array order.
+- Count amounts read "1 unit" or "2 units": the serving name ("mug" in the wireframe) is not stored as a structured value.
+- Home (#199 scope) changed only where it shared code: its rows now push the new saved entry instead of the old sheet, show "Estimate" at most once and "Energy unknown" instead of a blank. The Food Log branch of `FoodIntakeHomeView` moved to `FoodLogView`.
+- Missing and failed saved entries keep their own navigation titles ("Saved entry unavailable", "Could not open saved food"), as before, so they stay distinct to VoiceOver and to the native tests.
+- No XCUITest target exists, so the simulator journey (section 8 of the tests) is left to `journey-qa`; hosted native tests cover first open and reopen (#165), recovery states and the single post-save exit per host.
 
 ## Specification amendment
 
