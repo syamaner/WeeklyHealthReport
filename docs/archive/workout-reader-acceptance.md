@@ -1,6 +1,6 @@
 # Workout reader acceptance — issue 80
 
-Software scope is [the shared interval contract](workout-interval-enrichment-contract.md) and [the versioned accepted-distance amendment](accepted-workout-distance-amendment.md). Producer dependency is [PacePrompt #233](https://github.com/syamaner/paceprompt-ios/issues/233); final signed-device acceptance remains [#116](https://github.com/syamaner/paceprompt-ios/issues/116).
+Software scope is [the shared interval contract](../workout-interval-enrichment-contract.md) and [the versioned accepted-distance amendment](../accepted-workout-distance-amendment.md). Producer dependency is [PacePrompt #233](https://github.com/syamaner/paceprompt-ios/issues/233); final signed-device acceptance remains [#116](https://github.com/syamaner/paceprompt-ios/issues/116).
 
 ## Sources and compatibility
 
@@ -66,7 +66,7 @@ The bound native harness has also checked incomplete, naturally safe and fractio
 | Fractional targets and gap | 30.625 m | Exactly 30.625 m | Partial 12.375 m; second interval unavailable |
 | Uncertain strict start bounds | 10 m | Absent; uncertainTemporalCoverage | 10 m |
 
-The durable [native interoperability runbook](../Tools/WorkoutNativeInterop/README.md) retains the consumer assembler, independent declarations, native assertions and evidence collector outside application/test targets. Compiled assembly IDs and source/input digests bind diagnostics to their exact snapshot; collection rechecks all hashes and rejects stale or modified inputs. The negative controls rejected old outputs for the same UUIDs and a modified source file. Both sides independently declare the same 13 supported synthetic case identities. Native archives and output records remain private.
+The durable [native interoperability runbook](../../Tools/WorkoutNativeInterop/README.md) retains the consumer assembler, independent declarations, native assertions and evidence collector outside application/test targets. Compiled assembly IDs and source/input digests bind diagnostics to their exact snapshot; collection rechecks all hashes and rejects stale or modified inputs. The negative controls rejected old outputs for the same UUIDs and a modified source file. Both sides independently declare the same 13 supported synthetic case identities. Native archives and output records remain private.
 
 The accepted-distance implementation passed 134 focused tests, then all **334 complete simulator tests**, the **96.93%** domain coverage gate and Xcode static analysis. All 83 application/test/project/policy input hashes remained unchanged. One earlier focused run's terminated test process and the unchanged successful recheck are retained; the full gate passed without a retry. The standalone harness separately passed Python compilation, exact-ref snapshot comparison and actual generated native execution; the application's full suite is not claimed as coverage of these separate tools. Independent source and harness review found no remaining P1/P2 issue after the evidence-binding correction.
 

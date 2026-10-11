@@ -278,7 +278,7 @@ a quantity-specific check; matching the expected quantity error is required for 
 line's outcome correctness, and is never inferred from generic blocking.
 
 The initially observed production blocker is documented in
-[the failure analysis](../../docs/food-list-generic-estimate-evaluation-blocker-v1.md).
+[the failure analysis](../../docs/archive/food-list-generic-estimate-evaluation-blocker-v1.md).
 The ordinary pasted-list acceptance path retains manual capture evidence, whereas
 `food_confirmation_v2` requires generic-search evidence for a composition estimate.
 The initial tooling phase kept supported cases failing until the subsequent handoff

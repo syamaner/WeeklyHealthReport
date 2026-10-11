@@ -22,7 +22,7 @@ Two fresh runs produced identical query predictions, query/extraction reports, s
 - [Promptfoo case comparison](/private/tmp/whr-nutrition-spike-20261001-2/promptfoo.html)
 - [Structured summary](/private/tmp/whr-nutrition-spike-20261001-2/summary.json)
 - [Run manifest](/private/tmp/whr-nutrition-spike-20261001-2/manifest.json)
-- [Local runner and reproduction instructions](../Tools/NutritionEvaluationSpike/README.md)
+- [Local runner and reproduction instructions](../../Tools/NutritionEvaluationSpike/README.md)
 
 The reports are local temporary files. Summary and manifest copies are retained under `Tools/NutritionEvaluationSpike/evidence/`; detailed report reproduction also requires the retained private source documents. Installed transitive dependency versions are retained in the run's dependency lock. Source code was compiled from the dirty working tree and hashed; historical extraction resource drift is explicitly recorded.
 

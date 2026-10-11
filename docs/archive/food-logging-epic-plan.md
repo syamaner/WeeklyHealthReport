@@ -9,7 +9,7 @@ must consume its identifiers, nutrient states, provenance, merge and migration r
 rather than redefining them.
 
 UX design authority: [Food log UX design baseline](food-log-ux-design-plan.md),
-backed by the versioned [36-screen HTML design bundle](designs/food-log-all-screens.html).
+backed by the versioned [36-screen HTML design bundle](../designs/food-log-all-screens.html).
 Later issue decomposition must use its capture, confirmation, closest-match,
 quantity, preparation, plate-weight and override flows as the interaction baseline.
 
@@ -30,7 +30,7 @@ adds the versioned classical-NLP parser and review queue in PR #128.
 [#129](https://github.com/syamaner/WeeklyHealthReport/issues/129) connects the barcode
 component to the app, keeps evidence through generic fallback and removes the
 unavailable label-photo actions. See [barcode beta delivery](barcode-beta-delivery.md)
-and [pasted-list delivery](food-list-import.md) for software evidence and limits.
+and [pasted-list delivery](../food-list-import.md) for software evidence and limits.
 
 The user's physical-device test is deferred. #93 remains open and deferred from
 this beta: its frozen accuracy and corpus gates are not waived, and no further
@@ -38,7 +38,7 @@ user labeling batch is requested. The broader three-route design is a future
 target. Automatic match acceptance remains unpromoted.
 
 [#130](https://github.com/syamaner/WeeklyHealthReport/issues/130) adds optional local
-receipt review and searchable inventory under the [v1 contract](local-inventory-contract.md).
+receipt review and searchable inventory under the [v1 contract](../local-inventory-contract.md).
 Purchased, remaining and consumed quantities have separate meanings. Google import
 is optional; fuller common-items/favourites management is deferred by the user.
 Drive receipt reading is a later scoped adapter. #101 adds
@@ -51,7 +51,7 @@ Provider/commercial challengers, physical gates and HealthKit writes retain thei
 separate authority requirements. The user has authorised routine implementation,
 validation, PR delivery and merge for actionable food backlog work.
 
-The [proposed optional HealthKit projection plan](food-healthkit-write-plan.md)
+The [proposed optional HealthKit projection plan](../food-healthkit-write-plan.md)
 addresses #97 without implementing a writer or expanding permissions. It remains
 unratified; writer-specific synthetic evidence and any physical run are later gates.
 
@@ -100,7 +100,7 @@ The app's local, versioned data and canonical JSON remain the system of record. 
 |---|---|---|---|
 | [#89](https://github.com/syamaner/WeeklyHealthReport/issues/89) | Plan/contract | Land the research, schema, provenance and merge contract | First authority task |
 | [#87](https://github.com/syamaner/WeeklyHealthReport/issues/87) | Spike | Measured UK source coverage, CoFID ingest facts and licence/offline matrix | Starts after #89; fixtures use its source-release, provenance and identity vocabulary |
-| [#90](https://github.com/syamaner/WeeklyHealthReport/issues/90) | Spike | [Local store/versioning and Drive backup/merge decision](food-library-storage-and-backup-decision.md) | Active; persists stable/version IDs and conflict rules; no live Drive work |
+| [#90](https://github.com/syamaner/WeeklyHealthReport/issues/90) | Spike | [Local store/versioning and Drive backup/merge decision](../food-library-storage-and-backup-decision.md) | Active; persists stable/version IDs and conflict rules; no live Drive work |
 | [#88](https://github.com/syamaner/WeeklyHealthReport/issues/88) | Eval | Printed-panel OCR corpus, harness and promotion result | MVP-critical evidence gate under the accepted UX baseline |
 | [#91](https://github.com/syamaner/WeeklyHealthReport/issues/91) | Eval | Handwriting corpus, harness and promotion result | Separate from printed OCR |
 | [#92](https://github.com/syamaner/WeeklyHealthReport/issues/92) | Eval | [Matching, hard-negative and calibration corpus/harness](generic-food-match-evaluation.md) | Complete; accepted deterministic explicit-selection envelope, no automatic acceptance |

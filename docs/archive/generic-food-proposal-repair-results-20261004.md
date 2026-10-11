@@ -10,7 +10,7 @@ The separate checker assesses product identity, exclusions, denominator and nutr
 
 Literal binding v7 accepts `mls`, exact paired kJ/kcal column structures and explicit scalar/structural unit labels. Wrong columns, partial evidence, bounded or approximate values remain unsupported. Missing units/nutrients remain unknown. No salt-to-sodium, kJ, density or portion-weight inference was added. Selection has no numerical confidence: categorical support is not a calibrated probability.
 
-Versions: extraction prompt v11; adapter v4; applicability v1; query basis v1; choice policy v2; confirmation admission v5. The existing schema remains v5. The [architecture gate](generic-food-proposal-repair-v2.md) records responsibilities and invariants.
+Versions: extraction prompt v11; adapter v4; applicability v1; query basis v1; choice policy v2; confirmation admission v5. The existing schema remains v5. The [architecture gate](../generic-food-proposal-repair-v2.md) records responsibilities and invariants.
 
 ## Evaluation results
 

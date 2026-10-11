@@ -231,7 +231,7 @@ errors. None proves Google, Keychain runtime or device behaviour.
 The recorded build-4 run proved slice A, including both destination flows,
 unrelated-file denial and two-account isolation. The separately authorised build-5
 run proved only the canonical online create/update/readback/relaunch path described
-below. See `docs/daily-export-feasibility-results.md`. This harness remains
+below. See `docs/archive/daily-export-feasibility-results.md`. This harness remains
 synthetic-only; local failure checks are not Google evidence.
 
 ## Slice-B device and Google acceptance protocol (bounded matrix complete)

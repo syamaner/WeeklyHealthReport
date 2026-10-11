@@ -2,7 +2,7 @@
 
 Status: implemented for [#172](https://github.com/syamaner/WeeklyHealthReport/issues/172), 28 September 2026. The user authorised a user-key-only, explicit-tap source-discovery flow. This is separate from [#100](https://github.com/syamaner/WeeklyHealthReport/issues/100)'s frozen-candidate matching challenger. No provider call, personal-data evaluation, model-quality claim or TestFlight acceptance is implied by implementation.
 
-The [unified search contract v1](unified-food-search-contract-v1.md) supersedes
+The [unified search contract v1](../unified-food-search-contract-v1.md) supersedes
 the explicit-tap requirement as of 29 September 2026. Automatic enrichment is the
 new target; this document records the historical citation-only implementation.
 The manual route is now under **Search options → Developer tools → Debug Gemini
@@ -29,7 +29,7 @@ Provider, transport and key storage are credible substitution boundaries. Synthe
 
 ### Citation presentation gate, after local development pilots
 
-The five-case prompt pilots in [`Tools/GeminiGroundingEvaluation/pilot-findings-2026-09-28.md`](../Tools/GeminiGroundingEvaluation/pilot-findings-2026-09-28.md) found model-written Markdown links whose hosts differed from Google's annotation source titles. The citation URL, model prose and a Markdown URL embedded in that prose are three separate claims. The follow-up presentation change assigns parsing of this relationship to a pure `FoodLedgerApplication` policy, keeps Google's annotation URL as the only primary source link, and places the complete model answer and cited passages in clearly labelled, expandable text. The infrastructure adapter still only projects Google annotations; the presentation layer never turns a model-written Markdown URL into a source lead.
+The five-case prompt pilots in [`Tools/GeminiGroundingEvaluation/pilot-findings-2026-09-28.md`](../../Tools/GeminiGroundingEvaluation/pilot-findings-2026-09-28.md) found model-written Markdown links whose hosts differed from Google's annotation source titles. The citation URL, model prose and a Markdown URL embedded in that prose are three separate claims. The follow-up presentation change assigns parsing of this relationship to a pure `FoodLedgerApplication` policy, keeps Google's annotation URL as the only primary source link, and places the complete model answer and cited passages in clearly labelled, expandable text. The infrastructure adapter still only projects Google annotations; the presentation layer never turns a model-written Markdown URL into a source lead.
 
 The stable invariants are unchanged: no cited page or model claim becomes admitted nutrition, identity, quantity or a saved food; no extra network request, key use or persistence is introduced. A matching host means only that the visible strings are consistent, not that the page exists or supports the claim. The policy treats model-written opaque redirects, generic citation titles with different written hosts, and broad multi-link spans as unresolved rather than falsely verified. The credible extension axis is a future page resolver or provider adapter behind the discovery port; neither can override the admission boundary. Synthetic contract tests cover matching subdomains, conflicting hosts, opaque redirects, broad spans and citation-free text. SwiftUI compilation and the simulator suite protect the presentation change.
 

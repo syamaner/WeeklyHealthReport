@@ -4,7 +4,7 @@
 
 > **Build21 device feedback:** the user installed build 21 and reported unsuccessful scallion-pancake/Fat-Daddy reviews. Explicit market selection, nutrition retrieval intent and clearer rejection explanations are repaired locally; package, simulator and static-analysis gates passed. Ten diagnostic calls cost $0.073381500. Fat Daddy nutrition and exact ETtoday extraction diagnosis remain unresolved; these changes are absent from build 21. [Feedback and repair evidence](generic-food-device-feedback-20261004.md).
 
-> **TestFlight21 delivered:** 0.1.1 (21) is Testing in the existing Internal Testing group (one tester). Upload, processing, notes and audience verified in Safari after explicit user authorisation. [Delivery receipt](internal-testflight-build21.md). Physical acceptance remains pending.
+> **TestFlight21 delivered:** 0.1.1 (21) is Testing in the existing Internal Testing group (one tester). Upload, processing, notes and audience verified in Safari after explicit user authorisation. [Delivery receipt](../releases/internal-testflight-build21.md). Physical acceptance remains pending.
 
 > **Device build ready:** signed local 0.1.1 (19.1) is retained and verified. Installation was rejected by automatic approval review pending explicit in-place approval; nothing was installed. [Build receipt and checklist](generic-food-proposal-device-build-20261004.md).
 

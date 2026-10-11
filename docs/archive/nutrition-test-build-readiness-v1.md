@@ -2,8 +2,8 @@
 
 ## Current Taiwan and search-recovery candidate — 2026-10-03
 
-The current local candidate adds the [Taiwan catalogue](taiwan-food-catalogue-v1.md)
-and [online search recovery](online-food-search-recovery-v1.md) on merged build-17
+The current local candidate adds the [Taiwan catalogue](../taiwan-food-catalogue-v1.md)
+and [online search recovery](../online-food-search-recovery-v1.md) on merged build-17
 lineage `f6e4c49d80a435010e30738741555429c10630b7`. The structured-output/provider
 comparison remains a separate lane and is not included. The previous readiness
 receipt below is historical; its three-resource inventory and two-source retrieval

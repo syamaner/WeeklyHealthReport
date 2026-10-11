@@ -12,4 +12,4 @@ Tests cover both unit orders, wrong columns, qualifiers, shortened evidence, app
 
 Before fresh inference, source review exposed explicit scalar unit labels and unparenthesised structural headers. Binding v7/prompt v11 add these generic representations while retaining complete-block evidence, bounds and exact units. Either bounded member of a paired energy value blocks that pair. The first frozen exposed regression retains v6/v10; all fresh inference uses v7/v11, and its source index distinguishes this change.
 
-Implementation and evaluation are complete locally. See [the results, retained failures and cost ledger](generic-food-proposal-repair-results-20261004.md). No independent acceptance or calibrated confidence is claimed.
+Implementation and evaluation are complete locally. See [the results, retained failures and cost ledger](archive/generic-food-proposal-repair-results-20261004.md). No independent acceptance or calibrated confidence is claimed.
