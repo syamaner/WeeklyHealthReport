@@ -428,6 +428,30 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertEqual(bytes, try DailyHealthExportSerializer.encode(envelope))
     }
 
+    /// D7 (#195): food entries are not exported yet (#97), so schema-4 food admission stays
+    /// pinned to food contract 3 even though the current food contract is 4.
+    func testSchemaV4FoodAdmissionIsPinnedToFoodContractThree() throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 23, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        let schemaV3 = try DailyHealthExportBuilder.make(
+            window: window, exportedAt: cutoff, inputs: populatedInputs(window: window), notes: [])
+        let nutrientSet = try NutrientSet(entries: NutrientKey.allCases.map {
+            try NutrientEntry(key: $0, value: .unknown(.notDeclared))
+        })
+        let summary = CanonicalFoodNutritionSummary(
+            summaryVersionID: try LedgerText("summary-fixture-v1"), reportingDate: try LedgerText("2026-09-06"),
+            nutrients: nutrientSet, inputLogItemVersionIDs: [], hasUnknownContribution: true)
+        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 4)
+        XCTAssertEqual(DailyHealthExportBuilder.maximumExportedFoodContractVersion, 3)
+        let three = try CanonicalFoodDocument(projection: CanonicalFoodProjection(
+            records: LedgerMutation(), summaries: [summary], foodContractVersion: 3))
+        XCTAssertNoThrow(try DailyHealthExportBuilder.addingFoodProjection(three, summary: summary, to: schemaV3))
+        let four = try CanonicalFoodDocument(projection: CanonicalFoodProjection(
+            records: LedgerMutation(), summaries: [summary], foodContractVersion: 4))
+        XCTAssertThrowsError(try DailyHealthExportBuilder.addingFoodProjection(four, summary: summary, to: schemaV3))
+    }
+
     func testSchemaV4AddsCanonicalFoodProjectionWithoutChangingV3FixtureMeaning() throws {
         let calendar = londonCalendar()
         let cutoff = date(2026, 9, 6, 23, calendar: calendar)

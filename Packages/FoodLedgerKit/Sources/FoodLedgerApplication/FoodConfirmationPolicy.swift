@@ -2,7 +2,7 @@ import FoodLedgerDomain
 
 /// Versioned explicit confirmation of a composition estimate, never provider compatibility.
 public enum FoodConfirmationPolicy {
-    public static let version = "food_confirmation_v4"
+    public static let version = "food_confirmation_v5"
 
     public static func isGenericEstimate(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> Bool {
         if FoodReviewedWebProposalPolicy.scope(input, candidate: candidate) == .representativeEstimate { return true }

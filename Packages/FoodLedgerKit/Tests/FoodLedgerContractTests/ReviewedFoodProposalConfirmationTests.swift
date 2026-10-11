@@ -21,10 +21,11 @@ final class ReviewedFoodProposalConfirmationTests: XCTestCase {
             XCTAssertFalse(state.isGenericEstimate)
             XCTAssertEqual(state.unresolvedIdentity.count, 6)
             FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(150, .grams))
-            FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("I reviewed the source, but have not resolved the product identity.")))
+            state.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &state, action: .accept)
             let service = try service(harness)
             XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(801))) {
-                guard case FoodConfirmationSaveError.unresolvedMandatoryIdentity = $0 else { return XCTFail("Expected identity blocker") }
+                guard case let FoodConfirmationSaveError.unmetRequirements(unmet) = $0,
+                      unmet.contains(where: { if case .sourceIdentityMissing = $0 { true } else { false } }) else { return XCTFail("Expected identity blocker") }
             }
             XCTAssertEqual(try harness.reader.counts().operations, 0)
         }
@@ -42,11 +43,11 @@ final class ReviewedFoodProposalConfirmationTests: XCTestCase {
             let service = try service(harness)
             XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(802)))
             FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(0.5, .count))
-            FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("Half the source bowl is a representative estimate for my tofu pudding.")))
+            state.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &state, action: .accept)
             let saved = try service.save(state, operationID: LedgerFixtures.operationID(803))
             XCTAssertNil(saved.quantityConversion)
             XCTAssertEqual(saved.logItemVersion.edibleQuantity, try PositiveQuantity(value: 0.5, unit: .count))
-            XCTAssertEqual(saved.resolutionVersion.methodVersion.value, "food_confirmation_v4")
+            XCTAssertEqual(saved.resolutionVersion.methodVersion.value, "food_confirmation_v5")
             XCTAssertFalse(saved.assertions.isEmpty)
             let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
             XCTAssertTrue(reopened.usesSourceDeclaredServing)
@@ -215,11 +216,44 @@ final class ReviewedFoodProposalConfirmationTests: XCTestCase {
         for harness in harnesses {
             var state = FoodConfirmationState(input: input)
             FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(1, .count))
-            FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("I reviewed this representative source serving.")))
+            state.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &state, action: .accept)
             XCTAssertThrowsError(try service(harness).save(state, operationID: LedgerFixtures.operationID(809))) {
                 XCTAssertEqual($0 as? FoodConfirmationSaveError, .invalidReviewedSource)
             }
             XCTAssertEqual(try harness.reader.counts().operations, 0)
+        }
+    }
+
+    /// Contract test 15: the reviewed-source integrity check runs before the v5 policy, and
+    /// representative saves record food_confirmation_v5 with typed serving requirements.
+    func testReviewedSourceIntegrityPrecedesPolicyAndServingRequirementIsTyped() throws {
+        let original = try prepare(scope: .representativeEstimate)
+        let evidence = original.evidence[0]
+        guard case let .text(payload) = evidence.originalPayload else { return XCTFail("Text manifest") }
+        let altered = try CaptureEvidence(evidenceID: evidence.evidenceID, kind: evidence.kind,
+            capturedAt: evidence.capturedAt, locale: evidence.locale, captureMethod: evidence.captureMethod,
+            captureMethodVersion: evidence.captureMethodVersion, originalPayload: .text(LedgerText(payload.value.replacingOccurrences(of: "tofu pudding", with: "altered food query"))),
+            byteHash: evidence.byteHash)
+        let input = try PopulatedFoodConfirmation(evidence: [altered], sourceReleases: original.sourceReleases,
+            candidates: original.candidates, expectedIdentity: original.expectedIdentity, expectedEdibleQuantity: original.expectedEdibleQuantity)
+        var state = FoodConfirmationState(input: input)
+        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        XCTAssertFalse(FoodLogPolicy.requirements(state, now: LedgerFixtures.date, calendar: .current).isEmpty,
+                       "Policy requirements are unmet, yet the integrity failure must be reported first")
+        let harnesses = try LedgerFixtures.harnesses(); defer { harnesses.forEach { $0.cleanup() } }
+        for harness in harnesses {
+            XCTAssertThrowsError(try service(harness).save(state, operationID: LedgerFixtures.operationID(815))) {
+                XCTAssertEqual($0 as? FoodConfirmationSaveError, .invalidReviewedSource)
+            }
+            var valid = FoodConfirmationState(input: original)
+            FoodConfirmationReducer.reduce(state: &valid, action: .setQuantity(150, .grams))
+            XCTAssertTrue(FoodLogPolicy.requirements(valid, now: LedgerFixtures.date, calendar: .current).contains(.sourceServingsRequired))
+            FoodConfirmationReducer.reduce(state: &valid, action: .setQuantity(1, .count))
+            XCTAssertEqual(FoodLogPolicy.offeredChoices(valid, facet: .edibleQuantity), [.useSourceServing])
+            valid.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &valid, action: .accept)
+            let saved = try service(harness).save(valid, operationID: LedgerFixtures.operationID(816))
+            XCTAssertEqual(saved.resolutionVersion.methodVersion.value, "food_confirmation_v5")
+            XCTAssertEqual(saved.assertions.count, 1)
         }
     }
 
@@ -229,7 +263,7 @@ final class ReviewedFoodProposalConfirmationTests: XCTestCase {
             let original = try prepare(scope: .representativeEstimate)
             var state = FoodConfirmationState(input: original)
             FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(1, .count))
-            FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("A reviewed source serving estimate.")))
+            state.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &state, action: .accept)
             let operation = try LedgerFixtures.operationID(810)
             let retryKey = try LedgerText("reviewed-manifest-hash")
             let saved = try service(harness).save(state, operationID: operation, idempotencyKey: retryKey)
@@ -262,7 +296,7 @@ final class ReviewedFoodProposalConfirmationTests: XCTestCase {
         for harness in harnesses {
             var state = FoodConfirmationState(input: try prepare(scope: .representativeEstimate))
             FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(1, .count))
-            FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("Reviewed representative serving.")))
+            state.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &state, action: .accept)
             let operation = try LedgerFixtures.operationID(811)
             let retryKey = try LedgerText("reviewed-semantic-recovery")
             let validService = try service(harness)
@@ -341,7 +375,7 @@ final class ReviewedFoodProposalConfirmationTests: XCTestCase {
             let harnesses = try LedgerFixtures.harnesses(); defer { harnesses.forEach { $0.cleanup() } }
             for harness in harnesses {
                 var state = FoodConfirmationState(input: changed)
-                FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("A review acknowledgement cannot repair altered source facts.")))
+                state.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &state, action: .accept)
                 XCTAssertThrowsError(try service(harness).save(state, operationID: LedgerFixtures.operationID(808))) {
                     XCTAssertEqual($0 as? FoodConfirmationSaveError, .invalidReviewedSource)
                 }

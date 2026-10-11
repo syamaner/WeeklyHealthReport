@@ -63,8 +63,8 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
                     clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()),
                 reader: store, clock: FixedClock(), ids: ids, digester: SHA256Digester())
             XCTAssertThrowsError(try service.save(state, operationID: draft.operationID)) { error in
-                if count { XCTAssertEqual(error as? FoodQuantityValidationError, .missingConversion) }
-                else { XCTAssertEqual(error as? FoodConfirmationSaveError, .invalidQuantity) }
+                if count { XCTAssertEqual(error as? FoodConfirmationSaveError, .unmetRequirements([.countNeedsMeasuredAmount])) }
+                else { XCTAssertEqual(error as? FoodConfirmationSaveError, .unmetRequirements([.amountMissing])) }
             }
             XCTAssertEqual(try store.counts().operations, 0)
         }
@@ -253,7 +253,8 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
         let service = FoodConfirmationService(ledger: ledger, reader: store, clock: FixedClock(), ids: ids, digester: SHA256Digester())
         let saved = try service.save(state, operationID: id(905, OperationTag.self))
-        XCTAssertFalse(try store.exactLibraryEntries(alias: LedgerText("food:name:rice")).isEmpty)
+        // D6 (food_confirmation_v5): an estimate creates no exact library alias; the bundled source is rediscovered.
+        XCTAssertTrue(try store.exactLibraryEntries(alias: LedgerText("food:name:rice")).isEmpty)
         guard case let .confirmation(nextRoute) = try search.search(request("rice")) else { return XCTFail("rice") }
         XCTAssertNil(nextRoute.reuse)
         XCTAssertEqual(nextRoute.matches[0].candidate.candidate.recordID, saved.candidateDecision.candidate.recordID)
@@ -276,7 +277,8 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
             clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
         let service = FoodConfirmationService(ledger: ledger, reader: store, clock: FixedClock(), ids: ids, digester: SHA256Digester())
         let saved = try service.save(state, operationID: id(905, OperationTag.self))
-        XCTAssertFalse(try store.exactLibraryEntries(alias: LedgerText("food:name:200g cooked porridge made with water")).isEmpty)
+        // D6 (food_confirmation_v5): an estimate creates no exact library alias; the bundled source is rediscovered.
+        XCTAssertTrue(try store.exactLibraryEntries(alias: LedgerText("food:name:200g cooked porridge made with water")).isEmpty)
         guard case let .confirmation(nextRoute) = try search.search(request("200g cooked porridge made with water")) else { return XCTFail("200g cooked porridge made with water") }
         XCTAssertEqual(saved.candidateDecision.candidate.identity.preparation.kind, .unknown)
         XCTAssertEqual(nextRoute.matches[0].candidate.candidate.identity.preparation.kind, .unknown)

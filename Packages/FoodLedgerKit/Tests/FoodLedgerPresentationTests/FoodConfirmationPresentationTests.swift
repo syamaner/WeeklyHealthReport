@@ -2,6 +2,7 @@ import Foundation
 import FoodLedgerApplication
 import FoodLedgerDomain
 import FoodLedgerPresentation
+import FoodLedgerTestSupport
 import FoodGenericSearch
 import SwiftUI
 import XCTest
@@ -64,9 +65,9 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         )
         XCTAssertEqual(
             FoodConfirmationViewModel.message(
-                for: FoodConfirmationSaveError.unexplainedMaterialDifferences([.preparation])
+                for: FoodConfirmationSaveError.unmetRequirements([.decideDifference(.preparation)])
             ),
-            "Explain the highlighted differences or apply a correction before saving."
+            "Answer ‘How was it prepared?’ to log."
         )
         XCTAssertTrue(
             FoodConfirmationViewModel.message(for: CocoaError(.fileWriteUnknown))
@@ -88,9 +89,8 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         let model = FoodConfirmationViewModel(state: initial) { _ in
             throw CocoaError(.fileWriteUnknown)
         }
-        model.send(.accept)
         model.send(.setQuantity(175, .grams))
-        model.save()
+        model.log()
 
         XCTAssertEqual(model.state.selectedCandidate, initial.selectedCandidate)
         XCTAssertEqual(model.state.quantity.value, 175)
@@ -100,31 +100,115 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertTrue(message.contains("try again"))
     }
 
-    func testSaveGuidanceExplainsAcceptanceAndQuantityBeforeSaving() throws {
+    func testSaveGuidanceUsesTypedRequirementsAndOneLogAction() throws {
         let model = FoodConfirmationViewModel(state: try fixtureState()) { _ in
             XCTFail("Guidance must not save")
             throw CocoaError(.fileWriteUnknown)
         }
-        XCTAssertTrue(model.saveRequirements.contains { $0.contains("Accept this match") })
-        model.send(.accept)
+        XCTAssertTrue(model.requirements.isEmpty, "Acceptance is the Log press, not a requirement")
         model.send(.setQuantity(nil, .grams))
-        XCTAssertTrue(model.saveRequirements.contains { $0.contains("Amount eaten") })
+        XCTAssertEqual(model.requirements, [.amountMissing])
+        XCTAssertFalse(model.canLog)
+        XCTAssertEqual(model.blockedReason, "Enter an amount greater than zero.")
         model.send(.setQuantity(100, .grams))
-        XCTAssertTrue(model.saveRequirements.isEmpty)
+        XCTAssertTrue(model.canLog)
         model.send(.setQuantity(2, .count))
-        XCTAssertTrue(model.saveRequirements.contains { $0.contains("measured total") })
+        XCTAssertEqual(model.requirements, [.countNeedsMeasuredAmount])
         model.send(.setQuantity(100, .grams))
         model.send(.setPlateChoice(.missing))
-        XCTAssertTrue(model.saveRequirements.contains { $0.contains("empty plate") })
+        XCTAssertEqual(model.requirements, [.emptyPlateWeightMissing])
+        for requirement in model.requirements + [.sourceIdentityMissing([.skin])] {
+            XCTAssertFalse(FoodLogRequirementText.text(requirement).contains("Open"))
+            XCTAssertFalse(FoodLogRequirementText.text(requirement).contains("disclosure"))
+        }
+    }
+
+    /// Contract test 16: whenever Log would write an estimate, the notice is on the primary screen
+    /// model (not a details disclosure), and inline decisions drive Log and the blocked reason.
+    func testEstimateNoticeAndInlineDecisionsDriveTheLogAction() throws {
+        let base = try fixtureState().input
+        let identity = base.candidates[0].candidate.identity
+        let raw = try DecisiveIdentity(preparation: PreparationState(kind: .raw), bone: identity.bone, skin: identity.skin,
+            drained: identity.drained, packingMedium: identity.packingMedium, fortification: identity.fortification,
+            servingBasis: identity.servingBasis)
+        let input = try PopulatedFoodConfirmation(evidence: base.evidence, sourceReleases: base.sourceReleases,
+            candidates: base.candidates, expectedIdentity: raw, expectedEdibleQuantity: base.expectedEdibleQuantity)
+        var saves = 0
+        let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input)) { state in
+            saves += 1
+            throw CocoaError(.fileWriteUnknown)
+        }
+        XCTAssertEqual(model.pendingDifferences, [.preparation])
+        XCTAssertFalse(model.canLog)
+        XCTAssertEqual(model.blockedReason, "Answer ‘How was it prepared?’ to log.")
+        XCTAssertFalse(model.savesEstimate)
+        model.log()
+        XCTAssertEqual(saves, 0, "A blocked Log press never saves")
+        model.send(.decideDifference(.preparation, .matchesSource))
+        XCTAssertTrue(model.canLog)
+        XCTAssertFalse(model.savesEstimate)
+        model.send(.decideDifference(.preparation, .notSure))
+        XCTAssertTrue(model.savesEstimate)
+        XCTAssertEqual(FoodConfirmationViewModel.estimateNotice, "Logged as an estimate. Unknown details stay unknown.")
+        XCTAssertEqual(model.offeredChoices(.preparation).map {
+            FoodLogRequirementText.choice($0, facet: .preparation, source: model.sourceState(.preparation))
+        }, ["As sold, as the source", "Raw", "Cooked", "Reheated", "Not sure"])
+        model.log()
+        XCTAssertEqual(saves, 1, "One Log press saves once")
+        XCTAssertEqual(model.state.decision, .accepted)
+        let view = FoodConfirmationView(model: model, leave: {}).environment(\.dynamicTypeSize, .accessibility5)
+        XCTAssertFalse(String(describing: view).isEmpty)
+    }
+
+    /// Review fix 6: a reopened entry older than the window shows its stored time read-only, and an
+    /// amount-only edit saves with the stored occurredAt unchanged (no clamped time is written back).
+    func testReopenedTenDayOldEntryAmountEditKeepsStoredTime() throws {
+        struct Clock: LedgerClock { let value: Date; func now() -> Date { value } }
+        final class IDs: LedgerIDGenerating, @unchecked Sendable {
+            private var value = 9_000
+            func makeID<Tag>(_ tag: Tag.Type) throws -> LedgerID<Tag> {
+                value += 1; return try LedgerID(String(format: "00000000-0000-0000-0000-%012x", value))
+            }
+        }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let old = now.addingTimeInterval(-10 * 86_400)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/London"))
+        let store = InMemoryFoodLedgerStore()
+        let ids = IDs()
+        func service(at date: Date) -> FoodConfirmationService {
+            let ledger = FoodLedgerService(actorID: try! LedgerID("00000000-0000-0000-0000-000000000999"), committer: store,
+                clock: Clock(value: date), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+            return FoodConfirmationService(ledger: ledger, reader: store, clock: Clock(value: date), ids: ids,
+                digester: SHA256Digester(), calendar: calendar)
+        }
+        var state = try fixtureState()
+        state.decision = .accepted
+        let saved = try service(at: old).save(state, operationID: LedgerID("00000000-0000-0000-0000-000000000501"))
+        XCTAssertEqual(saved.logItemVersion.occurredAt, old)
+        let current = service(at: now)
+        let reopened = try XCTUnwrap(current.reopen(logItemID: saved.logItem.logItemID))
+        let model = FoodConfirmationViewModel(state: reopened, now: { now }, calendar: calendar) { state in
+            try current.save(state, operationID: LedgerID("00000000-0000-0000-0000-000000000502"))
+        }
+        XCTAssertFalse(model.canChangeOccurredAt, "Outside the window the time is shown read-only")
+        XCTAssertEqual(model.displayedOccurredAt, old)
+        model.send(.setQuantity(150, .grams))
+        XCTAssertTrue(model.requirements.isEmpty)
+        model.log()
+        let result = try XCTUnwrap(model.savedResult)
+        XCTAssertEqual(result.logItemVersion.occurredAt, old)
+        XCTAssertEqual(result.logItemVersion.reportingDate, saved.logItemVersion.reportingDate)
+        XCTAssertEqual(result.logItemVersion.edibleQuantity.value, 150)
     }
 
     func testMissingIdentityErrorNamesSpecificFields() {
         let message = FoodConfirmationViewModel.message(
-            for: FoodConfirmationSaveError.unresolvedMandatoryIdentity([.preparation, .packingMedium])
+            for: FoodConfirmationSaveError.unmetRequirements([.sourceIdentityMissing([.preparation, .packingMedium])])
         )
         XCTAssertTrue(message.contains("raw/cooked preparation"))
         XCTAssertTrue(message.contains("packing liquid or none"))
-        XCTAssertTrue(message.contains("Review or correct food details"))
+        XCTAssertTrue(message.contains("Choose a different match or add the food details"))
     }
 
     func testReferenceBasisAndConsumedPreviewNeverInferDensity() throws {
@@ -240,17 +324,17 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertEqual(model.directWeightRequirements.count, 1)
         model.send(.setWeightBasis(.estimated))
         model.send(.accept)
-        XCTAssertTrue(model.saveRequirements.isEmpty)
+        XCTAssertTrue(model.requirements.isEmpty)
         XCTAssertNil(model.quantityBasisWarning)
         XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, 12)
         XCTAssertTrue(model.consumedNutrition.first { $0.key == .protein }?.includesEstimates == true)
         model.send(.setQuantityText("abc"))
         XCTAssertTrue(model.originalAmountRequirement?.contains("clear") == true)
-        XCTAssertFalse(model.saveRequirements.isEmpty)
+        XCTAssertFalse(model.requirements.isEmpty)
         XCTAssertTrue(model.consumedNutrition.isEmpty)
         model.send(.setQuantityText(""))
         XCTAssertNil(model.originalAmountRequirement)
-        XCTAssertTrue(model.saveRequirements.isEmpty)
+        XCTAssertTrue(model.requirements.isEmpty)
         XCTAssertEqual(model.state.quantity.directWeight?.totalGrams, 150)
         model.send(.setWeightBasis(.measured))
         XCTAssertTrue(model.consumedNutrition.first { $0.key == .protein }?.includesEstimates == true,

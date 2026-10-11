@@ -37,7 +37,7 @@ public struct CanonicalFoodNutritionSummary: Codable, Equatable, Sendable {
 }
 
 public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
-    public static let foodContractVersion = 3
+    public static let foodContractVersion = 4
     public static let dailySchemaVersion = 4
 
     public let foodContractVersion: Int
@@ -60,6 +60,7 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
     }
 
     public static func minimumContractVersion(for records: LedgerMutation) -> Int {
+        if records.assertions.contains(where: { $0.confirmation != nil }) { return 4 }
         if records.logItemVersions.contains(where: { $0.weightDeclaration != nil }) { return 3 }
         return records.logItemVersions.contains { log in
             if case .removed = log.composition { return true }
@@ -214,7 +215,8 @@ public struct FoodArchiveManifest: Codable, Equatable, Sendable {
         self.creatingActorID = creatingActorID
         migrationIdentifiers = foodContractVersion == 1 ? [try LedgerText("food-ledger-v1")]
             : foodContractVersion == 2 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2")]
-            : [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3")]
+            : foodContractVersion == 3 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3")]
+            : [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4")]
         self.sourceReleaseIDs = sourceReleaseIDs.sorted { $0.value < $1.value }
         self.watermarks = watermarks.sorted { $0.actorID.rawValue < $1.actorID.rawValue }
         self.recordCount = recordCount
@@ -340,7 +342,7 @@ public struct FoodArchiveVerifier: Sendable {
     public init(
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV3
+        operationRegistry: LedgerOperationRegistry = .builtInV4
     ) {
         self.encoder = encoder
         self.digester = digester
@@ -422,7 +424,8 @@ public struct FoodArchiveVerifier: Sendable {
             return transaction
         }
         if transactions.contains(where: { transaction in
-            let required = LedgerOperationType.declaredQuantityTypes.contains(transaction.operation.operationType) ? 3
+            let required = transaction.operation.operationType == .confirmFoodV3 ? 4
+                : LedgerOperationType.declaredQuantityTypes.contains(transaction.operation.operationType) ? 3
                 : [.removeLogItem, .restoreLogItem].contains(transaction.operation.operationType) ? 2 : 1
             return max(required, CanonicalFoodProjection.minimumContractVersion(for: transaction.mutation)) > manifest.foodContractVersion
         }) { throw FoodArchiveError.unsupportedFoodContract(manifest.foodContractVersion) }

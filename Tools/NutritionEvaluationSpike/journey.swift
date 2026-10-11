@@ -19,7 +19,7 @@ import FoodLedgerTestSupport
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         let identifiers = SequenceIDs()
-        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: FixedClock(), ids: identifiers, calendar: calendar)
+        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: FixedClock(), ids: identifiers, digester: SHA256Digester(), calendar: calendar)
         var state = FoodConfirmationState(input: try fixtureInput())
         if caseID != "unaccepted" { FoodConfirmationReducer.reduce(state: &state, action: .accept) }
         state.quantity = FoodQuantityDraft(value: caseID == "grams-50" ? 50 : 100, unit: .grams)

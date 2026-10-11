@@ -28,6 +28,10 @@ final class FoodLedgerCompositionRoot {
     private let ids: RandomLedgerIDGenerator
     private var activeFoodList: FoodListImportViewModel?
     private let inventoryURL: URL
+    /// One clock and one calendar for Confirm: the view model's When bounds and the
+    /// authoritative save service use the same values (food_confirmation_v5).
+    private let confirmationClock: any LedgerClock = SystemLedgerClock()
+    private let confirmationCalendar: Calendar = .autoupdatingCurrent
     private let draftURL: URL
     private var activeInventory: LocalInventoryViewModel?
     private var inventoryService: LocalInventoryService?
@@ -78,9 +82,10 @@ final class FoodLedgerCompositionRoot {
         confirmations = FoodConfirmationService(
             ledger: ledger,
             reader: store,
-            clock: clock,
+            clock: confirmationClock,
             ids: ids,
-            digester: SHA256Digester()
+            digester: SHA256Digester(),
+            calendar: confirmationCalendar
         )
         genericFoodSearch = try CompositeGenericFoodSearch(sources: [
             CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
@@ -93,7 +98,9 @@ final class FoodLedgerCompositionRoot {
     func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil, searchInterpretation: FoodQueryInterpretation? = nil, prefillSourceQuantity: Bool = true) -> FoodConfirmationViewModel {
         let (prepared, offering) = withMilkVolumeSource(input)
         let state = FoodConfirmationState(input: prepared, queryQuantity: queryQuantity, prefillSourceQuantity: prefillSourceQuantity)
-        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, searchInterpretation: searchInterpretation) { [confirmations, ids] state in
+        let clock = confirmationClock
+        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, searchInterpretation: searchInterpretation,
+                                         now: { clock.now() }, calendar: confirmationCalendar) { [confirmations, ids] state in
             try confirmations.save(
                 state,
                 operationID: ids.makeID(OperationTag.self),
@@ -128,7 +135,9 @@ final class FoodLedgerCompositionRoot {
             state = FoodConfirmationState(input: prepared, reopened: state.reopened)
             state.decision = .accepted
         }
-        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering) { [confirmations, ids] state in
+        let clock = confirmationClock
+        return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering,
+                                         now: { clock.now() }, calendar: confirmationCalendar) { [confirmations, ids] state in
             try confirmations.save(
                 state,
                 operationID: ids.makeID(OperationTag.self),
@@ -221,7 +230,9 @@ final class FoodLedgerCompositionRoot {
             checkpointStore: try FoodListCheckpointGRDBStore(databaseURL: draftURL),
             recoveredLogItemID: { [ledger] operationID in
                 try ledger.confirmedLogItemID(operationID: operationID, idempotencyKey: LedgerText("food-list:\(operationID.rawValue)"))
-            }
+            },
+            confirmationNow: { [confirmationClock] in confirmationClock.now() },
+            confirmationCalendar: confirmationCalendar
         ) { [confirmations] state, operationID in
             try confirmations.save(
                 state, operationID: operationID,
@@ -242,6 +253,15 @@ final class FoodLedgerCompositionRoot {
     func intakeProjection(for date: Date, calendar: Calendar = .current) throws -> FoodIntakeProjection {
         try FoodIntakeProjection(records: store.archiveState().records,
             reportingDate: FoodReportingDay.key(for: date, calendar: calendar))
+    }
+
+    /// Rows whose current saved version is a labelled estimate. An unreadable entry is not labelled.
+    func estimateLogItemIDs(in rows: [FoodIntakeLogRow]) -> Set<LogItemID> {
+        Set(rows.compactMap { row in
+            guard let stored = try? store.foodConfirmation(logItemID: row.logItemID),
+                  (try? confirmations.isEstimate(stored)) == true else { return nil }
+            return row.logItemID
+        })
     }
 
     func changeLogEntry(_ row: FoodIntakeLogRow, restoring: Bool) throws {

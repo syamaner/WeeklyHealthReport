@@ -541,13 +541,18 @@ struct DailyHealthExportInputs: Equatable {
 }
 
 enum DailyHealthExportBuilder {
+    /// Highest food contract admitted into a schema-4 Daily JSON food projection (D7, #195).
+    static let maximumExportedFoodContractVersion = 3
+
     static func addingFoodProjection(
         _ foodLog: CanonicalFoodDocument,
         summary: CanonicalFoodNutritionSummary,
         to schemaV3Envelope: DailyHealthExportEnvelope
     ) throws -> DailyHealthExportEnvelope {
         guard schemaV3Envelope.schemaVersion == 3,
-              (1...CanonicalFoodProjection.foodContractVersion).contains(foodLog.projection.foodContractVersion),
+              // D7: food entries are not exported yet (#97). Admission stays pinned to the food
+              // contracts that existed when schema 4 was defined, not the current contract.
+              (1...Self.maximumExportedFoodContractVersion).contains(foodLog.projection.foodContractVersion),
               foodLog.projection.dailySchemaVersion == CanonicalFoodProjection.dailySchemaVersion,
               foodLog.projection.summaries.contains(summary),
               foodLog.projection.foodContractVersion >= CanonicalFoodProjection.minimumContractVersion(for: foodLog.projection.records) else {

@@ -19,7 +19,7 @@ private struct Inputs: Decodable { let cases: [Scenario] }
         let ids = MultiIDs(), store = InMemoryFoodLedgerStore()
         let ledger = FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store, clock: MultiClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
         var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: MultiClock(), ids: ids, calendar: calendar)
+        let service = FoodConfirmationService(ledger: ledger, reader: store, clock: MultiClock(), ids: ids, digester: SHA256Digester(), calendar: calendar)
         let cofidSource = try CoFIDGenericFoodSearch(corpusURL: URL(fileURLWithPath: cofid), ids: ids)
         let usdaSource = try USDAGenericFoodSearch(corpusURL: URL(fileURLWithPath: usda), ids: ids)
         let searcher: any GenericFoodSearching

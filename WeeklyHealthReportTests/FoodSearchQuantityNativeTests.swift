@@ -12,6 +12,12 @@ import Vision
 
 @MainActor
 final class FoodSearchQuantityNativeTests: XCTestCase {
+    func testFoodLogEntryCountsUseSingularForOne() {
+        XCTAssertEqual(FoodIntakeHomeView.entryCount(1), "1 entry")
+        XCTAssertEqual(FoodIntakeHomeView.entryCount(0), "0 entries")
+        XCTAssertEqual(FoodIntakeHomeView.entryCount(3), "3 entries")
+    }
+
     func testSelectedCandidateRendersEditableParsedQuantityWithoutAutomaticSave() async throws {
         let ids = NativeQuantityIDs()
         let searcher = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: ids),USDAGenericFoodSearch(ids: ids)],ids:ids)
@@ -56,7 +62,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             XCTAssertEqual(saves,0);XCTAssertEqual(model.state.decision,.undecided)
         }
     }
-    func testNutritionFirstScreenHasReferenceValuesWithoutDefaultIntakeAndHidesSourceIDs() async throws {
+    func testConfirmScreenLeadsWithFoodAndLogThenNutritionWithoutDefaultIntakeOrSourceIDs() async throws {
         let ids = NativeQuantityIDs()
         let searcher = try CoFIDGenericFoodSearch(ids: ids)
         let search = try GenericFoodSearchViewModel(searcher: searcher, locale: LedgerText("en_GB"))
@@ -82,17 +88,39 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             XCTAssertNil(model.state.quantity.value)
             XCTAssertFalse(model.nutritionReview.isConsumed)
             XCTAssertEqual(model.nutritionReview.mainRows.count, 4)
-            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            // #195 order: food, inline decisions, amount and When, then nutrition for the amount.
+            // The first screen shows the food, the estimate notice and the Log bar with its reason.
+            func recognise() throws -> (UIImage, String) {
+                let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                    window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+                }
+                let request = VNRecognizeTextRequest()
+                request.recognitionLevel = .accurate; request.usesLanguageCorrection = false
+                try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+                return (image, (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n"))
             }
-            let request = VNRecognizeTextRequest()
-            request.recognitionLevel = .accurate; request.usesLanguageCorrection = false
-            try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
-            let visible = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
-            XCTAssertTrue(visible.contains("Nutrition"), visible)
+            var (image, visible) = try recognise()
+            XCTAssertTrue(visible.contains("Confirm food"), visible)
+            XCTAssertTrue(visible.contains("Log"), visible)
             if size == .large {
-                for label in ["Energy", "Protein", "Carbohydrate", "Fat"] { XCTAssertTrue(visible.contains(label), visible) }
+                XCTAssertTrue(visible.contains("Logged as an estimate"), visible)
+                XCTAssertTrue(visible.contains("Enter an amount greater than zero"), visible)
             }
+            var seen = visible
+            for _ in 0..<12 where !(seen.contains("Nutrition") && ["Energy", "Protein", "Carbohydrate", "Fat"].allSatisfy(seen.contains)) {
+                guard let scroll = descendants(host.view).compactMap({ $0 as? UIScrollView }).first else { break }
+                scroll.setContentOffset(CGPoint(x: 0, y: min(scroll.contentOffset.y + 300,
+                    max(0, scroll.contentSize.height - scroll.bounds.height))), animated: false)
+                try await Task.sleep(for: .milliseconds(150))
+                host.view.layoutIfNeeded()
+                (image, visible) = try recognise()
+                seen += "\n" + visible
+            }
+            XCTAssertTrue(seen.contains("Nutrition"), seen)
+            if size == .large {
+                for label in ["Energy", "Protein", "Carbohydrate", "Fat"] { XCTAssertTrue(seen.contains(label), seen) }
+            }
+            visible = seen
             XCTAssertFalse(visible.contains(input.candidates[0].candidate.recordID.value), "Identifiers belong inside source details")
             let attachment = XCTAttachment(image: image)
             attachment.name = "Nutrition first \(name)"; attachment.lifetime = .keepAlways
@@ -188,10 +216,11 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
                     XCTAssertEqual(reopened.selectedCandidate.candidate.nutrients, state.selectedCandidate.candidate.nutrients)
                     return FoodConfirmationViewModel(state: reopened) { _ in throw CocoaError(.fileWriteUnknown) }
                 }
-                try await waitForPresentation(host, title: "Confirm food", window: window, driver: driver)
+                // A saved entry reopens the same Confirm screen, titled for editing (#195).
+                try await waitForPresentation(host, title: "Edit food", window: window, driver: driver)
                 let presented = try XCTUnwrap(host.presentedViewController, query)
                 let labels = nativeText(presented.view)
-                XCTAssertTrue(labels.contains("Confirm food"), "Native sheet must contain confirmation: \(labels)")
+                XCTAssertTrue(labels.contains("Edit food"), "Native sheet must contain confirmation: \(labels)")
                 guard case .loaded = driver.session?.phase else { return XCTFail("Saved record did not load") }
                 driver.session = nil
                 try await waitForDismissal(host, window: window, driver: driver)
@@ -512,6 +541,94 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         XCTAssertTrue(text.contains("Synthetic Google suggestions"), diagnostics)
         let ran = try await webView.evaluateJavaScript("document.body.dataset.executed || 'no'") as? String
         XCTAssertEqual(ran, "no")
+    }
+
+    /// Visual evidence for #195 with synthetic data only. Renders the Confirm screen in six states,
+    /// asserts a non-empty image for each, and writes PNGs only when WHR_RENDER_DIR is set.
+    func testConfirmScreenRendersSixStatesForVisualReview() async throws {
+        let ids = NativeQuantityIDs()
+        let searcher = try CoFIDGenericFoodSearch(ids: ids)
+        let search = try GenericFoodSearchViewModel(searcher: searcher, locale: LedgerText("en_GB"))
+        search.query = "150g boiled rice"; search.search()
+        let input = try XCTUnwrap(search.confirmation(at: 0))
+        let now = Date()
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = .current
+        func model(_ state: FoodConfirmationState, save: @escaping @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation = { _ in
+            throw CocoaError(.fileWriteUnknown) }) -> FoodConfirmationViewModel {
+            FoodConfirmationViewModel(state: state, now: { now }, calendar: calendar, saveAction: save)
+        }
+        // (a) ready: generic food with the amount prefilled from the search.
+        let ready = model(FoodConfirmationState(input: input, queryQuantity: search.parsedQuery?.quantity))
+        XCTAssertTrue(ready.canLog, "\(ready.requirements)")
+        // (b) blocked by an inline decision: the eaten preparation differs from the source.
+        let source = input.candidates[0].candidate.identity
+        let other: PreparationKind = source.preparation.kind == .raw ? .reheated : .raw
+        let expected = try DecisiveIdentity(preparation: PreparationState(kind: other), bone: source.bone, skin: source.skin,
+            drained: source.drained, packingMedium: source.packingMedium, fortification: source.fortification,
+            declaredFortificants: source.declaredFortificants, servingBasis: source.servingBasis)
+        let differing = try PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: input.sourceReleases,
+            candidates: input.candidates, expectedIdentity: expected, expectedEdibleQuantity: input.expectedEdibleQuantity)
+        let blocked = model(FoodConfirmationState(input: differing, queryQuantity: search.parsedQuery?.quantity))
+        XCTAssertEqual(blocked.pendingDifferences, [.preparation])
+        XCTAssertFalse(blocked.canLog)
+        // (c) "Not sure" chosen: estimate notice on the primary screen.
+        let unsure = model(FoodConfirmationState(input: differing, queryQuantity: search.parsedQuery?.quantity))
+        unsure.send(.decideDifference(.preparation, .notSure))
+        XCTAssertTrue(unsure.canLog && unsure.savesEstimate)
+        // (d) reopened entry logged ten days ago: time is read-only.
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try FoodLedgerGRDBStore(databaseURL: directory.appendingPathComponent("ledger.sqlite"),
+                                           attachmentsRoot: directory.appendingPathComponent("attachments"))
+        struct Clock: LedgerClock { let value: Date; func now() -> Date { value } }
+        let old = now.addingTimeInterval(-10 * 86_400)
+        func service(_ date: Date) throws -> FoodConfirmationService {
+            let ledger = FoodLedgerService(actorID: try LedgerID("00000000-0000-0000-0000-000000000999"), committer: store,
+                clock: Clock(value: date), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+            return FoodConfirmationService(ledger: ledger, reader: store, clock: Clock(value: date), ids: ids,
+                digester: SHA256Digester(), calendar: calendar)
+        }
+        var first = FoodConfirmationState(input: input, queryQuantity: search.parsedQuery?.quantity)
+        FoodConfirmationReducer.reduce(state: &first, action: .accept)
+        let saved = try service(old).save(first, operationID: ids.makeID(OperationTag.self))
+        let reopened = model(try XCTUnwrap(try service(now).reopen(logItemID: saved.logItem.logItemID)))
+        XCTAssertFalse(reopened.canChangeOccurredAt)
+
+        let states: [(String, FoodConfirmationViewModel, DynamicTypeSize, Bool)] = [
+            ("a-ready-generic", ready, .large, false),
+            ("b-blocked-inline-decision", blocked, .large, false),
+            ("c-not-sure-estimate", unsure, .large, false),
+            ("d-reopened-ten-days-old", reopened, .large, false),
+            ("e-reopened-accessibility-size", reopened, .accessibility3, false),
+            ("f-ready-generic-dark", ready, .large, true)
+        ]
+        let outputDirectory = ProcessInfo.processInfo.environment["WHR_RENDER_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+        if let outputDirectory { try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true) }
+        for (name, viewModel, size, dark) in states {
+            let host = NativeHostingController(rootView: NavigationStack {
+                FoodConfirmationView(model: viewModel, leave: {}).environment(\.dynamicTypeSize, size)
+            })
+            let scene = try testScene()
+            let previous = scene.windows.first(where: \.isKeyWindow)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            window.overrideUserInterfaceStyle = dark ? .dark : .light
+            window.rootViewController = host; window.makeKeyAndVisible()
+            defer { window.isHidden = true; previous?.makeKey() }
+            try await waitForHostAppearance(host, window: window)
+            try await Task.sleep(for: .milliseconds(250))
+            host.view.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            let png = try XCTUnwrap(image.pngData(), name)
+            XCTAssertEqual(image.size, window.bounds.size, name)
+            XCTAssertGreaterThan(png.count, 10_000, "Rendered image should not be blank: \(name)")
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "Confirm \(name)"; attachment.lifetime = .keepAlways
+            add(attachment)
+            if let outputDirectory { try png.write(to: outputDirectory.appendingPathComponent("confirm-\(name).png")) }
+        }
     }
 
     private func testScene() throws -> UIWindowScene {

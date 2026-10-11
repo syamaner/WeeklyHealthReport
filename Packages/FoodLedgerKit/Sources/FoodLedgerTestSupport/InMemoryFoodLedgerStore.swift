@@ -44,7 +44,7 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
     public init(
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV3
+        operationRegistry: LedgerOperationRegistry = .builtInV4
     ) {
         verifier = OperationVerifier(
             encoder: encoder,

@@ -20,7 +20,7 @@ public struct ProtectedDataAvailability: Sendable {
 public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, FoodConfirmationReading,
     EvidenceAttachmentStoring, FoodArchiveLedgerAccess, @unchecked Sendable
 {
-    public static let schemaVersion = 3
+    public static let schemaVersion = 4
     public static let applicationID = 0x5748_5246 // WHRF
 
     private let databaseQueue: DatabaseQueue
@@ -38,7 +38,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         protectedData: ProtectedDataAvailability = .available,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV3
+        operationRegistry: LedgerOperationRegistry = .builtInV4
     ) throws {
         try protectedData.requireAvailable()
         self.encoder = encoder
@@ -89,7 +89,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         protectedData: ProtectedDataAvailability = .available,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV3
+        operationRegistry: LedgerOperationRegistry = .builtInV4
     ) throws -> FoodLedgerGRDBStore {
         try FoodLedgerGRDBStore(
             databaseURL: directory.appendingPathComponent("food-ledger-v1.sqlite"),
@@ -1148,7 +1148,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                   synchronous == 2,
                   application == applicationID,
                   version == schemaVersion,
-                  metadata == "food-ledger-v3",
+                  metadata == "food-ledger-v4",
                   check == "ok",
                   foreignKeyFailures.isEmpty else {
                 throw FoodLedgerStoreError.integrityFailure("database open policy")

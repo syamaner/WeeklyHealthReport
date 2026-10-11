@@ -16,7 +16,7 @@ final class FoodConfirmationReducerTests: XCTestCase {
             XCTAssertEqual(error as? FoodQuantityValidationError, .missingConversion)
         }
         XCTAssertThrowsError(try service.save(state, operationID: id(960, OperationTag.self))) { error in
-            XCTAssertEqual(error as? FoodQuantityValidationError, .missingConversion)
+            XCTAssertEqual(error as? FoodConfirmationSaveError, .unmetRequirements([.countNeedsMeasuredAmount]))
         }
         XCTAssertEqual(try store.counts().logItemVersions, 0)
     }
@@ -126,9 +126,8 @@ final class FoodConfirmationReducerTests: XCTestCase {
         FoodConfirmationReducer.reduce(state: &state, action: .selectCandidate(1))
         XCTAssertEqual(state.selectedCandidateIndex, 1)
 
-        let explanation = try LedgerText("The preparation difference is understood")
-        FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(explanation))
-        XCTAssertEqual(state.decision, .acceptedClosestMatch(explanation: explanation))
+        state.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        XCTAssertEqual(state.decision, .accepted)
 
         let correction = FoodCorrection(
             name: try LedgerText("Corrected food"),
@@ -266,7 +265,7 @@ final class FoodConfirmationReducerTests: XCTestCase {
         )) {
             XCTAssertEqual(
                 $0 as? FoodConfirmationSaveError,
-                .unexplainedMaterialDifferences([.preparation])
+                .unmetRequirements([.decideDifference(.preparation)])
             )
         }
         XCTAssertEqual(try store.counts().operations, 0)
@@ -283,7 +282,7 @@ final class FoodConfirmationReducerTests: XCTestCase {
             state,
             operationID: id(902, OperationTag.self)
         )) {
-            XCTAssertEqual($0 as? FoodQuantityValidationError, .missingPlateWeight)
+            XCTAssertEqual($0 as? FoodConfirmationSaveError, .unmetRequirements([.emptyPlateWeightMissing]))
         }
         XCTAssertEqual(try store.counts().operations, 0)
     }
@@ -325,11 +324,11 @@ final class FoodConfirmationReducerTests: XCTestCase {
             fortification: .unknown, servingBasis: .per100Grams)
         var state = FoodConfirmationState(input: try fixtureInput(kind: .genericSearch, identityOverride: unknown))
         XCTAssertFalse(state.isGenericEstimate)
-        FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("I choose this")))
+        state.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &state, action: .accept)
         let store = InMemoryFoodLedgerStore()
         XCTAssertThrowsError(try makeService(store: store, ids: SequenceIDs()).save(state, operationID: id(904, OperationTag.self))) { error in
-            XCTAssertEqual(error as? FoodConfirmationSaveError, .unresolvedMandatoryIdentity([
-                .preparation, .bone, .skin, .drained, .packingMedium, .fortification]))
+            XCTAssertEqual(error as? FoodConfirmationSaveError, .unmetRequirements([.sourceIdentityMissing([
+                .preparation, .bone, .skin, .drained, .packingMedium, .fortification])]))
         }
         XCTAssertEqual(try store.counts().logItemVersions, 0)
         XCTAssertEqual(FoodConfirmationPolicy.unresolvedIdentity(unknown, allowingEstimate: true), [])
@@ -402,6 +401,8 @@ final class FoodConfirmationReducerTests: XCTestCase {
         XCTAssertTrue(state.quantity.directWeight?.needsReconfirmation == true)
         XCTAssertThrowsError(try state.quantity.declaration())
         FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        XCTAssertThrowsError(try state.quantity.declaration(), "Log acceptance never reconfirms a retained weight")
+        FoodConfirmationReducer.reduce(state: &state, action: .confirmRetainedWeight)
         XCTAssertEqual(try state.quantity.declaration()?.originalInput?.value, 3)
         var changed = state.selectedCandidate.candidate.identity
         changed = try DecisiveIdentity(preparation: PreparationState(kind: .cooked), bone: changed.bone,
@@ -412,7 +413,7 @@ final class FoodConfirmationReducerTests: XCTestCase {
             nutrients: state.selectedCandidate.candidate.nutrients, reason: try LedgerText("Prepared as cooked"))))
         XCTAssertEqual(state.decision, .undecided)
         XCTAssertThrowsError(try state.quantity.declaration())
-        FoodConfirmationReducer.reduce(state: &state, action: .accept)
+        FoodConfirmationReducer.reduce(state: &state, action: .confirmRetainedWeight)
         XCTAssertEqual(try state.quantity.declaration()?.total.value, 120)
     }
 

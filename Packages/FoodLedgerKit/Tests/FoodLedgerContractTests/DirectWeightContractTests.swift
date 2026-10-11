@@ -109,7 +109,7 @@ final class DirectWeightContractTests: XCTestCase {
                     createdAt: LedgerFixtures.date,
                     creatingActorID: LedgerFixtures.id(900, ActorTag.self))
                 let verified = try FoodArchiveVerifier().verify(bundle)
-                XCTAssertEqual(verified.manifest.foodContractVersion, 3)
+                XCTAssertEqual(verified.manifest.foodContractVersion, 4, "A v5 binary always exports contract 4")
                 for destination in try LedgerFixtures.harnesses() {
                     defer { destination.cleanup() }
                     let live = try XCTUnwrap(destination.committer as? any FoodArchiveLedgerAccess)

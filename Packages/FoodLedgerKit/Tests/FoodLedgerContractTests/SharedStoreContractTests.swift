@@ -874,7 +874,7 @@ final class SharedStoreContractTests: XCTestCase {
             FoodConfirmationReducer.reduce(state: &state, action: .accept)
             XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(531)))
             XCTAssertEqual(try harness.reader.counts().operations, 0)
-            FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("I chose half a source recipe serving as a representative estimate; my vendor's sauce and cut may differ.")))
+            state.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &state, action: .accept)
             var weighed = state
             FoodConfirmationReducer.reduce(state: &weighed, action: .setQuantity(250, .grams))
             XCTAssertThrowsError(try service.save(weighed, operationID: LedgerFixtures.operationID(532)))
@@ -911,7 +911,7 @@ final class SharedStoreContractTests: XCTestCase {
             XCTAssertNil(state.quantity.value)
             XCTAssertThrowsError(try service.save(state, operationID: LedgerFixtures.operationID(540)))
             FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(150, .grams))
-            FoodConfirmationReducer.reduce(state: &state, action: .acceptClosestMatch(try LedgerText("Chosen Taiwan composition estimate for the weighed edible portion.")))
+            state.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &state, action: .accept)
             let saved = try service.save(state, operationID: LedgerFixtures.operationID(541))
             XCTAssertEqual(saved.logItemVersion.edibleQuantity, try PositiveQuantity(value: 150, unit: .grams))
             XCTAssertNil(saved.quantityConversion)

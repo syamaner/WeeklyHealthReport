@@ -25,14 +25,15 @@ final class RecipeServingPresentationTests: XCTestCase {
     func testRecipeServingStartsEmptyRequiresSelectionAndPreviewsFractionAsEstimate() throws {
         let model = try model()
         XCTAssertNil(model.state.quantity.value)
-        XCTAssertFalse(model.saveRequirements.isEmpty)
+        XCTAssertFalse(model.requirements.isEmpty)
         model.send(.setQuantity(0.5, .count))
         XCTAssertEqual(model.consumedNutrition.first { $0.key == .energyConsumed }?.knownAmount, 200)
         XCTAssertTrue(model.consumedNutrition.first { $0.key == .energyConsumed }?.includesEstimates == true)
-        model.send(.accept)
-        XCTAssertTrue(model.saveRequirements.contains { $0.contains("closest match") })
-        model.send(.acceptClosestMatch(try LedgerText("Representative recipe estimate")))
-        XCTAssertTrue(model.saveRequirements.isEmpty)
+        XCTAssertEqual(model.requirements, [.decideDifference(.edibleQuantity)])
+        XCTAssertEqual(model.offeredChoices(.edibleQuantity), [.useSourceServing])
+        model.send(.decideDifference(.edibleQuantity, .useSourceServing))
+        XCTAssertTrue(model.requirements.isEmpty)
+        XCTAssertTrue(model.savesEstimate)
         XCTAssertTrue(model.nutritionReferenceTitle.contains("recipe serving"))
         let view = FoodConfirmationView(model: model, leave: {}).environment(\.dynamicTypeSize, .accessibility5)
         XCTAssertFalse(String(describing: view).isEmpty)
@@ -42,7 +43,8 @@ final class RecipeServingPresentationTests: XCTestCase {
         model.send(.setQuantity(250, .grams))
         XCTAssertTrue(model.quantityBasisWarning?.contains("unknown") == true)
         XCTAssertTrue(model.consumedNutrition.isEmpty)
-        XCTAssertTrue(model.saveRequirements.contains { $0.contains("cooked serving weight is unknown") })
+        XCTAssertTrue(model.requirements.contains(.recipeServingsRequired))
+        XCTAssertTrue(model.requirements.map(FoodLogRequirementText.text).contains { $0.contains("cooked serving weight is unknown") })
     }
     private static let html = #"""
 <html><script type="application/ld+json">{"@type": "Recipe", "@id": "https://auntieemily.com/taiwan-night-market-steak/#recipe", "name": "Taiwan night market steak", "recipeYield": ["2", "2 Servings"], "recipeIngredient": ["2 eggs", "100 g dry pasta"], "nutrition": {"@type": "NutritionInformation", "servingSize": "1 serving", "calories": "400 kcal", "fatContent": "10 g", "carbohydrateContent": "50 g", "proteinContent": "20 g"}}</script><div class="wprm-recipe-container"><h2 class="wprm-recipe-name">Taiwan night market steak</h2><span class="wprm-recipe-servings">2</span><div class="wprm-nutrition-label-container"><span class="wprm-nutrition-label-text-nutrition-container-calories"><span class="wprm-nutrition-label-text-nutrition-label">Calories:</span><span class="wprm-nutrition-label-text-nutrition-value">400</span><span class="wprm-nutrition-label-text-nutrition-unit">kcal</span></span><span class="wprm-nutrition-label-text-nutrition-container-fat"><span class="wprm-nutrition-label-text-nutrition-label">Fat:</span><span class="wprm-nutrition-label-text-nutrition-value">10</span><span class="wprm-nutrition-label-text-nutrition-unit">g</span></span><span class="wprm-nutrition-label-text-nutrition-container-carbohydrates"><span class="wprm-nutrition-label-text-nutrition-label">Carbohydrates:</span><span class="wprm-nutrition-label-text-nutrition-value">50</span><span class="wprm-nutrition-label-text-nutrition-unit">g</span></span><span class="wprm-nutrition-label-text-nutrition-container-protein"><span class="wprm-nutrition-label-text-nutrition-label">Protein:</span><span class="wprm-nutrition-label-text-nutrition-value">20</span><span class="wprm-nutrition-label-text-nutrition-unit">g</span></span></div></div></html>

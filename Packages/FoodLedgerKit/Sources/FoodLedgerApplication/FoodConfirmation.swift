@@ -9,7 +9,6 @@ public protocol FoodConfirmationReading: Sendable {
 public enum FoodConfirmationDecision: Codable, Equatable, Sendable {
     case undecided
     case accepted
-    case acceptedClosestMatch(explanation: LedgerText)
     case declined
 }
 
@@ -160,6 +159,11 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     public var quantity: FoodQuantityDraft
     public var phase: FoodConfirmationPhase
     public let reopened: StoredFoodConfirmation?
+    /// Inline answers to material differences (food_confirmation_v5). Cleared whenever the
+    /// selected candidate or the corrected identity changes.
+    public var decisions: [IdentityContradiction: FoodLogDecisionChoice]
+    /// Explicit occurrence time. Nil on a new entry means "Now", resolved at commit.
+    public var occurredAt: Date?
 
     public init(input: PopulatedFoodConfirmation, reopened: StoredFoodConfirmation? = nil,
                 queryQuantity: ParsedFoodQuery.Quantity? = nil, prefillSourceQuantity: Bool = true) {
@@ -167,6 +171,8 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
         selectedCandidateIndex = 0
         decision = .undecided
         correction = nil
+        decisions = [:]
+        occurredAt = reopened?.logItemVersion.occurredAt
         if let reopened {
             if let declaration = reopened.logItemVersion.weightDeclaration {
                 quantity = FoodQuantityDraft(value: declaration.originalInput?.value,
@@ -268,7 +274,9 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
 public enum FoodConfirmationAction: Sendable {
     case selectCandidate(Int)
     case accept
-    case acceptClosestMatch(LedgerText)
+    case decideDifference(IdentityContradiction, FoodLogDecisionChoice?)
+    case setOccurredAt(Date?)
+    case confirmRetainedWeight
     case decline
     case applyCorrection(FoodCorrection)
     case beginDirectWeight
@@ -301,14 +309,20 @@ public enum FoodConfirmationReducer {
             }
             state.decision = .undecided
             state.correction = nil
+            if changed { state.decisions = [:] }
             state.phase = .editing
         case .accept:
-            state.quantity.directWeight?.needsReconfirmation = false
+            // Acceptance is the Log press. It never reconfirms a retained weight on its own.
             state.decision = .accepted
             state.phase = .editing
-        case let .acceptClosestMatch(explanation):
+        case let .decideDifference(facet, choice):
+            state.decisions[facet] = choice
+            state.phase = .editing
+        case let .setOccurredAt(date):
+            state.occurredAt = date
+            state.phase = .editing
+        case .confirmRetainedWeight:
             state.quantity.directWeight?.needsReconfirmation = false
-            state.decision = .acceptedClosestMatch(explanation: explanation)
             state.phase = .editing
         case .decline:
             state.decision = .declined
@@ -316,6 +330,7 @@ public enum FoodConfirmationReducer {
         case let .applyCorrection(correction):
             let previousIdentity = state.correction?.identity ?? state.reopened?.productVersion.identity ?? state.selectedCandidate.candidate.identity
             state.correction = correction
+            state.decisions = [:]
             state.decision = .accepted
             state.quantity.conversion = nil
             if state.quantity.directWeight != nil, previousIdentity != correction.identity {
@@ -368,8 +383,8 @@ public enum FoodConfirmationReducer {
 
 public enum FoodConfirmationSaveError: Error, Equatable, Sendable {
     case noAcceptedCandidate
-    case unexplainedMaterialDifferences([IdentityContradiction])
-    case unresolvedMandatoryIdentity([IdentityContradiction])
+    case unmetRequirements([FoodLogRequirement])
+    case staleDecisions
     case invalidQuantity
     case invalidReviewedSource
 }
@@ -412,20 +427,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
             _ = try restoredConfirmationInput(stored)
             return stored
         }
-        switch state.decision {
-        case .accepted:
-            guard state.reopened != nil
-                || state.correction != nil
-                || state.materialDifferences.isEmpty else {
-                throw FoodConfirmationSaveError.unexplainedMaterialDifferences(
-                    state.materialDifferences
-                )
-            }
-        case .acceptedClosestMatch:
-            break
-        case .undecided, .declined:
-            throw FoodConfirmationSaveError.noAcceptedCandidate
-        }
+        guard state.decision == .accepted else { throw FoodConfirmationSaveError.noAcceptedCandidate }
 
         let selected = state.selectedCandidate
         // A reopened entry already has a user-confirmed product identity. The
@@ -440,12 +442,20 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 throw FoodConfirmationSaveError.invalidReviewedSource
             }
         }
-        let unresolved = state.unresolvedIdentity
-        guard unresolved.isEmpty else {
-            throw FoodConfirmationSaveError.unresolvedMandatoryIdentity(unresolved)
-        }
         let now = clock.now()
+        // The service is authoritative: the same pure policy that drives the Log button.
+        let unmet = FoodLogPolicy.requirements(state, now: now, calendar: calendar)
+        guard unmet.isEmpty else { throw FoodConfirmationSaveError.unmetRequirements(unmet) }
+        let decisionRecord = try FoodLogPolicy.decisionRecord(state)
+        let savesEstimate = FoodLogPolicy.savesEstimate(state)
         let previous = state.reopened
+        let occurredAt = state.occurredAt ?? previous?.logItemVersion.occurredAt ?? now
+        let reportingDate: LedgerText
+        if let previous, previous.logItemVersion.occurredAt == occurredAt {
+            reportingDate = previous.logItemVersion.reportingDate
+        } else {
+            reportingDate = try LedgerText(FoodReportingDay.key(for: occurredAt, calendar: calendar))
+        }
         let declaration = try state.quantity.declaration()
         let entered = try state.quantity.calculationInput()
         let conversion = declaration == nil
@@ -456,7 +466,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
 
         let changesProduct = previous == nil || state.correction != nil
         let assertion = changesProduct
-            ? try makeAssertion(state: state, selected: selected, previous: previous, at: now)
+            ? try makeAssertion(state: state, selected: selected, previous: previous, record: decisionRecord, at: now)
             : nil
         let product: Product
         if let existing = previous?.product {
@@ -533,8 +543,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
             logItemID: logItem.logItemID,
             ordinal: VersionOrdinal((previous?.logItemVersion.ordinal.value ?? 0) + 1),
             supersedesLogItemVersionID: previous?.logItemVersion.logItemVersionID,
-            occurredAt: previous?.logItemVersion.occurredAt ?? now,
-            reportingDate: previous?.logItemVersion.reportingDate ?? LedgerText(FoodReportingDay.key(for: now, calendar: calendar)),
+            occurredAt: occurredAt,
+            reportingDate: reportingDate,
             composition: .product(productVersion.productVersionID),
             edibleQuantity: edibleQuantity,
             weightDeclaration: declaration,
@@ -542,11 +552,16 @@ public final class FoodConfirmationService: @unchecked Sendable {
             plateWeightVersionID: plate.version?.plateWeightVersionID,
             originalResolutionVersionID: previous?.logItemVersion.originalResolutionVersionID ?? resolutionVersion.resolutionVersionID,
             effectiveResolutionVersionID: resolutionVersion.resolutionVersionID,
-            correctionReason: previous == nil ? nil : (state.correction?.reason ?? LedgerText("Confirmation quantity or plate correction")),
+            correctionReason: previous.map { previous in
+                try state.correction?.reason ?? Self.editReason(previous: previous.logItemVersion, occurredAt: occurredAt,
+                    edibleQuantity: edibleQuantity, declaration: declaration,
+                    conversionID: conversion.version?.quantityConversionVersionID, plateID: plate.version?.plateWeightVersionID)
+            },
             createdAt: now
         )
         let libraryRecords: (LibraryEntry?, LibraryEntryVersion?)
-        if previous == nil,
+        // D6: an estimate never becomes an exact personal-library alias.
+        if previous == nil, !savesEstimate,
            let aliases = selected.candidate.matchMetadata?.libraryAliases,
            !aliases.isEmpty {
             let entry = LibraryEntry(
@@ -590,7 +605,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         )
         _ = try ledger.commit(
             mutation,
-            type: declaration == nil ? .confirmFood : .confirmFoodV2,
+            type: assertion?.confirmation != nil ? .confirmFoodV3 : (declaration == nil ? .confirmFood : .confirmFoodV2),
             operationID: operationID,
             idempotencyKey: idempotencyKey
         )
@@ -621,6 +636,22 @@ public final class FoodConfirmationService: @unchecked Sendable {
         var state = FoodConfirmationState(input: input, reopened: saved)
         state.decision = .accepted
         return state
+    }
+
+    /// Estimate status of a saved entry, recomputed from its stored source evidence and decisions.
+    public func isEstimate(_ stored: StoredFoodConfirmation) throws -> Bool {
+        FoodEntryEstimateStatus.isEstimate(stored, restoredInput: try restoredConfirmationInput(stored))
+    }
+
+    static func editReason(previous: LogItemVersion, occurredAt: Date, edibleQuantity: PositiveQuantity,
+                           declaration: EdibleWeightDeclaration?, conversionID: QuantityConversionVersionID?,
+                           plateID: PlateWeightVersionID?) throws -> LedgerText {
+        let timeChanged = previous.occurredAt != occurredAt
+        let quantityChanged = previous.edibleQuantity != edibleQuantity || previous.weightDeclaration != declaration
+            || previous.quantityConversionVersionID != conversionID || previous.plateWeightVersionID != plateID
+        if timeChanged && !quantityChanged { return try LedgerText("Confirmation time correction") }
+        if timeChanged { return try LedgerText("Confirmation time, quantity or plate correction") }
+        return try LedgerText("Confirmation quantity or plate correction")
     }
 
     /// Reopen and idempotent recovery share the same retained-source admission.
@@ -729,27 +760,30 @@ public final class FoodConfirmationService: @unchecked Sendable {
         }
     }
 
+    /// Exactly one assertion per save. The reason and claim strings are persisted,
+    /// versioned data (food_confirmation_v5), not UI copy.
     private func makeAssertion(
         state: FoodConfirmationState,
         selected: PopulatedFoodCandidate,
         previous: StoredFoodConfirmation?,
+        record: FoodLogDecisionRecord?,
         at date: Date
     ) throws -> UserAssertion? {
+        let version = FoodConfirmationPolicy.version
         let reason: LedgerText
         let claim: LedgerText
         if let correction = state.correction {
             reason = correction.reason
             claim = try LedgerText("Corrected populated confirmation for \(selected.name.value)")
-        } else if case let .acceptedClosestMatch(explanation) = state.decision {
-            reason = explanation
-            let differences = state.materialDifferences.map(\.rawValue).joined(separator: ", ")
-            claim = try LedgerText("Accepted explained closest match; differences: \(differences)")
         } else if previous != nil {
-            reason = try LedgerText("Updated confirmed quantity")
-            claim = try LedgerText("Created a new immutable confirmation version")
+            return nil
         } else if state.isGenericEstimate {
             reason = try LedgerText("Explicitly accepted generic composition estimate; unknown source details remain unknown")
-            claim = try LedgerText("Accepted estimate under \(FoodConfirmationPolicy.version); not verified product identity")
+            let base = "Accepted estimate under \(version); not verified product identity"
+            claim = try LedgerText(record.map { base + "; decisions: " + $0.claimList } ?? base)
+        } else if let record {
+            reason = try LedgerText("Logged with inline decisions under \(version)")
+            claim = try LedgerText("Logged under \(version); decisions: " + record.claimList)
         } else {
             return nil
         }
@@ -760,7 +794,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
             author: .user,
             createdAt: date,
             reason: reason,
-            claim: claim
+            claim: claim,
+            confirmation: state.correction == nil ? record : nil
         )
     }
 
