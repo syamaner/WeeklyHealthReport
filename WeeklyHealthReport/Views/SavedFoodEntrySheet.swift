@@ -41,7 +41,7 @@ struct SavedFoodEntrySheet: View {
                 case .loading:
                     ProgressView("Loading saved food")
                 case let .loaded(model):
-                    FoodConfirmationView(model: model, leave: close)
+                    FoodConfirmationView(model: model, showsCancelButton: false, leave: close)
                 case .missing:
                     recovery("Saved entry unavailable", message: "This entry is no longer available. Close and refresh the food log, or retry.")
                 case .failed:
