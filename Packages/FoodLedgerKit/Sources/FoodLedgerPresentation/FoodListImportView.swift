@@ -371,18 +371,10 @@ public struct FoodListImportView: View {
         .sheet(isPresented: Binding(get: { model.confirmation != nil }, set: { if !$0 { model.finishReview() } })) {
             if let confirmation = model.confirmation {
                 NavigationStack {
-                    FoodConfirmationView(
-                        model: confirmation,
+                    ListConfirmationHost(confirmation: confirmation,
                         context: model.selectedRow.map { row in
                             ([row.draft.parsed.original] + row.draft.parsed.notices.map(\.message)).joined(separator: "\n")
-                        },
-                        completionTitle: "Next line", leave: { model.finishReview() }
-                    )
-                        .toolbar {
-                            ToolbarItem(placement: .cancellationAction) {
-                                Button("Back to list") { model.finishReview() }
-                            }
-                        }
+                        }, finish: { model.finishReview() })
                 }
             }
         }
@@ -471,5 +463,24 @@ public struct FoodListImportView: View {
                 model.edit(draft)
             }
         )
+    }
+}
+
+/// Observes the confirmation so the host's "Back to list" disappears once the item is saved,
+/// leaving "Next line" as the single exit (#197).
+private struct ListConfirmationHost: View {
+    @ObservedObject var confirmation: FoodConfirmationViewModel
+    let context: String?
+    let finish: () -> Void
+
+    var body: some View {
+        FoodConfirmationView(model: confirmation, context: context, completionTitle: "Next line", leave: finish)
+            .toolbar {
+                if confirmation.savedResult == nil {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Back to list", action: finish)
+                    }
+                }
+            }
     }
 }

@@ -139,7 +139,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     public var canLog: Bool {
-        guard requirements.isEmpty else { return false }
+        guard requirements.isEmpty, hasChangesToSave else { return false }
         switch state.phase {
         case .editing, .saveFailed: return true
         case .saving, .saved: return false
@@ -147,7 +147,15 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     /// The first blocking requirement, stated beside the disabled Log button.
-    public var blockedReason: String? { requirements.first.map(FoodLogRequirementText.text) }
+    public var blockedReason: String? {
+        requirements.first.map(FoodLogRequirementText.text) ?? (hasChangesToSave ? nil : Self.noChangesReason)
+    }
+
+    public static let noChangesReason = "No changes to save"
+
+    /// Edit mode only: Save changes waits for a difference from the stored version. Presentation
+    /// gating; the service still accepts an unchanged save (#197, F2).
+    public var hasChangesToSave: Bool { state.reopened == nil || FoodLogPolicy.editChanges(state) }
 
     public var directWeightRequirements: [String] {
         requirements.filter { [.measuredWeightMissing, .weightBasisMissing, .retainedWeightNeedsConfirmation].contains($0) }
@@ -177,6 +185,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public static let estimateNotice = "Logged as an estimate. Unknown details stay unknown."
 
     public var logButtonTitle: String {
+        if state.reopened != nil { return "Save changes" }
         guard nutritionReview.isConsumed,
               let energy = consumedNutrition.first(where: { $0.key == .energyConsumed }),
               energy.incompleteContributions == 0, let amount = energy.knownAmount else { return "Log" }
@@ -319,12 +328,14 @@ public struct FoodConfirmationView: View {
             recoverySection
         }
         .navigationTitle(model.state.reopened == nil ? "Confirm food" : "Edit food")
-        .navigationBarBackButtonHidden(showsCancelButton && model.savedResult == nil)
+        // After a save there is exactly one way out: the host's completion action in the Log
+        // bar's place. No back button and no toolbar action (#197).
+        .navigationBarBackButtonHidden(showsCancelButton || model.savedResult != nil)
         .toolbar {
-            if showsCancelButton {
+            if showsCancelButton && model.savedResult == nil {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(model.savedResult == nil ? "Cancel" : completionTitle) {
-                        if model.savedResult == nil { model.send(.decline) }
+                    Button("Cancel") {
+                        model.send(.decline)
                         leave()
                     }
                 }
@@ -481,7 +492,15 @@ public struct FoodConfirmationView: View {
 
     @ViewBuilder
     private var logBar: some View {
-        if model.savedResult == nil {
+        if model.savedResult != nil {
+            Button(action: leave) {
+                Text(completionTitle).frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(.bar)
+        } else {
             VStack(spacing: 6) {
                 Button {
                     model.log()
@@ -493,7 +512,7 @@ public struct FoodConfirmationView: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canLog)
-                .accessibilityHint(model.blockedReason ?? "Logs this food with the amount and time shown")
+                .accessibilityHint(model.blockedReason ?? (model.state.reopened == nil ? "Logs this food with the amount and time shown" : "Saves your changes and keeps the original as history"))
                 if let reason = model.blockedReason {
                     Text(reason).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
                 }
@@ -774,7 +793,6 @@ public struct FoodConfirmationView: View {
                     LabeledContent("Logged food", value: saved.productVersion.name.value)
                     LabeledContent("Logged amount", value: "\(Self.editableNumber(saved.logItemVersion.edibleQuantity.value)) \(saved.logItemVersion.edibleQuantity.unit.rawValue)")
                 }
-                Button(completionTitle, action: leave).frame(minHeight: 44)
             }
         }
     }
