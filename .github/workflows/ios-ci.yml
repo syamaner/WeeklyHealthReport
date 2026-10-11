@@ -17,9 +17,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  changes:
+    name: Classify changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      code: ${{ steps.classify.outputs.code }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # Runs unconditionally, before any skip decision is accepted. A failure here
+      # fails this job, which leaves the output unset and so runs every job.
+      - name: Validate change classifier
+        run: python3 -m unittest discover -s .github/scripts/tests -p 'test_ci_changes.py' -v
+
+      - name: Decide whether code jobs are needed
+        id: classify
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          # Decide with the base revision's reviewed classifier so a change cannot
+          # loosen its own gate. Fall back to this revision only when the base has
+          # no classifier yet; the head classifier treats .github/ as code anyway.
+          classifier=".github/scripts/ci_changes.py"
+          if git cat-file -e "$BASE_SHA:$classifier" 2>/dev/null; then
+            git show "$BASE_SHA:$classifier" > "$RUNNER_TEMP/ci_changes_base.py"
+            classifier="$RUNNER_TEMP/ci_changes_base.py"
+          fi
+          python3 "$classifier" \
+            --event-name "$EVENT_NAME" \
+            --base "$BASE_SHA" \
+            --head "$HEAD_SHA" \
+            --github-output "$GITHUB_OUTPUT"
+
   nutrition-evaluation-contracts:
     name: Nutrition evaluation harness contracts
     runs-on: ubuntu-latest
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 5
     steps:
       - name: Check out repository
@@ -34,6 +77,9 @@ jobs:
   food-healthkit-planning:
     name: HealthKit planning reference contracts
     runs-on: ubuntu-latest
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 5
     steps:
       - name: Check out repository
@@ -44,6 +90,9 @@ jobs:
   food-ledger-kit-build:
     name: FoodLedgerKit build and contracts
     runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 10
 
     steps:
@@ -65,6 +114,9 @@ jobs:
   food-ledger-kit-isolation:
     name: FoodLedgerKit boundaries
     runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 5
 
     steps:
@@ -77,6 +129,9 @@ jobs:
   food-match-evaluation:
     name: Generic-food matching evaluation
     runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 5
 
     steps:
@@ -96,6 +151,9 @@ jobs:
   gemini-grounding-evaluation:
     name: Gemini grounding offline evaluation contracts
     runs-on: ubuntu-latest
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 5
 
     steps:
@@ -116,6 +174,9 @@ jobs:
   food-ocr-evaluation:
     name: Food OCR evaluation contracts
     runs-on: ubuntu-latest
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 5
 
     steps:
@@ -131,6 +192,9 @@ jobs:
   drive-export-kit-build:
     name: DriveExportKit build
     runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 5
 
     steps:
@@ -143,6 +207,9 @@ jobs:
   drive-export-kit-isolation:
     name: DriveExportKit isolation
     runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 5
 
     steps:
@@ -160,6 +227,9 @@ jobs:
   synthetic-drive-policy-checks:
     name: Synthetic Drive policy checks
     runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 5
 
     steps:
@@ -179,6 +249,9 @@ jobs:
   synthetic-drive-api-checks:
     name: Synthetic Drive API checks
     runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 5
 
     steps:
@@ -199,6 +272,9 @@ jobs:
   synthetic-drive-coordinator-checks:
     name: Synthetic Drive coordinator checks
     runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 5
 
     steps:
@@ -220,6 +296,9 @@ jobs:
   synthetic-drive-harness:
     name: Synthetic Drive harness build and analysis
     runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 15
 
     steps:
@@ -241,6 +320,9 @@ jobs:
     name: Build and test
     # Medication dose events require the iOS 26 SDK and Xcode 26 or later.
     runs-on: macos-26
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     timeout-minutes: 20
 
     steps:
