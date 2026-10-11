@@ -73,7 +73,7 @@ public final class GenericFoodProposalReviewViewModel: ObservableObject {
             if value.validation.candidates.isEmpty {
                 message = value.validation.rejected.isEmpty
                     ? "No nutrition proposal was extracted from the captured text. The page may lack a food-specific declaration or usable serving basis, or its nutrition may be in an image. Open the captured page to inspect it, or review another source."
-                    : "Extracted proposals failed the source checks. See the reasons below and inspect the captured page before reviewing another source."
+                    : "Extracted proposals failed the source checks. Details are in Settings › Developer tools. Inspect the captured page before reviewing another source."
             }
         } catch {
             guard generation == current else { return }
@@ -222,7 +222,7 @@ public struct GenericFoodProposalReviewView: View {
                 otherSourcesSection(nil)
             }
             Section {
-                Text("Only the food name and captured page text are sent to the web lookup service. Saved foods, your food log and Health data are never sent. Charges use your OpenRouter account.")
+                Text("Only your food terms, the market set in Settings and the captured page text are sent to OpenRouter and its selected providers. Saved foods, your food log and Health data are never sent. Charges use your OpenRouter account.")
                     .font(.footnote).foregroundStyle(.secondary)
             }
         }
@@ -258,6 +258,9 @@ public struct GenericFoodProposalReviewView: View {
             }
             ForEach(content.notStated, id: \.self) { key in
                 LabeledContent(FoodNutritionReviewPresentation.label(key.ledgerKey), value: "Not stated")
+            }
+            ForEach(content.notUsable, id: \.self) { key in
+                LabeledContent(FoodNutritionReviewPresentation.label(key.ledgerKey), value: "Not usable")
             }
             DisclosureGroup("Show the quoted text") {
                 ForEach(Array(content.quotes.enumerated()), id: \.offset) { _, quote in

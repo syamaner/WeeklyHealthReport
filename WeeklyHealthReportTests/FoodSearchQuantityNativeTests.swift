@@ -42,7 +42,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             for _ in 0..<24 {
                 try await Task.sleep(for:.milliseconds(100))
                 host.view.layoutIfNeeded()
-                field=descendants(host.view).compactMap { $0 as? UITextField }.first { $0.text == String(amount) }
+                field=descendants(host.view).compactMap { $0 as? UITextField }.first { $0.text == FoodAmountTextParser.editableText(amount) }
                 if field != nil { break }
                 if let scroll=descendants(host.view).compactMap({ $0 as? UIScrollView }).first {
                     scroll.setContentOffset(CGPoint(x:0,y:min(scroll.contentOffset.y+400,max(0,scroll.contentSize.height-scroll.bounds.height))),animated:false)
@@ -334,7 +334,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             XCTAssertTrue(normalized.contains("Web lookup needs your OpenRouter key"), visible)
             if size == .large {
                 XCTAssertTrue(visible.contains("Web lookup"), visible)
-                XCTAssertTrue(normalized.contains("Only the food name and captured page text are sent"), "Egress footnote: \(visible)")
+                XCTAssertTrue(normalized.contains("Only your food terms, the market set in Settings and the captured page text are sent"), "Egress footnote: \(visible)")
             }
             XCTAssertFalse(visible.contains("Gemini"), visible)
             let attachment = XCTAttachment(image: image); attachment.name = "OpenRouter review \(name)"
@@ -718,7 +718,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             ("search-basis-only", AnyView(results(basisOnly)), 1400, ["Best matches", "per 100 g"]),
             ("search-no-result", AnyView(results(none)), 1000, ["Not what you ate?", "Look it up on the web", "Scan the package barcode"]),
             ("web-lookup-scope-unset", AnyView(GenericFoodProposalReviewView(model: unset, credentials: credentials) { _ in XCTFail("No confirmation") }),
-             1600, ["Suggested source", "Exact product", "Similar food estimate", "Not stated", "Use this source", "Choose a match type first", "Only the food name"]),
+             1600, ["Suggested source", "Exact product", "Similar food estimate", "Not stated", "Use this source", "Choose a match type first", "Only your food terms"]),
             ("web-lookup-scope-chosen", AnyView(GenericFoodProposalReviewView(model: chosen, credentials: credentials, initialScope: .representativeEstimate) { _ in XCTFail("No confirmation") }),
              1600, ["Similar food estimate", "Use this source"])
         ]

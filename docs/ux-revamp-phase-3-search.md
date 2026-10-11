@@ -1,6 +1,6 @@
 # UX revamp phase 3: Add food, search and web lookup (#196) architecture gate
 
-Status: **draft for owner review, 11 October 2026; architecture gate passed with changes, folded in.** Contract: [generic-food-review-manifest-v2.md](generic-food-review-manifest-v2.md) (the specification's "Single-step web review"). Specification: [ux-revamp-v1.md](ux-revamp-v1.md). Wireframes: [`AddFood`](designs/ux-revamp-v1/AddFood.dc.html), [`SearchResults`](designs/ux-revamp-v1/SearchResults.dc.html), [`WebLookup`](designs/ux-revamp-v1/WebLookup.dc.html). Retrieval quality stays with #100.
+Status: **approved by the owner on 11 October 2026; implemented on `feat/196-add-food-search`.** Architecture gate passed with changes, folded in. Contract: [generic-food-review-manifest-v2.md](generic-food-review-manifest-v2.md) (the specification's "Single-step web review"). Specification: [ux-revamp-v1.md](ux-revamp-v1.md). Wireframes: [`AddFood`](designs/ux-revamp-v1/AddFood.dc.html), [`SearchResults`](designs/ux-revamp-v1/SearchResults.dc.html), [`WebLookup`](designs/ux-revamp-v1/WebLookup.dc.html). Retrieval quality stays with #100.
 
 Contract tests land first; screens follow. Owner decisions P1 to P6 (below) and Q1 to Q5 (contract section 8) are approved before production code.
 
@@ -46,9 +46,9 @@ Tapping opens Confirm as a **new** entry from `relogInput` (source identity and 
 
 Search result; Web lookup via `prepare(review:proposal:scope:)`; barcode direct and via search; paste or dictate per item; recent item via `relogInput`; Favourites as today (P2). A simulator UI test per route asserts it lands on Confirm.
 
-## Owner decisions (recommended, awaiting approval)
+## Owner decisions (decided 11 October 2026, as recommended)
 
-| ID | Decision | Recommendation |
+| ID | Decision | Decided |
 |---|---|---|
 | P1 | Recent list size and window | 10 items within 30 days, by `occurredAt` |
 | P2 | Favourites before #198 | Favourites row opens Common foods; an empty "No favourites yet" section until #198 |
@@ -56,6 +56,24 @@ Search result; Web lookup via `prepare(review:proposal:scope:)`; barcode direct 
 | P4 | Search diagnostics | In-memory snapshot of the last search for Developer tools; never persisted, never holds a credential |
 | P5 | Energy for the amount | The tightened rule above |
 | P6 | Retired `.gemini` search stage | Leave it in this phase |
+
+## Deviations recorded during implementation
+
+- Contract deviations (re-log edible quantity, `relogSource`, test-only v1 writer, contract 5 exports, source families, `web-lookup-review-v1` content without a page kind) are in the manifest document, section 9.
+- Search results drop "None of these" and the search-details disclosure: leaving the screen declines, "Not what you ate?" offers the alternatives, and stage details live in Developer tools.
+- Web lookup keeps a public source address under a "Use a specific page" disclosure. Proposals that are not suggested are listed with a plain status but cannot be opened; only the suggested source can be used. The market is re-read from Settings whenever the screen appears, which invalidates an open result if it changed.
+- Home gains an "Add food" link ahead of #199, and the Food Log's four entry links become one "Add food" link.
+- Shared nutrient labels now read "Carbohydrates", "Saturated fat" and "Fibre" (British, plain) everywhere they appear.
+- The paste or dictate route compared a chosen later candidate with the first candidate's identity, so "Chicken, breast, grilled without skin" asked about skin there but not on search. Both routes now use one application snapshot of the chosen candidate (`GenericFoodConfirmationRoute.choosing`); confirmation v5 semantics are unchanged.
+- Confirm shows editable amounts without a trailing ".0" (150, not 150.0); the preparation chip is capitalised ("Cooked"); Add food's field has a clear button.
+
+## Known follow-ups (not in this phase)
+
+- Paste or dictate match rows still show diagnostic text ("Candidate adds: only", "Search terms: …", "Closest candidate").
+- The barcode "unavailable" heading truncates.
+- The Favourites route opens Common foods until favourites exist (#198).
+- The barcode route has an extra explainer tap before scanning.
+- Recent rows should stack the name and energy at accessibility text sizes.
 
 ## Risks
 

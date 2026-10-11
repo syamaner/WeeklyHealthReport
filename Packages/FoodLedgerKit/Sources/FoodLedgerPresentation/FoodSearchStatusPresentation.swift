@@ -135,6 +135,7 @@ public enum FoodSearchResultText {
         case .packagedProduct: "Packaged product"
         case .webSource: "Web source"
         case .yourFoods: "Your foods"
+        case .otherSource: "Other source"
         }
     }
     public static func preparation(_ kind: PreparationKind) -> String {
@@ -146,6 +147,12 @@ public enum FoodSearchResultText {
         case .named: "as described"
         case .unknown: "preparation not stated"
         }
+    }
+    /// Chip label for the preparation constraint, capitalised as a control label ("Cooked").
+    public static func preparationChip(_ kind: PreparationKind?) -> String {
+        guard let kind else { return "Any preparation" }
+        let text = preparation(kind)
+        return text.prefix(1).uppercased() + text.dropFirst()
     }
     public static func amount(_ quantity: ParsedFoodQuery.Quantity) -> String {
         let unit = quantity.unit.lowercased() == "ml" ? "mL" : quantity.unit == "count" ? (quantity.value == 1 ? "piece" : "pieces") : quantity.unit

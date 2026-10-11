@@ -302,6 +302,22 @@ final class GenericFoodProposalReviewPresentationTests: XCTestCase {
         XCTAssertEqual(calls, 1, "Changing the market never starts a lookup")
     }
 
+    /// Contract test 13 (web part): after the one explicit lookup, preparing with
+    /// prepare(review:proposal:scope:) makes no request and reads no credential.
+    func test13WebPrepareMakesNoRequestAndReadsNoCredential() async throws {
+        let reviewer = ControlledProposalReview(); let keys = ProposalCredentials(); let model = make(reviewer, keys: keys)
+        model.foodTerms = "milk"
+        let task = Task { await model.search() }; await reviewer.waitForRequest()
+        await reviewer.complete(try ProposalPresentationFixture.result()); await task.value
+        XCTAssertEqual(keys.reads, 1)
+        let proposal = try XCTUnwrap(model.suggestedProposal)
+        _ = try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate)
+        _ = try model.prepare(proposal, querySnapshot: "milk", scope: .representativeEstimate)
+        XCTAssertEqual(keys.reads, 1, "Preparing reads no credential")
+        let calls = await reviewer.callCount
+        XCTAssertEqual(calls, 1, "Preparing makes no request")
+    }
+
     func testOnlyTheSuggestedEligibleSourceIsOfferedAndDiagnosticsHoldNoKey() async throws {
         for (choice, offered) in [("c1", true), ("none", false), ("clarify", false)] {
             let reviewer = ControlledProposalReview(); let model = make(reviewer)

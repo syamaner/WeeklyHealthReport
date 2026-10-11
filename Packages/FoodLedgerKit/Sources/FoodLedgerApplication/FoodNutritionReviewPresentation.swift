@@ -42,8 +42,10 @@ public struct FoodNutritionReviewPresentation: Equatable, Sendable {
         switch key {
         case .energyConsumed: "Energy"
         case .protein: "Protein"
-        case .carbohydrates: "Carbohydrate"
+        case .carbohydrates: "Carbohydrates"
         case .fatTotal: "Fat"
+        case .fatSaturated: "Saturated fat"
+        case .fiber: "Fibre"
         default: key.rawValue.replacingOccurrences(of: "_", with: " ").capitalized
         }
     }

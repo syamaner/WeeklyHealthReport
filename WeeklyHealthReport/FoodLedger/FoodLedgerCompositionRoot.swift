@@ -149,11 +149,15 @@ final class FoodLedgerCompositionRoot {
     }
 
     /// Recent foods for Add food: 10 items within 30 days, each source re-verified (P1, P3).
-    func recentFoods(now: Date = Date()) -> [FoodRecentRelogItem] {
+    func recentFoods() -> [FoodRecentRelogItem] {
         guard let records = try? store.archiveState().records else { return [] }
         return FoodRecentItemsService(reader: store, confirmations: confirmations)
-            .items(records: records, now: now, calendar: confirmationCalendar)
+            .items(records: records, now: confirmationClock.now(), calendar: confirmationCalendar)
     }
+
+    /// The confirmation clock and calendar, so Add food's "today" and "yesterday" match Confirm.
+    var confirmationNow: Date { confirmationClock.now() }
+    var confirmationDayCalendar: Calendar { confirmationCalendar }
 
     func model(reopening logItemID: LogItemID) throws -> FoodConfirmationViewModel? {
         guard var state = try confirmations.reopen(logItemID: logItemID) else { return nil }
@@ -369,10 +373,16 @@ struct GenericFoodSearchFlowView: View {
           searchesOnAppear: Bool = false, offersBarcode: Bool = true) {
         guard let model = try? root.genericFoodSearchModel(additionalEvidence: additionalEvidence) else { return nil }
         self.root = root
-        self.searchesOnAppear = searchesOnAppear && !initialQuery.isEmpty
+        self.searchesOnAppear = Self.searchesOnAppear(initialQuery: initialQuery, requested: searchesOnAppear)
         self.offersBarcode = offersBarcode && additionalEvidence.isEmpty
         model.query = initialQuery
         _searchModel = StateObject(wrappedValue: model)
+    }
+
+    /// Only a query the user just submitted on Add food is searched on appear. A restored or
+    /// otherwise opened Search results screen never starts a request by itself.
+    static func searchesOnAppear(initialQuery: String, requested: Bool) -> Bool {
+        requested && !initialQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     var body: some View {
@@ -415,11 +425,12 @@ struct AddFoodFlowView: View {
     @State private var confirmationModel: FoodConfirmationViewModel?
     @State private var showsConfirmation = false
     @State private var relogFailed = false
+    @State private var now = Date()
 
     init(root: FoodLedgerCompositionRoot) { self.root = root }
 
     var body: some View {
-        AddFoodView(recents: recents,
+        AddFoodView(recents: recents, now: now, calendar: root.confirmationDayCalendar,
                     search: { submittedQuery = $0; showsSearch = true },
                     scanBarcode: { showsBarcode = true },
                     pasteOrDictate: { showsList = true },
@@ -429,7 +440,7 @@ struct AddFoodFlowView: View {
                             confirmationModel = model; showsConfirmation = true
                         } else { relogFailed = true }
                     })
-        .onAppear { recents = root.recentFoods() }
+        .onAppear { now = root.confirmationNow; recents = root.recentFoods() }
         .alert("This food could not be opened", isPresented: $relogFailed) {
             Button("OK", role: .cancel) {}
         } message: { Text("Its saved source could not be verified. Search for it instead. Nothing was saved.") }
@@ -449,7 +460,9 @@ struct AddFoodFlowView: View {
         }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
-                FoodConfirmationView(model: confirmationModel) { showsConfirmation = false; recents = root.recentFoods() }
+                FoodConfirmationView(model: confirmationModel) {
+                    showsConfirmation = false; now = root.confirmationNow; recents = root.recentFoods()
+                }
             }
         }
     }
@@ -478,6 +491,9 @@ struct OpenRouterFoodReviewFlowView: View {
                 FoodConfirmationView(model: confirmationModel) { showsConfirmation = false }
             }
         }
+        // The market is set in Settings. Re-read it whenever Web lookup appears, so a change made
+        // there invalidates any open result (the view model cancels on a changed market).
+        .onAppear { reviewModel.market = root.foodMarket.market }
     }
 }
 

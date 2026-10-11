@@ -42,7 +42,7 @@ public struct FoodProposalReviewAction: Codable, Equatable, Sendable {
     public let action: String
     public let presentation: String
 
-    public init(action: String = useThisSource, presentation: String = webLookupReviewV1) {
+    init(action: String = useThisSource, presentation: String = webLookupReviewV1) {
         self.action = action; self.presentation = presentation
     }
     private enum CodingKeys: String, CodingKey, CaseIterable { case action, presentation }
@@ -67,7 +67,7 @@ public struct FoodProposalReviewGateRecord: Codable, Equatable, Sendable {
     public let selectionChoice: String
     public let representativeSourceOnly: Bool
 
-    public init(choicePolicy: String = GenericFoodProposalReview.choicePolicyVersion, rankingAvailable: Bool,
+    init(choicePolicy: String = GenericFoodProposalReview.choicePolicyVersion, rankingAvailable: Bool,
                 selectionChoice: String, representativeSourceOnly: Bool) {
         self.choicePolicy = choicePolicy; self.rankingAvailable = rankingAvailable
         self.selectionChoice = selectionChoice; self.representativeSourceOnly = representativeSourceOnly
@@ -104,7 +104,7 @@ public struct FoodProposalReviewManifestV2: Codable, Equatable, Sendable {
     public let gate: FoodProposalReviewGateRecord
     public let reviewedAt: Date
 
-    public init(version: String = ReviewedFoodProposalConfirmation.version, query: String, document: CapturedFoodDocument,
+    init(version: String = ReviewedFoodProposalConfirmation.version, query: String, document: CapturedFoodDocument,
                 candidate: FoodProposalCandidate, scope: FoodProposalReviewScope, review: FoodProposalReviewAction,
                 gate: FoodProposalReviewGateRecord, reviewedAt: Date) {
         self.version = version; self.query = query; self.document = document; self.candidate = candidate

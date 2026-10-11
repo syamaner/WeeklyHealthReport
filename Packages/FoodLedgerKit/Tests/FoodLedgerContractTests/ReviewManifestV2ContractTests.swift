@@ -374,22 +374,30 @@ final class ReviewManifestV2ContractTests: XCTestCase {
             var reopened = try XCTUnwrap(current.reopen(logItemID: edited.logItem.logItemID))
             FoodConfirmationReducer.reduce(state: &reopened, action: .setQuantity(65, .grams))
             _ = try current.save(reopened, operationID: LedgerFixtures.operationID(1310))
+            // A true estimate: a representative reviewed web source logged now.
+            var web = FoodConfirmationState(input: try preparedV2(.representativeEstimate))
+            FoodConfirmationReducer.reduce(state: &web, action: .setQuantity(1, .count))
+            web.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &web, action: .accept)
+            let webSaved = try current.save(web, operationID: LedgerFixtures.operationID(1311))
 
             let records = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess).archiveState().records
             let items = FoodRecentItemsProjection.items(records: records, now: now, calendar: london)
-            XCTAssertEqual(items.map(\.recordID.value), ["fixture:row-3", "fixture:row-5", "fixture:row-6", "fixture:row-2"], harness.name)
-            XCTAssertEqual(items.first?.logItemID, newer.logItem.logItemID, "The most recent use of a record wins")
-            XCTAssertNotEqual(items.first?.logItemID, older.logItem.logItemID)
-            XCTAssertEqual(items.map(\.lastAmount.value), [35, 50, 65, 20], "Superseded versions are replaced by the head")
-            XCTAssertEqual(items.first?.energyKcal, nil, "Synthetic food declares no energy")
+            XCTAssertEqual(items.map(\.recordID.value), ["https://example.com/tofu#proposal=c1", "fixture:row-3", "fixture:row-5", "fixture:row-6", "fixture:row-2"], harness.name)
+            XCTAssertEqual(items[0].logItemID, webSaved.logItem.logItemID)
+            XCTAssertEqual(items[1].logItemID, newer.logItem.logItemID, "The most recent use of a record wins")
+            XCTAssertNotEqual(items[1].logItemID, older.logItem.logItemID)
+            XCTAssertEqual(items.map(\.lastAmount.value), [1, 35, 50, 65, 20], "Superseded versions are replaced by the head")
+            XCTAssertEqual(items[0].energyKcal, 150, "One source serving of 150 kcal")
+            XCTAssertNil(items[1].energyKcal, "Synthetic food declares no energy")
             XCTAssertEqual(FoodRecentItemsProjection.items(records: records, now: now, calendar: london, limit: 2).count, 2)
             // Window: one day back from local midnight of 27 October excludes the DST-day entry.
             let oneDay = FoodRecentItemsProjection.items(records: records, now: now, calendar: london, windowDays: 1)
-            XCTAssertEqual(Set(oneDay.map(\.recordID.value)), ["fixture:row-3", "fixture:row-5", "fixture:row-6"])
+            XCTAssertEqual(Set(oneDay.map(\.recordID.value)), ["https://example.com/tofu#proposal=c1", "fixture:row-3", "fixture:row-5", "fixture:row-6"])
             let twoDays = FoodRecentItemsProjection.items(records: records, now: now, calendar: london, windowDays: 2)
             XCTAssertTrue(twoDays.contains { $0.recordID.value == "fixture:row-2" }, "00:30 BST on 25 October is inside two local days")
             let estimates = FoodRecentItemsService(reader: harness.reader, confirmations: current).items(records: records, now: now, calendar: london)
-            XCTAssertEqual(estimates.map(\.isEstimate), [false, false, false, false])
+            XCTAssertEqual(estimates.map(\.isEstimate), [true, false, false, false, false], "Estimate status survives the projection")
+            XCTAssertEqual(estimates.first?.name, "豆花")
         }
     }
 
@@ -441,7 +449,18 @@ final class ReviewManifestV2ContractTests: XCTestCase {
             XCTAssertEqual(content.notStated, [.carbohydrate, .fat, .fibre, .sodium])
             XCTAssertEqual(content.quotes, [quote])
             XCTAssertEqual(content.limitations, [])
+            XCTAssertEqual(content.notUsable, [])
         }
+        // A key present on the page but unreadable is "not usable", not "not stated".
+        let (_, proposal) = try ReviewedWebFixtures.review(serving: false)
+        let encoded = String(decoding: try LedgerFixtures.encoder.encode(proposal.candidate), as: UTF8.self)
+        let fat = #"{"evidence":[],"key":"fat","state":"unknown","unknownReason":"not_observed"}"#
+        XCTAssertTrue(encoded.contains(fat))
+        let unreadable = try JSONDecoder().decode(FoodProposalCandidate.self, from: Data(encoded.replacingOccurrences(of: fat,
+            with: #"{"evidence":[],"key":"fat","state":"unknown","unknownReason":"unreadable"}"#).utf8))
+        let content = FoodWebLookupReviewContent(document: proposal.document, candidate: unreadable, scope: nil)
+        XCTAssertEqual(content.notUsable, [.fat])
+        XCTAssertEqual(content.notStated, [.carbohydrate, .fibre, .sodium])
     }
 
     // MARK: Helpers

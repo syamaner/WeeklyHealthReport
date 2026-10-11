@@ -1,6 +1,6 @@
 # Generic food review manifest v2 (#196)
 
-Status: **draft for owner review, 11 October 2026; architecture gate passed with changes, folded in. Documents only; no code has changed.**
+Status: **approved by the owner on 11 October 2026; implemented on `feat/196-add-food-search`.** Architecture gate passed with changes, folded in. Deviations from the approved text are in section 9.
 This is the change [ux-revamp-v1.md](ux-revamp-v1.md) calls "Single-step web review" (section "Contract changes > 3"). It amends the review manifest defined in [generic-food-proposal-integration-v1.md](generic-food-proposal-integration-v1.md) ("Confirmation extension", "Review suggestion gate", "Admission v4 architecture and repair") and composes with [food-confirmation-contract-v5.md](food-confirmation-contract-v5.md). Phase plan: [ux-revamp-phase-3-search.md](ux-revamp-phase-3-search.md).
 
 ## Naming
@@ -59,7 +59,7 @@ FoodProposalReviewManifestV2 {
 ```
 
 - **Single acknowledgement.** `review.action` is the only acknowledgement.
-- **Content shown.** `presentation` names a closed screen contract: `FoodWebLookupReviewContent(document:candidate:scope:)`, a pure application projection (name, brand, source host and page kind, basis label, declared nutrients with literal values, undeclared nutrient keys, limitations, quote references). Its output for `web-lookup-review-v1` is pinned by golden tests. Admission only checks that `presentation` is a known closed identifier; it never recomputes the projection. A different screen content needs a new identifier and admission profile.
+- **Content shown.** `presentation` names a closed screen contract: `FoodWebLookupReviewContent(document:candidate:scope:)`, a pure application projection whose exact content is defined in section 9. Its output for `web-lookup-review-v1` is pinned by golden tests. Admission only checks that `presentation` is a known closed identifier; it never recomputes the projection. A different screen content needs a new identifier and admission profile.
 - **Gate decision as data.** The model's choice is recorded, not re-run, and never becomes authority. Admission v6 rejects, at save and at reopen: `rankingAvailable` false; `selectionChoice` different from `candidate.id`; `selectionChoice` `none` or `clarify`; `representativeSourceOnly` true with `exact_product` scope; an unknown `choicePolicy`.
 - **Market.** Stays inside the hashed `query` as the existing suffix; no new field (Q2). The golden v2 fixture pins a query with `[market: United Kingdom]`.
 - **Scope, source hash, binding.** Unchanged fields and derivations: `document.rawSha256` is the release `artifactHash`; the manifest SHA-256 is the release ID suffix, `manifestHash` and evidence `byteHash`; `manifestReference` grammar unchanged.
@@ -125,12 +125,21 @@ The architecture gate's list, adjusted only for the recorded choices (V1 stays l
 12. **Energy for the amount:** g against per 100 g only and mL against per 100 mL only; oz, count, named serving and unknown energy are basis-only; mL against per 100 g is basis-only; rounding pinned.
 13. **Egress:** fake transports record zero calls during prepare, save, re-log, restoring a route and editing the search field.
 
-## 8. Owner decisions (recommended, awaiting approval)
+## 8. Owner decisions (decided 11 October 2026, as recommended)
 
-| ID | Decision | Recommendation |
+| ID | Decision | Decided |
 |---|---|---|
 | Q1 | New operation type for v2 saves | No; contract 5 and schema 5 are enough because the operation shape is unchanged |
 | Q2 | Recording the market | Keep it inside the hashed query as the existing `" [market: X]"` suffix; no new field or domain type; pinned in the golden v2 fixture |
 | Q3 | Record whether the quoted text was opened | No; it is behaviour, not evidence |
 | Q4 | Archive and schema bump | Yes, contract 5 and `food-ledger-v5`; downgrade impossible, stated in the release note |
 | Q5 | Where the gate lives | Enforced in the application at preparation and recorded in the manifest, re-checked from the record at save and reopen |
+
+## 9. Deviations recorded during implementation
+
+- **Re-log edible quantity.** `relogInput` sets `expectedEdibleQuantity` to the source candidate's own edible quantity, not `.unknown` as first drafted. It is always `.unknown` for a reviewed web candidate; for other sources an unknown expectation against a known source quantity is a hard identity contradiction, so `.unknown` would block every ordinary re-log. The saved entry's quantity is never carried.
+- **Re-log evidence reuse.** `FoodConfirmationState.relogSource` names the saved entry being logged again. At save the service reads that entry and skips only byte-identical retained evidence; anything else is written and fails if it conflicts. This avoids widening the `FoodConfirmationReading` port.
+- **v1 writing is test-only.** Production writes only v2. The frozen v1 writer exists as `@_spi(ReviewedWebRegression) prepareVersion1` for regression tests. The encode-side initialisers of the v2 manifest, review action and gate record are internal, so presentation cannot construct a permitting gate record.
+- **Every export is contract 5.** As with confirmation v5, the archive generator always writes the current contract, even without v2 evidence. `minimumContractVersion` is still 4 or lower without v2 evidence.
+- **Source family.** `FoodSearchResultSummary.SourceFamily` gained `webSource` (reviewed web proposals) and `otherSource`, a neutral fallback for unmapped or empty source IDs; "Your foods" is only the personal library and user-verified packages.
+- **Content of `web-lookup-review-v1`.** `FoodWebLookupReviewContent` is: name, brand, source host, basis label, chosen scope, declared nutrients with literal value and unit, keys "not stated" (not observed on the page), keys "not usable" (on the page but conflicting, unreadable or unsupported), limitations and deduplicated quotes. It does not include a page kind; the frozen identifier is defined without one, and adding it needs a new presentation identifier.

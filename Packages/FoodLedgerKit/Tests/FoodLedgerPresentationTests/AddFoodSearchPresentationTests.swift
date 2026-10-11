@@ -23,13 +23,53 @@ final class AddFoodSearchPresentationTests: XCTestCase {
              "Taiwan reference · 300 kcal for 200 mL"),
             (.init(family: .yourFoods, preparation: .asSold, energy: .basisOnly(.named(try LedgerText("bowl"), try PositiveQuantity(value: 1, unit: .count)))),
              "Your foods · as sold · per bowl"),
-            (.init(family: .webSource, preparation: .unknown, energy: .basisOnly(.unknown)), "Web source · basis not specified")
+            (.init(family: .webSource, preparation: .unknown, energy: .basisOnly(.unknown)), "Web source · basis not specified"),
+            (.init(family: .otherSource, preparation: .unknown, energy: .basisOnly(.per100Grams)), "Other source · per 100 g")
         ]
         for (summary, expected) in rows { XCTAssertEqual(FoodSearchResultText.summaryLine(summary), expected) }
         XCTAssertEqual(FoodSearchResultText.amount(.init(value: 150, unit: "g")), "150 g")
         XCTAssertEqual(FoodSearchResultText.amount(.init(value: 250, unit: "ml")), "250 mL")
         XCTAssertEqual(FoodSearchResultText.amount(.init(value: 1, unit: "count")), "1 piece")
         XCTAssertEqual(FoodSearchResultText.amount(.init(value: 2, unit: "count")), "2 pieces")
+    }
+
+    func testConfirmAmountTextHasNoTrailingZeroAndRoundTrips() {
+        XCTAssertEqual(FoodAmountTextParser.editableText(150), "150")
+        XCTAssertEqual(FoodAmountTextParser.editableText(1500), "1500")
+        XCTAssertEqual(FoodAmountTextParser.editableText(0.5), "0.5")
+        XCTAssertEqual(FoodAmountTextParser.editableText(150.25), "150.25")
+        for value in [150.0, 1500, 0.5, 150.25, 12_345.5] {
+            XCTAssertEqual(FoodAmountTextParser.parse(FoodAmountTextParser.editableText(value)), value)
+        }
+        XCTAssertEqual(FoodSearchResultText.preparationChip(.cooked), "Cooked")
+        XCTAssertEqual(FoodSearchResultText.preparationChip(.raw), "Raw")
+        XCTAssertEqual(FoodSearchResultText.preparationChip(nil), "Any preparation")
+    }
+
+    func testSourceFamilyIsAClosedListWithANeutralFallback() {
+        XCTAssertEqual(FoodSearchResultSummary.family("physical_package"), .yourFoods)
+        XCTAssertEqual(FoodSearchResultSummary.family("cofid-2021", recordID: "personal-library:abc"), .yourFoods)
+        XCTAssertEqual(FoodSearchResultSummary.family("phe-npm-2018-annex-a"), .otherSource)
+        XCTAssertEqual(FoodSearchResultSummary.family(""), .otherSource)
+        XCTAssertEqual(FoodSearchResultSummary.family("cofid-2021"), .ukReference)
+        XCTAssertEqual(FoodSearchResultSummary.family("open-food-facts"), .packagedProduct)
+    }
+
+    /// Opening and closing the amount editor must not change the amount (no grouping separators,
+    /// one locale-aware style for display and parsing).
+    func testAmountEditorTextRoundTripsInEnglishAndGermanLocales() {
+        for identifier in ["en_GB", "de_DE"] {
+            let locale = Locale(identifier: identifier)
+            for value in [1500.0, 12_345.0, 0.5, 150.25] {
+                let text = FoodSearchAmountText.text(value, locale: locale)
+                XCTAssertFalse(text.contains(identifier == "en_GB" ? "," : "."), "\(identifier) \(text)")
+                XCTAssertEqual(FoodSearchAmountText.parse(text, locale: locale), value, "\(identifier) \(text)")
+            }
+        }
+        XCTAssertEqual(FoodSearchAmountText.text(1500, locale: Locale(identifier: "en_GB")), "1500")
+        XCTAssertEqual(FoodSearchAmountText.parse("1,5", locale: Locale(identifier: "de_DE")), 1.5)
+        XCTAssertNil(FoodSearchAmountText.parse("0", locale: Locale(identifier: "en_GB")))
+        XCTAssertNil(FoodSearchAmountText.parse("", locale: Locale(identifier: "en_GB")))
     }
 
     func testRecentRowTextUsesLastAmountDayEstimateAndRoundedEnergy() throws {
@@ -92,6 +132,15 @@ final class AddFoodSearchPresentationTests: XCTestCase {
         XCTAssertTrue(model.diagnosticLines.contains { $0.hasPrefix("Lexical score") } || model.diagnosticLines.contains { $0.hasPrefix("Source: ") },
                       "Scores and identifiers live in Developer tools only")
         XCTAssertTrue(model.diagnosticLines.contains { $0.hasPrefix("Record: ") })
+    }
+
+    func testSearchSelectionUsesTheSharedChosenCandidateSnapshot() throws {
+        let model = try GenericFoodSearchViewModel(searcher: CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator()), locale: LedgerText("en_GB"))
+        model.query = "150g grilled chicken breast"; model.search()
+        guard case let .results(route) = model.phase else { return XCTFail("results") }
+        for index in route.matches.indices.prefix(4) {
+            XCTAssertEqual(model.confirmation(at: index), route.choosing(index))
+        }
     }
 
     // MARK: 13. Egress

@@ -39,6 +39,15 @@ final class AppNavigationTests: XCTestCase {
         }
     }
 
+    /// #196: Add food restores to itself, and a restored Search results screen never searches.
+    func testAddFoodRestoresAndRestoredSearchNeverStartsARequest() {
+        XCTAssertEqual(AppRoute.restoredPath(from: "addFood", hasDraft: false, availableRoutes: allAvailable), [.addFood])
+        XCTAssertFalse(GenericFoodSearchFlowView.searchesOnAppear(initialQuery: "", requested: false))
+        XCTAssertFalse(GenericFoodSearchFlowView.searchesOnAppear(initialQuery: "150 g rice", requested: false))
+        XCTAssertFalse(GenericFoodSearchFlowView.searchesOnAppear(initialQuery: "   ", requested: true))
+        XCTAssertTrue(GenericFoodSearchFlowView.searchesOnAppear(initialQuery: "150 g rice", requested: true))
+    }
+
     func testLegacyRawValuesAreUnchanged() {
         let legacy = ["foodLog", "healthReport", "dailyExport", "genericFoodSearch", "foodListImport",
                       "barcodeFoodCapture", "inventoryReview", "commonFoods", "foodReresolution",

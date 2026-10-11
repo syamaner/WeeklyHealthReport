@@ -19,7 +19,10 @@ public struct FoodWebLookupReviewContent: Equatable, Sendable {
     public let basisLabel: String?
     public let scope: FoodProposalReviewScope?
     public let declared: [DeclaredNutrient]
+    /// Not observed on the page.
     public let notStated: [FoodProposalNutrientKey]
+    /// Present on the page but not usable (conflicting, unreadable or unsupported).
+    public let notUsable: [FoodProposalNutrientKey]
     public let limitations: [String]
     /// Quoted source text behind one disclosure, deduplicated in first-seen order.
     public let quotes: [String]
@@ -36,7 +39,12 @@ public struct FoodWebLookupReviewContent: Equatable, Sendable {
             return DeclaredNutrient(key: key, value: value, unit: nutrient.unit ?? key.unit)
         }
         let declaredKeys = Set(declared.map(\.key))
-        notStated = FoodProposalNutrientKey.allCases.filter { !declaredKeys.contains($0) }
+        func isNotUsable(_ key: FoodProposalNutrientKey) -> Bool {
+            guard let reason = byKey[key]?.unknownReason else { return false }
+            return reason != .notObserved
+        }
+        notStated = FoodProposalNutrientKey.allCases.filter { !declaredKeys.contains($0) && !isNotUsable($0) }
+        notUsable = FoodProposalNutrientKey.allCases.filter { !declaredKeys.contains($0) && isNotUsable($0) }
         limitations = candidate.limitations
         var seen: [String] = []
         for reference in candidate.identityEvidence + candidate.basis.evidence + candidate.nutrients.flatMap(\.evidence)

@@ -5,6 +5,36 @@ import FoodLedgerTestSupport
 import XCTest
 
 final class CoFIDGenericFoodSearchTests: XCTestCase {
+    /// #196 tap-through: the list route compared a later choice with the first candidate's identity
+    /// and asked about skin for "grilled without skin". Both routes now snapshot the chosen candidate,
+    /// so the same food and choice yield identical differences and requirements.
+    func testListAndSearchRoutesGiveIdenticalRequirementsForTheSameChoice() throws {
+        let ids = SequenceIDs()
+        let importer = FoodListImportService(searcher: try CoFIDGenericFoodSearch(ids: ids), ids: ids)
+        let line = try XCTUnwrap(FoodListParser.parse("150g grilled chicken breast").first)
+        let draft = FoodListLineDraft(parsed: line, operationID: try ids.makeID(OperationTag.self),
+            evidenceID: try ids.makeID(EvidenceTag.self))
+        guard case let .candidates(route) = try importer.search(draft, at: FixedClock().now(), locale: LedgerText("en_GB")) else {
+            return XCTFail("Expected list candidates")
+        }
+        XCTAssertGreaterThan(route.matches.count, 1)
+        var sawSkinless = false
+        for index in route.matches.indices {
+            let list = try importer.confirmation(for: draft, route: route, candidateIndex: index)
+            var search = FoodConfirmationState(input: try XCTUnwrap(route.choosing(index)), prefillSourceQuantity: false)
+            search.quantity = list.quantity
+            XCTAssertEqual(list.selectedCandidate, search.selectedCandidate, "\(index)")
+            XCTAssertEqual(list.materialDifferences, search.materialDifferences, "\(index)")
+            XCTAssertEqual(FoodLogPolicy.requirements(list, now: FixedClock().now(), calendar: .current),
+                           FoodLogPolicy.requirements(search, now: FixedClock().now(), calendar: .current), "\(index)")
+            if list.selectedCandidate.name.value.lowercased().contains("without skin") {
+                sawSkinless = true
+                XCTAssertFalse(list.materialDifferences.contains(.skin), list.selectedCandidate.name.value)
+            }
+        }
+        XCTAssertTrue(sawSkinless, "Fixture should include the grilled skinless breast")
+    }
+
     func testListSearchEvidenceAllowsExplicitGenericEstimateSaveAndReopen() throws {
         for method in [FoodListInputMethod.pastedOrTyped, .reviewedSpeechText] {
             let ids = SequenceIDs()

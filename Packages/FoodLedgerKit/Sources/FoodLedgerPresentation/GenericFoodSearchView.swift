@@ -279,12 +279,7 @@ public final class GenericFoodSearchViewModel: ObservableObject {
 
     /// Snapshot the explicitly chosen candidate; invalid indices never fall back to another food.
     public func confirmation(at index: Int) -> PopulatedFoodConfirmation? {
-        guard case let .results(route) = phase, route.confirmation.candidates.indices.contains(index) else { return nil }
-        let input = route.confirmation
-        let chosen = input.candidates[index]
-        guard let snapshot = try? PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: input.sourceReleases,
-            candidates: [chosen] + input.candidates.indices.filter { $0 != index }.map { input.candidates[$0] },
-            expectedIdentity: chosen.candidate.identity, expectedEdibleQuantity: chosen.candidate.edibleQuantity) else { return nil }
+        guard case let .results(route) = phase, let snapshot = route.choosing(index) else { return nil }
         stopEnrichment()
         return snapshot
     }
@@ -448,7 +443,7 @@ public struct GenericFoodSearchView: View {
                 Button("Raw") { choosePreparation(.raw) }
                 Button("Cooked") { choosePreparation(.cooked) }
             } label: {
-                Text(model.effectivePreparation.map(FoodSearchResultText.preparation) ?? "Any preparation")
+                Text(FoodSearchResultText.preparationChip(model.effectivePreparation))
             }
             .buttonStyle(.bordered).buttonBorderShape(.capsule).font(.footnote)
             .accessibilityHint("Raw and cooked are different foods")
@@ -563,20 +558,38 @@ public struct GenericFoodSearchView: View {
     }
 }
 
+/// Locale-aware amount text for the amount chip editor: one number style, grouping off, used
+/// for both display and parsing so opening and closing the editor never changes the amount.
+public enum FoodSearchAmountText {
+    static func style(_ locale: Locale) -> FloatingPointFormatStyle<Double> {
+        FloatingPointFormatStyle<Double>(locale: locale).grouping(.never).precision(.fractionLength(0...3))
+    }
+    public static func text(_ value: Double, locale: Locale) -> String { value.formatted(style(locale)) }
+    public static func parse(_ text: String, locale: Locale) -> Double? {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty, let value = try? style(locale).parseStrategy.parse(trimmed),
+              value.isFinite, value > 0 else { return nil }
+        return value
+    }
+}
+
 /// Edits the amount chip: a positive value in grams, millilitres or pieces.
 struct FoodSearchAmountEditor: View {
     @Environment(\.dismiss) private var dismiss
-    @State private var value: String
+    @Environment(\.locale) private var locale
+    @State private var value: String?
     @State private var unit: String
+    private let initial: ParsedFoodQuery.Quantity?
     private let apply: (ParsedFoodQuery.Quantity?) -> Void
     init(initial: ParsedFoodQuery.Quantity?, apply: @escaping (ParsedFoodQuery.Quantity?) -> Void) {
-        _value = State(initialValue: initial.map { $0.value.formatted() } ?? "")
+        self.initial = initial
         _unit = State(initialValue: ["g", "ml", "count"].contains(initial?.unit ?? "") ? initial!.unit : "g")
         self.apply = apply
     }
     var body: some View {
         Form {
-            TextField("Amount", text: $value)
+            TextField("Amount", text: Binding(get: { value ?? initial.map { FoodSearchAmountText.text($0.value, locale: locale) } ?? "" },
+                                              set: { value = $0 }))
                 #if os(iOS)
                 .keyboardType(.decimalPad)
                 #endif
@@ -589,8 +602,8 @@ struct FoodSearchAmountEditor: View {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
                 Button("Done") {
-                    let number = Double(value.replacingOccurrences(of: ",", with: "."))
-                    if let number, number.isFinite, number > 0 { apply(.init(value: number, unit: unit)) }
+                    let text = value ?? initial.map { FoodSearchAmountText.text($0.value, locale: locale) } ?? ""
+                    if let number = FoodSearchAmountText.parse(text, locale: locale) { apply(.init(value: number, unit: unit)) }
                     dismiss()
                 }
             }

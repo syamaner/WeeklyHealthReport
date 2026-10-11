@@ -52,10 +52,20 @@ public struct AddFoodView: View {
     public var body: some View {
         Form {
             Section {
-                TextField("Food and amount, e.g. 2 scrambled eggs", text: $text)
-                    .accessibilityLabel("Food and amount")
-                    .submitLabel(.search)
-                    .onSubmit(submit)
+                HStack {
+                    TextField("Food and amount, e.g. 2 scrambled eggs", text: $text)
+                        .accessibilityLabel("Food and amount")
+                        .submitLabel(.search)
+                        .onSubmit(submit)
+                    if !text.isEmpty {
+                        Button { text = "" } label: {
+                            Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.borderless)
+                        .frame(minWidth: 44, minHeight: 44)
+                        .accessibilityLabel("Clear text")
+                    }
+                }
             } footer: {
                 Text("Type what you ate in your own words. Amounts and raw or cooked are picked up from the text.")
             }
