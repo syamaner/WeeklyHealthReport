@@ -217,13 +217,26 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         lastExportOutcome = nil
         destinationCoordinator.clearFileReplacementCandidate(unlessReportDate: day?.reportDate ?? "")
         mirrorDestinationState()
-        presentationState = .needsAttention(.notesChanged)
-        status = "Report date changed. Refresh and review a new snapshot before exporting."
+        switch presentationState {
+        case .needsAttention(.configurationUnavailable):
+            // Drive cannot be set up in this build; the day change does not alter that.
+            status = DailyExportStatusCatalogue.status(
+                for: presentationState,
+                hasStoredSession: oauthSession.hasStoredSession
+            )
+        case .needsGoogleConnection:
+            // Still not set up: keep that state rather than offering a retry.
+            status = "Report date changed. Connect Google in Settings, Export, to prepare and export this day."
+        default:
+            presentationState = .needsAttention(.notesChanged)
+            status = "Report date changed. Choose Retry preparation to prepare a new snapshot before exporting."
+        }
     }
     @Published private(set) var lastVerifiedLabel = "No verified Drive upload in this session"
     /// The typed outcome of the latest export attempt. Set only in
     /// `applyExportOutcome`; cleared on day change, saved-note invalidation,
-    /// sign-out, revocation and `prepareForPresentation()`.
+    /// sign-out, revocation, an authorisation error, `prepareForPresentation()`
+    /// and whenever a new preview is installed.
     @Published private(set) var lastExportOutcome: DailyExportOutcomeRecord?
     @Published private(set) var canForgetTrashedDestination = false
     @Published private(set) var fileReplacementReason: FileReplacementReason?
@@ -341,6 +354,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         self.oauthSession.onAuthorizationError = { [weak self] failure in
             guard let self else { return }
             self.preview = nil
+            self.lastExportOutcome = nil
             self.presentationState = .needsGoogleConnection
             self.status = DailyDriveExportFailure.credentials(failure).userFacingLabel
         }
@@ -513,6 +527,9 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         presentationState = .needsNutritionSource
         status = "Selected \(source.name) by bundle identifier. Refresh to create a new reviewed preview."
     }
+
+    /// Whether this run has validated a Google account (no request is made).
+    var hasValidatedAccount: Bool { account != nil }
 
     func makeExactPreviewText() -> String? {
         guard let preview else { return nil }
@@ -832,6 +849,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             )
             mirrorDestinationState()
             preview = result
+            // A fresh exportable preview supersedes the previous attempt's result.
+            lastExportOutcome = nil
         } catch HealthDataError.unavailable {
             throw DailyExportPreparationFailure.healthDataUnavailable
         } catch DailyHealthExportError.nutritionSourceUnavailable {
@@ -1038,6 +1057,38 @@ extension DailyExportPresentationState {
         case .needsNutritionSource: .needsNutritionSource
         case .readyToExport: .ready
         case .needsAttention: .needsAttention
+        }
+    }
+}
+
+/// The Settings > Export actions, behind a small consumer-owned protocol so a
+/// test can prove each button reaches the matching controller method.
+@MainActor
+protocol DriveDestinationControlling: AnyObject {
+    func connect() async
+    func signOut()
+    func disconnect() async
+    func chooseDestination() async
+    func createDestination() async
+}
+
+extension DailyDriveSessionController: DriveDestinationControlling {}
+
+enum DriveDestinationAction: CaseIterable {
+    case connect
+    case signOut
+    case revoke
+    case chooseFolder
+    case createFolder
+
+    @MainActor
+    func perform(on controller: any DriveDestinationControlling) async {
+        switch self {
+        case .connect: await controller.connect()
+        case .signOut: controller.signOut()
+        case .revoke: await controller.disconnect()
+        case .chooseFolder: await controller.chooseDestination()
+        case .createFolder: await controller.createDestination()
         }
     }
 }

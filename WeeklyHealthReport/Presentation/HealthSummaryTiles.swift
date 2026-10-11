@@ -47,7 +47,7 @@ extension ReportDocument {
 }
 
 /// A Health summary tile. It repeats rows of the expanded report document
-/// verbatim: no new metric, query, threshold, colour coding or
+/// verbatim (failures use the short "Query failed" term): no new metric, query, threshold, colour coding or
 /// interpretation, and it never appears in copied text or Full Page.
 struct HealthSummaryTile: Equatable, Identifiable {
     enum Kind: String, CaseIterable {
@@ -129,8 +129,8 @@ enum HealthSummaryTiles {
                 return HealthSummaryTile(
                     kind: pin.kind,
                     title: pin.title,
-                    primary: primary,
-                    detail: detail
+                    primary: shortFailure(primary),
+                    detail: detail.map(shortFailure)
                 )
             }
             // The section reports a state instead of values.
@@ -138,10 +138,22 @@ enum HealthSummaryTiles {
             return HealthSummaryTile(
                 kind: pin.kind,
                 title: pin.title,
-                primary: pin.section == .steps ? stepsStateRow(stateRow) : stateRow,
+                primary: pin.section == .steps ? stepsStateRow(stateRow) : shortFailure(stateRow),
                 detail: nil
             )
         }
+    }
+
+    /// A failure shows the shared short term in a tile; the full message stays
+    /// in the section row and in Copy all. Every other row is copied verbatim.
+    private static func shortFailure(_ row: ReportDocument.Row) -> ReportDocument.Row {
+        guard row.style == .failure else { return row }
+        return ReportDocument.Row(
+            row.id,
+            label: row.label,
+            value: MetricRowVocabulary.queryFailed,
+            style: row.style
+        )
     }
 
     /// Steps state rows are full sentences; the tile shows the shared short

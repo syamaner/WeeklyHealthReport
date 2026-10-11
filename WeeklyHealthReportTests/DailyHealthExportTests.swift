@@ -2839,10 +2839,19 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
     private var accountCount = 0
     private var revokeCount = 0
     private let revokeStatus: Int
+    private let fileOutcome: FileOutcome
 
-    init(createOutcomes: [CreateOutcome], revokeStatus: Int = 200) {
+    /// How daily-file uploads behave. `.uncertain` is the original behaviour.
+    enum FileOutcome: Sendable {
+        case uncertain
+        case notFound
+        case acceptedThenTrashed
+    }
+
+    init(createOutcomes: [CreateOutcome], revokeStatus: Int = 200, fileOutcome: FileOutcome = .uncertain) {
         self.createOutcomes = createOutcomes
         self.revokeStatus = revokeStatus
+        self.fileOutcome = fileOutcome
     }
 
     func fixtureAccount() -> DailyDriveAccount { accountValue }
@@ -2933,7 +2942,11 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
         accessToken: String
     ) async throws {
         uploadCount += 1
-        throw URLError(.unsupportedURL)
+        switch fileOutcome {
+        case .uncertain: throw URLError(.unsupportedURL)
+        case .notFound: throw DailyDriveAPI.Failure.httpStatus(404, nil)
+        case .acceptedThenTrashed: return
+        }
     }
 
     func updateFile(
@@ -2949,11 +2962,27 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
         id: String,
         accessToken: String
     ) async throws -> DailyDriveFileMetadata {
-        throw DailyDriveAPI.Failure.httpStatus(404, nil)
+        guard fileOutcome == .acceptedThenTrashed else {
+            throw DailyDriveAPI.Failure.httpStatus(404, nil)
+        }
+        return DailyDriveFileMetadata(
+            id: id,
+            name: "invented.json",
+            mimeType: "application/json",
+            parents: ["invented-folder"],
+            trashed: true,
+            driveID: nil,
+            isAppAuthorized: true,
+            canEdit: true,
+            appProperties: [:]
+        )
     }
 
     func fileContent(id: String, accessToken: String) async throws -> Data {
-        throw DailyDriveAPI.Failure.httpStatus(404, nil)
+        guard fileOutcome == .acceptedThenTrashed else {
+            throw DailyDriveAPI.Failure.httpStatus(404, nil)
+        }
+        return Data()
     }
 }
 
@@ -3189,6 +3218,11 @@ extension DailyHealthExportTests {
                 phase,
                 "\(kind)"
             )
+
+            // A fresh exportable preview supersedes the recorded result.
+            await session.refreshPreview()
+            XCTAssertNotNil(session.preview)
+            XCTAssertNil(session.lastExportOutcome, "\(kind)")
         }
     }
 
@@ -3321,4 +3355,134 @@ extension DailyHealthExportTests {
         XCTAssertEqual(session.presentationState, stateBefore)
         XCTAssertEqual(session.status, statusBefore)
     }
+}
+
+// MARK: #200 review fixes
+
+extension DailyHealthExportTests {
+    @MainActor
+    func testRefreshAfterVerifiedExportShowsPreparedNotVerified() async throws {
+        let (session, _) = await makePreviewLifecycleSession()
+        try session.applyExportOutcome(
+            .success(.verified(dataAsOf: "2026-09-06T08:00:00+01:00", created: true)),
+            exportedPreview: try XCTUnwrap(session.preview)
+        )
+        XCTAssertNil(session.preview)
+        XCTAssertEqual(DailyExportPhase.resolve(
+            setup: .ready, exporting: false, hasPreview: false,
+            lastExportOutcome: session.lastExportOutcome
+        ), .verified)
+
+        await session.refreshPreview()
+
+        XCTAssertNotNil(session.preview)
+        XCTAssertNil(session.lastExportOutcome)
+        XCTAssertEqual(DailyExportPhase.resolve(
+            setup: .ready, exporting: false, hasPreview: true,
+            lastExportOutcome: session.lastExportOutcome
+        ), .prepared)
+    }
+
+    @MainActor
+    func testAuthorizationErrorClearsExportOutcome() async throws {
+        let oauth = FakeDriveOAuthSession()
+        let (session, _) = await makePreviewLifecycleSession(oauthSession: oauth)
+        try session.applyExportOutcome(
+            .success(.unchangedVerified(dataAsOf: "2026-09-06T08:00:00+01:00")),
+            exportedPreview: try XCTUnwrap(session.preview)
+        )
+        oauth.onAuthorizationError?(.revoked)
+        XCTAssertNil(session.lastExportOutcome)
+        XCTAssertEqual(session.presentationState, .needsGoogleConnection)
+    }
+
+    @MainActor
+    func testDayChangeWhileNotConnectedStaysNotSetUp() async {
+        let oauth = FakeDriveOAuthSession()
+        oauth.hasStoredSession = false
+        let session = makePreparationSession(
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            oauthSession: oauth
+        )
+        let initial = session.presentationState
+        session.selectReportDay(session.availableReportDays[2])
+        XCTAssertEqual(session.presentationState, initial)
+        XCTAssertNotEqual(session.presentationState.phaseSetup, .needsAttention)
+        XCTAssertFalse(session.status.contains("Retry preparation"))
+    }
+
+    @MainActor
+    func testDayChangeAfterPreparationNamesTheRetryButton() async {
+        let (session, _) = await makePreviewLifecycleSession()
+        session.selectReportDay(session.availableReportDays[2])
+        XCTAssertEqual(session.presentationState, .needsAttention(.notesChanged))
+        XCTAssertTrue(session.presentationState.actions.contains(.retry))
+        XCTAssertTrue(session.status.contains("Retry preparation"))
+    }
+
+    @MainActor
+    func testRemoteTrashedAndMissingExportsKeepBehaviourAndRecordFailure() async throws {
+        let cases: [(PreparationDriveTransportFixture.FileOutcome, DailyDriveExportFailure, DailyDriveSessionController.FileReplacementReason)] = [
+            (.acceptedThenTrashed, .remoteTrashed, .trashed),
+            (.notFound, .remoteMissing, .missingOrInaccessible)
+        ]
+        for (fileOutcome, failure, reason) in cases {
+            let store = MemoryDailySessionStore()
+            let binding = DailyDestinationBinding(
+                accountID: "invented-account",
+                folderID: "invented-folder",
+                folderName: "Invented",
+                origin: .picker
+            )
+            try store.save(
+                try JSONEncoder().encode(partitions(containing: binding)),
+                account: "google.drive.daily-export-destinations.v1"
+            )
+            let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: fileOutcome)
+            let (session, _) = await makePreviewLifecycleSession(
+                drive: drive,
+                secureStore: store,
+                oauthSession: FakeDriveOAuthSession()
+            )
+            _ = try await session.restoreGoogleSession()
+            let preview = try XCTUnwrap(session.preview)
+
+            await session.exportPreview()
+
+            XCTAssertEqual(session.presentationState, .needsAttention(.canonicalRecovery), "\(failure)")
+            XCTAssertEqual(session.status, failure.userFacingLabel, "\(failure)")
+            XCTAssertEqual(session.fileReplacementReason, reason, "\(failure)")
+            XCTAssertEqual(session.preview, preview, "\(failure)")
+            XCTAssertEqual(session.lastExportOutcome?.kind, .failed, "\(failure)")
+            XCTAssertEqual(session.lastExportOutcome?.reportDate, preview.envelope.reportDate)
+            XCTAssertFalse(session.exporting)
+        }
+    }
+
+    @MainActor
+    func testSettingsDriveActionsReachTheMatchingControllerMethod() async {
+        let expected: [DriveDestinationAction: String] = [
+            .connect: "connect",
+            .signOut: "signOut",
+            .revoke: "disconnect",
+            .chooseFolder: "chooseDestination",
+            .createFolder: "createDestination"
+        ]
+        XCTAssertEqual(Set(expected.keys), Set(DriveDestinationAction.allCases))
+        for action in DriveDestinationAction.allCases {
+            let spy = DriveDestinationControllerSpy()
+            await action.perform(on: spy)
+            XCTAssertEqual(spy.calls, [expected[action]!], "\(action)")
+        }
+    }
+}
+
+@MainActor
+private final class DriveDestinationControllerSpy: DriveDestinationControlling {
+    private(set) var calls: [String] = []
+    func connect() async { calls.append("connect") }
+    func signOut() { calls.append("signOut") }
+    func disconnect() async { calls.append("disconnect") }
+    func chooseDestination() async { calls.append("chooseDestination") }
+    func createDestination() async { calls.append("createDestination") }
 }

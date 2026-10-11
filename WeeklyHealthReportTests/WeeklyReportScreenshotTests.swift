@@ -1211,10 +1211,25 @@ extension WeeklyReportScreenshotTests {
             for tile in tiles where tile.kind != .steps {
                 let pin = try XCTUnwrap(HealthSummaryTiles.pins.first { $0.kind == tile.kind })
                 let section = try XCTUnwrap(document.sections.first { $0.id == pin.section })
-                let source = section.rows.first { $0.id == pin.primaryRowID } ?? section.rows.first
-                XCTAssertEqual(tile.primary, source, "\(tile.kind), \(stateCase)")
+                let source = try XCTUnwrap(section.rows.first { $0.id == pin.primaryRowID } ?? section.rows.first)
+                // Verbatim, except that failures use the short shared term.
+                let expected = source.style == .failure
+                    ? ReportDocument.Row(source.id, label: source.label, value: "Query failed", style: .failure)
+                    : source
+                XCTAssertEqual(tile.primary, expected, "\(tile.kind), \(stateCase)")
             }
         }
+
+        // The long failure message stays in the section row (and Copy all).
+        let failedDocument = ReportDocument.expanded(
+            snapshot: makeSnapshot(weight: .failed("com.apple.developer.healthkit entitlement missing")),
+            calendar: testCalendar(),
+            locale: Locale(identifier: "en_GB")
+        )
+        let weightTile = try XCTUnwrap(HealthSummaryTiles.make(from: failedDocument).first { $0.kind == .weight })
+        XCTAssertEqual(weightTile.primary.value, "Query failed")
+        XCTAssertEqual(weightTile.primary.style, .failure)
+        XCTAssertTrue(failedDocument.searchableText.contains("com.apple.developer.healthkit entitlement missing"))
 
         let noCompletedDays = HealthSummaryTiles.make(from: ReportDocument.expanded(
             snapshot: makeSnapshot(steps: .noCompletedDays),

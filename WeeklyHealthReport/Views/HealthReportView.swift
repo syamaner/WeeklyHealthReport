@@ -120,12 +120,19 @@ struct HealthReportView: View {
                         copied ? "Copied" : "Copy all",
                         systemImage: copied ? "checkmark" : "doc.on.doc"
                     )
+                    .labelStyle(.titleAndIcon)
                     .frame(maxWidth: .infinity, minHeight: 44)
                 }
                 .buttonStyle(.borderedProminent)
                 .disabled(!canCopyAll)
                 .accessibilityIdentifier("health.copyAll")
+                .listRowInsets(EdgeInsets())
+                .listRowBackground(Color.clear)
+            } footer: {
+                Text("Copy all includes every section with all details shown. Summary tiles repeat section values and are not copied.")
+            }
 
+            Section {
                 Button("Refresh") {
                     Task { await viewModel.refresh() }
                 }
@@ -138,8 +145,6 @@ struct HealthReportView: View {
                     )
                     .foregroundStyle(.secondary)
                 }
-            } footer: {
-                Text("Copy all includes every section with all details shown. Summary tiles repeat section values and are not copied.")
             }
 
             Section {
@@ -151,6 +156,7 @@ struct HealthReportView: View {
                 Text("Refresh, review and export are separate manual actions.")
             }
         }
+        .listSectionSpacing(.compact)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: copyAll) {

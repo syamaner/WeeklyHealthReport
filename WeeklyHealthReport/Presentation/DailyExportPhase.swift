@@ -106,6 +106,19 @@ enum DailyExportDayLabel {
         return formatter.string(from: date)
     }
 
+    /// A readable cutoff such as "Sunday 6 September, 08:00" from an ISO 8601
+    /// timestamp or a three-part ordering token ("version|cutoff|encoded").
+    /// Anything else is returned unchanged.
+    static func cutoff(_ dataAsOf: String, locale: Locale) -> String {
+        let parts = dataAsOf.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+        let timestamp = parts.count == 3 ? parts[1] : dataAsOf
+        let reportDate = String(timestamp.prefix(10))
+        guard let time = localTime(in: timestamp, onReportDate: reportDate) else {
+            return dataAsOf
+        }
+        return "\(previousDay(reportDate: reportDate, locale: locale)), \(time)"
+    }
+
     /// The local wall-clock time of an ISO 8601 cutoff such as
     /// "2026-09-06T08:00:00+01:00", only when its date is `reportDate`.
     static func localTime(in dataAsOf: String, onReportDate reportDate: String) -> String? {

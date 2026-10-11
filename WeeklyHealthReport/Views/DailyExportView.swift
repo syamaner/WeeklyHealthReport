@@ -30,7 +30,9 @@ struct DailyExportView: View {
                 includedSection
                 exportSection
             case .needsAttention:
-                attentionSection
+                if hasVisibleAttentionAction {
+                    attentionSection
+                }
                 if session.presentationState.actions.contains(.authorizeNutrition) {
                     nutritionSourceSection
                 }
@@ -172,8 +174,14 @@ struct DailyExportView: View {
             case .verified:
                 Label("Exported and verified", systemImage: "checkmark.seal")
                 if let outcome = session.lastExportOutcome {
-                    LabeledContent("Day", value: outcome.reportDate)
-                    LabeledContent("Data up to", value: outcome.dataAsOf)
+                    LabeledContent("Day", value: DailyExportDayLabel.previousDay(
+                        reportDate: outcome.reportDate,
+                        locale: .autoupdatingCurrent
+                    ))
+                    LabeledContent("Data up to", value: DailyExportDayLabel.cutoff(
+                        outcome.dataAsOf,
+                        locale: .autoupdatingCurrent
+                    ))
                 }
             case .cancelledBeforeSending:
                 Label("Cancelled before sending", systemImage: "xmark.circle")
@@ -219,19 +227,19 @@ struct DailyExportView: View {
                     Button("Retry notes access") { notes.retryStorageAccess() }
                 }
             }
-            Button {
+            LabeledContent("Exact file") {
+                if let summary = session.previewSummary {
+                    Text("\(summary.encodedByteCount.formatted()) bytes")
+                } else {
+                    Text("Not prepared")
+                }
+            }
+            Button("Review exact JSON") {
                 if let text = session.makeExactPreviewText() {
                     exactJSON = ExactJSONInspection(text: text)
                 }
-            } label: {
-                LabeledContent("Exact file") {
-                    if let summary = session.previewSummary {
-                        Text("\(summary.encodedByteCount.formatted()) bytes")
-                    }
-                }
             }
             .disabled(session.busy || session.preview == nil)
-            .accessibilityHint("Review exact JSON")
             Text("Food-log entries are not exported yet.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -312,6 +320,15 @@ struct DailyExportView: View {
         } footer: {
             Text("Export preserves these frozen bytes, verifies remote metadata and exact bytes, and never queues an automatic retry.")
         }
+    }
+
+    /// Mirrors the conditions inside `attentionSection`, so the section is
+    /// hidden rather than shown as an empty header.
+    private var hasVisibleAttentionAction: Bool {
+        let actions = session.presentationState.actions
+        return !actions.isDisjoint(with: [
+            .connect, .chooseDestination, .createDestination, .recoverCanonicalFile, .retry
+        ]) || session.canForgetTrashedDestination || session.fileReplacementReason != nil
     }
 
     private var attentionSection: some View {

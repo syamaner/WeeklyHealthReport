@@ -83,6 +83,16 @@ final class DailyExportPhaseTests: XCTestCase {
         XCTAssertEqual(DailyExportDayLabel.today(todayReportDate: "2026-09-06", previewDataAsOf: "2026-09-06"), "Today")
     }
 
+    func testCutoffIsReadableForTimestampsAndOrderingTokens() {
+        let locale = Locale(identifier: "en_GB")
+        XCTAssertEqual(DailyExportDayLabel.cutoff("2026-09-06T08:00:00+01:00", locale: locale), "Sunday 6 September, 08:00")
+        XCTAssertEqual(
+            DailyExportDayLabel.cutoff("v2|2026-09-06T00:00:00+01:00|2026-09-07T09:15:00+01:00", locale: locale),
+            "Sunday 6 September, 00:00"
+        )
+        XCTAssertEqual(DailyExportDayLabel.cutoff("unparseable", locale: locale), "unparseable")
+    }
+
     func testPreviousDaysUseWeekdayNames() {
         let locale = Locale(identifier: "en_GB")
         XCTAssertEqual(DailyExportDayLabel.previousDay(reportDate: "2026-09-05", locale: locale), "Saturday 5 September")

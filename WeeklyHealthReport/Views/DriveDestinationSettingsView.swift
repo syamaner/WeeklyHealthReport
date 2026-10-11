@@ -11,19 +11,19 @@ struct DriveDestinationSettingsView: View {
         Form {
             if !session.isConfigured {
                 Section {
-                    Text("Drive is disabled because this build has no production OAuth client configuration.")
+                    Text(Self.configurationUnavailableText)
                         .foregroundStyle(.secondary)
                 }
             } else {
                 Section {
                     LabeledContent("Account", value: session.accountLabel)
-                    Button("Connect with Google") { Task { await session.connect() } }
+                    Button("Connect with Google") { perform(.connect) }
                         .disabled(session.busy)
                     if session.hasStoredGoogleSession {
-                        Button("Sign out locally") { session.signOut() }
+                        Button("Sign out locally") { perform(.signOut) }
                             .disabled(session.busy)
                         Button("Revoke Google access", role: .destructive) {
-                            Task { await session.disconnect() }
+                            perform(.revoke)
                         }
                         .disabled(session.busy)
                     }
@@ -37,13 +37,13 @@ struct DriveDestinationSettingsView: View {
                     LabeledContent("Folder", value: session.destinationLabel)
                     if hasValidatedAccount {
                         Button("Choose existing folder") {
-                            Task { await session.chooseDestination() }
+                            perform(.chooseFolder)
                         }
                         .disabled(session.busy || !session.isConfigured)
                     }
                     if session.presentationState.actions.contains(.createDestination) {
                         Button("Create new export folder") {
-                            Task { await session.createDestination() }
+                            perform(.createFolder)
                         }
                         .disabled(session.busy || !session.isConfigured)
                     }
@@ -68,12 +68,20 @@ struct DriveDestinationSettingsView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
+    /// The one wording for a build without OAuth configuration, shared with
+    /// the Export screen's status.
+    static var configurationUnavailableText: String {
+        DailyExportStatusCatalogue.status(
+            for: .needsAttention(.configurationUnavailable),
+            hasStoredSession: false
+        )
+    }
+
+    private func perform(_ action: DriveDestinationAction) {
+        Task { await action.perform(on: session) }
+    }
+
     /// Folder choice needs the account the session validated this run; the
     /// screen never restores it by itself.
-    private var hasValidatedAccount: Bool {
-        switch session.presentationState {
-        case .preparing, .needsGoogleConnection: false
-        case .needsNutritionSource, .readyToExport, .needsAttention: true
-        }
-    }
+    private var hasValidatedAccount: Bool { session.hasValidatedAccount }
 }
