@@ -1,10 +1,15 @@
 import Foundation
 import FoodGenericSearch
-import FoodLedgerApplication
+@_spi(ReviewedWebRegression) import FoodLedgerApplication
 import FoodLedgerDomain
 import XCTest
 
-final class ReviewedFoodProposalConfirmationTests: XCTestCase {
+/// Every reviewed-source contract runs against manifest v1 (this class, frozen shape written by
+/// released builds) and manifest v2 (`ReviewedFoodProposalConfirmationV2Tests`, single review
+/// action and recorded gate). Contract test 6 of generic-food-review-manifest-v2.md.
+class ReviewedFoodProposalConfirmationTests: XCTestCase {
+    var manifestVersion: String { ReviewedFoodProposalConfirmation.version1 }
+
     func testEveryReviewAcknowledgementIsRequired() throws {
         for acknowledgement in [FoodProposalAcknowledgement(identityAndScopeReviewed: false, basisReviewed: true, nutrientsAndUnknownsReviewed: true),
                                 .init(identityAndScopeReviewed: true, basisReviewed: false, nutrientsAndUnknownsReviewed: true),
@@ -63,8 +68,8 @@ final class ReviewedFoodProposalConfirmationTests: XCTestCase {
             XCTAssertNil(totals.totals.first { $0.key == .sodium }?.knownAmount)
             XCTAssertTrue(totals.totals.first { $0.key == .energyConsumed }?.includesEstimates == true)
             if case let .text(text) = input.evidence[0].originalPayload {
-                let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .millisecondsSince1970
-                let manifest = try decoder.decode(FoodProposalReviewManifest.self, from: Data(text.value.utf8))
+                let manifest = try XCTUnwrap(FoodProposalReviewManifestRecord.decode(Data(text.value.utf8)))
+                XCTAssertEqual(manifest.version, manifestVersion)
                 XCTAssertEqual(manifest.scope, .representativeEstimate)
                 XCTAssertEqual(manifest.document.blocks.first?.text, "豆花 每份一碗 熱量150大卡 蛋白質6公克")
                 XCTAssertEqual(manifest.candidate.basis.label, "每份一碗")
@@ -187,7 +192,7 @@ final class ReviewedFoodProposalConfirmationTests: XCTestCase {
         let input = try prepare(scope: .exactProduct)
         let release = input.sourceReleases[0]
         let tampered = SourceRelease(sourceReleaseID: release.sourceReleaseID, sourceID: release.sourceID, releasedAt: release.releasedAt,
-            artifactHash: release.artifactHash, schemaVersion: try LedgerText(ReviewedFoodProposalConfirmation.schema(.representativeEstimate)),
+            artifactHash: release.artifactHash, schemaVersion: try LedgerText(ReviewedFoodProposalConfirmation.schema(.representativeEstimate, version: manifestVersion)),
             pipelineVersion: release.pipelineVersion, licence: release.licence, attribution: release.attribution, manifestHash: release.manifestHash)
         let changed = try PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: [tampered], candidates: input.candidates,
             expectedIdentity: input.expectedIdentity, expectedEdibleQuantity: input.expectedEdibleQuantity)
@@ -384,32 +389,36 @@ final class ReviewedFoodProposalConfirmationTests: XCTestCase {
         }
     }
 
-    private func service(_ harness: TestHarness) throws -> FoodConfirmationService {
+    func service(_ harness: TestHarness) throws -> FoodConfirmationService {
         try FoodConfirmationService(ledger: LedgerFixtures.service(harness.committer), reader: harness.reader,
             clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: SHA256Digester())
     }
-    private func prepare(scope: FoodProposalReviewScope, serving: Bool = true,
-                         acknowledgement: FoodProposalAcknowledgement = .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true)) throws -> PopulatedFoodConfirmation {
-        let text = serving ? "豆花 每份一碗 熱量150大卡 蛋白質6公克" : "豆花 每100g 熱量150大卡 蛋白質6公克"
-        let document = try GenericFoodDocumentProjector.project(Data(text.utf8), url: URL(string: "https://example.com/tofu")!, mediaType: "text/plain", retrievedAt: LedgerFixtures.date, origin: "synthetic_fixture")
-        let ref: [[String: Any]] = [["block_id": "b1", "quote": text]]
-        let values: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
-            let known = key == .energy || key == .protein
-            return ["key": key.rawValue, "state": known ? "declared" : "unknown",
-                "value": known ? (key == .energy ? "150" : "6") as Any : NSNull(), "unit": known ? key.unit as Any : NSNull(),
-                "evidence": known ? ref : [], "unknown_reason": known ? NSNull() : "not_observed" as Any]
-        }
-        let candidate: [String: Any] = ["id": "c1", "document_id": document.id, "name": "豆花", "brand": NSNull(), "preparation": NSNull(),
-            "identity_evidence": ref, "panel_evidence": ref,
-            "basis": ["amount": serving ? "1" : "100", "unit": serving ? "serving" : "g", "label": serving ? "每份一碗" : "每100g", "evidence": ref],
-            "nutrients": values, "limitations": []]
-        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
-        let data = try JSONSerialization.data(withJSONObject: ["version": FoodProposalExtraction.schemaVersion, "candidates": [candidate], "preferred_id": "c1"])
-        let result = try FoodProposalBinding.validate(decoder.decode(FoodProposalExtraction.self, from: data), documents: [document])
-        let bound = try XCTUnwrap(result.candidates.first)
-        return try ReviewedFoodProposalConfirmation(ids: RandomLedgerIDGenerator(), clock: LedgerFixtures.clock,
-            encoder: LedgerFixtures.encoder, digester: LedgerFixtures.digester).prepare(bound, query: "tofu pudding", scope: scope,
+    func prepare(scope: FoodProposalReviewScope, serving: Bool = true,
+                 acknowledgement: FoodProposalAcknowledgement = .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true)) throws -> PopulatedFoodConfirmation {
+        let (review, bound) = try ReviewedWebFixtures.review(serving: serving)
+        let confirmation = ReviewedFoodProposalConfirmation(ids: RandomLedgerIDGenerator(), clock: LedgerFixtures.clock,
+            encoder: LedgerFixtures.encoder, digester: LedgerFixtures.digester)
+        if manifestVersion == ReviewedFoodProposalConfirmation.version1 {
+            return try confirmation.prepareVersion1(bound, query: review.foodTerms, scope: scope,
                 acknowledgement: acknowledgement, locale: LedgerText("zh_TW"))
+        }
+        return try confirmation.prepare(review: review, proposal: bound, scope: scope, locale: LedgerText("zh_TW"))
+    }
+}
+
+final class ReviewedFoodProposalConfirmationV2Tests: ReviewedFoodProposalConfirmationTests {
+    override var manifestVersion: String { ReviewedFoodProposalConfirmation.version }
+
+    /// v2 replaces the three acknowledgements with one action: without a known
+    /// "use_this_source" action (or with an unknown presentation) the record is not admissible.
+    override func testEveryReviewAcknowledgementIsRequired() throws {
+        let input = try prepare(scope: .representativeEstimate)
+        XCTAssertNotNil(FoodReviewedWebProposalPolicy.scope(input, candidate: input.candidates[0]))
+        for (from, to) in [("\"action\":\"use_this_source\"", "\"action\":\"reviewed\""),
+                           ("\"presentation\":\"web-lookup-review-v1\"", "\"presentation\":\"web-lookup-review-v9\"")] {
+            let tampered = try ReviewedWebFixtures.rewrite(input, replacing: from, with: to)
+            XCTAssertNil(FoodReviewedWebProposalPolicy.scope(tampered, candidate: tampered.candidates[0]), to)
+        }
     }
 }
 

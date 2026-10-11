@@ -164,6 +164,9 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     public var decisions: [IdentityContradiction: FoodLogDecisionChoice]
     /// Explicit occurrence time. Nil on a new entry means "Now", resolved at commit.
     public var occurredAt: Date?
+    /// A new entry re-logged from this saved entry (recent foods). The service reuses the
+    /// saved entry's retained evidence instead of writing it again; it never writes a new manifest.
+    public var relogSource: LogItemID?
 
     public init(input: PopulatedFoodConfirmation, reopened: StoredFoodConfirmation? = nil,
                 queryQuantity: ParsedFoodQuery.Quantity? = nil, prefillSourceQuantity: Bool = true) {
@@ -586,8 +589,11 @@ public final class FoodConfirmationService: @unchecked Sendable {
         let missingReleases = try state.input.sourceReleases.filter {
             try reader.sourceRelease(id: $0.sourceReleaseID) == nil
         }
+        // A re-log references evidence already retained by its source entry. Only byte-identical
+        // stored evidence is skipped; anything else is written (and fails if it conflicts).
+        let retainedEvidence = try state.relogSource.flatMap { try reader.foodConfirmation(logItemID: $0) }?.evidence ?? []
         let mutation = LedgerMutation(
-            evidence: previous == nil ? state.input.evidence : [],
+            evidence: previous == nil ? state.input.evidence.filter { !retainedEvidence.contains($0) } : [],
             assertions: assertion.map { [$0] } ?? [],
             products: previous == nil ? [product] : [],
             productVersions: changesProduct ? [productVersion] : [],
@@ -636,6 +642,37 @@ public final class FoodConfirmationService: @unchecked Sendable {
         var state = FoodConfirmationState(input: input, reopened: saved)
         state.decision = .accepted
         return state
+    }
+
+    /// Input for logging a saved entry's food again as a new entry (recent foods). The source
+    /// candidate is restored and re-verified exactly as on reopen (reviewed web manifests are
+    /// rehashed and rebound); the saved product identity, corrections, decisions and the saved
+    /// edible quantity are not carried. Expectations are the source candidate's own, as on the
+    /// search route (a reviewed web candidate's edible quantity is always unknown).
+    public func relogInput(_ saved: StoredFoodConfirmation) throws -> PopulatedFoodConfirmation {
+        let restored = try restoredConfirmationInput(saved)
+        let source = restored.candidates[0]
+        return try PopulatedFoodConfirmation(evidence: restored.evidence, sourceReleases: restored.sourceReleases,
+            candidates: [source], expectedIdentity: source.candidate.identity, expectedEdibleQuantity: source.candidate.edibleQuantity)
+    }
+
+    /// A fresh, unsaved state for re-logging a saved entry: Confirm as a new entry with only the
+    /// last entered value and unit prefilled. Nothing is saved until Log.
+    public func relogState(logItemID: LogItemID) throws -> FoodConfirmationState? {
+        guard let saved = try reader.foodConfirmation(logItemID: logItemID) else { return nil }
+        var state = FoodConfirmationState(input: try relogInput(saved), prefillSourceQuantity: false)
+        state.relogSource = logItemID
+        let last = Self.lastEnteredAmount(saved.logItemVersion, conversion: saved.quantityConversion)
+        state.quantity = FoodQuantityDraft(value: last.value, unit: last.unit)
+        return state
+    }
+
+    /// The amount as the user entered it: the original input of a weight declaration, the source
+    /// quantity of a conversion, or otherwise the edible quantity. Value and unit only.
+    public static func lastEnteredAmount(_ log: LogItemVersion, conversion: QuantityConversionVersion?) -> (value: Double, unit: QuantityUnit) {
+        if let original = log.weightDeclaration?.originalInput { return (original.value, original.unit) }
+        if let conversion { return (conversion.sourceQuantity.value, conversion.sourceQuantity.unit) }
+        return (log.edibleQuantity.value, log.edibleQuantity.unit)
     }
 
     /// Estimate status of a saved entry, recomputed from its stored source evidence and decisions.

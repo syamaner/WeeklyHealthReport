@@ -37,7 +37,7 @@ public struct CanonicalFoodNutritionSummary: Codable, Equatable, Sendable {
 }
 
 public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
-    public static let foodContractVersion = 4
+    public static let foodContractVersion = 5
     public static let dailySchemaVersion = 4
 
     public let foodContractVersion: Int
@@ -60,6 +60,8 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
     }
 
     public static func minimumContractVersion(for records: LedgerMutation) -> Int {
+        // Reviewed web manifest v2 (single review action, recorded gate): contract 5.
+        if records.evidence.contains(where: { $0.captureMethodVersion.value == ReviewedFoodProposalConfirmation.version }) { return 5 }
         if records.assertions.contains(where: { $0.confirmation != nil }) { return 4 }
         if records.logItemVersions.contains(where: { $0.weightDeclaration != nil }) { return 3 }
         return records.logItemVersions.contains { log in
@@ -216,7 +218,8 @@ public struct FoodArchiveManifest: Codable, Equatable, Sendable {
         migrationIdentifiers = foodContractVersion == 1 ? [try LedgerText("food-ledger-v1")]
             : foodContractVersion == 2 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2")]
             : foodContractVersion == 3 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3")]
-            : [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4")]
+            : foodContractVersion == 4 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4")]
+            : [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4"), try LedgerText("food-ledger-v5")]
         self.sourceReleaseIDs = sourceReleaseIDs.sorted { $0.value < $1.value }
         self.watermarks = watermarks.sorted { $0.actorID.rawValue < $1.actorID.rawValue }
         self.recordCount = recordCount

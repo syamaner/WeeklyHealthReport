@@ -40,7 +40,7 @@ No projection exists (Home has only day previews). Two parts:
 - **`FoodRecentItemsProjection`** (pure, from `LedgerMutation`): current heads only, removed and superseded excluded. De-duplication key: `sourceReleaseID + recordID` of the current resolution; the row shows the source name, so a corrected product name is not shown (documented difference). `occurredAt` drives window and order; ties break by log item ID. Last amount is the head's entered value and unit. Estimate status from `FoodEntryEstimateStatus`.
 - **`FoodRecentItemsService`** (application, injected digester): filters items through `relogInput`, omitting any whose source cannot be restored, and applies the P1 limit.
 
-Tapping opens Confirm as a **new** entry from `relogInput` (source identity, edible quantity unknown, decisions asked again, value and unit prefilled). It reuses existing manifest evidence and never writes a new manifest. Nothing logs on a tap.
+Tapping opens Confirm as a **new** entry from `relogInput` (source identity and source edible quantity, decisions asked again, value and unit prefilled). It reuses existing manifest evidence and never writes a new manifest. Nothing logs on a tap.
 
 ## Entry routes (all reach the same Confirm)
 

@@ -1,0 +1,14 @@
+{
+  "fixture": "reviewed-web-v1",
+  "purpose": "Literal reviewed web manifest v1 records for manifest v2 contract test 1 (docs/generic-food-review-manifest-v2.md section 7).",
+  "producedBy": "ReviewedFoodProposalConfirmation.prepare at 9fc734d (reviewed-web-proposal-v1, food-proposal-binding-v7, reviewed-web-admission-v5), unchanged shipping code, synthetic tofu pudding source",
+  "clock": "1791712345.6789 seconds since 1970 (fractional milliseconds in reviewedAt)",
+  "query": "tofu pudding [market: Taiwan]",
+  "files": {
+    "representative-serving.json": "PopulatedFoodConfirmation, representative_estimate scope, per one source serving",
+    "representative-serving-manifest.json": "The retained manifest bytes of that record",
+    "exact-per-100g.json": "PopulatedFoodConfirmation, exact_product scope, per 100 g",
+    "exact-per-100g-manifest.json": "The retained manifest bytes of that record"
+  },
+  "personalData": "none"
+}
