@@ -119,17 +119,17 @@ Direct [edible-weight entry](docs/direct-edible-weight-contract-v1.md) keeps ori
 
 Generic-food matching is currently limited to deterministic local candidate
 ranking followed by explicit user selection or decline. The frozen
-[generic-food evaluation](docs/generic-food-match-evaluation.md) does not promote
+[generic-food evaluation](docs/archive/generic-food-match-evaluation.md) does not promote
 automatic acceptance and contains no personal-food validation.
-The delivered [offline generic-food search](docs/generic-food-search-delivery.md)
+The delivered [offline generic-food search](docs/archive/generic-food-search-delivery.md)
 uses bundled CoFID and separately labelled USDA US-composition candidates, shows
 source descriptions and differences, and records confirmed exact aliases for offline
-reuse. The [source expansion contract](docs/food-data-source-expansion-proposal-v1.md)
+reuse. The [source expansion contract](docs/archive/food-data-source-expansion-proposal-v1.md)
 pins Foundation/SR Legacy snapshots and preserves whole source records. The
 [narrow whole-milk volume rule](docs/cofid-whole-milk-volume-admission-v1.md)
 offers a separately sourced 1.03 estimate only for the selected CoFID whole
 pasteurised milk record after an explicit tap; other volume gaps remain unavailable.
-The [bounded search repair](docs/food-search-usability-v2.md) provides component suggestions
+The [bounded search repair](docs/archive/food-search-usability-v2.md) provides component suggestions
 for unsupported combined meals. Captured multi-source replays exercise the actual app coordinator; they do not
 establish fresh live retrieval accuracy or independent acceptance.
 The [unified search contract](docs/unified-food-search-contract-v1.md) now has an
@@ -206,10 +206,10 @@ confidence and never authorise saving. The initial capture profile
 does not support scanned labels, image-only or encrypted PDFs, JavaScript rendering, compressed responses or
 IPv6-only sources. The [integration contract and runbook](docs/generic-food-proposal-integration-v1.md)
 separates local implementation, live development probes and pending acceptance.
-The [repair evaluation](docs/generic-food-proposal-repair-results-20261004.md) reports
+The [repair evaluation](docs/archive/generic-food-proposal-repair-results-20261004.md) reports
 fresh UK, Taiwan and general cases alongside retained failures and actual costs.
 
-The [delivery readiness and device checklist](docs/unified-food-search-delivery-readiness-v1.md)
+The [delivery readiness and device checklist](docs/archive/unified-food-search-delivery-readiness-v1.md)
 separates local evidence from live acceptance. Named sirloin cuts rank before incidental
 parenthetical mentions. Whole-cow's-milk wording offers an explicit broader milk
 search. A narrow lentil/tomato-soup and porridge-with-water/milk grammar can search
@@ -218,7 +218,7 @@ only for these named-dish reviews; known compatible preparation ranks first. Cur
 local data supplies porridge alternatives, but the four evaluated soup descriptions
 still have no local nutrition match.
 
-The former [Gemini citation discovery](docs/gemini-grounded-food-discovery-plan-v1.md)
+The former [Gemini citation discovery](docs/archive/gemini-grounded-food-discovery-plan-v1.md)
 and manufacturer adapters remain in the package for regression coverage, but the
 app composition no longer instantiates Gemini. OpenRouter web review is a separate
 explicit action alongside local and optional OFF search. Live quality, device and
@@ -227,12 +227,12 @@ TestFlight acceptance remain separate from compilation and synthetic tests.
 The [pasted food-list input](docs/food-list-import.md) adds local quantity/unit
 parsing and a per-line review queue under **Food logging → Paste Food List**.
 Every saved line still requires explicit candidate confirmation.
-The [food-dictation flow](docs/food-voice-delivery.md) adds an optional **Dictate**
+The [food-dictation flow](docs/archive/food-voice-delivery.md) adds an optional **Dictate**
 button to that editor. On supported devices it uses on-device speech, then requires
 editable text and numeric/unit review before entering the same food-review queue.
 It does not save audio or automatically log food; physical speech checks remain
 separate from synthetic lifecycle tests.
-The [barcode entry](docs/barcode-beta-delivery.md) checks the existing exact local
+The [barcode entry](docs/archive/barcode-beta-delivery.md) checks the existing exact local
 library first and preserves the scan when falling back to generic search. On a GTIN
 miss, the approved [optional OFF lookup](docs/off-barcode-candidate-plan-v1.md) offers
 a foreground barcode-only request after disclosure, with explicit review before
@@ -249,7 +249,7 @@ Pasted lists resume after reopening the app. Inventory has its own versioned
 backup, available from the receipt-review Backup menu; existing food-ledger
 archives and daily health exports remain separate.
 
-[Nutrition-update review](docs/food-reresolution-delivery.md) compares saved product
+[Nutrition-update review](docs/archive/food-reresolution-delivery.md) compares saved product
 entries against an explicitly chosen installed source and matcher. It shows all
 39 nutrient states and provenance, requires acceptance and a reason, and appends
 versions without changing original evidence or previous exports. Only the bundled
@@ -531,7 +531,7 @@ For your own check, run a Debug build, select **Last 7 Completed Days**, and use
 7. **Blood pressure:** first let the monitor's companion app finish synchronising. In Health, open **Search > Heart > Blood Pressure**, then inspect the individual measurements for the same dates. In Diagnostics, confirm that every systolic/diastolic pair, timestamp and source matches one Health reading. Confirm that pre-14:00 readings enter Morning, readings from 17:00 enter Evening, and 14:00–16:59 readings appear only in the raw list. For each completed day and slot, average systolic and diastolic over the same paired readings. Then average those daily batch values across sampled days and compare the unrounded diagnostic result, sampled-day coverage and reading count. Finally confirm that the main-screen latest pair and latest batch timestamps can include today while the period averages do not.
 8. **Resting heart rate and HRV:** compare each valid day's diagnostic value with Health's daily view for the selected and immediately preceding equivalent periods. Average only the valid days.
 9. **Active energy and exercise:** compare the exact unrounded diagnostic totals over the selected dates before comparing rounded display values.
-10. **Workouts:** compare workout start dates, count and total duration. For Daily JSON schemas 7 and 8, follow [workout reader acceptance](docs/workout-reader-acceptance.md) to compare saved HealthKit activities, independent statistics, observed distance coverage and native zone availability. Synthetic simulator round trips establish only the tested simulator path; physical-device metadata survival and personal-data visibility remain separate acceptance.
+10. **Workouts:** compare workout start dates, count and total duration. For Daily JSON schemas 7 and 8, follow [workout reader acceptance](docs/archive/workout-reader-acceptance.md) to compare saved HealthKit activities, independent statistics, observed distance coverage and native zone availability. Synthetic simulator round trips establish only the tested simulator path; physical-device metadata survival and personal-data visibility remain separate acceptance.
 11. **Sleep:** compare each diagnostic night with the Health date on which you woke. If a night differs, check for overlapping third-party or manually entered records.
 12. **Medications:** compare every taken-event timestamp in Diagnostics with Health. Confirm that an unlogged medicine is absent and a changed strength appears as a separate row. Today's event enters the default report only after that day is complete.
 13. **Daily notes:** add, edit and delete invented text, then refresh the daily preview. Confirm `today.notes` matches the saved order exactly, a draft is absent, and any later saved-note change disables the old preview until refresh. On a separately authorised iPhone, test complete file protection with invented notes: lock during a pending draft save and after a prepared preview, confirm notes show temporary unavailability and export is disabled, then unlock and activate or tap Retry. Confirm the draft and last saved notes remain, the draft can be saved, and a new preview is required. Also verify the dedicated microphone in Airplane Mode for one supported locale, denial/restriction, interruption, backgrounding and editor dismissal; confirm typed and safely finalised text survives and that no audio file is retained.
@@ -553,7 +553,7 @@ Glucose, blood pressure and other health values are informational. The app provi
 
 ## Development notes
 
-[DEVELOPMENT_NOTES.md](DEVELOPMENT_NOTES.md) records the Codex-assisted development experiment and its bounded token and API-equivalent cost estimates.
+[DEVELOPMENT_NOTES.md](DEVELOPMENT_NOTES.md) records the agent-assisted development (Codex and Claude Code) and its bounded token and API-equivalent cost estimates.
 
 ## Licence
 

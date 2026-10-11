@@ -1233,7 +1233,7 @@ Full simulator validation passed 308 tests, 97.27% domain coverage and Xcode
 analysis. Focused checks passed 112 tests; the native iOS-27 synthetic adapter
 check also passed. Independent review found no remaining P1/P2 issues. All
 79 frozen Swift/project hashes and all five shared fixture digests are unchanged.
-See [the acceptance runbook](docs/workout-reader-acceptance.md) for evidence and
+See [the acceptance runbook](docs/archive/workout-reader-acceptance.md) for evidence and
 the separately authorised signed-device, HealthKit and real Drive boundaries.
 
 ## Privacy prerequisites for internal release 19 — 4 October 2026
@@ -1248,7 +1248,7 @@ Raw JSONL reconciliation reused the prior verified child/fork identity checks an
 
 Includes the narrow backup-exclusion/policy-access implementation, whole-app privacy documentation, focused and complete simulator validation, analysis and review coordination after the captured pre-edit boundary. Excludes preceding release preparation, root coordination, independent reviewer usage, this numeric insertion, subsequent protected delivery and signing/upload work. Those exclusions are not estimated. Private reproducible evidence: `/private/tmp/whr-privacy-accounting-baseline.json`, `/private/tmp/whr-privacy-accounting-final.json`, `/private/tmp/whr-privacy-usage-report.py`.
 
-Validation: 30 focused tests, 312 complete simulator tests, 97.26% domain coverage, Xcode analysis and unchanged 82 frozen input hashes. Independent review found no remaining P1/P2 code findings; policy wording corrections preceded the frozen gate. Public App Store questionnaire completion and supervised HealthKit/device acceptance remain separate, as recorded in the [internal-release privacy checkpoint](docs/internal-release-privacy-checkpoint.md).
+Validation: 30 focused tests, 312 complete simulator tests, 97.26% domain coverage, Xcode analysis and unchanged 82 frozen input hashes. Independent review found no remaining P1/P2 code findings; policy wording corrections preceded the frozen gate. Public App Store questionnaire completion and supervised HealthKit/device acceptance remain separate, as recorded in the [internal-release privacy checkpoint](docs/releases/internal-release-privacy-checkpoint.md).
 
 
 ## Internal TestFlight build19 delivery — 4 October 2026
@@ -1268,7 +1268,7 @@ Raw JSONL reconciliation verified the child/fork identities, inherited metadata,
 
 Includes preceding release preparation, archive-path investigation, post-privacy protected delivery and CI failure investigation/retry, signing/export/upload, App Store Connect policy/test-note/audience checks, receipt preparation and this child's PacePrompt24 UI support. Excludes parent and independent reviewer usage, the separately ledgered privacy implementation, this final numeric insertion and subsequent receipt-PR review corrections, delivery, private retention and handoff. Missing usage is not estimated. Exact interval reports and reconciliation script are retained privately with the release evidence.
 
-Result: build0.1.1(19) Testing for the existing internal group; one upload, no audience expansion. Actual uploaded and local-export IPA hashes, the earlier build17 artifact caveat, failed first PR CI attempt, successful exact-main checks and physical acceptance limits are recorded in the [delivery receipt](docs/internal-testflight-build19.md).
+Result: build0.1.1(19) Testing for the existing internal group; one upload, no audience expansion. Actual uploaded and local-export IPA hashes, the earlier build17 artifact caveat, failed first PR CI attempt, successful exact-main checks and physical acceptance limits are recorded in the [delivery receipt](docs/releases/internal-testflight-build19.md).
 
 
 ## HealthKit numeric metadata compatibility — 4 October 2026
@@ -1283,7 +1283,7 @@ Raw JSONL reconciliation verified the child/fork metadata, each event's model an
 
 Includes the adapter repair, synthetic native archive/fixture/boundary tests, acceptance documentation, focused and full validation, parent-review coordination and initial build-number preflight after the baseline. Excludes the preceding live-export investigation, parent and independent agent usage, this numeric insertion, subsequent protected delivery and signing/upload. Excluded usage is not estimated. Private evidence: `/private/tmp/whr-numeric-metadata-accounting-baseline.json`, `/private/tmp/whr-numeric-accounting-final.json` and `/private/tmp/whr-numeric-usage-report.py`.
 
-Validation:27 focused tests,316 complete simulator tests,97.26% domain coverage, static analysis passed and288 frozen tracked source/project/policy/acceptance hashes unchanged. Parent independently reviewed the three implementation/test/documentation inputs before the full gate; no blocking findings. Native secure-archive tests reproduce the representation-sensitive reader defect, but do not prove the raw type of the live Health record. Same-workout re-export remains required under the [acceptance procedure](docs/workout-reader-acceptance.md#numeric-metadata-compatibility).
+Validation:27 focused tests,316 complete simulator tests,97.26% domain coverage, static analysis passed and288 frozen tracked source/project/policy/acceptance hashes unchanged. Parent independently reviewed the three implementation/test/documentation inputs before the full gate; no blocking findings. Native secure-archive tests reproduce the representation-sensitive reader defect, but do not prove the raw type of the live Health record. Same-workout re-export remains required under the [acceptance procedure](docs/archive/workout-reader-acceptance.md#numeric-metadata-compatibility).
 
 ## Native distance investigation and accepted-distance repair — 4 October 2026
 
@@ -1314,7 +1314,7 @@ Model: `gpt-6-astra`, child session `01a10423-e413-7cd2-9170-60633cbb7eda`. Exac
 
 Validation: all 340 release-snapshot files verified; all 303 baseline app/test/project/package/config paths retained; 59 executable/package/test/resource/tool imports hash-identical. Only two prose changes and one boundary-check script deviation are declared. Offline food tests:689 passed,6 opt-in skips,0 failures. Boundary gate: normal pass,8 negative controls rejected,normal pass. Combined app:336 passed,1 explicit interactive skip,0 failures;96.93% domain coverage;analysis succeeded. Integrated native harness:13 cases,728 independent fields per transport,13 equal direct/archive pairs,2 named test methods passed,986 retained hashes verified. No personal Health access, provider calls or new Health writes. Initial sandbox/old-guard failures are retained and excluded from passing evidence.
 
-Private evidence includes `/private/tmp/whr-accepted-source-delivery-accounting.json`, `/private/tmp/whr-build21-integration-accounting-baseline.json`, `/private/tmp/whr-build21-integrated-native-frozen`, and the `/private/tmp/whr-build21-integration-*` gate reports. The published [integration note](docs/build21-reader-compatibility.md) describes source provenance and remaining device/release boundaries.
+Private evidence includes `/private/tmp/whr-accepted-source-delivery-accounting.json`, `/private/tmp/whr-build21-integration-accounting-baseline.json`, `/private/tmp/whr-build21-integrated-native-frozen`, and the `/private/tmp/whr-build21-integration-*` gate reports. The published [integration note](docs/releases/build21-reader-compatibility.md) describes source provenance and remaining device/release boundaries.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -1334,7 +1334,7 @@ This bounded `gpt-6-astra` child-session phase starts at the preceding integrati
 
 Pricing checked 4 October 2026: [official model rates](https://developers.openai.com/api/docs/models/gpt-6-astra), USD10/M uncached input,1/M cached input,12.50/M cache-write input,50/M output; above272,000 input,2× input and1.5× output rates apply per request. Reasoning is a subset of output. This is an API-equivalent comparison, not a ChatGPT subscription charge.
 
-Private evidence: `whr-build22-delivery-accounting-final.json`; signed source and release evidence are described in [the build22 receipt](docs/internal-testflight-build22.md).
+Private evidence: `whr-build22-delivery-accounting-final.json`; signed source and release evidence are described in [the build22 receipt](docs/releases/internal-testflight-build22.md).
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |

@@ -26,11 +26,11 @@ Replay the original captured products and original queries through the real Swif
 
 Run focused Swift tests, full FoodLedgerKit tests, simulator suite and static analysis after the slice stabilises. Save/reopen tests must retain selected source, explicit preparation, quantity and unknowns. A later bounded live run validates actual endpoints and timing; separate device testing validates the one-search experience. This proposal is not release acceptance.
 
-Evidence: [combined replay](../Tools/LocalHybridSearchEvaluation/v44/findings.md), [actual Swift adapter parity diagnostic](../Tools/LocalHybridSearchEvaluation/v45/findings.md). Live story: [#148](https://github.com/syamaner/WeeklyHealthReport/issues/148).
+Evidence: [combined replay](../../Tools/LocalHybridSearchEvaluation/v44/findings.md), [actual Swift adapter parity diagnostic](../../Tools/LocalHybridSearchEvaluation/v45/findings.md). Live story: [#148](https://github.com/syamaner/WeeklyHealthReport/issues/148).
 
 ## Budget implementation checkpoint — 30 September 2026
 
-The approved transport is implemented locally in the existing worktree: 325 package tests (one optional skip), 279 simulator tests and static analysis passed. Issues #148/#172/#100 are updated. No commit, push, release or live provider calls. Runtime relevance, nutrition admission and Gemini remain later work. See [v46 findings](../Tools/LocalHybridSearchEvaluation/v46/findings.md).
+The approved transport is implemented locally in the existing worktree: 325 package tests (one optional skip), 279 simulator tests and static analysis passed. Issues #148/#172/#100 are updated. No commit, push, release or live provider calls. Runtime relevance, nutrition admission and Gemini remain later work. See [v46 findings](../../Tools/LocalHybridSearchEvaluation/v46/findings.md).
 
 ## Direct sodium admission checkpoint — 30 September 2026
 

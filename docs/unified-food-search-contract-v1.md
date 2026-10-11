@@ -7,7 +7,7 @@ uses a separate explicit review action and replaces the app's automatic/debug
 Gemini composition. The historical Gemini implementation and evidence below are
 retained as dated contracts, not a description of the current app wiring.
 
-Status: agreed 29 September 2026; coordinator/UI and the first OFF database adapter with default-off settings implemented locally. Default-off Gemini composition and Alpro/Arla/Oatly UK source admission implemented locally on 30 September. Narrow named-dish discovery and labelled unknown-preparation alternatives are locally validated. See [delivery readiness](unified-food-search-delivery-readiness-v1.md); broader source coverage, fresh live quality and device acceptance remain pending.
+Status: agreed 29 September 2026; coordinator/UI and the first OFF database adapter with default-off settings implemented locally. Default-off Gemini composition and Alpro/Arla/Oatly UK source admission implemented locally on 30 September. Narrow named-dish discovery and labelled unknown-preparation alternatives are locally validated. See [delivery readiness](archive/unified-food-search-delivery-readiness-v1.md); broader source coverage, fresh live quality and device acceptance remain pending.
 Stories: [#148](https://github.com/syamaner/WeeklyHealthReport/issues/148),
 [#172](https://github.com/syamaner/WeeklyHealthReport/issues/172),
 [#100](https://github.com/syamaner/WeeklyHealthReport/issues/100).
@@ -79,7 +79,7 @@ diary history, saved-food records or capture evidence to remote requests.
 
 ## Evidence and evaluation
 
-The old explicit-tap [v1 discovery contract](gemini-grounded-food-discovery-plan-v1.md)
+The old explicit-tap [v1 discovery contract](archive/gemini-grounded-food-discovery-plan-v1.md)
 is historical delivered behaviour, superseded as the target product experience.
 Citation leads remain unverified until the separate nutrition admission contract passes.
 The existing citation-only adapter cannot satisfy a nutrition-enrichment port unchanged.

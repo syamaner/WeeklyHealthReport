@@ -6,7 +6,7 @@ The [v1 metric contract](nutrition-ai-metric-contract-v1.md) defines the working
 
 The [local evaluation inventory](nutrition-ai-evaluation-inventory-v1.md) maps existing suites and test evidence to those metrics, records baseline compatibility and exposure status, and provides the implementation checklist for the offline spike. The inventory audit is complete; no fresh quality run was made.
 
-The [offline spike result](nutrition-ai-offline-spike-v1.md) records the first executed integration: 511 parser regressions, 20 historical extraction cases and two production save-service probes in one report. The [runner](../Tools/NutritionEvaluationSpike/README.md) documents local execution and its evidence boundaries.
+The [offline spike result](archive/nutrition-ai-offline-spike-v1.md) records the first executed integration: 511 parser regressions, 20 historical extraction cases and two production save-service probes in one report. The [runner](../Tools/NutritionEvaluationSpike/README.md) documents local execution and its evidence boundaries.
 
 This plan defines a common evaluation contract for the nutrition journey and its AI components, followed by a staged harness that produces a meaningful local report. The immediate priority is to agree what is measured and how it is judged. Promptfoo is the provisional runner choice, subject to a small offline integration spike.
 
@@ -29,7 +29,7 @@ The repository already contains useful component evaluations. Inventory their ex
 | --- | --- | --- |
 | [Food query evaluation](../Tools/FoodQueryEvaluation/README.md) | Parsing, routing and quantity scoring | Exposed synthetic scenarios are development regressions, not independent acceptance |
 | [Search quality evaluation](../Tools/FoodSearchQuality/README.md) | Ranked retrieval and source coverage | Broad food relevance does not establish exact identity or variant correctness |
-| [Generic food match evaluation](generic-food-match-evaluation.md) | Existing matching judgements and policy | Preserve historical contracts and result provenance |
+| [Generic food match evaluation](archive/generic-food-match-evaluation.md) | Existing matching judgements and policy | Preserve historical contracts and result provenance |
 | [OCR evaluation](../Tools/FoodOCREvaluation/README.md) | Structured panel extraction and correction workflow | Respect existing frozen splits, gate history and family-coverage requirements |
 | [Gemini nutrition extraction evaluation](../Tools/GeminiNutritionExtractionEvaluation/README.md) | Source-supported field extraction and abstention | Experimental outputs are not app nutrition-admission evidence |
 | [Local hybrid evaluation](../Tools/LocalHybridSearchEvaluation/README.md) | Local versus assisted candidate coverage | Distinguish verified leads from admitted nutrient records |
@@ -269,7 +269,7 @@ The first observations expose a manual-capture/generic-estimate evidence mismatc
 production admission. Keep supported-save failures visible and retain expected references;
 blocking everything cannot earn outcome success. The next production repair and its
 closed-boundary requirements are recorded in
-[the failure analysis](food-list-generic-estimate-evaluation-blocker-v1.md).
+[the failure analysis](archive/food-list-generic-estimate-evaluation-blocker-v1.md).
 
 ### Pasted-list evidence repair, 2 October 2026
 
@@ -291,7 +291,7 @@ Live provider and physical-device work still require their separate authority.
 ### Integrated next-test-build candidate, 2 October 2026
 
 Local test-build readiness is now documented in
-[nutrition test-build readiness](nutrition-test-build-readiness-v1.md). The isolated
+[nutrition test-build readiness](archive/nutrition-test-build-readiness-v1.md). The isolated
 candidate preserves current main/build-16 behaviour and incorporates the nutrition
 repairs, including negation-safe preparation interpretation. All 43 linked or
 confirmed-input synthetic journey cases pass, along with full package/simulator,

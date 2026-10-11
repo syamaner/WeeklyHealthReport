@@ -33,7 +33,7 @@ Returned to Food Log for 27 September 2026: **0 entries**, matching the initial 
 
 ## Software repair and later device retest
 
-Issue #161 uses the versioned [confirmation v2 contract](food-confirmation-contract-v2.md).
+Issue #161 uses the versioned [confirmation v2 contract](../food-confirmation-contract-v2.md).
 The exploratory observations above are preserved as originally recorded. The
 repair has not been installed or checked on the returned phone. No new TestFlight
 upload or iPhone Mirroring access is authorised by this change.

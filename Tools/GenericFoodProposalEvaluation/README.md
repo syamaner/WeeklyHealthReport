@@ -253,7 +253,7 @@ distinct facts.
 
 ## Prospective follow-up on 4 October
 
-The [24-source holdout](../../docs/generic-food-proposal-holdout-20261004.md)
+The [24-source holdout](../../docs/archive/generic-food-proposal-holdout-20261004.md)
 failed its predeclared gates: 20/24 captures, 13/20 correct captured-source review
 outcomes, and 4/6 matching primary-source searches. The six searches reuse foods
 from the 24-source cohort; they are not six additional independent foods. All 26

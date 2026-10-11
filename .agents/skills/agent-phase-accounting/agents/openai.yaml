@@ -1,0 +1,4 @@
+interface:
+  display_name: "Agent Phase Accounting"
+  short_description: "Measure bounded Codex or Claude Code token usage and cost"
+  default_prompt: "Use $agent-phase-accounting to measure this implementation phase and update the project ledger."

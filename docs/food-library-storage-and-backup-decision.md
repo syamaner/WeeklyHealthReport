@@ -8,7 +8,7 @@ Google Drive, alter OAuth, or export personal food data.
 
 This decision consumes the normative
 [`food-identity-nutrition-contract.md`](food-identity-nutrition-contract.md) and
-the accepted [`food-log-ux-design-plan.md`](food-log-ux-design-plan.md). If this
+the accepted [`food-log-ux-design-plan.md`](archive/food-log-ux-design-plan.md). If this
 document conflicts with either contract's identity, evidence, nutrient-state or
 interaction rules, those earlier contracts win.
 

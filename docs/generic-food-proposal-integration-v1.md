@@ -19,7 +19,7 @@ and other agents' checkouts are not edited.
 > 4/4 required abstentions and primary search 6/6. The exposed regression scored 17/20 under unchanged gold.
 > App confirmation now requires successful Luna applicability checking after Grok extraction; no Gemini/Jev calls.
 > New cost: 66 calls, $0.921713950, all known. Package/evaluator/simulator/static-analysis gates passed.
-> Read the [repair results and limitations](generic-food-proposal-repair-results-20261004.md).
+> Read the [repair results and limitations](archive/generic-food-proposal-repair-results-20261004.md).
 > Changes remain local and uncommitted. Earlier checkpoints below are historical, including the failed original holdout.
 
 Current validation: 694 package tests (5 opt-in skips), 114 evaluator tests, 315 simulator tests
@@ -949,7 +949,7 @@ so no additional simulator run was needed or started.
 
 ## Requirements audit: 09:25 London, 4 October
 
-The [completion audit](generic-food-proposal-completion-audit-v1.md) maps the
+The [completion audit](archive/generic-food-proposal-completion-audit-v1.md) maps the
 original requirements to current source, tests and retained live evidence. It
 confirms 16 user descriptor seeds within the 24 authored cases (16 local/general,
 8 Taiwan-market), while preserving their fictional-nutrition label. The TFDA

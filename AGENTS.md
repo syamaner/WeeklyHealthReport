@@ -1,82 +1,97 @@
 # WeeklyHealthReport agent guide
 
-This file applies to the whole repository. Keep it concise; exact metric semantics and Apple Health validation steps live in `README.md`.
+Shared rules for every coding agent in this repository (Codex reads this file directly; Claude Code reads it through `CLAUDE.md`). Keep it short. Metric semantics live in `README.md`, contracts in [`docs/`](docs/README.md), egress in [`docs/privacy-and-egress.md`](docs/privacy-and-egress.md) and the current product direction in [`docs/ux-revamp-v1.md`](docs/ux-revamp-v1.md).
 
 ## Priorities
 
 1. Correctness and privacy before feature count or speed.
-2. Preserve completed-day periods, daily-first aggregation and explicit `No data` states.
-3. Keep calculations transparent enough to reproduce from Developer Diagnostics.
-4. Make the smallest coherent change and preserve unrelated user work.
+2. The current programme is the UX revamp (#140, phases #194 to #200). Broader feature expansion is paused until it lands.
+3. Make the smallest coherent change, keep calculations reproducible from Developer tools, and preserve unrelated work.
 
-## Before changing code
+## Product rules (closed; change only through a versioned contract)
 
-- Read the relevant README semantics, model, HealthKit query, formatter, view-model flow and tests.
-- Check `git status` and do not overwrite unrelated or uncommitted changes.
-- For a new HealthKit metric, investigate current official Apple documentation and propose the aggregation semantics before implementation.
-- Treat unavailable reads as either no visible data or no access. HealthKit does not disclose read denial, so never report zero or a definite denial without evidence.
+- **HealthKit is read-only.** Authorisation `toShare` stays empty. HealthKit does not disclose read denial: say "no visible data or no access", never zero or a definite denial.
+- **Egress** is limited to the destinations in [`docs/privacy-and-egress.md`](docs/privacy-and-egress.md). Adding or widening one needs a contract, a policy update and explicit user approval.
+- **Unknown is never zero; empty is not zero.** Bounds stay bounds, estimates are labelled, partial totals are known minimums.
+- **Three day rules stay distinct.** Health report period averages use local-calendar completed days (start included, end excluded, today omitted), aggregated within each day first and then weighting days equally unless `README.md` defines otherwise. The Daily JSON export covers one selected day under [`docs/daily-export-contract.md`](docs/daily-export-contract.md): today from local midnight to the frozen refresh cutoff, or one of the previous seven complete days. Home's "today so far" values are a separate, labelled projection. A latest measurement may use its documented lookback and may include today independently of completed-day summaries.
+- **Use HealthKit statistics** for cumulative and source-resolved values; never sum overlapping sources by hand. Convert units at the query boundary. Keep correlated records (systolic/diastolic) as intact pairs.
+- **Food records are versioned and append-only.** Every save is an explicit user action bound to its source evidence; no automatic selection or saving. Model output, citations or confidence never authorise nutrition by themselves.
+- **Show every metric consistently** on the Health screen, in Copy all and in Developer tools unless its specification says otherwise.
+- **No medical classification,** interpretation, targets, diagnosis or treatment advice.
+- Stored records, archives and exports must decode and re-encode unchanged across versions.
 
-## Architecture defaults and gates
+## Architecture
 
-- Apply SOLID pragmatically to new features and substantial changes. Separate domain rules, application orchestration, infrastructure adapters and presentation.
-- Before substantial implementation, identify responsibilities, dependency direction, stable invariants, credible extension axes and the contract tests that protect them. Resolve architecture concerns before writing production code.
-- Keep pure domain code independent of SwiftUI, UIKit, HealthKit, databases, filesystems, networks, provider SDKs and concrete clocks or identifier generators.
-- Put extension points at volatile boundaries such as capture mechanisms, providers, persistence adapters, policies and projections. Adding an ordinary adapter must not require modifying settled domain logic.
-- Keep correctness, privacy, identity, provenance, aggregation and schema invariants intentionally closed. Changing one requires an explicit contract or schema version, not a plug-in override.
-- Prefer cohesive, consumer-owned capability protocols over universal repositories, broad service interfaces or protocol-per-method frameworks.
-- Do not expose framework- or persistence-specific types across an abstraction boundary. Wire concrete implementations only at the composition root.
-- Require alternate implementations of a port to pass the same behavioural contract tests. Inject clocks, identifiers, randomness, hashing and external clients when determinism or substitution matters.
-- Enforce important boundaries with Swift target/package dependencies, forbidden-import checks or equivalent compile-time/CI mechanisms where practical; instructions alone are not proof.
-- Avoid speculative abstraction for small or genuinely fixed behaviour. If a requested implementation conflicts with these defaults, explain the concrete trade-off and obtain agreement before proceeding.
+- Layers: **domain** (pure rules and types) → **application** (policies, orchestration, ports) → **infrastructure** (HealthKit, GRDB, providers, Keychain, Drive) and **presentation** (SwiftUI, view models, copy). Wire concrete adapters only at the composition root.
+- Apply SOLID pragmatically to new features and substantial changes: separate domain rules, application orchestration, infrastructure adapters and presentation.
+- Domain and application code never depend on SwiftUI, UIKit, HealthKit, databases (GRDB or otherwise), filesystems, networks, provider SDKs, or concrete clocks, identifier generators, randomness or hashing. Inject these where determinism or substitution matters.
+- Health report homes: aggregation in pure model code, presentation in `HealthReportFormatter`, HealthKit access in `HealthKitClient`. Centralise shared dates, units and policy values so query and aggregation windows cannot drift.
+- Put extension points only where variation is real: entry routes, confirmation requirements, Home cards and Health tiles, Settings sections, providers and stores. Adding an ordinary adapter must not require modifying settled domain logic. Keep correctness, privacy, identity, provenance, aggregation and schema rules closed.
+- Extend existing pure types and formatters before adding abstraction. Prefer small consumer-owned protocols. No universal metric framework, generic repository or protocol per method. Framework and persistence types do not cross ports.
+- Alternate implementations of a port pass the same contract tests. Package targets and `Packages/FoodLedgerKit/Scripts/check-boundaries.sh` enforce dependencies; extend them when adding targets.
+- Before substantial work, write the architecture gate (responsibilities, dependency direction, invariants, extension axes, contract tests) in the phase spec or PR. Resolve concerns before production code. If a request conflicts with these defaults, explain the trade-off and get agreement first.
 
-## HealthKit and reporting invariants
+## UX rules
 
-- Request read access only. Keep HealthKit authorization `toShare` empty.
-- Do not add analytics, background delivery, backends or unrelated accounts/persistence/networking. The user-approved exception is manual Google Drive export under `docs/daily-export-contract.md` and `docs/google-drive-export-plan.md`: narrow `drive.file` consent, secure credentials, minimal export-identity metadata and direct user-initiated transport. Prove synthetic transport before HealthKit integration; no personal-data export without explicit authority. Food search permits local-first and optional online database enrichment under `docs/unified-food-search-contract-v1.md`, plus explicit OpenRouter generic source review under `docs/generic-food-proposal-integration-v1.md`. Only displayed food terms and captured public source text may leave the device; never HealthKit/history payloads. User-owned credentials use ThisDeviceOnly Keychain. The current app composition replaces Gemini with OpenRouter; historical Gemini contracts remain regression evidence. AI proposals require source binding, explicit review and versioned confirmation; citations or confidence alone never authorise nutrition or saving.
-- Use HealthKit statistics for cumulative or source-resolved values; do not manually sum overlapping sources.
-- Preserve correlated records, such as systolic and diastolic blood pressure, as intact pairs. Never join unrelated samples.
-- Convert HealthKit units at the query boundary and pass plain values into pure models.
-- Reporting intervals use the local calendar, include the start, exclude the end and omit the current partial day.
-- Aggregate within each completed day first, then aggregate days with equal weight unless the README explicitly defines another method.
-- A latest measurement may use its documented lookback and include today independently of the completed-day summary.
-- Put aggregation in pure model code, presentation in `HealthReportFormatter`, and HealthKit access in `HealthKitClient`.
-- Show every metric consistently in the main screen, copied report and Developer Diagnostics unless its specification says otherwise.
-- Preserve explicit loading, unavailable, failed and no-data states.
-- Do not add medical classification, interpretation, targets, diagnosis or treatment advice.
+- One journey per intent; every food entry route ends on the shared Confirm screen with one Log action.
+- Show a rule where it blocks saving; put source identifiers, scores and provider stages behind details or in Developer tools.
+- Preserve explicit loading, empty, partial, blocked, failed and no-data states. Copy uses British spelling, plain language and no emoji.
+- Native grouped iOS style, Dynamic Type, VoiceOver labels and 44 pt targets; never rely on colour alone.
+- Wireframes in `docs/designs/` are design input; they do not authorise capabilities.
 
-## Implementation and efficiency protocol
+## Working method
 
-- Use `rg` for discovery and read focused ranges instead of repeatedly dumping large files.
-- Confirm semantics and edge cases before editing; correctness repairs are more expensive than a short design pass.
-- Extend existing pure types and formatters before adding abstraction. Do not build a universal metric framework for unlike data.
-- Centralise shared dates, units and machine-used policy values so query and aggregation windows cannot drift.
-- Add pure aggregation and formatting tests with synthetic fixtures. Add view-model tests when orchestration changes.
-- Run the narrowest relevant tests while iterating. Run the complete simulator suite once after code stabilises.
-- Run Xcode static analysis for substantive Swift changes. Do not repeat full builds after documentation-only changes.
-- Parallelise independent read-only checks when useful, but avoid delegation or extra review loops for small, tightly coupled changes.
-- Review `git diff --check`, the final diff and repository status before handoff.
+- Check `git status` first and never overwrite unrelated changes. Use `rg` and focused reads.
+- Before changing code, read the relevant README semantics, contracts, models, queries, formatters, view-model flow and tests, and confirm semantics and edge cases. Correctness repairs cost more than a short design pass.
+- For a HealthKit metric, use the `healthkit-metric-delivery` skill and current Apple documentation; propose semantics before code.
+- Add pure tests with synthetic fixtures for rules, view-model tests for orchestration and simulator UI tests for routes. Run the narrowest tests while iterating and the full gates once the code is stable.
+- Parallelise independent read-only checks; skip extra review loops for small, tightly coupled changes.
 
-## Repository skills
+## Delivery
 
-- Canonical cross-agent skills live in `.agents/skills/`.
-- `.claude/skills/` contains relative symlinks to the canonical skills so Claude Code and Codex use one maintained copy.
-- Keep skill entrypoints compatible with the Agent Skills `SKILL.md` format. Tool-specific metadata may be ignored by the other agent.
-- Validate both the canonical path and the Claude Code symlink after changing a skill.
+- One branch per issue (`feat/<issue>-<slug>`, `fix/…`, `docs/…`, `chore/…`), one PR per phase, `Closes #<issue>` in the body. Stage only files in scope.
+- Commit, push and open PRs only when the user asks for delivery. Never merge, push to `main`, tag, release, upload to TestFlight or change other remote state unless asked; the user owns the merge decision.
+- Before handoff, review `git diff --check`, the final diff and the final `git status`. After pushing, confirm local and remote heads match. Report tests, analysis, device result, commit or PR state and any manual validation still outstanding.
+- For HealthKit changes, document a reproducible Apple Health comparison using Developer tools.
+- If device installation is requested and a trusted iPhone is available, build with local signing and install; report locked-device or signing failures precisely.
+- Simulator runs prove software behaviour only. Never describe a signed build or installation as HealthKit validation; the user approves access and compares values on the device.
 
-## Validation and delivery
+## Validation gates
 
-- The simulator proves pure logic and UI compilation, not representative personal HealthKit behaviour.
-- For HealthKit changes, document a reproducible Apple Health comparison using Developer Diagnostics.
-- If device installation is requested and a trusted iPhone is available, build with local signing and install the app. Report locked-device or signing failures precisely.
-- Never describe a signed build or successful installation as live HealthKit validation. The user must approve access and compare visible values on the device.
-- Do not commit, push, create issues or otherwise change remote state unless the user requests it.
-- When asked to commit, stage only files in scope. When asked to push, verify local and remote heads afterwards.
-- Report the tests, analysis, device result, commit or push state and any remaining manual validation boundary.
+Run each command on its own and report its real output. Documentation-only changes need only `git diff --check`, with no toolchain preflight.
 
-## Cost accounting
+```bash
+swift test --package-path Packages/FoodLedgerKit
+bash Packages/FoodLedgerKit/Scripts/check-boundaries.sh
+swift test --package-path Packages/DriveExportKit
+xcodebuild analyze -project WeeklyHealthReport.xcodeproj -scheme WeeklyHealthReport -destination 'platform=iOS Simulator,name=iPhone 17 Pro' CODE_SIGNING_ALLOWED=NO
+xcodebuild test -project WeeklyHealthReport.xcodeproj -scheme WeeklyHealthReport -destination 'platform=iOS Simulator,name=iPhone 17 Pro' ENABLE_DEBUG_DYLIB=NO CODE_SIGNING_ALLOWED=NO
+git diff --check
+```
 
-- For a substantial implementation phase, append one bounded usage row to `DEVELOPMENT_NOTES.md` when requested or already included in the task.
-- Record total input, cached input, output and total tokens from the measured phase; use the rate assumptions documented in that file.
-- Label API-equivalent cost as a comparison, not an actual ChatGPT subscription charge.
-- State what discussion, subagent, hosted-review or ledger-edit usage is included or excluded. Do not estimate missing usage.
-- Do not present token totals as productivity, quality or provider-causation evidence.
+When search or query code changes, also run the evaluation steps in `.github/workflows/ios-ci.yml` (FoodSearchQuality and FoodQueryEvaluation). CI is the reference if these drift.
+
+## Agent roles and handover
+
+Named roles live in [`.agents/agents/`](.agents/agents/) (symlinked into `.claude/agents/`, where Claude Code registers them as subagents). Codex does not register them automatically: adopt a role by reading its file and mapping its tool list to the equivalent Codex tools (read-only roles use only read and search commands).
+
+| Role | Use |
+|---|---|
+| `architecture-gate` | Read-only check of a planned change before code |
+| `invariant-reviewer` | Read-only review of a diff against the product rules and egress list |
+| `validator` | Runs the validation gates and reports verbatim |
+| `journey-qa` | Walks a phase's journey in the simulator against its checklist |
+
+Work moves between Codex and Claude Code through durable records, not chat history. Before stopping, write a handover: what changed (branch, commits, PR), evidence run, what is next and open questions.
+
+- If the task authorises remote writes and a phase issue or PR exists, post the handover as a comment there.
+- Otherwise (read-only reviews, no authority for remote writes, or no issue), give the handover in the final reply as a paste-ready block for the user to post or pass on.
+
+On pickup, read this file, the issue thread and the PR before acting.
+
+## Skills
+
+Canonical skills live in `.agents/skills/` with relative symlinks in `.claude/skills/`; keep `SKILL.md` compatible with both agents and check both paths after changing one.
+
+- `healthkit-metric-delivery`: HealthKit query-to-report changes.
+- `agent-phase-accounting`: token and API-equivalent cost for a phase, only when the user asks or the task already includes it. Record rows in `DEVELOPMENT_NOTES.md` with the rate assumptions documented there; label costs as comparisons, state exclusions, and never present totals as productivity or quality evidence.

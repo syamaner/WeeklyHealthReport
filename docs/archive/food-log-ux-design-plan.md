@@ -4,8 +4,8 @@ Status: **accepted planning baseline — implementation not started**
 
 Design artefacts:
 
-- [interactive HTML bundle](designs/food-log-all-screens.html)
-- [two-page PDF contact sheet](designs/food-log-all-screens.pdf)
+- [interactive HTML bundle](../designs/food-log-all-screens.html)
+- [two-page PDF contact sheet](../designs/food-log-all-screens.pdf)
 
 HTML SHA-256:
 `7d8ed9c96def616367ebbdb4f565324347f7c8cbf48aef8c18f253a601ad4201`
@@ -27,19 +27,19 @@ repository.
 
 ### Entry routes
 
-![Food log home with barcode, label-photo and generic-search routes](designs/food-log-screens/food-log-entry-routes.png)
+![Food log home with barcode, label-photo and generic-search routes](../designs/food-log-screens/food-log-entry-routes.png)
 
 ### OCR review
 
-![Nutrition-label OCR review with basis selection, a flagged salt value and a preserved bound](designs/food-log-screens/food-log-ocr-review.png)
+![Nutrition-label OCR review with basis selection, a flagged salt value and a preserved bound](../designs/food-log-screens/food-log-ocr-review.png)
 
 ### Closest-match decision
 
-![Closest-match comparison showing a material drained-state difference and explicit user choices](designs/food-log-screens/food-log-closest-match.png)
+![Closest-match comparison showing a material drained-state difference and explicit user choices](../designs/food-log-screens/food-log-closest-match.png)
 
 ### Plate subtraction
 
-![Plate subtraction screen with total weight, saved empty-plate weight and calculated food weight](designs/food-log-screens/food-log-plate-subtraction.png)
+![Plate subtraction screen with total weight, saved empty-plate weight and calculated food weight](../designs/food-log-screens/food-log-plate-subtraction.png)
 
 ## Accepted interaction contract
 
@@ -136,7 +136,7 @@ The issue graph must be re-triaged before implementation:
 
 - #90 must preserve OCR/search candidates, source evidence, user selections,
   overrides, quantity conversions and saved-plate versions in the local protocol.
-  Its proposed [storage and backup decision](food-library-storage-and-backup-decision.md)
+  Its proposed [storage and backup decision](../food-library-storage-and-backup-decision.md)
   selects a SQLite/GRDB ledger, append-only operations, deterministic backup
   generations and staged conflict-preserving merge.
 - #88 and #92 are now MVP-critical evidence gates rather than optional polish.

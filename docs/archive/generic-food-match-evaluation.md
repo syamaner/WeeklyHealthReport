@@ -6,7 +6,7 @@ Evidence date: **21 September 2026**
 
 Issue: [#92](https://github.com/syamaner/WeeklyHealthReport/issues/92)
 
-Normative contract: [Food identity and nutrition provenance contract](food-identity-nutrition-contract.md)
+Normative contract: [Food identity and nutrition provenance contract](../food-identity-nutrition-contract.md)
 
 ## Decision
 
