@@ -106,7 +106,7 @@ final class GRDBFailureTests: XCTestCase {
     }
 
     func testHistoricalMigrationsPreserveEveryCanonicalRecordAndOperationHash() throws {
-        for oldVersion in [1, 2, 3] {
+        for oldVersion in [1, 2, 3, 4] {
             let directory = try temporaryDirectory()
             defer { try? FileManager.default.removeItem(at: directory) }
             let database = directory.appendingPathComponent("food-ledger-v1.sqlite")
@@ -125,7 +125,8 @@ final class GRDBFailureTests: XCTestCase {
                 try queue.write { db in
                     if oldVersion == 1 { try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v2_log_removal'") }
                     if oldVersion <= 2 { try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v3_weight_declaration'") }
-                    try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v4_confirmation_decisions'")
+                    if oldVersion <= 3 { try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v4_confirmation_decisions'") }
+                    try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v5_review_manifest'")
                     try db.execute(sql: "UPDATE ledger_metadata SET value = ? WHERE key = 'schema_identity'", arguments: ["food-ledger-v\(oldVersion)"])
                     try db.execute(sql: "PRAGMA user_version = \(oldVersion)")
                 }
@@ -139,7 +140,7 @@ final class GRDBFailureTests: XCTestCase {
             let queue = try DatabaseQueue(path: database.path)
             try queue.read { db in
                 XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), FoodLedgerGRDBStore.schemaVersion)
-                XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v4")
+                XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v5")
         }
         }
     }
@@ -160,21 +161,21 @@ final class GRDBFailureTests: XCTestCase {
         }
     }
 
-    func testSchemaFourIsDeclinedByAnOlderOpenerAndNewerSchemasAreDeclinedHere() throws {
+    func testSchemaFiveIsDeclinedByAnOlderOpenerAndNewerSchemasAreDeclinedHere() throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let database = directory.appendingPathComponent("food-ledger-v1.sqlite")
         _ = try FoodLedgerGRDBStore.temporary(directory: directory)
         let queue = try DatabaseQueue(path: database.path)
         try queue.read { db in
-            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 4)
-            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v4")
+            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 5)
+            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v5")
         }
-        // A schema-3 binary applies the same pre-migration rule (user_version > its schemaVersion):
-        // simulate it by presenting this build with the next schema.
-        try queue.write { db in try db.execute(sql: "PRAGMA user_version = 5") }
+        // A schema-4 binary applies the same pre-migration rule (user_version > its schemaVersion),
+        // so it throws unknownSchema(5) for this store: simulate it by presenting this build with the next schema.
+        try queue.write { db in try db.execute(sql: "PRAGMA user_version = 6") }
         XCTAssertThrowsError(try FoodLedgerGRDBStore.temporary(directory: directory)) {
-            XCTAssertEqual($0 as? FoodLedgerStoreError, .unknownSchema(5))
+            XCTAssertEqual($0 as? FoodLedgerStoreError, .unknownSchema(6))
         }
     }
 

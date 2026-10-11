@@ -96,6 +96,20 @@ public struct GenericFoodMatch: Equatable, Sendable {
     }
 }
 
+extension GenericFoodConfirmationRoute {
+    /// The explicitly chosen candidate as the confirmation input: chosen first, and the
+    /// expectations are the chosen candidate's own, so every entry route (search, list) yields
+    /// the same requirements for the same choice. Invalid indices never fall back to another food.
+    public func choosing(_ index: Int) -> PopulatedFoodConfirmation? {
+        let input = confirmation
+        guard input.candidates.indices.contains(index) else { return nil }
+        let chosen = input.candidates[index]
+        return try? PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: input.sourceReleases,
+            candidates: [chosen] + input.candidates.indices.filter { $0 != index }.map { input.candidates[$0] },
+            expectedIdentity: chosen.candidate.identity, expectedEdibleQuantity: chosen.candidate.edibleQuantity)
+    }
+}
+
 public struct GenericFoodConfirmationRoute: Equatable, Sendable {
     public let confirmation: PopulatedFoodConfirmation
     public let matches: [GenericFoodMatch]

@@ -20,7 +20,7 @@ public struct ProtectedDataAvailability: Sendable {
 public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, FoodConfirmationReading,
     EvidenceAttachmentStoring, FoodArchiveLedgerAccess, @unchecked Sendable
 {
-    public static let schemaVersion = 4
+    public static let schemaVersion = 5
     public static let applicationID = 0x5748_5246 // WHRF
 
     private let databaseQueue: DatabaseQueue
@@ -1148,7 +1148,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                   synchronous == 2,
                   application == applicationID,
                   version == schemaVersion,
-                  metadata == "food-ledger-v4",
+                  metadata == "food-ledger-v5",
                   check == "ok",
                   foreignKeyFailures.isEmpty else {
                 throw FoodLedgerStoreError.integrityFailure("database open policy")

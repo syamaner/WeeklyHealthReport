@@ -6,6 +6,7 @@ public struct ParsedFoodQuery: Codable, Equatable, Sendable {
     public struct Quantity: Codable, Equatable, Sendable {
         public let value: Double
         public let unit: String
+        public init(value: Double, unit: String) { self.value = value; self.unit = unit }
     }
     public static let discoveryPolicyVersion = FoodQueryDiscoveryPolicy.version
     /// Discovery may retain a literal percentage or a bounded named dish without resolving it.

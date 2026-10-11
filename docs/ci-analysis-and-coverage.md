@@ -94,7 +94,7 @@ Only an allowlist counts as documentation: `README.md`, `AGENTS.md`,
 under `.agents/` and `.claude/` (role and skill files; scripts and other
 configuration there run the full workflow). `.github/` is never documentation,
 whatever the allowlist says. Paths under `docs/` that code, tests or CI read
-(`docs/fixtures/`, `docs/privacy-policy.txt`, `docs/food-healthkit-write-plan.md`)
+(`docs/fixtures/`, `docs/privacy-policy.txt`, `docs/food-healthkit-write-plan.md`, `docs/generic-food-review-manifest-v2.md`)
 always run the full workflow, as does Markdown under `Tools/` or `Packages/`,
 which can be test data or checked inventory. A drift-guard test fails when a
 non-documentation file starts referencing a `docs/` path the classifier would

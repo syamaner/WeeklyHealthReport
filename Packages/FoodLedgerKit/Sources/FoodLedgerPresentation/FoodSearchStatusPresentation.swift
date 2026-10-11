@@ -115,6 +115,49 @@ public struct FoodSearchStatusPresentation: Equatable, Sendable {
 
 /// Only material selection cautions belong in a compact result row.
 public enum FoodSearchResultText {
+    /// "UK reference · cooked · 248 kcal for 150 g", formatted from structured application facts.
+    public static func summaryLine(_ summary: FoodSearchResultSummary) -> String {
+        var parts = [family(summary.family)]
+        if summary.preparation != .unknown, summary.preparation != .named { parts.append(preparation(summary.preparation)) }
+        switch summary.energy {
+        case let .forAmount(kcal, quantity):
+            parts.append("\(kcal) kcal for \(quantity.value.formatted()) \(quantity.unit == .millilitres ? "mL" : "g")")
+        case let .basisOnly(basis):
+            parts.append(basisLabel(basis) + (summary.family == .packagedProduct ? " on label" : ""))
+        }
+        return parts.joined(separator: " · ")
+    }
+    public static func family(_ family: FoodSearchResultSummary.SourceFamily) -> String {
+        switch family {
+        case .ukReference: "UK reference"
+        case .usReference: "US reference"
+        case .taiwanReference: "Taiwan reference"
+        case .packagedProduct: "Packaged product"
+        case .webSource: "Web source"
+        case .yourFoods: "Your foods"
+        case .otherSource: "Other source"
+        }
+    }
+    public static func preparation(_ kind: PreparationKind) -> String {
+        switch kind {
+        case .asSold: "as sold"
+        case .raw: "raw"
+        case .cooked: "cooked"
+        case .reheated: "reheated"
+        case .named: "as described"
+        case .unknown: "preparation not stated"
+        }
+    }
+    /// Chip label for the preparation constraint, capitalised as a control label ("Cooked").
+    public static func preparationChip(_ kind: PreparationKind?) -> String {
+        guard let kind else { return "Any preparation" }
+        let text = preparation(kind)
+        return text.prefix(1).uppercased() + text.dropFirst()
+    }
+    public static func amount(_ quantity: ParsedFoodQuery.Quantity) -> String {
+        let unit = quantity.unit.lowercased() == "ml" ? "mL" : quantity.unit == "count" ? (quantity.value == 1 ? "piece" : "pieces") : quantity.unit
+        return quantity.value.formatted() + " " + unit
+    }
     public static func basisLabel(_ basis: ResolutionBasis) -> String {
         switch basis {
         case .per100Grams: "per 100 g"

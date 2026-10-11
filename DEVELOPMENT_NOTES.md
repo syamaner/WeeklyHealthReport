@@ -1427,3 +1427,18 @@ Pricing as in the previous section (checked 11 October 2026): USD 4/M base input
 Boundary: `2026-10-11T10:15:51.739Z` → `2026-10-11T12:16:08.483Z`. 317 requests (31 main session, 286 subagents); maximum input 617,196. Cache writes: 1,867,104 5-minute, 65,053 1-hour. Exact API-equivalent USD 29.7074698.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-196-2026-10-11: Claude Code phase 3 search and web lookup
+
+Same `claude-opus-5-5` session, continuing from the phase 2 endpoint. The first row covers the main session (including the phase 2 tap-through and footer fix after its ledger edit, the review manifest v2 contract, its approval, implementation, review fixes and the overnight orchestration) plus four phase 3 subagents (implementation, invariant review, journey QA, review-fix agent). The second row covers seven subagents drafting the phase 5, 6 and 7 contracts and plans (#198, #199, #200) and their gate reviews; it is separated because that work belongs to later phases. This ledger edit, PR delivery and merge are outside both rows.
+
+Pricing as in the previous section (checked 11 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output; standard speed, global inference, no paid server tools. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 3 search and web lookup (#196), with subagents | 197,883,798 (195,727,003) | 2,155,775 | 141,338 | 198,025,136 | $53.93 |
+| Contract and plan drafting for phases 5 to 7 (#198, #199, #200), subagents only | 13,717,120 (13,038,177) | 678,611 | 44,605 | 13,761,725 | $6.89 |
+
+Boundary: `2026-10-11T12:16:08.483Z` → `2026-10-11T15:29:00Z`. Phase 3: 492 requests (139 main session, 353 subagents); maximum input 964,357; cache writes 1,765,772 5-minute, 390,003 1-hour; exact USD 53.9251246. Drafting: 162 requests; maximum input 164,120; cache writes 678,611 5-minute, 0 1-hour; exact USD 6.8941184. The main session's high maximum input reflects a long-running orchestration context before compaction.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

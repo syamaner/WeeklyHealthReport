@@ -134,9 +134,12 @@ public struct FoodListImportService: Sendable {
     public func confirmation(
         for draft: FoodListLineDraft, route: GenericFoodConfirmationRoute, candidateIndex: Int
     ) throws -> FoodConfirmationState {
-        guard route.matches.indices.contains(candidateIndex) else { throw FoodLedgerValidationError.empty("candidate") }
-        var state = FoodConfirmationState(input: route.confirmation)
-        FoodConfirmationReducer.reduce(state: &state, action: .selectCandidate(candidateIndex))
+        guard route.matches.indices.contains(candidateIndex), let input = route.choosing(candidateIndex) else {
+            throw FoodLedgerValidationError.empty("candidate")
+        }
+        // Same snapshot as the search route: the chosen candidate's own expectations, so a
+        // later candidate is not compared against the first candidate's identity.
+        var state = FoodConfirmationState(input: input)
         // Dataset and saved serving sizes are not consumed amounts. Missing input stays empty.
         state.quantity = FoodQuantityDraft(
             value: draft.unit == nil ? nil : FoodListParser.number(draft.quantityText),

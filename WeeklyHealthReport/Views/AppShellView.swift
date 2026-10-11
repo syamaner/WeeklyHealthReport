@@ -184,7 +184,10 @@ struct AppShellView: View {
         case .medicationAccess:
             MedicationAccessHelpView()
         case .developerTools:
-            DeveloperToolsSettingsView(toggle: settings.developerTools)
+            DeveloperToolsSettingsView(toggle: settings.developerTools, diagnostics: foodLedger?.searchDiagnostics)
+        case .addFood:
+            if let foodLedger { AddFoodFlowView(root: foodLedger) }
+            else { ContentUnavailableView("Add food unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
         }
     }
 

@@ -2,6 +2,13 @@ import Foundation
 
 /// A scalar in an explicitly chosen unit, not a food description or a conversion.
 public enum FoodAmountTextParser {
+    /// Editable text for an amount that `parse` reads back exactly: no grouping, a full stop as
+    /// the decimal separator and no trailing ".0" (150, not 150.0).
+    public static func editableText(_ value: Double) -> String {
+        value.formatted(FloatingPointFormatStyle<Double>(locale: Locale(identifier: "en_US_POSIX"))
+            .grouping(.never).precision(.fractionLength(0...6)))
+    }
+
     public static func parse(_ text: String) -> Double? {
         let literal = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if literal == "half" { return 0.5 }

@@ -42,7 +42,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             for _ in 0..<24 {
                 try await Task.sleep(for:.milliseconds(100))
                 host.view.layoutIfNeeded()
-                field=descendants(host.view).compactMap { $0 as? UITextField }.first { $0.text == String(amount) }
+                field=descendants(host.view).compactMap { $0 as? UITextField }.first { $0.text == FoodAmountTextParser.editableText(amount) }
                 if field != nil { break }
                 if let scroll=descendants(host.view).compactMap({ $0 as? UIScrollView }).first {
                     scroll.setContentOffset(CGPoint(x:0,y:min(scroll.contentOffset.y+400,max(0,scroll.contentSize.height-scroll.bounds.height))),animated:false)
@@ -331,8 +331,11 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
             let visible = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: "\n")
             let normalized = visible.split(whereSeparator: \.isWhitespace).joined(separator: " ")
-            XCTAssertTrue(normalized.contains("Find nutrition to review"), visible)
-            if size == .large { XCTAssertTrue(visible.contains("Web nutrition review"), visible) }
+            XCTAssertTrue(normalized.contains("Web lookup needs your OpenRouter key"), visible)
+            if size == .large {
+                XCTAssertTrue(visible.contains("Web lookup"), visible)
+                XCTAssertTrue(normalized.contains("Only your food terms, the market set in Settings and the captured page text are sent"), "Egress footnote: \(visible)")
+            }
             XCTAssertFalse(visible.contains("Gemini"), visible)
             let attachment = XCTAttachment(image: image); attachment.name = "OpenRouter review \(name)"
             attachment.lifetime = .keepAlways; add(attachment)
@@ -373,8 +376,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         await model.search()
         let proposal = try XCTUnwrap(model.result?.validation.candidates.first)
         XCTAssertTrue(proposal.selectionEligible)
-        XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: review.foodTerms, scope: .representativeEstimate,
-            acknowledgement: .init(identityAndScopeReviewed: true, basisReviewed: true, nutrientsAndUnknownsReviewed: true)))
+        XCTAssertThrowsError(try model.prepare(proposal, querySnapshot: review.foodTerms, scope: .representativeEstimate))
         let host = NativeHostingController(rootView: NavigationStack {
             GenericFoodProposalReviewView(model: model, credentials: credentials) { _ in XCTFail("No confirmation") }
         })
@@ -393,7 +395,7 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
             let request = VNRecognizeTextRequest(); request.recognitionLevel = .accurate
             try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
             let visible = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }.joined(separator: " ")
-            if visible.contains("No suitable candidate suggested") {
+            if visible.contains("no source can be used") {
                 found = true
                 let attachment = XCTAttachment(image: image); attachment.name = "Declined proposal remains inspectable"
                 attachment.lifetime = .keepAlways; add(attachment)
@@ -631,6 +633,129 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         }
     }
 
+    /// Visual evidence for #196 with synthetic data only: Add food (recents, empty), Search results
+    /// (searching, energy for the amount, basis-only, no result with "Not what you ate?") and Web
+    /// lookup (match type unset with a disabled action, match type chosen). PNGs only with WHR_RENDER_DIR.
+    func testAddFoodSearchAndWebLookupRenderForVisualReview() async throws {
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = .current
+        let now = Date()
+        func recent(_ name: String, _ amount: PositiveQuantity, daysAgo: Int, energy: Double?, estimate: Bool) throws -> FoodRecentRelogItem {
+            FoodRecentRelogItem(item: FoodRecentItem(logItemID: try LogItemID(UUID().uuidString.lowercased()),
+                sourceReleaseID: try ExternalIdentifier("synthetic"), recordID: try ExternalIdentifier(name),
+                occurredAt: now.addingTimeInterval(TimeInterval(-86_400 * daysAgo)), lastAmount: amount, energyKcal: energy),
+                name: name, isEstimate: estimate)
+        }
+        let recents = [try recent("Chicken breast, grilled", try PositiveQuantity(value: 150, unit: .grams), daysAgo: 1, energy: 248, estimate: false),
+                       try recent("Porridge made with whole milk", try PositiveQuantity(value: 300, unit: .grams), daysAgo: 1, energy: 348, estimate: false),
+                       try recent("Banana", try PositiveQuantity(value: 1, unit: .count), daysAgo: 2, energy: nil, estimate: true)]
+        func addFood(_ items: [FoodRecentRelogItem]) -> some View {
+            AddFoodView(recents: items, now: now, calendar: calendar, search: { _ in XCTFail("Rendering cannot search") },
+                        scanBarcode: {}, pasteOrDictate: {}, favourites: {}, relog: { _ in XCTFail("Rendering cannot log") })
+        }
+        let local = try CompositeGenericFoodSearch(sources: [CoFIDGenericFoodSearch(ids: NativeQuantityIDs()),
+            USDAGenericFoodSearch(ids: NativeQuantityIDs())], ids: NativeQuantityIDs())
+        func searchModel(_ query: String, held: Bool = false) throws -> GenericFoodSearchViewModel {
+            let model = held
+                ? try GenericFoodSearchViewModel(searcher: local, locale: LedgerText("en_GB"), database: NativeHeldEnrichment(),
+                    services: .init(onlineDatabase: .ready, gemini: .disabled), assessment: NativeNeedsMoreEvidence())
+                : try GenericFoodSearchViewModel(searcher: local, locale: LedgerText("en_GB"))
+            model.query = query; model.search()
+            return model
+        }
+        let searching = try searchModel("150g boiled rice", held: true)
+        XCTAssertNotNil(searching.activeEnrichmentStage)
+        let energy = try searchModel("150g boiled rice")
+        XCTAssertTrue(energy.bestMatches.contains { if case .forAmount = energy.summary(for: $0)?.energy { true } else { false } })
+        let basisOnly = try searchModel("boiled rice")
+        XCTAssertTrue(basisOnly.bestMatches.allSatisfy { if case .basisOnly = basisOnly.summary(for: $0)?.energy { true } else { false } })
+        let none = try searchModel("synthetic zzqx unknown dish")
+        guard case .noResult = none.phase else { return XCTFail("Expected no result, got \(none.phase)") }
+        func results(_ model: GenericFoodSearchViewModel) -> some View {
+            GenericFoodSearchView(model: model, preferences: UserDefaults(suiteName: "render-\(UUID().uuidString)")!,
+                reviewWebNutrition: {}, scanBarcode: {}) { _ in XCTFail("Rendering cannot confirm") }
+        }
+
+        let credentials = FoodWebDiscoveryViewModel(provider: NativeWebDiscoverySpy(), keys: NativeSyntheticWebKeys(), providerName: "OpenRouter")
+        await credentials.revalidateSavedKey()
+        XCTAssertTrue(credentials.keyIsUsable)
+        let source = try GenericFoodDocumentProjector.project(Data("Chicken caesar wrap Per wrap (215g): Energy 489kcal, Fat 22g, Carbohydrate 41g, Protein 31g".utf8),
+            url: URL(string: "https://example.com/synthetic-wrap")!, mediaType: "text/plain",
+            retrievedAt: Date(timeIntervalSince1970: 0), origin: "synthetic_fixture")
+        let reference: [[String: Any]] = [["block_id": "b1", "quote": source.blocks[0].text]]
+        let declared: [FoodProposalNutrientKey: String] = [.energy: "489", .fat: "22", .carbohydrate: "41", .protein: "31"]
+        let nutrients: [[String: Any]] = FoodProposalNutrientKey.allCases.map { key in
+            let value = declared[key]
+            return ["key": key.rawValue, "state": value == nil ? "unknown" : "declared", "value": value as Any? ?? NSNull(),
+                    "unit": value == nil ? NSNull() : key.unit as Any, "evidence": value == nil ? [] : reference,
+                    "unknown_reason": value == nil ? "not_observed" as Any : NSNull()]
+        }
+        let payload: [String: Any] = ["version": FoodProposalExtraction.schemaVersion, "preferred_id": "c1", "candidates": [[
+            "id": "c1", "document_id": source.id, "name": "Chicken caesar wrap", "brand": NSNull(), "preparation": NSNull(),
+            "identity_evidence": reference, "panel_evidence": reference,
+            "basis": ["amount": "1", "unit": "serving", "label": "wrap (215g)", "evidence": reference],
+            "nutrients": nutrients, "limitations": []]]]
+        let decoder = JSONDecoder(); decoder.keyDecodingStrategy = .convertFromSnakeCase
+        let validation = try FoodProposalBinding.validate(decoder.decode(FoodProposalExtraction.self,
+            from: JSONSerialization.data(withJSONObject: payload)), documents: [source])
+        let suggested = GenericFoodProposalReview(foodTerms: "Chicken caesar wrap", discovery: nil, documents: [source],
+            validation: validation, selection: try FoodProposalSelection(unscoredChoice: "c1", validation: validation))
+        func lookupModel() async throws -> GenericFoodProposalReviewViewModel {
+            let model = GenericFoodProposalReviewViewModel(reviewer: NativeCompletedProposalReview(result: suggested), credentials: credentials,
+                confirmation: ReviewedFoodProposalConfirmation(ids: NativeQuantityIDs(), clock: SystemLedgerClock(),
+                    encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()), locale: try LedgerText("en_GB"))
+            model.foodTerms = suggested.foodTerms
+            await model.search()
+            XCTAssertNotNil(model.suggestedProposal)
+            return model
+        }
+        let unset = try await lookupModel(), chosen = try await lookupModel()
+
+        let states: [(String, AnyView, CGFloat, [String])] = [
+            ("add-food-recents", AnyView(addFood(recents)), 844, ["Add food", "Recent", "Last: 150 g"]),
+            ("add-food-empty", AnyView(addFood([])), 844, ["No favourites yet", "No recent foods"]),
+            ("search-searching", AnyView(results(searching)), 844, ["Looking for more matches online", "Stop"]),
+            ("search-energy-for-amount", AnyView(results(energy)), 1400, ["Best matches", "kcal for 150 g", "Not what you ate?"]),
+            ("search-basis-only", AnyView(results(basisOnly)), 1400, ["Best matches", "per 100 g"]),
+            ("search-no-result", AnyView(results(none)), 1000, ["Not what you ate?", "Look it up on the web", "Scan the package barcode"]),
+            ("web-lookup-scope-unset", AnyView(GenericFoodProposalReviewView(model: unset, credentials: credentials) { _ in XCTFail("No confirmation") }),
+             1600, ["Suggested source", "Exact product", "Similar food estimate", "Not stated", "Use this source", "Choose a match type first", "Only your food terms"]),
+            ("web-lookup-scope-chosen", AnyView(GenericFoodProposalReviewView(model: chosen, credentials: credentials, initialScope: .representativeEstimate) { _ in XCTFail("No confirmation") }),
+             1600, ["Similar food estimate", "Use this source"])
+        ]
+        let outputDirectory = ProcessInfo.processInfo.environment["WHR_RENDER_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+        if let outputDirectory { try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true) }
+        for (name, view, height, expected) in states {
+            let host = NativeHostingController(rootView: NavigationStack { view })
+            let scene = try testScene()
+            let previous = scene.windows.first(where: \.isKeyWindow)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: height)
+            window.rootViewController = host; window.makeKeyAndVisible()
+            defer { window.isHidden = true; previous?.makeKey() }
+            try await waitForHostAppearance(host, window: window)
+            try await Task.sleep(for: .milliseconds(300))
+            host.view.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            let png = try XCTUnwrap(image.pngData(), name)
+            XCTAssertGreaterThan(png.count, 10_000, "Rendered image should not be blank: \(name)")
+            let request = VNRecognizeTextRequest(); request.recognitionLevel = .accurate
+            try VNImageRequestHandler(cgImage: XCTUnwrap(image.cgImage)).perform([request])
+            let visible = (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+                .joined(separator: " ").split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            // OCR may drop or add spaces ("150g"), so compare without whitespace.
+            let compact = visible.filter { !$0.isWhitespace }
+            for text in expected { XCTAssertTrue(compact.contains(text.filter { !$0.isWhitespace }), "\(name) should show \(text): \(visible)") }
+            XCTAssertFalse(visible.contains("Lexical score") || visible.contains("Record:"), "\(name) shows no technical detail")
+            XCTAssertFalse(visible.contains("confidence"), "\(name) shows no model confidence")
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "Phase 3 \(name)"; attachment.lifetime = .keepAlways
+            add(attachment)
+            if let outputDirectory { try png.write(to: outputDirectory.appendingPathComponent("phase3-\(name).png")) }
+        }
+    }
+
     private func testScene() throws -> UIWindowScene {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         return try XCTUnwrap(scenes.first { $0.activationState == .foregroundActive } ?? scenes.first)
@@ -858,4 +983,15 @@ private final class SuggestionsNavigationObserver: NSObject, WKNavigationDelegat
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         failure = "WebContent process terminated"; events.append(failure!)
     }
+}
+
+private actor NativeHeldEnrichment: FoodSearchEnriching {
+    func enrich(_ query: FoodSearchRemoteQuery) async throws -> GenericFoodSearchOutcome {
+        try await Task.sleep(for: .seconds(3600))
+        throw CancellationError()
+    }
+}
+
+private struct NativeNeedsMoreEvidence: FoodSearchCoverageAssessing {
+    func assess(_ outcome: GenericFoodSearchOutcome, for request: GenericFoodSearchRequest) -> [FoodSearchCandidateCoverage] { [] }
 }

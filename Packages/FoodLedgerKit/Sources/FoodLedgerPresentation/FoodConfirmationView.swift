@@ -941,5 +941,5 @@ public struct FoodConfirmationView: View {
 
     private static func number(_ value: Double) -> String { value.formatted(.number.precision(.fractionLength(0...3))) }
 
-    private static func editableNumber(_ value: Double) -> String { String(value) }
+    private static func editableNumber(_ value: Double) -> String { FoodAmountTextParser.editableText(value) }
 }

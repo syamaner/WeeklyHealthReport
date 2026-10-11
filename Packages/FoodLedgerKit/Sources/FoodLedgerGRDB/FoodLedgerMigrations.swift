@@ -29,6 +29,12 @@ extension FoodLedgerGRDBStore {
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v4' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 4")
         }
+        migrator.registerMigration("v5_review_manifest") { db in
+            // Reviewed web manifest v2 evidence (food contract 5). Metadata only: no immutable
+            // row bytes are rewritten. Older binaries decline schema 5.
+            try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v5' WHERE key = 'schema_identity'")
+            try db.execute(sql: "PRAGMA user_version = 5")
+        }
         return migrator
     }
 

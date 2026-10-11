@@ -29,13 +29,23 @@ final class AppNavigationTests: XCTestCase {
             .foodMarket: ([.settings, .foodMarket], [.settings, .foodMarket]),
             .dataBackup: ([.settings, .dataBackup], [.settings, .dataBackup]),
             .medicationAccess: ([.settings, .medicationAccess], [.settings, .medicationAccess]),
-            .developerTools: ([.settings, .developerTools], [.settings, .developerTools])
+            .developerTools: ([.settings, .developerTools], [.settings, .developerTools]),
+            .addFood: ([.addFood], [.addFood])
         ]
         XCTAssertEqual(Set(expected.keys), Set(AppRoute.allCases))
         for (route, paths) in expected {
             XCTAssertEqual(AppRoute.restoredPath(from: route.rawValue, hasDraft: true, availableRoutes: allAvailable), paths.draft, "\(route)")
             XCTAssertEqual(AppRoute.restoredPath(from: route.rawValue, hasDraft: false, availableRoutes: allAvailable), paths.noDraft, "\(route)")
         }
+    }
+
+    /// #196: Add food restores to itself, and a restored Search results screen never searches.
+    func testAddFoodRestoresAndRestoredSearchNeverStartsARequest() {
+        XCTAssertEqual(AppRoute.restoredPath(from: "addFood", hasDraft: false, availableRoutes: allAvailable), [.addFood])
+        XCTAssertFalse(GenericFoodSearchFlowView.searchesOnAppear(initialQuery: "", requested: false))
+        XCTAssertFalse(GenericFoodSearchFlowView.searchesOnAppear(initialQuery: "150 g rice", requested: false))
+        XCTAssertFalse(GenericFoodSearchFlowView.searchesOnAppear(initialQuery: "   ", requested: true))
+        XCTAssertTrue(GenericFoodSearchFlowView.searchesOnAppear(initialQuery: "150 g rice", requested: true))
     }
 
     func testLegacyRawValuesAreUnchanged() {
