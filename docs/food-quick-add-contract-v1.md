@@ -30,9 +30,9 @@ FavouriteAmount       { value (finite, > 0), unit (QuantityUnit) }
 FavouriteArrangement  { arrangementVersionID, ordinal, supersedes?, order: [FavouriteID], createdAt }
 ```
 
-- **Binding by log item version only.** `.savedEntry` stores one `LogItemVersionID`. Product version, resolution version and evidence are read through that immutable version (a read-only reader addition, `foodConfirmation(logItemVersionID:)`), so the binding cannot hold inconsistent IDs. The store rejects a binding to a version that does not exist.
+- **Binding by log item version only.** `.savedEntry` stores one `LogItemVersionID`. Product version, resolution version and evidence are read through that immutable version (a read-only reader addition, `foodConfirmation(logItemVersionID:)`), so the binding cannot hold inconsistent IDs. The store and strict decoding reject a binding to a version that does not exist or whose composition is not `.product` (for example a `.removed` version).
 - **Default amount.** Value and unit only, as `FoodConfirmationService.lastEnteredAmount` reads them. No conversion, plate or decision is carried.
-- **Label.** Display name, defaulting to the source product name; never alters identity, nutrients or provenance.
+- **Label.** Display name, defaulting to the **source candidate** name (what `favouriteInput` rebuilds, not a corrected product name); never alters identity, nutrients or provenance.
 - **Estimate status is derived, never stored**, from `FoodEntryEstimateStatus` over the pinned stored confirmation. A favourite made from an estimate keeps the estimate label and provenance.
 - **Display order.** One `FavouriteArrangement` lists favourites in quick-add order. The first four are the Home chips and "On Today's quick add"; the rest are "Other favourites". Reordering writes one arrangement version and no favourite version. Removed favourites are dropped even if listed; active favourites missing from the arrangement are appended by `createdAt`.
 - **Competing heads** of any `FavouriteVersion` chain **or** of the `FavouriteArrangement` chain stop the Favourites projection with an explicit failed state, as the intake projection does for log heads. Nothing chooses by ordinal or time.
@@ -42,7 +42,7 @@ FavouriteArrangement  { arrangementVersionID, ordinal, supersedes?, order: [Favo
 
 A favourite is created from a logged entry: "Save as favourite" on Confirm (the v5 D4 slot), or from a saved entry or recent food. "Create a favourite from Food search, Barcode or Web lookup" opens that route with Save as favourite preset; the Confirm bar reads "Log and save favourite". The log save is unchanged; the favourite is written by a **separate** operation `save_favourite_v1` immediately afterwards, so confirm operation payloads stay byte-identical to v5.
 
-- **Idempotency key** is derived from the logged `LogItemVersionID` (`save_favourite_v1:<logItemVersionID>`). A retry after failure returns the existing favourite. Favouriting the same entry version again while an active favourite binds it returns that favourite (no duplicate); after removal it writes a new favourite.
+- **Idempotency.** The ledger dedupes on `OperationID`. `FavouritesService.saveFavourite` first looks up an active favourite already bound to this log item version and returns it without writing. Otherwise it commits with an `OperationID` derived deterministically from the log item version (the idempotency key `save_favourite_v1:<logItemVersionID>` is metadata only), so a retry after a lost response returns `.idempotent` with the same favourite. After removal, favouriting the same version writes a new favourite with a fresh operation ID.
 - **Failure between the two operations:** the entry stays logged and the screen says "Logged. Favourite not saved" with Try again. An app kill between them is accepted; recovery is "Save as favourite" from the saved entry.
 - Estimate entries may be favourites (D6 forbids exact aliases, not favourites). Photo routes show "Not yet available" until #93 or a separately approved image contract.
 
@@ -66,7 +66,7 @@ Quick add is a sheet presenting a pre-built `FoodConfirmationState`. Tapping a c
 
 ### Named save change: retained evidence by existence (replaces "save unchanged")
 
-`relogSource` keys evidence reuse on a `LogItemID` head, which is nil after removal, differs after correction or re-timing, and does not exist for water. `FoodConfirmationService.save` therefore changes in one named way: **before writing, each input evidence member that already exists in the store and is byte-identical is skipped**, via a reader check, exactly as `missingReleases` already skips stored source releases. An existing evidence ID with different bytes still fails as `immutableRecord`. This subsumes `relogSource` (kept as a no-op hint for PR #207 tests) and covers favourites and water. It does not change any operation type, payload shape or hash of a save that writes new evidence.
+`relogSource` keys evidence reuse on a `LogItemID` head, which is nil after removal, differs after correction or re-timing, and does not exist for water. `FoodConfirmationService.save` therefore changes in one named way: **before writing, each input evidence member that already exists in the store and is byte-identical is skipped**, via a reader check, exactly as `missingReleases` already skips stored source releases. An existing evidence ID with different bytes still fails as `immutableRecord`. Comparison uses the canonical encoder bytes of the stored and input member (not `Equatable`, unless a test proves it covers every field). The check is an optimisation only: if it passes but the insert collides (a race), the insert still fails as `immutableRecord`; nothing is overwritten. The operation's pinned `affectedIDs` reflect exactly what the skip decides, tested. `relogSource` is removed (its PR #207 tests move to the existence rule); the rule covers recent foods, favourites and water. It does not change any operation type, payload shape or hash of a save that writes new evidence.
 
 The operation type, assertion, `methodVersion = food_confirmation_v5`, reporting day and alias rule are otherwise whatever Confirm would produce for the same state. Quick add adds **no new log operation type** and records no favourite reference on the entry (Q4).
 
@@ -76,7 +76,7 @@ The one-step sheet is offered only when all hold:
 
 1. the input rebuilds and re-verifies; otherwise the favourite shows "Source can no longer be verified" and offers removal;
 2. the pinned entry's derived `FoodEntryEstimateStatus` is **not** estimate, **and** `FoodLogPolicy.savesEstimate` for the rebuilt state is false;
-3. the pinned entry carried **no identity correction** (its product version is not a correction); a corrected source always reopens Confirm because the rebuilt source candidate drops the correction;
+3. the pinned entry carried **no correction or re-resolution**: its product version ordinal is 1, no correction assertion is attached, its candidate decision outcome is not `.rejected`, and its effective resolution version equals the original one. Any of these opens Confirm, because the rebuilt source candidate drops the correction;
 4. `FoodLogPolicy.requirements` for the state with the default amount and Now contains only the sheet-resolvable cases below.
 
 | May appear in the sheet (blocks Log, fixed inline) | Never in the sheet: opens the full Confirm |
@@ -111,12 +111,21 @@ Title "Quick add <label>", food line, presets, Other amount, When (Now by defaul
 
 `LedgerMutation` uses synthesised `Codable` and is encoded in operation payloads (`payloadHash`) and in `CanonicalFoodProjection.records`, which feeds the archive and the Daily JSON food projection. Adding keys to it would change every encoded mutation. Favourite records therefore travel in a **separate `FavouriteMutation` payload**, never inside `LedgerMutation`, and in a separate `favourites` member of the canonical projection that is encoded only when non-empty (`decodeIfPresent`). Pre-v6 operation payloads, their hashes and `CanonicalFoodProjection` bytes are pinned by literal fixtures.
 
+### One versioned commit, verify and import mechanism
+
+- **Typed payload selected by operation type.** `LedgerPayload = .ledger(LedgerMutation) | .favourites(FavouriteMutation)`. The operation type decides the case: `save_favourite_v1`, `revise_favourite_v1` and `arrange_favourites_v1` are `.favourites`; every other type is `.ledger`. Payload bytes are the case's own encoding with no wrapper, so a `.ledger` payload is byte-identical to today's. `LedgerTransaction(mutation:operation:)` keeps its shape and encoding; a sibling initialiser carries `.favourites`, and existing callers compile unchanged.
+- **Commit port.** The store's commit accepts the transaction with its payload; the in-memory and GRDB insert paths dispatch on the case, writing favourite tables only for `.favourites`. Replay and retry recovery use the same dispatch.
+- **Verifier and import.** Archive import (`CanonicalFoodArchive.swift` near line 423) decodes each payload by operation type instead of always as `LedgerMutation`; the operation verifier re-encodes the decoded case and checks `payloadHash`. The per-operation contract check (near lines 427 to 430) adds: the three favourite operations require contract 6.
+- **Contract and counts.** `minimumContractVersion` and `recordCount` take the whole projection (ledger records plus favourites), not only `LedgerMutation`; a favourites-only projection requires 6.
+- **affectedIDs** for a favourite operation are its favourite, favourite version and arrangement version IDs.
+- Memory and GRDB stores pass the same commit, replay and import contract tests.
+
 ## 6. Versions and compatibility
 
 | Change | Version |
 |---|---|
 | Favourite records and `FavouriteMutation`; operations `save_favourite_v1`, `revise_favourite_v1`, `arrange_favourites_v1`; `ProvenanceSourceKind.appReferenceDefinition`; `CaptureKind.referenceDefinition` | Food archive contract **6**, migration identifier `food-ledger-v6` |
-| SQLite | Migration `v6_favourites` creates `favourite`, `favourite_version` (with `supersedes_id` and a `log_item_version` foreign key) and `favourite_arrangement_version`, sets `user_version = 6` and `schema_identity = food-ledger-v6`, rewrites no row |
+| SQLite | Migration `v6_favourites` creates `favourite`, `favourite_version` (with `supersedes_id`, a nullable `log_item_version_id` foreign key, a nullable `reference_id` and a `CHECK` that exactly one is set) and `favourite_arrangement_version`, all with the same refuse-update and refuse-delete triggers as the existing record tables; sets `user_version = 6` and `schema_identity = food-ledger-v6`, rewrites no row |
 | Registry | New `LedgerOperationRegistry` version admitting the three operations; earlier registries reject them |
 | Archive admission | `minimumContractVersion` checks contract 6 conditions before contract 5 ones and returns 6 for any favourite record, `app_reference_definition` provenance or `reference_definition` evidence, so a water-only ledger requires contract 6 |
 
@@ -149,17 +158,27 @@ Additional tests from the architecture gate:
 - **A.** Second and third water saves write no duplicate evidence or release, on memory and GRDB stores.
 - **B.** Save from a favourite after its source entry is removed, restored, corrected and re-timed (each separately).
 - **C.** Literal pre-v6 operation payloads with `payloadHash` and `operationHash`, and `CanonicalFoodProjection` bytes, unchanged; a projection without favourites omits the `favourites` key.
-- **D.** Eligibility union as in test 3, each condition alone.
-- **E.** Binding consistency: a binding to a missing log item version is rejected; quick-add entries never reuse the pinned product or resolution IDs.
+- **D.** Eligibility union as in test 3, each condition alone, plus a corrected product version, a `.rejected` decision and a re-resolved pinned entry, each opening Confirm.
+- **E.** Binding consistency: a binding to a missing log item version or to a `.removed` version is rejected by the store and by strict decoding; quick-add entries never reuse the pinned product or resolution IDs.
 - **F.** No alias growth as in test 7.
 - **G.** Competing arrangement heads produce the failed state.
 - **H.** Built-in water: shown with no water favourite; logging from it writes no favourite; hidden once a `.reference(.plainWaterV1)` chain exists, active or removed; removal writes the record plus a removed version.
-- **I.** `save_favourite_v1` idempotency: retry after a failure between the log and favourite operations returns one favourite; favouriting the same entry version twice returns the existing favourite.
+- **I.** `save_favourite_v1` idempotency: retry after a failure between the log and favourite operations, and retry after a lost response following commit, each yield one favourite; favouriting the same entry version twice returns the existing favourite.
 - **J.** Provenance and capture kind classification at every switch site; `minimumContractVersion` returns 6 for a water-only ledger; a contract-5 binary rejects it.
 - **K.** Water nutrients and completeness as in test 8.
 - **L.** Plain water predicate: a water entry is in the set; a corrected entry whose resolution leaves the reference provenance is not.
-- **M.** Q10 bound: 0 and 5000.0001 mL fail as `amountTextInvalid` in the sheet; 5000 mL passes; Confirm accepts 5000.0001 mL.
+- **M.** Q10 bound: 0 and 5000.0001 mL fail as `amountTextInvalid` in the sheet; 5000 mL passes; Confirm and the service accept 5000.0001 mL.
 - **N.** Memory and GRDB store parity for tests 5 to 10 and A to L, including after an archive round trip.
+
+Additional tests from the re-check:
+
+- **O.** A contract-6 archive containing all three favourite operations imports and verifies with payload and operation hashes unchanged, on both stores.
+- **P.** A contract-5 manifest containing a favourite operation is rejected; `minimumContractVersion` returns 6 for a favourites-only projection.
+- **Q.** Literal `LedgerTransaction` and existing payload bytes are unchanged after the typed-payload generalisation.
+- **R.** Q11 skip and conflict: identical stored evidence is skipped with pinned `affectedIDs`; the same `EvidenceID` with a different `capturedAt` or `byteHash` throws `immutableRecord` on both stores.
+- **S.** Favourite tables refuse update and delete on GRDB, with in-memory parity.
+- **T.** `relogSource` is gone and recent-food re-log still writes no duplicate evidence.
+- **U.** The FoodLedgerKit boundary check is unchanged.
 
 ## 9. Not changing, or deferred
 
@@ -179,4 +198,4 @@ Confirmation v5 policy, requirement set, assertion grammar and estimate projecti
 | Q8 | Home water figure | Plain water logged (complete); dietary water nutrient total keeps the known-minimum rule |
 | Q9 | Version bump | Archive contract 6 and schema `food-ledger-v6` after phase 3's contract 5; Daily JSON pin stays `<= 3` |
 | Q10 | Custom water amount bound | Sheet-only: greater than 0 and at most 5000 mL, surfaced as `amountTextInvalid`; Confirm unbounded; no policy version change |
-| Q11 | Retained-evidence mechanism | Skip byte-identical stored evidence by existence in `save`, replacing reliance on `relogSource` |
+| Q11 | Retained-evidence mechanism | Skip stored evidence whose canonical bytes are identical, by existence in `save`; remove `relogSource`; collisions still fail as `immutableRecord` |
