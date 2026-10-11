@@ -27,7 +27,7 @@ public enum FoodLogRequirementText {
         case .countNeedsMeasuredAmount:
             "For a count, enter the measured edible weight or volume and how it was measured, or change the unit to g or mL."
         case .emptyPlateWeightMissing:
-            "Enter the empty plate weight, or turn off ‘Weighed on a plate’."
+            "Enter the empty plate weight, or choose food only."
         case .plateNeedsGramTotal:
             "Plate subtraction needs a total weight in grams."
         case .plateNotLighterThanTotal:

@@ -15,6 +15,8 @@ struct FoodIntakeHomeView: View {
     @State private var savedEntry: SavedFoodEntrySession?
     @State private var recentDays: [FoodIntakeDayPreview] = []
     @State private var pendingRemoval: FoodIntakeLogRow?
+    /// Entries whose current version is a labelled estimate (FoodEntryEstimateStatus, #195).
+    @State private var estimates: Set<LogItemID> = []
     @State private var confirmsRemoval = false
     @State private var managementFailure: String?
 
@@ -229,7 +231,7 @@ struct FoodIntakeHomeView: View {
                         .foregroundStyle(.tertiary)
                 }
                 Text(Self.entryDetail(row)).font(.subheadline).foregroundStyle(.secondary)
-                Text(Self.sourceStatus(row)).font(.caption).foregroundStyle(.secondary)
+                Text(Self.sourceStatus(row, isEstimate: estimates.contains(row.logItemID))).font(.caption).foregroundStyle(.secondary)
             }.padding(.vertical, 4)
         }.accessibilityHint("Opens the saved food confirmation")
     }
@@ -271,7 +273,7 @@ struct FoodIntakeHomeView: View {
         return "\(time) · \(quantity) \(row.quantity.unit.rawValue)"
     }
 
-    private static func sourceStatus(_ row: FoodIntakeLogRow) -> String {
+    private static func sourceStatus(_ row: FoodIntakeLogRow, isEstimate: Bool) -> String {
         let names = row.sourceIDs.map { source in
             if source == "cofid" { return "UK CoFID" }
             if source.hasPrefix("usda-") { return "USDA" }
@@ -281,7 +283,7 @@ struct FoodIntakeHomeView: View {
         let source = Array(Set(names)).sorted().joined(separator: " · ")
         let status = row.totals.contains { $0.includesEstimates } ? "Source estimate" : "Saved nutrition"
         let incomplete = row.totals.contains { $0.incompleteContributions > 0 } ? " · Incomplete nutrients" : ""
-        return (source.isEmpty ? status : source + " · " + status) + incomplete
+        return (isEstimate ? "Estimate · " : "") + (source.isEmpty ? status : source + " · " + status) + incomplete
     }
 
     private static func symbol(_ key: NutrientKey) -> String {
@@ -293,6 +295,7 @@ struct FoodIntakeHomeView: View {
         do {
             guard let root else { throw FoodIntakeProjectionError.missingReference }
             projection = try root.intakeProjection(for: selectedDate)
+            estimates = projection.map { root.estimateLogItemIDs(in: $0.rows) } ?? []
             if !isHome { recentDays = try root.recentIntakeDays(before: Date()) }
             failure = nil
         } catch FoodIntakeProjectionError.competingVersions {

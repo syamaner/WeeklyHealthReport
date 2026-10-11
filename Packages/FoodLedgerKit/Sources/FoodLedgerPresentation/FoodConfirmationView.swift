@@ -193,6 +193,13 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public var occursNow: Bool { state.occurredAt == nil }
 
+    /// A reopened entry older than the backdating window keeps its stored time: the picker is
+    /// replaced by a read-only value, so no clamped or refused time can be written back.
+    public var canChangeOccurredAt: Bool {
+        guard let stored = state.reopened?.logItemVersion.occurredAt else { return true }
+        return stored >= FoodLogPolicy.windowStart(now: now(), calendar: calendar)
+    }
+
     /// One Log press: the explicit acceptance of the displayed food, amount, time and source.
     public func log() {
         guard canLog else { return }
@@ -455,8 +462,12 @@ public struct FoodConfirmationView: View {
         }
     }
 
+    @ViewBuilder
     private var whenRow: some View {
-        Group {
+        if !model.canChangeOccurredAt {
+            LabeledContent("When", value: model.displayedOccurredAt.formatted(date: .abbreviated, time: .shortened))
+            Text("Entries older than \(FoodLogPolicy.backdatingDays) days keep their logged time.").font(.caption)
+        } else {
             DatePicker("When", selection: Binding(
                 get: { model.displayedOccurredAt },
                 set: { model.send(.setOccurredAt($0)) }),

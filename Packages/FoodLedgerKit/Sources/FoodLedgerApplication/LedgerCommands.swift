@@ -193,6 +193,10 @@ public struct LedgerOperationRegistry: Sendable {
         if mutation.assertions.contains(where: { $0.confirmation != nil }), type != .confirmFoodV3 {
             throw FoodLedgerStoreError.unsupportedOperation
         }
+        // confirm_food_v3 exists only to carry typed decisions: it must carry exactly that.
+        if type == .confirmFoodV3, !mutation.assertions.contains(where: { $0.confirmation != nil }) {
+            throw FoodLedgerStoreError.unsupportedOperation
+        }
     }
 
     /// Adds `confirm_food_v3` (typed inline decisions, food contract 4, schema food-ledger-v4).

@@ -2,6 +2,7 @@ import Foundation
 import FoodLedgerApplication
 import FoodLedgerDomain
 import FoodLedgerPresentation
+import FoodLedgerTestSupport
 import FoodGenericSearch
 import SwiftUI
 import XCTest
@@ -157,6 +158,48 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertEqual(model.state.decision, .accepted)
         let view = FoodConfirmationView(model: model, leave: {}).environment(\.dynamicTypeSize, .accessibility5)
         XCTAssertFalse(String(describing: view).isEmpty)
+    }
+
+    /// Review fix 6: a reopened entry older than the window shows its stored time read-only, and an
+    /// amount-only edit saves with the stored occurredAt unchanged (no clamped time is written back).
+    func testReopenedTenDayOldEntryAmountEditKeepsStoredTime() throws {
+        struct Clock: LedgerClock { let value: Date; func now() -> Date { value } }
+        final class IDs: LedgerIDGenerating, @unchecked Sendable {
+            private var value = 9_000
+            func makeID<Tag>(_ tag: Tag.Type) throws -> LedgerID<Tag> {
+                value += 1; return try LedgerID(String(format: "00000000-0000-0000-0000-%012x", value))
+            }
+        }
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let old = now.addingTimeInterval(-10 * 86_400)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/London"))
+        let store = InMemoryFoodLedgerStore()
+        let ids = IDs()
+        func service(at date: Date) -> FoodConfirmationService {
+            let ledger = FoodLedgerService(actorID: try! LedgerID("00000000-0000-0000-0000-000000000999"), committer: store,
+                clock: Clock(value: date), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+            return FoodConfirmationService(ledger: ledger, reader: store, clock: Clock(value: date), ids: ids,
+                digester: SHA256Digester(), calendar: calendar)
+        }
+        var state = try fixtureState()
+        state.decision = .accepted
+        let saved = try service(at: old).save(state, operationID: LedgerID("00000000-0000-0000-0000-000000000501"))
+        XCTAssertEqual(saved.logItemVersion.occurredAt, old)
+        let current = service(at: now)
+        let reopened = try XCTUnwrap(current.reopen(logItemID: saved.logItem.logItemID))
+        let model = FoodConfirmationViewModel(state: reopened, now: { now }, calendar: calendar) { state in
+            try current.save(state, operationID: LedgerID("00000000-0000-0000-0000-000000000502"))
+        }
+        XCTAssertFalse(model.canChangeOccurredAt, "Outside the window the time is shown read-only")
+        XCTAssertEqual(model.displayedOccurredAt, old)
+        model.send(.setQuantity(150, .grams))
+        XCTAssertTrue(model.requirements.isEmpty)
+        model.log()
+        let result = try XCTUnwrap(model.savedResult)
+        XCTAssertEqual(result.logItemVersion.occurredAt, old)
+        XCTAssertEqual(result.logItemVersion.reportingDate, saved.logItemVersion.reportingDate)
+        XCTAssertEqual(result.logItemVersion.edibleQuantity.value, 150)
     }
 
     func testMissingIdentityErrorNamesSpecificFields() {

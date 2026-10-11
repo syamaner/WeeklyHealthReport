@@ -34,6 +34,26 @@ final class ConfirmationV5ContractTests: XCTestCase {
         XCTAssertEqual(try LedgerFixtures.encoder.encode(try decoder.decode(UserAssertion.self, from: encoded)), encoded)
     }
 
+    /// Pinned v4-era payloads, generated from `main` before this change and frozen with their hashes.
+    func testPinnedV4LogAndResolutionPayloadsReencodeByteForByte() throws {
+        let resolution = #"{"assertionIDs":["00000000-0000-0000-0000-000000000007"],"createdAt":1700000000000,"decisionIDs":["00000000-0000-0000-0000-000000000006"],"methodVersion":"food_confirmation_v4","nutrients":{"entries":[{"conflictCandidates":[],"key":"energy_consumed","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"carbohydrates","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"protein","status":"resolved","value":{"measured":{"_0":{"amount":10,"provenance":[{"capturedAt":1700000000000,"evidenceID":"00000000-0000-0000-0000-000000000001","sourceID":"physical_package","sourceKind":"user_verified_panel","sourceReleaseID":"package:fixture-v1","transforms":[]}],"sourceValue":{"exact":{"_0":{"amount":10,"basis":{"per100Grams":{}},"unit":"g"}}},"unit":"g"}}}},{"conflictCandidates":[],"key":"fat_total","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"fat_saturated","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"fat_monounsaturated","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"fat_polyunsaturated","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"fiber","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"sugar","status":"resolved","value":{"bounded":{"_0":{"lower":0,"lowerClosed":true,"origin":"measured","provenance":[{"capturedAt":1700000000000,"evidenceID":"00000000-0000-0000-0000-000000000001","sourceID":"physical_package","sourceKind":"user_verified_panel","sourceReleaseID":"package:fixture-v1","transforms":[]}],"sourceValue":{"bounded":{"_0":{"basis":{"per100Grams":{}},"lower":0,"lowerClosed":true,"unit":"g","upper":0.5,"upperClosed":false}}},"unit":"g","upper":0.5,"upperClosed":false}}}},{"conflictCandidates":[],"key":"cholesterol","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"vitamin_a","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"thiamin_b1","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"riboflavin_b2","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"niacin_b3","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"pantothenic_acid_b5","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"vitamin_b6","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"biotin_b7","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"folate_b9","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"vitamin_b12","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"vitamin_c","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"vitamin_d","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"vitamin_e","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"vitamin_k","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"calcium","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"chloride","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"iron","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"magnesium","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"phosphorus","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"potassium","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"sodium","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"zinc","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"chromium","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"copper","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"iodine","status":"resolved","value":{"unknown":{"_0":"no_compatible_source"}}},{"conflictCandidates":[],"key":"manganese","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"molybdenum","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"selenium","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"water","status":"resolved","value":{"unknown":{"_0":"not_declared"}}},{"conflictCandidates":[],"key":"caffeine","status":"resolved","value":{"unknown":{"_0":"not_declared"}}}]},"ordinal":1,"resolutionID":"00000000-0000-0000-0000-000000000004","resolutionVersionID":"00000000-0000-0000-0000-000000000005","sourceReleaseIDs":["package:fixture-v1"]}"#
+        let log = #"{"composition":{"product":{"_0":"00000000-0000-0000-0000-000000000003"}},"correctionReason":"Confirmation quantity or plate correction","createdAt":1700000000000,"edibleQuantity":{"unit":"g","value":150},"effectiveResolutionVersionID":"00000000-0000-0000-0000-000000000005","logItemID":"00000000-0000-0000-0000-000000000320","logItemVersionID":"00000000-0000-0000-0000-000000000322","occurredAt":1700000000000,"ordinal":2,"originalResolutionVersionID":"00000000-0000-0000-0000-000000000005","reportingDate":"2023-11-14","supersedesLogItemVersionID":"00000000-0000-0000-0000-000000000321","weightDeclaration":{"basis":"measured","originalInput":{"unit":"count","value":1},"total":{"unit":"g","value":150},"version":1}}"#
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .millisecondsSince1970
+        let pinned: [(Data, String, (Data) throws -> Data)] = [
+            (Data(resolution.utf8), "f4d25ea18328d08d6bb1dcc8c1efee6a5c2e44596cde7335e325459bd7947d37",
+             { try LedgerFixtures.encoder.encode(try decoder.decode(NutritionResolutionVersion.self, from: $0)) }),
+            (Data(log.utf8), "7cb9536f6b4cad1b20f4e4be8fe27f8be81cd9f73a1fb5ea7ba93a87da2bef8d",
+             { try LedgerFixtures.encoder.encode(try decoder.decode(LogItemVersion.self, from: $0)) })
+        ]
+        for (bytes, hash, reencode) in pinned {
+            XCTAssertEqual(try LedgerFixtures.digester.sha256(bytes).value, hash)
+            let again = try reencode(bytes)
+            XCTAssertEqual(again, bytes)
+            XCTAssertEqual(try LedgerFixtures.digester.sha256(again).value, hash)
+        }
+        XCTAssertEqual(try decoder.decode(NutritionResolutionVersion.self, from: Data(resolution.utf8)).methodVersion.value, "food_confirmation_v4")
+    }
+
     // MARK: 8. Admission rules
 
     func testOperationArchiveAndContractAdmissionRejectNewInOld() throws {
@@ -166,6 +186,75 @@ final class ConfirmationV5ContractTests: XCTestCase {
             FoodConfirmationReducer.reduce(state: &exact, action: .accept)
             _ = try service(ledger, harness, ids: ids).save(exact, operationID: LedgerFixtures.operationID(941))
             XCTAssertEqual(try archive.archiveState().records.libraryEntries.count, 1, harness.name)
+        }
+    }
+
+    // MARK: Review fixes
+
+    /// One estimate rule before and after saving, including a corrected generic estimate (D6).
+    func testCorrectedGenericEstimateCreatesNoAliasAndKeepsOneEstimateRule() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let ledger = try LedgerFixtures.service(harness.committer)
+            let ids = SharedIDs()
+            let search = try CoFIDGenericFoodSearch(ids: ids)
+            guard case let .confirmation(route) = try search.search(GenericFoodSearchRequest(text: try LedgerText("rice"),
+                capturedAt: LedgerFixtures.date, locale: try LedgerText("en_GB"))) else { return XCTFail("rice") }
+            var state = FoodConfirmationState(input: route.confirmation)
+            XCTAssertFalse(state.selectedCandidate.candidate.matchMetadata?.libraryAliases.isEmpty ?? true, "Precondition: aliases offered")
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(100, .grams))
+            FoodConfirmationReducer.reduce(state: &state, action: .applyCorrection(FoodCorrection(
+                name: try LedgerText("Rice, my description"), brand: nil, variant: nil,
+                identity: state.selectedCandidate.candidate.identity, nutrients: state.selectedCandidate.candidate.nutrients,
+                reason: try LedgerText("Renamed"))))
+            let before = FoodLogPolicy.savesEstimate(state)
+            XCTAssertTrue(before, harness.name)
+            let saved = try service(ledger, harness, ids: ids).save(state, operationID: LedgerFixtures.operationID(970))
+            let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
+            XCTAssertEqual(try archive.archiveState().records.libraryEntries.count, 0, harness.name)
+            let stored = try XCTUnwrap(harness.reader.foodConfirmation(logItemID: saved.logItem.logItemID))
+            XCTAssertEqual(try service(ledger, harness, ids: ids).isEstimate(stored), before, harness.name)
+        }
+    }
+
+    /// Status follows the current version: a correction carries no decisions, so a corrected
+    /// exact entry that was logged as "Not sure" is no longer an estimate.
+    func testCorrectionAfterNotSureFollowsTheCurrentVersion() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let ledger = try LedgerFixtures.service(harness.committer)
+            let ids = SharedIDs()
+            let confirmations = service(ledger, harness, ids: ids)
+            var state = FoodConfirmationState(input: try input(evidence: 50, expected: rawIdentity()))
+            FoodConfirmationReducer.reduce(state: &state, action: .decideDifference(.preparation, .notSure))
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            let saved = try confirmations.save(state, operationID: LedgerFixtures.operationID(975))
+            XCTAssertTrue(try confirmations.isEstimate(XCTUnwrap(harness.reader.foodConfirmation(logItemID: saved.logItem.logItemID))))
+            var reopened = try XCTUnwrap(confirmations.reopen(logItemID: saved.logItem.logItemID))
+            XCTAssertTrue(FoodLogPolicy.savesEstimate(reopened), "Unchanged reopen keeps the saved status")
+            FoodConfirmationReducer.reduce(state: &reopened, action: .applyCorrection(FoodCorrection(
+                name: try LedgerText("Fixture food, corrected"), brand: nil, variant: nil,
+                identity: reopened.selectedCandidate.candidate.identity, nutrients: reopened.selectedCandidate.candidate.nutrients,
+                reason: try LedgerText("Checked the packet"))))
+            XCTAssertFalse(FoodLogPolicy.savesEstimate(reopened))
+            let corrected = try confirmations.save(reopened, operationID: LedgerFixtures.operationID(976))
+            let current = try XCTUnwrap(harness.reader.foodConfirmation(logItemID: corrected.logItem.logItemID))
+            XCTAssertEqual(current.productVersion.productVersionID, corrected.productVersion.productVersionID)
+            XCTAssertTrue(current.assertions.allSatisfy { $0.confirmation == nil }, harness.name)
+            XCTAssertFalse(try confirmations.isEstimate(current), harness.name)
+        }
+    }
+
+    func testConfirmFoodV3MustCarryTypedDecisions() throws {
+        let plain = try LedgerFixtures.baseMutation()
+        XCTAssertThrowsError(try LedgerOperationRegistry.builtInV4.requireSupported(.confirmFoodV3, mutation: plain)) {
+            XCTAssertEqual($0 as? FoodLedgerStoreError, .unsupportedOperation)
+        }
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            XCTAssertThrowsError(try LedgerFixtures.service(harness.committer).commit(plain, type: .confirmFoodV3,
+                operationID: LedgerFixtures.operationID(980)), harness.name)
+            XCTAssertEqual(try harness.reader.counts().operations, 0, harness.name)
         }
     }
 

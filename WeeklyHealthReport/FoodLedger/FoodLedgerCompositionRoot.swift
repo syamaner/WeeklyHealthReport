@@ -230,7 +230,9 @@ final class FoodLedgerCompositionRoot {
             checkpointStore: try FoodListCheckpointGRDBStore(databaseURL: draftURL),
             recoveredLogItemID: { [ledger] operationID in
                 try ledger.confirmedLogItemID(operationID: operationID, idempotencyKey: LedgerText("food-list:\(operationID.rawValue)"))
-            }
+            },
+            confirmationNow: { [confirmationClock] in confirmationClock.now() },
+            confirmationCalendar: confirmationCalendar
         ) { [confirmations] state, operationID in
             try confirmations.save(
                 state, operationID: operationID,
@@ -251,6 +253,15 @@ final class FoodLedgerCompositionRoot {
     func intakeProjection(for date: Date, calendar: Calendar = .current) throws -> FoodIntakeProjection {
         try FoodIntakeProjection(records: store.archiveState().records,
             reportingDate: FoodReportingDay.key(for: date, calendar: calendar))
+    }
+
+    /// Rows whose current saved version is a labelled estimate. An unreadable entry is not labelled.
+    func estimateLogItemIDs(in rows: [FoodIntakeLogRow]) -> Set<LogItemID> {
+        Set(rows.compactMap { row in
+            guard let stored = try? store.foodConfirmation(logItemID: row.logItemID),
+                  (try? confirmations.isEstimate(stored)) == true else { return nil }
+            return row.logItemID
+        })
     }
 
     func changeLogEntry(_ row: FoodIntakeLogRow, restoring: Bool) throws {

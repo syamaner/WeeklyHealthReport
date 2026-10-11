@@ -424,7 +424,8 @@ public struct FoodArchiveVerifier: Sendable {
             return transaction
         }
         if transactions.contains(where: { transaction in
-            let required = LedgerOperationType.declaredQuantityTypes.contains(transaction.operation.operationType) ? 3
+            let required = transaction.operation.operationType == .confirmFoodV3 ? 4
+                : LedgerOperationType.declaredQuantityTypes.contains(transaction.operation.operationType) ? 3
                 : [.removeLogItem, .restoreLogItem].contains(transaction.operation.operationType) ? 2 : 1
             return max(required, CanonicalFoodProjection.minimumContractVersion(for: transaction.mutation)) > manifest.foodContractVersion
         }) { throw FoodArchiveError.unsupportedFoodContract(manifest.foodContractVersion) }

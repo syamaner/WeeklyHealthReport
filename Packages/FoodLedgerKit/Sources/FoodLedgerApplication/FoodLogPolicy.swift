@@ -85,14 +85,17 @@ public enum FoodLogPolicy {
         } catch { throw FoodConfirmationSaveError.staleDecisions }
     }
 
-    /// Whether saving this state writes an estimate (generic composition, or any non-matching
-    /// or uncertain inline decision). Drives the primary-screen notice and the alias rule.
+    /// Whether saving this state writes an estimate. One rule shared with `FoodEntryEstimateStatus`:
+    /// a generic composition source (regardless of any identity correction), or any non-matching or
+    /// uncertain inline decision. A reopened entry without a new product version keeps its saved status.
+    /// Drives the primary-screen notice and the D6 alias rule.
     public static func savesEstimate(_ state: FoodConfirmationState) -> Bool {
-        if state.correction == nil, state.reopened == nil, state.isGenericEstimate { return true }
         if let reopened = state.reopened, state.correction == nil {
             return FoodEntryEstimateStatus.isEstimate(reopened, restoredInput: state.input)
         }
-        return pendingDifferences(state).contains { state.decisions[$0]?.isEstimate == true }
+        return FoodEntryEstimateStatus.isEstimate(
+            sourceIsGeneric: state.isGenericEstimate,
+            decisions: pendingDifferences(state).compactMap { state.decisions[$0] })
     }
 
     // MARK: When
@@ -132,9 +135,17 @@ public enum FoodLogPolicy {
 /// Pure projection: whether a saved entry is a labelled estimate. Legacy closest-match
 /// entries are not relabelled unless the generic-estimate rule holds for their stored source.
 public enum FoodEntryEstimateStatus {
+    /// The single estimate rule: a generic composition source, or any estimate decision.
+    public static func isEstimate(sourceIsGeneric: Bool, decisions: [FoodLogDecisionChoice]) -> Bool {
+        sourceIsGeneric || decisions.contains { $0.isEstimate }
+    }
+
+    /// Status of the current saved version. Assertions are those of the current product and
+    /// resolution versions, so a later correction (which carries no decisions) is an estimate
+    /// only when its source is generic.
     public static func isEstimate(_ stored: StoredFoodConfirmation, restoredInput: PopulatedFoodConfirmation) -> Bool {
-        if stored.assertions.contains(where: { $0.confirmation?.isEstimate == true }) { return true }
-        guard let candidate = restoredInput.candidates.first else { return false }
-        return FoodConfirmationPolicy.isGenericEstimate(restoredInput, candidate: candidate)
+        let generic = restoredInput.candidates.first.map { FoodConfirmationPolicy.isGenericEstimate(restoredInput, candidate: $0) } ?? false
+        return isEstimate(sourceIsGeneric: generic,
+                          decisions: stored.assertions.flatMap { $0.confirmation?.decisions.map(\.choice) ?? [] })
     }
 }

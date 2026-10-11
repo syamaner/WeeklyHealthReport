@@ -41,6 +41,8 @@ public final class FoodListImportViewModel: ObservableObject {
     private let locale: LedgerText
     private let ids: any LedgerIDGenerating
     private let now: @MainActor () -> Date
+    private let confirmationNow: @Sendable () -> Date
+    private let confirmationCalendar: Calendar
     private let saveAction: @MainActor (FoodConfirmationState, OperationID) throws -> StoredFoodConfirmation
     private var confirmationRowID: OperationID?
     private let checkpointStore: (any FoodListCheckpointStoring)?
@@ -53,12 +55,16 @@ public final class FoodListImportViewModel: ObservableObject {
         now: @escaping @MainActor () -> Date = Date.init,
         checkpointStore: (any FoodListCheckpointStoring)? = nil,
         recoveredLogItemID: (@MainActor (OperationID) throws -> LogItemID?)? = nil,
+        confirmationNow: @escaping @Sendable () -> Date = { Date() },
+        confirmationCalendar: Calendar = .autoupdatingCurrent,
         saveAction: @escaping @MainActor (FoodConfirmationState, OperationID) throws -> StoredFoodConfirmation
     ) {
         self.service = service
         self.locale = locale
         self.ids = ids
         self.now = now
+        self.confirmationNow = confirmationNow
+        self.confirmationCalendar = confirmationCalendar
         self.saveAction = saveAction
         self.checkpointStore = checkpointStore
         self.recoveredLogItemID = recoveredLogItemID
@@ -245,7 +251,8 @@ public final class FoodListImportViewModel: ObservableObject {
         do {
             let state = try service.confirmation(for: row.draft, route: route, candidateIndex: index)
             confirmationRowID = row.id
-            confirmation = FoodConfirmationViewModel(state: state) { [weak self] state in
+            confirmation = FoodConfirmationViewModel(state: state, now: confirmationNow,
+                                                     calendar: confirmationCalendar) { [weak self] state in
                 guard let self else { throw FoodLedgerValidationError.empty("review session") }
                 guard self.persist() else { throw FoodLedgerValidationError.invalidProvenance }
                 do {

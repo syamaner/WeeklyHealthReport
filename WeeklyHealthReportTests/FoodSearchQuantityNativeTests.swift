@@ -537,6 +537,94 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         XCTAssertEqual(ran, "no")
     }
 
+    /// Visual evidence for #195 with synthetic data only. Renders the Confirm screen in six states,
+    /// asserts a non-empty image for each, and writes PNGs only when WHR_RENDER_DIR is set.
+    func testConfirmScreenRendersSixStatesForVisualReview() async throws {
+        let ids = NativeQuantityIDs()
+        let searcher = try CoFIDGenericFoodSearch(ids: ids)
+        let search = try GenericFoodSearchViewModel(searcher: searcher, locale: LedgerText("en_GB"))
+        search.query = "150g boiled rice"; search.search()
+        let input = try XCTUnwrap(search.confirmation(at: 0))
+        let now = Date()
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = .current
+        func model(_ state: FoodConfirmationState, save: @escaping @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation = { _ in
+            throw CocoaError(.fileWriteUnknown) }) -> FoodConfirmationViewModel {
+            FoodConfirmationViewModel(state: state, now: { now }, calendar: calendar, saveAction: save)
+        }
+        // (a) ready: generic food with the amount prefilled from the search.
+        let ready = model(FoodConfirmationState(input: input, queryQuantity: search.parsedQuery?.quantity))
+        XCTAssertTrue(ready.canLog, "\(ready.requirements)")
+        // (b) blocked by an inline decision: the eaten preparation differs from the source.
+        let source = input.candidates[0].candidate.identity
+        let other: PreparationKind = source.preparation.kind == .raw ? .reheated : .raw
+        let expected = try DecisiveIdentity(preparation: PreparationState(kind: other), bone: source.bone, skin: source.skin,
+            drained: source.drained, packingMedium: source.packingMedium, fortification: source.fortification,
+            declaredFortificants: source.declaredFortificants, servingBasis: source.servingBasis)
+        let differing = try PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: input.sourceReleases,
+            candidates: input.candidates, expectedIdentity: expected, expectedEdibleQuantity: input.expectedEdibleQuantity)
+        let blocked = model(FoodConfirmationState(input: differing, queryQuantity: search.parsedQuery?.quantity))
+        XCTAssertEqual(blocked.pendingDifferences, [.preparation])
+        XCTAssertFalse(blocked.canLog)
+        // (c) "Not sure" chosen: estimate notice on the primary screen.
+        let unsure = model(FoodConfirmationState(input: differing, queryQuantity: search.parsedQuery?.quantity))
+        unsure.send(.decideDifference(.preparation, .notSure))
+        XCTAssertTrue(unsure.canLog && unsure.savesEstimate)
+        // (d) reopened entry logged ten days ago: time is read-only.
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = try FoodLedgerGRDBStore(databaseURL: directory.appendingPathComponent("ledger.sqlite"),
+                                           attachmentsRoot: directory.appendingPathComponent("attachments"))
+        struct Clock: LedgerClock { let value: Date; func now() -> Date { value } }
+        let old = now.addingTimeInterval(-10 * 86_400)
+        func service(_ date: Date) throws -> FoodConfirmationService {
+            let ledger = FoodLedgerService(actorID: try LedgerID("00000000-0000-0000-0000-000000000999"), committer: store,
+                clock: Clock(value: date), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+            return FoodConfirmationService(ledger: ledger, reader: store, clock: Clock(value: date), ids: ids,
+                digester: SHA256Digester(), calendar: calendar)
+        }
+        var first = FoodConfirmationState(input: input, queryQuantity: search.parsedQuery?.quantity)
+        FoodConfirmationReducer.reduce(state: &first, action: .accept)
+        let saved = try service(old).save(first, operationID: ids.makeID(OperationTag.self))
+        let reopened = model(try XCTUnwrap(try service(now).reopen(logItemID: saved.logItem.logItemID)))
+        XCTAssertFalse(reopened.canChangeOccurredAt)
+
+        let states: [(String, FoodConfirmationViewModel, DynamicTypeSize, Bool)] = [
+            ("a-ready-generic", ready, .large, false),
+            ("b-blocked-inline-decision", blocked, .large, false),
+            ("c-not-sure-estimate", unsure, .large, false),
+            ("d-reopened-ten-days-old", reopened, .large, false),
+            ("e-reopened-accessibility-size", reopened, .accessibility3, false),
+            ("f-ready-generic-dark", ready, .large, true)
+        ]
+        let outputDirectory = ProcessInfo.processInfo.environment["WHR_RENDER_DIR"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+        if let outputDirectory { try FileManager.default.createDirectory(at: outputDirectory, withIntermediateDirectories: true) }
+        for (name, viewModel, size, dark) in states {
+            let host = NativeHostingController(rootView: NavigationStack {
+                FoodConfirmationView(model: viewModel, leave: {}).environment(\.dynamicTypeSize, size)
+            })
+            let scene = try testScene()
+            let previous = scene.windows.first(where: \.isKeyWindow)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            window.overrideUserInterfaceStyle = dark ? .dark : .light
+            window.rootViewController = host; window.makeKeyAndVisible()
+            defer { window.isHidden = true; previous?.makeKey() }
+            try await waitForHostAppearance(host, window: window)
+            try await Task.sleep(for: .milliseconds(250))
+            host.view.layoutIfNeeded()
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+                window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+            }
+            let png = try XCTUnwrap(image.pngData(), name)
+            XCTAssertEqual(image.size, window.bounds.size, name)
+            XCTAssertGreaterThan(png.count, 10_000, "Rendered image should not be blank: \(name)")
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "Confirm \(name)"; attachment.lifetime = .keepAlways
+            add(attachment)
+            if let outputDirectory { try png.write(to: outputDirectory.appendingPathComponent("confirm-\(name).png")) }
+        }
+    }
+
     private func testScene() throws -> UIWindowScene {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         return try XCTUnwrap(scenes.first { $0.activationState == .foregroundActive } ?? scenes.first)
