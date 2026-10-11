@@ -11,6 +11,9 @@ public struct FoodIntakeLogRow: Sendable {
     public let quantity: PositiveQuantity
     public let sourceIDs: [String]
     public let totals: [FoodIntakeTotal]
+    /// When the entry was removed (the removing version's creation time); nil for current entries.
+    /// In memory only; nothing new is persisted.
+    public let removedAt: Date?
 }
 
 public struct FoodIntakeProjection: Sendable {
@@ -49,7 +52,8 @@ public struct FoodIntakeProjection: Sendable {
             let sources = Set((version?.nutrients.entries ?? []).flatMap { $0.value.provenance }.map { $0.sourceID.value })
             let row = FoodIntakeLogRow(logItemID: log.logItemID, logItemVersionID: head.logItemVersionID, occurredAt: log.occurredAt,
                                          name: product.name.value, quantity: log.edibleQuantity, sourceIDs: sources.sorted(),
-                                         totals: FoodIntakeSummary(contributions: [contribution]).totals)
+                                         totals: FoodIntakeSummary(contributions: [contribution]).totals,
+                                         removedAt: removed ? head.createdAt : nil)
             if removed { removedRows.append(row) } else { rows.append(row) }
         }
         summary = FoodIntakeSummary(contributions: contributions)
