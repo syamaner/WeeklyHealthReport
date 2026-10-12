@@ -290,6 +290,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     private let oauthSession: any DriveOAuthSessionProviding
+    private let loadOAuthConfiguration: () throws -> DriveOAuthClientConfiguration
     private let drive: any DailyDriveSessionTransporting
     private let destinationCoordinator: DailyDestinationCoordinator
     private let exportService: DailyHealthExportService
@@ -336,12 +337,16 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         identityStore: any DailyDriveExportIdentityPersisting,
         nutritionSourceSelection: any NutritionSourceSelectionPersisting,
         notes: DailyNotesController,
-        oauthSession: (any DriveOAuthSessionProviding)? = nil
+        oauthSession: (any DriveOAuthSessionProviding)? = nil,
+        oauthConfiguration: @escaping () throws -> DriveOAuthClientConfiguration = {
+            try DriveOAuthClientConfiguration.fromMainBundle()
+        }
     ) {
         self.oauthSession = oauthSession ?? AppAuthDriveSession(
             secureStore: keychain,
             authKey: Self.authKey
         )
+        loadOAuthConfiguration = oauthConfiguration
         self.drive = drive
         destinationCoordinator = DailyDestinationCoordinator(
             drive: drive,
@@ -882,7 +887,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
 
     private func oauthConfiguration() throws -> DriveOAuthClientConfiguration {
         do {
-            return try DriveOAuthClientConfiguration.fromMainBundle()
+            return try loadOAuthConfiguration()
         } catch DriveOAuthClientConfiguration.Failure.missingConfiguration {
             throw Failure.missingConfiguration
         } catch DriveOAuthClientConfiguration.Failure.invalidConfiguration {
