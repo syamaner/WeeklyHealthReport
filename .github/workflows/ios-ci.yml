@@ -401,6 +401,7 @@ jobs:
             -destination "platform=iOS Simulator,id=$SIMULATOR_ID" \
             -enableCodeCoverage YES \
             -resultBundlePath "$RUNNER_TEMP/WeeklyHealthReportTests.xcresult" \
+            -parallel-testing-enabled NO \
             ENABLE_DEBUG_DYLIB=NO \
             CODE_SIGNING_ALLOWED=NO
 
