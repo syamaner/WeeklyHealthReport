@@ -91,6 +91,15 @@ Rebased onto `main` with phases 3 (#207), 4 (#211) and 7 (#210), and compared wi
 - Food card and quick-add card factories live in `FoodLedger/FoodHomeCards.swift` and take the composition root; the quick-add card owns its sheet request state and applies `.quickAdd(root:request:logged:)` at card level, and reloads the food card through the shared Home refresh.
 - Food reads use `root.confirmationNow` and `root.confirmationDayCalendar` for both `intakeProjection(for:calendar:)` and `plainWaterTotal(for:calendar:)`, replacing `Date()` and the `.current` defaults, so the food card and the health window agree on "today" under one injected clock.
 
+**After phase 5 merged (12 October 2026).** `main` at `3c1304e` matches the phase 5 head these notes were checked against (`0a186c1`) apart from its ledger row, so every phase 5 reference above holds.
+
+**Implementation notes**
+
+- `HomeView` takes `HomeFeature` values (cards, an optional screen-level `decorate`, and a `refresh` for `HomeRefreshTrigger`). Quick add's sheet and full Confirm are presentation state of the Home screen, applied through the food feature's `decorate` with phase 5's `quickAdd(root:request:logged:)`; the chip only sets `FoodHomeModel.quickAddRequest`. This keeps `navigationDestination` out of lazy list rows.
+- Notes pinning is driven by the navigation path (`AppRoute.pinsNotesToToday`) rather than per-screen appear and disappear, so pushing the editor over today's notes never flips the day in between. The export keeps its selection in `DailyNotesController`; `pinToday()` overrides it and `unpinToday()` returns to it. Export calls `reassertReportDay()` on appear.
+- The health card shows Loading until the first projection for today exists (including while authorisation is requested); a window that cannot be computed shows Could not read Apple Health. Hosted unit tests refresh without requesting authorisation.
+- Times use the locale's short time style through `DateFormatter` ("07:05" in en_GB, "7:05 AM" in en_US), as D4 specifies.
+
 **Needs owner decision**
 
 None. Every change above is a file, type or placement reference. Phase 5's Q8 (plain water logged on Home) is already owner-approved in its own contract and replaces this plan's earlier "water once the reference exists" wording without changing a phase 6 rule.

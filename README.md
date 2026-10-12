@@ -112,8 +112,11 @@ records all 39 food nutrient states and exact input log-version IDs, and exclude
 raw media and transient capture data. Creating schema v4 does not enable or call a
 provider; local food-archive export/import remains a separate explicit action.
 
-The app opens on **Today**, showing confirmed local food intake so far and links to
-**Manage food intake**, **Export health data** and the health report. The Food Log
+The app opens on **Today** ([phase 6 plan](docs/ux-revamp-phase-6-home.md)): a food card
+with today's logged energy, protein, carbohydrates, fat and plain water (linking to the
+Food Log), **Add food**, quick-add chips, a provisional **Health · today so far** card
+(steps, active energy, last night's sleep, latest weight and blood pressure, with an
+"As of" time; Health and Export are one tap further) and today's notes. The Food Log
 ([phase 4 plan](docs/ux-revamp-phase-4-food-log.md)) has previous and next day buttons
 and a date picker; a totals strip for energy, protein, carbohydrates and fat, where "+"
 marks a known minimum and an empty day shows no totals; entries by time with an
@@ -234,7 +237,7 @@ explicit action alongside local and optional OFF search. Live quality, device an
 TestFlight acceptance remain separate from compilation and synthetic tests.
 
 The [pasted food-list input](docs/food-list-import.md) adds local quantity/unit
-parsing and a per-line review queue under **Today → Manage food intake → Paste or dictate food list**.
+parsing and a per-line review queue under **Today → Add food → Paste or dictate food list**.
 Every saved line still requires explicit candidate confirmation.
 The [food-dictation flow](docs/archive/food-voice-delivery.md) adds an optional **Dictate**
 button to that editor. On supported devices it uses on-device speech, then requires
