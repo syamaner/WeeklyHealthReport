@@ -544,7 +544,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         )
     }
 
-    func testOnlyVisibleHealthReportWithoutTransientPresentationIsEligible() {
+    func testOnlyVisibleHealthReportOrTodayWithoutTransientPresentationIsEligible() {
         var paths: [[AppRoute]] = [[]]
         paths += AppRoute.allCases.map { [$0] }
         paths += [
@@ -556,14 +556,54 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         ]
         for path in paths {
             for transient in [false, true] {
-                XCTAssertEqual(
-                    WeeklyReportScreenshotEligibility.isEligible(
-                        navigationPath: path, isTransientUIPresented: transient),
-                    path == [.healthReport] && !transient,
-                    "\(path) transient: \(transient)"
-                )
+                for todayOnScreen in [true, false] {
+                    let expected: FullPageScreen? = transient ? nil
+                        : path == [.healthReport] ? .healthReport
+                        : path.isEmpty && todayOnScreen ? .today
+                        : nil
+                    XCTAssertEqual(
+                        WeeklyReportScreenshotEligibility.screen(
+                            navigationPath: path, isTransientUIPresented: transient,
+                            isTodayOnScreen: todayOnScreen),
+                        expected,
+                        "\(path) transient: \(transient) today on screen: \(todayOnScreen)"
+                    )
+                    XCTAssertEqual(
+                        WeeklyReportScreenshotEligibility.isEligible(
+                            navigationPath: path, isTransientUIPresented: transient,
+                            isTodayOnScreen: todayOnScreen),
+                        expected != nil
+                    )
+                }
             }
         }
+    }
+
+    /// Health's rule is exactly as before: Home's visibility never affects it.
+    func testHealthReportEligibilityIgnoresTodayVisibility() {
+        for todayOnScreen in [true, false] {
+            XCTAssertEqual(WeeklyReportScreenshotEligibility.screen(
+                navigationPath: [.healthReport], isTransientUIPresented: false, isTodayOnScreen: todayOnScreen),
+                .healthReport)
+            XCTAssertNil(WeeklyReportScreenshotEligibility.screen(
+                navigationPath: [.healthReport], isTransientUIPresented: true, isTodayOnScreen: todayOnScreen))
+        }
+        XCTAssertEqual(WeeklyReportScreenshotEligibility.screen(navigationPath: [], isTransientUIPresented: false), .today)
+        XCTAssertNil(WeeklyReportScreenshotEligibility.screen(
+            navigationPath: [], isTransientUIPresented: false, isTodayOnScreen: false),
+            "a sheet or pushed confirmation over Home is not eligible")
+    }
+
+    func testDelegateRendersTodayDocumentThroughTheSameRenderer() {
+        let renderer = FakePDFRenderer(result: Data("pdf".utf8))
+        let delegate = WeeklyReportScreenshotDelegate(renderer: renderer)
+        let today = TodayFullPageDocument(date: "Monday 12 October", sections: [
+            .init(title: "Today\u{2019}s notes", rows: [.init(value: "None yet")])
+        ])
+        delegate.setRequestProvider { .today(today) }
+
+        XCTAssertEqual(delegate.representationForCurrentRequest(), Data("pdf".utf8))
+        XCTAssertEqual(renderer.documents, [.today(today)])
     }
 
     func testMedicationAuthorizationRequestIsAnExcludingTransientPresentation() {
@@ -633,7 +673,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         XCTAssertNil(delegate.representationForCurrentRequest())
         XCTAssertEqual(renderer.documents.count, 0)
 
-        delegate.setRequestProvider { self.makeDocument() }
+        delegate.setRequestProvider { .healthReport(self.makeDocument()) }
         XCTAssertNil(delegate.representationForCurrentRequest())
         XCTAssertEqual(renderer.documents.count, 1)
     }
@@ -1143,14 +1183,14 @@ private final class FakeScreenshotService: ScreenshotServiceRegistering {
 
 @MainActor
 private final class FakePDFRenderer: WeeklyReportPDFRendering {
-    private(set) var documents: [ReportDocument] = []
+    private(set) var documents: [FullPageDocument] = []
     private let result: Data?
 
     init(result: Data?) {
         self.result = result
     }
 
-    func pdfData(for document: ReportDocument) -> Data? {
+    func pdfData(for document: FullPageDocument) -> Data? {
         documents.append(document)
         return result
     }

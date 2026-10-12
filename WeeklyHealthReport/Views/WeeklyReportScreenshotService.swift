@@ -9,27 +9,73 @@ protocol ScreenshotServiceRegistering: AnyObject {
 
 extension UIScreenshotService: ScreenshotServiceRegistering {}
 
+/// The screens that offer Full Page.
+enum FullPageScreen: Equatable {
+    case today
+    case healthReport
+}
+
+/// What Full Page renders: the Health report document or Today's cards.
+enum FullPageDocument: Equatable {
+    case healthReport(ReportDocument)
+    case today(TodayFullPageDocument)
+}
+
 enum WeeklyReportScreenshotEligibility {
+    /// Health: exactly `[.healthReport]` with no transient UI (unchanged).
+    /// Today: the empty path with no transient UI, while Home itself is on
+    /// screen (not covered by a sheet or a pushed confirmation).
+    static func screen(
+        navigationPath: [AppRoute],
+        isTransientUIPresented: Bool,
+        isTodayOnScreen: Bool = true
+    ) -> FullPageScreen? {
+        guard !isTransientUIPresented else { return nil }
+        if navigationPath == [.healthReport] { return .healthReport }
+        if navigationPath.isEmpty && isTodayOnScreen { return .today }
+        return nil
+    }
+
     static func isEligible(
         navigationPath: [AppRoute],
-        isTransientUIPresented: Bool
+        isTransientUIPresented: Bool,
+        isTodayOnScreen: Bool = true
     ) -> Bool {
-        navigationPath == [.healthReport] && !isTransientUIPresented
+        screen(
+            navigationPath: navigationPath,
+            isTransientUIPresented: isTransientUIPresented,
+            isTodayOnScreen: isTodayOnScreen
+        ) != nil
     }
 }
 
 @MainActor
 protocol WeeklyReportPDFRendering {
-    func pdfData(for document: ReportDocument) -> Data?
+    func pdfData(for document: FullPageDocument) -> Data?
 }
 
 @MainActor
 struct WeeklyReportPDFRenderer: WeeklyReportPDFRendering {
     private let pageWidth: CGFloat = 612
 
+    func pdfData(for document: FullPageDocument) -> Data? {
+        switch document {
+        case .healthReport(let report): pdfData(for: report)
+        case .today(let today): pdfData(for: today)
+        }
+    }
+
     func pdfData(for document: ReportDocument) -> Data? {
+        pdfData(rendering: WeeklyReportPDFView(document: document))
+    }
+
+    func pdfData(for document: TodayFullPageDocument) -> Data? {
+        pdfData(rendering: TodayFullPagePDFView(document: document))
+    }
+
+    private func pdfData(rendering content: some View) -> Data? {
         let imageRenderer = ImageRenderer(
-            content: WeeklyReportPDFView(document: document)
+            content: content
                 .frame(width: pageWidth)
                 .fixedSize(horizontal: false, vertical: true)
         )
@@ -68,7 +114,7 @@ struct WeeklyReportPDFRenderer: WeeklyReportPDFRendering {
 
 @MainActor
 final class WeeklyReportScreenshotDelegate: NSObject, UIScreenshotServiceDelegate {
-    typealias RequestProvider = () -> ReportDocument?
+    typealias RequestProvider = () -> FullPageDocument?
 
     private let renderer: any WeeklyReportPDFRendering
     private var requestProvider: RequestProvider?
@@ -94,7 +140,7 @@ final class WeeklyReportScreenshotDelegate: NSObject, UIScreenshotServiceDelegat
             CGRect
         ) -> Void
     ) {
-        // This report is one continuous PDF page. Apple's documented zero-rect
+        // Each Full Page document is one continuous PDF page. Apple's documented zero-rect
         // fallback opens it at the top when the Form's viewport cannot be mapped
         // reliably into the separate report layout.
         completionHandler(representationForCurrentRequest(), 0, .zero)
@@ -104,7 +150,17 @@ final class WeeklyReportScreenshotDelegate: NSObject, UIScreenshotServiceDelegat
 @MainActor
 final class WeeklyReportScreenshotController: ObservableObject {
     let delegate: WeeklyReportScreenshotDelegate
+    /// Set while Home is the visible root of the stack; a pushed Confirm from
+    /// quick add leaves the path empty but hides Home.
+    var isTodayOnScreen = false
+    /// The window hosting the app's stack, used to detect a presented sheet,
+    /// alert or system sheet over Home.
+    weak var hostWindow: UIWindow?
     private weak var registeredService: (any ScreenshotServiceRegistering)?
+
+    var isPresentingModally: Bool {
+        hostWindow?.rootViewController?.presentedViewController != nil
+    }
 
     init(renderer: (any WeeklyReportPDFRendering)? = nil) {
         delegate = WeeklyReportScreenshotDelegate(renderer: renderer)
@@ -133,13 +189,15 @@ struct WeeklyReportScreenshotSceneRegistration: UIViewRepresentable {
     func makeUIView(context: Context) -> SceneRegistrationView {
         let view = SceneRegistrationView()
         view.controller = controller
-        view.sceneDidChange = { [weak controller] scene in
+        view.sceneDidChange = { [weak controller, weak view] scene in
+            controller?.hostWindow = view?.window
             controller?.register(with: scene?.screenshotService)
         }
         return view
     }
 
     func updateUIView(_ view: SceneRegistrationView, context: Context) {
+        controller.hostWindow = view.window
         controller.register(with: view.window?.windowScene?.screenshotService)
     }
 

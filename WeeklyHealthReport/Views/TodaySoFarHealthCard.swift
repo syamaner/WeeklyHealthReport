@@ -20,10 +20,11 @@ struct TodaySoFarHealthCardView: View {
                     Button("Try again") { Task { await model.handle(.pullToRefresh) } }
                 }
             }
-            NavigationLink("Health", value: AppRoute.healthReport)
-                .accessibilityHint("Opens the Health summaries for completed days")
+            NavigationLink(Self.linkTitle, value: AppRoute.healthReport)
+                .accessibilityHint(Self.healthHint)
+                .accessibilityIdentifier("homeHealthSummaries")
         } header: {
-            Text("Health · today so far")
+            TodaySoFarHealthHeader()
         } footer: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(card.footer)
@@ -32,12 +33,33 @@ struct TodaySoFarHealthCardView: View {
         }
     }
 
+    static let title = "Health · today so far"
+    static let linkTitle = "Health summaries"
+    static let healthHint = "Opens the Health summaries for completed days"
+
+    /// The card as plain text for Today's Full Page: the same rows, footer and
+    /// "As of" time; the links are controls and are omitted.
+    static func fullPageSection(_ card: TodaySoFarHealthCard) -> TodayFullPageDocument.Section {
+        typealias Row = TodayFullPageDocument.Row
+        let rows: [Row]
+        switch card.content {
+        case .unavailable(let message):
+            rows = [Row(value: message)]
+        case .rows(let healthRows):
+            rows = healthRows.map { Row($0.title, value: $0.status == .loading ? "Loading" : $0.value) }
+        }
+        let footer = ([card.footer] + [card.asOf].compactMap { $0 }).joined(separator: "\n")
+        return .init(title: title, rows: rows, footer: footer)
+    }
+
     /// `readsHealthData` is false only in hosted unit tests, where the app shell
     /// also skips its report refresh: the card then neither presents the Health
     /// sheet nor reads HealthKit from the test host process.
     static func feature(model: TodaySoFarHealthModel, readsHealthData: Bool) -> HomeFeature {
         HomeFeature(
-            cards: [HomeCard(id: .healthToday) { _ in AnyView(TodaySoFarHealthCardView(model: model)) }],
+            cards: [HomeCard(id: .healthToday, fullPage: { _ in
+                fullPageSection(TodaySoFarHealthCard.make(projection: model.projection, windowFailed: model.windowFailed))
+            }) { _ in AnyView(TodaySoFarHealthCardView(model: model)) }],
             refresh: { trigger in
                 guard readsHealthData else { return }
                 await model.handle(Self.trigger(for: trigger))
@@ -53,6 +75,28 @@ struct TodaySoFarHealthCardView: View {
         case .calendarDayChanged: .calendarDayChanged
         case .pullToRefresh: .pullToRefresh
         }
+    }
+}
+
+/// The card header doubles as a link to the Health summaries, styled as a
+/// header with a chevron, like the Health screen's section headers.
+private struct TodaySoFarHealthHeader: View {
+    var body: some View {
+        NavigationLink(value: AppRoute.healthReport) {
+            HStack {
+                Text(TodaySoFarHealthCardView.title)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .accessibilityHidden(true)
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(TodaySoFarHealthCardView.title)
+        .accessibilityHint(TodaySoFarHealthCardView.healthHint)
+        .accessibilityAddTraits([.isButton, .isHeader])
+        .accessibilityIdentifier("homeHealthHeader")
     }
 }
 

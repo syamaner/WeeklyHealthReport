@@ -33,7 +33,7 @@ examples; the repository does not contain exported or personal HealthKit values.
 | Medications | Taken medication events, dose and time on iOS 26 or later |
 | Daily JSON only | Source-filtered nutrition totals, completed-day averages and trends for all 39 Apple Health dietary quantity types, plus private date-bound notes you type and explicitly export |
 
-The app opens on **Today**, from which **Health** shows the completed-day report: a period picker with its visible range, summary tiles that repeat a few section values, and collapsible sections. **Health → Export a day** opens the manual **Export** screen for the Daily JSON file; the Google Drive account and folder live in **Settings → Export**, and opening that screen sends no request. A separate Developer Diagnostics screen checks daily values against Apple Health. **Copy all** (in the toolbar or below the sections) puts a human-readable version of every section, with all details shown, on the iOS clipboard; the summary tiles are not copied.
+The app opens on **Today**, from which **Health summaries** (or the **Health · today so far** card header) opens **Health**, the completed-day report: a period picker with its visible range, summary tiles that repeat a few section values, and collapsible sections. **Health → Export a day** opens the manual **Export** screen for the Daily JSON file; the Google Drive account and folder live in **Settings → Export**, and opening that screen sends no request. A separate Developer Diagnostics screen checks daily values against Apple Health. **Copy all** (in the toolbar or below the sections) puts a human-readable version of every section, with all details shown, on the iOS clipboard; the summary tiles are not copied.
 
 On the main report, a normal system screenshot also offers Apple's native **Full
 Page** representation. The app creates that report PDF in memory only when iOS
@@ -41,6 +41,12 @@ requests it, using one stable snapshot and a document layout independent of the
 scrolling form. It always includes every report section with all blood-pressure
 details shown, whatever is expanded on screen, but not the summary tiles or the
 navigation, export, copy, refresh or diagnostics controls.
+**Today** offers Full Page too: a one-page PDF of its cards as text (the date, Food
+logged, quick-add favourites, Health · today so far with its footer and "As of" time,
+and today's notes count), built from the cards' current content when iOS asks. Buttons
+and links such as Add food are left out, and it is not offered while a sheet or a
+pushed confirmation covers Today. It is a separate document: the Health report's Full
+Page, Copy all and the Daily JSON export never include Today's strings.
 Other screens provide only the ordinary screenshot. Saving or sharing remains in
 the system screenshot editor; the app adds no screenshot or share button and keeps
 no generated file.
@@ -116,7 +122,8 @@ The app opens on **Today** ([phase 6 plan](docs/ux-revamp-phase-6-home.md)): a f
 with today's logged energy, protein, carbohydrates, fat and plain water (linking to the
 Food Log), **Add food**, quick-add chips, a provisional **Health · today so far** card
 (steps, active energy, last night's sleep, latest weight and blood pressure, with an
-"As of" time; Health and Export are one tap further) and today's notes. The Food Log
+"As of" time; tap the card's header or its **Health summaries** row to open Health, and
+Export is one tap further) and today's notes. The Food Log
 ([phase 4 plan](docs/ux-revamp-phase-4-food-log.md)) has previous and next day buttons
 and a date picker; a totals strip for energy, protein, carbohydrates and fat, where "+"
 marks a known minimum and an empty day shows no totals; entries by time with an
