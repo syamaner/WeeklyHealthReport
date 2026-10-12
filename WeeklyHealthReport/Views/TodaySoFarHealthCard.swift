@@ -32,19 +32,22 @@ struct TodaySoFarHealthCardView: View {
         }
     }
 
-    static func feature(model: TodaySoFarHealthModel, requestsAuthorization: Bool) -> HomeFeature {
+    /// `readsHealthData` is false only in hosted unit tests, where the app shell
+    /// also skips its report refresh: the card then neither presents the Health
+    /// sheet nor reads HealthKit from the test host process.
+    static func feature(model: TodaySoFarHealthModel, readsHealthData: Bool) -> HomeFeature {
         HomeFeature(
             cards: [HomeCard(id: .healthToday) { _ in AnyView(TodaySoFarHealthCardView(model: model)) }],
             refresh: { trigger in
-                await model.handle(Self.trigger(for: trigger, requestsAuthorization: requestsAuthorization))
+                guard readsHealthData else { return }
+                await model.handle(Self.trigger(for: trigger))
             }
         )
     }
 
-    /// Hosted unit tests must not present the Health sheet, so they refresh without it.
-    static func trigger(for trigger: HomeRefreshTrigger, requestsAuthorization: Bool) -> TodaySoFarHealthModel.Trigger {
+    static func trigger(for trigger: HomeRefreshTrigger) -> TodaySoFarHealthModel.Trigger {
         switch trigger {
-        case .appeared: requestsAuthorization ? .homeAppeared : .becameActive
+        case .appeared: .homeAppeared
         case .becameActive: .becameActive
         case .significantTimeChange: .significantTimeChange
         case .calendarDayChanged: .calendarDayChanged

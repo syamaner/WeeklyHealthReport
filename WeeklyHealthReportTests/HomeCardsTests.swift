@@ -14,7 +14,7 @@ final class HomeCardsTests: XCTestCase {
     func testCardsRenderInWireframeOrderWhateverTheFeatureOrder() {
         let features = [
             NotesHomeCard.feature(controller: DailyNotesController(store: EmptyDailyNotesStore(), calendar: calendar)),
-            TodaySoFarHealthCardView.feature(model: healthModel(), requestsAuthorization: false),
+            TodaySoFarHealthCardView.feature(model: healthModel(), readsHealthData: false),
             FoodHomeCards.feature(model: FoodHomeModel(root: nil))
         ]
         XCTAssertEqual(HomeView.orderedCards(features).map(\.id), [.food, .addFood, .quickAdd, .healthToday, .notes])
@@ -33,12 +33,30 @@ final class HomeCardsTests: XCTestCase {
                name: "Home - stub highlight")
     }
 
-    func testHealthTriggerSkipsAuthorisationOnlyWhenTold() {
-        XCTAssertEqual(TodaySoFarHealthCardView.trigger(for: .appeared, requestsAuthorization: true), .homeAppeared)
-        XCTAssertEqual(TodaySoFarHealthCardView.trigger(for: .appeared, requestsAuthorization: false), .becameActive)
-        XCTAssertEqual(TodaySoFarHealthCardView.trigger(for: .calendarDayChanged, requestsAuthorization: true), .calendarDayChanged)
-        XCTAssertEqual(TodaySoFarHealthCardView.trigger(for: .significantTimeChange, requestsAuthorization: true), .significantTimeChange)
-        XCTAssertEqual(TodaySoFarHealthCardView.trigger(for: .pullToRefresh, requestsAuthorization: true), .pullToRefresh)
+    func testHealthTriggerMapsEveryHomeTrigger() {
+        XCTAssertEqual(TodaySoFarHealthCardView.trigger(for: .appeared), .homeAppeared)
+        XCTAssertEqual(TodaySoFarHealthCardView.trigger(for: .becameActive), .becameActive)
+        XCTAssertEqual(TodaySoFarHealthCardView.trigger(for: .calendarDayChanged), .calendarDayChanged)
+        XCTAssertEqual(TodaySoFarHealthCardView.trigger(for: .significantTimeChange), .significantTimeChange)
+        XCTAssertEqual(TodaySoFarHealthCardView.trigger(for: .pullToRefresh), .pullToRefresh)
+    }
+
+    /// Hosted unit tests skip the Health card's read entirely, as the shell skips
+    /// its report refresh: no Health sheet and no HealthKit query (#218).
+    func testHealthFeatureSkipsReadsAndAuthorisationWhenHealthDataIsNotRead() async {
+        let reader = FakeTodaySoFarReader()
+        let authorizer = FakeReadAuthorizer()
+        let skipped = TodaySoFarHealthCardView.feature(model: healthModel(reader: reader, authorizer: authorizer), readsHealthData: false)
+        for trigger in [HomeRefreshTrigger.appeared, .becameActive, .calendarDayChanged, .significantTimeChange, .pullToRefresh] {
+            await skipped.refresh(trigger)
+        }
+        XCTAssertTrue(reader.windows.isEmpty)
+        XCTAssertEqual(authorizer.requestCount, 0)
+
+        let reading = TodaySoFarHealthCardView.feature(model: healthModel(reader: reader, authorizer: authorizer), readsHealthData: true)
+        await reading.refresh(.appeared)
+        XCTAssertEqual(reader.windows.count, 1)
+        XCTAssertEqual(authorizer.requestCount, 1)
     }
 
     func testHeaderUsesTheInjectedCalendar() {
@@ -154,7 +172,7 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(notes.todayNoteCount, 1)
         let features = [
             FoodHomeCards.feature(model: FoodHomeModel(root: nil)),
-            TodaySoFarHealthCardView.feature(model: healthModel(), requestsAuthorization: false),
+            TodaySoFarHealthCardView.feature(model: healthModel(), readsHealthData: false),
             NotesHomeCard.feature(controller: notes)
         ]
         for size in [DynamicTypeSize.large, .accessibility3] {
@@ -183,12 +201,17 @@ final class HomeCardsTests: XCTestCase {
         FoodIntakeTotal(key: key, knownAmount: amount, incompleteContributions: incomplete, includesEstimates: false)
     }
 
-    private func healthModel(inputs: TodaySoFarHealthInputs? = nil) -> TodaySoFarHealthModel {
-        let reader = FakeTodaySoFarReader()
+    private func healthModel(
+        inputs: TodaySoFarHealthInputs? = nil,
+        reader: FakeTodaySoFarReader? = nil,
+        authorizer: FakeReadAuthorizer? = nil
+    ) -> TodaySoFarHealthModel {
+        let reader = reader ?? FakeTodaySoFarReader()
+        let authorizer = authorizer ?? FakeReadAuthorizer()
         if let inputs { reader.inputs = inputs }
         let calendar = calendar
         let asOf = asOf
-        return TodaySoFarHealthModel(reader: reader, authorizer: FakeReadAuthorizer(), now: { asOf }, calendar: { calendar })
+        return TodaySoFarHealthModel(reader: reader, authorizer: authorizer, now: { asOf }, calendar: { calendar })
     }
 
     private func render<V: View>(_ content: V, name: String) {

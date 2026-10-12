@@ -3501,3 +3501,125 @@ private final class DriveDestinationControllerSpy: DriveDestinationControlling {
     func chooseDestination() async { calls.append("chooseDestination") }
     func createDestination() async { calls.append("createDestination") }
 }
+
+// MARK: - README screenshot (#218)
+
+extension DailyHealthExportTests {
+    /// Renders the README's "Daily JSON review and export" image from synthetic
+    /// fixtures only: an invented Drive account and folder, an invented nutrition
+    /// source, invented health values and one invented note. The OAuth client
+    /// configuration is a synthetic stand-in, so the screen reaches its prepared
+    /// state without any build secret, network request or HealthKit query.
+    ///
+    /// The PNG is always attached to the test result. To refresh the README image,
+    /// run this test with `TEST_RUNNER_README_SCREENSHOT_DIR=<absolute directory>`
+    /// in the `xcodebuild test` environment and copy
+    /// `weekly-health-report-daily-export-synthetic.png` into the README images.
+    @MainActor
+    func testReadmeExportScreenshotRendersPreparedSyntheticSnapshot() async throws {
+        let calendar = londonCalendar()
+        let cutoff = calendar.date(from: DateComponents(year: 2026, month: 10, day: 12, hour: 9, minute: 41))!
+        let secureStore = MemoryDailySessionStore()
+        let binding = DailyDestinationBinding(
+            accountID: "invented-account",
+            folderID: "synthetic-readme-folder",
+            folderName: "WeeklyHealthReport Exports",
+            origin: .created
+        )
+        try secureStore.save(
+            try JSONEncoder().encode(partitions(containing: binding)),
+            account: "google.drive.daily-export-destinations.v1"
+        )
+        let drive = PreparationDriveTransportFixture(createOutcomes: [])
+        await drive.seedFolder(DailyDriveFolder(
+            id: binding.folderID,
+            accountID: binding.accountID,
+            name: binding.folderName,
+            mimeType: DailyDriveConsentPolicy.folderMIMEType,
+            trashed: false,
+            driveID: nil,
+            isAppAuthorized: true,
+            canAddChildren: true
+        ))
+        let notesStore = MutableDailyNotesStore()
+        let notes = DailyNotesController(store: notesStore, calendar: calendar, now: { cutoff })
+        XCTAssertTrue(notes.beginNewDraft())
+        XCTAssertTrue(notes.updateDraftText("Synthetic note invented for the README image"))
+        XCTAssertTrue(notes.saveDraft())
+        let syntheticConfiguration = try DriveOAuthClientConfiguration(infoDictionary: [
+            "GoogleOAuthClientID": "synthetic-readme.apps.googleusercontent.com",
+            "GoogleOAuthRedirectScheme": "com.googleusercontent.apps.synthetic-readme"
+        ])
+        let session = DailyDriveSessionController(
+            keychain: secureStore,
+            drive: drive,
+            exportService: DailyHealthExportService(
+                healthData: RecordingDailyProvider { self.populatedInputs(window: $0) },
+                notesStore: notesStore,
+                calendar: calendar,
+                now: { cutoff }
+            ),
+            identityStore: ControllerMemoryDailyIdentityStore(),
+            nutritionSourceSelection: FixedNutritionSourceSelection(
+                bundleIdentifier: fixtureNutritionSource.bundleIdentifier
+            ),
+            notes: notes,
+            oauthSession: FakeDriveOAuthSession(),
+            oauthConfiguration: { syntheticConfiguration }
+        )
+        XCTAssertTrue(session.isConfigured)
+
+        let host = UIHostingController(rootView: NavigationStack { DailyExportView(session: session) })
+        // iPhone 17 Pro width; the height fits the whole prepared form so the
+        // Export action and the Drive destination are both visible.
+        let bounds = CGRect(x: 0, y: 0, width: 393, height: 1500)
+        let window: UIWindow
+        if let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first {
+            window = UIWindow(windowScene: scene)
+            window.frame = bounds
+        } else {
+            window = UIWindow(frame: bounds)
+        }
+        window.overrideUserInterfaceStyle = .light
+        host.overrideUserInterfaceStyle = .light
+        window.rootViewController = host
+        window.isHidden = false
+        defer { window.isHidden = true }
+        host.view.frame = window.bounds
+        host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+        // DailyExportView prepares on appear; wait for the synthetic fakes to settle.
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline,
+              session.busy || session.presentationState != .readyToExport || session.preview == nil {
+            try await Task.sleep(nanoseconds: 50_000_000)
+        }
+        XCTAssertEqual(session.presentationState, .readyToExport, session.status)
+        XCTAssertTrue(session.canExport)
+        XCTAssertEqual(session.destinationLabel, "WeeklyHealthReport Exports")
+        XCTAssertEqual(session.status, "Fresh preview created in memory. Review the snapshot, then choose Export.")
+        let snapshot = await drive.snapshot()
+        XCTAssertEqual(snapshot.uploadCount, 0, "Rendering must never export")
+        for _ in 0..<5 {
+            try await Task.sleep(nanoseconds: 100_000_000)
+            host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+            CATransaction.flush()
+        }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 3
+        format.opaque = true
+        let image = UIGraphicsImageRenderer(bounds: window.bounds, format: format).image { _ in
+            XCTAssertTrue(window.drawHierarchy(in: window.bounds, afterScreenUpdates: true))
+        }
+        XCTAssertEqual(image.size, bounds.size)
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "README - Daily JSON export - prepared synthetic snapshot"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        if let directory = ProcessInfo.processInfo.environment["README_SCREENSHOT_DIR"], !directory.isEmpty {
+            let data = try XCTUnwrap(image.pngData())
+            try data.write(to: URL(fileURLWithPath: directory)
+                .appendingPathComponent("weekly-health-report-daily-export-synthetic.png"))
+        }
+    }
+}
