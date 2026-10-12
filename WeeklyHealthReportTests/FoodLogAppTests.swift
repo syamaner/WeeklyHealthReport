@@ -1,6 +1,7 @@
 import XCTest
 import SwiftUI
 import Combine
+import FoodBarcodeCapture
 import FoodGenericSearch
 import FoodLedgerApplication
 import FoodLedgerDomain
@@ -246,6 +247,106 @@ final class FoodLogAppTests: XCTestCase {
     }
 
     private static func descendants(_ view: UIView) -> [UIView] { [view] + view.subviews.flatMap(descendants) }
+
+    // MARK: UX polish (#212, phase 3 follow-ups)
+
+    /// With an amount field focused, Edit shows "Done" in the navigation bar, not as a floating
+    /// keyboard toolbar over the pinned Log bar; with nothing focused, the bar has no trailing item.
+    func testFocusedAmountShowsDoneInTheNavigationBar() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        let saved = try XCTUnwrap(try savedClementineModel(root).savedResult)
+        let editModel = try XCTUnwrap(try root.model(reopening: saved.logItem.logItemID))
+        let controller = UIHostingController(rootView: NavigationStack {
+            Text("Saved entry").navigationDestination(isPresented: .constant(true)) { SavedEntryEditHost(model: editModel) {} }
+        })
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        controller.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        func trailingItems() -> [UIBarButtonItem] {
+            Self.descendants(controller.view).compactMap { $0 as? UINavigationBar }.flatMap {
+                ($0.topItem?.rightBarButtonItems ?? []) + ($0.topItem?.trailingItemGroups.flatMap(\.barButtonItems) ?? [])
+            }
+        }
+        XCTAssertFalse(Self.descendants(controller.view).compactMap { $0 as? UINavigationBar }.isEmpty)
+        XCTAssertTrue(trailingItems().isEmpty, "no Done while nothing is focused")
+        let quantity = try XCTUnwrap(Self.descendants(controller.view).compactMap { $0 as? UITextField }
+            .first { $0.keyboardType == .decimalPad }, "an amount field uses the decimal pad")
+        XCTAssertTrue(quantity.becomeFirstResponder())
+        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+        let items = trailingItems()
+        XCTAssertEqual(items.compactMap(\.title), [FoodAmountFieldText.keyboardDoneTitle])
+        XCTAssertFalse(items.isEmpty, "Done shows in the navigation bar while an amount field is focused")
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { window.layer.render(in: $0.cgContext) }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "Edit - amount focused, Done in the navigation bar"; attachment.lifetime = .keepAlways
+        add(attachment)
+        quantity.resignFirstResponder()
+        window.isHidden = true
+    }
+
+    /// Renders the polished screens at standard and accessibility sizes (synthetic data): Confirm
+    /// after a save shows the plate row as a static, secondary row; Add food recents stack at
+    /// accessibility sizes; the barcode unavailable heading wraps instead of truncating.
+    func testUXPolishScreensRenderAtStandardAndAccessibilitySizes() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        let saved = try savedClementineModel(root)
+        XCTAssertNotNil(saved.savedResult)
+        let recents = root.recentFoods()
+        XCTAssertFalse(recents.isEmpty, "the saved entry is a recent food")
+        let guidance = BarcodePermissionGuidance(unavailable: true)
+        XCTAssertEqual(guidance.title, "Barcode camera unavailable")
+        for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
+            renderPolish(NavigationStack { FoodConfirmationView(model: saved) {} }.environment(\.dynamicTypeSize, size),
+                   "Confirm after save - plate row \(name)")
+            renderPolish(NavigationStack {
+                AddFoodView(recents: recents, now: root.confirmationNow, calendar: root.confirmationDayCalendar,
+                            search: { _ in }, scanBarcode: {}, pasteOrDictate: {}, favourites: {}, relog: { _ in })
+            }.environment(\.dynamicTypeSize, size), "Add food - recents \(name)")
+            renderPolish(NavigationStack { Form { Section { BarcodePermissionGuidanceView(guidance: guidance) {} } } }
+                .environment(\.dynamicTypeSize, size), "Barcode unavailable - \(name)")
+        }
+    }
+
+    /// The barcode route opens the scanner once, on first opening, with no explainer tap; coming
+    /// back from search or Confirm does not reopen it.
+    func testBarcodeRouteStartsScanningOnceOnOpening() {
+        // Device path: open the route, the scanner opens, scan, push to search, come back twice.
+        var start = BarcodeFlowStart()
+        XCTAssertEqual(start.buttonTitle, "Scan barcode", "no scan has opened yet")
+        XCTAssertTrue(start.appear(), "opening the route starts the scanner")
+        start.scannerOpened()
+        XCTAssertEqual(start.buttonTitle, "Scan again")
+        XCTAssertFalse(start.appear(), "returning from search does not reopen the scanner")
+        XCTAssertFalse(start.appear(), "returning from Confirm does not reopen the scanner")
+        // Simulator or unsupported device: the route appears, no scanner can open.
+        var unsupported = BarcodeFlowStart()
+        XCTAssertTrue(unsupported.appear())
+        XCTAssertFalse(unsupported.appear())
+        XCTAssertEqual(unsupported.buttonTitle, "Scan barcode", "never 'Scan again' before a scanner opened")
+    }
+
+    private func renderPolish<V: View>(_ content: V, _ name: String) {
+        let host = UIHostingController(rootView: content)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = host
+        window.isHidden = false
+        host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { window.layer.render(in: $0.cgContext) }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = name; attachment.lifetime = .keepAlways
+        add(attachment)
+        XCTAssertEqual(image.size.width, 390)
+        window.isHidden = true
+    }
 
     private func savedClementineModel(_ root: FoodLedgerCompositionRoot) throws -> FoodConfirmationViewModel {
         let search = try root.genericFoodSearchModel(locale: Locale(identifier: "en_GB"))

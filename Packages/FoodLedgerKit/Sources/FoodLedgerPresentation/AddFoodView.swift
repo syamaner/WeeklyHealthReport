@@ -24,12 +24,16 @@ public struct AddFoodRecentRowText: Equatable, Sendable {
         detail = (recent.isEstimate ? "Estimate · " : "") + "Last: \(amount.value.formatted()) \(unit) · \(day)"
         energy = recent.item.energyKcal.map { "\(Int($0.rounded(.toNearestOrAwayFromZero))) kcal" }
     }
+
+    /// Accessibility text sizes stack the name, detail and energy (the Food Log row approach).
+    public static func stacks(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
 }
 
 /// Add food (#196): one field for food and amount in the user's own words, the other entry
 /// routes, favourites (#198) and recent foods. Nothing is logged here.
 public struct AddFoodView: View {
     @State private var text = ""
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     private let recents: [FoodRecentRelogItem]
     private let now: Date
     private let calendar: Calendar
@@ -106,14 +110,7 @@ public struct AddFoodView: View {
                     ForEach(recents, id: \.item.logItemID) { recent in
                         let row = AddFoodRecentRowText(recent, now: now, calendar: calendar)
                         Button { relog(recent) } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(row.title).foregroundStyle(.primary)
-                                    Text(row.detail).font(.caption).foregroundStyle(.secondary)
-                                }
-                                Spacer(minLength: 8)
-                                if let energy = row.energy { Text(energy).font(.subheadline).foregroundStyle(.secondary).monospacedDigit() }
-                            }.frame(minHeight: 44).contentShape(Rectangle())
+                            recentRow(row).frame(minHeight: 44).contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Opens the confirmation with the last amount filled in")
@@ -124,6 +121,29 @@ public struct AddFoodView: View {
             }
         }
         .navigationTitle("Add food")
+    }
+
+    @ViewBuilder
+    private func recentRow(_ row: AddFoodRecentRowText) -> some View {
+        if AddFoodRecentRowText.stacks(at: dynamicTypeSize) {
+            // Stacked at accessibility sizes, as in the Food Log, so the name never breaks mid-word.
+            VStack(alignment: .leading, spacing: 4) {
+                Text(row.title).foregroundStyle(.primary)
+                Text(row.detail).font(.caption).foregroundStyle(.secondary)
+                if let energy = row.energy { Text(energy).font(.subheadline).foregroundStyle(.secondary).monospacedDigit() }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 4)
+        } else {
+            HStack {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(row.title).foregroundStyle(.primary)
+                    Text(row.detail).font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 8)
+                if let energy = row.energy { Text(energy).font(.subheadline).foregroundStyle(.secondary).monospacedDigit() }
+            }
+        }
     }
 
     private func submit() {

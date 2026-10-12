@@ -38,6 +38,8 @@ public struct FoodNutritionReviewPresentation: Equatable, Sendable {
         otherRows = rows.filter { !Self.mainKeys.contains($0.key) }
     }
 
+    /// Display name in sentence case. Display copy only: stored keys and export names never change.
+    /// Exhaustive, so a new key needs a deliberate name.
     public static func label(_ key: NutrientKey) -> String {
         switch key {
         case .energyConsumed: "Energy"
@@ -45,8 +47,40 @@ public struct FoodNutritionReviewPresentation: Equatable, Sendable {
         case .carbohydrates: "Carbohydrates"
         case .fatTotal: "Fat"
         case .fatSaturated: "Saturated fat"
+        case .fatMonounsaturated: "Monounsaturated fat"
+        case .fatPolyunsaturated: "Polyunsaturated fat"
         case .fiber: "Fibre"
-        default: key.rawValue.replacingOccurrences(of: "_", with: " ").capitalized
+        case .sugar: "Sugar"
+        case .cholesterol: "Cholesterol"
+        case .vitaminA: "Vitamin A"
+        case .thiaminB1: "Thiamin (B1)"
+        case .riboflavinB2: "Riboflavin (B2)"
+        case .niacinB3: "Niacin (B3)"
+        case .pantothenicAcidB5: "Pantothenic acid (B5)"
+        case .vitaminB6: "Vitamin B6"
+        case .biotinB7: "Biotin (B7)"
+        case .folateB9: "Folate (B9)"
+        case .vitaminB12: "Vitamin B12"
+        case .vitaminC: "Vitamin C"
+        case .vitaminD: "Vitamin D"
+        case .vitaminE: "Vitamin E"
+        case .vitaminK: "Vitamin K"
+        case .calcium: "Calcium"
+        case .chloride: "Chloride"
+        case .iron: "Iron"
+        case .magnesium: "Magnesium"
+        case .phosphorus: "Phosphorus"
+        case .potassium: "Potassium"
+        case .sodium: "Sodium"
+        case .zinc: "Zinc"
+        case .chromium: "Chromium"
+        case .copper: "Copper"
+        case .iodine: "Iodine"
+        case .manganese: "Manganese"
+        case .molybdenum: "Molybdenum"
+        case .selenium: "Selenium"
+        case .water: "Water"
+        case .caffeine: "Caffeine"
         }
     }
     public static func sourceValue(_ entry: NutrientEntry) -> String {
