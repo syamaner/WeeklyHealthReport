@@ -1,6 +1,6 @@
 # Today-so-far health projection v1
 
-Status: **architecture gate passed with changes, 11 October 2026; changes folded in below. Owner decisions D1 to D11 (section 11) are approved before production code.** Contract change 1 of [ux-revamp-v1.md](ux-revamp-v1.md), delivered by #199 (phase plan: [ux-revamp-phase-6-home.md](ux-revamp-phase-6-home.md)). Policy identifier: `today_so_far_health_v1`. Wireframe: [`designs/ux-revamp-v1/Main.dc.html`](designs/ux-revamp-v1/Main.dc.html), "Health · today so far".
+Status: **owner-approved, 12 October 2026: D1 to D11 (section 11) approved with every recommended answer (approval comment on PR #208). Architecture gate passed with changes, 11 October 2026; changes folded in below. File and type references after the phase 3, 4, 5 and 7 rebase are in the phase plan's Rebase notes.** Contract change 1 of [ux-revamp-v1.md](ux-revamp-v1.md), delivered by #199 (phase plan: [ux-revamp-phase-6-home.md](ux-revamp-phase-6-home.md)). Policy identifier: `today_so_far_health_v1`. Wireframe: [`designs/ux-revamp-v1/Main.dc.html`](designs/ux-revamp-v1/Main.dc.html), "Health · today so far".
 
 Home shows a few provisional health values for the current local day. This document fixes what each value means, how it is queried, how absence is shown and why the Health report and Daily JSON export cannot change as a result.
 
@@ -52,7 +52,7 @@ The port returns domain values only:
 ```swift
 enum TodaySoFarRead<Value: Equatable>: Equatable { case value(Value), noData, failed, healthUnavailable }
 struct TodaySoFarHealthInputs: Equatable {
-    let steps: TodaySoFarRead<CumulativeTotal>          // value plus source names
+    let steps: TodaySoFarRead<DailyStepTotal>           // value plus source names; nil steps map to .noData
     let activeEnergyKilocalories: TodaySoFarRead<Double>
     let asleepIntervals: TodaySoFarRead<[AsleepInterval]>
     let weights: TodaySoFarRead<[WeightMeasurement]>
@@ -150,17 +150,17 @@ Simulator evidence proves software behaviour only. On a device, with Developer t
 
 | ID | Question | Answer | Status |
 |---|---|---|---|
-| D1 | Which night is "last night", and its label? | Today's wake-date noon-to-noon bucket clipped to `asOf`, matching report and export. Before the bucket's noon the row reads "… so far · last night"; with no asleep time, "No sleep visible yet, or no access" | Updated after gate |
-| D2 | Weight lookback | Existing 30 days ending at `asOf`, now a named constant; date shown when not today. The export's today-only weight rule is not used on Home | Accepted |
-| D3 | Blood-pressure lookback | Existing 30 days from local start of today; latest complete pair only, no batches or slots | Accepted |
-| D4 | Timestamp format | System time style (`.shortened`): today time only; "Yesterday, <time>"; older "8 Oct, <time>" | Updated after gate |
-| D5 | May Home trigger read authorisation? | Yes, via `HealthReadAuthorizationRequesting`, once per session, same read set, `toShare` empty, then refresh | Updated after gate |
-| D6 | Visible zero | A returned 0 is "0 so far"; absence is "No data" | Accepted |
-| D7 | Live updating | No observer queries or timers; triggers in section 6; "As of HH:mm" | Accepted |
-| D8 | Health unavailable device | Show the card in the unavailable state, not hidden | Accepted |
-| D9 | Active energy beside food energy | Never a net or balance; separate cards | Accepted |
-| D10 | Exception to "show every metric in the main screen, copied report and Diagnostics" (AGENTS.md) | Home highlights appear on Home and in Diagnostics only. They are provisional, partial-day values; adding them to the copied report or export would mix a third day rule into completed-day and selected-day outputs. README records the rule | New, recommended |
-| D11 | Home notes row day | Pinned to today, independent of the export's selected day (phase plan) | New, recommended |
+| D1 | Which night is "last night", and its label? | Today's wake-date noon-to-noon bucket clipped to `asOf`, matching report and export. Before the bucket's noon the row reads "… so far · last night"; with no asleep time, "No sleep visible yet, or no access" | Approved |
+| D2 | Weight lookback | Existing 30 days ending at `asOf`, now a named constant; date shown when not today. The export's today-only weight rule is not used on Home | Approved |
+| D3 | Blood-pressure lookback | Existing 30 days from local start of today; latest complete pair only, no batches or slots | Approved |
+| D4 | Timestamp format | System time style (`.shortened`): today time only; "Yesterday, <time>"; older "8 Oct, <time>" | Approved |
+| D5 | May Home trigger read authorisation? | Yes, via `HealthReadAuthorizationRequesting`, once per session, same read set, `toShare` empty, then refresh | Approved |
+| D6 | Visible zero | A returned 0 is "0 so far"; absence is "No data" | Approved |
+| D7 | Live updating | No observer queries or timers; triggers in section 6; "As of HH:mm" | Approved |
+| D8 | Health unavailable device | Show the card in the unavailable state, not hidden | Approved |
+| D9 | Active energy beside food energy | Never a net or balance; separate cards | Approved |
+| D10 | Exception to "show every metric in the main screen, copied report and Diagnostics" (AGENTS.md) | Home highlights appear on Home and in Diagnostics only. They are provisional, partial-day values; adding them to the copied report or export would mix a third day rule into completed-day and selected-day outputs. README records the rule | Approved |
+| D11 | Home notes row day | Pinned to today, independent of the export's selected day (phase plan) | Approved |
 
 ## 12. Known gaps carried, not fixed here
 
