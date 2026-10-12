@@ -10,6 +10,10 @@ public enum QuickAddText {
     public static let unverifiable = "Source can no longer be verified"
     public static let favouriteNotSaved = "Logged. Favourite not saved"
 
+    /// Edit gives way to the amount "Done" while an amount field is focused, so the bar holds at
+    /// most Cancel, the title and one trailing action and the title is not truncated (#224).
+    public static func showsEdit(amountFocus: AmountFieldFocus?) -> Bool { !AmountFieldFocus.showsDone(amountFocus) }
+
     public static func amount(_ value: Double, unit: QuantityUnit, locale: Locale = .current) -> String {
         let number = value.formatted(.number.precision(.fractionLength(0...2)).locale(locale))
         switch unit {
@@ -281,7 +285,9 @@ public struct QuickAddSheet: View {
         #endif
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: close) }
-            ToolbarItem(placement: .primaryAction) { Button("Edit", action: edit).disabled(model.editState == nil) }
+            if QuickAddText.showsEdit(amountFocus: editingAmount) {
+                ToolbarItem(placement: .primaryAction) { Button("Edit", action: edit).disabled(model.editState == nil) }
+            }
         }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 6) {
