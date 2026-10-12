@@ -574,6 +574,9 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         let excludedContent = [
             "Daily JSON Export",
             "Copy Report",
+            "Copy all",
+            "Export a day",
+            "Summary",
             "Refresh",
             "Last refreshed",
             "Developer Diagnostics",
@@ -1142,5 +1145,161 @@ private struct UnusedDailyHealthDataProvider: DailyHealthExportDataProviding {
         includeWorkoutEnrichment: Bool
     ) async throws -> DailyHealthExportInputs {
         throw HealthDataError.unavailable
+    }
+}
+
+// MARK: #200 Health summary tiles
+
+extension WeeklyReportScreenshotTests {
+    func testTilePinsNameRowsThatExistInTheExpandedFullFixture() throws {
+        let document = ReportDocument.expanded(
+            snapshot: makeFullFixtureSnapshot(),
+            calendar: testCalendar(),
+            locale: Locale(identifier: "en_GB")
+        )
+        XCTAssertEqual(HealthSummaryTiles.pins.map(\.kind), HealthSummaryTile.Kind.allCases)
+        XCTAssertEqual(HealthSummaryTiles.pins.map(\.primaryRowID), [
+            "steps-average", "sleep-average", "resting-heart-rate-average",
+            "weight-average", "blood-pressure-morning-average"
+        ])
+        XCTAssertEqual(HealthSummaryTiles.pins.map(\.detailRowID), [
+            "steps-coverage", nil, "resting-heart-rate-trend",
+            "weight-trend", "blood-pressure-morning-coverage"
+        ])
+        let tiles = HealthSummaryTiles.make(from: document)
+        XCTAssertEqual(tiles.map(\.kind), HealthSummaryTile.Kind.allCases)
+        for (tile, pin) in zip(tiles, HealthSummaryTiles.pins) {
+            let section = try XCTUnwrap(document.sections.first { $0.id == pin.section })
+            // Byte for byte: label, value and style copied from the row.
+            XCTAssertEqual(tile.primary, section.rows.first { $0.id == pin.primaryRowID }, "\(pin.kind)")
+            if let detailID = pin.detailRowID {
+                XCTAssertNotNil(tile.detail, "\(pin.kind)")
+                XCTAssertEqual(tile.detail, section.rows.first { $0.id == detailID }, "\(pin.kind)")
+            } else {
+                XCTAssertNil(tile.detail)
+            }
+        }
+        let weight = try XCTUnwrap(tiles.first { $0.kind == .weight })
+        XCTAssertEqual(weight.primary.label, "7-day Average")
+    }
+
+    func testTilesCopyStateRowsAndMapStepsToSharedVocabulary() throws {
+        let expectedSteps: [(SyntheticDocumentStateCase, String, ReportDocument.RowStyle)] = [
+            (.idle, "Loading…", .loading),
+            (.loading, "Loading…", .loading),
+            (.noDataOrAccess, "No data", .secondary),
+            (.healthUnavailable, "Unavailable", .secondary),
+            (.failed, "Query failed", .failure)
+        ]
+        for (stateCase, stepsValue, stepsStyle) in expectedSteps {
+            let document = ReportDocument.expanded(
+                snapshot: makeSnapshot(
+                    steps: stateCase.stepsState,
+                    weight: stateCase.metricState(),
+                    bloodPressure: stateCase.metricState(),
+                    restingHeartRate: stateCase.metricState(),
+                    sleep: stateCase.metricState()
+                ),
+                calendar: testCalendar(),
+                locale: Locale(identifier: "en_GB")
+            )
+            let tiles = HealthSummaryTiles.make(from: document)
+            XCTAssertEqual(tiles.map(\.kind), HealthSummaryTile.Kind.allCases, "\(stateCase)")
+            let steps = try XCTUnwrap(tiles.first { $0.kind == .steps })
+            XCTAssertEqual(steps.primary.value, stepsValue, "\(stateCase)")
+            XCTAssertEqual(steps.primary.style, stepsStyle, "\(stateCase)")
+            XCTAssertNil(steps.detail)
+
+            for tile in tiles where tile.kind != .steps {
+                let pin = try XCTUnwrap(HealthSummaryTiles.pins.first { $0.kind == tile.kind })
+                let section = try XCTUnwrap(document.sections.first { $0.id == pin.section })
+                let source = try XCTUnwrap(section.rows.first { $0.id == pin.primaryRowID } ?? section.rows.first)
+                // Verbatim, except that failures use the short shared term.
+                let expected = source.style == .failure
+                    ? ReportDocument.Row(source.id, label: source.label, value: "Query failed", style: .failure)
+                    : source
+                XCTAssertEqual(tile.primary, expected, "\(tile.kind), \(stateCase)")
+            }
+        }
+
+        // The long failure message stays in the section row (and Copy all).
+        let failedDocument = ReportDocument.expanded(
+            snapshot: makeSnapshot(weight: .failed("com.apple.developer.healthkit entitlement missing")),
+            calendar: testCalendar(),
+            locale: Locale(identifier: "en_GB")
+        )
+        let weightTile = try XCTUnwrap(HealthSummaryTiles.make(from: failedDocument).first { $0.kind == .weight })
+        XCTAssertEqual(weightTile.primary.value, "Query failed")
+        XCTAssertEqual(weightTile.primary.style, .failure)
+        XCTAssertTrue(failedDocument.searchableText.contains("com.apple.developer.healthkit entitlement missing"))
+
+        let noCompletedDays = HealthSummaryTiles.make(from: ReportDocument.expanded(
+            snapshot: makeSnapshot(steps: .noCompletedDays),
+            calendar: testCalendar(),
+            locale: Locale(identifier: "en_GB")
+        ))
+        XCTAssertEqual(noCompletedDays.first?.primary.value, "No completed days")
+        XCTAssertNotEqual(MetricRowVocabulary.noCompletedDays, MetricRowVocabulary.unavailable)
+    }
+
+    func testTilesDoNotDependOnOnScreenBloodPressureExpansion() throws {
+        let summary = syntheticBloodPressureSummary()
+        var results: [[HealthSummaryTile]] = []
+        for morning in [false, true] {
+            for evening in [false, true] {
+                results.append(HealthSummaryTiles.make(from: ReportDocument.expanded(
+                    snapshot: makeSnapshot(
+                        bloodPressure: .available(summary),
+                        showsMorningDetails: morning,
+                        showsEveningDetails: evening
+                    ),
+                    calendar: testCalendar(),
+                    locale: Locale(identifier: "en_GB")
+                )))
+            }
+        }
+        XCTAssertTrue(results.allSatisfy { $0 == results[0] })
+        let bloodPressure = try XCTUnwrap(results[0].first { $0.kind == .morningBloodPressure })
+        XCTAssertEqual(bloodPressure.detail?.id, "blood-pressure-morning-coverage")
+
+        // The on-screen collapsed document lacks the row, which is why tiles
+        // must never be built from it.
+        let collapsed = makeDocument(bloodPressure: .available(summary), showsMorningDetails: false)
+        XCTAssertFalse(collapsed.sections.flatMap(\.rows).contains { $0.id == "blood-pressure-morning-coverage" })
+    }
+
+    func testHealthAndExportRenderAtDefaultAndAccessibilitySizes() async throws {
+        let calendar = testCalendar()
+        let viewModel = WeeklyReportViewModel(healthData: FakeHealthDataProvider(), calendar: calendar, now: Date.init)
+        await viewModel.refresh()
+        let state = WeeklyReportPresentationState()
+        let now = calendar.date(from: DateComponents(year: 2026, month: 9, day: 10, hour: 15))!
+        let store = EmptyDailyNotesStore()
+        let notes = DailyNotesController(store: store, calendar: calendar, now: { now })
+        let session = DailyDriveSessionController(
+            keychain: ScreenshotMemoryDailySessionStore(), drive: DailyDriveAPI(),
+            exportService: DailyHealthExportService(healthData: UnusedDailyHealthDataProvider(), notesStore: store, calendar: calendar, now: { now }),
+            identityStore: ControllerMemoryDailyIdentityStore(),
+            nutritionSourceSelection: EmptyNutritionSourceSelectionStore(), notes: notes
+        )
+        for scheme in [ColorScheme.light, .dark] {
+            for size in [DynamicTypeSize.large, .accessibility3] {
+                renderFoodView(NavigationStack {
+                    HealthReportView(viewModel: viewModel, presentationState: state)
+                        .environment(\.dynamicTypeSize, size)
+                        .environment(\.colorScheme, scheme)
+                }, name: "Health - \(scheme) - \(size)")
+                renderFoodView(NavigationStack {
+                    DailyExportView(session: session)
+                        .environment(\.dynamicTypeSize, size)
+                        .environment(\.colorScheme, scheme)
+                }, name: "Export - \(scheme) - \(size)")
+                renderFoodView(NavigationStack {
+                    DriveDestinationSettingsView(session: session)
+                        .environment(\.dynamicTypeSize, size)
+                        .environment(\.colorScheme, scheme)
+                }, name: "Settings Google Drive - \(scheme) - \(size)")
+            }
+        }
     }
 }

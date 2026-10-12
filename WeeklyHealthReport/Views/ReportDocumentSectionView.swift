@@ -2,19 +2,50 @@ import SwiftUI
 
 struct ReportDocumentSectionView: View {
     let section: ReportDocument.Section
+    @Binding var isExpanded: Bool
 
     var body: some View {
         Section {
-            ForEach(section.rows) { row in
-                ReportDocumentRowView(row: row)
+            if isExpanded {
+                ForEach(section.rows) { row in
+                    ReportDocumentRowView(row: row)
+                }
             }
         } header: {
-            Text(section.title)
+            ReportSectionHeader(title: section.title, isExpanded: $isExpanded)
         } footer: {
-            if let footer = section.footer {
+            if isExpanded, let footer = section.footer {
                 Text(footer)
             }
         }
+    }
+}
+
+/// The one disclosure style for every Health section. Expansion changes only
+/// the screen; copied text and Full Page always include every row.
+struct ReportSectionHeader: View {
+    let title: String
+    @Binding var isExpanded: Bool
+
+    var body: some View {
+        Button {
+            withAnimation { isExpanded.toggle() }
+        } label: {
+            HStack {
+                Text(title)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                    .accessibilityHidden(true)
+            }
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
+        .accessibilityHint(isExpanded ? "Hides this section's rows" : "Shows this section's rows")
+        .accessibilityAddTraits(.isHeader)
     }
 }
 

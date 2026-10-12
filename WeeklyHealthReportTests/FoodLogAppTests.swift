@@ -45,9 +45,10 @@ final class FoodLogAppTests: XCTestCase {
     }
 
     /// A saved entry is presentation state of the Food Log, not a route value (#197).
+    /// Phase 7 (#200) appends only `exportDestination` after `addFood`.
     func testNoRouteWasAddedForTheSavedEntry() {
-        XCTAssertEqual(AppRoute.allCases.count, 20)
-        XCTAssertEqual(AppRoute.allCases.last, .addFood)
+        XCTAssertEqual(AppRoute.allCases.count, 21)
+        XCTAssertEqual(Array(AppRoute.allCases.suffix(2)), [.addFood, .exportDestination])
     }
 
     // MARK: No egress

@@ -612,3 +612,111 @@ final class WeeklyReportViewModelTests: XCTestCase {
         ))!
     }
 }
+
+// MARK: #200 Copy all and Full Page use one expanded document
+
+extension WeeklyReportViewModelTests {
+    func testCopyAllIsTheExpandedDocumentForEveryOnScreenState() async {
+        let calendar = testCalendar()
+        let locale = Locale(identifier: "en_GB")
+        let generatedAt = date(2026, 9, 1, hour: 13, calendar: calendar)
+        let viewModel = makeViewModel(
+            provider: FakeHealthDataProvider(),
+            calendar: calendar,
+            dates: [date(2026, 9, 1, hour: 12, calendar: calendar)]
+        )
+        await viewModel.refresh()
+
+        let expected = ReportDocument(
+            snapshot: viewModel.presentationSnapshot(
+                includesMedicationSection: HealthReportView.includesMedicationSection,
+                showsMorningBloodPressureDetails: true,
+                showsEveningBloodPressureDetails: true
+            ),
+            calendar: calendar,
+            locale: locale
+        ).plainText(generatedAt: generatedAt, calendar: calendar, locale: locale)
+
+        let presentationState = WeeklyReportPresentationState()
+        let sectionSets: [Set<ReportDocument.SectionID>] = [
+            Set(ReportDocument.SectionID.allCases), [], [.steps], [.bloodPressure, .sleep]
+        ]
+        for morning in [false, true] {
+            for evening in [false, true] {
+                for sections in sectionSets {
+                    presentationState.showsMorningBloodPressureDetails = morning
+                    presentationState.showsEveningBloodPressureDetails = evening
+                    presentationState.expandedSections = sections
+                    let flagged = viewModel.presentationSnapshot(
+                        includesMedicationSection: HealthReportView.includesMedicationSection,
+                        showsMorningBloodPressureDetails: morning,
+                        showsEveningBloodPressureDetails: evening
+                    )
+                    XCTAssertEqual(
+                        ReportDocument.expanded(snapshot: flagged, calendar: calendar, locale: locale)
+                            .plainText(generatedAt: generatedAt, calendar: calendar, locale: locale),
+                        expected,
+                        "morning \(morning), evening \(evening), sections \(sections)"
+                    )
+                    XCTAssertEqual(
+                        HealthReportView.copyAllText(
+                            viewModel: viewModel,
+                            generatedAt: generatedAt,
+                            calendar: calendar,
+                            locale: locale
+                        ),
+                        expected
+                    )
+                }
+            }
+        }
+        // Tiles repeat section values and are never copied.
+        for tileOnly in ["Summary", "Resting heart rate", "Morning blood pressure"] {
+            XCTAssertFalse(expected.contains(tileOnly), tileOnly)
+        }
+    }
+
+    func testCopyAllGateIsClosedOnlyWhileRefreshing() async {
+        let calendar = testCalendar()
+        let provider = FakeHealthDataProvider(pauseFirstWeightFetch: true)
+        let viewModel = makeViewModel(
+            provider: provider,
+            calendar: calendar,
+            dates: [date(2026, 9, 1, hour: 12, calendar: calendar)]
+        )
+        XCTAssertTrue(HealthReportView.canCopyAll(viewModel: viewModel))
+        let refresh = Task { await viewModel.refresh() }
+        await provider.waitUntilFirstWeightFetchIsPaused()
+        XCTAssertFalse(HealthReportView.canCopyAll(viewModel: viewModel))
+        await provider.resumeFirstWeightFetch()
+        await refresh.value
+        XCTAssertTrue(HealthReportView.canCopyAll(viewModel: viewModel))
+    }
+
+    func testFullPageIsAlwaysExpandedAndFailsClosedDuringRefreshAndPeriodMismatch() async throws {
+        let calendar = testCalendar()
+        let provider = FakeHealthDataProvider(pauseFirstWeightFetch: true)
+        let viewModel = makeViewModel(
+            provider: provider,
+            calendar: calendar,
+            dates: [date(2026, 9, 1, hour: 12, calendar: calendar), date(2026, 9, 1, hour: 13, calendar: calendar)]
+        )
+        let refresh = Task { await viewModel.refresh() }
+        await provider.waitUntilFirstWeightFetchIsPaused()
+        XCTAssertNil(HealthReportView.fullPageDocument(viewModel: viewModel))
+        await provider.resumeFirstWeightFetch()
+        await refresh.value
+
+        let document = try XCTUnwrap(HealthReportView.fullPageDocument(viewModel: viewModel))
+        XCTAssertEqual(document, HealthReportView.expandedDocument(viewModel: viewModel))
+        let collapsed = ReportDocument(snapshot: viewModel.presentationSnapshot(
+            includesMedicationSection: HealthReportView.includesMedicationSection,
+            showsMorningBloodPressureDetails: false,
+            showsEveningBloodPressureDetails: false
+        ))
+        XCTAssertEqual(document.sections.map(\.id), collapsed.sections.map(\.id))
+
+        viewModel.selection = .previousWeek
+        XCTAssertNil(HealthReportView.fullPageDocument(viewModel: viewModel))
+    }
+}

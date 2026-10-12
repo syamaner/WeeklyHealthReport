@@ -1456,3 +1456,17 @@ Pricing as in the previous section (checked 11 October 2026): USD 4/M base input
 Boundary: `2026-10-11T15:29:00Z` → `2026-10-11T17:23:44Z`. 525 requests (75 main session, 450 subagents); maximum input 525,235. Cache writes: 2,664,005 5-minute, 112,517 1-hour. Exact API-equivalent USD 41.860737.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-200-2026-10-11: Claude Code phase 7 Health and Export
+
+Same `claude-opus-5-5` session. The row covers the phase 7 subagents only: the plan agent's work after the drafting window, implementation and fix agent, invariant review (with a re-review of the fixes) and journey QA. The main session's orchestration in the same window is recorded with phase 4 (WHR-197-2026-10-11) because its turns interleave both phases. The plan's earlier drafting and gate review are in WHR-196-2026-10-11. This ledger edit, PR delivery and merge are outside the row.
+
+Pricing as in the previous section (checked 11 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output; standard speed, global inference, no paid server tools. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 7 Health and Export (#200), subagents only | 50,517,063 (49,247,139) | 1,269,292 | 26,302 | 50,543,365 | $16.72 |
+
+Boundary: `2026-10-11T15:29:00Z` → `2026-10-11T17:30:41Z`. 303 requests; maximum input 321,857. Cache writes: 1,269,292 5-minute, 0 1-hour. Exact API-equivalent USD 16.7244558.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
