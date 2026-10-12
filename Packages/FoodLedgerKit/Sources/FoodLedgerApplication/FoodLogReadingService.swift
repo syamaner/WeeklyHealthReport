@@ -33,9 +33,11 @@ public struct FoodLogReadingService: Sendable {
 
     /// Throws `FoodIntakeProjectionError` for competing versions, mixtures or missing references.
     public func day(reportingDate: String) throws -> FoodLogDayContent {
-        let projection = try FoodIntakeProjection(records: archive.archiveState().records, reportingDate: reportingDate)
+        let records = try archive.archiveState().records
+        let projection = try FoodIntakeProjection(records: records, reportingDate: reportingDate)
         return FoodLogDayContent(projection: projection, reportingDate: reportingDate,
-                                 estimates: estimates(projection.rows.map(\.logItemID)))
+                                 estimates: estimates(projection.rows.map(\.logItemID)),
+                                 plainWater: try PlainWaterDayTotal.total(records: records, reportingDate: reportingDate))
     }
 
     /// Nil when the entry is missing or removed.

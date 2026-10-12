@@ -493,3 +493,53 @@ extension SourceInstallation {
         )
     }
 }
+
+// MARK: Favourites (food quick add contract v1)
+
+extension FavouriteAmount {
+    enum CodingKeys: String, CodingKey { case value, unit }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(value: values.decode(Double.self, forKey: .value), unit: values.decode(QuantityUnit.self, forKey: .unit))
+    }
+}
+
+extension FavouriteVersion {
+    enum CodingKeys: String, CodingKey {
+        case favouriteVersionID, favouriteID, ordinal, supersedesFavouriteVersionID, binding
+        case label, defaultAmount, state, createdAt
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            favouriteVersionID: values.decode(FavouriteVersionID.self, forKey: .favouriteVersionID),
+            favouriteID: values.decode(FavouriteID.self, forKey: .favouriteID),
+            ordinal: values.decode(VersionOrdinal.self, forKey: .ordinal),
+            supersedesFavouriteVersionID: values.decodeIfPresent(FavouriteVersionID.self, forKey: .supersedesFavouriteVersionID),
+            binding: values.decode(FavouriteBinding.self, forKey: .binding),
+            label: values.decode(LedgerText.self, forKey: .label),
+            defaultAmount: values.decode(FavouriteAmount.self, forKey: .defaultAmount),
+            state: values.decode(FavouriteState.self, forKey: .state),
+            createdAt: values.decode(Date.self, forKey: .createdAt)
+        )
+    }
+}
+
+extension FavouriteArrangement {
+    enum CodingKeys: String, CodingKey {
+        case arrangementVersionID, ordinal, supersedesArrangementVersionID, order, createdAt
+    }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            arrangementVersionID: values.decode(FavouriteArrangementVersionID.self, forKey: .arrangementVersionID),
+            ordinal: values.decode(VersionOrdinal.self, forKey: .ordinal),
+            supersedesArrangementVersionID: values.decodeIfPresent(FavouriteArrangementVersionID.self, forKey: .supersedesArrangementVersionID),
+            order: values.decode([FavouriteID].self, forKey: .order),
+            createdAt: values.decode(Date.self, forKey: .createdAt)
+        )
+    }
+}

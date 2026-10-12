@@ -252,8 +252,13 @@ The optional [local receipt review](docs/local-inventory-contract.md) imports pa
 text or user-selected text-bearing PDFs, keeps original evidence and requires
 explicit product review. Received purchases, dated remaining-stock assertions and
 consumed food stay separate. Google is not required; a Drive importer is a later
-feature. [Common foods and draft recovery](docs/food-drafts-and-common-foods.md)
-provide favourites, aliases, usual portions and quick-add to an explicit review.
+feature. [Usual foods and draft recovery](docs/food-drafts-and-common-foods.md)
+provide usual foods, aliases, usual portions and add-to-review to an explicit review.
+These usual foods are separate from source-bound **favourites** ([quick add contract](docs/food-quick-add-contract-v1.md)):
+a favourite pins a logged entry (or the app's plain water reference) and a default amount, and a Home chip
+opens a one-step quick-add sheet; nothing is logged until Log, estimates and corrected entries open the full
+Confirm, and editing a favourite never changes logged entries. Home and the Food Log show **plain water
+logged** for the day (No data when none), separate from the dietary water nutrient total.
 Pasted lists resume after reopening the app. Inventory has its own versioned
 backup, available from **Settings → Backup and restore**; existing food-ledger
 archives and daily health exports remain separate.

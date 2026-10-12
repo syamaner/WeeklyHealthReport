@@ -15,6 +15,11 @@ struct FoodIntakeHomeView: View {
     @State private var openedEntry: LogItemID?
     /// Entries whose current version is a labelled estimate (FoodEntryEstimateStatus, #195).
     @State private var estimates: Set<LogItemID> = []
+    /// Quick-add chips (#198): the first four items; nil when favourites cannot be read.
+    @State private var quickAddItems: [QuickAddItem]? = []
+    @State private var quickAddRequest: QuickAddItem?
+    /// Plain water logged today (Q8). Nil means No data.
+    @State private var plainWater: FoodIntakeTotal?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -59,10 +64,28 @@ struct FoodIntakeHomeView: View {
                         }
                         .listRowInsets(EdgeInsets()).listRowBackground(Color.clear)
                     }
+                    LabeledContent(FoodLogText.plainWaterLabel, value: FoodLogText.plainWater(plainWater))
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(FoodLogText.plainWaterAccessibility(plainWater))
                 } header: {
                     Text("Logged intake · \(Self.entryCount(projection.summary.itemCount))")
                 } footer: {
                     Text("Totals cover known values only. Missing or bounded nutrients are not counted as zero.")
+                }
+                Section {
+                    if let items = quickAddItems, items.isEmpty {
+                        Text("No favourites yet").foregroundStyle(.secondary)
+                        NavigationLink("Manage favourites", value: AppRoute.favourites)
+                    } else if let items = quickAddItems {
+                        QuickAddChipRow(items: Array(items.prefix(FavouritesProjection.todayCount))) { quickAddRequest = $0 }
+                            .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
+                        NavigationLink("Manage favourites", value: AppRoute.favourites)
+                    } else {
+                        Label("Favourites could not be read.", systemImage: "exclamationmark.triangle")
+                        NavigationLink("Review favourites", value: AppRoute.favourites)
+                    }
+                } header: { Text("Quick add") } footer: {
+                    Text("A quick add opens a short confirmation. Nothing is logged until you choose Log.")
                 }
                 Section {
                     NavigationLink(value: AppRoute.addFood) {
@@ -110,6 +133,7 @@ struct FoodIntakeHomeView: View {
             }
         }
         .onChange(of: openedEntry) { _, entry in if entry == nil { reload() } }
+        .modifier(OptionalQuickAdd(root: root, request: $quickAddRequest, logged: reload))
     }
 
     private var summaryKeys: [NutrientKey] { [.energyConsumed, .protein, .carbohydrates, .fatTotal] }
@@ -162,6 +186,8 @@ struct FoodIntakeHomeView: View {
             guard let root else { throw FoodIntakeProjectionError.missingReference }
             projection = try root.intakeProjection(for: selectedDate)
             estimates = projection.map { root.estimateLogItemIDs(in: $0.rows) } ?? []
+            plainWater = try root.plainWaterTotal(for: selectedDate)
+            quickAddItems = root.quickAddItems()
             failure = nil
         } catch FoodIntakeProjectionError.competingVersions {
             projection = nil; failure = "Conflicting food versions need review before an intake total can be shown."
@@ -184,5 +210,16 @@ struct FoodIntakeHomeView: View {
         guard let amount = total.knownAmount else { return "Unknown" }
         let value = "\(amount.formatted(.number.precision(.fractionLength(0...1)))) \(total.key.canonicalUnit.rawValue)"
         return total.incompleteContributions == 0 ? value : value + " known"
+    }
+}
+
+/// Quick add on Home when the food ledger is composed.
+private struct OptionalQuickAdd: ViewModifier {
+    let root: FoodLedgerCompositionRoot?
+    @Binding var request: QuickAddItem?
+    let logged: () -> Void
+
+    func body(content: Content) -> some View {
+        if let root { content.quickAdd(root: root, request: $request, logged: logged) } else { content }
     }
 }

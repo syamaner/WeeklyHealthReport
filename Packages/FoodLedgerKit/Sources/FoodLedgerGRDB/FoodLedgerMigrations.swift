@@ -35,6 +35,14 @@ extension FoodLedgerGRDBStore {
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v5' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 5")
         }
+        migrator.registerMigration("v6_favourites") { db in
+            // Favourite records (food quick add contract v1, food contract 6). New tables only:
+            // no existing row is rewritten. Older binaries decline schema 6.
+            try db.execute(sql: favouriteSchemaSQL)
+            try installFavouriteTriggers(db)
+            try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v6' WHERE key = 'schema_identity'")
+            try db.execute(sql: "PRAGMA user_version = 6")
+        }
         return migrator
     }
 
@@ -199,6 +207,70 @@ extension FoodLedgerGRDBStore {
             UNIQUE(actor_id, operation_hash)
         );
         """
+
+    private static let favouriteSchemaSQL = """
+        CREATE TABLE favourite (favourite_id TEXT PRIMARY KEY NOT NULL, payload BLOB NOT NULL);
+        CREATE TABLE favourite_version (
+            version_id TEXT PRIMARY KEY NOT NULL,
+            favourite_id TEXT NOT NULL REFERENCES favourite(favourite_id),
+            ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+            supersedes_id TEXT REFERENCES favourite_version(version_id),
+            log_item_version_id TEXT REFERENCES log_item_version(version_id),
+            reference_id TEXT,
+            payload BLOB NOT NULL,
+            CHECK ((log_item_version_id IS NULL) <> (reference_id IS NULL))
+        );
+        CREATE INDEX favourite_version_favourite ON favourite_version(favourite_id, ordinal);
+        CREATE TABLE favourite_arrangement_version (
+            version_id TEXT PRIMARY KEY NOT NULL,
+            ordinal INTEGER NOT NULL CHECK (ordinal > 0),
+            supersedes_id TEXT REFERENCES favourite_arrangement_version(version_id),
+            payload BLOB NOT NULL
+        );
+        """
+
+    private static func installFavouriteTriggers(_ db: Database) throws {
+        for table in ["favourite", "favourite_version", "favourite_arrangement_version"] {
+            try db.execute(sql: """
+                CREATE TRIGGER \(table)_immutable_update
+                BEFORE UPDATE ON \(table)
+                BEGIN SELECT RAISE(ABORT, 'immutable \(table)'); END;
+                """)
+            try db.execute(sql: """
+                CREATE TRIGGER \(table)_immutable_delete
+                BEFORE DELETE ON \(table)
+                BEGIN SELECT RAISE(ABORT, 'immutable \(table)'); END;
+                """)
+        }
+        try db.execute(sql: """
+            CREATE TRIGGER favourite_version_lineage
+            BEFORE INSERT ON favourite_version
+            WHEN (
+                NEW.supersedes_id IS NULL AND (
+                    NEW.ordinal != 1 OR
+                    EXISTS (SELECT 1 FROM favourite_version WHERE favourite_id = NEW.favourite_id)
+                )
+            ) OR (
+                NEW.supersedes_id IS NOT NULL AND NOT EXISTS (
+                    SELECT 1 FROM favourite_version
+                    WHERE version_id = NEW.supersedes_id
+                      AND favourite_id = NEW.favourite_id
+                      AND ordinal < NEW.ordinal
+                )
+            )
+            BEGIN SELECT RAISE(ABORT, 'invalid lineage favourite_version'); END;
+            """)
+        try db.execute(sql: """
+            CREATE TRIGGER favourite_arrangement_version_lineage
+            BEFORE INSERT ON favourite_arrangement_version
+            WHEN (NEW.supersedes_id IS NULL AND NEW.ordinal != 1)
+              OR (NEW.supersedes_id IS NOT NULL AND NOT EXISTS (
+                    SELECT 1 FROM favourite_arrangement_version
+                    WHERE version_id = NEW.supersedes_id AND ordinal < NEW.ordinal
+              ))
+            BEGIN SELECT RAISE(ABORT, 'invalid lineage favourite_arrangement_version'); END;
+            """)
+    }
 
     private static func installImmutableTriggers(_ db: Database) throws {
         let tables = [

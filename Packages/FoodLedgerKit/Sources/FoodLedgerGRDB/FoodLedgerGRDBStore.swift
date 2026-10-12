@@ -18,9 +18,9 @@ public struct ProtectedDataAvailability: Sendable {
 }
 
 public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, FoodConfirmationReading,
-    EvidenceAttachmentStoring, FoodArchiveLedgerAccess, @unchecked Sendable
+    EvidenceAttachmentStoring, FoodArchiveLedgerAccess, FavouriteReading, @unchecked Sendable
 {
-    public static let schemaVersion = 5
+    public static let schemaVersion = 6
     public static let applicationID = 0x5748_5246 // WHRF
 
     private let databaseQueue: DatabaseQueue
@@ -38,7 +38,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         protectedData: ProtectedDataAvailability = .available,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV4
+        operationRegistry: LedgerOperationRegistry = .builtInV6
     ) throws {
         try protectedData.requireAvailable()
         self.encoder = encoder
@@ -89,7 +89,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         protectedData: ProtectedDataAvailability = .available,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV4
+        operationRegistry: LedgerOperationRegistry = .builtInV6
     ) throws -> FoodLedgerGRDBStore {
         try FoodLedgerGRDBStore(
             databaseURL: directory.appendingPathComponent("food-ledger-v1.sqlite"),
@@ -177,9 +177,30 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                 ),
                 operations: try operationRows.map {
                     try OperationRecord(row: $0).operation(registry: operationRegistry)
-                }
+                },
+                favourites: try favouriteMutation(db)
             )
         }
+    }
+
+    public func favouriteRecords() throws -> FavouriteMutation {
+        try protectedData.requireAvailable()
+        return try databaseQueue.read { try favouriteMutation($0) }
+    }
+
+    private func favouriteMutation(_ db: Database) throws -> FavouriteMutation {
+        func values<Value: Decodable>(_ type: Value.Type, table: String) throws -> [Value] {
+            try Row.fetchAll(db, sql: "SELECT payload FROM \(table) ORDER BY 1").map { try decoder.decode(type, from: $0["payload"]) }
+        }
+        return FavouriteMutation(
+            favourites: try values(FavouriteEntry.self, table: "favourite"),
+            favouriteVersions: try values(FavouriteVersion.self, table: "favourite_version"),
+            arrangements: try values(FavouriteArrangement.self, table: "favourite_arrangement_version"))
+    }
+
+    public func evidence(id: EvidenceID) throws -> CaptureEvidence? {
+        try protectedData.requireAvailable()
+        return try decodeOne(sql: "SELECT payload FROM capture_evidence WHERE evidence_id = ?", arguments: [id.rawValue])
     }
 
     private func commit(_ transaction: LedgerTransaction, db: Database) throws -> CommitOutcome {
@@ -196,7 +217,10 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         guard transaction.operation.previousOperationHash == head.operationHash else {
             throw FoodLedgerStoreError.actorHashMismatch
         }
-        try insert(transaction.mutation, db: db)
+        switch transaction.payload {
+        case let .ledger(mutation): try insert(mutation, db: db)
+        case let .favourites(mutation): try insert(mutation, db: db)
+        }
         let record = try OperationRecord(operation: transaction.operation)
         try db.execute(
             sql: """
@@ -386,6 +410,26 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
     public func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation? {
         try protectedData.requireAvailable()
         return try databaseQueue.read { db in
+            guard let data = try Data.fetchOne(
+                db,
+                sql: "SELECT payload FROM log_item_version WHERE log_item_id = ? ORDER BY ordinal DESC, version_id DESC LIMIT 1",
+                arguments: [logItemID.rawValue]
+            ) else { return nil }
+            return try aggregate(try decoder.decode(LogItemVersion.self, from: data), db: db)
+        }
+    }
+
+    public func foodConfirmation(logItemVersionID: LogItemVersionID) throws -> StoredFoodConfirmation? {
+        try protectedData.requireAvailable()
+        return try databaseQueue.read { db in
+            guard let data = try Data.fetchOne(db, sql: "SELECT payload FROM log_item_version WHERE version_id = ?",
+                                               arguments: [logItemVersionID.rawValue]) else { return nil }
+            return try aggregate(try decoder.decode(LogItemVersion.self, from: data), db: db)
+        }
+    }
+
+    private func aggregate(_ logVersion: LogItemVersion, db: Database) throws -> StoredFoodConfirmation? {
+            let logItemID = logVersion.logItemID
             func decode<Value: Decodable>(_ type: Value.Type, table: String, column: String, id: String) throws -> Value? {
                 guard let data = try Data.fetchOne(
                     db,
@@ -394,12 +438,6 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                 ) else { return nil }
                 return try decoder.decode(type, from: data)
             }
-            guard let data = try Data.fetchOne(
-                db,
-                sql: "SELECT payload FROM log_item_version WHERE log_item_id = ? ORDER BY ordinal DESC, version_id DESC LIMIT 1",
-                arguments: [logItemID.rawValue]
-            ) else { return nil }
-            let logVersion = try decoder.decode(LogItemVersion.self, from: data)
             if case .removed = logVersion.composition { return nil }
             guard let logItem: LogItem = try decode(LogItem.self, table: "log_item", column: "log_item_id", id: logItemID.rawValue),
                   case let .product(productVersionID) = logVersion.composition,
@@ -458,7 +496,6 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                 candidateDecision: decision,
                 assertions: assertions
             )
-        }
     }
 
     public func persist(_ bytes: Data, mediaKind: LedgerText) throws -> AttachmentDescriptor {
@@ -566,6 +603,9 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
             try validatePayloads(LedgerConflict.self, table: "conflict", db: db)
             try validatePayloads(SourceRelease.self, table: "source_release", db: db)
             try validatePayloads(SourceInstallation.self, table: "source_installation", db: db)
+            try validatePayloads(FavouriteEntry.self, table: "favourite", db: db)
+            try validatePayloads(FavouriteVersion.self, table: "favourite_version", db: db)
+            try validatePayloads(FavouriteArrangement.self, table: "favourite_arrangement_version", db: db)
             let records = try Row.fetchAll(
                 db,
                 sql: "SELECT * FROM ledger_operation ORDER BY actor_id, actor_sequence"
@@ -673,6 +713,46 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
         try databaseQueue.read { db in
             guard let data = try Data.fetchOne(db, sql: sql, arguments: arguments) else { return nil }
             return try decoder.decode(Value.self, from: data)
+        }
+    }
+
+    /// Favourite records. Lineage and immutability are enforced by triggers; the binding must be
+    /// an existing product log item version (a removal version is rejected here, before insert).
+    private func insert(_ mutation: FavouriteMutation, db: Database) throws {
+        for value in mutation.favourites {
+            try db.execute(sql: "INSERT INTO favourite(favourite_id, payload) VALUES (?, ?)",
+                           arguments: [value.favouriteID.rawValue, try encoder.encode(value)])
+        }
+        for value in mutation.favouriteVersions {
+            var logVersionID: String?
+            var referenceID: String?
+            switch value.binding {
+            case let .savedEntry(id):
+                guard let data = try Data.fetchOne(db, sql: "SELECT payload FROM log_item_version WHERE version_id = ?", arguments: [id.rawValue]) else {
+                    throw FoodLedgerStoreError.missingReference(id.rawValue)
+                }
+                guard case .product = try decoder.decode(LogItemVersion.self, from: data).composition else {
+                    throw FoodLedgerStoreError.integrityFailure("favourite binding is not a product entry")
+                }
+                logVersionID = id.rawValue
+            case let .reference(reference):
+                referenceID = reference.rawValue
+            }
+            try db.execute(sql: """
+                INSERT INTO favourite_version(version_id, favourite_id, ordinal, supersedes_id, log_item_version_id, reference_id, payload)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, arguments: [value.favouriteVersionID.rawValue, value.favouriteID.rawValue, value.ordinal.value,
+                                 value.supersedesFavouriteVersionID?.rawValue, logVersionID, referenceID, try encoder.encode(value)])
+        }
+        for value in mutation.arrangements {
+            for favouriteID in value.order {
+                guard try Int.fetchOne(db, sql: "SELECT COUNT(*) FROM favourite WHERE favourite_id = ?", arguments: [favouriteID.rawValue]) == 1 else {
+                    throw FoodLedgerStoreError.missingReference(favouriteID.rawValue)
+                }
+            }
+            try db.execute(sql: "INSERT INTO favourite_arrangement_version(version_id, ordinal, supersedes_id, payload) VALUES (?, ?, ?, ?)",
+                           arguments: [value.arrangementVersionID.rawValue, value.ordinal.value,
+                                       value.supersedesArrangementVersionID?.rawValue, try encoder.encode(value)])
         }
     }
 
@@ -1148,7 +1228,7 @@ public final class FoodLedgerGRDBStore: LedgerCommandCommitting, LedgerReading, 
                   synchronous == 2,
                   application == applicationID,
                   version == schemaVersion,
-                  metadata == "food-ledger-v5",
+                  metadata == "food-ledger-v6",
                   check == "ok",
                   foreignKeyFailures.isEmpty else {
                 throw FoodLedgerStoreError.integrityFailure("database open policy")

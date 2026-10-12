@@ -33,6 +33,25 @@ public enum FoodLogText {
 
     // MARK: Totals strip
 
+    /// Plain water logged (#198, Q8): the same label and figure on Home and in the Food Log.
+    public static let plainWaterLabel = "Plain water logged"
+    public static let plainWaterNoData = "No data"
+
+    /// "730 mL", "730 mL+" (a known minimum), or "No data" when no plain water is logged (never 0 mL).
+    public static func plainWater(_ total: FoodIntakeTotal?, locale: Locale = .current) -> String {
+        guard let total else { return plainWaterNoData }
+        guard let amount = total.knownAmount else { return "Unknown" }
+        let value = "\(number(amount, locale: locale)) mL"
+        return total.incompleteContributions > 0 ? value + "+" : value
+    }
+
+    public static func plainWaterAccessibility(_ total: FoodIntakeTotal?, locale: Locale = .current) -> String {
+        guard let total else { return "\(plainWaterLabel), no data" }
+        guard let amount = total.knownAmount else { return "\(plainWaterLabel), unknown" }
+        let value = "\(number(amount, locale: locale)) millilitres"
+        return total.incompleteContributions > 0 ? "\(plainWaterLabel), at least \(value)" : "\(plainWaterLabel), \(value)"
+    }
+
     /// "1,240", "68 g", "41 g+", or "Unknown" when no entry has a known value.
     public static func total(_ total: FoodIntakeTotal, locale: Locale = .current) -> String {
         guard let amount = total.knownAmount else { return "Unknown" }

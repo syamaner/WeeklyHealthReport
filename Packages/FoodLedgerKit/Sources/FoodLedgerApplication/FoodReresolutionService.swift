@@ -43,6 +43,10 @@ public struct FoodReresolutionHistory: FoodReresolutionReading {
     }
 
     public func sourceRelease(id: ExternalIdentifier) throws -> SourceRelease? { try confirmations.sourceRelease(id: id) }
+    public func foodConfirmation(logItemVersionID: LogItemVersionID) throws -> StoredFoodConfirmation? {
+        try confirmations.foodConfirmation(logItemVersionID: logItemVersionID)
+    }
+    public func evidence(id: EvidenceID) throws -> CaptureEvidence? { try confirmations.evidence(id: id) }
     public func operation(_ id: OperationID) throws -> LedgerOperation? { try archive.operation(id: id) }
     public func evidence(_ id: EvidenceID) throws -> CaptureEvidence? {
         try archive.archiveState().records.evidence.first { $0.evidenceID == id }

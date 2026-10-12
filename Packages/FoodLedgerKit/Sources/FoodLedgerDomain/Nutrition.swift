@@ -150,6 +150,8 @@ public enum ProvenanceSourceKind: String, Codable, Sendable {
     case genericCompositionDataset = "generic_composition_dataset"
     case recipeReconstruction = "recipe_reconstruction"
     case reviewedWebProposal = "reviewed_web_proposal"
+    /// An app-compiled, hashed reference definition (plain water, food archive contract 6).
+    case appReferenceDefinition = "app_reference_definition"
 }
 
 public struct NutrientProvenance: Codable, Equatable, Sendable {
@@ -341,6 +343,8 @@ public struct NutrientEntry: Codable, Equatable, Sendable {
             guard exact.provenance.allSatisfy({
                 switch $0.sourceKind {
                 case .userVerifiedPanel, .manualDeclaration, .exactProductDataset: true
+                // An exact app reference value names its reference record.
+                case .appReferenceDefinition: $0.recordID != nil
                 case .genericCompositionDataset, .recipeReconstruction, .reviewedWebProposal: false
                 }
             }) else { throw FoodLedgerValidationError.invalidProvenance }
@@ -355,7 +359,7 @@ public struct NutrientEntry: Codable, Equatable, Sendable {
                 case .reviewedWebProposal:
                     provenance.recordID != nil && provenance.evidenceID != nil
                         && provenance.responseHash != nil && provenance.manifestReference != nil
-                case .userVerifiedPanel, .manualDeclaration:
+                case .userVerifiedPanel, .manualDeclaration, .appReferenceDefinition:
                     false
                 }
             }) else { throw FoodLedgerValidationError.invalidProvenance }

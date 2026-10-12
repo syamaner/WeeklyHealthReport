@@ -31,7 +31,8 @@ final class AppNavigationTests: XCTestCase {
             .medicationAccess: ([.settings, .medicationAccess], [.settings, .medicationAccess]),
             .developerTools: ([.settings, .developerTools], [.settings, .developerTools]),
             .addFood: ([.addFood], [.addFood]),
-            .exportDestination: ([.settings, .exportDestination], [.settings, .exportDestination])
+            .exportDestination: ([.settings, .exportDestination], [.settings, .exportDestination]),
+            .favourites: ([.favourites], [.favourites])
         ]
         XCTAssertEqual(Set(expected.keys), Set(AppRoute.allCases))
         for (route, paths) in expected {
@@ -52,7 +53,8 @@ final class AppNavigationTests: XCTestCase {
     /// #200: Drive setup restores inside Settings; a stored Export screen
     /// still restores to Export alone, and opening it is the only preparation.
     func testExportDestinationRestoresInsideSettingsAndDailyExportIsUnchanged() {
-        XCTAssertEqual(AppRoute.allCases.last, .exportDestination)
+        // Phase 7 appended exportDestination after addFood; phase 5 (#198) appends favourites after it.
+        XCTAssertEqual(Array(AppRoute.allCases.suffix(3)), [.addFood, .exportDestination, .favourites])
         XCTAssertEqual(AppRoute.exportDestination.rawValue, "exportDestination")
         XCTAssertTrue(AppRoute.fixedRoutes.contains(.exportDestination))
         for available in [allAvailable, withoutComposedSettings] {

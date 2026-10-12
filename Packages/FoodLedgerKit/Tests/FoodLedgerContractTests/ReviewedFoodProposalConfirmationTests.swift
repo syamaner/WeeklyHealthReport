@@ -430,4 +430,8 @@ private struct AlteredManifestReader: FoodConfirmationReading {
     func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation? {
         saved.logItem.logItemID == logItemID ? saved : nil
     }
+    func foodConfirmation(logItemVersionID: LogItemVersionID) throws -> StoredFoodConfirmation? {
+        saved.logItemVersion.logItemVersionID == logItemVersionID ? saved : nil
+    }
+    func evidence(id: EvidenceID) throws -> CaptureEvidence? { saved.evidence.first { $0.evidenceID == id } }
 }

@@ -19,11 +19,11 @@ public struct CommonFoodsView: View {
     public var body: some View {
         List {
             Section {
-                Text("Save usual foods and portions. Quick-add opens a review.")
-                Button("Add common food") { edit(nil) }
+                Text("Save usual foods and portions. Add to review opens a review; nothing is logged.")
+                Button("Add usual food") { edit(nil) }
                 TextField("Search names and aliases", text: $model.searchQuery)
             }
-            Section("Favourites") { products(model.products.filter(\.isFavourite)) }
+            Section("Usual foods") { products(model.products.filter(\.isFavourite)) }
             Section("Other saved foods") { products(model.products.filter { !$0.isFavourite }) }
             if let message = model.message {
                 Section("Status") {
@@ -42,7 +42,7 @@ public struct CommonFoodsView: View {
                 Section("Pending save") { Button("Retry same save") { model.retryPending() } }
             }
         }
-        .navigationTitle("Common foods")
+        .navigationTitle("Usual foods")
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -57,7 +57,7 @@ public struct CommonFoodsView: View {
                         Text("Aliases, comma separated").font(.caption)
                         TextField("Aliases, comma separated", text: $aliases)
                     }
-                    Toggle("Favourite", isOn: $favourite)
+                    Toggle("Usual food", isOn: $favourite)
                     VStack(alignment: .leading) {
                         Text("Usual portion (optional)").font(.caption)
                         TextField("Usual portion (optional)", text: $portion)
@@ -72,12 +72,12 @@ public struct CommonFoodsView: View {
                     if model.pendingCommand != nil {
                         Button("Retry same save") { if model.retryPending() { showsEditor = false } }
                     } else {
-                        Button("Save common food") {
+                        Button("Save usual food") {
                             if model.saveCommonFood(previous: editing, name: name, aliases: aliases, portion: portion, unit: unit, favourite: favourite) { showsEditor = false }
                         }.disabled(name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     }
                 }
-                .navigationTitle(editing == nil ? "New common food" : "Edit common food")
+                .navigationTitle(editing == nil ? "New usual food" : "Edit usual food")
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { showsEditor = false } } }
             }
         }
@@ -90,7 +90,7 @@ public struct CommonFoodsView: View {
                 Text(product.name).font(.headline)
                 if !product.aliases.isEmpty { Text(product.aliases.joined(separator: ", ")).font(.caption) }
                 if let amount = product.usualPortion { Text("Usual: \(amount.value.formatted()) \(amount.unit.rawValue)").font(.caption) }
-                Button("Quick-add for review") { addToReview(product) }
+                Button("Add to review") { addToReview(product) }
                 Button("Edit") { edit(product) }
             }
             .buttonStyle(.borderless)

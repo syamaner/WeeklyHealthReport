@@ -188,6 +188,8 @@ public enum CaptureKind: String, Codable, Sendable {
     case packageImage = "package_image"
     case manual
     case synthetic
+    /// The compiled definition of an app reference food (food archive contract 6).
+    case referenceDefinition = "reference_definition"
 }
 
 public enum CapturePayload: Codable, Equatable, Sendable {

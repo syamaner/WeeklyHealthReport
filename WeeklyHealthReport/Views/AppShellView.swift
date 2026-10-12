@@ -151,7 +151,7 @@ struct AppShellView: View {
             else { ContentUnavailableView("Receipt review unavailable", systemImage: "exclamationmark.triangle", description: Text("The local inventory store could not be opened. Food search remains separate.")) }
         case .commonFoods:
             if let foodLedger, let flow = CommonFoodsFlowView(root: foodLedger) { flow }
-            else { ContentUnavailableView("Common foods unavailable", systemImage: "exclamationmark.triangle", description: Text("Your saved foods could not be opened. Try again after unlocking your device.")) }
+            else { ContentUnavailableView("Usual foods unavailable", systemImage: "exclamationmark.triangle", description: Text("Your usual foods could not be opened. Try again after unlocking your device.")) }
         case .foodReresolution:
             if let foodLedger, let flow = FoodReresolutionFlowView(root: foodLedger) { flow }
             else { ContentUnavailableView("Nutrition review unavailable", systemImage: "exclamationmark.triangle") }
@@ -193,6 +193,9 @@ struct AppShellView: View {
             else { ContentUnavailableView("Add food unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
         case .exportDestination:
             DriveDestinationSettingsView(session: dailyExport)
+        case .favourites:
+            if let foodLedger { FavouritesFlowView(root: foodLedger) }
+            else { ContentUnavailableView("Favourites unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
         }
     }
 

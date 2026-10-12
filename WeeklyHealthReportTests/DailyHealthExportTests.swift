@@ -444,17 +444,32 @@ final class DailyHealthExportTests: XCTestCase {
         let summary = CanonicalFoodNutritionSummary(
             summaryVersionID: try LedgerText("summary-fixture-v1"), reportingDate: try LedgerText("2026-09-06"),
             nutrients: nutrientSet, inputLogItemVersionIDs: [], hasUnknownContribution: true)
-        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 5)
+        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 6)
         XCTAssertEqual(DailyHealthExportBuilder.maximumExportedFoodContractVersion, 3)
         let three = try CanonicalFoodDocument(projection: CanonicalFoodProjection(
             records: LedgerMutation(), summaries: [summary], foodContractVersion: 3))
         XCTAssertNoThrow(try DailyHealthExportBuilder.addingFoodProjection(three, summary: summary, to: schemaV3))
-        // Contracts 4 (decisions) and 5 (review manifest v2) are both rejected; the pin stays literal 3.
-        for contract in [4, 5] {
+        // Contracts 4 (decisions), 5 (review manifest v2) and 6 (favourites, #198) are rejected; the
+        // pin stays literal 3.
+        for contract in [4, 5, 6] {
             let document = try CanonicalFoodDocument(projection: CanonicalFoodProjection(
                 records: LedgerMutation(), summaries: [summary], foodContractVersion: contract))
             XCTAssertThrowsError(try DailyHealthExportBuilder.addingFoodProjection(document, summary: summary, to: schemaV3), "contract \(contract)")
         }
+        // A document claiming contract 3 while carrying favourite records is rejected: admission
+        // checks the whole projection, favourites included (#198).
+        let favourites = FavouriteMutation(favourites: [FavouriteEntry(
+            favouriteID: try FavouriteID("00000000-0000-0000-0000-000000000001"), createdAt: Date(timeIntervalSince1970: 0))])
+        let six = try CanonicalFoodDocument(projection: CanonicalFoodProjection(
+            records: LedgerMutation(), summaries: [summary], favourites: favourites, foodContractVersion: 6))
+        let encoder = FoundationCanonicalJSONEncoder()
+        let relabelled = try XCTUnwrap(String(data: try encoder.encode(six), encoding: .utf8))
+            .replacingOccurrences(of: #""foodContractVersion":6"#, with: #""foodContractVersion":3"#)
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .millisecondsSince1970
+        let mislabelled = try decoder.decode(CanonicalFoodDocument.self, from: Data(relabelled.utf8))
+        XCTAssertEqual(mislabelled.projection.foodContractVersion, 3)
+        XCTAssertFalse(mislabelled.projection.favourites.isEmpty)
+        XCTAssertThrowsError(try DailyHealthExportBuilder.addingFoodProjection(mislabelled, summary: summary, to: schemaV3))
     }
 
     func testSchemaV4AddsCanonicalFoodProjectionWithoutChangingV3FixtureMeaning() throws {

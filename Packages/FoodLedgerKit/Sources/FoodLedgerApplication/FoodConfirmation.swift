@@ -4,6 +4,11 @@ import FoodLedgerDomain
 public protocol FoodConfirmationReading: Sendable {
     func sourceRelease(id: ExternalIdentifier) throws -> SourceRelease?
     func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation?
+    /// The aggregate of one immutable log item version (a favourite's pinned binding). Nil when
+    /// the version does not exist or is a removal.
+    func foodConfirmation(logItemVersionID: LogItemVersionID) throws -> StoredFoodConfirmation?
+    /// A stored evidence member, for the retained-evidence existence check (Q11).
+    func evidence(id: EvidenceID) throws -> CaptureEvidence?
 }
 
 public enum FoodConfirmationDecision: Codable, Equatable, Sendable {
@@ -164,9 +169,6 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
     public var decisions: [IdentityContradiction: FoodLogDecisionChoice]
     /// Explicit occurrence time. Nil on a new entry means "Now", resolved at commit.
     public var occurredAt: Date?
-    /// A new entry re-logged from this saved entry (recent foods). The service reuses the
-    /// saved entry's retained evidence instead of writing it again; it never writes a new manifest.
-    public var relogSource: LogItemID?
 
     public init(input: PopulatedFoodConfirmation, reopened: StoredFoodConfirmation? = nil,
                 queryQuantity: ParsedFoodQuery.Quantity? = nil, prefillSourceQuantity: Bool = true) {
@@ -398,6 +400,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
     private let clock: any LedgerClock
     private let ids: any LedgerIDGenerating
     private let digester: any Digesting
+    private let encoder: any CanonicalEncoding
     private let calendar: Calendar
 
     public init(
@@ -406,13 +409,15 @@ public final class FoodConfirmationService: @unchecked Sendable {
         clock: any LedgerClock,
         ids: any LedgerIDGenerating,
         digester: any Digesting,
-        calendar: Calendar = .autoupdatingCurrent
+        calendar: Calendar = .autoupdatingCurrent,
+        encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder()
     ) {
         self.ledger = ledger
         self.reader = reader
         self.clock = clock
         self.ids = ids
         self.digester = digester
+        self.encoder = encoder
         self.calendar = calendar
     }
 
@@ -589,11 +594,12 @@ public final class FoodConfirmationService: @unchecked Sendable {
         let missingReleases = try state.input.sourceReleases.filter {
             try reader.sourceRelease(id: $0.sourceReleaseID) == nil
         }
-        // A re-log references evidence already retained by its source entry. Only byte-identical
-        // stored evidence is skipped; anything else is written (and fails if it conflicts).
-        let retainedEvidence = try state.relogSource.flatMap { try reader.foodConfirmation(logItemID: $0) }?.evidence ?? []
+        // Q11: evidence already retained with canonically identical bytes is skipped (re-log,
+        // favourites, plain water), as stored source releases are. Anything else is written, so an
+        // existing ID with different bytes, or a racing insert, still fails as immutableRecord.
+        let newEvidence = previous == nil ? try state.input.evidence.filter { try !isRetained($0) } : []
         let mutation = LedgerMutation(
-            evidence: previous == nil ? state.input.evidence.filter { !retainedEvidence.contains($0) } : [],
+            evidence: newEvidence,
             assertions: assertion.map { [$0] } ?? [],
             products: previous == nil ? [product] : [],
             productVersions: changesProduct ? [productVersion] : [],
@@ -635,6 +641,12 @@ public final class FoodConfirmationService: @unchecked Sendable {
         )
     }
 
+    /// Whether this evidence member is already stored with canonically identical bytes.
+    private func isRetained(_ member: CaptureEvidence) throws -> Bool {
+        guard let stored = try reader.evidence(id: member.evidenceID) else { return false }
+        return try encoder.encode(stored) == encoder.encode(member)
+    }
+
     public func reopen(logItemID: LogItemID) throws -> FoodConfirmationState? {
         guard let saved = try reader.foodConfirmation(logItemID: logItemID) else { return nil }
         try saved.logItemVersion.validateWeightDeclaration(emptyPlate: saved.plateWeightVersion)
@@ -656,12 +668,37 @@ public final class FoodConfirmationService: @unchecked Sendable {
             candidates: [source], expectedIdentity: source.candidate.identity, expectedEdibleQuantity: source.candidate.edibleQuantity)
     }
 
+    /// Input for logging a favourite's pinned entry again (food quick add contract v1). The same
+    /// restore and re-verification as `relogInput`, over the pinned immutable version, with the
+    /// source candidate's library aliases stripped so quick adds never grow the personal library.
+    public func favouriteInput(_ pinned: StoredFoodConfirmation) throws -> PopulatedFoodConfirmation {
+        let input = try relogInput(pinned)
+        let source = input.candidates[0]
+        guard let metadata = source.candidate.matchMetadata, !metadata.libraryAliases.isEmpty else { return input }
+        let stripped = try ProviderNeutralCandidate(
+            sourceReleaseID: source.candidate.sourceReleaseID, recordID: source.candidate.recordID,
+            identity: source.candidate.identity, edibleQuantity: source.candidate.edibleQuantity,
+            nutrients: source.candidate.nutrients, evidenceIDs: source.candidate.evidenceIDs,
+            matchMetadata: CandidateMatchMetadata(methodVersion: metadata.methodVersion, score: metadata.score,
+                materialDifferences: metadata.materialDifferences, libraryAliases: []))
+        let candidate = try PopulatedFoodCandidate(candidate: stripped, name: source.name, brand: source.brand,
+            variant: source.variant, barcode: source.barcode, itemClass: source.itemClass, packFacts: source.packFacts)
+        return try PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: input.sourceReleases,
+            candidates: [candidate], expectedIdentity: input.expectedIdentity, expectedEdibleQuantity: input.expectedEdibleQuantity)
+    }
+
+    /// The pinned entry of a favourite, read by its immutable log item version.
+    public func pinnedConfirmation(_ logItemVersionID: LogItemVersionID) throws -> StoredFoodConfirmation? {
+        guard let stored = try reader.foodConfirmation(logItemVersionID: logItemVersionID) else { return nil }
+        try stored.logItemVersion.validateWeightDeclaration(emptyPlate: stored.plateWeightVersion)
+        return stored
+    }
+
     /// A fresh, unsaved state for re-logging a saved entry: Confirm as a new entry with only the
     /// last entered value and unit prefilled. Nothing is saved until Log.
     public func relogState(logItemID: LogItemID) throws -> FoodConfirmationState? {
         guard let saved = try reader.foodConfirmation(logItemID: logItemID) else { return nil }
         var state = FoodConfirmationState(input: try relogInput(saved), prefillSourceQuantity: false)
-        state.relogSource = logItemID
         let last = Self.lastEnteredAmount(saved.logItemVersion, conversion: saved.quantityConversion)
         state.quantity = FoodQuantityDraft(value: last.value, unit: last.unit)
         return state

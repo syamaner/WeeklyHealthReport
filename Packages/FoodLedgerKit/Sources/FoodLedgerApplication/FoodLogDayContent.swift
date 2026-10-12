@@ -4,8 +4,8 @@ import FoodLedgerDomain
 /// One Food Log day as structured facts (#197). Totals come from `FoodIntakeSummary` unchanged;
 /// presentation formats them. No text is produced here.
 public struct FoodLogDayContent: Sendable {
-    /// Nutrients in the totals strip and the only ones flagged per entry (F1, F3). Water stays
-    /// out until #198 settles what the label means.
+    /// Nutrients in the totals strip and the only ones flagged per entry (F1, F3). Water is not a
+    /// strip nutrient: the strip shows plain water logged separately (#198, Q8).
     public static let stripKeys: [NutrientKey] = [.energyConsumed, .protein, .carbohydrates, .fatTotal]
 
     public struct Entry: Sendable, Equatable {
@@ -44,11 +44,16 @@ public struct FoodLogDayContent: Sendable {
     public let totals: [FoodIntakeTotal]?
     public let entries: [Entry]
     public let removed: [RemovedEntry]
+    /// Plain water logged on this day in mL (#198, Q8), the same figure as Home. Nil when none is
+    /// logged (No data, never 0 mL); a known minimum when an entry cannot be scaled.
+    public let plainWater: FoodIntakeTotal?
 
     /// `estimates` is the set of entries whose current version is a labelled estimate; the caller
     /// computes it from stored evidence (`FoodEntryEstimateStatus`).
-    public init(projection: FoodIntakeProjection, reportingDate: String, estimates: Set<LogItemID>) {
+    public init(projection: FoodIntakeProjection, reportingDate: String, estimates: Set<LogItemID>,
+                plainWater: FoodIntakeTotal? = nil) {
         self.reportingDate = reportingDate
+        self.plainWater = plainWater
         totals = projection.rows.isEmpty ? nil : Self.stripKeys.compactMap { key in
             projection.summary.totals.first { $0.key == key }
         }

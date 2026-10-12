@@ -109,7 +109,7 @@ final class DirectWeightContractTests: XCTestCase {
                     createdAt: LedgerFixtures.date,
                     creatingActorID: LedgerFixtures.id(900, ActorTag.self))
                 let verified = try FoodArchiveVerifier().verify(bundle)
-                XCTAssertEqual(verified.manifest.foodContractVersion, 5, "This binary always exports contract 5")
+                XCTAssertEqual(verified.manifest.foodContractVersion, 6, "This binary always exports contract 6")
                 for destination in try LedgerFixtures.harnesses() {
                     defer { destination.cleanup() }
                     let live = try XCTUnwrap(destination.committer as? any FoodArchiveLedgerAccess)
@@ -406,4 +406,6 @@ private struct FixedConfirmationReader: FoodConfirmationReading {
         record.sourceReleases.first { $0.sourceReleaseID == id }
     }
     func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation? { record }
+    func foodConfirmation(logItemVersionID: LogItemVersionID) throws -> StoredFoodConfirmation? { record }
+    func evidence(id: EvidenceID) throws -> CaptureEvidence? { record.evidence.first { $0.evidenceID == id } }
 }
