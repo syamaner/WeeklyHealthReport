@@ -127,12 +127,13 @@ struct AppShellView: View {
     private var homeFeatures: [HomeFeature] {
         [
             FoodHomeCards.feature(model: foodHome),
-            TodaySoFarHealthCardView.feature(model: todaySoFar, requestsAuthorization: !Self.isHostedUnitTest),
+            TodaySoFarHealthCardView.feature(model: todaySoFar, readsHealthData: !Self.isHostedUnitTest),
             NotesHomeCard.feature(controller: dailyExport.notes)
         ]
     }
 
-    /// Hosted unit tests launch the app process; never present the Health sheet there.
+    /// Hosted unit tests launch the app process; never present the Health sheet
+    /// or read HealthKit there.
     private static var isHostedUnitTest: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }

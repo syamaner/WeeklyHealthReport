@@ -10,7 +10,7 @@ It is a personal informational utility, not medical software.
 <table>
   <tr>
     <td><img src="docs/images/weekly-health-report-simulator.png" alt="Weekly Health Report running on an iPhone simulator with synthetic health data" width="360"></td>
-    <td><img src="docs/images/weekly-health-report-daily-export-synthetic.png" alt="Synthetic export screen from before the #200 redesign, showing a prepared snapshot and an explicit export action" width="360"></td>
+    <td><img src="docs/images/weekly-health-report-daily-export-synthetic.png" alt="Synthetic Export screen with today selected, a ready-to-export status, the included health data, nutrition source, note count and exact file size, an explicit Export button and the Google Drive destination" width="360"></td>
   </tr>
   <tr>
     <td align="center">Weekly report</td>
