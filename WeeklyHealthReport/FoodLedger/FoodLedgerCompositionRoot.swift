@@ -679,11 +679,24 @@ struct FoodReresolutionFlowView: View {
     var body: some View { FoodReresolutionView(model: model) }
 }
 
-/// When the barcode route opens its scanner (#196 follow-up).
-enum BarcodeFlowStart {
+/// When the barcode route opens its scanner (#196 follow-up). The view drives every appearance
+/// and scanner opening through this value, so tests replay the same sequence.
+struct BarcodeFlowStart: Equatable {
+    static let scanTitle = "Scan barcode"
     static let rescanTitle = "Scan again"
-    /// Once, on first opening; never again when the user returns from search or Confirm.
-    static func startsOnAppear(hasStarted: Bool) -> Bool { !hasStarted }
+    private(set) var hasAppeared = false
+    private(set) var hasOpenedScanner = false
+
+    /// True only on the first appearance; returning from search or Confirm never reopens it.
+    mutating func appear() -> Bool {
+        defer { hasAppeared = true }
+        return !hasAppeared
+    }
+
+    mutating func scannerOpened() { hasOpenedScanner = true }
+
+    /// "Scan barcode" until a scanner has opened (an unsupported device never opens one).
+    var buttonTitle: String { hasOpenedScanner ? Self.rescanTitle : Self.scanTitle }
 }
 
 struct BarcodeFoodFlowView: View {
@@ -700,8 +713,7 @@ struct BarcodeFoodFlowView: View {
     @AppStorage("foodLedger.offBarcodeDisclosure.v1") private var hasSeenOFFDisclosure = false
     @State private var scanner: VisionKitBarcodeScanner?
     @State private var showsScanner = false
-    /// Set once the route has opened the scanner, so returning from search does not reopen it.
-    @State private var hasStartedScan = false
+    @State private var start = BarcodeFlowStart()
     @State private var showsSearch = false
     @State private var showsConfirmation = false
     @State private var evidence: [CaptureEvidence] = []
@@ -718,7 +730,7 @@ struct BarcodeFoodFlowView: View {
         Form {
             Section("Food barcode") {
                 Text("Checks your saved foods first. On a miss, you can optionally look up the barcode on Open Food Facts or search generic foods.")
-                Button(BarcodeFlowStart.rescanTitle, action: startScan)
+                Button(start.buttonTitle, action: startScan)
                     .disabled(showsScanner)
             }
             resultSection
@@ -727,9 +739,7 @@ struct BarcodeFoodFlowView: View {
         // Opening the route starts the scanner (#196 follow-up): no extra tap. Camera permission
         // is still explained by the system prompt, and the text above stays for a rescan.
         .task {
-            guard BarcodeFlowStart.startsOnAppear(hasStarted: hasStartedScan) else { return }
-            hasStartedScan = true
-            startScan()
+            if start.appear() { startScan() }
         }
         .sheet(isPresented: $showsScanner, onDismiss: stopScanner) {
             if let scanner {
@@ -829,6 +839,7 @@ struct BarcodeFoodFlowView: View {
             return
         }
         scanner = next
+        start.scannerOpened()
         showsScanner = true
     }
 

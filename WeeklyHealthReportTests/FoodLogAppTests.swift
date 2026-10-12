@@ -278,9 +278,19 @@ final class FoodLogAppTests: XCTestCase {
     /// The barcode route opens the scanner once, on first opening, with no explainer tap; coming
     /// back from search or Confirm does not reopen it.
     func testBarcodeRouteStartsScanningOnceOnOpening() {
-        XCTAssertTrue(BarcodeFlowStart.startsOnAppear(hasStarted: false))
-        XCTAssertFalse(BarcodeFlowStart.startsOnAppear(hasStarted: true))
-        XCTAssertEqual(BarcodeFlowStart.rescanTitle, "Scan again")
+        // Device path: open the route, the scanner opens, scan, push to search, come back twice.
+        var start = BarcodeFlowStart()
+        XCTAssertEqual(start.buttonTitle, "Scan barcode", "no scan has opened yet")
+        XCTAssertTrue(start.appear(), "opening the route starts the scanner")
+        start.scannerOpened()
+        XCTAssertEqual(start.buttonTitle, "Scan again")
+        XCTAssertFalse(start.appear(), "returning from search does not reopen the scanner")
+        XCTAssertFalse(start.appear(), "returning from Confirm does not reopen the scanner")
+        // Simulator or unsupported device: the route appears, no scanner can open.
+        var unsupported = BarcodeFlowStart()
+        XCTAssertTrue(unsupported.appear())
+        XCTAssertFalse(unsupported.appear())
+        XCTAssertEqual(unsupported.buttonTitle, "Scan barcode", "never 'Scan again' before a scanner opened")
     }
 
     private func renderPolish<V: View>(_ content: V, _ name: String) {

@@ -43,10 +43,80 @@ final class UXPolishPresentationTests: XCTestCase {
         }
     }
 
-    /// The saved, read-only plate row shows the method as plain text, matching the picker.
+    /// Separators that could mean two amounts are refused, never guessed: a pasted German
+    /// "1.500" is not 1.5 g, a French "1 500" is not 1 or 500, an English "1,5" is not 15.
+    func testAmbiguousSeparatorsAreRefusedNotGuessed() {
+        let narrowSpace = "1\u{202F}500", noBreakSpace = "1\u{00A0}500"
+        XCTAssertNil(FoodAmountFieldText.canonical("1.500", locale: german))
+        XCTAssertNil(FoodAmountFieldText.parse("1.500", locale: german))
+        XCTAssertNil(FoodAmountFieldText.parse("12.345.678", locale: german))
+        XCTAssertNil(FoodAmountFieldText.parse("1.500,5", locale: german), "both separators")
+        for text in ["1 500", narrowSpace, noBreakSpace] {
+            XCTAssertNil(FoodAmountFieldText.parse(text, locale: french), text)
+            XCTAssertNil(FoodAmountFieldText.parse(text, locale: english), text)
+        }
+        XCTAssertNil(FoodAmountFieldText.parse("1,5", locale: english))
+        XCTAssertNil(FoodAmountFieldText.parse("1,50", locale: english))
+        XCTAssertEqual(FoodAmountFieldText.parse("0.5", locale: german), 0.5, "a full stop not followed by three digits is a decimal")
+        XCTAssertEqual(FoodAmountFieldText.parse("1.25", locale: german), 1.25)
+        XCTAssertEqual(FoodAmountFieldText.parse("1,500", locale: german), 1.5, "a comma is the German decimal")
+        XCTAssertEqual(FoodAmountFieldText.parse("1 1/2", locale: english), 1.5, "a mixed fraction is not grouping")
+    }
+
+    /// Refused text reaches the Confirm reducer as non-empty text that never parses, so the
+    /// existing invalid-amount message blocks saving; empty text stays empty.
+    func testRefusedTextIsInvalidForTheReducer() {
+        XCTAssertEqual(FoodAmountFieldText.reducerText("1,5", locale: german), "1.5")
+        XCTAssertEqual(FoodAmountFieldText.reducerText("", locale: german), "")
+        let refused = FoodAmountFieldText.reducerText("1.500", locale: german)
+        XCTAssertFalse(refused.isEmpty)
+        XCTAssertNil(FoodAmountTextParser.parse(refused))
+        XCTAssertEqual(FoodAmountFieldText.keyboardDoneTitle, "Done")
+    }
+
+    /// The saved, read-only plate row shows the method as plain text, matching the picker, and
+    /// keeps the empty plate weight visible.
     func testWeighingMethodTitlesMatchThePicker() {
         XCTAssertEqual(FoodConfirmationView.weighingMethodTitle(usesPlate: false), "Food only / tared")
         XCTAssertEqual(FoodConfirmationView.weighingMethodTitle(usesPlate: true), "Total minus empty plate")
+        XCTAssertEqual(FoodConfirmationView.savedPlateRowValue(usesPlate: true, emptyPlateGrams: 330, locale: english),
+                       "Total minus empty plate · plate 330 g")
+        XCTAssertEqual(FoodConfirmationView.savedPlateRowValue(usesPlate: true, emptyPlateGrams: 330.5, locale: german),
+                       "Total minus empty plate · plate 330,5 g")
+        XCTAssertEqual(FoodConfirmationView.savedPlateRowValue(usesPlate: true, emptyPlateGrams: nil, locale: english),
+                       "Total minus empty plate")
+        XCTAssertEqual(FoodConfirmationView.savedPlateRowValue(usesPlate: false, emptyPlateGrams: nil, locale: english),
+                       "Food only / tared")
+    }
+
+    /// Confirm's nutrient names are the same sentence-case names as the Food Log's.
+    @MainActor
+    func testConfirmNutrientNamesAgreeWithTheSharedNames() {
+        for key in NutrientKey.allCases {
+            XCTAssertEqual(FoodConfirmationViewModel.nutrientLabel(key), FoodNutritionReviewPresentation.label(key), key.rawValue)
+        }
+        XCTAssertEqual(FoodConfirmationViewModel.nutrientLabel(.fiber), "Fibre")
+        XCTAssertEqual(FoodConfirmationViewModel.nutrientLabel(.fatSaturated), "Saturated fat")
+    }
+
+    // MARK: List review amount
+
+    /// The parsed amount shows as "150", not "150.0"; an untouched line keeps its parsed text,
+    /// and an edit is stored as typed.
+    func testListAmountShowsLocaleTextAndKeepsUntouchedLines() {
+        XCTAssertEqual(FoodListAmountText.display("150.0", parsed: 150, locale: english), "150")
+        XCTAssertEqual(FoodListAmountText.display("0.5", parsed: 0.5, locale: german), "0,5")
+        XCTAssertEqual(FoodListAmountText.display("15", parsed: 150, locale: english), "15", "an edit shows as typed")
+        XCTAssertEqual(FoodListAmountText.display("", parsed: nil, locale: english), "")
+        XCTAssertEqual(FoodListAmountText.stored("150", current: "150.0", parsed: 150, locale: english), "150.0")
+        XCTAssertEqual(FoodListAmountText.stored("1505", current: "150.0", parsed: 150, locale: english), "1505")
+    }
+
+    /// Match details rows are identified by their line, so a new list never inherits an open one.
+    func testMatchDetailsIdentityFollowsTheLine() {
+        XCTAssertNotEqual(FoodListMatchRowText.rowID(line: "a", index: 0), FoodListMatchRowText.rowID(line: "b", index: 0))
+        XCTAssertNotEqual(FoodListMatchRowText.rowID(line: "a", index: 0), FoodListMatchRowText.rowID(line: "a", index: 1))
+        XCTAssertEqual(FoodListMatchRowText.rowID(line: "a", index: 1), FoodListMatchRowText.rowID(line: "a", index: 1))
     }
 
     // MARK: Paste or dictate match rows

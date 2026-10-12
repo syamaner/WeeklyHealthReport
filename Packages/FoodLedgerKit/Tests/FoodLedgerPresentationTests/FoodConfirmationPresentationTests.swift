@@ -390,9 +390,17 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         let german = Locale(identifier: "de_DE"), english = Locale(identifier: "en_GB")
         for (text, locale, expected) in [("1,5", german, 1.5), ("1500", german, 1500.0), ("1500", english, 1500), ("0.5", english, 0.5)] {
             var state = try fixtureState()
-            FoodConfirmationReducer.reduce(state: &state, action: .setQuantityText(FoodAmountFieldText.canonical(text, locale: locale)))
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantityText(FoodAmountFieldText.reducerText(text, locale: locale)))
             XCTAssertEqual(state.quantity.value, expected, "\(text) in \(locale.identifier)")
             XCTAssertEqual(state.quantity.invalidOriginalAmountText, false, "\(text) in \(locale.identifier)")
+        }
+        // Ambiguous grouping is refused with the existing invalid-amount state, never 1.5 g.
+        let french = Locale(identifier: "fr_FR")
+        for (text, locale) in [("1.500", german), ("1 500", french), ("1,5", english)] {
+            var state = try fixtureState()
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantityText(FoodAmountFieldText.reducerText(text, locale: locale)))
+            XCTAssertNil(state.quantity.value, "\(text) in \(locale.identifier)")
+            XCTAssertEqual(state.quantity.invalidOriginalAmountText, true, "\(text) in \(locale.identifier)")
         }
     }
 

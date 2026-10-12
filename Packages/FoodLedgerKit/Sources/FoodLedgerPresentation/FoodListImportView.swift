@@ -319,6 +319,8 @@ public struct FoodListImportView: View {
     @ObservedObject private var model: FoodListImportViewModel
     @State private var confirmsNewList = false
     @State private var showsAllLines = false
+    @Environment(\.locale) private var locale
+    @FocusState private var editingAmount: Bool
 
     public init(model: FoodListImportViewModel) { self.model = model }
 
@@ -364,6 +366,7 @@ public struct FoodListImportView: View {
                 }
             }
         }
+        .amountKeyboardDismissal($editingAmount)
         .navigationTitle("Paste food list")
         .confirmationDialog("Discard this review queue and start another list? Saved items will remain.", isPresented: $confirmsNewList) {
             Button("Start another list", role: .destructive) { model.startNewList() }
@@ -409,7 +412,15 @@ public struct FoodListImportView: View {
                 }
                 VStack(alignment: .leading) {
                     Text("Consumed amount").font(.caption)
-                    TextField("Consumed amount", text: binding(row, \.quantityText))
+                    TextField("Consumed amount", text: Binding(
+                        get: { FoodListAmountText.display(currentDraft(row).quantityText, parsed: row.draft.parsed.quantity, locale: locale) },
+                        set: { value in
+                            guard var draft = model.rows.first(where: { $0.id == row.id })?.draft else { return }
+                            draft.quantityText = FoodListAmountText.stored(value, current: draft.quantityText,
+                                                                           parsed: draft.parsed.quantity, locale: locale)
+                            model.edit(draft)
+                        }))
+                        .amountKeyboard($editingAmount)
                 }
                 Picker("Unit", selection: binding(row, \.unit)) {
                     Text("Choose unit").tag(Optional<QuantityUnit>.none)
@@ -432,7 +443,10 @@ public struct FoodListImportView: View {
             }
             if let route = row.route {
                 Section("Choose a match to review") {
+                    // Keyed by the line as well as the position, so a new list or line never
+                    // inherits an open "Match details" disclosure.
                     ForEach(Array(route.matches.enumerated()), id: \.offset) { index, match in
+                        let rowID = FoodListMatchRowText.rowID(line: row.id.rawValue, index: index)
                         let text = FoodListMatchRowText(
                             isSavedFood: route.reuse != nil, isExactName: match.isExactName,
                             materialDifferences: match.candidate.candidate.matchMetadata?.materialDifferences.map(\.value) ?? [])
@@ -448,11 +462,16 @@ public struct FoodListImportView: View {
                                 ForEach(Array(text.details.enumerated()), id: \.offset) { Text($0.element).font(.caption) }
                             }
                             .font(.caption)
+                            .id(rowID)
                         }
                     }
                 }
             }
         }
+    }
+
+    private func currentDraft(_ row: FoodListReviewRow) -> FoodListLineDraft {
+        model.rows.first(where: { $0.id == row.id })?.draft ?? row.draft
     }
 
     private func binding<Value>(_ row: FoodListReviewRow, _ keyPath: WritableKeyPath<FoodListLineDraft, Value>) -> Binding<Value> {
@@ -500,6 +519,10 @@ public struct FoodListMatchRowText: Equatable, Sendable {
     public let badge: String?
     public let details: [String]
 
+    /// The view identity of a match's details row: its list line and position, so disclosure
+    /// state never carries over to another line or a new list.
+    public static func rowID(line: String, index: Int) -> String { "\(line)#\(index)" }
+
     public init(isSavedFood: Bool, isExactName: Bool, materialDifferences: [String]) {
         badge = isSavedFood ? "Saved food" : isExactName ? "Exact name" : nil
         let closest = isSavedFood || isExactName ? [] : ["Closest candidate"]
@@ -507,5 +530,19 @@ public struct FoodListMatchRowText: Equatable, Sendable {
             $0.replacingOccurrences(of: "candidate_only_token:", with: "Candidate adds: ")
                 .replacingOccurrences(of: "query_only_token:", with: "Your entry adds: ")
         }
+    }
+}
+
+/// The list review's consumed amount field (#212 follow-up). The parsed amount is shown in the
+/// locale's form ("150", not "150.0"); the line's text is replaced only when the user edits it, so
+/// an untouched line keeps the text it was parsed with.
+public enum FoodListAmountText {
+    public static func display(_ stored: String, parsed: Double?, locale: Locale) -> String {
+        guard let parsed, stored == String(parsed) else { return stored }
+        return FoodAmountFieldText.text(parsed, locale: locale)
+    }
+
+    public static func stored(_ typed: String, current: String, parsed: Double?, locale: Locale) -> String {
+        typed == display(current, parsed: parsed, locale: locale) ? current : typed
     }
 }

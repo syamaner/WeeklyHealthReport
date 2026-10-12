@@ -135,6 +135,7 @@ public struct FavouritesView: View {
     @State private var amountText = ""
     @State private var removing: FavouriteRow?
     @Environment(\.locale) private var locale
+    @FocusState private var editingAmount: Bool
 
     public init(model: FavouritesViewModel, createFromSearch: @escaping () -> Void,
                 createFromBarcode: @escaping () -> Void, createFromWebLookup: @escaping () -> Void) {
@@ -198,9 +199,7 @@ public struct FavouritesView: View {
                     Section {
                         HStack {
                             TextField("Default amount", text: $amountText)
-                                #if os(iOS)
-                                .keyboardType(.decimalPad)
-                                #endif
+                                .amountKeyboard($editingAmount)
                                 .accessibilityLabel("Default amount")
                             Text(unitLabel(row.item)).foregroundStyle(.secondary)
                         }
@@ -211,6 +210,7 @@ public struct FavouritesView: View {
                         Button("Remove favourite", role: .destructive) { removing = row; editing = nil }.frame(minHeight: 44)
                     }
                 }
+                .amountKeyboardDismissal($editingAmount)
                 .navigationTitle("Edit favourite")
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editing = nil } }

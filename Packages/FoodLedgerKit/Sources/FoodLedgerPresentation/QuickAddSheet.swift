@@ -214,6 +214,7 @@ public struct QuickAddSheet: View {
     @State private var showsOther = false
     @State private var text = ""
     @Environment(\.locale) private var locale
+    @FocusState private var editingAmount: Bool
 
     public init(model: QuickAddSheetModel, edit: @escaping () -> Void, close: @escaping () -> Void) {
         self.model = model; self.edit = edit; self.close = close
@@ -241,7 +242,7 @@ public struct QuickAddSheet: View {
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(model.selectedPreset == value && !showsOther ? .isSelected : [])
                 }
-                Button { showsOther = true; model.setCustomText(text) } label: {
+                Button { showsOther = true; model.setCustomText(FoodAmountFieldText.reducerText(text, locale: locale)) } label: {
                     HStack {
                         Text("Other amount").foregroundStyle(.primary)
                         Spacer()
@@ -253,10 +254,8 @@ public struct QuickAddSheet: View {
                 if showsOther {
                     HStack {
                         TextField("Amount", text: $text)
-                            #if os(iOS)
-                            .keyboardType(.decimalPad)
-                            #endif
-                            .onChange(of: text) { _, value in model.setCustomText(FoodAmountFieldText.canonical(value, locale: locale)) }
+                            .amountKeyboard($editingAmount)
+                            .onChange(of: text) { _, value in model.setCustomText(FoodAmountFieldText.reducerText(value, locale: locale)) }
                             .accessibilityLabel("Other amount in \(model.unit == .millilitres ? "millilitres" : model.unit == .grams ? "grams" : "pieces")")
                         Text(model.unit == .count ? "pieces" : model.unit.rawValue).foregroundStyle(.secondary)
                     }.frame(minHeight: 44)
@@ -275,6 +274,7 @@ public struct QuickAddSheet: View {
                 Section("Not logged") { Label(message, systemImage: "exclamationmark.triangle.fill") }
             }
         }
+        .amountKeyboardDismissal($editingAmount)
         .navigationTitle(model.title)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
