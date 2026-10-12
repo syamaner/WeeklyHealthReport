@@ -2,6 +2,22 @@ import FoodLedgerDomain
 import XCTest
 
 final class FoodListParserTests: XCTestCase {
+    /// #222: the numeral behind a parsed amount is re-derived for a locale-aware caller, while
+    /// the versioned parse output itself stays exactly as before.
+    func testAmountNumeralReportsTheParsedNumeralWithoutChangingTheParse() throws {
+        let cases: [(String, String?, Double?)] = [
+            ("1.500 g rice", "1.500", 1.5), ("rice 1.500 g", "1.500", 1.5), ("- 1,5 g rice", "1,5", 1.5),
+            ("1.500 kg rice", "1.500", 1500), ("half green pepper", "half", 0.5), ("10 g oats", "10", 10),
+            ("1,500 g rice", nil, nil), ("1 500 g rice", nil, nil), ("rice", nil, nil), ("2 cups tea", nil, nil)
+        ]
+        for (text, numeral, quantity) in cases {
+            let line = try XCTUnwrap(FoodListParser.parse(text).first)
+            XCTAssertEqual(line.quantity, quantity, text)
+            XCTAssertEqual(FoodListParser.amountNumeral(of: line), numeral, text)
+        }
+        XCTAssertEqual(FoodListParser.version, "food-list-lexical-v3")
+    }
+
     func testHalfNotationPreservesCountRatherThanMass() throws {
         for input in ["half green pepper", "½ yellow pepper", "1/2 orange pepper", "0.5 bell pepper"] {
             let parsed = try XCTUnwrap(FoodListParser.parse(input).first)

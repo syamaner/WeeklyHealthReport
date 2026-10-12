@@ -70,6 +70,18 @@ public enum FoodListParser {
         return result
     }
 
+    /// The numeral a parsed amount was read from ("1.500" in "1.500 g rice"), or nil when the line
+    /// has no parsed amount. This grammar reads a comma or full stop between digits without
+    /// knowing the reader's decimal convention, so a caller that knows it can check the numeral
+    /// (#222). A pure re-derivation from `original`: the versioned parse output is unchanged.
+    public static func amountNumeral(of line: ParsedFoodListLine) -> String? {
+        guard line.quantity != nil else { return nil }
+        let content = amountContent(line.original.trimmingCharacters(in: .whitespaces))
+        if let prefix = capture(leadingAmountPattern, in: content) { return prefix[1] }
+        if let suffix = capture(trailingAmountPattern, in: content) { return suffix[2] }
+        return nil
+    }
+
     /// A visible, opt-in spelling suggestion; never a silent change to a search request.
     public static func suggestedQuery(_ query: String) -> String? {
         var result = query
@@ -113,8 +125,8 @@ public enum FoodListParser {
         let preparation: PreparationKind? = raw && cooked ? nil : raw ? .raw : cooked ? .cooked : nil
         if raw && cooked { notices.append(.conflictingPreparation) }
 
-        let content = text.replacingOccurrences(of: #"^[•*\-]\s+"#, with: "", options: .regularExpression)
-        if let prefix = capture(#"(?i)^(½|[0-9]+(?:[.,][0-9]+)?(?:/[0-9]+)?|\.[0-9]+|half\b|one\b|two\b|three\b|quarter\b|a\b|an\b)\s*(?:[x×]\s*(?=[\p{L}]))?"#, in: content) {
+        let content = amountContent(text)
+        if let prefix = capture(leadingAmountPattern, in: content) {
             amount = wordNumbers[prefix[1].lowercased()] ?? number(prefix[1])
             if amount == nil { notices.append(.ambiguousNumber) }
             let remainder = String(content.dropFirst(prefix[0].count))
@@ -144,7 +156,7 @@ public enum FoodListParser {
                 amount = nil
                 notices.append(.unknownUnit)
             }
-        } else if let suffix = capture(#"(?i)^(.+?)\s+([0-9]+(?:[.,][0-9]+)?(?:/[0-9]+)?|\.[0-9]+)\s*([\p{L}]+)\.?$"#, in: content),
+        } else if let suffix = capture(trailingAmountPattern, in: content),
                   let definition = units[suffix[3].lowercased()], definition.0 != .count {
             // One explicit trailing metric amount is supported. Additional
             // amounts in the remaining query still trigger the guard below.
@@ -183,6 +195,12 @@ public enum FoodListParser {
             lineNumber: lineNumber, original: original, query: query,
             quantity: amount, unit: unit, preparation: preparation, notices: notices
         )
+    }
+
+    private static let leadingAmountPattern = #"(?i)^(½|[0-9]+(?:[.,][0-9]+)?(?:/[0-9]+)?|\.[0-9]+|half\b|one\b|two\b|three\b|quarter\b|a\b|an\b)\s*(?:[x×]\s*(?=[\p{L}]))?"#
+    private static let trailingAmountPattern = #"(?i)^(.+?)\s+([0-9]+(?:[.,][0-9]+)?(?:/[0-9]+)?|\.[0-9]+)\s*([\p{L}]+)\.?$"#
+    private static func amountContent(_ text: String) -> String {
+        text.replacingOccurrences(of: #"^[•*\-]\s+"#, with: "", options: .regularExpression)
     }
 
     private static let units: [String: (QuantityUnit, Double)] = {

@@ -39,6 +39,8 @@ public final class FoodListImportViewModel: ObservableObject {
     @Published public private(set) var confirmation: FoodConfirmationViewModel?
     private let service: FoodListImportService
     private let locale: LedgerText
+    /// The reader's decimal convention for pasted amounts (#222), supplied by the caller.
+    public let amountLocale: Locale
     private let ids: any LedgerIDGenerating
     private let now: @MainActor () -> Date
     private let confirmationNow: @Sendable () -> Date
@@ -57,10 +59,12 @@ public final class FoodListImportViewModel: ObservableObject {
         recoveredLogItemID: (@MainActor (OperationID) throws -> LogItemID?)? = nil,
         confirmationNow: @escaping @Sendable () -> Date = { Date() },
         confirmationCalendar: Calendar = .autoupdatingCurrent,
+        amountLocale: Locale = .autoupdatingCurrent,
         saveAction: @escaping @MainActor (FoodConfirmationState, OperationID) throws -> StoredFoodConfirmation
     ) {
         self.service = service
         self.locale = locale
+        self.amountLocale = amountLocale
         self.ids = ids
         self.now = now
         self.confirmationNow = confirmationNow
@@ -184,10 +188,10 @@ public final class FoodListImportViewModel: ObservableObject {
         do {
             let parsed = try FoodListParser.parse(input)
             let prepared = try parsed.map {
-                FoodListReviewRow(draft: FoodListLineDraft(
+                FoodListReviewRow(draft: FoodListAmountText.withholdingAmbiguousAmount(FoodListLineDraft(
                     parsed: $0, operationID: try ids.makeID(OperationTag.self),
                     evidenceID: try ids.makeID(EvidenceTag.self), inputMethod: inputMethod
-                ), status: $0.notices.contains(.contextLine) ? .context : .pending)
+                ), locale: amountLocale), status: $0.notices.contains(.contextLine) ? .context : .pending)
             }
             rows = prepared
             selectedID = rows.first(where: { $0.status != .context })?.id ?? rows.first?.id
@@ -399,6 +403,9 @@ public struct FoodListImportView: View {
                 ForEach(row.draft.parsed.notices, id: \.rawValue) { notice in
                     Label(notice.message, systemImage: "exclamationmark.triangle").font(.caption)
                 }
+                if FoodListAmountText.showsAmbiguousNumeral(currentDraft(row), locale: model.amountLocale) {
+                    Label(FoodListNotice.ambiguousNumber.message, systemImage: "exclamationmark.triangle").font(.caption)
+                }
                 VStack(alignment: .leading) {
                     Text("Food name and modifiers").font(.caption)
                     TextField("Food name and modifiers", text: binding(row, \.query))
@@ -558,6 +565,29 @@ public enum FoodListAmountText {
 
     /// Shown under a refused amount; the same rule as Confirm's invalid amount.
     public static let refusedText = FoodLogRequirementText.text(.amountTextInvalid)
+
+    /// A prepared line whose pasted numeral could mean two amounts in this locale has no amount
+    /// (#222). The locale-free list grammar reads a German "1.500 g rice" (grouping for 1500) as
+    /// 1.5 and an English "1,5 g" as 1.5; neither is proposed here. The amount is left empty, so
+    /// the existing needs-amount rule blocks saving until the user enters one. The parse itself,
+    /// its notices and its version are unchanged; only the editable proposal is withheld.
+    public static func withholdingAmbiguousAmount(_ draft: FoodListLineDraft, locale: Locale) -> FoodListLineDraft {
+        guard hasAmbiguousNumeral(draft.parsed, locale: locale) else { return draft }
+        var reviewed = draft
+        reviewed.quantityText = ""
+        return reviewed
+    }
+
+    /// True while a withheld ambiguous amount is still empty, so the line can say why.
+    public static func showsAmbiguousNumeral(_ draft: FoodListLineDraft, locale: Locale) -> Bool {
+        draft.quantityText.isEmpty && hasAmbiguousNumeral(draft.parsed, locale: locale)
+    }
+
+    static func hasAmbiguousNumeral(_ line: ParsedFoodListLine, locale: Locale) -> Bool {
+        guard let numeral = FoodListParser.amountNumeral(of: line),
+              numeral.contains(where: \.isNumber) else { return false }
+        return FoodAmountFieldText.canonical(numeral, locale: locale) == nil
+    }
 
     /// True when the shown amount has separators that could mean two amounts here (a German
     /// "1.500", say). The domain list parser is not locale-aware (#222), so such a line is
