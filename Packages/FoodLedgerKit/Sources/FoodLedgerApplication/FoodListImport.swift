@@ -27,6 +27,30 @@ public struct FoodListLineDraft: Codable, Equatable, Sendable, Identifiable {
         unit = parsed.unit
         preparation = parsed.preparation
     }
+
+    /// True while the amount is the parser's own proposal, untouched by the user.
+    public var isAmountUntouched: Bool {
+        guard let parsed = parsed.quantity else { return false }
+        return quantityText == String(parsed)
+    }
+
+    /// The consumed amount this line proposes (food-list-lexical-v4, Q6): the untouched parse
+    /// (read under the line's own convention), or typed text that presentation has already made
+    /// canonical with the amount field's locale, read with the canonical amount parser. The
+    /// line's convention never reinterprets typed text. A v3 line keeps the frozen v3 reading.
+    public var amountValue: Double? {
+        guard parsed.isV4 else { return FoodListParser.number(quantityText) }
+        if isAmountUntouched { return parsed.quantity }
+        return FoodAmountTextParser.parse(quantityText)
+    }
+
+    /// The amount text recorded in capture evidence. A v3 line records its text as before; a v4
+    /// line records canonical text (full stop decimal, no grouping) when it reads as one amount,
+    /// otherwise its text unchanged.
+    public var evidenceQuantityText: String {
+        guard parsed.isV4 else { return quantityText }
+        return amountValue.map(FoodAmountTextParser.editableText) ?? quantityText
+    }
 }
 
 /// A single local review queue. Candidate results are deliberately refreshed on resume.
@@ -89,15 +113,17 @@ public struct FoodListImportService: Sendable {
         // JSON preserves leading/trailing whitespace inside the original line despite LedgerText trimming.
         let payload = EvidencePayload(
             lineNumber: draft.parsed.lineNumber, original: draft.parsed.original,
-            query: draft.query, quantity: draft.quantityText, unit: draft.unit,
-            preparation: draft.preparation, notices: draft.parsed.notices
+            query: draft.query, quantity: draft.evidenceQuantityText, unit: draft.unit,
+            preparation: draft.preparation, notices: draft.parsed.notices,
+            numeralConvention: draft.parsed.numeralConvention
         )
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         let evidence = try CaptureEvidence(
             evidenceID: draft.evidenceID, kind: .manual, capturedAt: date, locale: locale,
             captureMethod: LedgerText(draft.inputMethod.rawValue),
-            captureMethodVersion: LedgerText(FoodListParser.version),
+            // The line's own grammar: a v3 line restored from a checkpoint stays labelled v3.
+            captureMethodVersion: LedgerText(draft.parsed.effectiveGrammarVersion),
             originalPayload: .descriptor(LedgerText(String(decoding: encoder.encode(payload), as: UTF8.self)))
         )
         // The reviewed line and the subsequent search are distinct evidence events.
@@ -142,7 +168,7 @@ public struct FoodListImportService: Sendable {
         var state = FoodConfirmationState(input: input)
         // Dataset and saved serving sizes are not consumed amounts. Missing input stays empty.
         state.quantity = FoodQuantityDraft(
-            value: draft.unit == nil ? nil : FoodListParser.number(draft.quantityText),
+            value: draft.unit == nil ? nil : draft.amountValue,
             unit: draft.unit ?? .grams
         )
         return state
@@ -156,5 +182,7 @@ public struct FoodListImportService: Sendable {
         let unit: QuantityUnit?
         let preparation: PreparationKind?
         let notices: [FoodListNotice]
+        /// Present on v4 lines only, so a v3 descriptor encodes exactly as before.
+        let numeralConvention: NumeralConvention?
     }
 }

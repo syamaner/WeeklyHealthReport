@@ -1,4 +1,5 @@
 import FoodLedgerApplication
+import FoodLedgerDomain
 import SwiftUI
 
 /// Text for an amount field shown with a decimal pad (#212). The decimal pad offers only the
@@ -57,6 +58,19 @@ public enum FoodAmountFieldText {
 
     private static func matches(_ text: String, _ pattern: String) -> Bool {
         text.range(of: pattern, options: .regularExpression) != nil
+    }
+}
+
+extension NumeralConvention {
+    /// The pasted-list numeral convention for a locale (food-list-lexical-v4, #222): the domain
+    /// parser never reads locale state, so presentation maps the decimal separator once, next to
+    /// the amount field rule it must agree with. Any other separator reads as `unspecified`.
+    public init(locale: Locale) {
+        switch locale.decimalSeparator {
+        case ".": self = .fullStopDecimal
+        case ",": self = .commaDecimal
+        default: self = .unspecified
+        }
     }
 }
 
