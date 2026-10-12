@@ -250,6 +250,45 @@ final class FoodLogAppTests: XCTestCase {
 
     // MARK: UX polish (#212, phase 3 follow-ups)
 
+    /// With an amount field focused, Edit shows "Done" in the navigation bar, not as a floating
+    /// keyboard toolbar over the pinned Log bar; with nothing focused, the bar has no trailing item.
+    func testFocusedAmountShowsDoneInTheNavigationBar() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        let saved = try XCTUnwrap(try savedClementineModel(root).savedResult)
+        let editModel = try XCTUnwrap(try root.model(reopening: saved.logItem.logItemID))
+        let controller = UIHostingController(rootView: NavigationStack {
+            Text("Saved entry").navigationDestination(isPresented: .constant(true)) { SavedEntryEditHost(model: editModel) {} }
+        })
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        controller.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        func trailingItems() -> [UIBarButtonItem] {
+            Self.descendants(controller.view).compactMap { $0 as? UINavigationBar }.flatMap {
+                ($0.topItem?.rightBarButtonItems ?? []) + ($0.topItem?.trailingItemGroups.flatMap(\.barButtonItems) ?? [])
+            }
+        }
+        XCTAssertFalse(Self.descendants(controller.view).compactMap { $0 as? UINavigationBar }.isEmpty)
+        XCTAssertTrue(trailingItems().isEmpty, "no Done while nothing is focused")
+        let quantity = try XCTUnwrap(Self.descendants(controller.view).compactMap { $0 as? UITextField }
+            .first { $0.keyboardType == .decimalPad }, "an amount field uses the decimal pad")
+        XCTAssertTrue(quantity.becomeFirstResponder())
+        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+        let items = trailingItems()
+        XCTAssertEqual(items.compactMap(\.title), [FoodAmountFieldText.keyboardDoneTitle])
+        XCTAssertFalse(items.isEmpty, "Done shows in the navigation bar while an amount field is focused")
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { window.layer.render(in: $0.cgContext) }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "Edit - amount focused, Done in the navigation bar"; attachment.lifetime = .keepAlways
+        add(attachment)
+        quantity.resignFirstResponder()
+        window.isHidden = true
+    }
+
     /// Renders the polished screens at standard and accessibility sizes (synthetic data): Confirm
     /// after a save shows the plate row as a static, secondary row; Add food recents stack at
     /// accessibility sizes; the barcode unavailable heading wraps instead of truncating.

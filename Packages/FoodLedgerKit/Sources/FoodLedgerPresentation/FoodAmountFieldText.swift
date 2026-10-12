@@ -72,6 +72,15 @@ public enum AmountFieldFocus: Hashable, Sendable {
     public static func showsDone(_ focus: AmountFieldFocus?) -> Bool { focus != nil }
 }
 
+/// Where an amount screen puts "Done" (#212). A screen with a bar pinned above the keyboard
+/// (Confirm's Log bar, quick add's Log bar, the list line warning) uses the navigation bar, so
+/// the floating keyboard toolbar never covers the pinned bar. A plain form uses the keyboard
+/// toolbar.
+public enum AmountDonePlacement: Equatable, Sendable {
+    case navigationBar
+    case keyboard
+}
+
 extension View {
     /// A decimal pad for an amount field (#212), focused as `field` so "Done" can clear it.
     func amountKeyboard(_ focus: FocusState<AmountFieldFocus?>.Binding, _ field: AmountFieldFocus) -> some View {
@@ -82,22 +91,36 @@ extension View {
         #endif
     }
 
-    /// The decimal pad has no return key: scrolling or "Done" above the keyboard dismisses it.
-    /// Other text fields keep their own return key and get no "Done".
-    func amountKeyboardDismissal(_ focus: FocusState<AmountFieldFocus?>.Binding) -> some View {
+    /// The decimal pad has no return key: scrolling or "Done" dismisses it. "Done" shows only
+    /// while an amount field is focused; other text fields keep their own return key.
+    func amountKeyboardDismissal(_ focus: FocusState<AmountFieldFocus?>.Binding,
+                                 placement: AmountDonePlacement = .navigationBar) -> some View {
         #if os(iOS)
         scrollDismissesKeyboard(.interactively)
             .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    if AmountFieldFocus.showsDone(focus.wrappedValue) {
-                        Spacer()
-                        Button(FoodAmountFieldText.keyboardDoneTitle) { focus.wrappedValue = nil }
-                            .accessibilityHint("Hides the keyboard")
+                if AmountFieldFocus.showsDone(focus.wrappedValue) {
+                    switch placement {
+                    case .navigationBar:
+                        ToolbarItem(placement: .primaryAction) { AmountDoneButton(focus: focus) }
+                    case .keyboard:
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            AmountDoneButton(focus: focus)
+                        }
                     }
                 }
             }
         #else
         self
         #endif
+    }
+}
+
+private struct AmountDoneButton: View {
+    let focus: FocusState<AmountFieldFocus?>.Binding
+    var body: some View {
+        Button(FoodAmountFieldText.keyboardDoneTitle) { focus.wrappedValue = nil }
+            .fontWeight(.semibold)
+            .accessibilityHint("Hides the keyboard")
     }
 }

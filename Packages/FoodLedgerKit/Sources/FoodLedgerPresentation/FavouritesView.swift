@@ -135,7 +135,6 @@ public struct FavouritesView: View {
     @State private var amountText = ""
     @State private var removing: FavouriteRow?
     @Environment(\.locale) private var locale
-    @FocusState private var editingAmount: AmountFieldFocus?
 
     public init(model: FavouritesViewModel, createFromSearch: @escaping () -> Void,
                 createFromBarcode: @escaping () -> Void, createFromWebLookup: @escaping () -> Void) {
@@ -194,30 +193,9 @@ public struct FavouritesView: View {
         .onAppear { model.reload() }
         .sheet(item: $editing) { row in
             NavigationStack {
-                Form {
-                    Section("Name") { TextField("Name", text: $labelText).accessibilityLabel("Favourite name") }
-                    Section {
-                        HStack {
-                            TextField("Default amount", text: $amountText)
-                                .amountKeyboard($editingAmount, .favouriteDefault)
-                                .accessibilityLabel("Default amount")
-                            Text(unitLabel(row.item)).foregroundStyle(.secondary)
-                        }
-                    } header: { Text("Default amount") } footer: {
-                        Text("Changing a favourite never changes entries you have already logged.")
-                    }
-                    Section {
-                        Button("Remove favourite", role: .destructive) { removing = row; editing = nil }.frame(minHeight: 44)
-                    }
-                }
-                .amountKeyboardDismissal($editingAmount)
-                .navigationTitle("Edit favourite")
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { editing = nil } }
-                    ToolbarItem(placement: .confirmationAction) {
-                        Button("Save") { save(row) }
-                    }
-                }
+                FavouriteEditor(labelText: $labelText, amountText: $amountText, unitLabel: unitLabel(row.item),
+                                cancel: { editing = nil }, save: { save(row) },
+                                remove: { removing = row; editing = nil })
             }
         }
         .alert("Remove this favourite?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
@@ -288,5 +266,47 @@ public struct FavouritesView: View {
         }
         .frame(minHeight: 44)
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// The favourite editor sheet (#212). Its own view so it owns the amount focus: focus state of
+/// the presenting view does not reach a sheet's content, and the keyboard "Done" would not show.
+struct FavouriteEditor: View {
+    /// The editor's one amount field, and where its "Done" goes: the sheet has no pinned bar
+    /// and Save already sits in the navigation bar, so "Done" rides above the keyboard.
+    static let amountField = AmountFieldFocus.favouriteDefault
+    static let donePlacement = AmountDonePlacement.keyboard
+
+    @Binding var labelText: String
+    @Binding var amountText: String
+    let unitLabel: String
+    let cancel: () -> Void
+    let save: () -> Void
+    let remove: () -> Void
+    @FocusState private var editingAmount: AmountFieldFocus?
+
+    var body: some View {
+        Form {
+            Section("Name") { TextField("Name", text: $labelText).accessibilityLabel("Favourite name") }
+            Section {
+                HStack {
+                    TextField("Default amount", text: $amountText)
+                        .amountKeyboard($editingAmount, Self.amountField)
+                        .accessibilityLabel("Default amount")
+                    Text(unitLabel).foregroundStyle(.secondary)
+                }
+            } header: { Text("Default amount") } footer: {
+                Text("Changing a favourite never changes entries you have already logged.")
+            }
+            Section {
+                Button("Remove favourite", role: .destructive, action: remove).frame(minHeight: 44)
+            }
+        }
+        .amountKeyboardDismissal($editingAmount, placement: Self.donePlacement)
+        .navigationTitle("Edit favourite")
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: cancel) }
+            ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
+        }
     }
 }

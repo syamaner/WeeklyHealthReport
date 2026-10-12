@@ -144,6 +144,16 @@ final class UXPolishPresentationTests: XCTestCase {
         XCTAssertFalse(AmountFieldFocus.showsDone(nil), "a text field focused, or none: no Done")
     }
 
+    /// The favourite editor owns its amount focus (sheet content does not see the presenter's
+    /// focus state), so its "Done" shows while the default amount is focused; it rides above the
+    /// keyboard because Save already holds the navigation bar and the sheet has no pinned bar.
+    func testFavouriteEditorOwnsItsAmountFocusAndDone() {
+        XCTAssertEqual(FavouriteEditor.amountField, .favouriteDefault)
+        XCTAssertTrue(AmountFieldFocus.showsDone(FavouriteEditor.amountField))
+        XCTAssertEqual(FavouriteEditor.donePlacement, .keyboard)
+        XCTAssertNotEqual(AmountDonePlacement.navigationBar, .keyboard)
+    }
+
     /// Match details rows are identified by their line, so a new list never inherits an open one.
     func testMatchDetailsIdentityFollowsTheLine() {
         XCTAssertNotEqual(FoodListMatchRowText.rowID(line: "a", index: 0), FoodListMatchRowText.rowID(line: "b", index: 0))
