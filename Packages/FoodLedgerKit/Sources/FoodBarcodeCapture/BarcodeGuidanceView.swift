@@ -16,14 +16,21 @@ public struct BarcodePermissionGuidanceView: View {
     }
 
     public var body: some View {
-        ContentUnavailableView {
+        // A plain stack rather than ContentUnavailableView: inside a Form row its title is held to
+        // one line and truncated ("Barcode camera unavailable"). Every line here wraps.
+        VStack(alignment: .leading, spacing: 12) {
             Label(guidance.title, systemImage: "camera.fill")
-        } description: {
+                .font(.headline)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
             Text(guidance.message)
-        } actions: {
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             Button(guidance.genericSearchTitle, action: useGenericSearch)
+                .frame(minHeight: 44)
                 .accessibilityHint("Continues to populated generic food search")
         }
+        .padding(.vertical, 4)
     }
 }
 

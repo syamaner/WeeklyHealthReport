@@ -433,20 +433,21 @@ public struct FoodListImportView: View {
             if let route = row.route {
                 Section("Choose a match to review") {
                     ForEach(Array(route.matches.enumerated()), id: \.offset) { index, match in
+                        let text = FoodListMatchRowText(
+                            isSavedFood: route.reuse != nil, isExactName: match.isExactName,
+                            materialDifferences: match.candidate.candidate.matchMetadata?.materialDifferences.map(\.value) ?? [])
                         VStack(alignment: .leading, spacing: 6) {
                             Text(match.candidate.name.value).font(.headline)
                             if let variant = match.candidate.variant { Text(variant.value).font(.caption) }
-                            Text(route.reuse != nil ? "Saved food" : match.isExactName ? "Exact name" : "Closest candidate")
-                                .font(.caption)
-                            if let metadata = match.candidate.candidate.matchMetadata {
-                                ForEach(metadata.materialDifferences, id: \.value) { difference in
-                                    Text(difference.value
-                                        .replacingOccurrences(of: "candidate_only_token:", with: "Candidate adds: ")
-                                        .replacingOccurrences(of: "query_only_token:", with: "Your entry adds: "))
-                                        .font(.caption)
-                                }
-                            }
+                            if let badge = text.badge { Text(badge).font(.caption) }
                             Button("Review and confirm") { model.review(candidate: index) }
+                        }
+                        // Its own row, so the disclosure and the button never share one tap target.
+                        if !text.details.isEmpty {
+                            DisclosureGroup("Match details") {
+                                ForEach(Array(text.details.enumerated()), id: \.offset) { Text($0.element).font(.caption) }
+                            }
+                            .font(.caption)
                         }
                     }
                 }
@@ -489,5 +490,22 @@ public struct ListConfirmationHost: View {
                     }
                 }
             }
+    }
+}
+
+/// Plain text for one match row in the list review (#196 follow-up). The row shows only what
+/// helps choose: the name, variant and whether it is a saved food or an exact name. Search terms
+/// and token differences are diagnostics, kept behind "Match details".
+public struct FoodListMatchRowText: Equatable, Sendable {
+    public let badge: String?
+    public let details: [String]
+
+    public init(isSavedFood: Bool, isExactName: Bool, materialDifferences: [String]) {
+        badge = isSavedFood ? "Saved food" : isExactName ? "Exact name" : nil
+        let closest = isSavedFood || isExactName ? [] : ["Closest candidate"]
+        details = closest + materialDifferences.map {
+            $0.replacingOccurrences(of: "candidate_only_token:", with: "Candidate adds: ")
+                .replacingOccurrences(of: "query_only_token:", with: "Your entry adds: ")
+        }
     }
 }

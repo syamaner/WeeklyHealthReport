@@ -69,11 +69,11 @@ Search result; Web lookup via `prepare(review:proposal:scope:)`; barcode direct 
 
 ## Known follow-ups (not in this phase)
 
-- Paste or dictate match rows still show diagnostic text ("Candidate adds: only", "Search terms: …", "Closest candidate").
-- The barcode "unavailable" heading truncates.
+- Paste or dictate match rows still show diagnostic text ("Candidate adds: only", "Search terms: …", "Closest candidate"). Resolved in the #212 polish batch: the diagnostics sit behind "Match details".
+- The barcode "unavailable" heading truncates. Resolved in the #212 polish batch: the heading wraps.
 - The Favourites route opens Common foods until favourites exist (#198).
-- The barcode route has an extra explainer tap before scanning.
-- Recent rows should stack the name and energy at accessibility text sizes.
+- The barcode route has an extra explainer tap before scanning. Resolved in the #212 polish batch: opening the route starts the scanner; "Scan again" rescans.
+- Recent rows should stack the name and energy at accessibility text sizes. Resolved in the #212 polish batch.
 
 ## Risks
 

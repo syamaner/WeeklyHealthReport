@@ -679,6 +679,13 @@ struct FoodReresolutionFlowView: View {
     var body: some View { FoodReresolutionView(model: model) }
 }
 
+/// When the barcode route opens its scanner (#196 follow-up).
+enum BarcodeFlowStart {
+    static let rescanTitle = "Scan again"
+    /// Once, on first opening; never again when the user returns from search or Confirm.
+    static func startsOnAppear(hasStarted: Bool) -> Bool { !hasStarted }
+}
+
 struct BarcodeFoodFlowView: View {
     private let finish: FoodEntryFinish?
     private let savesFavourite: Bool
@@ -693,6 +700,8 @@ struct BarcodeFoodFlowView: View {
     @AppStorage("foodLedger.offBarcodeDisclosure.v1") private var hasSeenOFFDisclosure = false
     @State private var scanner: VisionKitBarcodeScanner?
     @State private var showsScanner = false
+    /// Set once the route has opened the scanner, so returning from search does not reopen it.
+    @State private var hasStartedScan = false
     @State private var showsSearch = false
     @State private var showsConfirmation = false
     @State private var evidence: [CaptureEvidence] = []
@@ -709,21 +718,19 @@ struct BarcodeFoodFlowView: View {
         Form {
             Section("Food barcode") {
                 Text("Checks your saved foods first. On a miss, you can optionally look up the barcode on Open Food Facts or search generic foods.")
-                Button("Scan barcode") {
-                    cancelOFF()
-                    offMessage = nil
-                    guard let next = VisionKitBarcodeScanner.makeIfSupported() else {
-                        model.showUnavailable()
-                        return
-                    }
-                    scanner = next
-                    showsScanner = true
-                }
-                .disabled(showsScanner)
+                Button(BarcodeFlowStart.rescanTitle, action: startScan)
+                    .disabled(showsScanner)
             }
             resultSection
         }
         .navigationTitle("Scan food barcode")
+        // Opening the route starts the scanner (#196 follow-up): no extra tap. Camera permission
+        // is still explained by the system prompt, and the text above stays for a rescan.
+        .task {
+            guard BarcodeFlowStart.startsOnAppear(hasStarted: hasStartedScan) else { return }
+            hasStartedScan = true
+            startScan()
+        }
         .sheet(isPresented: $showsScanner, onDismiss: stopScanner) {
             if let scanner {
                 NavigationStack {
@@ -812,6 +819,17 @@ struct BarcodeFoodFlowView: View {
                 }
             }
         }
+    }
+
+    private func startScan() {
+        cancelOFF()
+        offMessage = nil
+        guard let next = VisionKitBarcodeScanner.makeIfSupported() else {
+            model.showUnavailable()
+            return
+        }
+        scanner = next
+        showsScanner = true
     }
 
     private func cancelOFF() {

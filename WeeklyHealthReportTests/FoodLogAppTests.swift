@@ -1,6 +1,7 @@
 import XCTest
 import SwiftUI
 import Combine
+import FoodBarcodeCapture
 import FoodGenericSearch
 import FoodLedgerApplication
 import FoodLedgerDomain
@@ -245,6 +246,57 @@ final class FoodLogAppTests: XCTestCase {
     }
 
     private static func descendants(_ view: UIView) -> [UIView] { [view] + view.subviews.flatMap(descendants) }
+
+    // MARK: UX polish (#212, phase 3 follow-ups)
+
+    /// Renders the polished screens at standard and accessibility sizes (synthetic data): Confirm
+    /// after a save shows the plate row as a static, secondary row; Add food recents stack at
+    /// accessibility sizes; the barcode unavailable heading wraps instead of truncating.
+    func testUXPolishScreensRenderAtStandardAndAccessibilitySizes() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        let saved = try savedClementineModel(root)
+        XCTAssertNotNil(saved.savedResult)
+        let recents = root.recentFoods()
+        XCTAssertFalse(recents.isEmpty, "the saved entry is a recent food")
+        let guidance = BarcodePermissionGuidance(unavailable: true)
+        XCTAssertEqual(guidance.title, "Barcode camera unavailable")
+        for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
+            renderPolish(NavigationStack { FoodConfirmationView(model: saved) {} }.environment(\.dynamicTypeSize, size),
+                   "Confirm after save - plate row \(name)")
+            renderPolish(NavigationStack {
+                AddFoodView(recents: recents, now: root.confirmationNow, calendar: root.confirmationDayCalendar,
+                            search: { _ in }, scanBarcode: {}, pasteOrDictate: {}, favourites: {}, relog: { _ in })
+            }.environment(\.dynamicTypeSize, size), "Add food - recents \(name)")
+            renderPolish(NavigationStack { Form { Section { BarcodePermissionGuidanceView(guidance: guidance) {} } } }
+                .environment(\.dynamicTypeSize, size), "Barcode unavailable - \(name)")
+        }
+    }
+
+    /// The barcode route opens the scanner once, on first opening, with no explainer tap; coming
+    /// back from search or Confirm does not reopen it.
+    func testBarcodeRouteStartsScanningOnceOnOpening() {
+        XCTAssertTrue(BarcodeFlowStart.startsOnAppear(hasStarted: false))
+        XCTAssertFalse(BarcodeFlowStart.startsOnAppear(hasStarted: true))
+        XCTAssertEqual(BarcodeFlowStart.rescanTitle, "Scan again")
+    }
+
+    private func renderPolish<V: View>(_ content: V, _ name: String) {
+        let host = UIHostingController(rootView: content)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = host
+        window.isHidden = false
+        host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.3))
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { window.layer.render(in: $0.cgContext) }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = name; attachment.lifetime = .keepAlways
+        add(attachment)
+        XCTAssertEqual(image.size.width, 390)
+        window.isHidden = true
+    }
 
     private func savedClementineModel(_ root: FoodLedgerCompositionRoot) throws -> FoodConfirmationViewModel {
         let search = try root.genericFoodSearchModel(locale: Locale(identifier: "en_GB"))
