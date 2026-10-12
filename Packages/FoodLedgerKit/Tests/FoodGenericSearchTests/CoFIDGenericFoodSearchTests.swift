@@ -487,7 +487,8 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
 
     /// food-list-lexical-v4 (#222): evidence carries each line's own grammar and convention with
     /// canonical amount text; a restored v3 line keeps its v3 label and descriptor bytes; Confirm
-    /// opens with the untouched parse or the typed amount read by the line's convention (Q6).
+    /// opens with the untouched parse, or with typed text that presentation made canonical with
+    /// the field's locale, read by the canonical amount parser (Q6).
     func testListEvidenceRecordsEachLinesGrammarAndConfirmReadsAmountsByItsConvention() throws {
         let ids = SequenceIDs()
         let service = FoodListImportService(searcher: try CoFIDGenericFoodSearch(ids: ids))
@@ -518,21 +519,21 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
         XCTAssertEqual(englishEvidence.version, "food-list-lexical-v4")
         XCTAssertEqual(englishEvidence.descriptor,
                        #"{"lineNumber":1,"notices":[],"numeralConvention":"full_stop_decimal","original":"1,500 gr Ackee canned drained","quantity":"1500","query":"Ackee canned drained","unit":"g"}"#)
-        english.quantityText = "1,250"
-        XCTAssertEqual(try amount(english), 1250, "typed grouping reads by the line's convention (Q6)")
+        english.quantityText = "1,250" // canonical text for an en_GB field keeps comma grouping
+        XCTAssertEqual(try amount(english), 1250, "typed canonical text is read by the canonical parser (Q6)")
         XCTAssertTrue(try evidence(english).descriptor.contains(#""quantity":"1250""#), "typed text is recorded canonically")
-        english.quantityText = "1,5"
-        XCTAssertNil(try amount(english))
+        english.quantityText = "0.75"
+        XCTAssertEqual(try amount(english), 0.75)
 
         // v4, comma-decimal: "1,5" is 1.5 and "1.500" is never guessed.
         var german = try draft(try XCTUnwrap(FoodListParser.parse("1,5 gr Ackee canned drained", convention: .commaDecimal).first))
         XCTAssertEqual(try amount(german), 1.5)
         XCTAssertTrue(try evidence(german).descriptor.contains(#""numeralConvention":"comma_decimal""#))
         XCTAssertTrue(try evidence(german).descriptor.contains(#""quantity":"1.5""#))
-        german.quantityText = "2,25"
-        XCTAssertEqual(try amount(german), 2.25)
-        german.quantityText = "1.500"
-        XCTAssertNil(try amount(german))
+        german.quantityText = "2.25" // a German field's "2,25", made canonical by presentation
+        XCTAssertEqual(try amount(german), 2.25, "the line's comma convention never reinterprets canonical text")
+        german.quantityText = "1250"
+        XCTAssertEqual(try amount(german), 1250)
         let ambiguous = try draft(try XCTUnwrap(FoodListParser.parse("1.500 gr Ackee canned drained", convention: .commaDecimal).first))
         XCTAssertNil(ambiguous.parsed.quantity)
         XCTAssertNil(try amount(ambiguous))

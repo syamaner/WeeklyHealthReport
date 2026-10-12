@@ -72,7 +72,9 @@ English "1,500" is 1500; a German "1,5" is 1.5. A numeral that could mean two am
 grouping) has no amount and the number format notice, and the existing needs-amount
 rule blocks saving until the user enters one. Each line records its grammar version
 and convention, and its capture evidence is stamped with them, with the amount as
-canonical text. Typed amounts reach Confirm read by the line's convention.
+canonical text. A typed amount is made canonical with the amount field's locale, the
+rule the field validated it with, before it reaches search or Confirm; the line's own
+convention applies only to its untouched parsed amount.
 
 Lines saved in a queue by an earlier build keep their `food-list-lexical-v3` parse and
 label and are never re-parsed. For them, and as a safety net for v4 lines restored in

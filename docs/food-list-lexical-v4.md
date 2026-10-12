@@ -46,7 +46,7 @@ A new closed domain type, `NumeralConvention`, with persisted raw values:
 
 ## v4 numeral grammar
 
-The table is normative. "Ambiguous" means: no amount, and the line carries the existing `ambiguousNumber` notice ("Check the number format before choosing an amount."), so the needs-amount rule blocks saving until the user enters one. As in v3, a recognised unit after a leading numeral is kept so the user enters the amount in it; a trailing ambiguous amount leaves no unit. Values are before unit scaling (kg and L still multiply by 1000).
+The table is normative. "Ambiguous" means: no amount, and the line carries the existing `ambiguousNumber` notice ("Check the number format before choosing an amount."), so the needs-amount rule blocks saving until the user enters one. As in v3, a recognised unit after a leading numeral is kept so the user enters the amount in it; a trailing ambiguous amount leaves no unit (owner-confirmed clarification, 12 October 2026: the unit stays on a leading ambiguous numeral). Values are before unit scaling (kg and L still multiply by 1000).
 
 ### Separators and grouping
 
@@ -115,7 +115,7 @@ Synthesised `Codable` with optional fields keeps every existing `FoodListCheckpo
 `FoodListImportService.search` writes the manual `CaptureEvidence` as today, with two changes for v4 lines only:
 
 - `captureMethodVersion` is the **line's** `grammarVersion` (`food-list-lexical-v4`), not the `FoodListParser.version` constant. This also closes a latent mislabel: today a line restored from a v3 checkpoint after an upgrade would be stamped with whatever the constant says at search time.
-- The JSON descriptor (sorted keys) gains `"numeralConvention"` (Q4), and its `quantity` is canonical text: full stop decimal, no grouping, no trailing `.0` (`FoodAmountTextParser.editableText`), whether the amount was proposed by the parser or typed by the user. Text that does not read as one amount (empty, or refused) is recorded unchanged. Under v3 the descriptor holds the field text as typed, which may be locale-formatted, and v3 lines keep doing so.
+- The JSON descriptor (sorted keys) gains `"numeralConvention"` (Q4), and its `quantity` is canonical text: full stop decimal, no grouping, no trailing `.0` (`FoodAmountTextParser.editableText`), whether the amount was proposed by the parser or typed by the user. Text that does not read as one amount (empty, or refused) is recorded unchanged (clarification accepted by the owner, 12 October 2026). Under v3 the descriptor holds the field text as typed, which may be locale-formatted, and v3 lines keep doing so.
 
 The `genericSearch` capture (`food_list_generic_search`, `v1`), the evidence `locale` field, the confirmation policy, the ledger schema and the archive formats do not change. No reader decodes the list descriptor; it is opaque `LedgerText` retained for provenance.
 
@@ -127,9 +127,11 @@ The `genericSearch` capture (`food_list_generic_search`, `v1`), the evidence `lo
 
 ### Reading the amount into Confirm
 
-`FoodListImportService.confirmation(for:)` used to re-read `draft.quantityText` with the locale-free `FoodListParser.number`. For a v4 line it now uses `parsed.quantity` while the amount is the untouched proposal, and otherwise reads the typed text with `FoodListParser.number(_:convention:)` under the line's own convention, which is the device convention the field checks against and agrees with `FoodAmountFieldText` on every golden-table numeral (`FoodListLineDraft.amountValue`). The field keeps the text as typed, so the user still sees "1,5" rather than a rewritten "1.5". This removes a gap found while drafting: on en_GB, typing "1,500" into a list line passed the field check but `FoodListParser.number("1,500")` returned nil, so Confirm opened with an empty amount. A v3 line restored from an older queue keeps the frozen v3 reading of its text.
+`FoodListImportService.confirmation(for:)` used to re-read `draft.quantityText` with the locale-free `FoodListParser.number`. For a v4 line it now uses `parsed.quantity` while the amount is the untouched proposal; the line's own convention applies only to that parse. Typed text is made canonical in presentation with `FoodAmountFieldText.canonical` under the amount field's locale, the same rule the field validated it with, when the line is handed to search or Confirm (`FoodListAmountText.reviewed`), and the application reads it with the canonical amount parser `FoodAmountTextParser.parse` (`FoodListLineDraft.amountValue`). The line's convention never reinterprets typed text, so after a region change (an en_GB queue restored under de_DE) a typed "1,250" is 1.25 g, as the German field shows it. Text the field refuses never reaches search or Confirm. The field keeps the text as typed, so the user still sees "1,5" rather than a rewritten "1.5". This removes a gap found while drafting: on en_GB, typing "1,500" into a list line passed the field check but `FoodListParser.number("1,500")` returned nil, so Confirm opened with an empty amount. A v3 line restored from an older queue keeps the frozen v3 reading of its text.
 
-Common-food shortcuts that add a line write the portion in the list's convention ("0,125 g" under comma-decimal), so it reads back exactly.
+Common-food shortcuts that add a line are written by the app as canonical text ("0.125 g") and parsed under `fullStopDecimal`, the convention they were written in, which the line records. The portion is therefore exact under every device convention, `unspecified` included.
+
+A stored line is recognised as v4 by the frozen identifier `food-list-lexical-v4` (`FoodListParser.v4Version`), never by the moving current-version constant, so a later grammar cannot misread v4 lines.
 
 ## Presentation-layer withholding
 

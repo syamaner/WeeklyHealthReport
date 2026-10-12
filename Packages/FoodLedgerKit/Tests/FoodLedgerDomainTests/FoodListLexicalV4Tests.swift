@@ -129,4 +129,22 @@ final class FoodListLexicalV4Tests: XCTestCase {
         )
         XCTAssertEqual(try JSONDecoder().decode(ParsedFoodListLine.self, from: try encoder.encode(v4)), v4)
     }
+
+    /// A stored v4 line is recognised by the frozen "food-list-lexical-v4" identifier, not by the
+    /// current grammar constant, so a later grammar cannot misread it; other versions are not v4.
+    func testV4LinesAreRecognisedByTheFrozenIdentifier() throws {
+        XCTAssertEqual(FoodListParser.v4Version, "food-list-lexical-v4")
+        func line(_ version: String?) throws -> ParsedFoodListLine {
+            let key = version.map { "\"grammarVersion\":\"" + $0 + "\",\"numeralConvention\":\"full_stop_decimal\"," } ?? ""
+            let body = #""lineNumber":1,"notices":[],"original":"1,000.5 g rice","quantity":1000.5,"query":"rice","unit":"g"}"#
+            return try JSONDecoder().decode(ParsedFoodListLine.self, from: Data(("{" + key + body).utf8))
+        }
+        let stored = try line("food-list-lexical-v4")
+        XCTAssertTrue(stored.isV4)
+        XCTAssertEqual(stored.effectiveGrammarVersion, "food-list-lexical-v4")
+        XCTAssertEqual(FoodListParser.amountNumeral(of: stored), "1,000.5", "read with the v4 numeral token")
+        XCTAssertFalse(try line("food-list-lexical-v5").isV4)
+        XCTAssertFalse(try line(nil).isV4)
+        XCTAssertEqual(try line(nil).effectiveGrammarVersion, "food-list-lexical-v3")
+    }
 }

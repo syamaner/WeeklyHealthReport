@@ -34,13 +34,14 @@ public struct FoodListLineDraft: Codable, Equatable, Sendable, Identifiable {
         return quantityText == String(parsed)
     }
 
-    /// The consumed amount this line proposes (food-list-lexical-v4, Q6): the untouched parse, or
-    /// typed text read with the line's own numeral convention, the same rule as the amount field.
-    /// A v3 line keeps the frozen v3 reading of its text.
+    /// The consumed amount this line proposes (food-list-lexical-v4, Q6): the untouched parse
+    /// (read under the line's own convention), or typed text that presentation has already made
+    /// canonical with the amount field's locale, read with the canonical amount parser. The
+    /// line's convention never reinterprets typed text. A v3 line keeps the frozen v3 reading.
     public var amountValue: Double? {
         guard parsed.isV4 else { return FoodListParser.number(quantityText) }
         if isAmountUntouched { return parsed.quantity }
-        return FoodListParser.number(quantityText, convention: parsed.numeralConvention ?? .unspecified)
+        return FoodAmountTextParser.parse(quantityText)
     }
 
     /// The amount text recorded in capture evidence. A v3 line records its text as before; a v4

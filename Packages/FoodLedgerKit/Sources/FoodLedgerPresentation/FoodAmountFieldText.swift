@@ -72,12 +72,6 @@ extension NumeralConvention {
         default: self = .unspecified
         }
     }
-
-    /// Machine-written amount text that this convention reads back as `value`.
-    public func text(_ value: Double) -> String {
-        let canonical = FoodAmountTextParser.editableText(value)
-        return self == .commaDecimal ? canonical.replacingOccurrences(of: ".", with: ",") : canonical
-    }
 }
 
 /// Which amount field holds focus. Each field has its own value, so "Done" clears whichever is

@@ -165,16 +165,18 @@ public final class FoodListImportViewModel: ObservableObject {
             prepare()
             guard !rows.isEmpty else { throw FoodLedgerValidationError.invalidProvenance }
         }
-        // The portion is written in the list's own numeral convention, so it reads back exactly.
+        // The app writes the portion itself, as canonical text (full stop decimal, no grouping),
+        // and reads that line back under the convention it was written in, so every portion,
+        // 0.125 included, is exact whatever the device locale; the line records that convention.
         let prefix = portion.map {
-            "\(numeralConvention.text($0.value)) \($0.unit == .grams ? "g" : $0.unit == .millilitres ? "ml" : "count") "
+            "\(FoodAmountTextParser.editableText($0.value)) \($0.unit == .grams ? "g" : $0.unit == .millilitres ? "ml" : "count") "
         } ?? ""
         let text = prefix + name
         let combined = input.isEmpty ? text : input + "\n" + text
         guard combined.count <= 30_000, combined.components(separatedBy: .newlines).count <= 200 else {
             throw FoodListParser.ParseError.tooLarge
         }
-        let parsed = try FoodListParser.parse(combined, convention: numeralConvention)
+        let parsed = try FoodListParser.parse(combined, convention: .fullStopDecimal)
         guard let last = parsed.last else { throw FoodListParser.ParseError.empty }
         let draft = FoodListLineDraft(parsed: last, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
         restoring = true
@@ -251,9 +253,10 @@ public final class FoodListImportViewModel: ObservableObject {
     }
 
     public func search() {
-        guard confirmation == nil, let index = selectedIndex, !rows[index].isSaved else { return }
+        guard confirmation == nil, let index = selectedIndex, !rows[index].isSaved,
+              let draft = FoodListAmountText.reviewed(rows[index].draft, locale: amountLocale) else { return }
         do {
-            switch try service.search(rows[index].draft, at: now(), locale: locale) {
+            switch try service.search(draft, at: now(), locale: locale) {
             case let .candidates(route):
                 rows[index].route = route
                 rows[index].status = .candidates
@@ -268,9 +271,10 @@ public final class FoodListImportViewModel: ObservableObject {
     }
 
     public func review(candidate index: Int) {
-        guard confirmation == nil, let row = selectedRow, !row.isSaved, let route = row.route else { return }
+        guard confirmation == nil, let row = selectedRow, !row.isSaved, let route = row.route,
+              let draft = FoodListAmountText.reviewed(row.draft, locale: amountLocale) else { return }
         do {
-            let state = try service.confirmation(for: row.draft, route: route, candidateIndex: index)
+            let state = try service.confirmation(for: draft, route: route, candidateIndex: index)
             confirmationRowID = row.id
             confirmation = FoodConfirmationViewModel(state: state, now: confirmationNow,
                                                      calendar: confirmationCalendar) { [weak self] state in
@@ -579,6 +583,20 @@ public enum FoodListAmountText {
 
     public static func stored(_ typed: String, current: String, parsed: Double?, locale: Locale) -> String {
         typed == display(current, parsed: parsed, locale: locale) ? current : typed
+    }
+
+    /// The line as handed to search and Confirm (food-list-lexical-v4, Q6). A typed amount on a v4
+    /// line becomes canonical text under this locale, the same rule the field validated it with,
+    /// so the application never reinterprets it with the convention the line was parsed under
+    /// (which differs after a region change). The untouched proposal and v3 lines pass unchanged.
+    /// Nil when the typed text is refused here; the screen already blocks that line.
+    public static func reviewed(_ draft: FoodListLineDraft, locale: Locale) -> FoodListLineDraft? {
+        let typed = draft.quantityText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard draft.parsed.isV4, !draft.isAmountUntouched, !typed.isEmpty else { return draft }
+        guard let canonical = FoodAmountFieldText.canonical(typed, locale: locale) else { return nil }
+        var reviewed = draft
+        reviewed.quantityText = canonical
+        return reviewed
     }
 
     /// Shown under a refused amount; the same rule as Confirm's invalid amount.

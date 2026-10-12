@@ -51,14 +51,18 @@ public struct ParsedFoodListLine: Codable, Equatable, Sendable {
     /// The grammar version to record for this line: its own, or v3 when it predates v4.
     public var effectiveGrammarVersion: String { grammarVersion ?? FoodListParser.legacyVersion }
     /// True when the line was parsed by `food-list-lexical-v4`.
-    public var isV4: Bool { grammarVersion == FoodListParser.version }
+    /// Compared with the frozen v4 identifier, never the moving `version`, so a later grammar
+    /// cannot misread lines stored as v4.
+    public var isV4: Bool { grammarVersion == FoodListParser.v4Version }
 }
 
 /// A deliberately bounded grammar. Unrecognised units and multiple amounts stay unresolved.
 /// No food spelling, brand, household volume or nutrient value is inferred.
 public enum FoodListParser {
     /// The current grammar, `parse(_:convention:)`. See docs/food-list-lexical-v4.md.
-    public static let version = "food-list-lexical-v4"
+    public static let version = v4Version
+    /// The frozen identifier of the v4 grammar, recorded on its lines and evidence.
+    public static let v4Version = "food-list-lexical-v4"
     /// The frozen locale-free grammar, `parse(_:)`, kept for lines and evidence that predate v4.
     public static let legacyVersion = "food-list-lexical-v3"
     public static let maximumCharacters = 30_000
@@ -201,7 +205,7 @@ public enum FoodListParser {
         static func v4(_ convention: NumeralConvention) -> Grammar {
             Grammar(leadingPattern: v4LeadingAmountPattern, trailingPattern: v4TrailingAmountPattern,
                     read: { FoodListParser.number($0, convention: convention) },
-                    version: FoodListParser.version, convention: convention)
+                    version: FoodListParser.v4Version, convention: convention)
         }
     }
 
