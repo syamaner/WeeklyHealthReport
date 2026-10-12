@@ -32,7 +32,9 @@ final class AppNavigationTests: XCTestCase {
             .developerTools: ([.settings, .developerTools], [.settings, .developerTools]),
             .addFood: ([.addFood], [.addFood]),
             .exportDestination: ([.settings, .exportDestination], [.settings, .exportDestination]),
-            .favourites: ([.favourites], [.favourites])
+            .favourites: ([.favourites], [.favourites]),
+            .todayNotes: ([.todayNotes], [.todayNotes]),
+            .todayNoteEditor: ([.todayNotes, .todayNoteEditor], [.todayNotes])
         ]
         XCTAssertEqual(Set(expected.keys), Set(AppRoute.allCases))
         for (route, paths) in expected {
@@ -53,14 +55,29 @@ final class AppNavigationTests: XCTestCase {
     /// #200: Drive setup restores inside Settings; a stored Export screen
     /// still restores to Export alone, and opening it is the only preparation.
     func testExportDestinationRestoresInsideSettingsAndDailyExportIsUnchanged() {
-        // Phase 7 appended exportDestination after addFood; phase 5 (#198) appends favourites after it.
-        XCTAssertEqual(Array(AppRoute.allCases.suffix(3)), [.addFood, .exportDestination, .favourites])
+        // Phase 7 appended exportDestination after addFood; phase 5 (#198) appends favourites after it;
+        // phase 6 (#199) appends Home's today notes routes.
+        XCTAssertEqual(Array(AppRoute.allCases.suffix(5)), [.addFood, .exportDestination, .favourites, .todayNotes, .todayNoteEditor])
         XCTAssertEqual(AppRoute.exportDestination.rawValue, "exportDestination")
         XCTAssertTrue(AppRoute.fixedRoutes.contains(.exportDestination))
         for available in [allAvailable, withoutComposedSettings] {
             XCTAssertEqual(AppRoute.restoredPath(from: "exportDestination", hasDraft: false, availableRoutes: available), [.settings, .exportDestination])
             XCTAssertEqual(AppRoute.restoredPath(from: "dailyExport", hasDraft: true, availableRoutes: available), [.dailyExport])
         }
+    }
+
+    /// #199 (D11): Home's notes routes are new raw values, pin the shared notes
+    /// controller to today, and leave the export's notes routes unchanged.
+    func testTodayNotesRoutesAreAppendedAndPinToday() {
+        XCTAssertEqual(AppRoute.todayNotes.rawValue, "todayNotes")
+        XCTAssertEqual(AppRoute.todayNoteEditor.rawValue, "todayNoteEditor")
+        XCTAssertTrue(AppRoute.fixedRoutes.isSuperset(of: [.todayNotes, .todayNoteEditor]))
+        XCTAssertTrue(AppRoute.pinsNotesToToday([.todayNotes]))
+        XCTAssertTrue(AppRoute.pinsNotesToToday([.todayNotes, .todayNoteEditor]))
+        XCTAssertFalse(AppRoute.pinsNotesToToday([]))
+        XCTAssertFalse(AppRoute.pinsNotesToToday([.dailyExport, .notes, .noteEditor]))
+        XCTAssertEqual(AppRoute.restoredPath(from: "notes", hasDraft: true, availableRoutes: allAvailable), [.dailyExport, .notes])
+        XCTAssertEqual(AppRoute.restoredPath(from: "noteEditor", hasDraft: true, availableRoutes: allAvailable), [.dailyExport, .notes, .noteEditor])
     }
 
     func testLegacyRawValuesAreUnchanged() {

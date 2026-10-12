@@ -62,8 +62,8 @@ final class TodaySoFarHealthModelTests: XCTestCase {
         await reader.waitForSuspendedRead()
         XCTAssertNil(model.projection, "yesterday's values are not shown after midnight")
         XCTAssertTrue(model.isRefreshing)
-        XCTAssertEqual(TodaySoFarHealthCard.make(projection: model.projection, isRefreshing: model.isRefreshing).content,
-                       TodaySoFarHealthCard.make(projection: nil, isRefreshing: true).content)
+        XCTAssertEqual(TodaySoFarHealthCard.make(projection: model.projection, windowFailed: model.windowFailed).content,
+                       TodaySoFarHealthCard.make(projection: nil).content)
         reader.resumeSuspendedRead()
         await next.value
         XCTAssertEqual(model.projection?.window.day.start, at(24, 0))

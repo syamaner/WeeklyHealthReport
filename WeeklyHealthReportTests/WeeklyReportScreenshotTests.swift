@@ -25,7 +25,10 @@ final class WeeklyReportScreenshotTests: XCTestCase {
             fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults
         )
         XCTAssertEqual(try root.intakeProjection(for: Date()).summary.itemCount, 0)
-        renderFoodView(NavigationStack { FoodIntakeHomeView(root: root) }, name: "Today - empty log")
+        let emptyHome = FoodHomeModel(root: root)
+        emptyHome.reload()
+        XCTAssertEqual(emptyHome.state, .empty)
+        renderFoodView(NavigationStack { Form { FoodHomeCard(model: emptyHome) } }, name: "Today - empty log")
         let navigation = AppNavigationCoordinator(defaults: defaults)
         renderFoodView(NavigationStack { FoodLogView(root: root, navigation: navigation) }, name: "Food Log - empty log")
 
@@ -58,9 +61,12 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         XCTAssertNotNil(confirmation.savedResult, "Synthetic confirmation must save before rendering: \(confirmation.state.phase)")
         let populated = try root.intakeProjection(for: Date())
         XCTAssertEqual(populated.summary.itemCount, 1)
+        let populatedHome = FoodHomeModel(root: root)
+        populatedHome.reload()
+        guard case .logged = populatedHome.state else { return XCTFail("Expected a logged food card") }
         for size in [DynamicTypeSize.large, .accessibility3] {
             renderFoodView(NavigationStack {
-                FoodIntakeHomeView(root: root).environment(\.dynamicTypeSize, size)
+                Form { FoodHomeCard(model: populatedHome) }.environment(\.dynamicTypeSize, size)
             }, name: "Today - populated - \(size)")
             renderFoodView(NavigationStack {
                 FoodLogView(root: root, navigation: navigation).environment(\.dynamicTypeSize, size)
@@ -95,6 +101,35 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         renderFoodView(NavigationStack { DailyExportView(session: session) }, name: "Historical export - date selection")
         renderFoodView(NavigationStack { DailyNotesView(controller: notes, openEditor: {}) }, name: "Historical notes - selected date")
     }
+    /// #199 (D11): with the export on a past day, Home's notes row counts today and
+    /// opens today; leaving restores the export's day, and Export re-asserts it.
+    func testHomeTodayNotesKeepTheExportsSelectedDay() throws {
+        let calendar = testCalendar()
+        let now = calendar.date(from: DateComponents(year: 2026, month: 9, day: 10, hour: 15))!
+        let store = EmptyDailyNotesStore()
+        let notes = DailyNotesController(store: store, calendar: calendar, now: { now })
+        let session = DailyDriveSessionController(
+            keychain: ScreenshotMemoryDailySessionStore(), drive: DailyDriveAPI(),
+            exportService: DailyHealthExportService(healthData: UnusedDailyHealthDataProvider(), notesStore: store, calendar: calendar, now: { now }),
+            identityStore: ControllerMemoryDailyIdentityStore(),
+            nutritionSourceSelection: EmptyNutritionSourceSelectionStore(), notes: notes
+        )
+        XCTAssertTrue(notes.beginNewDraft()); XCTAssertTrue(notes.updateDraftText("Synthetic today note")); XCTAssertTrue(notes.saveDraft())
+        let past = session.availableReportDays[5]
+        session.selectReportDay(past)
+        XCTAssertEqual(notes.currentDayID.reportDate, "2026-09-05")
+        XCTAssertEqual(NotesHomeCard.countLabel(notes.todayNoteCount), "1 note")
+
+        notes.pinToday()
+        XCTAssertEqual(notes.currentDayID.reportDate, "2026-09-10")
+        renderFoodView(NavigationStack { DailyNotesView(controller: notes, openEditor: {}) }, name: "Home today notes - export on a past day")
+        notes.unpinToday()
+        XCTAssertEqual(notes.currentDayID, past)
+        XCTAssertEqual(session.selectedReportDay, past)
+        session.reassertReportDay()
+        XCTAssertEqual(notes.currentDayID, past)
+    }
+
     func testFoodRecoveryAndCommonFoodsRenderWithSyntheticData() throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: directory) }
@@ -186,6 +221,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
             dailyExport: dailyExport,
             navigation: AppNavigationCoordinator(defaults: UserDefaults(suiteName: "shell-construction-" + UUID().uuidString)!),
             todaySoFar: TodaySoFarHealthModel(reader: FakeTodaySoFarReader(), authorizer: FakeReadAuthorizer()),
+            foodHome: FoodHomeModel(root: nil),
             medicationAccess: MedicationAccessRequest(store: store),
             foodLedger: nil,
             settings: WeeklyHealthReportApp.makeSettings(

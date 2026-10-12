@@ -13,9 +13,9 @@ import Vision
 @MainActor
 final class FoodSearchQuantityNativeTests: XCTestCase {
     func testFoodLogEntryCountsUseSingularForOne() {
-        XCTAssertEqual(FoodIntakeHomeView.entryCount(1), "1 entry")
-        XCTAssertEqual(FoodIntakeHomeView.entryCount(0), "0 entries")
-        XCTAssertEqual(FoodIntakeHomeView.entryCount(3), "3 entries")
+        XCTAssertEqual(FoodHomeCardContent.entryCount(1), "1 entry")
+        XCTAssertEqual(FoodHomeCardContent.entryCount(0), "0 entries")
+        XCTAssertEqual(FoodHomeCardContent.entryCount(3), "3 entries")
     }
 
     func testSelectedCandidateRendersEditableParsedQuantityWithoutAutomaticSave() async throws {

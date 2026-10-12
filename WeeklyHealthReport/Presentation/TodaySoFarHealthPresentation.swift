@@ -34,12 +34,14 @@ struct TodaySoFarHealthCard: Equatable {
 
     static func make(
         projection: TodaySoFarHealthProjection?,
-        isRefreshing: Bool,
+        windowFailed: Bool = false,
         locale: Locale = .autoupdatingCurrent
     ) -> TodaySoFarHealthCard {
         let footer = HealthReportFormatter.todaySoFarFooter
+        // No value for today yet: loading (including while authorisation is
+        // requested), or failed when the window itself could not be computed.
         guard let projection else {
-            let status: TodaySoFarHealthRow.Status = isRefreshing ? .loading : .failed
+            let status: TodaySoFarHealthRow.Status = windowFailed ? .failed : .loading
             return TodaySoFarHealthCard(
                 content: .rows(TodaySoFarHealthRow.Kind.allCases.map { placeholder($0, status: status) }),
                 footer: footer,

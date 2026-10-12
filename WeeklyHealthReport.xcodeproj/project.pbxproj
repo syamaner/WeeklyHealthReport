@@ -16,7 +16,6 @@
 		F19400000000000000000012 /* SettingsContributions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000011 /* SettingsContributions.swift */; };
 		F19400000000000000000010 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000F /* SettingsView.swift */; };
 		F1940000000000000000000E /* SavedFoodEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000D /* SavedFoodEntryView.swift */; };
-		F1940000000000000000000C /* FoodIntakeHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000000B /* FoodIntakeHomeView.swift */; };
 		F19700000000000000000005 /* FoodEntryFinish.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19700000000000000000004 /* FoodEntryFinish.swift */; };
 		F19700000000000000000003 /* FoodLogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19700000000000000000002 /* FoodLogView.swift */; };
 		F1940000000000000000000A /* MedicationAccessHelpView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000009 /* MedicationAccessHelpView.swift */; };
@@ -84,6 +83,7 @@
 		A00000000000000000000034 /* DailyNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003A /* DailyNotes.swift */; };
 		A00000000000000000000035 /* DailyNotesStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003B /* DailyNotesStore.swift */; };
 		A00000000000000000000036 /* DailyNotesController.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003C /* DailyNotesController.swift */; };
+		F60000000000000000000012 /* NotesHomeCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000011 /* NotesHomeCard.swift */; };
 		A00000000000000000000037 /* DailyNotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003D /* DailyNotesView.swift */; };
 		A00000000000000000000038 /* DailyNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003E /* DailyNotesTests.swift */; };
 		A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000003F /* DailyNotesStoreTests.swift */; };
@@ -110,6 +110,7 @@
 		P00000000000000000000003 /* DriveExportOAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000006 /* DriveExportOAuth */; };
 		P00000000000000000000004 /* DriveExportOAuth in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000007 /* DriveExportOAuth */; };
 		P00000000000000000000008 /* FoodLedgerCompositionRoot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */; };
+		F60000000000000000000010 /* FoodHomeCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6000000000000000000000F /* FoodHomeCards.swift */; };
 		A96000000000000000000001 /* FoodVoiceCapture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96000000000000000000001 /* FoodVoiceCapture.swift */; };
 		A96000000000000000000002 /* FoodVoiceInputView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B96000000000000000000002 /* FoodVoiceInputView.swift */; };
 		P00000000000000000000009 /* FoodLedgerDomain in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000009 /* FoodLedgerDomain */; };
@@ -127,8 +128,11 @@
 		F60000000000000000000004 /* TodaySoFarHealthPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000003 /* TodaySoFarHealthPresentation.swift */; };
 		F20000000000000000000006 /* HealthSummaryTileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000005 /* HealthSummaryTileView.swift */; };
 		F20000000000000000000008 /* DriveDestinationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000007 /* DriveDestinationSettingsView.swift */; };
+		F6000000000000000000000E /* TodaySoFarHealthCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6000000000000000000000D /* TodaySoFarHealthCard.swift */; };
+		F6000000000000000000000C /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6000000000000000000000B /* HomeView.swift */; };
 		F60000000000000000000006 /* TodaySoFarHealthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000005 /* TodaySoFarHealthModel.swift */; };
 		F2000000000000000000000A /* DailyExportPhaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000009 /* DailyExportPhaseTests.swift */; };
+		F60000000000000000000014 /* HomeCardsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000013 /* HomeCardsTests.swift */; };
 		F6000000000000000000000A /* TodaySoFarHealthModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000009 /* TodaySoFarHealthModelTests.swift */; };
 		F60000000000000000000008 /* TodaySoFarHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000007 /* TodaySoFarHealthTests.swift */; };
 /* End PBXBuildFile section */
@@ -153,7 +157,6 @@
 		F19400000000000000000011 /* SettingsContributions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsContributions.swift; sourceTree = "<group>"; };
 		F1940000000000000000000F /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		F1940000000000000000000D /* SavedFoodEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SavedFoodEntryView.swift; sourceTree = "<group>"; };
-		F1940000000000000000000B /* FoodIntakeHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodIntakeHomeView.swift; sourceTree = "<group>"; };
 		F19700000000000000000004 /* FoodEntryFinish.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodEntryFinish.swift; sourceTree = "<group>"; };
 		F19700000000000000000002 /* FoodLogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLogView.swift; sourceTree = "<group>"; };
 		F19400000000000000000009 /* MedicationAccessHelpView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationAccessHelpView.swift; sourceTree = "<group>"; };
@@ -226,6 +229,7 @@
 		B0000000000000000000003A /* DailyNotes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotes.swift; sourceTree = "<group>"; };
 		B0000000000000000000003B /* DailyNotesStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesStore.swift; sourceTree = "<group>"; };
 		B0000000000000000000003C /* DailyNotesController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesController.swift; sourceTree = "<group>"; };
+		F60000000000000000000011 /* NotesHomeCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotesHomeCard.swift; sourceTree = "<group>"; };
 		B0000000000000000000003D /* DailyNotesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesView.swift; sourceTree = "<group>"; };
 		B0000000000000000000003E /* DailyNotesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000003F /* DailyNotesStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNotesStoreTests.swift; sourceTree = "<group>"; };
@@ -248,6 +252,7 @@
 		B0000000000000000000004F /* ReportPreviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPreviewFixtures.swift; sourceTree = "<group>"; };
 		B00000000000000000000050 /* MetricRowPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricRowPresentation.swift; sourceTree = "<group>"; };
 		B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLedgerCompositionRoot.swift; sourceTree = "<group>"; };
+		F6000000000000000000000F /* FoodHomeCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodHomeCards.swift; sourceTree = "<group>"; };
 		B96000000000000000000001 /* FoodVoiceCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodVoiceCapture.swift; sourceTree = "<group>"; };
 		B96000000000000000000002 /* FoodVoiceInputView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodVoiceInputView.swift; sourceTree = "<group>"; };
 		B00000000000000000000071 /* LocalHealthStorageDirectory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Utilities/LocalHealthStorageDirectory.swift"; sourceTree = "<group>"; };
@@ -258,8 +263,11 @@
 		F60000000000000000000003 /* TodaySoFarHealthPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthPresentation.swift; sourceTree = "<group>"; };
 		F20000000000000000000005 /* HealthSummaryTileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSummaryTileView.swift; sourceTree = "<group>"; };
 		F20000000000000000000007 /* DriveDestinationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveDestinationSettingsView.swift; sourceTree = "<group>"; };
+		F6000000000000000000000D /* TodaySoFarHealthCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthCard.swift; sourceTree = "<group>"; };
+		F6000000000000000000000B /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		F60000000000000000000005 /* TodaySoFarHealthModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthModel.swift; sourceTree = "<group>"; };
 		F20000000000000000000009 /* DailyExportPhaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyExportPhaseTests.swift; sourceTree = "<group>"; };
+		F60000000000000000000013 /* HomeCardsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeCardsTests.swift; sourceTree = "<group>"; };
 		F60000000000000000000009 /* TodaySoFarHealthModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthModelTests.swift; sourceTree = "<group>"; };
 		F60000000000000000000007 /* TodaySoFarHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -377,11 +385,12 @@
 				F19400000000000000000013 /* DeveloperToolsSettingsView.swift */,
 				F19400000000000000000011 /* SettingsContributions.swift */,
 				F20000000000000000000007 /* DriveDestinationSettingsView.swift */,
+				F6000000000000000000000D /* TodaySoFarHealthCard.swift */,
+				F6000000000000000000000B /* HomeView.swift */,
 				F60000000000000000000005 /* TodaySoFarHealthModel.swift */,
 				F20000000000000000000005 /* HealthSummaryTileView.swift */,
 				F1940000000000000000000F /* SettingsView.swift */,
 				F1940000000000000000000D /* SavedFoodEntryView.swift */,
-				F1940000000000000000000B /* FoodIntakeHomeView.swift */,
 				F19700000000000000000004 /* FoodEntryFinish.swift */,
 				F19700000000000000000002 /* FoodLogView.swift */,
 				F19400000000000000000009 /* MedicationAccessHelpView.swift */,
@@ -431,6 +440,7 @@
 				F19400000000000000000017 /* AppNavigationTests.swift */,
 				F19700000000000000000006 /* FoodLogAppTests.swift */,
 				F20000000000000000000009 /* DailyExportPhaseTests.swift */,
+				F60000000000000000000013 /* HomeCardsTests.swift */,
 				F60000000000000000000009 /* TodaySoFarHealthModelTests.swift */,
 				F60000000000000000000007 /* TodaySoFarHealthTests.swift */,
 				B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */,
@@ -494,6 +504,7 @@
 			children = (
 				B0000000000000000000003B /* DailyNotesStore.swift */,
 				B0000000000000000000003C /* DailyNotesController.swift */,
+				F60000000000000000000011 /* NotesHomeCard.swift */,
 				B00000000000000000000040 /* DailyNoteSpeechCapture.swift */,
 			);
 			path = Notes;
@@ -518,6 +529,7 @@
 			isa = PBXGroup;
 			children = (
 				B00000000000000000000054 /* FoodLedgerCompositionRoot.swift */,
+				F6000000000000000000000F /* FoodHomeCards.swift */,
 				F19400000000000000000015 /* FoodLedgerSettings.swift */,
 				B96000000000000000000001 /* FoodVoiceCapture.swift */,
 				B96000000000000000000002 /* FoodVoiceInputView.swift */,
@@ -661,11 +673,12 @@
 				F19400000000000000000014 /* DeveloperToolsSettingsView.swift in Sources */,
 				F19400000000000000000012 /* SettingsContributions.swift in Sources */,
 				F20000000000000000000008 /* DriveDestinationSettingsView.swift in Sources */,
+				F6000000000000000000000E /* TodaySoFarHealthCard.swift in Sources */,
+				F6000000000000000000000C /* HomeView.swift in Sources */,
 				F60000000000000000000006 /* TodaySoFarHealthModel.swift in Sources */,
 				F20000000000000000000006 /* HealthSummaryTileView.swift in Sources */,
 				F19400000000000000000010 /* SettingsView.swift in Sources */,
 				F1940000000000000000000E /* SavedFoodEntryView.swift in Sources */,
-				F1940000000000000000000C /* FoodIntakeHomeView.swift in Sources */,
 				F19700000000000000000005 /* FoodEntryFinish.swift in Sources */,
 				F19700000000000000000003 /* FoodLogView.swift in Sources */,
 				F1940000000000000000000A /* MedicationAccessHelpView.swift in Sources */,
@@ -715,9 +728,11 @@
 				A0000000000000000000002D /* DailyExportView.swift in Sources */,
 				A00000000000000000000035 /* DailyNotesStore.swift in Sources */,
 				A00000000000000000000036 /* DailyNotesController.swift in Sources */,
+				F60000000000000000000012 /* NotesHomeCard.swift in Sources */,
 				A00000000000000000000037 /* DailyNotesView.swift in Sources */,
 				A0000000000000000000003A /* DailyNoteSpeechCapture.swift in Sources */,
 				P00000000000000000000008 /* FoodLedgerCompositionRoot.swift in Sources */,
+				F60000000000000000000010 /* FoodHomeCards.swift in Sources */,
 				F19400000000000000000016 /* FoodLedgerSettings.swift in Sources */,
 				A96000000000000000000001 /* FoodVoiceCapture.swift in Sources */,
 				A96000000000000000000002 /* FoodVoiceInputView.swift in Sources */,
@@ -753,6 +768,7 @@
 				F19400000000000000000018 /* AppNavigationTests.swift in Sources */,
 				F19700000000000000000007 /* FoodLogAppTests.swift in Sources */,
 				F2000000000000000000000A /* DailyExportPhaseTests.swift in Sources */,
+				F60000000000000000000014 /* HomeCardsTests.swift in Sources */,
 				F6000000000000000000000A /* TodaySoFarHealthModelTests.swift in Sources */,
 				F60000000000000000000008 /* TodaySoFarHealthTests.swift in Sources */,
 				A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */,

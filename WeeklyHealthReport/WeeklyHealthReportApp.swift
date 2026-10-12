@@ -10,6 +10,7 @@ struct WeeklyHealthReportApp: App {
     /// Home's today-so-far health card (#199); one per app session.
     @StateObject private var todaySoFar: TodaySoFarHealthModel
     private let foodLedger: FoodLedgerCompositionRoot?
+    @StateObject private var foodHome: FoodHomeModel
     private let settings: AppSettings
 
     init() {
@@ -17,6 +18,7 @@ struct WeeklyHealthReportApp: App {
         healthStore = store
         let foodLedger = try? FoodLedgerCompositionRoot()
         self.foodLedger = foodLedger
+        _foodHome = StateObject(wrappedValue: FoodHomeModel(root: foodLedger))
         settings = Self.makeSettings(
             foodLedger: foodLedger,
             defaults: .standard,
@@ -40,6 +42,7 @@ struct WeeklyHealthReportApp: App {
                 dailyExport: dailyExport,
                 navigation: navigation,
                 todaySoFar: todaySoFar,
+                foodHome: foodHome,
                 medicationAccess: MedicationAccessRequest(store: healthStore),
                 foodLedger: foodLedger,
                 settings: settings

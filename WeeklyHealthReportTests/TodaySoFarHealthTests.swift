@@ -280,7 +280,7 @@ final class TodaySoFarHealthTests: XCTestCase {
             asleep: .value([AsleepInterval(start: Fixture.date(2026, 10, 11, 23, 0, calendar), end: Fixture.date(2026, 10, 12, 6, 12, calendar))]),
             weights: .value([WeightMeasurement(id: Fixture.uuid(1), date: Fixture.date(2026, 10, 12, 7, 5, calendar), kilograms: 72.4)]),
             bloodPressure: .value([Fixture.reading(1, Fixture.date(2026, 10, 12, 7, 10, calendar), 123, 78)])
-        ), window: window), isRefreshing: false, locale: gb)
+        ), window: window), locale: gb)
         XCTAssertEqual(available.asOf, "As of 14:32")
         XCTAssertEqual(available.footer, "Today is still in progress. Health summaries use completed days.")
         let rows = try Fixture.rows(available)
@@ -292,7 +292,7 @@ final class TodaySoFarHealthTests: XCTestCase {
         XCTAssertTrue(rows.allSatisfy { $0.status == .available })
 
         let empty = try Fixture.rows(TodaySoFarHealthCard.make(projection: .make(inputs: Fixture.inputs(
-            asleep: .noData, bloodPressure: .failed), window: window), isRefreshing: false, locale: gb))
+            asleep: .noData, bloodPressure: .failed), window: window), locale: gb))
         XCTAssertEqual(empty.map(\.value), ["No data", "No data", "No sleep visible yet, or no access", "No data", "Could not read Apple Health."])
         XCTAssertEqual(empty.map(\.status), [.noData, .noData, .noData, .noData, .failed])
         XCTAssertEqual(empty[0].accessibilityLabel, "Steps, no visible data, or Health access was not granted.")
@@ -300,11 +300,13 @@ final class TodaySoFarHealthTests: XCTestCase {
         XCTAssertEqual(empty[4].accessibilityLabel, "Blood pressure, could not read Apple Health.")
         XCTAssertFalse(empty.contains { $0.value.hasPrefix("0") }, "absence never renders as 0")
 
-        let loading = try Fixture.rows(TodaySoFarHealthCard.make(projection: nil, isRefreshing: true, locale: gb))
+        let loading = try Fixture.rows(TodaySoFarHealthCard.make(projection: nil, locale: gb))
         XCTAssertTrue(loading.allSatisfy { $0.status == .loading && $0.value.isEmpty })
         XCTAssertEqual(loading[0].accessibilityLabel, "Steps, loading")
+        let windowFailed = try Fixture.rows(TodaySoFarHealthCard.make(projection: nil, windowFailed: true, locale: gb))
+        XCTAssertTrue(windowFailed.allSatisfy { $0.status == .failed && $0.value == "Could not read Apple Health." })
 
-        let unavailable = TodaySoFarHealthCard.make(projection: .make(inputs: .healthUnavailable, window: window), isRefreshing: false, locale: gb)
+        let unavailable = TodaySoFarHealthCard.make(projection: .make(inputs: .healthUnavailable, window: window), locale: gb)
         XCTAssertEqual(unavailable.content, .unavailable("Apple Health is not available on this device."))
     }
 

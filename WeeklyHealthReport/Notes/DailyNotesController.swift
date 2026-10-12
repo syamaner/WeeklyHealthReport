@@ -14,9 +14,31 @@ final class DailyNotesController: ObservableObject {
     @Published private(set) var currentDayID: DailyNoteDayID
     private var selectedDay: DailyNoteDayID?
 
+    /// True while Home's today notes are open (#199, D11). The export's
+    /// selection is kept in `selectedDay` and returns when unpinned.
+    @Published private(set) var isPinnedToToday = false
+
     func selectReportDay(_ day: DailyNoteDayID?) {
         selectedDay = day
         activate()
+    }
+
+    /// Shows today's notes regardless of the export's selected day.
+    func pinToday() {
+        isPinnedToToday = true
+        activate()
+    }
+
+    /// Restores the export's selected day.
+    func unpinToday() {
+        guard isPinnedToToday else { return }
+        isPinnedToToday = false
+        activate()
+    }
+
+    /// Today's saved-note count from the injected clock, independent of the selected day.
+    var todayNoteCount: Int {
+        document.savedNotes(for: Self.dayID(at: now(), calendar: calendar)).count
     }
     @Published private(set) var errorMessage: String?
     @Published private(set) var storageState: StorageState = .available
@@ -85,7 +107,8 @@ final class DailyNotesController: ObservableObject {
         }
         flushDraft()
         let previousDayID = currentDayID
-        currentDayID = selectedDay ?? Self.dayID(at: now(), calendar: calendar)
+        let today = Self.dayID(at: now(), calendar: calendar)
+        currentDayID = isPinnedToToday ? today : (selectedDay ?? today)
         cleanUpVerifiedPriorDays()
         if previousDayID != currentDayID {
             onSavedNotesMutation?(document.snapshot(for: currentDayID))
