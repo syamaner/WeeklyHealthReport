@@ -185,6 +185,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
             viewModel: viewModel,
             dailyExport: dailyExport,
             navigation: AppNavigationCoordinator(defaults: UserDefaults(suiteName: "shell-construction-" + UUID().uuidString)!),
+            todaySoFar: TodaySoFarHealthModel(reader: FakeTodaySoFarReader(), authorizer: FakeReadAuthorizer()),
             medicationAccess: MedicationAccessRequest(store: store),
             foodLedger: nil,
             settings: WeeklyHealthReportApp.makeSettings(

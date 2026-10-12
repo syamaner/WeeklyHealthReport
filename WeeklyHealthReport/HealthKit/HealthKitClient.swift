@@ -1198,3 +1198,58 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         }
     }
 }
+
+// MARK: - Today so far (Home, today_so_far_health_v1)
+
+// Appended only: these reads reuse the report's private helpers unchanged, so
+// the predicates, options and units cannot drift (contract section 7).
+extension HealthKitClient: TodaySoFarHealthReading, HealthReadAuthorizationRequesting {
+    func todaySoFarInputs(for window: TodaySoFarWindow) async -> TodaySoFarHealthInputs {
+        guard isHealthDataAvailable else { return .healthUnavailable }
+        async let steps = todaySoFarSteps(window)
+        async let activeEnergy = todaySoFarActiveEnergy(window)
+        async let asleep = todaySoFarOutcome { try await self.fetchAsleepIntervals(in: window.sleep) }
+        async let weights = todaySoFarOutcome {
+            try await self.fetchWeightMeasurements(asOf: window.asOf, calendar: window.calendar)
+        }
+        async let bloodPressure = todaySoFarBloodPressure(window)
+        return await TodaySoFarReadMapping.inputs(
+            steps: steps,
+            activeEnergyKilocalories: activeEnergy,
+            asleepIntervals: asleep,
+            weights: weights,
+            bloodPressure: bloodPressure
+        )
+    }
+
+    private func todaySoFarSteps(_ window: TodaySoFarWindow) async -> Result<DailyStepTotal, TodaySoFarReadFailure> {
+        if window.dayIsEmpty { return .success(DailyStepTotal(day: window.day, steps: nil, sourceNames: [])) }
+        return await todaySoFarOutcome { try await self.fetchStepTotal(in: window.day) }
+    }
+
+    private func todaySoFarActiveEnergy(_ window: TodaySoFarWindow) async -> Result<Double?, TodaySoFarReadFailure> {
+        if window.dayIsEmpty { return .success(nil) }
+        return await todaySoFarOutcome { try await self.fetchActiveEnergyKilocalories(in: window.day) }
+    }
+
+    private func todaySoFarBloodPressure(
+        _ window: TodaySoFarWindow
+    ) async -> Result<[BloodPressureReading], TodaySoFarReadFailure> {
+        let period = ReportPeriod.make(selection: .lastSevenCompletedDays, now: window.asOf, calendar: window.calendar)
+        return await todaySoFarOutcome {
+            try await self.fetchBloodPressureReadings(for: period, asOf: window.asOf, calendar: window.calendar)
+        }
+    }
+
+    private func todaySoFarOutcome<Value>(
+        _ read: () async throws -> Value
+    ) async -> Result<Value, TodaySoFarReadFailure> {
+        do {
+            return .success(try await read())
+        } catch HealthDataError.unavailable {
+            return .failure(.healthUnavailable)
+        } catch {
+            return .failure(.failed)
+        }
+    }
+}

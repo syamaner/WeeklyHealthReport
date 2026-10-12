@@ -653,3 +653,64 @@ private enum DiagnosticFormat {
         "\(value.formatted(.number.precision(.fractionLength(3)))) mL/kg/min"
     }
 }
+
+/// Home's today-so-far inputs, unrounded, for the Apple Health comparison in
+/// docs/today-so-far-projection-v1.md section 10. No UUIDs or device identifiers.
+struct TodaySoFarDiagnosticsSection: View {
+    @ObservedObject var model: TodaySoFarHealthModel
+
+    var body: some View {
+        Section {
+            if let projection = model.projection {
+                let window = projection.window
+                LabeledContent("Time zone", value: window.calendar.timeZone.identifier)
+                LabeledContent("Day start", value: Self.date(window.day.start, window))
+                LabeledContent("As of", value: Self.date(window.asOf, window))
+                LabeledContent("Sleep window", value: "\(Self.date(window.sleep.start, window)) to \(Self.date(window.sleep.end, window))")
+                LabeledContent("Sleep window complete", value: window.sleepIsComplete ? "Yes" : "No, before noon")
+                LabeledContent("Steps", value: Self.state(projection.steps) { "\(Self.number($0.count)) · \($0.sourceNames.joined(separator: ", "))" })
+                LabeledContent("Active energy", value: Self.state(projection.activeEnergyKilocalories) { "\(Self.number($0)) kcal" })
+                LabeledContent("Asleep", value: Self.state(projection.sleep) { "\(Self.number($0.asleepSeconds)) s in \($0.intervals.count) merged intervals" })
+                if case .value(let sleep) = projection.sleep {
+                    ForEach(Array(sleep.intervals.enumerated()), id: \.offset) { _, interval in
+                        Text("\(Self.date(interval.start, window)) to \(Self.date(interval.end, window))")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                LabeledContent("Latest weight", value: Self.state(projection.latestWeight) {
+                    "\(DiagnosticFormat.weight($0.kilograms)) · \(Self.date($0.date, window))"
+                })
+                LabeledContent("Latest blood pressure", value: Self.state(projection.latestBloodPressure) {
+                    "\(DiagnosticFormat.bloodPressure($0.systolicMillimetresOfMercury, $0.diastolicMillimetresOfMercury)) · \(Self.date($0.date, window)) · \($0.sourceName)"
+                })
+            } else if model.isRefreshing {
+                ProgressView("Loading")
+            } else {
+                Text(model.windowFailed ? "The today window could not be computed." : "Not refreshed yet.")
+            }
+            Button("Refresh today so far") { Task { await model.handle(.diagnostics) } }
+        } header: {
+            Text("Today so far (Home)")
+        } footer: {
+            Text("Provisional values from local midnight to As of. They never enter the report, copied text or export.")
+        }
+        .task { if model.projection == nil { await model.handle(.diagnostics) } }
+    }
+
+    private static func date(_ date: Date, _ window: TodaySoFarWindow) -> String {
+        HealthReportFormatter.dateAndTime(date, calendar: window.calendar)
+    }
+
+    private static func number(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(0...3)))
+    }
+
+    private static func state<Value>(_ read: TodaySoFarRead<Value>, _ describe: (Value) -> String) -> String {
+        switch read {
+        case .value(let value): describe(value)
+        case .noData: "No data (no visible data or no access)"
+        case .failed: "Failed"
+        case .healthUnavailable: "Health unavailable"
+        }
+    }
+}

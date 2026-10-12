@@ -27,6 +27,7 @@
 		A00000000000000000000001 /* WeeklyHealthReportApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000001 /* WeeklyHealthReportApp.swift */; };
 		A00000000000000000000002 /* ReportPeriod.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000002 /* ReportPeriod.swift */; };
 		A00000000000000000000003 /* StepSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000003 /* StepSummary.swift */; };
+		F60000000000000000000002 /* TodaySoFarHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000001 /* TodaySoFarHealth.swift */; };
 		A00000000000000000000004 /* HealthDataProviding.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000004 /* HealthDataProviding.swift */; };
 		A00000000000000000000005 /* HealthKitClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000005 /* HealthKitClient.swift */; };
 		F11600000000000000000002 /* WorkoutHealthKitProjection.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11700000000000000000002 /* WorkoutHealthKitProjection.swift */; };
@@ -123,9 +124,13 @@
 		A00000000000000000000073 /* privacy-policy.txt in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000073 /* privacy-policy.txt */; };
 		F20000000000000000000002 /* HealthSummaryTiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* HealthSummaryTiles.swift */; };
 		F20000000000000000000004 /* DailyExportPhase.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* DailyExportPhase.swift */; };
+		F60000000000000000000004 /* TodaySoFarHealthPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000003 /* TodaySoFarHealthPresentation.swift */; };
 		F20000000000000000000006 /* HealthSummaryTileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000005 /* HealthSummaryTileView.swift */; };
 		F20000000000000000000008 /* DriveDestinationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000007 /* DriveDestinationSettingsView.swift */; };
+		F60000000000000000000006 /* TodaySoFarHealthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000005 /* TodaySoFarHealthModel.swift */; };
 		F2000000000000000000000A /* DailyExportPhaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000009 /* DailyExportPhaseTests.swift */; };
+		F6000000000000000000000A /* TodaySoFarHealthModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000009 /* TodaySoFarHealthModelTests.swift */; };
+		F60000000000000000000008 /* TodaySoFarHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000007 /* TodaySoFarHealthTests.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -159,6 +164,7 @@
 		B00000000000000000000001 /* WeeklyHealthReportApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyHealthReportApp.swift; sourceTree = "<group>"; };
 		B00000000000000000000002 /* ReportPeriod.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPeriod.swift; sourceTree = "<group>"; };
 		B00000000000000000000003 /* StepSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StepSummary.swift; sourceTree = "<group>"; };
+		F60000000000000000000001 /* TodaySoFarHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealth.swift; sourceTree = "<group>"; };
 		B00000000000000000000004 /* HealthDataProviding.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthDataProviding.swift; sourceTree = "<group>"; };
 		B00000000000000000000005 /* HealthKitClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitClient.swift; sourceTree = "<group>"; };
 		F11700000000000000000002 /* WorkoutHealthKitProjection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutHealthKitProjection.swift; sourceTree = "<group>"; };
@@ -249,9 +255,13 @@
 		B00000000000000000000073 /* privacy-policy.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "../docs/privacy-policy.txt"; sourceTree = "<group>"; };
 		F20000000000000000000001 /* HealthSummaryTiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSummaryTiles.swift; sourceTree = "<group>"; };
 		F20000000000000000000003 /* DailyExportPhase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyExportPhase.swift; sourceTree = "<group>"; };
+		F60000000000000000000003 /* TodaySoFarHealthPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthPresentation.swift; sourceTree = "<group>"; };
 		F20000000000000000000005 /* HealthSummaryTileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSummaryTileView.swift; sourceTree = "<group>"; };
 		F20000000000000000000007 /* DriveDestinationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveDestinationSettingsView.swift; sourceTree = "<group>"; };
+		F60000000000000000000005 /* TodaySoFarHealthModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthModel.swift; sourceTree = "<group>"; };
 		F20000000000000000000009 /* DailyExportPhaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyExportPhaseTests.swift; sourceTree = "<group>"; };
+		F60000000000000000000009 /* TodaySoFarHealthModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthModelTests.swift; sourceTree = "<group>"; };
+		F60000000000000000000007 /* TodaySoFarHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -327,6 +337,7 @@
 			children = (
 				B00000000000000000000002 /* ReportPeriod.swift */,
 				B00000000000000000000003 /* StepSummary.swift */,
+				F60000000000000000000001 /* TodaySoFarHealth.swift */,
 				B0000000000000000000000E /* WeightMeasurement.swift */,
 				B00000000000000000000012 /* BodyComposition.swift */,
 				B00000000000000000000013 /* HeartMetricSummary.swift */,
@@ -366,6 +377,7 @@
 				F19400000000000000000013 /* DeveloperToolsSettingsView.swift */,
 				F19400000000000000000011 /* SettingsContributions.swift */,
 				F20000000000000000000007 /* DriveDestinationSettingsView.swift */,
+				F60000000000000000000005 /* TodaySoFarHealthModel.swift */,
 				F20000000000000000000005 /* HealthSummaryTileView.swift */,
 				F1940000000000000000000F /* SettingsView.swift */,
 				F1940000000000000000000D /* SavedFoodEntryView.swift */,
@@ -419,6 +431,8 @@
 				F19400000000000000000017 /* AppNavigationTests.swift */,
 				F19700000000000000000006 /* FoodLogAppTests.swift */,
 				F20000000000000000000009 /* DailyExportPhaseTests.swift */,
+				F60000000000000000000009 /* TodaySoFarHealthModelTests.swift */,
+				F60000000000000000000007 /* TodaySoFarHealthTests.swift */,
 				B00000000000000000000041 /* DailyNoteSpeechCaptureTests.swift */,
 				B00000000000000000000300 /* FoodSearchQuantityNativeTests.swift */,
 				B00000000000000000000045 /* WeeklyReportScreenshotTests.swift */,
@@ -491,6 +505,7 @@
 				B0000000000000000000004B /* MetricState.swift */,
 				B0000000000000000000004C /* ReportPresentationSnapshot.swift */,
 				F20000000000000000000003 /* DailyExportPhase.swift */,
+				F60000000000000000000003 /* TodaySoFarHealthPresentation.swift */,
 				F20000000000000000000001 /* HealthSummaryTiles.swift */,
 				B00000000000000000000050 /* MetricRowPresentation.swift */,
 				B00000000000000000000042 /* ReportDocument.swift */,
@@ -637,6 +652,7 @@
 				A00000000000000000000071 /* LocalHealthStorageDirectory.swift in Sources */,
 				A00000000000000000000002 /* ReportPeriod.swift in Sources */,
 				A00000000000000000000003 /* StepSummary.swift in Sources */,
+				F60000000000000000000002 /* TodaySoFarHealth.swift in Sources */,
 				A00000000000000000000004 /* HealthDataProviding.swift in Sources */,
 				A00000000000000000000005 /* HealthKitClient.swift in Sources */,
 				F11600000000000000000002 /* WorkoutHealthKitProjection.swift in Sources */,
@@ -645,6 +661,7 @@
 				F19400000000000000000014 /* DeveloperToolsSettingsView.swift in Sources */,
 				F19400000000000000000012 /* SettingsContributions.swift in Sources */,
 				F20000000000000000000008 /* DriveDestinationSettingsView.swift in Sources */,
+				F60000000000000000000006 /* TodaySoFarHealthModel.swift in Sources */,
 				F20000000000000000000006 /* HealthSummaryTileView.swift in Sources */,
 				F19400000000000000000010 /* SettingsView.swift in Sources */,
 				F1940000000000000000000E /* SavedFoodEntryView.swift in Sources */,
@@ -676,6 +693,7 @@
 				A00000000000000000000045 /* MetricState.swift in Sources */,
 				A00000000000000000000046 /* ReportPresentationSnapshot.swift in Sources */,
 				F20000000000000000000004 /* DailyExportPhase.swift in Sources */,
+				F60000000000000000000004 /* TodaySoFarHealthPresentation.swift in Sources */,
 				F20000000000000000000002 /* HealthSummaryTiles.swift in Sources */,
 				A0000000000000000000004A /* MetricRowPresentation.swift in Sources */,
 				A00000000000000000000047 /* ReportDocument+PlainText.swift in Sources */,
@@ -735,6 +753,8 @@
 				F19400000000000000000018 /* AppNavigationTests.swift in Sources */,
 				F19700000000000000000007 /* FoodLogAppTests.swift in Sources */,
 				F2000000000000000000000A /* DailyExportPhaseTests.swift in Sources */,
+				F6000000000000000000000A /* TodaySoFarHealthModelTests.swift in Sources */,
+				F60000000000000000000008 /* TodaySoFarHealthTests.swift in Sources */,
 				A0000000000000000000003B /* DailyNoteSpeechCaptureTests.swift in Sources */,
 				A00000000000000000000300 /* FoodSearchQuantityNativeTests.swift in Sources */,
 				A0000000000000000000003F /* WeeklyReportScreenshotTests.swift in Sources */,

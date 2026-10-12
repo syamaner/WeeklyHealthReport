@@ -9,6 +9,7 @@ struct AppShellView: View {
     @ObservedObject var viewModel: WeeklyReportViewModel
     @ObservedObject var dailyExport: DailyDriveSessionController
     @ObservedObject var navigation: AppNavigationCoordinator
+    @ObservedObject var todaySoFar: TodaySoFarHealthModel
     let medicationAccess: MedicationAccessRequest
     let foodLedger: FoodLedgerCompositionRoot?
     let settings: AppSettings
@@ -170,7 +171,7 @@ struct AppShellView: View {
         case .privacy:
             PrivacyPolicyView()
         case .diagnostics:
-            DeveloperDiagnosticsView(viewModel: viewModel)
+            DeveloperDiagnosticsView(viewModel: viewModel, todaySoFar: todaySoFar)
         case .settings:
             SettingsView(settings: settings)
         case .webLookupKey:

@@ -7,6 +7,8 @@ struct WeeklyHealthReportApp: App {
     @StateObject private var viewModel: WeeklyReportViewModel
     @StateObject private var dailyExport = DailyDriveSessionController()
     @StateObject private var navigation = AppNavigationCoordinator()
+    /// Home's today-so-far health card (#199); one per app session.
+    @StateObject private var todaySoFar: TodaySoFarHealthModel
     private let foodLedger: FoodLedgerCompositionRoot?
     private let settings: AppSettings
 
@@ -25,6 +27,10 @@ struct WeeklyHealthReportApp: App {
                 healthData: HealthKitClient(store: store)
             )
         )
+        let todaySoFarClient = HealthKitClient(store: store)
+        _todaySoFar = StateObject(
+            wrappedValue: TodaySoFarHealthModel(reader: todaySoFarClient, authorizer: todaySoFarClient)
+        )
     }
 
     var body: some Scene {
@@ -33,6 +39,7 @@ struct WeeklyHealthReportApp: App {
                 viewModel: viewModel,
                 dailyExport: dailyExport,
                 navigation: navigation,
+                todaySoFar: todaySoFar,
                 medicationAccess: MedicationAccessRequest(store: healthStore),
                 foodLedger: foodLedger,
                 settings: settings

@@ -317,3 +317,106 @@ enum HealthReportFormatter {
         dateAndTime(date, calendar: calendar)
     }
 }
+
+// MARK: - Today so far (Home, today_so_far_health_v1)
+
+/// Copy and number and time formatting for Home's provisional health rows.
+/// None of these strings may appear in the report, copied text or export.
+extension HealthReportFormatter {
+    static let todaySoFarFooter = "Today is still in progress. Health summaries use completed days."
+    static let todaySoFarNoData = "No data"
+    static let todaySoFarNoDataDetail = "No visible data, or Health access was not granted."
+    static let todaySoFarSleepNoData = "No sleep visible yet, or no access"
+    static let todaySoFarFailed = "Could not read Apple Health."
+    static let todaySoFarUnavailable = "Apple Health is not available on this device."
+
+    static func todaySoFarSteps(_ count: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(integer(count, locale: locale)) so far"
+    }
+
+    static func todaySoFarActiveEnergy(_ kilocalories: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(integer(kilocalories, locale: locale)) kcal so far"
+    }
+
+    /// "7 h 12 min · last night", or "6 h 10 min so far · last night" before noon (D1).
+    static func todaySoFarSleep(seconds: TimeInterval, isComplete: Bool) -> String {
+        let (hours, minutes) = hoursAndMinutes(seconds)
+        let duration = hours == 0 ? "\(minutes) min" : "\(hours) h \(minutes) min"
+        return isComplete ? "\(duration) · last night" : "\(duration) so far · last night"
+    }
+
+    static func todaySoFarSleepSpoken(seconds: TimeInterval, isComplete: Bool) -> String {
+        let (hours, minutes) = hoursAndMinutes(seconds)
+        let minuteText = minutes == 1 ? "1 minute" : "\(minutes) minutes"
+        let hourText = hours == 1 ? "1 hour" : "\(hours) hours"
+        let duration = hours == 0 ? minuteText : "\(hourText) \(minuteText)"
+        return isComplete ? "\(duration), last night" : "\(duration) so far, last night"
+    }
+
+    /// The system time style: today's time only, "Yesterday, <time>", else "8 Oct, <time>" (D4).
+    static func todaySoFarTime(
+        _ date: Date,
+        asOf: Date,
+        calendar: Calendar,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let time = systemShortTime(date, calendar: calendar, locale: locale)
+        if calendar.isDate(date, inSameDayAs: asOf) { return time }
+        if let yesterday = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: asOf)),
+           calendar.isDate(date, inSameDayAs: yesterday) {
+            return "Yesterday, \(time)"
+        }
+        let day = date.formatted(Date.FormatStyle(locale: locale, calendar: calendar, timeZone: calendar.timeZone)
+            .day().month(.abbreviated))
+        return "\(day), \(time)"
+    }
+
+    static func todaySoFarWeight(
+        _ measurement: WeightMeasurement,
+        asOf: Date,
+        calendar: Calendar,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        "\(weightKilograms(measurement.kilograms, locale: locale)) · "
+            + todaySoFarTime(measurement.date, asOf: asOf, calendar: calendar, locale: locale)
+    }
+
+    static func todaySoFarBloodPressure(
+        _ reading: BloodPressureReading,
+        asOf: Date,
+        calendar: Calendar,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let pair = bloodPressure(
+            systolic: reading.systolicMillimetresOfMercury,
+            diastolic: reading.diastolicMillimetresOfMercury,
+            locale: locale
+        )
+        return "\(pair) · " + todaySoFarTime(reading.date, asOf: asOf, calendar: calendar, locale: locale)
+    }
+
+    static func todaySoFarAsOf(
+        _ date: Date,
+        calendar: Calendar,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        "As of " + systemShortTime(date, calendar: calendar, locale: locale)
+    }
+
+    /// The locale's short time style, as the system shows it: "07:05" in
+    /// en_GB, "7:05 AM" in en_US.
+    private static func systemShortTime(_ date: Date, calendar: Calendar, locale: Locale) -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = calendar
+        formatter.timeZone = calendar.timeZone
+        formatter.locale = locale
+        formatter.dateStyle = .none
+        formatter.timeStyle = .short
+        return formatter.string(from: date)
+    }
+
+    private static func hoursAndMinutes(_ seconds: TimeInterval) -> (Int, Int) {
+        let totalMinutes = Int((seconds / 60).rounded(.down))
+        return (totalMinutes / 60, totalMinutes % 60)
+    }
+}

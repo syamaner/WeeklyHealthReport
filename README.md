@@ -497,7 +497,7 @@ No taken medication events are visible for this period.
 
 Correct HealthKit aggregation is the main reason this project exists. Cumulative measurements use HealthKit statistics rather than manually adding raw samples from an iPhone, Apple Watch and other sources. Measurements such as HRV are calculated per day first so that a day with more samples does not dominate the week.
 
-Three day rules stay separate. Health report summaries use completed days; the Daily JSON export uses its selected day (today up to the frozen refresh cutoff, or one of the previous seven complete days); Home's "today so far" highlights, specified in the [today-so-far projection](docs/today-so-far-projection-v1.md) for #199, are provisional values from local midnight to the moment of refresh and never enter the report, copied text or export.
+Three day rules stay separate. Health report summaries use completed days; the Daily JSON export uses its selected day (today up to the frozen refresh cutoff, or one of the previous seven complete days); Home's "today so far" highlights, specified in the [today-so-far projection](docs/today-so-far-projection-v1.md) for #199, are provisional values from local midnight to the moment of refresh. By owner decision D10 they appear only on Home and in Developer Diagnostics ("Today so far (Home)") and never enter the report, copied text or export.
 
 <details>
 <summary>Read the metric-by-metric rules</summary>
