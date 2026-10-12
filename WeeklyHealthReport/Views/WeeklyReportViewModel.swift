@@ -104,6 +104,9 @@ final class WeeklyReportViewModel: ObservableObject {
     var medicationState: MetricState<MedicationSummary> { reportStates.medications }
 
     private let healthData: HealthDataProviding
+    /// When set, read authorisation goes through this shared requester so the
+    /// report and Home never ask at the same time (#199). Same read set.
+    private let readAuthorization: HealthReadAuthorizationRequesting?
     private let calendar: Calendar
     private let now: () -> Date
     private var refreshGeneration = 0
@@ -113,10 +116,12 @@ final class WeeklyReportViewModel: ObservableObject {
 
     init(
         healthData: HealthDataProviding = HealthKitClient(),
+        readAuthorization: HealthReadAuthorizationRequesting? = nil,
         calendar: Calendar = .autoupdatingCurrent,
         now: @escaping () -> Date = Date.init
     ) {
         self.healthData = healthData
+        self.readAuthorization = readAuthorization
         self.calendar = calendar
         self.now = now
         self.period = ReportPeriod.make(
@@ -236,7 +241,11 @@ final class WeeklyReportViewModel: ObservableObject {
         }
 
         do {
-            try await healthData.requestReadAuthorization()
+            if let readAuthorization {
+                try await readAuthorization.requestReadAuthorization()
+            } else {
+                try await healthData.requestReadAuthorization()
+            }
         } catch let error as HealthDataError where error == .unavailable {
             guard generation == refreshGeneration else { return }
             setHealthUnavailable()

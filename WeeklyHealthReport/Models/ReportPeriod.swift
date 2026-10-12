@@ -19,6 +19,20 @@ enum HealthReportingPolicy {
     static let bloodPressureMorningEndHour = 14
     static let bloodPressureEveningStartHour = 17
     static let oxygenSaturationLatestLookbackDays = 30
+    /// The latest weight is the newest visible body-mass sample in the 30
+    /// calendar days ending at refresh time (README "Weight").
+    static let weightLatestLookbackDays = 30
+
+    static func weightLatestLookbackStart(
+        asOf date: Date,
+        calendar: Calendar
+    ) -> Date? {
+        calendar.date(
+            byAdding: .day,
+            value: -weightLatestLookbackDays,
+            to: date
+        )
+    }
 
     static func bloodPressureLatestLookbackStart(
         asOf date: Date,

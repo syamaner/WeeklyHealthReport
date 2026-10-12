@@ -35,6 +35,8 @@ CODE_READ_DOCS = {
     "docs/privacy-policy.txt",
     # Cited by contract tests and fixtures; edits run full CI.
     "docs/generic-food-review-manifest-v2.md",
+    # Cited by the today-so-far projection, its tests and Developer tools.
+    "docs/today-so-far-projection-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this

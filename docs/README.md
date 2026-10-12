@@ -16,6 +16,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Direct edible weight v1](direct-edible-weight-contract-v1.md), [half-item count v1](half-item-count-contract-v1.md), [recipe source serving v1](recipe-source-serving-contract-v1.md)
 - [CoFID whole-milk volume admission v1](cofid-whole-milk-volume-admission-v1.md)
 - [Intake home projection v1](intake-home-projection-v1.md) and [intake management v2](intake-management-v2.md) (removal, restoration, reporting day)
+- [Today-so-far health projection v1](today-so-far-projection-v1.md) (Home provisional health highlights, separate from report and export) and the [phase 6 Home plan](ux-revamp-phase-6-home.md)
 - [Food drafts and common foods](food-drafts-and-common-foods.md), [food list import](food-list-import.md)
 - [Local inventory contract](local-inventory-contract.md)
 - [Storage and backup decision](food-library-storage-and-backup-decision.md)

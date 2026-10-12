@@ -2,9 +2,11 @@ import SwiftUI
 
 struct DeveloperDiagnosticsView: View {
     @ObservedObject var viewModel: WeeklyReportViewModel
+    @ObservedObject var todaySoFar: TodaySoFarHealthModel
 
     var body: some View {
         Form {
+            TodaySoFarDiagnosticsSection(model: todaySoFar)
             QueryDiagnosticsSection(period: viewModel.period)
             StepsDiagnosticsSection(state: viewModel.state)
             BodyMeasurementsDiagnosticsSections(
