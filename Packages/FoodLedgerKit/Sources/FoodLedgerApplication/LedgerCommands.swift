@@ -165,6 +165,13 @@ public struct LedgerOperationType: RawRepresentable, Codable, Hashable, Sendable
 
     public static let composite = Self(rawValue: "composite_v1")!
 
+    /// Favourite operations (food quick add contract v1, food archive contract 6). Their payload is
+    /// a `FavouriteMutation`, never a `LedgerMutation`.
+    public static let saveFavourite = Self(rawValue: "save_favourite_v1")!
+    public static let reviseFavourite = Self(rawValue: "revise_favourite_v1")!
+    public static let arrangeFavourites = Self(rawValue: "arrange_favourites_v1")!
+    public static let favouriteTypes: Set<Self> = [.saveFavourite, .reviseFavourite, .arrangeFavourites]
+
     public static let builtInV1: Set<Self> = [
         .recordEvidence, .createProduct, .reformulateProduct, .correctResolution,
         .saveLibraryEntry, .recordLogItem, .correctLogItem, .recordQuantityConversion,
@@ -184,8 +191,21 @@ public struct LedgerOperationRegistry: Sendable {
         guard supported.contains(type) else { throw FoodLedgerStoreError.unsupportedOperation }
     }
 
+    /// The payload case is chosen by the operation type: favourite types carry favourites, every
+    /// other type carries a ledger mutation.
+    public func requireSupported(_ type: LedgerOperationType, payload: LedgerPayload) throws {
+        switch payload {
+        case let .ledger(mutation):
+            try requireSupported(type, mutation: mutation)
+        case .favourites:
+            try requireSupported(type)
+            guard LedgerOperationType.favouriteTypes.contains(type) else { throw FoodLedgerStoreError.unsupportedOperation }
+        }
+    }
+
     public func requireSupported(_ type: LedgerOperationType, mutation: LedgerMutation) throws {
         try requireSupported(type)
+        guard !LedgerOperationType.favouriteTypes.contains(type) else { throw FoodLedgerStoreError.unsupportedOperation }
         if mutation.logItemVersions.contains(where: { $0.weightDeclaration != nil }),
            !LedgerOperationType.declaredQuantityTypes.contains(type) {
             throw FoodLedgerStoreError.unsupportedOperation
@@ -198,6 +218,12 @@ public struct LedgerOperationRegistry: Sendable {
             throw FoodLedgerStoreError.unsupportedOperation
         }
     }
+
+    /// Adds the favourite operations (food contract 6, schema food-ledger-v6).
+    public static let builtInV6 = LedgerOperationRegistry(supported:
+        LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem])
+            .union(LedgerOperationType.declaredQuantityTypes)
+            .union(LedgerOperationType.favouriteTypes))
 
     /// Adds `confirm_food_v3` (typed inline decisions, food contract 4, schema food-ledger-v4).
     public static let builtInV4 = LedgerOperationRegistry(supported:
@@ -301,19 +327,85 @@ public struct UnsignedLedgerOperation: Codable, Equatable, Sendable {
     }
 }
 
+/// An operation's typed payload. The operation type decides the case (`LedgerPayload.decode`);
+/// the bytes are the case's own canonical encoding with no wrapper, so a `.ledger` payload is
+/// byte-identical to every earlier operation payload.
+public enum LedgerPayload: Equatable, Sendable {
+    case ledger(LedgerMutation)
+    case favourites(FavouriteMutation)
+
+    public var affectedIDs: [String] {
+        switch self {
+        case let .ledger(mutation): mutation.affectedIDs
+        case let .favourites(mutation): mutation.affectedIDs
+        }
+    }
+
+    public var isEmpty: Bool {
+        switch self {
+        case let .ledger(mutation): mutation.isEmpty
+        case let .favourites(mutation): mutation.isEmpty
+        }
+    }
+
+    public func encoded(with encoder: any CanonicalEncoding) throws -> Data {
+        switch self {
+        case let .ledger(mutation): try encoder.encode(mutation)
+        case let .favourites(mutation): try encoder.encode(mutation)
+        }
+    }
+
+    /// Decodes stored payload bytes as the case the operation type selects.
+    public static func decode(_ data: Data, type: LedgerOperationType) throws -> LedgerPayload {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .millisecondsSince1970
+        if LedgerOperationType.favouriteTypes.contains(type) {
+            return .favourites(try decoder.decode(FavouriteMutation.self, from: data))
+        }
+        return .ledger(try decoder.decode(LedgerMutation.self, from: data))
+    }
+}
+
 public struct LedgerTransaction: Equatable, Sendable {
-    public let mutation: LedgerMutation
+    public let payload: LedgerPayload
     public let operation: LedgerOperation
 
     public init(mutation: LedgerMutation, operation: LedgerOperation) {
-        self.mutation = mutation
+        payload = .ledger(mutation)
         self.operation = operation
+    }
+
+    public init(favourites: FavouriteMutation, operation: LedgerOperation) {
+        payload = .favourites(favourites)
+        self.operation = operation
+    }
+
+    public init(payload: LedgerPayload, operation: LedgerOperation) {
+        self.payload = payload
+        self.operation = operation
+    }
+
+    /// The ledger records this transaction writes; empty for a favourite operation.
+    public var mutation: LedgerMutation {
+        if case let .ledger(mutation) = payload { return mutation }
+        return LedgerMutation()
+    }
+
+    /// The favourite records this transaction writes; empty for a ledger operation.
+    public var favourites: FavouriteMutation {
+        if case let .favourites(mutation) = payload { return mutation }
+        return FavouriteMutation()
     }
 }
 
 public enum CommitOutcome: Equatable, Sendable {
     case committed(LedgerOperation)
     case idempotent(LedgerOperation)
+}
+
+/// Favourite records, read as a whole (the favourites projection works over all of them).
+public protocol FavouriteReading: Sendable {
+    func favouriteRecords() throws -> FavouriteMutation
 }
 
 public protocol LedgerCommandCommitting: Sendable {
@@ -428,7 +520,7 @@ public struct OperationVerifier: Sendable {
     public init(
         encoder: any CanonicalEncoding,
         digester: any Digesting,
-        operationRegistry: LedgerOperationRegistry = .builtInV4
+        operationRegistry: LedgerOperationRegistry = .builtInV6
     ) {
         self.encoder = encoder
         self.digester = digester
@@ -436,10 +528,10 @@ public struct OperationVerifier: Sendable {
     }
 
     public func verify(_ transaction: LedgerTransaction) throws {
-        try operationRegistry.requireSupported(transaction.operation.operationType, mutation: transaction.mutation)
-        let payload = try encoder.encode(transaction.mutation)
+        try operationRegistry.requireSupported(transaction.operation.operationType, payload: transaction.payload)
+        let payload = try transaction.payload.encoded(with: encoder)
         guard payload == transaction.operation.payload,
-              transaction.mutation.affectedIDs == transaction.operation.affectedIDs else {
+              transaction.payload.affectedIDs == transaction.operation.affectedIDs else {
             throw FoodLedgerStoreError.integrityFailure("operation payload")
         }
         try verifyStored(transaction.operation)
@@ -451,10 +543,9 @@ public struct OperationVerifier: Sendable {
         // operation types retain their opaque payload/hash contract on store reopen.
         let mutationTypes = LedgerOperationType.builtInV1.union([.removeLogItem, .restoreLogItem])
             .union(LedgerOperationType.declaredQuantityTypes)
-        if mutationTypes.contains(operation.operationType) {
-            let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .millisecondsSince1970
-            let mutation = try decoder.decode(LedgerMutation.self, from: operation.payload)
-            try operationRegistry.requireSupported(operation.operationType, mutation: mutation)
+        if mutationTypes.contains(operation.operationType) || LedgerOperationType.favouriteTypes.contains(operation.operationType) {
+            let payload = try LedgerPayload.decode(operation.payload, type: operation.operationType)
+            try operationRegistry.requireSupported(operation.operationType, payload: payload)
         }
         guard operation.actorSequence > 0 else {
             throw FoodLedgerStoreError.actorSequenceMismatch

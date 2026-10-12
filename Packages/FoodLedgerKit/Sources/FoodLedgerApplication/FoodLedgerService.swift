@@ -15,7 +15,7 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
         clock: any LedgerClock,
         encoder: any CanonicalEncoding,
         digester: any Digesting,
-        operationRegistry: LedgerOperationRegistry = .builtInV4
+        operationRegistry: LedgerOperationRegistry = .builtInV6
     ) {
         self.actorID = actorID
         self.committer = committer
@@ -38,6 +38,21 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
             idempotencyKey: idempotencyKey,
             persistedAttachments: []
         )
+    }
+
+    /// Commits favourite records as their own operation (`save_favourite_v1`, `revise_favourite_v1`
+    /// or `arrange_favourites_v1`). Never part of a log save, so confirm payloads stay unchanged.
+    public func commitFavourites(
+        _ mutation: FavouriteMutation,
+        type: LedgerOperationType,
+        operationID: OperationID,
+        idempotencyKey: LedgerText? = nil
+    ) throws -> CommitOutcome {
+        try commit(.favourites(mutation), type: type, operationID: operationID, idempotencyKey: idempotencyKey)
+    }
+
+    public func hasOperation(_ operationID: OperationID) throws -> Bool {
+        try committer.operation(id: operationID) != nil
     }
 
     /// Recover an already committed confirmation before constructing fresh record IDs on retry.
@@ -65,13 +80,22 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
         idempotencyKey: LedgerText?,
         persistedAttachments: Set<AttachmentDescriptor>
     ) throws -> CommitOutcome {
-        guard !mutation.isEmpty else { throw FoodLedgerStoreError.integrityFailure("empty mutation") }
         let referencedAttachments = Set(mutation.evidence.compactMap(\.attachment))
         guard referencedAttachments.isSubset(of: persistedAttachments) else {
             throw FoodLedgerStoreError.attachmentFailure("uncoordinated attachment reference")
         }
-        try operationRegistry.requireSupported(type, mutation: mutation)
-        let payload = try encoder.encode(mutation)
+        return try commit(.ledger(mutation), type: type, operationID: operationID, idempotencyKey: idempotencyKey)
+    }
+
+    private func commit(
+        _ payloadValue: LedgerPayload,
+        type: LedgerOperationType,
+        operationID: OperationID,
+        idempotencyKey: LedgerText?
+    ) throws -> CommitOutcome {
+        guard !payloadValue.isEmpty else { throw FoodLedgerStoreError.integrityFailure("empty mutation") }
+        try operationRegistry.requireSupported(type, payload: payloadValue)
+        let payload = try payloadValue.encoded(with: encoder)
         let payloadHash = try digester.sha256(payload)
 
         if let existing = try committer.operation(id: operationID) {
@@ -92,7 +116,7 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
             actorSequence: head.sequence + 1,
             operationType: type,
             createdAt: clock.now(),
-            affectedIDs: mutation.affectedIDs,
+            affectedIDs: payloadValue.affectedIDs,
             payloadHash: payloadHash,
             previousOperationHash: head.operationHash,
             idempotencyKey: idempotencyKey
@@ -111,7 +135,7 @@ public final class FoodLedgerService: SourceReleaseInstalling, @unchecked Sendab
             operationHash: operationHash,
             idempotencyKey: idempotencyKey
         )
-        return try committer.commit(LedgerTransaction(mutation: mutation, operation: operation))
+        return try committer.commit(LedgerTransaction(payload: payloadValue, operation: operation))
     }
 
     public func installSourceRelease(

@@ -434,4 +434,6 @@ final class V5RecordingStore: LedgerCommandCommitting, LedgerReading, FoodConfir
     func conflicts() throws -> [LedgerConflict] { [] }
     func sourceRelease(id: ExternalIdentifier) throws -> SourceRelease? { try reading?.sourceRelease(id: id) }
     func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation? { try reading?.foodConfirmation(logItemID: logItemID) }
+    func foodConfirmation(logItemVersionID: LogItemVersionID) throws -> StoredFoodConfirmation? { try reading?.foodConfirmation(logItemVersionID: logItemVersionID) }
+    func evidence(id: EvidenceID) throws -> CaptureEvidence? { try reading?.evidence(id: id) }
 }

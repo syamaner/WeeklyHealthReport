@@ -578,4 +578,6 @@ private final class RecordingStore: LedgerCommandCommitting, LedgerReading,
     func conflicts() throws -> [LedgerConflict] { [] }
     func sourceRelease(id: ExternalIdentifier) throws -> SourceRelease? { nil }
     func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation? { nil }
+    func foodConfirmation(logItemVersionID: LogItemVersionID) throws -> StoredFoodConfirmation? { nil }
+    func evidence(id: EvidenceID) throws -> CaptureEvidence? { nil }
 }
