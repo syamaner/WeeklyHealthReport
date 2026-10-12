@@ -146,7 +146,7 @@ public struct FoodReresolutionView: View {
         }.disabled(model.pending != nil)
     }
 
-    private func label(_ key: NutrientKey) -> String { key.rawValue.replacingOccurrences(of: "_", with: " ").capitalized }
+    private func label(_ key: NutrientKey) -> String { FoodNutritionReviewPresentation.label(key) }
     private func value(_ entry: NutrientEntry) -> String {
         switch entry.value {
         case let .measured(v): "\(v.amount.formatted()) \(v.unit.rawValue) measured"
