@@ -134,6 +134,7 @@ public struct FavouritesView: View {
     @State private var labelText = ""
     @State private var amountText = ""
     @State private var removing: FavouriteRow?
+    @Environment(\.locale) private var locale
 
     public init(model: FavouritesViewModel, createFromSearch: @escaping () -> Void,
                 createFromBarcode: @escaping () -> Void, createFromWebLookup: @escaping () -> Void) {
@@ -248,15 +249,15 @@ public struct FavouritesView: View {
 
     private func save(_ row: FavouriteRow) {
         if labelText.trimmingCharacters(in: .whitespacesAndNewlines) != row.title { model.rename(row, to: labelText) }
-        let amount = FoodAmountTextParser.parse(amountText)
+        let amount = FoodAmountFieldText.parse(amountText, locale: locale)
         if amountText != defaultAmountText(row.item) { model.setDefaultAmount(row, to: amount) }
         editing = nil
     }
 
     private func defaultAmountText(_ item: QuickAddItem) -> String {
         switch item {
-        case .builtInWater: QuickAddItem.builtInWaterMillilitres.formatted()
-        case let .favourite(version): version.defaultAmount.value.formatted()
+        case .builtInWater: FoodAmountFieldText.text(QuickAddItem.builtInWaterMillilitres, locale: locale)
+        case let .favourite(version): FoodAmountFieldText.text(version.defaultAmount.value, locale: locale)
         }
     }
 

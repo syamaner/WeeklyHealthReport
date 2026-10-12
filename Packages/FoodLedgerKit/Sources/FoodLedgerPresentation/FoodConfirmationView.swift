@@ -308,6 +308,7 @@ public struct FoodConfirmationView: View {
     private let completionTitle: String
     private let showsCancelButton: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.locale) private var locale
     @State private var showsCorrection = false
     @State private var showsMatches = false
     @State private var correctionName = ""
@@ -339,7 +340,12 @@ public struct FoodConfirmationView: View {
         self.context = context
         self.completionTitle = completionTitle
         self.leave = leave
-        _totalText = State(initialValue: model.state.quantity.value.map(Self.editableNumber) ?? "")
+        _totalText = State(initialValue: model.state.quantity.value.map { Self.editableNumber($0, locale: .autoupdatingCurrent) } ?? "")
+    }
+
+    /// The weighing method's title, shared by the picker and the saved, read-only plate row (#212).
+    public static func weighingMethodTitle(usesPlate: Bool) -> String {
+        usesPlate ? "Total minus empty plate" : "Food only / tared"
     }
 
     /// The exits Confirm offers (#197): before a save, Cancel when the host shows one; after a
@@ -430,10 +436,10 @@ public struct FoodConfirmationView: View {
             correctionBrand = model.displayedBrand?.value ?? ""
             correctionVariant = model.displayedVariant?.value ?? ""
             loadIdentityCorrection(model.state.selectedCandidate)
-            if let value = model.state.quantity.value { totalText = Self.editableNumber(value) }
-            directWeightText = model.state.quantity.directWeight?.totalGrams.map(Self.editableNumber) ?? ""
+            if let value = model.state.quantity.value { totalText = editableNumber(value) }
+            directWeightText = model.state.quantity.directWeight?.totalGrams.map(editableNumber) ?? ""
             if let conversion = model.state.quantity.conversion {
-                conversionText = Self.editableNumber(conversion.convertedQuantity.value)
+                conversionText = editableNumber(conversion.convertedQuantity.value)
                 conversionUnit = conversion.convertedQuantity.unit
                 conversionMethod = conversion.methodVersion.value
             }
@@ -608,7 +614,7 @@ public struct FoodConfirmationView: View {
                model.state.quantity.directWeight == nil, !model.state.usesSourceDeclaredServing {
                 Button("Use \(FoodNutritionReviewPresentation.number(suggestion.value)) count from description") {
                     model.send(.setQuantity(suggestion.value, .count))
-                    totalText = Self.editableNumber(suggestion.value)
+                    totalText = editableNumber(suggestion.value)
                 }
                 Text("Count only. Edible weight still needs confirmation.").font(.caption)
             }
@@ -617,7 +623,8 @@ public struct FoodConfirmationView: View {
             if model.state.quantity.directWeight != nil {
                 Text("Weigh edible food as eaten—peeled, boiled or fried. Exclude peel, shell, bone and anything you did not eat.").font(.caption)
                 TextField(usesPlate ? "Total food and plate weight (g)" : "Total edible weight (g)", text: $directWeightText)
-                    .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountTextParser.parse(value))) }
+                    .amountKeyboard()
+                    .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
                     .accessibilityLabel("Total edible weight in grams")
                 if usesPlate { Text("Enter the food and plate total here. The empty plate weight below is subtracted to obtain edible grams.").font(.caption) }
                 Picker("Weight basis", selection: Binding<UserWeightBasis?>(
@@ -635,8 +642,9 @@ public struct FoodConfirmationView: View {
                 Button("Use original amount instead") { model.send(.endDirectWeight) }
             }
             TextField(model.state.isSourceRecipe ? "Recipe servings eaten" : model.state.usesSourceDeclaredServing ? "Source servings eaten" : model.state.quantity.directWeight == nil ? "Quantity" : "Original amount (optional)", text: $totalText)
+                .amountKeyboard()
                 .onChange(of: totalText) { _, value in
-                    model.send(.setQuantityText(value))
+                    model.send(.setQuantityText(FoodAmountFieldText.canonical(value, locale: locale)))
                 }
                 .accessibilityLabel("Food or total weight quantity")
             Picker("Unit", selection: quantityUnitBinding) {
@@ -673,6 +681,7 @@ public struct FoodConfirmationView: View {
             if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil && !model.state.usesSourceDeclaredServing {
                 Text("No source-backed size guide is available for this food. Enter the total edible weight, excluding shell, bone or other parts you did not eat.").font(.caption)
                 TextField("Converted edible amount", text: $conversionText)
+                    .amountKeyboard()
                     .onChange(of: conversionText) { _, _ in updateConversion() }
                 Picker("Converted unit", selection: $conversionUnit) {
                     Text("g").tag(QuantityUnit.grams)
@@ -687,26 +696,34 @@ public struct FoodConfirmationView: View {
                 }
             }
             ForEach(model.plateRequirements, id: \.self) { Text($0).font(.caption) }
-            DisclosureGroup("Weighed on a plate") {
-            Picker("Weighing method", selection: plateModeBinding) {
-                Text("Food only / tared").tag(false)
-                Text("Total minus empty plate").tag(true)
-            }
-            if usesPlate {
-                TextField("Empty plate weight (g)", text: $emptyPlateText)
-                    .onChange(of: emptyPlateText) { _, value in
-                        guard let amount = FoodAmountTextParser.parse(value),
-                              let quantity = try? PositiveQuantity(value: amount, unit: .grams) else {
-                            model.send(.setPlateChoice(.missing))
-                            return
-                        }
-                        model.send(.setPlateChoice(.new(
-                            emptyWeight: quantity,
-                            superseding: model.state.reopened?.plateWeightVersion
-                        )))
+            if model.savedResult != nil {
+                // Once saved, a static row: a disclosure chevron would look active while every
+                // other control is disabled (#212).
+                LabeledContent("Weighed on a plate", value: Self.weighingMethodTitle(usesPlate: usesPlate))
+                    .foregroundStyle(.secondary)
+            } else {
+                DisclosureGroup("Weighed on a plate") {
+                    Picker("Weighing method", selection: plateModeBinding) {
+                        Text(Self.weighingMethodTitle(usesPlate: false)).tag(false)
+                        Text(Self.weighingMethodTitle(usesPlate: true)).tag(true)
                     }
-                    .accessibilityHint("The food weight is total weight minus this saved immutable plate version")
-            }
+                    if usesPlate {
+                        TextField("Empty plate weight (g)", text: $emptyPlateText)
+                            .amountKeyboard()
+                            .onChange(of: emptyPlateText) { _, value in
+                                guard let amount = FoodAmountFieldText.parse(value, locale: locale),
+                                      let quantity = try? PositiveQuantity(value: amount, unit: .grams) else {
+                                    model.send(.setPlateChoice(.missing))
+                                    return
+                                }
+                                model.send(.setPlateChoice(.new(
+                                    emptyWeight: quantity,
+                                    superseding: model.state.reopened?.plateWeightVersion
+                                )))
+                            }
+                            .accessibilityHint("The food weight is total weight minus this saved immutable plate version")
+                    }
+                }
             }
         }
     }
@@ -848,7 +865,7 @@ public struct FoodConfirmationView: View {
                 }
                 if let saved = model.savedResult {
                     LabeledContent("Logged food", value: saved.productVersion.name.value)
-                    LabeledContent("Logged amount", value: "\(Self.editableNumber(saved.logItemVersion.edibleQuantity.value)) \(saved.logItemVersion.edibleQuantity.unit.rawValue)")
+                    LabeledContent("Logged amount", value: "\(editableNumber(saved.logItemVersion.edibleQuantity.value)) \(saved.logItemVersion.edibleQuantity.unit.rawValue)")
                 }
             }
         }
@@ -857,9 +874,9 @@ public struct FoodConfirmationView: View {
     private var candidateBinding: Binding<Int> {
         Binding(get: { model.state.selectedCandidateIndex }, set: {
             model.send(.selectCandidate($0))
-            totalText = model.state.quantity.value.map(Self.editableNumber) ?? ""
-            directWeightText = model.state.quantity.directWeight?.totalGrams.map(Self.editableNumber) ?? ""
-            conversionText = model.state.quantity.conversion.map { Self.editableNumber($0.convertedQuantity.value) } ?? ""
+            totalText = model.state.quantity.value.map(editableNumber) ?? ""
+            directWeightText = model.state.quantity.directWeight?.totalGrams.map(editableNumber) ?? ""
+            conversionText = model.state.quantity.conversion.map { editableNumber($0.convertedQuantity.value) } ?? ""
             let selected = model.state.selectedCandidate
             correctionName = selected.name.value
             correctionBrand = selected.brand?.value ?? ""
@@ -870,15 +887,15 @@ public struct FoodConfirmationView: View {
 
     private var quantityUnitBinding: Binding<QuantityUnit> {
         Binding(get: { model.state.quantity.unit }, set: {
-            model.send(.setQuantity(FoodAmountTextParser.parse(totalText), $0))
-            model.send(.setQuantityText(totalText))
+            model.send(.setQuantity(FoodAmountFieldText.parse(totalText, locale: locale), $0))
+            model.send(.setQuantityText(FoodAmountFieldText.canonical(totalText, locale: locale)))
             if $0 == .count { updateConversion() }
         })
     }
 
     private func updateConversion() {
         guard model.state.quantity.unit == .count,
-              let value = FoodAmountTextParser.parse(conversionText),
+              let value = FoodAmountFieldText.parse(conversionText, locale: locale),
               let quantity = try? PositiveQuantity(value: value, unit: conversionUnit),
               let method = try? LedgerText(conversionMethod) else {
             model.send(.setConversion(nil))
@@ -904,7 +921,7 @@ public struct FoodConfirmationView: View {
             if enabled {
                 if let saved = model.state.reopened?.plateWeightVersion {
                     model.send(.setPlateChoice(.saved(saved)))
-                    emptyPlateText = Self.editableNumber(saved.emptyWeight.value)
+                    emptyPlateText = editableNumber(saved.emptyWeight.value)
                 } else {
                     model.send(.setPlateChoice(.missing))
                     emptyPlateText = ""
@@ -1016,5 +1033,6 @@ public struct FoodConfirmationView: View {
 
     private static func number(_ value: Double) -> String { value.formatted(.number.precision(.fractionLength(0...3))) }
 
-    private static func editableNumber(_ value: Double) -> String { FoodAmountTextParser.editableText(value) }
+    private static func editableNumber(_ value: Double, locale: Locale) -> String { FoodAmountFieldText.text(value, locale: locale) }
+    private func editableNumber(_ value: Double) -> String { Self.editableNumber(value, locale: locale) }
 }

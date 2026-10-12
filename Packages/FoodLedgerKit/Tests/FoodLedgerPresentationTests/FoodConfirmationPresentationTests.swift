@@ -384,6 +384,18 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertFalse(model.nutritionReview.isConsumed)
     }
 
+    /// #212: the amount fields use a decimal pad, so Confirm hands the reducer canonical text. A
+    /// comma decimal is accepted where it is the locale's separator and whole grams stay exact.
+    func testConfirmReducerAcceptsDecimalPadTextPerLocale() throws {
+        let german = Locale(identifier: "de_DE"), english = Locale(identifier: "en_GB")
+        for (text, locale, expected) in [("1,5", german, 1.5), ("1500", german, 1500.0), ("1500", english, 1500), ("0.5", english, 0.5)] {
+            var state = try fixtureState()
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantityText(FoodAmountFieldText.canonical(text, locale: locale)))
+            XCTAssertEqual(state.quantity.value, expected, "\(text) in \(locale.identifier)")
+            XCTAssertEqual(state.quantity.invalidOriginalAmountText, false, "\(text) in \(locale.identifier)")
+        }
+    }
+
     private func fixtureState(basis: ResolutionBasis = .per100Grams, knownProtein: Bool = false, boundedProtein: Bool = false) throws -> FoodConfirmationState {
         let evidenceID = try EvidenceID("00000000-0000-0000-0000-000000000001")
         let releaseID = try ExternalIdentifier("synthetic:presentation-v1")

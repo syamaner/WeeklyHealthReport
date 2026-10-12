@@ -213,6 +213,7 @@ public struct QuickAddSheet: View {
     private let close: () -> Void
     @State private var showsOther = false
     @State private var text = ""
+    @Environment(\.locale) private var locale
 
     public init(model: QuickAddSheetModel, edit: @escaping () -> Void, close: @escaping () -> Void) {
         self.model = model; self.edit = edit; self.close = close
@@ -255,7 +256,7 @@ public struct QuickAddSheet: View {
                             #if os(iOS)
                             .keyboardType(.decimalPad)
                             #endif
-                            .onChange(of: text) { _, value in model.setCustomText(value) }
+                            .onChange(of: text) { _, value in model.setCustomText(FoodAmountFieldText.canonical(value, locale: locale)) }
                             .accessibilityLabel("Other amount in \(model.unit == .millilitres ? "millilitres" : model.unit == .grams ? "grams" : "pieces")")
                         Text(model.unit == .count ? "pieces" : model.unit.rawValue).foregroundStyle(.secondary)
                     }.frame(minHeight: 44)
