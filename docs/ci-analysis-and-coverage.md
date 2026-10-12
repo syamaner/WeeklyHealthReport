@@ -111,6 +111,10 @@ base has none). A change that edits the allowlist is therefore judged by the
 previous rules, and because it touches `.github/` it always runs every job,
 including the helper tests in `Build and test`.
 
+## Serial simulator testing
+
+The test step passes `-parallel-testing-enabled NO`. On the hosted three-core runner a second simulator clone took minutes to boot and competed for CPU with the real test runner; on one `main` run it never finished booting, and on a PR run the contention slowed render tests enough to fail a readiness deadline and push the job past its 20-minute timeout (run 38198192162). Running serially matches the local gate command.
+
 ## Codecov disclosure boundary
 
 The pinned Codecov action runs only after the local coverage gate passes. Its
