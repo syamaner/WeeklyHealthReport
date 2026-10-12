@@ -10,7 +10,7 @@ It is a personal informational utility, not medical software.
 <table>
   <tr>
     <td><img src="docs/images/weekly-health-report-simulator.png" alt="Weekly Health Report running on an iPhone simulator with synthetic health data" width="360"></td>
-    <td><img src="docs/images/weekly-health-report-daily-export-synthetic.png" alt="Synthetic Daily JSON Export screen showing a prepared snapshot and explicit export action" width="360"></td>
+    <td><img src="docs/images/weekly-health-report-daily-export-synthetic.png" alt="Synthetic export screen from before the #200 redesign, showing a prepared snapshot and an explicit export action" width="360"></td>
   </tr>
   <tr>
     <td align="center">Weekly report</td>
@@ -33,13 +33,14 @@ examples; the repository does not contain exported or personal HealthKit values.
 | Medications | Taken medication events, dose and time on iOS 26 or later |
 | Daily JSON only | Source-filtered nutrition totals, completed-day averages and trends for all 39 Apple Health dietary quantity types, plus private date-bound notes you type and explicitly export |
 
-The app has one main screen, a manual **Daily JSON Export** screen and a separate Developer Diagnostics screen for checking daily values against Apple Health. **Copy Report** puts a human-readable version on the iOS clipboard.
+The app opens on **Today**, from which **Health** shows the completed-day report: a period picker with its visible range, summary tiles that repeat a few section values, and collapsible sections. **Health → Export a day** opens the manual **Export** screen for the Daily JSON file; the Google Drive account and folder live in **Settings → Export**, and opening that screen sends no request. A separate Developer Diagnostics screen checks daily values against Apple Health. **Copy all** (in the toolbar or below the sections) puts a human-readable version of every section, with all details shown, on the iOS clipboard; the summary tiles are not copied.
 
 On the main report, a normal system screenshot also offers Apple's native **Full
 Page** representation. The app creates that report PDF in memory only when iOS
 requests it, using one stable snapshot and a document layout independent of the
-scrolling form. It includes all report sections and the current blood-pressure
-detail state, but not navigation, export, copy, refresh or diagnostics controls.
+scrolling form. It always includes every report section with all blood-pressure
+details shown, whatever is expanded on screen, but not the summary tiles or the
+navigation, export, copy, refresh or diagnostics controls.
 Other screens provide only the ordinary screenshot. Saving or sharing remains in
 the system screenshot editor; the app adds no screenshot or share button and keeps
 no generated file.
@@ -56,12 +57,13 @@ Every value and name is invented.
 
 ## Export daily JSON to Google Drive
 
-Daily export is a separate, manual workflow. Opening **Daily JSON Export**
-restores any known account, destination and nutrition-source choices, then
-prepares a fresh immutable snapshot in memory. Nothing is uploaded until you
-review that snapshot and tap **Export prepared snapshot**.
+Daily export is a separate, manual workflow. Opening **Export** (from
+**Health → Export a day**) restores any known account, destination and
+nutrition-source choices, then prepares a fresh immutable snapshot in memory.
+Nothing is uploaded until you review that snapshot and tap **Export**.
 
-1. Connect the Google account that should receive the file. The app requests only
+1. In **Settings → Export**, connect the Google account that should receive the
+   file. Opening that screen sends no request. The app requests only
    `drive.file`, which limits it to files and folders opened or created through
    the app.
 2. Select an existing folder by its exact Drive ID, or explicitly create a
@@ -75,10 +77,11 @@ review that snapshot and tap **Export prepared snapshot**.
    Apple Health, not a reconstruction of what was visible at the original midnight.
    Date selection binds notes to that exact date and time zone and clears the old
    preview. Unverified notes are retained even outside the selectable range.
-   Review the report date, data cutoff, nutrition source, note count,
-   completed-day windows and encoded byte count. Use **Review exact JSON** to
-   inspect the actual bytes prepared for upload.
-5. Tap **Export prepared snapshot**. Refresh first if a saved note or relevant
+   Today's picker label shows the refresh cutoff once a snapshot is prepared.
+   Review the **Included** list: Health data as of the cutoff, the nutrition
+   source, notes and the exact file's byte count. Tap **Exact file** to inspect
+   the actual bytes prepared for upload. Food-log entries are not exported yet.
+5. Tap **Export**. The screen reports verified only from a verified Drive result. Refresh first if a saved note or relevant
    selection changed, because the previous preview is deliberately made stale
    rather than silently altered.
 
@@ -285,8 +288,8 @@ in a local build should also read the
 Read the [privacy policy](docs/privacy-policy.txt), also available offline from **Today → Settings → Privacy policy**.
 
 All HealthKit reading and calculation happens on the iPhone. HealthKit report
-content leaves through a copy/share action you choose or when you open **Daily JSON
-Export**, review the prepared snapshot, and choose **Export prepared snapshot**.
+content leaves through a copy/share action you choose or when you open **Export**,
+review the prepared snapshot, and choose **Export**.
 Optional online food searches have separate consent and send the displayed food
 terms or barcode; they do not attach HealthKit records or diary history.
 
@@ -400,11 +403,13 @@ On iOS 26 or later, Health presents a separate medication chooser. To change acc
 
 All dates use the iPhone's local calendar and time zone. Date-and-time values use the shared `dd/MM/yy - HH:mm` 24-hour format throughout the app and copied report. The start is included and the end is excluded.
 
-- **Last 7 Completed Days** is the default. It runs from local midnight seven calendar days ago to local midnight today.
-- **Current Week** runs from the locale-aware start of this week to local midnight today. It excludes today's partial data.
-- **Previous Week** is the previous complete locale-aware calendar week.
+The Health screen's period picker shows short titles; copied text and Full Page keep the full period name (for example "Last 7 Completed Days").
 
-These are calendar periods, not a rolling 168-hour window. Last 7 Completed Days still contains seven calendar days when daylight-saving time changes.
+- **Last 7 days** is the default. It runs from local midnight seven calendar days ago to local midnight today.
+- **This week** runs from the locale-aware start of this week to local midnight today. It excludes today's partial data.
+- **Last week** is the previous complete locale-aware calendar week.
+
+These are calendar periods, not a rolling 168-hour window. Last 7 days still contains seven calendar days when daylight-saving time changes.
 
 ## What gets copied
 
@@ -528,7 +533,7 @@ Apple does not fully document the sleep source precedence used by the Health app
 
 Daily Steps totals have been compared successfully with Apple Health on a real iPhone. A one-step difference can still appear in the final average when two interfaces round the same daily inputs differently.
 
-For your own check, run a Debug build, select **Last 7 Completed Days**, and use the same dates and local time zone in both apps. Open **Settings → Developer tools → Developer Diagnostics** from Today to see daily values and exact totals.
+For your own check, run a Debug build, select **Last 7 days** on the Health screen, and use the same dates and local time zone in both apps. Open **Settings → Developer tools → Developer Diagnostics** from Today to see daily values and exact totals.
 
 <details>
 <summary>See the complete validation checklist</summary>
@@ -546,7 +551,7 @@ For your own check, run a Debug build, select **Last 7 Completed Days**, and use
 11. **Sleep:** compare each diagnostic night with the Health date on which you woke. If a night differs, check for overlapping third-party or manually entered records.
 12. **Medications:** compare every taken-event timestamp in Diagnostics with Health. Confirm that an unlogged medicine is absent and a changed strength appears as a separate row. Today's event enters the default report only after that day is complete.
 13. **Daily notes:** add, edit and delete invented text, then refresh the daily preview. Confirm `today.notes` matches the saved order exactly, a draft is absent, and any later saved-note change disables the old preview until refresh. On a separately authorised iPhone, test complete file protection with invented notes: lock during a pending draft save and after a prepared preview, confirm notes show temporary unavailability and export is disabled, then unlock and activate or tap Retry. Confirm the draft and last saved notes remain, the draft can be saved, and a new preview is required. Also verify the dedicated microphone in Airplane Mode for one supported locale, denial/restriction, interruption, backgrounding and editor dismissal; confirm typed and safely finalised text survives and that no audio file is retained.
-14. Tap **Copy Report**, paste it into Notes, and compare it with the screen. Diagnostics and daily notes are never included in copied text.
+14. Tap **Copy all**, paste it into Notes, and compare it with the screen with every section expanded. Collapsing a section on screen must not change the copied text. Diagnostics, daily notes and the summary tiles are never included in copied text.
 
 </details>
 

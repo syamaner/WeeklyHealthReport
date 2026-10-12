@@ -44,11 +44,12 @@ final class FoodLogAppTests: XCTestCase {
         XCTAssertEqual(AppRoute.restoredPath(from: "foodLog", hasDraft: false, availableRoutes: Set(AppRoute.allCases)), [.foodLog])
     }
 
-    /// A saved entry is presentation state of the Food Log, not a route value (#197). The only
-    /// route added since is Favourites (#198); the quick-add sheet is presentation state too.
+    /// A saved entry is presentation state of the Food Log, not a route value (#197).
+    /// Phase 7 (#200) appends `exportDestination` after `addFood`, then phase 5 (#198) appends
+    /// `favourites`; the quick-add sheet is presentation state, not a route.
     func testNoRouteWasAddedForTheSavedEntry() {
-        XCTAssertEqual(AppRoute.allCases.count, 21)
-        XCTAssertEqual(AppRoute.allCases.suffix(2), [.addFood, .favourites])
+        XCTAssertEqual(AppRoute.allCases.count, 22)
+        XCTAssertEqual(Array(AppRoute.allCases.suffix(3)), [.addFood, .exportDestination, .favourites])
     }
 
     // MARK: No egress

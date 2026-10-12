@@ -2,12 +2,15 @@ import SwiftUI
 
 struct BloodPressureReportSection: View {
     let section: ReportDocument.Section
+    @Binding var isExpanded: Bool
     @Binding var showsMorningDetails: Bool
     @Binding var showsEveningDetails: Bool
 
     var body: some View {
         Section {
-            if let latest = row("blood-pressure-latest"),
+            if !isExpanded {
+                EmptyView()
+            } else if let latest = row("blood-pressure-latest"),
                let recorded = row("blood-pressure-recorded"),
                let morningAverage = row("blood-pressure-morning-average"),
                let eveningAverage = row("blood-pressure-evening-average") {
@@ -38,9 +41,9 @@ struct BloodPressureReportSection: View {
                 }
             }
         } header: {
-            Text(section.title)
+            ReportSectionHeader(title: section.title, isExpanded: $isExpanded)
         } footer: {
-            if let footer = section.footer {
+            if isExpanded, let footer = section.footer {
                 Text(footer)
             }
         }
@@ -96,28 +99,31 @@ struct BloodPressureReportSection: View {
 
 struct MedicationReportSection: View {
     let section: ReportDocument.Section
+    @Binding var isExpanded: Bool
     let requestAccess: () -> Void
 
     var body: some View {
         Section {
-            ForEach(section.rows) { row in
-                if let name = row.label {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(name)
-                        Text(row.value)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            if isExpanded {
+                ForEach(section.rows) { row in
+                    if let name = row.label {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(name)
+                            Text(row.value)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        ReportDocumentRowView(row: row)
                     }
-                } else {
-                    ReportDocumentRowView(row: row)
                 }
-            }
 
-            Button("Medication Access", action: requestAccess)
+                Button("Medication Access", action: requestAccess)
+            }
         } header: {
-            Text(section.title)
+            ReportSectionHeader(title: section.title, isExpanded: $isExpanded)
         } footer: {
-            if let footer = section.footer {
+            if isExpanded, let footer = section.footer {
                 Text(footer)
             }
         }

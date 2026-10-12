@@ -1,15 +1,15 @@
 import Foundation
 import FoodLedgerPresentation
 
-/// Drive setup stays on the export screen until #200. The factory takes no
-/// session, so building Settings cannot prepare an export or reach the network.
+/// Drive account and folder setup (#200). The factory takes no session, so
+/// building Settings cannot prepare an export or reach the network.
 enum ExportSettingsContribution {
     static func section() -> SettingsSection {
         SettingsSection(
             id: .export,
             title: "Export",
             footer: nil,
-            rows: [.link("Google Drive account and folder", route: .dailyExport)]
+            rows: [.link("Google Drive account and folder", route: .exportDestination)]
         )
     }
 }

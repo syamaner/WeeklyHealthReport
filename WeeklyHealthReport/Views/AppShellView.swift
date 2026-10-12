@@ -191,6 +191,8 @@ struct AppShellView: View {
                 AddFoodFlowView(root: foodLedger, finish: FoodEntryFinish { day in navigation.finishFoodEntry(reportingDay: day) })
             }
             else { ContentUnavailableView("Add food unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
+        case .exportDestination:
+            DriveDestinationSettingsView(session: dailyExport)
         case .favourites:
             if let foodLedger { FavouritesFlowView(root: foodLedger) }
             else { ContentUnavailableView("Favourites unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
@@ -210,16 +212,9 @@ struct AppShellView: View {
                 return nil
             }
 
-            guard let snapshot = viewModel.screenshotSnapshot(
-                includesMedicationSection: HealthReportView.includesMedicationSection,
-                showsMorningBloodPressureDetails:
-                    presentationState.showsMorningBloodPressureDetails,
-                showsEveningBloodPressureDetails:
-                    presentationState.showsEveningBloodPressureDetails
-            ) else {
-                return nil
-            }
-            return HealthReportView.reportDocument(snapshot: snapshot)
+            // Full Page is always the expanded document, independent of
+            // what is expanded on screen.
+            return HealthReportView.fullPageDocument(viewModel: viewModel)
         }
     }
 }

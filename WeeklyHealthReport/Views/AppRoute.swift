@@ -23,6 +23,7 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
     case medicationAccess
     case developerTools
     case addFood
+    case exportDestination
     case favourites
 
     /// Settings children that exist only when their feature is composed.
@@ -57,6 +58,8 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
             return []
         case .settings:
             return [.settings]
+        case .exportDestination:
+            return [.settings, .exportDestination]
         case .privacy, .inventoryReview, .foodReresolution, .webLookupKey,
              .foodMarket, .dataBackup, .medicationAccess, .developerTools:
             return availableRoutes.contains(destination) ? [.settings, destination] : [.settings]
