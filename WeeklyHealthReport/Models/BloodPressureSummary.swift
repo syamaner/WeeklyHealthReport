@@ -6,6 +6,34 @@ struct BloodPressureReading: Equatable, Identifiable {
     let systolicMillimetresOfMercury: Double
     let diastolicMillimetresOfMercury: Double
     let sourceName: String
+
+    /// Complete pairs inside `[lookbackStart, asOf]` with finite, positive
+    /// components. Shared by the Health report and Home's today-so-far row.
+    static func valid(
+        in readings: [BloodPressureReading],
+        lookbackStart: Date,
+        asOf: Date
+    ) -> [BloodPressureReading] {
+        readings.filter {
+            $0.date >= lookbackStart
+                && $0.date <= asOf
+                && $0.systolicMillimetresOfMercury.isFinite
+                && $0.systolicMillimetresOfMercury > 0
+                && $0.diastolicMillimetresOfMercury.isFinite
+                && $0.diastolicMillimetresOfMercury > 0
+        }
+    }
+
+    /// The newest valid pair, selected with `max(by: date)` and no added
+    /// tie-break (today-so-far contract section 12).
+    static func latestValid(
+        in readings: [BloodPressureReading],
+        lookbackStart: Date,
+        asOf: Date
+    ) -> BloodPressureReading? {
+        valid(in: readings, lookbackStart: lookbackStart, asOf: asOf)
+            .max(by: { $0.date < $1.date })
+    }
 }
 
 enum BloodPressureTimeSlot: String, Equatable {
@@ -73,15 +101,16 @@ struct BloodPressureSummary: Equatable {
             .bloodPressureLatestLookbackStart(asOf: asOf, calendar: calendar)
         else { return nil }
 
-        let visibleReadings = readings.filter {
-            $0.date >= latestLookbackStart
-                && $0.date <= asOf
-                && $0.systolicMillimetresOfMercury.isFinite
-                && $0.systolicMillimetresOfMercury > 0
-                && $0.diastolicMillimetresOfMercury.isFinite
-                && $0.diastolicMillimetresOfMercury > 0
-        }
-        guard let latest = visibleReadings.max(by: { $0.date < $1.date }) else {
+        let visibleReadings = BloodPressureReading.valid(
+            in: readings,
+            lookbackStart: latestLookbackStart,
+            asOf: asOf
+        )
+        guard let latest = BloodPressureReading.latestValid(
+            in: readings,
+            lookbackStart: latestLookbackStart,
+            asOf: asOf
+        ) else {
             return nil
         }
 

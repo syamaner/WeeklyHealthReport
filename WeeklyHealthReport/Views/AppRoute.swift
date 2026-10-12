@@ -25,6 +25,9 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
     case addFood
     case exportDestination
     case favourites
+    /// Home's notes row (#199, D11): today's notes, pinned to today.
+    case todayNotes
+    case todayNoteEditor
 
     /// Settings children that exist only when their feature is composed.
     static let composedSettingsRoutes: Set<AppRoute> = [
@@ -33,6 +36,12 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
 
     /// Routes that always have a destination, possibly an unavailable screen.
     static let fixedRoutes: Set<AppRoute> = Set(allCases).subtracting(composedSettingsRoutes)
+
+    /// True while a path shows Home's today notes, so the shared notes
+    /// controller is pinned to today instead of the export's selected day.
+    static func pinsNotesToToday(_ path: [AppRoute]) -> Bool {
+        path.contains(.todayNotes) || path.contains(.todayNoteEditor)
+    }
 
     /// Rebuilds a navigation path from the last stored destination.
     /// Unknown values restore Home. Settings children that are not composed
@@ -50,6 +59,10 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
         case .foodLog, .healthReport, .dailyExport, .genericFoodSearch,
              .foodListImport, .barcodeFoodCapture, .commonFoods, .addFood, .favourites:
             return [destination]
+        case .todayNotes:
+            return [.todayNotes]
+        case .todayNoteEditor:
+            return hasDraft ? [.todayNotes, .todayNoteEditor] : [.todayNotes]
         case .notes:
             return [.dailyExport, .notes]
         case .noteEditor:
