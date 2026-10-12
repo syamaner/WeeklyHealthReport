@@ -112,6 +112,38 @@ final class UXPolishPresentationTests: XCTestCase {
         XCTAssertEqual(FoodListAmountText.stored("1505", current: "150.0", parsed: 150, locale: english), "1505")
     }
 
+    /// A German "1.500" typed into a list line stays visible but blocks matching and review (the
+    /// domain list parser would read it as 1.5, #222); "1,5" still works; an untouched line keeps
+    /// its parsed evidence text and is never refused.
+    func testListAmountRefusesAmbiguousSeparatorsAndKeepsUntouchedLines() {
+        let typed = FoodListAmountText.stored("1.500", current: "150.0", parsed: 150, locale: german)
+        XCTAssertEqual(typed, "1.500", "the typed text is kept as typed")
+        let shown = FoodListAmountText.display(typed, parsed: 150, locale: german)
+        XCTAssertEqual(shown, "1.500")
+        XCTAssertTrue(FoodListAmountText.isRefused(shown, locale: german))
+        XCTAssertEqual(FoodListAmountText.refusedText, "Enter the amount as a number greater than zero, or clear it.")
+        XCTAssertFalse(FoodListAmountText.isRefused("1,5", locale: german))
+        XCTAssertTrue(FoodListAmountText.isRefused("1 500", locale: french))
+        XCTAssertTrue(FoodListAmountText.isRefused("1,5", locale: english))
+        XCTAssertFalse(FoodListAmountText.isRefused("", locale: german), "empty is left to the unit rules")
+        // Untouched: the parsed text "1.125" would look like German grouping, but the field shows
+        // the locale form "1,125" and the stored evidence text is unchanged.
+        let untouched = FoodListAmountText.display("1.125", parsed: 1.125, locale: german)
+        XCTAssertEqual(untouched, "1,125")
+        XCTAssertFalse(FoodListAmountText.isRefused(untouched, locale: german))
+        XCTAssertEqual(FoodListAmountText.stored(untouched, current: "1.125", parsed: 1.125, locale: german), "1.125")
+    }
+
+    /// Each amount field has its own focus value, so "Done" clears whichever is focused, and the
+    /// keyboard "Done" shows only while an amount field is focused.
+    func testAmountFocusIsPerFieldAndDoneShowsOnlyForAmounts() {
+        let fields: [AmountFieldFocus] = [.confirmQuantity, .confirmDirectWeight, .confirmConversion, .confirmEmptyPlate,
+                                          .quickAddOther, .favouriteDefault, .listLine("a"), .listLine("b")]
+        XCTAssertEqual(Set(fields).count, fields.count, "no two amount fields share a focus value")
+        for field in fields { XCTAssertTrue(AmountFieldFocus.showsDone(field)) }
+        XCTAssertFalse(AmountFieldFocus.showsDone(nil), "a text field focused, or none: no Done")
+    }
+
     /// Match details rows are identified by their line, so a new list never inherits an open one.
     func testMatchDetailsIdentityFollowsTheLine() {
         XCTAssertNotEqual(FoodListMatchRowText.rowID(line: "a", index: 0), FoodListMatchRowText.rowID(line: "b", index: 0))

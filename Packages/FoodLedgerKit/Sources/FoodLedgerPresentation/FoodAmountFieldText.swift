@@ -60,25 +60,40 @@ public enum FoodAmountFieldText {
     }
 }
 
+/// Which amount field holds focus. Each field has its own value, so "Done" clears whichever is
+/// focused, and the keyboard toolbar appears only while an amount field is focused (#212).
+public enum AmountFieldFocus: Hashable, Sendable {
+    case confirmQuantity, confirmDirectWeight, confirmConversion, confirmEmptyPlate
+    case quickAddOther, favouriteDefault
+    /// One list review line, by its line identifier.
+    case listLine(String)
+
+    /// The "Done" button shows only while an amount field is focused, never for text fields.
+    public static func showsDone(_ focus: AmountFieldFocus?) -> Bool { focus != nil }
+}
+
 extension View {
-    /// A decimal pad for an amount field (#212), focused through `focus` so it can be dismissed.
-    func amountKeyboard(_ focus: FocusState<Bool>.Binding) -> some View {
+    /// A decimal pad for an amount field (#212), focused as `field` so "Done" can clear it.
+    func amountKeyboard(_ focus: FocusState<AmountFieldFocus?>.Binding, _ field: AmountFieldFocus) -> some View {
         #if os(iOS)
-        keyboardType(.decimalPad).focused(focus)
+        keyboardType(.decimalPad).focused(focus, equals: field)
         #else
-        focused(focus)
+        focused(focus, equals: field)
         #endif
     }
 
     /// The decimal pad has no return key: scrolling or "Done" above the keyboard dismisses it.
-    func amountKeyboardDismissal(_ focus: FocusState<Bool>.Binding) -> some View {
+    /// Other text fields keep their own return key and get no "Done".
+    func amountKeyboardDismissal(_ focus: FocusState<AmountFieldFocus?>.Binding) -> some View {
         #if os(iOS)
         scrollDismissesKeyboard(.interactively)
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button(FoodAmountFieldText.keyboardDoneTitle) { focus.wrappedValue = false }
-                        .accessibilityHint("Hides the keyboard")
+                    if AmountFieldFocus.showsDone(focus.wrappedValue) {
+                        Spacer()
+                        Button(FoodAmountFieldText.keyboardDoneTitle) { focus.wrappedValue = nil }
+                            .accessibilityHint("Hides the keyboard")
+                    }
                 }
             }
         #else

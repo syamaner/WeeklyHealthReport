@@ -320,7 +320,7 @@ public struct FoodListImportView: View {
     @State private var confirmsNewList = false
     @State private var showsAllLines = false
     @Environment(\.locale) private var locale
-    @FocusState private var editingAmount: Bool
+    @FocusState private var editingAmount: AmountFieldFocus?
 
     public init(model: FoodListImportViewModel) { self.model = model }
 
@@ -410,6 +410,8 @@ public struct FoodListImportView: View {
                         model.edit(draft)
                     }
                 }
+                let shownAmount = FoodListAmountText.display(currentDraft(row).quantityText, parsed: row.draft.parsed.quantity, locale: locale)
+                let amountRefused = FoodListAmountText.isRefused(shownAmount, locale: locale)
                 VStack(alignment: .leading) {
                     Text("Consumed amount").font(.caption)
                     TextField("Consumed amount", text: Binding(
@@ -420,7 +422,12 @@ public struct FoodListImportView: View {
                                                                            parsed: draft.parsed.quantity, locale: locale)
                             model.edit(draft)
                         }))
-                        .amountKeyboard($editingAmount)
+                        .amountKeyboard($editingAmount, .listLine(row.id.rawValue))
+                    if amountRefused {
+                        // The typed text stays visible; this line cannot be matched or reviewed
+                        // until the amount is unambiguous (#212).
+                        Label(FoodListAmountText.refusedText, systemImage: "exclamationmark.triangle").font(.caption)
+                    }
                 }
                 Picker("Unit", selection: binding(row, \.unit)) {
                     Text("Choose unit").tag(Optional<QuantityUnit>.none)
@@ -435,7 +442,7 @@ public struct FoodListImportView: View {
                     Text("As sold").tag(Optional(PreparationKind.asSold))
                 }
                 Button("Find matches") { model.search() }
-                    .disabled(row.draft.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(row.draft.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || amountRefused)
                 if case let .unresolved(message) = row.status { Text(message) }
                 if case let .failed(message) = row.status { Text(message) }
                 Button("Defer this line") { model.deferLine() }
@@ -455,6 +462,9 @@ public struct FoodListImportView: View {
                             if let variant = match.candidate.variant { Text(variant.value).font(.caption) }
                             if let badge = text.badge { Text(badge).font(.caption) }
                             Button("Review and confirm") { model.review(candidate: index) }
+                                .disabled(FoodListAmountText.isRefused(
+                                    FoodListAmountText.display(currentDraft(row).quantityText, parsed: row.draft.parsed.quantity, locale: locale),
+                                    locale: locale))
                         }
                         // Its own row, so the disclosure and the button never share one tap target.
                         if !text.details.isEmpty {
@@ -544,5 +554,16 @@ public enum FoodListAmountText {
 
     public static func stored(_ typed: String, current: String, parsed: Double?, locale: Locale) -> String {
         typed == display(current, parsed: parsed, locale: locale) ? current : typed
+    }
+
+    /// Shown under a refused amount; the same rule as Confirm's invalid amount.
+    public static let refusedText = FoodLogRequirementText.text(.amountTextInvalid)
+
+    /// True when the shown amount has separators that could mean two amounts here (a German
+    /// "1.500", say). The domain list parser is not locale-aware (#222), so such a line is
+    /// blocked here rather than read as 1.5. Empty text is not refused: the unit rules apply.
+    public static func isRefused(_ shown: String, locale: Locale) -> Bool {
+        let text = shown.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !text.isEmpty && FoodAmountFieldText.canonical(text, locale: locale) == nil
     }
 }

@@ -214,7 +214,7 @@ public struct QuickAddSheet: View {
     @State private var showsOther = false
     @State private var text = ""
     @Environment(\.locale) private var locale
-    @FocusState private var editingAmount: Bool
+    @FocusState private var editingAmount: AmountFieldFocus?
 
     public init(model: QuickAddSheetModel, edit: @escaping () -> Void, close: @escaping () -> Void) {
         self.model = model; self.edit = edit; self.close = close
@@ -254,7 +254,7 @@ public struct QuickAddSheet: View {
                 if showsOther {
                     HStack {
                         TextField("Amount", text: $text)
-                            .amountKeyboard($editingAmount)
+                            .amountKeyboard($editingAmount, .quickAddOther)
                             .onChange(of: text) { _, value in model.setCustomText(FoodAmountFieldText.reducerText(value, locale: locale)) }
                             .accessibilityLabel("Other amount in \(model.unit == .millilitres ? "millilitres" : model.unit == .grams ? "grams" : "pieces")")
                         Text(model.unit == .count ? "pieces" : model.unit.rawValue).foregroundStyle(.secondary)

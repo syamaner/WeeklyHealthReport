@@ -309,8 +309,8 @@ public struct FoodConfirmationView: View {
     private let showsCancelButton: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.locale) private var locale
-    /// Any amount field; "Done" above the decimal pad clears it (#212).
-    @FocusState private var editingAmount: Bool
+    /// The focused amount field, if any; "Done" above the decimal pad clears it (#212).
+    @FocusState private var editingAmount: AmountFieldFocus?
     @State private var showsCorrection = false
     @State private var showsMatches = false
     @State private var correctionName = ""
@@ -633,7 +633,7 @@ public struct FoodConfirmationView: View {
             if model.state.quantity.directWeight != nil {
                 Text("Weigh edible food as eaten—peeled, boiled or fried. Exclude peel, shell, bone and anything you did not eat.").font(.caption)
                 TextField(usesPlate ? "Total food and plate weight (g)" : "Total edible weight (g)", text: $directWeightText)
-                    .amountKeyboard($editingAmount)
+                    .amountKeyboard($editingAmount, .confirmDirectWeight)
                     .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
                     .accessibilityLabel("Total edible weight in grams")
                 if usesPlate { Text("Enter the food and plate total here. The empty plate weight below is subtracted to obtain edible grams.").font(.caption) }
@@ -652,7 +652,7 @@ public struct FoodConfirmationView: View {
                 Button("Use original amount instead") { model.send(.endDirectWeight) }
             }
             TextField(model.state.isSourceRecipe ? "Recipe servings eaten" : model.state.usesSourceDeclaredServing ? "Source servings eaten" : model.state.quantity.directWeight == nil ? "Quantity" : "Original amount (optional)", text: $totalText)
-                .amountKeyboard($editingAmount)
+                .amountKeyboard($editingAmount, .confirmQuantity)
                 .onChange(of: totalText) { _, value in
                     model.send(.setQuantityText(FoodAmountFieldText.reducerText(value, locale: locale)))
                 }
@@ -691,7 +691,7 @@ public struct FoodConfirmationView: View {
             if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil && !model.state.usesSourceDeclaredServing {
                 Text("No source-backed size guide is available for this food. Enter the total edible weight, excluding shell, bone or other parts you did not eat.").font(.caption)
                 TextField("Converted edible amount", text: $conversionText)
-                    .amountKeyboard($editingAmount)
+                    .amountKeyboard($editingAmount, .confirmConversion)
                     .onChange(of: conversionText) { _, _ in updateConversion() }
                 Picker("Converted unit", selection: $conversionUnit) {
                     Text("g").tag(QuantityUnit.grams)
@@ -719,7 +719,7 @@ public struct FoodConfirmationView: View {
                     }
                     if usesPlate {
                         TextField("Empty plate weight (g)", text: $emptyPlateText)
-                            .amountKeyboard($editingAmount)
+                            .amountKeyboard($editingAmount, .confirmEmptyPlate)
                             .onChange(of: emptyPlateText) { _, value in
                                 guard let amount = FoodAmountFieldText.parse(value, locale: locale),
                                       let quantity = try? PositiveQuantity(value: amount, unit: .grams) else {

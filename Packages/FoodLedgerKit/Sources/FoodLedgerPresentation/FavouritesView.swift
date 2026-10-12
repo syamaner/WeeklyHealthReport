@@ -135,7 +135,7 @@ public struct FavouritesView: View {
     @State private var amountText = ""
     @State private var removing: FavouriteRow?
     @Environment(\.locale) private var locale
-    @FocusState private var editingAmount: Bool
+    @FocusState private var editingAmount: AmountFieldFocus?
 
     public init(model: FavouritesViewModel, createFromSearch: @escaping () -> Void,
                 createFromBarcode: @escaping () -> Void, createFromWebLookup: @escaping () -> Void) {
@@ -199,7 +199,7 @@ public struct FavouritesView: View {
                     Section {
                         HStack {
                             TextField("Default amount", text: $amountText)
-                                .amountKeyboard($editingAmount)
+                                .amountKeyboard($editingAmount, .favouriteDefault)
                                 .accessibilityLabel("Default amount")
                             Text(unitLabel(row.item)).foregroundStyle(.secondary)
                         }
