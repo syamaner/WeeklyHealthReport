@@ -322,7 +322,8 @@ final class FoodLedgerCompositionRoot {
                 try ledger.confirmedLogItemID(operationID: operationID, idempotencyKey: LedgerText("food-list:\(operationID.rawValue)"))
             },
             confirmationNow: { [confirmationClock] in confirmationClock.now() },
-            confirmationCalendar: confirmationCalendar
+            confirmationCalendar: confirmationCalendar,
+            amountLocale: locale
         ) { [confirmations] state, operationID in
             try confirmations.save(
                 state, operationID: operationID,

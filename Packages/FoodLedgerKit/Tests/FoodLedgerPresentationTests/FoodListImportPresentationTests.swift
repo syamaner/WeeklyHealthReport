@@ -7,6 +7,88 @@ import XCTest
 
 @MainActor
 final class FoodListImportPresentationTests: XCTestCase {
+    /// #222: a pasted numeral that could mean two amounts in the reader's locale is never
+    /// proposed as a number; the line has no amount, says why, and the needs-amount rule applies.
+    func testPastedAmountsFollowTheReadersDecimalConvention() throws {
+        let cases: [(String, String, String, Bool)] = [
+            ("de_DE", "1.500 g rice", "", true),      // German grouping for 1500, or 1.5
+            ("fr_FR", "1 500 g rice", "", false),     // space grouping: the parse has no amount
+            ("fr_FR", "1\u{202F}500 g rice", "", false),
+            ("en_GB", "1,5 g rice", "", true),        // a decimal comma is not English
+            ("de_DE", "1,5 g rice", "1.5", false),
+            ("en_GB", "1.500 g rice", "1.5", false),
+            ("en_GB", "1,500 g rice", "", false),     // the parse leaves it as an ambiguous number
+            ("de_DE", "1.500 kg rice", "", true),
+            ("de_DE", "rice 1.500 g", "", true),
+            ("de_DE", "10 g rice", "10.0", false),
+            ("de_DE", "half pepper", "0.5", false),
+            ("de_DE", "½ pepper", "0.5", false),
+            ("de_DE", "1/2 orange pepper", "0.5", false),
+            ("de_DE", ".5 l milk", "500.0", false),
+            ("de_DE", "0.5 bell pepper", "0.5", false)
+        ]
+        for (identifier, text, quantityText, explained) in cases {
+            let (model, _) = try listModel(locale: Locale(identifier: identifier))
+            model.input = text
+            model.prepare()
+            let draft = try XCTUnwrap(model.rows.first?.draft, text)
+            XCTAssertEqual(draft.quantityText, quantityText, "\(identifier) \(text)")
+            XCTAssertEqual(FoodListAmountText.showsAmbiguousNumeral(draft, locale: model.amountLocale), explained, "\(identifier) \(text)")
+            XCTAssertEqual(try FoodListParser.parse(text).first, draft.parsed, "the versioned parse is unchanged")
+        }
+        // Once the user types an amount, it is theirs; the explanation goes.
+        let (model, _) = try listModel(locale: Locale(identifier: "de_DE"))
+        model.input = "1.500 g rice"
+        model.prepare()
+        var draft = try XCTUnwrap(model.selectedRow?.draft)
+        draft.quantityText = "1500"
+        model.edit(draft)
+        XCTAssertFalse(FoodListAmountText.showsAmbiguousNumeral(try XCTUnwrap(model.selectedRow?.draft), locale: model.amountLocale))
+    }
+
+    /// A queue saved before #222, or in another locale, gets the same check on restore for lines
+    /// never edited; an edited amount is the user's. The explanation survives a relaunch, even
+    /// in a locale where the numeral would not have been ambiguous.
+    func testRestoredQueueWithholdsUntouchedAmbiguousAmountsAndKeepsTheNotice() throws {
+        let checkpoint = MemoryCheckpoint()
+        let make = { (identifier: String) in
+            FoodListImportViewModel(service: FoodListImportService(searcher: ListSearch()), locale: try LedgerText(identifier),
+                                    ids: ListIDs(), checkpointStore: checkpoint,
+                                    amountLocale: Locale(identifier: identifier)) { _, _ in throw FoodLedgerValidationError.invalidProvenance }
+        }
+        let english = try make("en_GB")
+        english.input = "1.500 g rice\n1.500 g oats\n10 g fixture"
+        english.prepare()
+        XCTAssertEqual(english.rows.map(\.draft.quantityText), ["1.5", "1.5", "10.0"], "unambiguous in English")
+        var edited = english.rows[1].draft
+        edited.quantityText = "2"
+        english.edit(edited)
+
+        let german = try make("de_DE")
+        XCTAssertEqual(german.rows.map(\.draft.quantityText), ["", "2", "10.0"])
+        XCTAssertTrue(FoodListAmountText.showsAmbiguousNumeral(german.rows[0].draft, locale: german.amountLocale))
+        XCTAssertFalse(FoodListAmountText.showsAmbiguousNumeral(german.rows[1].draft, locale: german.amountLocale))
+        german.retryCheckpoint() // persists the restored queue
+
+        let relaunched = try make("en_GB")
+        XCTAssertEqual(relaunched.rows.map(\.draft.quantityText), ["", "2", "10.0"])
+        XCTAssertTrue(FoodListAmountText.showsAmbiguousNumeral(relaunched.rows[0].draft, locale: relaunched.amountLocale),
+                      "the withheld line still says why after a relaunch")
+    }
+
+    /// A withheld amount reaches Confirm as no amount, never as 1.5.
+    func testWithheldAmbiguousAmountReachesConfirmWithoutAValue() throws {
+        let (model, search) = try listModel(locale: Locale(identifier: "de_DE"))
+        model.input = "1.500 g fixture"
+        model.prepare()
+        model.search()
+        XCTAssertEqual(search.calls, 1)
+        model.review(candidate: 0)
+        let confirmation = try XCTUnwrap(model.confirmation)
+        XCTAssertNil(confirmation.state.quantity.value)
+        XCTAssertEqual(confirmation.state.quantity.unit, .grams)
+    }
+
     func testCommonFoodAddsToExistingReviewWithoutSavingOrSearching() throws {
         let (model, store, search) = try fixture()
         model.input = "10 g fixture"
@@ -204,6 +286,15 @@ final class FoodListImportPresentationTests: XCTestCase {
         XCTAssertFalse(model.appendReviewedSpeech("late text"))
         model.startNewList()
         XCTAssertEqual(model.inputMethod, .pastedOrTyped)
+    }
+
+    private func listModel(locale: Locale) throws -> (FoodListImportViewModel, ListSearch) {
+        let search = ListSearch()
+        let model = FoodListImportViewModel(
+            service: FoodListImportService(searcher: search), locale: try LedgerText(locale.identifier), ids: ListIDs(),
+            amountLocale: locale
+        ) { _, _ in throw FoodLedgerValidationError.invalidProvenance }
+        return (model, search)
     }
 
     private func fixture() throws -> (FoodListImportViewModel, InMemoryFoodLedgerStore, ListSearch) {

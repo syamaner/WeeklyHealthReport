@@ -265,7 +265,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         return DailyExportPreviewSummary(
             reportDate: preview.envelope.reportDate,
             dataAsOf: preview.envelope.dataAsOf,
-            nutritionSource: "\(nutrition.source.name) — \(nutrition.source.bundleIdentifier)",
+            nutritionSource: "\(nutrition.source.name) · \(nutrition.source.bundleIdentifier)",
             savedNoteCount: preview.envelope.today.notes?.count ?? 0,
             currentWindow: "\(context.currentWindow.start) to \(context.currentWindow.end)",
             previousWindow: "\(context.previousWindow.start) to \(context.previousWindow.end)",
@@ -279,9 +279,9 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         guard let source = nutritionSources.first(where: {
             $0.bundleIdentifier == selectedNutritionSourceBundleIdentifier
         }) else {
-            return "Saved source unavailable — \(selectedNutritionSourceBundleIdentifier)"
+            return "Saved source unavailable · \(selectedNutritionSourceBundleIdentifier)"
         }
-        return "\(source.name) — \(source.bundleIdentifier)"
+        return "\(source.name) · \(source.bundleIdentifier)"
     }
     var canRefreshPreview: Bool {
         !busy && notes.storageAvailable && nutritionSources.contains {
@@ -906,7 +906,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     private func accept(account: DailyDriveAccount) {
         destinationCoordinator.acceptAccount(account.id)
         self.account = account
-        accountLabel = "\(account.displayName) — \(account.emailAddress)"
+        accountLabel = "\(account.displayName) · \(account.emailAddress)"
         mirrorDestinationState()
         restoreLastVerifiedLabel(for: account.id)
     }

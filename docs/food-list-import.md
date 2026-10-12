@@ -63,6 +63,14 @@ Times do not backdate a log: confirmed entries use the existing save-time date.
 The input limit is 200 lines and 30,000 characters, with rejection rather than
 silent truncation.
 
+The lexical grammar does not know the reader's decimal convention, so the review
+screen checks the numeral behind each parsed amount against the device locale with
+the same rule as every other amount field (#222). A numeral that could mean two
+amounts there (a German "1.500", which may be grouping for 1500; an English "1,5";
+space grouping) is not proposed: the line's amount starts empty with the number
+format notice, and the existing needs-amount rule blocks saving until the user
+enters one. The parse, its notices and `food-list-lexical-v3` are unchanged.
+
 Uncertain numbers, household measures, pack multipliers and multiple amounts leave
 the consumed amount empty. Coffee-ground amounts remain preparation information.
 Spoon and slice measures remain unresolved; split spoon names are recognised. Negated preparation terms stay

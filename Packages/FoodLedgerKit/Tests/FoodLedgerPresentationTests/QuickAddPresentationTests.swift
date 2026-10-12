@@ -65,6 +65,16 @@ final class QuickAddPresentationTests: XCTestCase {
         }
     }
 
+    /// #224: while the Other amount is focused, Done replaces Edit so the title keeps its room;
+    /// Edit returns once the pad is dismissed. Never both trailing actions at once.
+    func testEditGivesWayToDoneWhileAnAmountIsFocused() {
+        XCTAssertTrue(QuickAddText.showsEdit(amountFocus: nil))
+        XCTAssertFalse(QuickAddText.showsEdit(amountFocus: .quickAddOther))
+        for focus in [nil, AmountFieldFocus.quickAddOther] {
+            XCTAssertNotEqual(QuickAddText.showsEdit(amountFocus: focus), AmountFieldFocus.showsDone(focus))
+        }
+    }
+
     func testOpeningTheSheetWritesNothingAndOneLogSavesOnce() throws {
         let (store, confirmations, favourites) = try services()
         let model = sheet(try favourites.prepare(.builtInWater), confirmations)
