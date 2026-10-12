@@ -23,6 +23,17 @@ public enum FoodListNotice: String, Codable, CaseIterable, Sendable {
     }
 }
 
+/// How a reader writes decimals (food-list-lexical-v4, #222). The caller supplies it; the domain
+/// never reads locale state. Raw values are persisted in list lines and capture evidence.
+public enum NumeralConvention: String, Codable, CaseIterable, Sendable {
+    /// A full stop is the decimal point; a comma may group digits in threes (en_GB, en_US).
+    case fullStopDecimal = "full_stop_decimal"
+    /// A comma is the decimal point; no grouping is accepted (de_DE, fr_FR).
+    case commaDecimal = "comma_decimal"
+    /// Unknown: a numeral is read only where both conventions give the same value.
+    case unspecified
+}
+
 public struct ParsedFoodListLine: Codable, Equatable, Sendable {
     public let lineNumber: Int
     public let original: String
@@ -31,29 +42,103 @@ public struct ParsedFoodListLine: Codable, Equatable, Sendable {
     public let unit: QuantityUnit?
     public let preparation: PreparationKind?
     public let notices: [FoodListNotice]
+    /// The grammar that produced this line; absent on lines parsed by `food-list-lexical-v3`,
+    /// which therefore encode exactly as before.
+    public let grammarVersion: String?
+    /// The numeral convention the line was parsed under; absent on v3 lines.
+    public let numeralConvention: NumeralConvention?
+
+    /// The grammar version to record for this line: its own, or v3 when it predates v4.
+    public var effectiveGrammarVersion: String { grammarVersion ?? FoodListParser.legacyVersion }
+    /// True when the line was parsed by `food-list-lexical-v4`.
+    public var isV4: Bool { grammarVersion == FoodListParser.version }
 }
 
 /// A deliberately bounded grammar. Unrecognised units and multiple amounts stay unresolved.
 /// No food spelling, brand, household volume or nutrient value is inferred.
 public enum FoodListParser {
-    public static let version = "food-list-lexical-v3"
+    /// The current grammar, `parse(_:convention:)`. See docs/food-list-lexical-v4.md.
+    public static let version = "food-list-lexical-v4"
+    /// The frozen locale-free grammar, `parse(_:)`, kept for lines and evidence that predate v4.
+    public static let legacyVersion = "food-list-lexical-v3"
     public static let maximumCharacters = 30_000
     public static let maximumLines = 200
 
     public enum ParseError: Error { case empty, tooLarge }
 
+    /// Parses under `food-list-lexical-v4`: numerals are read with the caller's convention, and a
+    /// numeral that could mean two values has no amount and an `ambiguousNumber` notice.
+    public static func parse(_ text: String, convention: NumeralConvention) throws -> [ParsedFoodListLine] {
+        try parse(text, grammar: .v4(convention))
+    }
+
+    /// The frozen `food-list-lexical-v3` grammar, unchanged: numerals are read without a convention.
     public static func parse(_ text: String) throws -> [ParsedFoodListLine] {
+        try parse(text, grammar: .v3)
+    }
+
+    private static func parse(_ text: String, grammar: Grammar) throws -> [ParsedFoodListLine] {
         guard text.count <= maximumCharacters else { throw ParseError.tooLarge }
         let lines = text.replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n").components(separatedBy: "\n")
         guard lines.count <= maximumLines else { throw ParseError.tooLarge }
         let parsed = lines.enumerated().compactMap { index, line in
-            line.trimmingCharacters(in: .whitespaces).isEmpty ? nil : parseLine(line, number: index + 1)
+            line.trimmingCharacters(in: .whitespaces).isEmpty ? nil : parseLine(line, number: index + 1, grammar: grammar)
         }
         guard !parsed.isEmpty else { throw ParseError.empty }
         return parsed
     }
 
+    /// A v4 numeral under `convention`, or nil when it is not one unambiguous positive amount.
+    /// Integer fractions and "½" do not depend on the convention.
+    public static func number(_ text: String, convention: NumeralConvention) -> Double? {
+        let value = text.trimmingCharacters(in: .whitespaces)
+        if value == "½" { return 0.5 }
+        let result: Double?
+        if value.contains("/") {
+            let parts = value.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
+            guard parts.count == 2, parts.allSatisfy({ matches(#"^[0-9]+$"#, in: $0) }),
+                  let numerator = Double(parts[0]), let denominator = Double(parts[1]), denominator > 0 else { return nil }
+            result = numerator / denominator
+        } else {
+            result = decimalText(value, convention: convention).flatMap { Double($0) }
+        }
+        guard let result, result.isFinite, result > 0 else { return nil }
+        return result
+    }
+
+    /// Plain decimal text (digits and at most one full stop) for a numeral, or nil when the
+    /// convention cannot read it as one value. Mirrors the amount field rule (`FoodAmountFieldText`).
+    private static func decimalText(_ value: String, convention: NumeralConvention) -> String? {
+        // Anything but digits, commas and full stops (space grouping included) is refused.
+        guard matches(#"^[0-9.,]+$"#, in: value) else { return nil }
+        let plain = #"^(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)$"#
+        switch convention {
+        case .fullStopDecimal:
+            if value.contains(",") {
+                // A comma only groups digits in threes: "1,500", "1,000.5".
+                guard matches(#"^[0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]+)?$"#, in: value) else { return nil }
+                return value.replacingOccurrences(of: ",", with: "")
+            }
+            return matches(plain, in: value) ? value : nil
+        case .commaDecimal:
+            if value.contains(".") {
+                // Both separators, or a full stop before exactly three digits, could be grouping.
+                guard !value.contains(","), !matches(#"\.[0-9]{3}(?![0-9])"#, in: value) else { return nil }
+                return matches(plain, in: value) ? value : nil
+            }
+            guard matches(#"^[0-9]+(?:,[0-9]+)?$"#, in: value) else { return nil }
+            return value.replacingOccurrences(of: ",", with: ".")
+        case .unspecified:
+            guard let fullStop = decimalText(value, convention: .fullStopDecimal),
+                  let comma = decimalText(value, convention: .commaDecimal),
+                  Double(fullStop) == Double(comma) else { return nil }
+            return fullStop
+        }
+    }
+
+    /// The frozen v3 numeral rule. `ReceiptParser` (`receipt-lexical-v1`), local inventory amounts
+    /// and v3 list lines depend on it; it must not change.
     public static func number(_ text: String) -> Double? {
         let value = text.trimmingCharacters(in: .whitespaces)
         if value == "½" { return 0.5 }
@@ -76,9 +161,10 @@ public enum FoodListParser {
     /// (#222). A pure re-derivation from `original`: the versioned parse output is unchanged.
     public static func amountNumeral(of line: ParsedFoodListLine) -> String? {
         guard line.quantity != nil else { return nil }
+        let grammar: Grammar = line.isV4 ? .v4(line.numeralConvention ?? .unspecified) : .v3
         let content = amountContent(line.original.trimmingCharacters(in: .whitespaces))
-        if let prefix = capture(leadingAmountPattern, in: content) { return prefix[1] }
-        if let suffix = capture(trailingAmountPattern, in: content) { return suffix[2] }
+        if let prefix = capture(grammar.leadingPattern, in: content) { return prefix[1] }
+        if let suffix = capture(grammar.trailingPattern, in: content) { return suffix[2] }
         return nil
     }
 
@@ -102,7 +188,24 @@ public enum FoodListParser {
         "cauliflour": "cauliflower", "yoghourt": "yoghurt"
     ]
 
-    private static func parseLine(_ original: String, number lineNumber: Int) -> ParsedFoodListLine {
+    /// The two grammars differ only in how a numeral is captured and read, and in what they record.
+    private struct Grammar: Sendable {
+        let leadingPattern: String
+        let trailingPattern: String
+        let read: @Sendable (String) -> Double?
+        let version: String?
+        let convention: NumeralConvention?
+
+        static let v3 = Grammar(leadingPattern: leadingAmountPattern, trailingPattern: trailingAmountPattern,
+                                read: { FoodListParser.number($0) }, version: nil, convention: nil)
+        static func v4(_ convention: NumeralConvention) -> Grammar {
+            Grammar(leadingPattern: v4LeadingAmountPattern, trailingPattern: v4TrailingAmountPattern,
+                    read: { FoodListParser.number($0, convention: convention) },
+                    version: FoodListParser.version, convention: convention)
+        }
+    }
+
+    private static func parseLine(_ original: String, number lineNumber: Int, grammar: Grammar) -> ParsedFoodListLine {
         let text = original.trimmingCharacters(in: .whitespaces)
         let lower = text.lowercased()
         var notices: [FoodListNotice] = []
@@ -112,7 +215,8 @@ public enum FoodListParser {
         if isContext(lower) {
             return ParsedFoodListLine(
                 lineNumber: lineNumber, original: original, query: text,
-                quantity: nil, unit: nil, preparation: nil, notices: [.contextLine]
+                quantity: nil, unit: nil, preparation: nil, notices: [.contextLine],
+                grammarVersion: grammar.version, numeralConvention: grammar.convention
             )
         }
         let raw = matchesPreparation(#"\b(raw|uncooked)\b"#, in: lower)
@@ -126,8 +230,8 @@ public enum FoodListParser {
         if raw && cooked { notices.append(.conflictingPreparation) }
 
         let content = amountContent(text)
-        if let prefix = capture(leadingAmountPattern, in: content) {
-            amount = wordNumbers[prefix[1].lowercased()] ?? number(prefix[1])
+        if let prefix = capture(grammar.leadingPattern, in: content) {
+            amount = wordNumbers[prefix[1].lowercased()] ?? grammar.read(prefix[1])
             if amount == nil { notices.append(.ambiguousNumber) }
             let remainder = String(content.dropFirst(prefix[0].count))
             if let token = capture(#"^([\p{L}]+)\b\.?\s*"#, in: remainder) {
@@ -156,11 +260,11 @@ public enum FoodListParser {
                 amount = nil
                 notices.append(.unknownUnit)
             }
-        } else if let suffix = capture(trailingAmountPattern, in: content),
+        } else if let suffix = capture(grammar.trailingPattern, in: content),
                   let definition = units[suffix[3].lowercased()], definition.0 != .count {
             // One explicit trailing metric amount is supported. Additional
             // amounts in the remaining query still trigger the guard below.
-            amount = number(suffix[2]).map { $0 * definition.1 }
+            amount = grammar.read(suffix[2]).map { $0 * definition.1 }
             unit = amount == nil ? nil : definition.0
             query = suffix[1]
             if amount == nil { notices.append(.ambiguousNumber) }
@@ -193,12 +297,20 @@ public enum FoodListParser {
             .trimmingCharacters(in: .whitespaces)
         return ParsedFoodListLine(
             lineNumber: lineNumber, original: original, query: query,
-            quantity: amount, unit: unit, preparation: preparation, notices: notices
+            quantity: amount, unit: unit, preparation: preparation, notices: notices,
+            grammarVersion: grammar.version, numeralConvention: grammar.convention
         )
     }
 
     private static let leadingAmountPattern = #"(?i)^(½|[0-9]+(?:[.,][0-9]+)?(?:/[0-9]+)?|\.[0-9]+|half\b|one\b|two\b|three\b|quarter\b|a\b|an\b)\s*(?:[x×]\s*(?=[\p{L}]))?"#
     private static let trailingAmountPattern = #"(?i)^(.+?)\s+([0-9]+(?:[.,][0-9]+)?(?:/[0-9]+)?|\.[0-9]+)\s*([\p{L}]+)\.?$"#
+    /// v4 captures a whole grouped or spaced numeral ("1,000.5", "1 500") so it is classified
+    /// rather than half-read. A space joins only a following group of exactly three digits, so
+    /// "1 1/2" and "2 pretzels" are captured as in v3.
+    private static let v4Numeral = #"[0-9]+(?:(?:[.,]|[ \x{00A0}\x{202F}](?=[0-9]{3}(?![0-9/])))[0-9]+)*(?:/[0-9]+)?|\.[0-9]+"#
+    private static let v4LeadingAmountPattern = #"(?i)^(½|"# + v4Numeral
+        + #"|half\b|one\b|two\b|three\b|quarter\b|a\b|an\b)\s*(?:[x×]\s*(?=[\p{L}]))?"#
+    private static let v4TrailingAmountPattern = #"(?i)^(.+?)\s+("# + v4Numeral + #")\s*([\p{L}]+)\.?$"#
     private static func amountContent(_ text: String) -> String {
         text.replacingOccurrences(of: #"^[•*\-]\s+"#, with: "", options: .regularExpression)
     }

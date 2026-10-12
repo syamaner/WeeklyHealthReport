@@ -475,7 +475,7 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
         XCTAssertEqual(state.decision, .undecided)
         let evidence = try XCTUnwrap(state.input.evidence.first)
         XCTAssertEqual(evidence.evidenceID, draft.evidenceID)
-        XCTAssertEqual(evidence.captureMethodVersion.value, FoodListParser.version)
+        XCTAssertEqual(evidence.captureMethodVersion.value, FoodListParser.legacyVersion, "a v3 line keeps its v3 label")
         guard case let .descriptor(payload) = evidence.originalPayload else { return XCTFail("Missing input evidence") }
         let json = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(payload.value.utf8)) as? [String: Any])
         XCTAssertEqual(json["original"] as? String, " 60 gr Ackee canned drained ")
@@ -483,6 +483,70 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
         draft.quantityText = ""
         let missing = try service.confirmation(for: draft, route: route, candidateIndex: 0)
         XCTAssertNil(missing.quantity.value)
+    }
+
+    /// food-list-lexical-v4 (#222): evidence carries each line's own grammar and convention with
+    /// canonical amount text; a restored v3 line keeps its v3 label and descriptor bytes; Confirm
+    /// opens with the untouched parse or the typed amount read by the line's convention (Q6).
+    func testListEvidenceRecordsEachLinesGrammarAndConfirmReadsAmountsByItsConvention() throws {
+        let ids = SequenceIDs()
+        let service = FoodListImportService(searcher: try CoFIDGenericFoodSearch(ids: ids))
+        func draft(_ line: ParsedFoodListLine) throws -> FoodListLineDraft {
+            FoodListLineDraft(parsed: line, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        }
+        func route(_ draft: FoodListLineDraft) throws -> GenericFoodConfirmationRoute {
+            guard case let .candidates(route) = try service.search(draft, at: FixedClock().now(), locale: LedgerText("en_GB")) else {
+                throw FoodLedgerValidationError.empty("candidates")
+            }
+            return route
+        }
+        func evidence(_ draft: FoodListLineDraft) throws -> (version: String, descriptor: String) {
+            let route = try route(draft)
+            let state = try service.confirmation(for: draft, route: route, candidateIndex: 0)
+            let evidence = try XCTUnwrap(state.input.evidence.first { $0.evidenceID == draft.evidenceID })
+            guard case let .descriptor(payload) = evidence.originalPayload else { throw FoodLedgerValidationError.empty("descriptor") }
+            return (evidence.captureMethodVersion.value, payload.value)
+        }
+        func amount(_ draft: FoodListLineDraft) throws -> Double? {
+            try service.confirmation(for: draft, route: try route(draft), candidateIndex: 0).quantity.value
+        }
+
+        // v4, full-stop-decimal: "1,500" is 1500 (Q1); evidence records the convention (Q4).
+        var english = try draft(try XCTUnwrap(FoodListParser.parse("1,500 gr Ackee canned drained", convention: .fullStopDecimal).first))
+        XCTAssertEqual(try amount(english), 1500)
+        let englishEvidence = try evidence(english)
+        XCTAssertEqual(englishEvidence.version, "food-list-lexical-v4")
+        XCTAssertEqual(englishEvidence.descriptor,
+                       #"{"lineNumber":1,"notices":[],"numeralConvention":"full_stop_decimal","original":"1,500 gr Ackee canned drained","quantity":"1500","query":"Ackee canned drained","unit":"g"}"#)
+        english.quantityText = "1,250"
+        XCTAssertEqual(try amount(english), 1250, "typed grouping reads by the line's convention (Q6)")
+        XCTAssertTrue(try evidence(english).descriptor.contains(#""quantity":"1250""#), "typed text is recorded canonically")
+        english.quantityText = "1,5"
+        XCTAssertNil(try amount(english))
+
+        // v4, comma-decimal: "1,5" is 1.5 and "1.500" is never guessed.
+        var german = try draft(try XCTUnwrap(FoodListParser.parse("1,5 gr Ackee canned drained", convention: .commaDecimal).first))
+        XCTAssertEqual(try amount(german), 1.5)
+        XCTAssertTrue(try evidence(german).descriptor.contains(#""numeralConvention":"comma_decimal""#))
+        XCTAssertTrue(try evidence(german).descriptor.contains(#""quantity":"1.5""#))
+        german.quantityText = "2,25"
+        XCTAssertEqual(try amount(german), 2.25)
+        german.quantityText = "1.500"
+        XCTAssertNil(try amount(german))
+        let ambiguous = try draft(try XCTUnwrap(FoodListParser.parse("1.500 gr Ackee canned drained", convention: .commaDecimal).first))
+        XCTAssertNil(ambiguous.parsed.quantity)
+        XCTAssertNil(try amount(ambiguous))
+
+        // A v3 line (restored from an older checkpoint) keeps its label, bytes and frozen reading.
+        var legacy = try draft(try XCTUnwrap(FoodListParser.parse("60 gr Ackee canned drained").first))
+        let legacyEvidence = try evidence(legacy)
+        XCTAssertEqual(legacyEvidence.version, "food-list-lexical-v3")
+        XCTAssertEqual(legacyEvidence.descriptor,
+                       #"{"lineNumber":1,"notices":[],"original":"60 gr Ackee canned drained","quantity":"60.0","query":"Ackee canned drained","unit":"g"}"#)
+        XCTAssertEqual(try amount(legacy), 60)
+        legacy.quantityText = "1,500"
+        XCTAssertNil(try amount(legacy), "v3 lines keep the frozen v3 rule")
+        XCTAssertTrue(try evidence(legacy).descriptor.contains(#""quantity":"1,500""#), "v3 text is recorded as typed")
     }
 
     func testSupplementRecipeAndUnknownFoodStayUnresolved() throws {

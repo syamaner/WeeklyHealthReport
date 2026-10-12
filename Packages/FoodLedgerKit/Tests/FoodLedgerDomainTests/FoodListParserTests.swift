@@ -15,7 +15,7 @@ final class FoodListParserTests: XCTestCase {
             XCTAssertEqual(line.quantity, quantity, text)
             XCTAssertEqual(FoodListParser.amountNumeral(of: line), numeral, text)
         }
-        XCTAssertEqual(FoodListParser.version, "food-list-lexical-v3")
+        XCTAssertEqual(FoodListParser.legacyVersion, "food-list-lexical-v3")
     }
 
     func testHalfNotationPreservesCountRatherThanMass() throws {

@@ -41,6 +41,8 @@ public final class FoodListImportViewModel: ObservableObject {
     private let locale: LedgerText
     /// The reader's decimal convention for pasted amounts (#222), supplied by the caller.
     public let amountLocale: Locale
+    /// The numeral convention new lines are parsed under (food-list-lexical-v4), from `amountLocale`.
+    public var numeralConvention: NumeralConvention { NumeralConvention(locale: amountLocale) }
     private let ids: any LedgerIDGenerating
     private let now: @MainActor () -> Date
     private let confirmationNow: @Sendable () -> Date
@@ -163,13 +165,16 @@ public final class FoodListImportViewModel: ObservableObject {
             prepare()
             guard !rows.isEmpty else { throw FoodLedgerValidationError.invalidProvenance }
         }
-        let prefix = portion.map { "\($0.value) \($0.unit == .grams ? "g" : $0.unit == .millilitres ? "ml" : "count") " } ?? ""
+        // The portion is written in the list's own numeral convention, so it reads back exactly.
+        let prefix = portion.map {
+            "\(numeralConvention.text($0.value)) \($0.unit == .grams ? "g" : $0.unit == .millilitres ? "ml" : "count") "
+        } ?? ""
         let text = prefix + name
         let combined = input.isEmpty ? text : input + "\n" + text
         guard combined.count <= 30_000, combined.components(separatedBy: .newlines).count <= 200 else {
             throw FoodListParser.ParseError.tooLarge
         }
-        let parsed = try FoodListParser.parse(combined)
+        let parsed = try FoodListParser.parse(combined, convention: numeralConvention)
         guard let last = parsed.last else { throw FoodListParser.ParseError.empty }
         let draft = FoodListLineDraft(parsed: last, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
         restoring = true
@@ -196,7 +201,9 @@ public final class FoodListImportViewModel: ObservableObject {
     public func prepare() {
         guard rows.isEmpty else { return }
         do {
-            let parsed = try FoodListParser.parse(input)
+            let parsed = try FoodListParser.parse(input, convention: numeralConvention)
+            // v4 already leaves an ambiguous numeral without an amount; the #225 withholding
+            // stays as a safety net and remains the rule for restored v3 lines.
             let prepared = try parsed.map {
                 FoodListReviewRow(draft: FoodListAmountText.withholdingAmbiguousAmount(FoodListLineDraft(
                     parsed: $0, operationID: try ids.makeID(OperationTag.self),
@@ -578,10 +585,12 @@ public enum FoodListAmountText {
     public static let refusedText = FoodLogRequirementText.text(.amountTextInvalid)
 
     /// A prepared line whose pasted numeral could mean two amounts in this locale has no amount
-    /// (#222). The locale-free list grammar reads a German "1.500 g rice" (grouping for 1500) as
-    /// 1.5 and an English "1,5 g" as 1.5; neither is proposed here. The amount is left empty, so
-    /// the existing needs-amount rule blocks saving until the user enters one. The parse itself,
-    /// its notices and its version are unchanged; only the editable proposal is withheld.
+    /// (#222). The v3 list grammar reads a German "1.500 g rice" (grouping for 1500) as 1.5 and
+    /// an English "1,5 g" as 1.5; neither is proposed here. The amount is left empty, so the
+    /// existing needs-amount rule blocks saving until the user enters one. The parse itself, its
+    /// notices and its version are unchanged; only the editable proposal is withheld. A v4 line
+    /// is already parsed with the locale's convention, so this is its safety net (a line restored
+    /// in another locale); for v3 lines restored from an older queue it remains the rule.
     public static func withholdingAmbiguousAmount(_ draft: FoodListLineDraft, locale: Locale) -> FoodListLineDraft {
         guard hasAmbiguousNumeral(draft.parsed, locale: locale) else { return draft }
         var reviewed = draft
@@ -614,8 +623,8 @@ public enum FoodListAmountText {
     }
 
     /// True when the shown amount has separators that could mean two amounts here (a German
-    /// "1.500", say). The domain list parser is not locale-aware (#222), so such a line is
-    /// blocked here rather than read as 1.5. Empty text is not refused: the unit rules apply.
+    /// "1.500", say), so such a line is blocked here rather than read as 1.5 (#222). Empty text is
+    /// not refused: the unit rules apply.
     public static func isRefused(_ shown: String, locale: Locale) -> Bool {
         let text = shown.trimmingCharacters(in: .whitespacesAndNewlines)
         return !text.isEmpty && FoodAmountFieldText.canonical(text, locale: locale) == nil

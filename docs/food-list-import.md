@@ -47,7 +47,7 @@ dependencies. No automatic match acceptance or alternate save schema is added.
 
 ## Parsing envelope
 
-`food-list-lexical-v2` handles compact/spaced gram and millilitre forms, their plural
+`food-list-lexical-v2` (and v3, v4) handles compact/spaced gram and millilitre forms, their plural
 and regional spellings, explicit kg/L scaling, decimal points, unambiguous decimal
 commas, simple fractions, `1x` counts, half/quarter and one/two/three counts, and
 bulleted lines. Articles `a` and `an` remain counts. A single trailing metric
@@ -63,13 +63,21 @@ Times do not backdate a log: confirmed entries use the existing save-time date.
 The input limit is 200 lines and 30,000 characters, with rejection rather than
 silent truncation.
 
-The lexical grammar does not know the reader's decimal convention, so the review
-screen checks the numeral behind each parsed amount against the device locale with
-the same rule as every other amount field (#222). A numeral that could mean two
-amounts there (a German "1.500", which may be grouping for 1500; an English "1,5";
-space grouping) is not proposed: the line's amount starts empty with the number
-format notice, and the existing needs-amount rule blocks saving until the user
-enters one. The parse, its notices and `food-list-lexical-v3` are unchanged.
+New lists are parsed under `food-list-lexical-v4` ([contract](food-list-lexical-v4.md),
+#222): the review screen maps the device locale's decimal separator to a numeral
+convention (full-stop-decimal, comma-decimal or unspecified) and passes it to the pure
+parser, which reads numerals with the same rule as every other amount field. An
+English "1,500" is 1500; a German "1,5" is 1.5. A numeral that could mean two amounts
+(a German "1.500", which may be grouping for 1500; an English "1,5"; any space
+grouping) has no amount and the number format notice, and the existing needs-amount
+rule blocks saving until the user enters one. Each line records its grammar version
+and convention, and its capture evidence is stamped with them, with the amount as
+canonical text. Typed amounts reach Confirm read by the line's convention.
+
+Lines saved in a queue by an earlier build keep their `food-list-lexical-v3` parse and
+label and are never re-parsed. For them, and as a safety net for v4 lines restored in
+another locale, the review screen still checks the numeral behind each untouched
+parsed amount against the device locale and withholds an ambiguous one (#225).
 
 Uncertain numbers, household measures, pack multipliers and multiple amounts leave
 the consumed amount empty. Coffee-ground amounts remain preparation information.

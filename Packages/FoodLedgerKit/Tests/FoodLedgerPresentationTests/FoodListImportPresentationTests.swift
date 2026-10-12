@@ -9,15 +9,17 @@ import XCTest
 final class FoodListImportPresentationTests: XCTestCase {
     /// #222: a pasted numeral that could mean two amounts in the reader's locale is never
     /// proposed as a number; the line has no amount, says why, and the needs-amount rule applies.
+    /// Under food-list-lexical-v4 the parse itself reads the locale's convention.
     func testPastedAmountsFollowTheReadersDecimalConvention() throws {
         let cases: [(String, String, String, Bool)] = [
             ("de_DE", "1.500 g rice", "", true),      // German grouping for 1500, or 1.5
-            ("fr_FR", "1 500 g rice", "", false),     // space grouping: the parse has no amount
-            ("fr_FR", "1\u{202F}500 g rice", "", false),
+            ("fr_FR", "1 500 g rice", "", true),      // space grouping
+            ("fr_FR", "1\u{202F}500 g rice", "", true),
             ("en_GB", "1,5 g rice", "", true),        // a decimal comma is not English
             ("de_DE", "1,5 g rice", "1.5", false),
             ("en_GB", "1.500 g rice", "1.5", false),
-            ("en_GB", "1,500 g rice", "", false),     // the parse leaves it as an ambiguous number
+            ("en_GB", "1,500 g rice", "1500.0", false), // Q1: English grouping
+            ("de_DE", "1,500 g rice", "1.5", false),    // a German decimal comma
             ("de_DE", "1.500 kg rice", "", true),
             ("de_DE", "rice 1.500 g", "", true),
             ("de_DE", "10 g rice", "10.0", false),
@@ -33,8 +35,13 @@ final class FoodListImportPresentationTests: XCTestCase {
             model.prepare()
             let draft = try XCTUnwrap(model.rows.first?.draft, text)
             XCTAssertEqual(draft.quantityText, quantityText, "\(identifier) \(text)")
-            XCTAssertEqual(FoodListAmountText.showsAmbiguousNumeral(draft, locale: model.amountLocale), explained, "\(identifier) \(text)")
-            XCTAssertEqual(try FoodListParser.parse(text).first, draft.parsed, "the versioned parse is unchanged")
+            let says = draft.parsed.notices.contains(.ambiguousNumber)
+                || FoodListAmountText.showsAmbiguousNumeral(draft, locale: model.amountLocale)
+            XCTAssertEqual(says, explained, "\(identifier) \(text)")
+            let convention = NumeralConvention(locale: Locale(identifier: identifier))
+            XCTAssertEqual(try FoodListParser.parse(text, convention: convention).first, draft.parsed)
+            XCTAssertEqual(draft.parsed.grammarVersion, "food-list-lexical-v4")
+            XCTAssertEqual(draft.parsed.numeralConvention, convention)
         }
         // Once the user types an amount, it is theirs; the explanation goes.
         let (model, _) = try listModel(locale: Locale(identifier: "de_DE"))
@@ -87,6 +94,93 @@ final class FoodListImportPresentationTests: XCTestCase {
         let confirmation = try XCTUnwrap(model.confirmation)
         XCTAssertNil(confirmation.state.quantity.value)
         XCTAssertEqual(confirmation.state.quantity.unit, .grams)
+    }
+
+    /// Q1 and Q6 end to end: an English "1,500 g" reaches Confirm as 1500 g, and a typed German
+    /// "2,5" as 2.5; evidence is stamped v4 with the line's convention.
+    func testV4AmountsReachConfirmAndEvidenceByTheLinesConvention() throws {
+        let (english, englishSearch) = try listModel(locale: Locale(identifier: "en_GB"))
+        english.input = "1,500 g fixture"
+        english.prepare()
+        english.search()
+        english.review(candidate: 0)
+        XCTAssertEqual(english.confirmation?.state.quantity.value, 1500)
+        XCTAssertEqual(englishSearch.lastEvidence?.captureMethodVersion.value, "food-list-lexical-v4")
+        guard case let .descriptor(payload) = englishSearch.lastEvidence?.originalPayload else { return XCTFail("Missing descriptor") }
+        XCTAssertTrue(payload.value.contains(#""numeralConvention":"full_stop_decimal""#))
+        XCTAssertTrue(payload.value.contains(#""quantity":"1500""#))
+
+        let (german, _) = try listModel(locale: Locale(identifier: "de_DE"))
+        german.input = "1.500 g fixture"
+        german.prepare()
+        var draft = try XCTUnwrap(german.selectedRow?.draft)
+        draft.quantityText = FoodListAmountText.stored("2,5", current: draft.quantityText, parsed: draft.parsed.quantity, locale: german.amountLocale)
+        german.edit(draft)
+        german.search()
+        german.review(candidate: 0)
+        XCTAssertEqual(german.confirmation?.state.quantity.value, 2.5)
+    }
+
+    /// A queue saved by a v3 build restores with its v3 lines intact: they are not re-parsed,
+    /// keep the #225 withholding and are searched with the v3 label; new lines are v4.
+    func testRestoredV3LinesKeepTheirParseAndLabel() throws {
+        let checkpoint = MemoryCheckpoint()
+        let ids = ListIDs()
+        let legacy = try FoodListParser.parse("1.500 g rice\n10 g fixture").map {
+            FoodListLineDraft(parsed: $0, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        }
+        // The checkpoint as a v3 build wrote it: no v4 keys anywhere.
+        let encoded = try JSONEncoder().encode(FoodListCheckpoint(
+            input: "1.500 g rice\n10 g fixture", inputMethod: .pastedOrTyped, drafts: legacy,
+            dispositions: ["pending", "pending"], savedIDs: [nil, nil], selectedID: legacy[1].id
+        ))
+        XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("grammarVersion"))
+        XCTAssertFalse(String(decoding: encoded, as: UTF8.self).contains("numeralConvention"))
+        try checkpoint.save(try JSONDecoder().decode(FoodListCheckpoint.self, from: encoded))
+
+        let search = ListSearch()
+        let model = FoodListImportViewModel(
+            service: FoodListImportService(searcher: search), locale: try LedgerText("de_DE"), ids: ids,
+            checkpointStore: checkpoint, amountLocale: Locale(identifier: "de_DE")
+        ) { _, _ in throw FoodLedgerValidationError.invalidProvenance }
+        XCTAssertEqual(model.rows.map(\.draft.parsed.grammarVersion), [nil, nil])
+        XCTAssertEqual(model.rows.map(\.draft.parsed.quantity), [1.5, 10], "v3 parses are kept, not re-parsed")
+        XCTAssertEqual(model.rows.map(\.draft.quantityText), ["", "10.0"], "the #225 safety net still withholds")
+        model.search()
+        XCTAssertEqual(search.lastEvidence?.captureMethodVersion.value, "food-list-lexical-v3")
+        guard case let .descriptor(payload) = search.lastEvidence?.originalPayload else { return XCTFail("Missing descriptor") }
+        XCTAssertEqual(payload.value, #"{"lineNumber":2,"notices":[],"original":"10 g fixture","quantity":"10.0","query":"fixture","unit":"g"}"#)
+
+        try model.addCommonFood(name: "fixture", portion: InventoryAmount(value: 0.125, unit: .grams))
+        let added = try XCTUnwrap(model.selectedRow?.draft)
+        XCTAssertEqual(added.parsed.original, "0,125 g fixture", "written in the list's convention")
+        XCTAssertEqual(added.parsed.grammarVersion, "food-list-lexical-v4")
+        XCTAssertEqual(added.parsed.quantity, 0.125)
+    }
+
+    /// The presentation mapping from the device locale to the domain convention.
+    func testNumeralConventionFollowsTheLocaleDecimalSeparator() {
+        XCTAssertEqual(NumeralConvention(locale: Locale(identifier: "en_GB")), .fullStopDecimal)
+        XCTAssertEqual(NumeralConvention(locale: Locale(identifier: "en_US")), .fullStopDecimal)
+        XCTAssertEqual(NumeralConvention(locale: Locale(identifier: "de_DE")), .commaDecimal)
+        XCTAssertEqual(NumeralConvention(locale: Locale(identifier: "fr_FR")), .commaDecimal)
+        XCTAssertEqual(NumeralConvention.commaDecimal.text(1500), "1500")
+        XCTAssertEqual(NumeralConvention.commaDecimal.text(0.125), "0,125")
+        XCTAssertEqual(NumeralConvention.fullStopDecimal.text(0.125), "0.125")
+    }
+
+    /// The parser and the amount field share one rule: for every numeral in the v4 golden table,
+    /// the list parse under a locale's convention has the value the Confirm field reads.
+    func testV4GrammarAgreesWithTheAmountField() {
+        let numerals = ["150", "1.5", "0.25", ".5", "1.500", "0.175", "1.5000", "1,5", "1,50", "1,500", "12,345", "1,5000",
+                        "1,000,000", "1,000.5", "12,34,567", "1.000.000", "1.500,5", "1 500", "1\u{00A0}500", "1\u{202F}500"]
+        for identifier in ["en_GB", "de_DE", "fr_FR"] {
+            let locale = Locale(identifier: identifier)
+            for numeral in numerals {
+                XCTAssertEqual(FoodListParser.number(numeral, convention: NumeralConvention(locale: locale)),
+                               FoodAmountFieldText.parse(numeral, locale: locale), "\(identifier) \(numeral)")
+            }
+        }
     }
 
     func testCommonFoodAddsToExistingReviewWithoutSavingOrSearching() throws {
