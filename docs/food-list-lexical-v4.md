@@ -1,6 +1,6 @@
 # Food list lexical grammar v4: locale-aware amounts (#222)
 
-Status: **Draft, awaiting owner approval, 12 October 2026. Documents only; no code has changed.**
+Status: **Approved by the owner, 12 October 2026, with every recommended answer (Q1 to Q6; approval comment on #226). Implemented in the same PR.** The receipt follow-up is #227.
 Programme: [#140](https://github.com/syamaner/WeeklyHealthReport/issues/140). Issue: [#222](https://github.com/syamaner/WeeklyHealthReport/issues/222).
 Amends the parsing envelope in [food-list-import.md](food-list-import.md). Introduces the grammar identifier **`food-list-lexical-v4`**; `food-list-lexical-v3` stays defined and frozen.
 
@@ -46,7 +46,7 @@ A new closed domain type, `NumeralConvention`, with persisted raw values:
 
 ## v4 numeral grammar
 
-The table is normative. "Ambiguous" means: no amount, the unit is cleared, and the line carries the existing `ambiguousNumber` notice ("Check the number format before choosing an amount."), so the needs-amount rule blocks saving until the user enters one. Values are before unit scaling (kg and L still multiply by 1000).
+The table is normative. "Ambiguous" means: no amount, and the line carries the existing `ambiguousNumber` notice ("Check the number format before choosing an amount."), so the needs-amount rule blocks saving until the user enters one. As in v3, a recognised unit after a leading numeral is kept so the user enters the amount in it; a trailing ambiguous amount leaves no unit. Values are before unit scaling (kg and L still multiply by 1000).
 
 ### Separators and grouping
 
@@ -79,7 +79,7 @@ Rules behind the table, matching `FoodAmountFieldText.canonical` so the parser, 
 1. Full-stop-decimal: a comma is only grouping, and only as `^\d{1,3}(,\d{3})+(\.\d+)?$`. Any other comma is ambiguous. A full stop is always a decimal point; more than one full stop is ambiguous.
 2. Comma-decimal: a comma is the decimal point (at most one). A full stop is accepted as a decimal point only when the numeral has no comma and no full stop is followed by exactly three digits; otherwise it is ambiguous. Full-stop grouping is not accepted (Q2).
 3. Space grouping (U+0020, U+00A0, U+202F between digit groups) is ambiguous in every convention (Q2). Where v3 left such a line with an `unknownUnit` notice, v4 reports `ambiguousNumber` instead, which names the real problem.
-4. The numeral token widens from v3's `[0-9]+(?:[.,][0-9]+)?` to capture the grouped and spaced forms above, in both the leading and the trailing amount position, so they are classified rather than half-read. Everything after the numeral (unit dictionary, household words, typo guard, multiple-amount and pack guards, coffee and supplement rules) is unchanged from v3.
+4. The numeral token widens from v3's `[0-9]+(?:[.,][0-9]+)?` to capture the grouped and spaced forms above, in both the leading and the trailing amount position, so they are classified rather than half-read. A space joins a numeral only when exactly three digits follow (not a fraction), so "1 1/2" and "2 pretzels" are captured as in v3, while "2 100 g" is read as one space-grouped, ambiguous numeral. Everything after the numeral (unit dictionary, household words, typo guard, multiple-amount and pack guards, coffee and supplement rules) is unchanged from v3.
 
 ### Forms that do not depend on the convention
 
@@ -115,7 +115,7 @@ Synthesised `Codable` with optional fields keeps every existing `FoodListCheckpo
 `FoodListImportService.search` writes the manual `CaptureEvidence` as today, with two changes for v4 lines only:
 
 - `captureMethodVersion` is the **line's** `grammarVersion` (`food-list-lexical-v4`), not the `FoodListParser.version` constant. This also closes a latent mislabel: today a line restored from a v3 checkpoint after an upgrade would be stamped with whatever the constant says at search time.
-- The JSON descriptor (sorted keys) gains `"numeralConvention"` (Q4), and its `quantity` is canonical text: full stop decimal, no grouping, no trailing `.0` (`FoodAmountTextParser.editableText`), whether the amount was proposed by the parser or typed by the user. Under v3 the descriptor holds the field text as typed, which may be locale-formatted.
+- The JSON descriptor (sorted keys) gains `"numeralConvention"` (Q4), and its `quantity` is canonical text: full stop decimal, no grouping, no trailing `.0` (`FoodAmountTextParser.editableText`), whether the amount was proposed by the parser or typed by the user. Text that does not read as one amount (empty, or refused) is recorded unchanged. Under v3 the descriptor holds the field text as typed, which may be locale-formatted, and v3 lines keep doing so.
 
 The `genericSearch` capture (`food_list_generic_search`, `v1`), the evidence `locale` field, the confirmation policy, the ledger schema and the archive formats do not change. No reader decodes the list descriptor; it is opaque `LedgerText` retained for provenance.
 
@@ -127,7 +127,9 @@ The `genericSearch` capture (`food_list_generic_search`, `v1`), the evidence `lo
 
 ### Reading the amount into Confirm
 
-`FoodListImportService.confirmation(for:)` currently re-reads `draft.quantityText` with the locale-free `FoodListParser.number`. Under v4 it uses `parsed.quantity` while the amount is the untouched proposal, and otherwise the canonical text the presentation layer stored (rule above), read with `FoodAmountTextParser.parse`. This removes a gap found while drafting: on en_GB today, typing "1,500" into a list line passes the field check (`FoodAmountFieldText` accepts comma grouping) but `FoodListParser.number("1,500")` returns nil, so Confirm opens with an empty amount. It fails safe, but it is inconsistent.
+`FoodListImportService.confirmation(for:)` used to re-read `draft.quantityText` with the locale-free `FoodListParser.number`. For a v4 line it now uses `parsed.quantity` while the amount is the untouched proposal, and otherwise reads the typed text with `FoodListParser.number(_:convention:)` under the line's own convention, which is the device convention the field checks against and agrees with `FoodAmountFieldText` on every golden-table numeral (`FoodListLineDraft.amountValue`). The field keeps the text as typed, so the user still sees "1,5" rather than a rewritten "1.5". This removes a gap found while drafting: on en_GB, typing "1,500" into a list line passed the field check but `FoodListParser.number("1,500")` returned nil, so Confirm opened with an empty amount. A v3 line restored from an older queue keeps the frozen v3 reading of its text.
+
+Common-food shortcuts that add a line write the portion in the list's convention ("0,125 g" under comma-decimal), so it reads back exactly.
 
 ## Presentation-layer withholding
 
@@ -169,26 +171,28 @@ All synthetic, offline and deterministic.
 
 None. The change is local parsing and local evidence. No destination, request, provider or HealthKit type is added or widened; HealthKit stays read-only.
 
-## Decisions for the owner
+## Decisions (answered by the owner, 12 October 2026)
+
+The owner accepted every recommendation below.
 
 **Q1. Should en_GB "1,500 g rice" read as 1500 g?**
-Recommended: **yes**, under `fullStopDecimal` only. In that convention a comma in groups of three can only be grouping, Confirm shows the amount before Log, and the list field already accepts "1,500" as 1500. Alternative: keep it ambiguous everywhere (today's behaviour), which costs British users a re-type for every grouped number. A further option, not recommended for v4, is a new non-blocking notice ("Read as 1500; check the number format"), which would add a `FoodListNotice` case.
+Answer: **yes**, under `fullStopDecimal` only. In that convention a comma in groups of three can only be grouping, Confirm shows the amount before Log, and the list field already accepts "1,500" as 1500. Alternative: keep it ambiguous everywhere (today's behaviour), which costs British users a re-type for every grouped number. A further option, not recommended for v4, is a new non-blocking notice ("Read as 1500; check the number format"), which would add a `FoodListNotice` case.
 
 **Q2. How are space-grouped and full-stop-grouped numbers treated?**
-Recommended: **ambiguous in every convention**, including fr_FR's narrow no-break space and German "1.500" / "1.500,5". Space grouping also collides with mixed numbers and two separate numbers ("1 500 g" may be a count of 1 and 500 g), and accepting German full-stop grouping would contradict the Confirm field, which refuses it. Food amounts above 999 g or ml are rare, so the cost is small. Revisit together with the field rule if users report it.
+Answer: **ambiguous in every convention**, including fr_FR's narrow no-break space and German "1.500" / "1.500,5". Space grouping also collides with mixed numbers and two separate numbers ("1 500 g" may be a count of 1 and 500 g), and accepting German full-stop grouping would contradict the Confirm field, which refuses it. Food amounts above 999 g or ml are rare, so the cost is small. Revisit together with the field rule if users report it.
 
 **Q3. Are receipts in scope?**
-Recommended: **out**. `receipt-lexical-v1` keeps the frozen v3 numeral rule; a receipt's convention is the shop's rather than the device's, and its outputs are inventory proposals, not consumed amounts. Track a separate `receipt-lexical-v2` contract if needed.
+Answer: **out**. `receipt-lexical-v1` keeps the frozen v3 numeral rule; a receipt's convention is the shop's rather than the device's, and its outputs are inventory proposals, not consumed amounts. Tracked as #227.
 
 **Q4. Should the numeral convention be recorded in evidence?**
-Recommended: **yes**, as `numeralConvention` on each v4 parsed line and in each v4 list descriptor. Without it a v4 descriptor cannot be re-derived: "1,500" means 1500 or 1.5 depending on the convention, and the evidence `locale` identifier alone depends on how a future OS maps that locale.
+Answer: **yes**, as `numeralConvention` on each v4 parsed line and in each v4 list descriptor. Without it a v4 descriptor cannot be re-derived: "1,500" means 1500 or 1.5 depending on the convention, and the evidence `locale` identifier alone depends on how a future OS maps that locale.
 
 **Q5. What does a device with an unrecognised decimal separator get?**
-Recommended: **`unspecified`**, which accepts a numeral only where both conventions agree, so no such device sees a guessed value.
+Answer: **`unspecified`**, which accepts a numeral only where both conventions agree, so no such device sees a guessed value.
 
 **Q6. Should Confirm read list amounts from the untouched parse or canonical typed text (instead of re-parsing field text with the v3 rule)?**
-Recommended: **yes**, as specified above; it fixes the en_GB "1,500" typed-text gap and keeps one numeral rule per amount.
+Answer: **yes**, as specified above; it fixes the en_GB "1,500" typed-text gap and keeps one numeral rule per amount.
 
 ## Delivery
 
-On approval: one branch and PR (`fix/222-list-lexical-v4`), with `food-list-import.md` updated to describe v4 and this document's status changed to approved. Architecture gate: domain owns `NumeralConvention` and the grammar; application stamps the line's own version; presentation owns the locale mapping; the composition root is unchanged apart from passing the locale it already passes.
+Delivered on the contract's own branch and PR (#226), with `food-list-import.md` updated to describe v4. Tests: `FoodListLexicalV4Tests` (golden tables, v3 freeze and encoding), `CoFIDGenericFoodSearchTests` (evidence bytes, v3 label, Q6 prefill) and `FoodListImportPresentationTests` (locale mapping, field agreement, restored v3 queue, Confirm end to end). Architecture gate: domain owns `NumeralConvention` and the grammar; application stamps the line's own version; presentation owns the locale mapping; the composition root is unchanged apart from passing the locale it already passes.
