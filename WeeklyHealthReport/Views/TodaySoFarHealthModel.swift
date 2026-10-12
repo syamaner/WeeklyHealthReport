@@ -7,6 +7,33 @@ protocol HealthReadAuthorizationRequesting: Sendable {
     func requestReadAuthorization() async throws
 }
 
+/// Shares one in-flight read-authorisation request between callers (the
+/// report and Home both ask on launch). A caller arriving while a request is
+/// running awaits that request and its outcome; a later caller starts a new
+/// one. The wrapped requester decides the read set; `toShare` stays empty.
+actor SingleFlightReadAuthorization: HealthReadAuthorizationRequesting {
+    private let base: HealthReadAuthorizationRequesting
+    private var inFlight: Task<Void, Error>?
+    /// Callers that joined a running request instead of starting one (for tests).
+    private(set) var joinedCallers = 0
+
+    init(base: HealthReadAuthorizationRequesting) {
+        self.base = base
+    }
+
+    func requestReadAuthorization() async throws {
+        if let inFlight {
+            joinedCallers += 1
+            return try await inFlight.value
+        }
+        let base = base
+        let task = Task { try await base.requestReadAuthorization() }
+        inFlight = task
+        defer { inFlight = nil }
+        try await task.value
+    }
+}
+
 /// Orchestrates Home's today-so-far health card (contract sections 5 and 6):
 /// one injected clock and calendar, authorisation at most once per session,
 /// and a generation so an older refresh never overwrites a newer one.

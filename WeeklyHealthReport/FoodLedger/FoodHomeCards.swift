@@ -10,6 +10,8 @@ struct FoodHomeCardContent: Equatable {
         let label: String
         let value: String
         let accessibilityLabel: String
+        /// "Includes estimates" when known values include estimates, as in the Food Log.
+        var caption: String? = nil
     }
 
     struct Logged: Equatable {
@@ -57,7 +59,8 @@ struct FoodHomeCardContent: Equatable {
             }
             let value = amount(total, locale: locale).map { total.incompleteContributions > 0 ? $0 + "+" : $0 } ?? "Unknown"
             return Row(label: FoodLogText.label(key), value: value,
-                       accessibilityLabel: FoodLogText.totalAccessibility(total, locale: locale))
+                       accessibilityLabel: FoodLogText.totalAccessibility(total, locale: locale),
+                       caption: FoodLogText.totalCaption(total))
         }
         let minimums = ([NutrientKey.energyConsumed] + nutrientKeys).compactMap { key in
             totals.first(where: { $0.key == key }).flatMap { knownMinimum($0, locale: locale) }
@@ -199,6 +202,9 @@ struct FoodHomeCard: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(logged.energy.value).font(.title2.weight(.semibold)).monospacedDigit()
                         Text(logged.entryCount).font(.subheadline).foregroundStyle(.secondary)
+                        if let caption = logged.energy.caption {
+                            Text(caption).font(.caption).foregroundStyle(.secondary)
+                        }
                     }
                     .padding(.vertical, 4)
                 }
@@ -206,10 +212,16 @@ struct FoodHomeCard: View {
                 .accessibilityLabel("\(logged.energy.accessibilityLabel), \(logged.entryCount)")
                 .accessibilityHint("Opens the Food Log")
                 ForEach(logged.nutrients + [logged.water], id: \.label) { row in
-                    LabeledContent(row.label, value: row.value)
-                        .monospacedDigit()
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(row.accessibilityLabel)
+                    LabeledContent {
+                        Text(row.value).monospacedDigit()
+                    } label: {
+                        Text(row.label)
+                        if let caption = row.caption {
+                            Text(caption)
+                        }
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(row.accessibilityLabel)
                 }
             }
         } header: {

@@ -99,6 +99,13 @@ Rebased onto `main` with phases 3 (#207), 4 (#211) and 7 (#210), and compared wi
 - Notes pinning is driven by the navigation path (`AppRoute.pinsNotesToToday`) rather than per-screen appear and disappear, so pushing the editor over today's notes never flips the day in between. The export keeps its selection in `DailyNotesController`; `pinToday()` overrides it and `unpinToday()` returns to it. Export calls `reassertReportDay()` on appear.
 - The health card shows Loading until the first projection for today exists (including while authorisation is requested); a window that cannot be computed shows Could not read Apple Health. Hosted unit tests refresh without requesting authorisation.
 - Times use the locale's short time style through `DateFormatter` ("07:05" in en_GB, "7:05 AM" in en_US), as D4 specifies.
+- Review fixes (12 October 2026, invariant review and journey QA of `334af539`):
+  - The food card keeps the Food Log's "Includes estimates" caption (`FoodLogText.totalCaption`) under the energy headline and each nutrient row; VoiceOver already says "includes estimates".
+  - Positive values below the display unit read "Less than 1 kcal so far" and "Less than 1 min", never 0; a returned exact 0 is still "0 so far" (D6).
+  - `TodaySoFarHealthModel` uses the food ledger root's clock and calendar, the same as the food card and Home's date.
+  - Read authorisation is single-flight: `SingleFlightReadAuthorization` wraps one `HealthKitClient` and is shared by the report (`WeeklyReportViewModel(readAuthorization:)`) and Home, so launch asks once. The read set and empty `toShare` are unchanged; `HealthDataProviding` and `FakeHealthDataProvider` are not changed.
+  - "Today’s notes" uses the curly apostrophe.
+  - Contract item 11 (accepted): `WeeklyReportScreenshotTests` changed only its two Home render sites, from the deleted `FoodIntakeHomeView` to `FoodHomeCard`, plus new tests; no fixture changed. A water-only day reading 0 kcal and 0 g follows the approved quick add Q1 (water's energy and macros are exact zeros).
 
 **Needs owner decision**
 

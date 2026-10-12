@@ -79,6 +79,29 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(noWater.nutrients.map(\.value), ["Unknown", "Unknown", "Unknown"])
     }
 
+    /// Review fix: the Food Log's "Includes estimates" caption also shows on Home.
+    func testEstimatedTotalsKeepTheirCaption() throws {
+        let gb = Locale(identifier: "en_GB")
+        let totals = [
+            FoodIntakeTotal(key: .energyConsumed, knownAmount: 300, incompleteContributions: 0, includesEstimates: true),
+            FoodIntakeTotal(key: .protein, knownAmount: 12, incompleteContributions: 0, includesEstimates: true),
+            total(.carbohydrates, 40), total(.fatTotal, 9)
+        ]
+        guard case .logged(let logged) = FoodHomeCardContent.make(itemCount: 2, totals: totals, plainWater: nil, locale: gb) else {
+            return XCTFail("Expected a logged card")
+        }
+        XCTAssertEqual(logged.energy.caption, "Includes estimates")
+        XCTAssertEqual(logged.nutrients.map(\.caption), ["Includes estimates", nil, nil])
+        XCTAssertEqual(logged.energy.accessibilityLabel, "Energy, 300 kilocalories, includes estimates")
+        XCTAssertEqual(logged.nutrients[0].accessibilityLabel, "Protein, 12 grams, includes estimates")
+        XCTAssertNil(logged.water.caption)
+        let model = FoodHomeModel(root: nil)
+        for size in [DynamicTypeSize.large, .accessibility3] {
+            render(NavigationStack { Form { FoodHomeCard(model: model) }.environment(\.dynamicTypeSize, size) },
+                   name: "Home food - unavailable - \(size)")
+        }
+    }
+
     func testFoodModelWithoutLedgerIsUnavailableNotEmpty() {
         let model = FoodHomeModel(root: nil)
         model.reload()
@@ -92,6 +115,7 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(NotesHomeCard.countLabel(0), "None yet")
         XCTAssertEqual(NotesHomeCard.countLabel(1), "1 note")
         XCTAssertEqual(NotesHomeCard.countLabel(4), "4 notes")
+        XCTAssertEqual(NotesHomeCard.title, "Today\u{2019}s notes")
     }
 
     // MARK: Native renders

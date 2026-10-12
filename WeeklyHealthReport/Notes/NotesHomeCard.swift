@@ -11,11 +11,13 @@ struct NotesHomeCard: View {
     var body: some View {
         Section {
             NavigationLink(value: AppRoute.todayNotes) {
-                LabeledContent("Today's notes", value: Self.countLabel(controller.todayNoteCount))
+                LabeledContent(Self.title, value: Self.countLabel(controller.todayNoteCount))
             }
             .accessibilityIdentifier("homeTodayNotes")
         }
     }
+
+    static let title = "Today’s notes"
 
     static func countLabel(_ count: Int) -> String {
         switch count {

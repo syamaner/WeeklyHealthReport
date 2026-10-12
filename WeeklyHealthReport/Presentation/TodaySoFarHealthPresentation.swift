@@ -62,9 +62,8 @@ struct TodaySoFarHealthCard: Equatable {
                 return (value, value)
             },
             row(.activeEnergy, projection.activeEnergyKilocalories) { kilocalories in
-                let number = HealthReportFormatter.integer(kilocalories, locale: locale)
-                return (HealthReportFormatter.todaySoFarActiveEnergy(kilocalories, locale: locale),
-                        "\(number) kilocalories so far")
+                (HealthReportFormatter.todaySoFarActiveEnergy(kilocalories, locale: locale),
+                 HealthReportFormatter.todaySoFarActiveEnergySpoken(kilocalories, locale: locale))
             },
             row(.sleep, projection.sleep, noData: HealthReportFormatter.todaySoFarSleepNoData) { sleep in
                 (HealthReportFormatter.todaySoFarSleep(seconds: sleep.asleepSeconds, isComplete: sleep.isComplete),

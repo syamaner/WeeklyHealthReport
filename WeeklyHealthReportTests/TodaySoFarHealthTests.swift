@@ -249,6 +249,27 @@ final class TodaySoFarHealthTests: XCTestCase {
         XCTAssertEqual(HealthReportFormatter.todaySoFarSleep(seconds: 45 * 60, isComplete: true), "45 min · last night")
     }
 
+    /// Positive values below the display unit never read as zero; an exact 0 stays a visible 0 (D6).
+    func testPositiveValuesBelowTheDisplayUnitAreNotZero() throws {
+        let gb = Locale(identifier: "en_GB")
+        XCTAssertEqual(HealthReportFormatter.todaySoFarActiveEnergy(0.3, locale: gb), "Less than 1 kcal so far")
+        XCTAssertEqual(HealthReportFormatter.todaySoFarActiveEnergy(0.5, locale: gb), "Less than 1 kcal so far")
+        XCTAssertEqual(HealthReportFormatter.todaySoFarActiveEnergy(0.6, locale: gb), "1 kcal so far")
+        XCTAssertEqual(HealthReportFormatter.todaySoFarActiveEnergy(0, locale: gb), "0 kcal so far")
+        XCTAssertEqual(HealthReportFormatter.todaySoFarActiveEnergySpoken(0.3, locale: gb), "less than 1 kilocalorie so far")
+        XCTAssertEqual(HealthReportFormatter.todaySoFarSteps(0, locale: gb), "0 so far")
+        XCTAssertEqual(HealthReportFormatter.todaySoFarSleep(seconds: 30, isComplete: true), "Less than 1 min · last night")
+        XCTAssertEqual(HealthReportFormatter.todaySoFarSleep(seconds: 59, isComplete: false), "Less than 1 min so far · last night")
+        XCTAssertEqual(HealthReportFormatter.todaySoFarSleepSpoken(seconds: 30, isComplete: true), "less than 1 minute, last night")
+        XCTAssertEqual(HealthReportFormatter.todaySoFarSleep(seconds: 60, isComplete: true), "1 min · last night")
+
+        let window = try Fixture.window()
+        let card = TodaySoFarHealthCard.make(projection: .make(inputs: Fixture.inputs(energy: .value(0.2)), window: window), locale: gb)
+        let rows = try Fixture.rows(card)
+        XCTAssertEqual(rows[1].value, "Less than 1 kcal so far")
+        XCTAssertEqual(rows[1].accessibilityLabel, "Active energy, less than 1 kilocalorie so far")
+    }
+
     func testTimesFollowSystemStyleAndRelativeDays() {
         let calendar = Fixture.calendar("Europe/London")
         let asOf = Fixture.date(2026, 10, 12, 14, 32, calendar)

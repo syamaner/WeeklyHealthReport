@@ -334,14 +334,29 @@ extension HealthReportFormatter {
         "\(integer(count, locale: locale)) so far"
     }
 
+    /// A returned 0 is "0 kcal so far" (D6); a positive value that would round
+    /// to 0 is "Less than 1 kcal so far", never a zero.
     static func todaySoFarActiveEnergy(_ kilocalories: Double, locale: Locale = .autoupdatingCurrent) -> String {
-        "\(integer(kilocalories, locale: locale)) kcal so far"
+        if isBelowDisplayUnit(kilocalories) { return "Less than 1 kcal so far" }
+        return "\(integer(kilocalories, locale: locale)) kcal so far"
+    }
+
+    static func todaySoFarActiveEnergySpoken(_ kilocalories: Double, locale: Locale = .autoupdatingCurrent) -> String {
+        if isBelowDisplayUnit(kilocalories) { return "less than 1 kilocalorie so far" }
+        return "\(integer(kilocalories, locale: locale)) kilocalories so far"
+    }
+
+    /// True for a positive value that whole-number rounding would show as 0.
+    static func isBelowDisplayUnit(_ value: Double) -> Bool {
+        value > 0 && value <= 0.5
     }
 
     /// "7 h 12 min · last night", or "6 h 10 min so far · last night" before noon (D1).
+    /// Positive asleep time under a minute is "Less than 1 min", never "0 min".
     static func todaySoFarSleep(seconds: TimeInterval, isComplete: Bool) -> String {
         let (hours, minutes) = hoursAndMinutes(seconds)
-        let duration = hours == 0 ? "\(minutes) min" : "\(hours) h \(minutes) min"
+        let duration = seconds > 0 && seconds < 60 ? "Less than 1 min"
+            : hours == 0 ? "\(minutes) min" : "\(hours) h \(minutes) min"
         return isComplete ? "\(duration) · last night" : "\(duration) so far · last night"
     }
 
@@ -349,7 +364,8 @@ extension HealthReportFormatter {
         let (hours, minutes) = hoursAndMinutes(seconds)
         let minuteText = minutes == 1 ? "1 minute" : "\(minutes) minutes"
         let hourText = hours == 1 ? "1 hour" : "\(hours) hours"
-        let duration = hours == 0 ? minuteText : "\(hourText) \(minuteText)"
+        let duration = seconds > 0 && seconds < 60 ? "less than 1 minute"
+            : hours == 0 ? minuteText : "\(hourText) \(minuteText)"
         return isComplete ? "\(duration), last night" : "\(duration) so far, last night"
     }
 

@@ -69,6 +69,45 @@ final class TodaySoFarHealthModelTests: XCTestCase {
         XCTAssertEqual(model.projection?.window.day.start, at(24, 0))
     }
 
+    /// Review fix: the report and Home asking at launch share one request.
+    func testConcurrentCallersShareOneAuthorisationRequest() async throws {
+        let base = SuspendingAuthorizer()
+        let shared = SingleFlightReadAuthorization(base: base)
+        let first = Task { try await shared.requestReadAuthorization() }
+        await base.waitUntilRequested()
+        let second = Task { try await shared.requestReadAuthorization() }
+        while await shared.joinedCallers < 1 { await Task.yield() }
+        base.finish()
+        try await first.value
+        try await second.value
+        XCTAssertEqual(base.requestCount, 1)
+
+        // A later caller starts a new request once the first has finished.
+        let third = Task { try await shared.requestReadAuthorization() }
+        await base.waitUntilRequested(count: 2)
+        base.finish()
+        try await third.value
+        XCTAssertEqual(base.requestCount, 2)
+    }
+
+    func testSharedRequestPassesErrorsToEveryCaller() async {
+        let shared = SingleFlightReadAuthorization(base: FakeReadAuthorizer(error: SyntheticError()))
+        do {
+            try await shared.requestReadAuthorization()
+            XCTFail("Expected the synthetic error")
+        } catch {
+            XCTAssertTrue(error is SyntheticError)
+        }
+    }
+
+    func testReportUsesTheSharedRequesterWhenGiven() async {
+        let authorizer = FakeReadAuthorizer()
+        let report = WeeklyReportViewModel(healthData: FakeHealthDataProvider(), readAuthorization: authorizer,
+                                           calendar: calendar, now: { self.at(9, 0) })
+        await report.refresh()
+        XCTAssertEqual(authorizer.requestCount, 1)
+    }
+
     // MARK: Helpers
 
     private var calendar: Calendar {
@@ -129,6 +168,35 @@ final class FakeTodaySoFarReader: TodaySoFarHealthReading {
         continuation?.resume()
         continuation = nil
         suspendFirstRead = false
+    }
+}
+
+/// Holds each request open until `finish()`, so concurrent callers overlap.
+@MainActor
+final class SuspendingAuthorizer: HealthReadAuthorizationRequesting {
+    private(set) var requestCount = 0
+    private var pending: [CheckedContinuation<Void, Never>] = []
+    private var waiters: [(Int, CheckedContinuation<Void, Never>)] = []
+
+    nonisolated init() {}
+
+    func requestReadAuthorization() async throws {
+        requestCount += 1
+        let ready = waiters.filter { $0.0 <= requestCount }
+        waiters.removeAll { $0.0 <= requestCount }
+        ready.forEach { $0.1.resume() }
+        await withCheckedContinuation { pending.append($0) }
+    }
+
+    func waitUntilRequested(count: Int = 1) async {
+        if requestCount >= count { return }
+        await withCheckedContinuation { waiters.append((count, $0)) }
+    }
+
+    func finish() {
+        let resumed = pending
+        pending = []
+        resumed.forEach { $0.resume() }
     }
 }
 
