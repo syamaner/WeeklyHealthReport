@@ -89,20 +89,30 @@ public final class FoodListImportViewModel: ObservableObject {
 
     private func restoredRows(from saved: FoodListCheckpoint) throws -> [FoodListReviewRow] {
         try saved.drafts.enumerated().map { index, draft in
-            if let recoveredLogItemID {
-                if let logID = try recoveredLogItemID(draft.operationID) { return FoodListReviewRow(draft: draft, status: .saved(logID)) }
-                if saved.dispositions[index] == "saved" { return FoodListReviewRow(draft: draft, status: .pending) }
+            var row = try restoredRow(saved: saved, index: index, draft: draft)
+            // A queue saved before #222, or prepared in another locale, can hold a proposal from
+            // an ambiguous numeral. Lines the user never edited get the same check as on prepare.
+            if !row.isSaved {
+                row.draft = FoodListAmountText.withholdingUntouchedAmbiguousAmount(row.draft, locale: amountLocale)
             }
-            let status: FoodListLineStatus
-            switch saved.dispositions[index] {
-            case "saved": status = .saved(saved.savedIDs[index]!)
-            case "declined": status = .declined
-            case "deferred": status = .deferred
-            case "context": status = .context
-            default: status = .pending
-            }
-            return FoodListReviewRow(draft: draft, status: status)
+            return row
         }
+    }
+
+    private func restoredRow(saved: FoodListCheckpoint, index: Int, draft: FoodListLineDraft) throws -> FoodListReviewRow {
+        if let recoveredLogItemID {
+            if let logID = try recoveredLogItemID(draft.operationID) { return FoodListReviewRow(draft: draft, status: .saved(logID)) }
+            if saved.dispositions[index] == "saved" { return FoodListReviewRow(draft: draft, status: .pending) }
+        }
+        let status: FoodListLineStatus
+        switch saved.dispositions[index] {
+        case "saved": status = .saved(saved.savedIDs[index]!)
+        case "declined": status = .declined
+        case "deferred": status = .deferred
+        case "context": status = .context
+        default: status = .pending
+        }
+        return FoodListReviewRow(draft: draft, status: status)
     }
 
     @discardableResult
@@ -323,7 +333,8 @@ public struct FoodListImportView: View {
     @ObservedObject private var model: FoodListImportViewModel
     @State private var confirmsNewList = false
     @State private var showsAllLines = false
-    @Environment(\.locale) private var locale
+    /// One locale source for the amount field and the #222 check: the model's, from the caller.
+    private var locale: Locale { model.amountLocale }
     @FocusState private var editingAmount: AmountFieldFocus?
 
     public init(model: FoodListImportViewModel) { self.model = model }
@@ -578,10 +589,23 @@ public enum FoodListAmountText {
         return reviewed
     }
 
-    /// True while a withheld ambiguous amount is still empty, so the line can say why.
-    public static func showsAmbiguousNumeral(_ draft: FoodListLineDraft, locale: Locale) -> Bool {
-        draft.quantityText.isEmpty && hasAmbiguousNumeral(draft.parsed, locale: locale)
+    /// The same check for a restored line, applied only while its amount is the untouched parsed
+    /// proposal; anything the user typed is theirs and keeps the field's own refusal rule.
+    public static func withholdingUntouchedAmbiguousAmount(_ draft: FoodListLineDraft, locale: Locale) -> FoodListLineDraft {
+        guard let parsed = draft.parsed.quantity, draft.quantityText == String(parsed) else { return draft }
+        return withholdingAmbiguousAmount(draft, locale: locale)
     }
+
+    /// True while a withheld ambiguous amount is still empty, so the line can say why. Checked
+    /// against this locale and both decimal conventions, so the explanation survives a relaunch
+    /// in another locale (the amount stays empty either way).
+    public static func showsAmbiguousNumeral(_ draft: FoodListLineDraft, locale: Locale) -> Bool {
+        draft.quantityText.isEmpty
+            && ([locale] + decimalConventions).contains { hasAmbiguousNumeral(draft.parsed, locale: $0) }
+    }
+
+    /// One full-stop-decimal and one comma-decimal reference.
+    private static let decimalConventions = [Locale(identifier: "en_GB"), Locale(identifier: "de_DE")]
 
     static func hasAmbiguousNumeral(_ line: ParsedFoodListLine, locale: Locale) -> Bool {
         guard let numeral = FoodListParser.amountNumeral(of: line),

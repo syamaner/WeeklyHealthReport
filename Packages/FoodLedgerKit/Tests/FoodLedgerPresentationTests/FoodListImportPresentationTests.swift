@@ -21,7 +21,11 @@ final class FoodListImportPresentationTests: XCTestCase {
             ("de_DE", "1.500 kg rice", "", true),
             ("de_DE", "rice 1.500 g", "", true),
             ("de_DE", "10 g rice", "10.0", false),
-            ("de_DE", "half pepper", "0.5", false)
+            ("de_DE", "half pepper", "0.5", false),
+            ("de_DE", "½ pepper", "0.5", false),
+            ("de_DE", "1/2 orange pepper", "0.5", false),
+            ("de_DE", ".5 l milk", "500.0", false),
+            ("de_DE", "0.5 bell pepper", "0.5", false)
         ]
         for (identifier, text, quantityText, explained) in cases {
             let (model, _) = try listModel(locale: Locale(identifier: identifier))
@@ -40,6 +44,36 @@ final class FoodListImportPresentationTests: XCTestCase {
         draft.quantityText = "1500"
         model.edit(draft)
         XCTAssertFalse(FoodListAmountText.showsAmbiguousNumeral(try XCTUnwrap(model.selectedRow?.draft), locale: model.amountLocale))
+    }
+
+    /// A queue saved before #222, or in another locale, gets the same check on restore for lines
+    /// never edited; an edited amount is the user's. The explanation survives a relaunch, even
+    /// in a locale where the numeral would not have been ambiguous.
+    func testRestoredQueueWithholdsUntouchedAmbiguousAmountsAndKeepsTheNotice() throws {
+        let checkpoint = MemoryCheckpoint()
+        let make = { (identifier: String) in
+            FoodListImportViewModel(service: FoodListImportService(searcher: ListSearch()), locale: try LedgerText(identifier),
+                                    ids: ListIDs(), checkpointStore: checkpoint,
+                                    amountLocale: Locale(identifier: identifier)) { _, _ in throw FoodLedgerValidationError.invalidProvenance }
+        }
+        let english = try make("en_GB")
+        english.input = "1.500 g rice\n1.500 g oats\n10 g fixture"
+        english.prepare()
+        XCTAssertEqual(english.rows.map(\.draft.quantityText), ["1.5", "1.5", "10.0"], "unambiguous in English")
+        var edited = english.rows[1].draft
+        edited.quantityText = "2"
+        english.edit(edited)
+
+        let german = try make("de_DE")
+        XCTAssertEqual(german.rows.map(\.draft.quantityText), ["", "2", "10.0"])
+        XCTAssertTrue(FoodListAmountText.showsAmbiguousNumeral(german.rows[0].draft, locale: german.amountLocale))
+        XCTAssertFalse(FoodListAmountText.showsAmbiguousNumeral(german.rows[1].draft, locale: german.amountLocale))
+        german.retryCheckpoint() // persists the restored queue
+
+        let relaunched = try make("en_GB")
+        XCTAssertEqual(relaunched.rows.map(\.draft.quantityText), ["", "2", "10.0"])
+        XCTAssertTrue(FoodListAmountText.showsAmbiguousNumeral(relaunched.rows[0].draft, locale: relaunched.amountLocale),
+                      "the withheld line still says why after a relaunch")
     }
 
     /// A withheld amount reaches Confirm as no amount, never as 1.5.
