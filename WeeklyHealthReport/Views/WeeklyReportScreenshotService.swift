@@ -143,7 +143,12 @@ final class WeeklyReportScreenshotDelegate: NSObject, UIScreenshotServiceDelegat
         // Each Full Page document is one continuous PDF page. Apple's documented zero-rect
         // fallback opens it at the top when the Form's viewport cannot be mapped
         // reliably into the separate report layout.
-        completionHandler(representationForCurrentRequest(), 0, .zero)
+        let data = representationForCurrentRequest()
+        #if DEBUG
+        FullPageDiagnostics.logger.debug(
+            "iOS requested Full Page: pdfBytes=\(data.map { String($0.count) } ?? "nil", privacy: .public)")
+        #endif
+        completionHandler(data, 0, .zero)
     }
 }
 
@@ -181,7 +186,35 @@ final class WeeklyReportScreenshotController: ObservableObject {
         registeredService?.delegate = nil
         registeredService = nil
     }
+
+    #if DEBUG
+    /// DEBUG-only Full Page diagnostics: whether the active scene's screenshot
+    /// service points at this delegate, and what the delegate would return now.
+    func logDiagnostics(_ reason: String, details: String) {
+        let scene = hostWindow?.windowScene
+        let service = scene?.screenshotService
+        let bytes = delegate.representationForCurrentRequest()?.count
+        FullPageDiagnostics.logger.debug("""
+            \(reason, privacy: .public): \(details, privacy: .public) \
+            window=\(self.hostWindow != nil, privacy: .public) \
+            sceneState=\(scene?.activationState.rawValue ?? -9, privacy: .public) \
+            service=\(service != nil, privacy: .public) \
+            delegateIsOurs=\(service?.delegate === self.delegate, privacy: .public) \
+            modal=\(self.isPresentingModally, privacy: .public) \
+            todayOnScreen=\(self.isTodayOnScreen, privacy: .public) \
+            pdfBytes=\(bytes.map(String.init) ?? "nil", privacy: .public)
+            """)
+    }
+    #endif
 }
+
+#if DEBUG
+import os
+
+enum FullPageDiagnostics {
+    static let logger = Logger(subsystem: "WeeklyHealthReport", category: "FullPage")
+}
+#endif
 
 struct WeeklyReportScreenshotSceneRegistration: UIViewRepresentable {
     let controller: WeeklyReportScreenshotController

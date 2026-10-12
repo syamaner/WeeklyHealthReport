@@ -106,6 +106,13 @@ struct AppShellView: View {
             .onChange(of: navigation.path) {
                 navigation.recordDestination()
                 syncNotesPin()
+                logFullPageDiagnostics("path changed")
+            }
+            .onChange(of: viewModel.isRefreshing) {
+                logFullPageDiagnostics("refreshing changed")
+            }
+            .onChange(of: presentationState.isTransientUIPresented) {
+                logFullPageDiagnostics("transient UI changed")
             }
             .onReceive(
                 NotificationCenter.default.publisher(
@@ -254,6 +261,20 @@ struct AppShellView: View {
             if let foodLedger { FavouritesFlowView(root: foodLedger) }
             else { ContentUnavailableView("Favourites unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
         }
+    }
+
+    /// DEBUG-only Full Page diagnostics (os_log subsystem "WeeklyHealthReport",
+    /// category "FullPage"); a no-op in release builds.
+    private func logFullPageDiagnostics(_ reason: String) {
+        #if DEBUG
+        let details = "path=\(navigation.path.map(\.rawValue)) "
+            + "transient=\(presentationState.isTransientUIPresented) "
+            + "medicationRequestActive=\(presentationState.isMedicationAuthorizationRequestActive) "
+            + "medicationHelp=\(presentationState.showsMedicationAccessHelp) "
+            + "refreshing=\(viewModel.isRefreshing) "
+            + "selection=\(viewModel.selection.rawValue) period=\(viewModel.period.selection.rawValue)"
+        screenshotController.logDiagnostics(reason, details: details)
+        #endif
     }
 
     private func configureScreenshotProvider() {

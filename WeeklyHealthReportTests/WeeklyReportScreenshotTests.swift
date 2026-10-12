@@ -678,6 +678,53 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         XCTAssertEqual(renderer.documents.count, 1)
     }
 
+    /// Device regression: the fully expanded, fully populated report goes through
+    /// the real renderer and the real delegate method and yields a usable PDF.
+    func testFullyExpandedPopulatedReportProducesFullPagePDF() throws {
+        let document = ReportDocument.expanded(
+            snapshot: makeFullFixtureSnapshot(), calendar: testCalendar(), locale: Locale(identifier: "en_GB"))
+        let delegate = WeeklyReportScreenshotDelegate()
+        delegate.setRequestProvider { .healthReport(document) }
+        let data = try XCTUnwrap(delegate.representationForCurrentRequest(), "Full Page returned no PDF")
+        let pdf = try XCTUnwrap(PDFDocument(data: data))
+        let page = try XCTUnwrap(pdf.page(at: 0))
+        let box = page.bounds(for: .mediaBox)
+        // Measured at 612 x 2,519 pt for 50 rows on 13 October 2026; far below the
+        // 14,400 pt PDF page-dimension limit.
+        XCTAssertEqual(pdf.pageCount, 1)
+        XCTAssertEqual(box.width, 612)
+        XCTAssertGreaterThan(box.height, 1_000)
+        XCTAssertLessThan(box.height, 14_400)
+    }
+
+    /// Path, scene registration and the provider together: Health pushed from
+    /// Home's link is `[.healthReport]`, and a controller registered with a
+    /// service hands it the delegate that returns the PDF.
+    func testRegisteredControllerServesHealthAndTodayFullPage() throws {
+        let service = FakeScreenshotService()
+        let controller = WeeklyReportScreenshotController()
+        controller.register(with: service)
+        let report = ReportDocument.expanded(
+            snapshot: makeFullFixtureSnapshot(), calendar: testCalendar(), locale: Locale(identifier: "en_GB"))
+        let today = TodayFullPageDocument(date: "Monday 12 October", sections: [
+            .init(title: "Today\u{2019}s notes", rows: [.init(value: "None yet")])
+        ])
+        var path: [AppRoute] = [.healthReport]
+        controller.setRequestProvider {
+            switch WeeklyReportScreenshotEligibility.screen(navigationPath: path, isTransientUIPresented: false) {
+            case .healthReport: .healthReport(report)
+            case .today: .today(today)
+            case nil: nil
+            }
+        }
+        let delegate = try XCTUnwrap(service.delegate as? WeeklyReportScreenshotDelegate)
+        XCTAssertNotNil(delegate.representationForCurrentRequest())
+        path = []
+        XCTAssertNotNil(delegate.representationForCurrentRequest())
+        path = [.foodLog]
+        XCTAssertNil(delegate.representationForCurrentRequest())
+    }
+
     func testRendererCreatesOnePageInMemoryPDF() throws {
         let data = try XCTUnwrap(WeeklyReportPDFRenderer().pdfData(for: makeDocument()))
         let provider = try XCTUnwrap(CGDataProvider(data: data as CFData))
