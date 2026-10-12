@@ -23,6 +23,7 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
     case medicationAccess
     case developerTools
     case addFood
+    case favourites
 
     /// Settings children that exist only when their feature is composed.
     static let composedSettingsRoutes: Set<AppRoute> = [
@@ -46,7 +47,7 @@ enum AppRoute: String, Codable, Hashable, CaseIterable {
 
         switch destination {
         case .foodLog, .healthReport, .dailyExport, .genericFoodSearch,
-             .foodListImport, .barcodeFoodCapture, .commonFoods, .addFood:
+             .foodListImport, .barcodeFoodCapture, .commonFoods, .addFood, .favourites:
             return [destination]
         case .notes:
             return [.dailyExport, .notes]

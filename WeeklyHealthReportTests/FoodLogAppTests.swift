@@ -44,10 +44,11 @@ final class FoodLogAppTests: XCTestCase {
         XCTAssertEqual(AppRoute.restoredPath(from: "foodLog", hasDraft: false, availableRoutes: Set(AppRoute.allCases)), [.foodLog])
     }
 
-    /// A saved entry is presentation state of the Food Log, not a route value (#197).
+    /// A saved entry is presentation state of the Food Log, not a route value (#197). The only
+    /// route added since is Favourites (#198); the quick-add sheet is presentation state too.
     func testNoRouteWasAddedForTheSavedEntry() {
-        XCTAssertEqual(AppRoute.allCases.count, 20)
-        XCTAssertEqual(AppRoute.allCases.last, .addFood)
+        XCTAssertEqual(AppRoute.allCases.count, 21)
+        XCTAssertEqual(AppRoute.allCases.suffix(2), [.addFood, .favourites])
     }
 
     // MARK: No egress
@@ -289,4 +290,112 @@ private final class RecordingURLProtocol: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {}
     override func stopLoading() {}
+}
+
+/// UX revamp phase 5 (#198): favourites, quick add and plain water through the composition root.
+@MainActor
+final class QuickAddAppTests: XCTestCase {
+    private func makeRoot() throws -> FoodLedgerCompositionRoot {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let defaults = UserDefaults(suiteName: "quick-add-\(UUID().uuidString)")!
+        return try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults)
+    }
+
+    /// Home water chip: the sheet opens on a tap (nothing written), one Log saves 250 mL, and the
+    /// same plain water figure appears on Home and in the Food Log.
+    func testWaterChipLogsPlainWaterShownOnHomeAndInTheFoodLog() throws {
+        let root = try makeRoot()
+        let items = try XCTUnwrap(root.quickAddItems())
+        XCTAssertEqual(items.first, .builtInWater)
+        let today = root.confirmationNow
+        XCTAssertNil(try root.plainWaterMillilitres(for: today, calendar: root.confirmationDayCalendar), "No data, not 0 mL")
+        let preparation = try root.quickAddPreparation(.builtInWater)
+        XCTAssertEqual(preparation.eligibility, .sheet)
+        let sheet = root.quickAddSheetModel(preparation)
+        XCTAssertNil(try root.plainWaterMillilitres(for: today, calendar: root.confirmationDayCalendar), "Opening the sheet writes nothing")
+        XCTAssertEqual(sheet.logTitle, "Log 250 mL")
+        sheet.log(); sheet.log()
+        XCTAssertEqual(sheet.phase, .saved)
+        let saved = try XCTUnwrap(sheet.savedResult)
+        XCTAssertEqual(try root.plainWaterMillilitres(for: today, calendar: root.confirmationDayCalendar), 250)
+        let day = try root.foodLogService.day(reportingDate: saved.logItemVersion.reportingDate.value)
+        XCTAssertEqual(day.plainWaterMillilitres, 250)
+        XCTAssertEqual(day.entries.count, 1, "One Log press saves once")
+        XCTAssertEqual(FoodLogText.plainWater(day.plainWaterMillilitres, locale: Locale(identifier: "en_GB")), "250 mL")
+        XCTAssertTrue(try XCTUnwrap(root.quickAddItems()).contains(.builtInWater), "Logging water writes no favourite")
+    }
+
+    /// Confirm's "Save as favourite" writes the favourite after Log; the favourite then quick-adds
+    /// through the sheet, and editing it never changes the logged entry.
+    func testSaveAsFavouriteFromConfirmThenQuickAddFromTheChip() throws {
+        let root = try makeRoot()
+        let water = try PlainWaterReference(digester: SHA256Digester())
+        let model = root.model(for: water.input, prefillSourceQuantity: false, savesFavourite: true)
+        XCTAssertTrue(model.offersFavourite)
+        XCTAssertEqual(model.logButtonTitle, "Log and save favourite")
+        model.send(.setQuantity(330, .millilitres))
+        model.log()
+        XCTAssertEqual(model.favouriteOutcome, .saved)
+        let items = try XCTUnwrap(root.quickAddItems())
+        guard case let .favourite(favourite) = items.last else { return XCTFail("Expected the new favourite") }
+        XCTAssertEqual(favourite.defaultAmount, try FavouriteAmount(value: 330, unit: .millilitres))
+        let preparation = try root.quickAddPreparation(.favourite(favourite))
+        XCTAssertEqual(preparation.eligibility, .sheet)
+        let sheet = root.quickAddSheetModel(preparation)
+        sheet.log()
+        XCTAssertEqual(try root.plainWaterMillilitres(for: root.confirmationNow, calendar: root.confirmationDayCalendar), 660)
+    }
+
+    /// Native renders (synthetic data): Favourites populated and empty, Home chips, the quick-add
+    /// sheet ready and with an invalid custom amount, Confirm with Save as favourite; standard and
+    /// accessibility text sizes, light and dark.
+    func testQuickAddScreensRender() throws {
+        let root = try makeRoot()
+        let empty = root.favouritesModel()
+        empty.reload()
+        XCTAssertEqual(empty.today.map(\.item), [.builtInWater])
+        render(NavigationStack { FavouritesView(model: empty, createFromSearch: {}, createFromBarcode: {}, createFromWebLookup: {}) }, "Favourites - water only")
+        empty.setDefaultAmount(empty.today[0], to: 500)
+        XCTAssertNil(empty.changeFailure)
+        let water = try PlainWaterReference(digester: SHA256Digester())
+        let confirmFavourite = root.model(for: water.input, prefillSourceQuantity: false, savesFavourite: true)
+        confirmFavourite.send(.setQuantity(330, .millilitres))
+        confirmFavourite.log()
+        let populated = root.favouritesModel()
+        populated.reload()
+        XCTAssertEqual(populated.today.count, 2)
+        for (size, scheme, name) in [(DynamicTypeSize.large, ColorScheme.light, "standard light"), (.accessibility3, .dark, "accessibility dark")] {
+            render(NavigationStack { FavouritesView(model: populated, createFromSearch: {}, createFromBarcode: {}, createFromWebLookup: {}) }
+                .environment(\.dynamicTypeSize, size).preferredColorScheme(scheme), "Favourites - \(name)")
+            render(NavigationStack { Form { QuickAddChipRow(items: try! XCTUnwrap(root.quickAddItems())) { _ in } } }
+                .environment(\.dynamicTypeSize, size).preferredColorScheme(scheme), "Home chips - \(name)")
+            let ready = root.quickAddSheetModel(try root.quickAddPreparation(.builtInWater))
+            render(NavigationStack { QuickAddSheet(model: ready, edit: {}, close: {}) }
+                .environment(\.dynamicTypeSize, size).preferredColorScheme(scheme), "Quick add - ready \(name)")
+            let invalid = root.quickAddSheetModel(try root.quickAddPreparation(.builtInWater))
+            invalid.setCustomText("6000")
+            XCTAssertEqual(invalid.blockedReason, QuickAddText.waterBoundText)
+            render(NavigationStack { QuickAddSheet(model: invalid, edit: {}, close: {}) }
+                .environment(\.dynamicTypeSize, size).preferredColorScheme(scheme), "Quick add - custom invalid \(name)")
+            let confirm = root.model(for: try PlainWaterReference(digester: SHA256Digester()).input, savesFavourite: true)
+            render(NavigationStack { FoodConfirmationView(model: confirm) {} }
+                .environment(\.dynamicTypeSize, size).preferredColorScheme(scheme), "Confirm - save as favourite \(name)")
+        }
+    }
+
+    private func render<V: View>(_ content: V, _ name: String) {
+        let host = UIHostingController(rootView: content)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = host
+        window.isHidden = false
+        host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { window.layer.render(in: $0.cgContext) }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = name; attachment.lifetime = .keepAlways
+        add(attachment)
+        XCTAssertEqual(image.size.width, 390)
+        window.isHidden = true
+    }
 }

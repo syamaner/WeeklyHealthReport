@@ -13,6 +13,7 @@ import UniformTypeIdentifiers
 final class FoodLedgerCompositionRoot {
     private let store: FoodLedgerGRDBStore
     private let confirmations: FoodConfirmationService
+    private let favourites: FavouritesService
     private let ledger: FoodLedgerService
     private let genericFoodSearch: any GenericFoodSearching
     private let milkVolumeConversion: CoFIDWholeMilkVolumeConversion
@@ -89,6 +90,8 @@ final class FoodLedgerCompositionRoot {
             digester: SHA256Digester(),
             calendar: confirmationCalendar
         )
+        favourites = try FavouritesService(ledger: ledger, reader: store, confirmations: confirmations,
+            clock: confirmationClock, ids: ids, digester: SHA256Digester(), calendar: confirmationCalendar)
         genericFoodSearch = try CompositeGenericFoodSearch(sources: [
             CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
             USDAGenericFoodSearch(ids: ids),
@@ -97,12 +100,13 @@ final class FoodLedgerCompositionRoot {
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }
 
-    func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil, searchInterpretation: FoodQueryInterpretation? = nil, prefillSourceQuantity: Bool = true) -> FoodConfirmationViewModel {
+    func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil, searchInterpretation: FoodQueryInterpretation? = nil, prefillSourceQuantity: Bool = true, savesFavourite: Bool = false) -> FoodConfirmationViewModel {
         let (prepared, offering) = withMilkVolumeSource(input)
         let state = FoodConfirmationState(input: prepared, queryQuantity: queryQuantity, prefillSourceQuantity: prefillSourceQuantity)
         let clock = confirmationClock
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, searchInterpretation: searchInterpretation,
-                                         now: { clock.now() }, calendar: confirmationCalendar) { [confirmations, ids] state in
+                                         now: { clock.now() }, calendar: confirmationCalendar,
+                                         savesFavourite: savesFavourite, favouriteAction: favouriteAction) { [confirmations, ids] state in
             try confirmations.save(
                 state,
                 operationID: ids.makeID(OperationTag.self),
@@ -138,14 +142,53 @@ final class FoodLedgerCompositionRoot {
         if prepared != state.input {
             let quantity = state.quantity
             state = FoodConfirmationState(input: prepared, prefillSourceQuantity: false)
-            state.relogSource = logItemID
             state.quantity = quantity
         }
         let clock = confirmationClock
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering,
-                                         now: { clock.now() }, calendar: confirmationCalendar) { [confirmations, ids] state in
+                                         now: { clock.now() }, calendar: confirmationCalendar,
+                                         favouriteAction: favouriteAction) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
+    }
+
+    // MARK: Favourites and quick add (#198)
+
+    /// Writes `save_favourite_v1` for a logged entry version (Confirm's "Save as favourite").
+    var favouriteAction: @MainActor (LogItemVersionID) throws -> Void {
+        { [favourites] versionID in _ = try favourites.saveFavourite(logItemVersionID: versionID) }
+    }
+
+    func favouritesModel() -> FavouritesViewModel { FavouritesViewModel(store: favourites) }
+
+    /// Quick-add items in order (built-in water first until a water favourite exists). Nil when the
+    /// favourites cannot be read or have competing versions.
+    func quickAddItems() -> [QuickAddItem]? { try? favourites.projection().quickAddItems }
+
+    /// Rebuilds a fresh confirmation for a quick-add item. Writes nothing.
+    func quickAddPreparation(_ item: QuickAddItem) throws -> QuickAddPreparation { try favourites.prepare(item) }
+
+    func quickAddSheetModel(_ preparation: QuickAddPreparation) -> QuickAddSheetModel {
+        let clock = confirmationClock
+        return QuickAddSheetModel(preparation: preparation, now: { clock.now() }, calendar: confirmationCalendar) { [confirmations, ids] state in
+            try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
+        }
+    }
+
+    /// Confirm for a quick-add state: an ineligible favourite, or the sheet's Edit. Fresh explicit
+    /// confirmation through the same save path.
+    func model(quickAdd state: FoodConfirmationState) -> FoodConfirmationViewModel {
+        let clock = confirmationClock
+        return FoodConfirmationViewModel(state: state, now: { clock.now() }, calendar: confirmationCalendar,
+                                         favouriteAction: favouriteAction) { [confirmations, ids] state in
+            try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
+        }
+    }
+
+    /// Plain water logged on the date's reporting day (Q8). Nil means No data.
+    func plainWaterMillilitres(for date: Date, calendar: Calendar = .current) throws -> Double? {
+        try PlainWaterDayTotal.millilitres(records: store.archiveState().records,
+                                           reportingDate: FoodReportingDay.key(for: date, calendar: calendar))
     }
 
     /// Recent foods for Add food: 10 items within 30 days, each source re-verified (P1, P3).
@@ -168,7 +211,8 @@ final class FoodLedgerCompositionRoot {
         }
         let clock = confirmationClock
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering,
-                                         now: { clock.now() }, calendar: confirmationCalendar) { [confirmations, ids] state in
+                                         now: { clock.now() }, calendar: confirmationCalendar,
+                                         favouriteAction: favouriteAction) { [confirmations, ids] state in
             try confirmations.save(
                 state,
                 operationID: ids.makeID(OperationTag.self),
@@ -375,6 +419,8 @@ struct FoodListImportFlowView: View {
 
 struct GenericFoodSearchFlowView: View {
     private let finish: FoodEntryFinish?
+    /// "Create a favourite from Food search": Confirm opens with Save as favourite on (#198).
+    private let savesFavourite: Bool
     private let root: FoodLedgerCompositionRoot
     private let searchesOnAppear: Bool
     private let offersBarcode: Bool
@@ -388,10 +434,11 @@ struct GenericFoodSearchFlowView: View {
     /// `initialQuery` is searched once on appear only when the user submitted it on Add food
     /// (`searchesOnAppear`); a restored route starts empty and never searches by itself.
     init?(root: FoodLedgerCompositionRoot, additionalEvidence: [CaptureEvidence] = [], initialQuery: String = "",
-          searchesOnAppear: Bool = false, offersBarcode: Bool = true, finish: FoodEntryFinish? = nil) {
+          searchesOnAppear: Bool = false, offersBarcode: Bool = true, finish: FoodEntryFinish? = nil, savesFavourite: Bool = false) {
         guard let model = try? root.genericFoodSearchModel(additionalEvidence: additionalEvidence) else { return nil }
         self.root = root
         self.finish = finish
+        self.savesFavourite = savesFavourite
         self.searchesOnAppear = Self.searchesOnAppear(initialQuery: initialQuery, requested: searchesOnAppear)
         self.offersBarcode = offersBarcode && additionalEvidence.isEmpty
         model.query = initialQuery
@@ -410,7 +457,8 @@ struct GenericFoodSearchFlowView: View {
                               scanBarcode: offersBarcode ? { showsBarcode = true } : nil,
                               recordDiagnostics: { [diagnostics = root.searchDiagnostics] in diagnostics.recordSearch($0) }) { input in
             // Snapshot selection and amount once; navigation renders reuse this model.
-            confirmationModel = root.model(for: input, queryQuantity: searchModel.effectiveAmount, searchInterpretation: searchModel.interpretation, prefillSourceQuantity: false)
+            confirmationModel = root.model(for: input, queryQuantity: searchModel.effectiveAmount, searchInterpretation: searchModel.interpretation,
+                                           prefillSourceQuantity: false, savesFavourite: savesFavourite)
             showsConfirmation = true
         }
         .onAppear {
@@ -419,9 +467,9 @@ struct GenericFoodSearchFlowView: View {
             searchModel.search()
         }
         .navigationDestination(isPresented: $showsWebReview) {
-            if let flow = OpenRouterFoodReviewFlowView(root: root, initialQuery: searchModel.query, finish: finish) { flow }
+            if let flow = OpenRouterFoodReviewFlowView(root: root, initialQuery: searchModel.query, finish: finish, savesFavourite: savesFavourite) { flow }
         }
-        .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root, finish: finish) }
+        .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root, finish: finish, savesFavourite: savesFavourite) }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {
@@ -448,6 +496,8 @@ struct AddFoodFlowView: View {
     @State private var showsConfirmation = false
     @State private var relogFailed = false
     @State private var now = Date()
+    @State private var quickAddItems: [QuickAddItem] = []
+    @State private var quickAddRequest: QuickAddItem?
 
     init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) { self.root = root; self.finish = finish }
 
@@ -457,12 +507,15 @@ struct AddFoodFlowView: View {
                     scanBarcode: { showsBarcode = true },
                     pasteOrDictate: { showsList = true },
                     favourites: { showsFavourites = true },
+                    favouriteItems: quickAddItems,
+                    quickAdd: { quickAddRequest = $0 },
                     relog: { recent in
                         if let model = try? root.model(relogging: recent.item.logItemID) {
                             confirmationModel = model; showsConfirmation = true
                         } else { relogFailed = true }
                     })
-        .onAppear { now = root.confirmationNow; recents = root.recentFoods() }
+        .onAppear { now = root.confirmationNow; recents = root.recentFoods(); quickAddItems = root.quickAddItems() ?? [] }
+        .quickAdd(root: root, request: $quickAddRequest, finish: finish) { quickAddItems = root.quickAddItems() ?? [] }
         .alert("This food could not be opened", isPresented: $relogFailed) {
             Button("OK", role: .cancel) {}
         } message: { Text("Its saved source could not be verified. Search for it instead. Nothing was saved.") }
@@ -476,10 +529,7 @@ struct AddFoodFlowView: View {
             if let flow = FoodListImportFlowView(root: root) { flow }
             else { ContentUnavailableView("Food list unavailable", systemImage: "exclamationmark.triangle") }
         }
-        .navigationDestination(isPresented: $showsFavourites) {
-            if let flow = CommonFoodsFlowView(root: root) { flow }
-            else { ContentUnavailableView("Common foods unavailable", systemImage: "exclamationmark.triangle") }
-        }
+        .navigationDestination(isPresented: $showsFavourites) { FavouritesFlowView(root: root) }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {
@@ -494,22 +544,24 @@ struct AddFoodFlowView: View {
 
 struct OpenRouterFoodReviewFlowView: View {
     private let finish: FoodEntryFinish?
+    private let savesFavourite: Bool
     private let root: FoodLedgerCompositionRoot
     @StateObject private var credentials: FoodWebDiscoveryViewModel
     @StateObject private var reviewModel: GenericFoodProposalReviewViewModel
     @State private var confirmationModel: FoodConfirmationViewModel?
     @State private var showsConfirmation = false
-    init?(root: FoodLedgerCompositionRoot, initialQuery: String, finish: FoodEntryFinish? = nil) {
+    init?(root: FoodLedgerCompositionRoot, initialQuery: String, finish: FoodEntryFinish? = nil, savesFavourite: Bool = false) {
         guard let model = try? root.proposalReviewModel(initialQuery: initialQuery) else { return nil }
         self.root = root
         self.finish = finish
+        self.savesFavourite = savesFavourite
         _credentials = StateObject(wrappedValue: root.webDiscovery)
         _reviewModel = StateObject(wrappedValue: model)
     }
     var body: some View {
         GenericFoodProposalReviewView(model: reviewModel, credentials: credentials,
                                       recordDiagnostics: { [diagnostics = root.searchDiagnostics] in diagnostics.recordWebLookup($0) }) { input in
-            confirmationModel = root.model(for: input, prefillSourceQuantity: false)
+            confirmationModel = root.model(for: input, prefillSourceQuantity: false, savesFavourite: savesFavourite)
             showsConfirmation = true
         }
         .navigationDestination(isPresented: $showsConfirmation) {
@@ -613,6 +665,7 @@ struct FoodReresolutionFlowView: View {
 
 struct BarcodeFoodFlowView: View {
     private let finish: FoodEntryFinish?
+    private let savesFavourite: Bool
     private let root: FoodLedgerCompositionRoot
     @StateObject private var model: BarcodeCaptureViewModel
     @State private var offTask: Task<Void, Never>?
@@ -629,9 +682,10 @@ struct BarcodeFoodFlowView: View {
     @State private var evidence: [CaptureEvidence] = []
     @State private var confirmationModel: FoodConfirmationViewModel?
 
-    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) {
+    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil, savesFavourite: Bool = false) {
         self.root = root
         self.finish = finish
+        self.savesFavourite = savesFavourite
         _model = StateObject(wrappedValue: root.barcodeModel())
     }
 
@@ -685,7 +739,7 @@ struct BarcodeFoodFlowView: View {
             Text("The barcode will be sent to Open Food Facts. Your food history, quantities, photos and health data stay on this device. Returned community data needs your review. Selected source records retain attribution and licence notices in local records and exports.")
         }
         .navigationDestination(isPresented: $showsSearch) {
-            if let view = GenericFoodSearchFlowView(root: root, additionalEvidence: evidence, finish: finish) {
+            if let view = GenericFoodSearchFlowView(root: root, additionalEvidence: evidence, finish: finish, savesFavourite: savesFavourite) {
                 view.id(evidence.map(\.evidenceID))
             }
         }
@@ -737,7 +791,7 @@ struct BarcodeFoodFlowView: View {
             Section("Saved food found") {
                 Text(route.confirmation.candidates[0].name.value)
                 Button("Review and confirm") {
-                    confirmationModel = root.model(for: route.confirmation)
+                    confirmationModel = root.model(for: route.confirmation, savesFavourite: savesFavourite)
                     showsConfirmation = true
                 }
             }
@@ -760,7 +814,7 @@ struct BarcodeFoodFlowView: View {
                 guard !Task.isCancelled, generation == offGeneration else { return }
                 switch outcome {
                 case let .candidate(confirmation):
-                    confirmationModel = root.model(for: confirmation)
+                    confirmationModel = root.model(for: confirmation, savesFavourite: savesFavourite)
                     showsConfirmation = true
                 case .notFound: offMessage = "No product found. Your barcode is retained; you can use generic search."
                 case .insufficientData: offMessage = "The product has insufficient nutrition or an ambiguous basis. Use generic search; nothing was selected or saved."
@@ -783,5 +837,114 @@ struct BarcodeFoodFlowView: View {
         scanner?.cancel()
         scanner = nil
         model.cancel()
+    }
+}
+
+/// Favourites (#198). Creating a favourite opens Food search, Barcode or Web lookup with "Save as
+/// favourite" preset; after Log the journey returns here.
+struct FavouritesFlowView: View {
+    private let root: FoodLedgerCompositionRoot
+    @StateObject private var model: FavouritesViewModel
+    @State private var showsSearch = false
+    @State private var showsBarcode = false
+    @State private var showsWebLookup = false
+
+    init(root: FoodLedgerCompositionRoot) {
+        self.root = root
+        _model = StateObject(wrappedValue: root.favouritesModel())
+    }
+
+    var body: some View {
+        FavouritesView(model: model, createFromSearch: { showsSearch = true }, createFromBarcode: { showsBarcode = true },
+                       createFromWebLookup: { showsWebLookup = true })
+        .navigationDestination(isPresented: $showsSearch) {
+            if let flow = GenericFoodSearchFlowView(root: root, finish: returnHere, savesFavourite: true) { flow }
+            else { ContentUnavailableView("Food search unavailable", systemImage: "exclamationmark.triangle") }
+        }
+        .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root, finish: returnHere, savesFavourite: true) }
+        .navigationDestination(isPresented: $showsWebLookup) {
+            if let flow = OpenRouterFoodReviewFlowView(root: root, initialQuery: "", finish: returnHere, savesFavourite: true) { flow }
+            else { ContentUnavailableView("Web lookup unavailable", systemImage: "exclamationmark.triangle") }
+        }
+    }
+
+    /// After Log (and the favourite) the create journey returns to Favourites.
+    private var returnHere: FoodEntryFinish {
+        FoodEntryFinish { _ in
+            showsSearch = false; showsBarcode = false; showsWebLookup = false
+            model.reload()
+        }
+    }
+}
+
+/// Presents quick add for a requested item (#198): the one-step sheet when `QuickAddPolicy` allows
+/// it, otherwise the full Confirm. Requesting writes nothing; only Log saves.
+struct QuickAddPresenter: ViewModifier {
+    let root: FoodLedgerCompositionRoot
+    @Binding var request: QuickAddItem?
+    let finish: FoodEntryFinish?
+    let logged: () -> Void
+    @State private var sheetModel: QuickAddSheetModel?
+    @State private var confirmModel: FoodConfirmationViewModel?
+    @State private var showsConfirm = false
+    @State private var pendingEdit: FoodConfirmationState?
+    @State private var unverifiable = false
+
+    func body(content: Content) -> some View {
+        content
+            .onChange(of: request) { _, item in
+                guard let item else { return }
+                request = nil
+                open(item)
+            }
+            .sheet(item: $sheetModel, onDismiss: {
+                if let state = pendingEdit { pendingEdit = nil; openConfirm(state) }
+            }) { model in
+                NavigationStack {
+                    QuickAddSheet(model: model, edit: {
+                        pendingEdit = model.editState; sheetModel = nil
+                    }, close: { sheetModel = nil })
+                    .onChange(of: model.phase) { _, phase in
+                        guard phase == .saved else { return }
+                        sheetModel = nil
+                        // Inside Add food the journey ends through its single post-save exit.
+                        if !FoodEntryFinish.complete(finish, saved: model.savedResult) { logged() }
+                    }
+                }
+                .presentationDetents([.medium, .large])
+            }
+            .navigationDestination(isPresented: $showsConfirm) {
+                if let confirmModel {
+                    FoodConfirmationView(model: confirmModel) {
+                        if !FoodEntryFinish.complete(finish, saved: confirmModel.savedResult) {
+                            showsConfirm = false
+                            if confirmModel.savedResult != nil { logged() }
+                        }
+                    }
+                }
+            }
+            .alert(QuickAddText.unverifiable, isPresented: $unverifiable) {
+                Button("OK", role: .cancel) {}
+            } message: { Text("Its saved source could not be verified. Remove it from Favourites and create it again from a search. Nothing was saved.") }
+    }
+
+    private func open(_ item: QuickAddItem) {
+        guard let preparation = try? root.quickAddPreparation(item) else { unverifiable = true; return }
+        switch preparation.eligibility {
+        case .sheet: sheetModel = root.quickAddSheetModel(preparation)
+        case .confirm: openConfirm(preparation.state)
+        }
+    }
+
+    private func openConfirm(_ state: FoodConfirmationState) {
+        confirmModel = root.model(quickAdd: state)
+        showsConfirm = true
+    }
+}
+
+extension View {
+    func quickAdd(root: FoodLedgerCompositionRoot, request: Binding<QuickAddItem?>, finish: FoodEntryFinish? = nil,
+                  logged: @escaping () -> Void) -> some View {
+        modifier(QuickAddPresenter(root: root, request: request, finish: finish, logged: logged))
     }
 }

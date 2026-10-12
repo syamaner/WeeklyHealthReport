@@ -7,6 +7,13 @@ public final class FoodConfirmationViewModel: ObservableObject {
     @Published public private(set) var state: FoodConfirmationState
     @Published public private(set) var savedResult: StoredFoodConfirmation?
     private let saveAction: @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
+    /// Writes `save_favourite_v1` for the logged entry version (#198). Nil hides "Save as favourite".
+    private let favouriteAction: (@MainActor (LogItemVersionID) throws -> Void)?
+    /// "Save as favourite" (the v5 D4 slot). The log save is unchanged; the favourite is a
+    /// separate operation immediately afterwards.
+    @Published public var savesFavourite: Bool
+    @Published public private(set) var favouriteOutcome: FavouriteOutcome?
+    public enum FavouriteOutcome: Equatable { case saved, failed }
     private let now: @Sendable () -> Date
     public let calendar: Calendar
     private let volumeConversionOffering: (any FoodVolumeConversionOffering)?
@@ -27,9 +34,13 @@ public final class FoodConfirmationViewModel: ObservableObject {
         searchInterpretation: FoodQueryInterpretation? = nil,
         now: @escaping @Sendable () -> Date = { Date() },
         calendar: Calendar = .autoupdatingCurrent,
+        savesFavourite: Bool = false,
+        favouriteAction: (@MainActor (LogItemVersionID) throws -> Void)? = nil,
         saveAction: @escaping @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
     ) {
         self.state = state
+        self.savesFavourite = savesFavourite && favouriteAction != nil
+        self.favouriteAction = favouriteAction
         self.now = now
         self.calendar = calendar
         self.volumeConversionOffering = volumeConversionOffering
@@ -184,8 +195,12 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public static let estimateNotice = "Logged as an estimate. Unknown details stay unknown."
 
+    /// Whether the "Save as favourite" toggle is offered: a new entry with a favourite writer.
+    public var offersFavourite: Bool { favouriteAction != nil && state.reopened == nil }
+
     public var logButtonTitle: String {
         if state.reopened != nil { return "Save changes" }
+        if savesFavourite && offersFavourite { return "Log and save favourite" }
         guard nutritionReview.isConsumed,
               let energy = consumedNutrition.first(where: { $0.key == .energyConsumed }),
               energy.incompleteContributions == 0, let amount = energy.knownAmount else { return "Log" }
@@ -230,6 +245,19 @@ public final class FoodConfirmationViewModel: ObservableObject {
             send(.saved(saved.logItem.logItemID))
         } catch {
             send(.saveFailed(Self.message(for: error)))
+            return
+        }
+        if savesFavourite && offersFavourite { saveFavourite() }
+    }
+
+    /// The favourite operation after Log. A failure leaves the entry logged and offers Try again.
+    public func saveFavourite() {
+        guard let favouriteAction, let saved = savedResult, favouriteOutcome != .saved else { return }
+        do {
+            try favouriteAction(saved.logItemVersion.logItemVersionID)
+            favouriteOutcome = .saved
+        } catch {
+            favouriteOutcome = .failed
         }
     }
 
@@ -323,6 +351,14 @@ public struct FoodConfirmationView: View {
                 compactNutritionSection
             }
             .disabled(model.savedResult != nil)
+            if model.offersFavourite {
+                Section {
+                    Toggle("Save as favourite", isOn: $model.savesFavourite).frame(minHeight: 44)
+                        .disabled(model.savedResult != nil)
+                } footer: {
+                    Text("A favourite keeps this source and amount, so logging it again takes one step.")
+                }
+            }
             Section {
                 DisclosureGroup("Source details") {
                     sourceDetails
@@ -797,6 +833,12 @@ public struct FoodConfirmationView: View {
             Section {
                 Label("Food logged", systemImage: "checkmark.circle.fill")
                     .accessibilityLabel("Food logged successfully")
+                if model.favouriteOutcome == .failed {
+                    Label(QuickAddText.favouriteNotSaved, systemImage: "exclamationmark.triangle.fill")
+                    Button("Try again") { model.saveFavourite() }.frame(minHeight: 44)
+                } else if model.favouriteOutcome == .saved {
+                    Label("Saved as a favourite", systemImage: "star.fill")
+                }
                 if let saved = model.savedResult {
                     LabeledContent("Logged food", value: saved.productVersion.name.value)
                     LabeledContent("Logged amount", value: "\(Self.editableNumber(saved.logItemVersion.edibleQuantity.value)) \(saved.logItemVersion.edibleQuantity.unit.rawValue)")

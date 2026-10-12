@@ -27,7 +27,7 @@ public struct AddFoodRecentRowText: Equatable, Sendable {
 }
 
 /// Add food (#196): one field for food and amount in the user's own words, the other entry
-/// routes, favourites (placeholder until #198) and recent foods. Nothing is logged here.
+/// routes, favourites (#198) and recent foods. Nothing is logged here.
 public struct AddFoodView: View {
     @State private var text = ""
     private let recents: [FoodRecentRelogItem]
@@ -37,15 +37,18 @@ public struct AddFoodView: View {
     private let scanBarcode: (() -> Void)?
     private let pasteOrDictate: (() -> Void)?
     private let favourites: (() -> Void)?
+    private let favouriteItems: [QuickAddItem]
+    private let quickAdd: ((QuickAddItem) -> Void)?
     private let relog: (FoodRecentRelogItem) -> Void
 
     public init(recents: [FoodRecentRelogItem], now: Date = Date(), calendar: Calendar = .current,
                 initialText: String = "",
                 search: @escaping (String) -> Void, scanBarcode: (() -> Void)?, pasteOrDictate: (() -> Void)?,
-                favourites: (() -> Void)?, relog: @escaping (FoodRecentRelogItem) -> Void) {
+                favourites: (() -> Void)?, favouriteItems: [QuickAddItem] = [], quickAdd: ((QuickAddItem) -> Void)? = nil,
+                relog: @escaping (FoodRecentRelogItem) -> Void) {
         self.recents = recents; self.now = now; self.calendar = calendar
         self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate
-        self.favourites = favourites; self.relog = relog
+        self.favourites = favourites; self.favouriteItems = favouriteItems; self.quickAdd = quickAdd; self.relog = relog
         _text = State(initialValue: initialText)
     }
 
@@ -74,9 +77,23 @@ public struct AddFoodView: View {
                 if let pasteOrDictate { routeRow("Paste or dictate a list", systemImage: "list.bullet", action: pasteOrDictate) }
                 if let favourites { routeRow("Favourites", systemImage: "star", action: favourites) }
             }
-            Section("Favourites") {
-                Text("No favourites yet").foregroundStyle(.secondary)
-            }
+            Section {
+                if favouriteItems.isEmpty || quickAdd == nil {
+                    Text("No favourites yet").foregroundStyle(.secondary)
+                } else if let quickAdd {
+                    ForEach(Array(favouriteItems.enumerated()), id: \.offset) { _, item in
+                        Button { quickAdd(item) } label: {
+                            HStack {
+                                Text(QuickAddText.title(item)).foregroundStyle(.primary)
+                                Spacer(minLength: 8)
+                                Text(QuickAddText.defaultAmount(item)).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                            }.frame(minHeight: 44).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens quick add. Nothing is logged until you choose Log.")
+                    }
+                }
+            } header: { Text("Favourites") }
             Section {
                 if recents.isEmpty {
                     Text("No recent foods").foregroundStyle(.secondary)

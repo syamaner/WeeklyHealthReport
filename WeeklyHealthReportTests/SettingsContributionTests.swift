@@ -12,7 +12,7 @@ final class SettingsContributionTests: XCTestCase {
         XCTAssertEqual(settings.sections.map(\.id), [.foodSearch, .export, .data, .appleHealth, .about])
         XCTAssertEqual(settings.linkedRoutes, [
             .webLookupKey, .foodMarket, .dailyExport, .dataBackup, .inventoryReview,
-            .foodReresolution, .medicationAccess, .privacy, .developerTools
+            .commonFoods, .foodReresolution, .medicationAccess, .privacy, .developerTools
         ])
         XCTAssertEqual(Set(settings.linkedRoutes).count, settings.linkedRoutes.count)
         XCTAssertEqual(settings.availableRoutes, Set(AppRoute.allCases))

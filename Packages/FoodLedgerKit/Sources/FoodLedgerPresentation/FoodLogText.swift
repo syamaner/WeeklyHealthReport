@@ -33,6 +33,21 @@ public enum FoodLogText {
 
     // MARK: Totals strip
 
+    /// Plain water logged (#198, Q8): the same label and figure on Home and in the Food Log.
+    public static let plainWaterLabel = "Plain water logged"
+    public static let plainWaterNoData = "No data"
+
+    /// "730 mL", or "No data" when no plain water is logged (never 0 mL).
+    public static func plainWater(_ millilitres: Double?, locale: Locale = .current) -> String {
+        guard let millilitres else { return plainWaterNoData }
+        return "\(number(millilitres, locale: locale)) mL"
+    }
+
+    public static func plainWaterAccessibility(_ millilitres: Double?, locale: Locale = .current) -> String {
+        guard let millilitres else { return "\(plainWaterLabel), no data" }
+        return "\(plainWaterLabel), \(number(millilitres, locale: locale)) millilitres"
+    }
+
     /// "1,240", "68 g", "41 g+", or "Unknown" when no entry has a known value.
     public static func total(_ total: FoodIntakeTotal, locale: Locale = .current) -> String {
         guard let amount = total.knownAmount else { return "Unknown" }

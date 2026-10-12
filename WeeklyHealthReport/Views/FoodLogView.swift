@@ -38,7 +38,7 @@ struct FoodLogView: View {
                 addFoodSection
             case let .loaded(day):
                 if let totals = day.totals {
-                    totalsSection(totals)
+                    totalsSection(totals, plainWater: day.plainWaterMillilitres)
                 }
                 addFoodSection
                 if day.entries.isEmpty {
@@ -125,7 +125,7 @@ struct FoodLogView: View {
 
     // MARK: Totals
 
-    private func totalsSection(_ totals: [FoodIntakeTotal]) -> some View {
+    private func totalsSection(_ totals: [FoodIntakeTotal], plainWater: Double?) -> some View {
         Section {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading),
                                      count: dynamicTypeSize.isAccessibilitySize ? 1 : 4), alignment: .leading, spacing: 8) {
@@ -144,6 +144,11 @@ struct FoodLogView: View {
                 }
             }
             .padding(.vertical, 4)
+            // F1 resolved by #198 (Q8): plain water logged, the same figure as Home.
+            LabeledContent(FoodLogText.plainWaterLabel, value: FoodLogText.plainWater(plainWater))
+                .monospacedDigit()
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(FoodLogText.plainWaterAccessibility(plainWater))
         } footer: { Text(FoodLogText.totalsFootnote) }
     }
 
