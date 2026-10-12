@@ -7,7 +7,10 @@ struct WeeklyHealthReportApp: App {
     @StateObject private var viewModel: WeeklyReportViewModel
     @StateObject private var dailyExport = DailyDriveSessionController()
     @StateObject private var navigation = AppNavigationCoordinator()
+    /// Home's today-so-far health card (#199); one per app session.
+    @StateObject private var todaySoFar: TodaySoFarHealthModel
     private let foodLedger: FoodLedgerCompositionRoot?
+    @StateObject private var foodHome: FoodHomeModel
     private let settings: AppSettings
 
     init() {
@@ -15,14 +18,29 @@ struct WeeklyHealthReportApp: App {
         healthStore = store
         let foodLedger = try? FoodLedgerCompositionRoot()
         self.foodLedger = foodLedger
+        _foodHome = StateObject(wrappedValue: FoodHomeModel(root: foodLedger))
         settings = Self.makeSettings(
             foodLedger: foodLedger,
             defaults: .standard,
             medicationAccessAvailable: Self.medicationAccessAvailable
         )
+        let healthClient = HealthKitClient(store: store)
+        // One shared request: the report and Home both ask on launch (#199).
+        let readAuthorization = SingleFlightReadAuthorization(base: healthClient)
         _viewModel = StateObject(
             wrappedValue: WeeklyReportViewModel(
-                healthData: HealthKitClient(store: store)
+                healthData: healthClient,
+                readAuthorization: readAuthorization
+            )
+        )
+        // Home uses the food ledger's injected clock and calendar, so the food
+        // card and the health window agree on "today".
+        _todaySoFar = StateObject(
+            wrappedValue: TodaySoFarHealthModel(
+                reader: healthClient,
+                authorizer: readAuthorization,
+                now: { foodLedger?.confirmationNow ?? Date() },
+                calendar: { foodLedger?.confirmationDayCalendar ?? .autoupdatingCurrent }
             )
         )
     }
@@ -33,6 +51,8 @@ struct WeeklyHealthReportApp: App {
                 viewModel: viewModel,
                 dailyExport: dailyExport,
                 navigation: navigation,
+                todaySoFar: todaySoFar,
+                foodHome: foodHome,
                 medicationAccess: MedicationAccessRequest(store: healthStore),
                 foodLedger: foodLedger,
                 settings: settings

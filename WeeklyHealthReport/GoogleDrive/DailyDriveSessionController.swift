@@ -208,6 +208,12 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     @Published private(set) var selectedReportDay: DailyNoteDayID?
     var availableReportDays: [DailyNoteDayID] { exportService.availableReportDays() }
 
+    /// Re-applies the export's selected day to the shared notes controller when
+    /// Export appears, after Home's today notes may have shown another day (#199).
+    func reassertReportDay() {
+        notes.selectReportDay(selectedReportDay)
+    }
+
     func selectReportDay(_ day: DailyNoteDayID?) {
         guard !busy else { return }
         if let day, !availableReportDays.contains(day) { return }

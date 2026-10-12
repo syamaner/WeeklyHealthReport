@@ -91,6 +91,7 @@ struct DailyExportView: View {
         .navigationTitle("Export")
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
+            session.reassertReportDay()
             Task { await session.prepareForPresentation() }
         }
         .onChange(of: scenePhase) { _, phase in

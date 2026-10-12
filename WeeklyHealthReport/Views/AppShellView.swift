@@ -9,6 +9,8 @@ struct AppShellView: View {
     @ObservedObject var viewModel: WeeklyReportViewModel
     @ObservedObject var dailyExport: DailyDriveSessionController
     @ObservedObject var navigation: AppNavigationCoordinator
+    @ObservedObject var todaySoFar: TodaySoFarHealthModel
+    let foodHome: FoodHomeModel
     let medicationAccess: MedicationAccessRequest
     let foodLedger: FoodLedgerCompositionRoot?
     let settings: AppSettings
@@ -55,7 +57,11 @@ struct AppShellView: View {
             get: { navigation.path },
             set: { navigation.acceptPathChange($0) }
         )) {
-            FoodIntakeHomeView(root: foodLedger)
+            HomeView(
+                features: homeFeatures,
+                now: { foodLedger?.confirmationNow ?? Date() },
+                calendar: foodLedger?.confirmationDayCalendar ?? .autoupdatingCurrent
+            )
             .navigationTitle("Today")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -91,9 +97,11 @@ struct AppShellView: View {
                     hasDraft: dailyExport.notes.currentDraft != nil,
                     availableRoutes: settings.availableRoutes
                 )
+                syncNotesPin()
             }
             .onChange(of: navigation.path) {
                 navigation.recordDestination()
+                syncNotesPin()
             }
             .onReceive(
                 NotificationCenter.default.publisher(
@@ -113,6 +121,28 @@ struct AppShellView: View {
                 )
             }
         }
+    }
+
+    /// Home's features in one place; `HomeView` only sorts and renders their cards.
+    private var homeFeatures: [HomeFeature] {
+        [
+            FoodHomeCards.feature(model: foodHome),
+            TodaySoFarHealthCardView.feature(model: todaySoFar, requestsAuthorization: !Self.isHostedUnitTest),
+            NotesHomeCard.feature(controller: dailyExport.notes)
+        ]
+    }
+
+    /// Hosted unit tests launch the app process; never present the Health sheet there.
+    private static var isHostedUnitTest: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
+    /// Pins the shared notes controller to today while Home's today notes are open,
+    /// and restores the export's selected day when they close (#199, D11).
+    private func syncNotesPin() {
+        let pinned = AppRoute.pinsNotesToToday(navigation.path)
+        guard pinned != dailyExport.notes.isPinnedToToday else { return }
+        if pinned { dailyExport.notes.pinToday() } else { dailyExport.notes.unpinToday() }
     }
 
     @ViewBuilder
@@ -160,6 +190,18 @@ struct AppShellView: View {
                 controller: dailyExport.notes,
                 openEditor: { navigation.append(.noteEditor) }
             )
+        case .todayNotes:
+            DailyNotesView(
+                controller: dailyExport.notes,
+                openEditor: { navigation.append(.todayNoteEditor) }
+            )
+        case .todayNoteEditor:
+            DailyNoteEditorView(
+                controller: dailyExport.notes,
+                willOpenApplicationSettings: {
+                    navigation.protectCurrentPath()
+                }
+            )
         case .noteEditor:
             DailyNoteEditorView(
                 controller: dailyExport.notes,
@@ -170,7 +212,7 @@ struct AppShellView: View {
         case .privacy:
             PrivacyPolicyView()
         case .diagnostics:
-            DeveloperDiagnosticsView(viewModel: viewModel)
+            DeveloperDiagnosticsView(viewModel: viewModel, todaySoFar: todaySoFar)
         case .settings:
             SettingsView(settings: settings)
         case .webLookupKey:

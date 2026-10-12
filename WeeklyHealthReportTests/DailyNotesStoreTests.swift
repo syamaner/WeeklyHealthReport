@@ -90,6 +90,41 @@ final class DailyNotesStoreTests: XCTestCase {
         XCTAssertEqual(controller.currentDayID.reportDate, "2026-09-25")
     }
 
+    /// #199 (D11): Home's today notes pin the shared controller to today while the
+    /// export keeps a past day selected, and unpinning restores that day.
+    func testPinTodayIgnoresAndThenRestoresTheExportSelection() throws {
+        let store = MemoryDailyNotesStore()
+        var now = londonDate(2026, 9, 10, 10)
+        let controller = DailyNotesController(store: store, calendar: londonCalendar, now: { now })
+        XCTAssertTrue(controller.beginNewDraft())
+        XCTAssertTrue(controller.updateDraftText("Today note"))
+        XCTAssertTrue(controller.saveDraft())
+        let historical = DailyNoteDayID(reportDate: "2026-09-05", timeZoneIdentifier: "Europe/London")
+        controller.selectReportDay(historical)
+        XCTAssertEqual(controller.currentDayID, historical)
+        XCTAssertEqual(controller.todayNoteCount, 1, "Home counts today, not the selected day")
+
+        controller.pinToday()
+        XCTAssertTrue(controller.isPinnedToToday)
+        XCTAssertEqual(controller.currentDayID.reportDate, "2026-09-10")
+        XCTAssertEqual(controller.notes.map(\.text), ["Today note"])
+        // The export may re-assert its selection while pinned; today still wins.
+        controller.selectReportDay(historical)
+        XCTAssertEqual(controller.currentDayID.reportDate, "2026-09-10")
+
+        controller.unpinToday()
+        XCTAssertFalse(controller.isPinnedToToday)
+        XCTAssertEqual(controller.currentDayID, historical)
+
+        // A pin after midnight follows the new day; the count follows the clock.
+        now = londonDate(2026, 9, 11, 1)
+        XCTAssertEqual(controller.todayNoteCount, 0)
+        controller.pinToday()
+        XCTAssertEqual(controller.currentDayID.reportDate, "2026-09-11")
+        controller.unpinToday()
+        XCTAssertEqual(controller.currentDayID, historical)
+    }
+
     func testFileStorePersistsSavedNotesAndDraftAcrossRelaunch() throws {
         let directory = FileManager.default.temporaryDirectory
             .appending(path: "WeeklyHealthReportNotesTests-\(UUID().uuidString)")
