@@ -697,6 +697,79 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         XCTAssertLessThan(box.height, 14_400)
     }
 
+    /// Device regression: registration no longer depends on a view reaching a
+    /// window. The registry resolves the scene itself, registers even when the
+    /// scene appears only after the shell, and restores a cleared delegate on
+    /// every scene activation.
+    func testSceneRegistryRegistersOnAttachAndEveryActivation() {
+        let center = NotificationCenter()
+        let service = FakeScreenshotService()
+        var target: FullPageSceneRegistry.Target?
+        let registry = FullPageSceneRegistry(notificationCenter: center) { target }
+        let controller = WeeklyReportScreenshotController(renderer: FakePDFRenderer(result: Data("pdf".utf8)))
+
+        registry.attach(controller)
+        XCTAssertNil(service.delegate)
+        XCTAssertFalse(controller.isRegistered, "no scene yet")
+
+        target = .init(service: service, window: nil)
+        center.post(name: UIScene.didActivateNotification, object: nil)
+        XCTAssertTrue(service.delegate === controller.delegate, "registered once the scene activates")
+        XCTAssertTrue(controller.isRegistered)
+
+        service.delegate = nil
+        center.post(name: UIScene.willEnterForegroundNotification, object: nil)
+        XCTAssertTrue(service.delegate === controller.delegate, "same service: delegate restored, not skipped")
+
+        service.delegate = nil
+        registry.refresh("path changed")
+        XCTAssertTrue(service.delegate === controller.delegate)
+    }
+
+    /// Device regression: pushing Health took Home's registration view out of
+    /// the window and cleared the delegate, so iOS never asked on Health. Home
+    /// disappearing, or a scene or window lookup that finds nothing mid-transition,
+    /// must leave the delegate registered and Health eligible.
+    func testPushingHealthKeepsTheDelegateRegistered() {
+        let service = FakeScreenshotService()
+        var target: FullPageSceneRegistry.Target? = .init(service: service, window: nil)
+        let registry = FullPageSceneRegistry(notificationCenter: NotificationCenter()) { target }
+        let controller = WeeklyReportScreenshotController(renderer: FakePDFRenderer(result: Data("pdf".utf8)))
+        var path: [AppRoute] = []
+        controller.setRequestProvider { [weak controller] in
+            WeeklyReportScreenshotEligibility.screen(navigationPath: path, isTransientUIPresented: false,
+                                                     isTodayOnScreen: controller?.isTodayOnScreen ?? false) == nil
+                ? nil : .healthReport(self.makeDocument())
+        }
+        registry.attach(controller)
+        controller.isTodayOnScreen = true
+        XCTAssertNotNil(controller.delegate.representationForCurrentRequest())
+
+        // Push Health: the path changes, then Home disappears.
+        path = [.healthReport]
+        registry.refresh("path changed")
+        controller.isTodayOnScreen = false
+        target = .init(service: nil, window: nil)
+        registry.refresh("Home disappeared")
+        target = nil
+        registry.refresh("scene activated")
+
+        XCTAssertTrue(service.delegate === controller.delegate, "still registered on Health")
+        XCTAssertNotNil(controller.delegate.representationForCurrentRequest(), "Health still produces a PDF")
+    }
+
+    func testSceneRegistryKeepsTheControllerAliveForTheWeakService() throws {
+        let service = FakeScreenshotService()
+        let registry = FullPageSceneRegistry(notificationCenter: NotificationCenter()) {
+            .init(service: service, window: nil)
+        }
+        var controller: WeeklyReportScreenshotController? = WeeklyReportScreenshotController(
+            renderer: FakePDFRenderer(result: Data("pdf".utf8)))
+        registry.attach(try XCTUnwrap(controller))
+        controller = nil
+        XCTAssertNotNil(service.delegate, "the service holds its delegate weakly; the registry keeps it alive")
+    }
+
     /// Path, scene registration and the provider together: Health pushed from
     /// Home's link is `[.healthReport]`, and a controller registered with a
     /// service hands it the delegate that returns the PDF.

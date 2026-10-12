@@ -72,10 +72,6 @@ struct AppShellView: View {
                     .accessibilityIdentifier("settingsButton")
                 }
             }
-            .background {
-                WeeklyReportScreenshotSceneRegistration(controller: screenshotController)
-                    .frame(width: 0, height: 0)
-            }
             .navigationDestination(for: AppRoute.self) { route in
                 destination(for: route)
             }
@@ -94,6 +90,7 @@ struct AppShellView: View {
             .onAppear {
                 screenshotController.isTodayOnScreen = true
                 configureScreenshotProvider()
+                FullPageSceneRegistry.shared.attach(screenshotController)
                 navigation.restoreIfNeeded(
                     hasDraft: dailyExport.notes.currentDraft != nil,
                     availableRoutes: settings.availableRoutes
@@ -102,10 +99,15 @@ struct AppShellView: View {
             }
             .onDisappear {
                 screenshotController.isTodayOnScreen = false
+                // Home leaving the window (a push) must not affect registration.
+                FullPageSceneRegistry.shared.refresh("Home disappeared")
+                logFullPageDiagnostics("Home disappeared")
             }
             .onChange(of: navigation.path) {
                 navigation.recordDestination()
                 syncNotesPin()
+                // Cheap and idempotent: the screen that may be captured next is registered.
+                FullPageSceneRegistry.shared.refresh("path changed")
                 logFullPageDiagnostics("path changed")
             }
             .onChange(of: viewModel.isRefreshing) {
@@ -126,6 +128,7 @@ struct AppShellView: View {
                     for: UIApplication.didBecomeActiveNotification
                 )
             ) { _ in
+                FullPageSceneRegistry.shared.refresh("app became active")
                 navigation.didBecomeActive(
                     hasDraft: dailyExport.notes.currentDraft != nil,
                     availableRoutes: settings.availableRoutes
@@ -267,13 +270,21 @@ struct AppShellView: View {
     /// category "FullPage"); a no-op in release builds.
     private func logFullPageDiagnostics(_ reason: String) {
         #if DEBUG
-        let details = "path=\(navigation.path.map(\.rawValue)) "
-            + "transient=\(presentationState.isTransientUIPresented) "
-            + "medicationRequestActive=\(presentationState.isMedicationAuthorizationRequestActive) "
-            + "medicationHelp=\(presentationState.showsMedicationAccessHelp) "
-            + "refreshing=\(viewModel.isRefreshing) "
-            + "selection=\(viewModel.selection.rawValue) period=\(viewModel.period.selection.rawValue)"
-        screenshotController.logDiagnostics(reason, details: details)
+        let details = { [navigation, presentationState, viewModel] in
+            "path=\(navigation.path.map(\.rawValue)) "
+                + "transient=\(presentationState.isTransientUIPresented) "
+                + "medicationRequestActive=\(presentationState.isMedicationAuthorizationRequestActive) "
+                + "medicationHelp=\(presentationState.showsMedicationAccessHelp) "
+                + "refreshing=\(viewModel.isRefreshing) "
+                + "selection=\(viewModel.selection.rawValue) period=\(viewModel.period.selection.rawValue)"
+        }
+        let controller = screenshotController
+        controller.logDiagnostics(reason, details: details())
+        // Again once any push transition has settled, with fresh values.
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(1.5))
+            controller.logDiagnostics(reason + " (+1.5 s)", details: details())
+        }
         #endif
     }
 

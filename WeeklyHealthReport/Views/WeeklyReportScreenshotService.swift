@@ -145,8 +145,7 @@ final class WeeklyReportScreenshotDelegate: NSObject, UIScreenshotServiceDelegat
         // reliably into the separate report layout.
         let data = representationForCurrentRequest()
         #if DEBUG
-        FullPageDiagnostics.logger.debug(
-            "iOS requested Full Page: pdfBytes=\(data.map { String($0.count) } ?? "nil", privacy: .public)")
+        FullPageDiagnostics.log("iOS requested Full Page: pdfBytes=\(data.map { String($0.count) } ?? "nil")")
         #endif
         completionHandler(data, 0, .zero)
     }
@@ -158,8 +157,8 @@ final class WeeklyReportScreenshotController: ObservableObject {
     /// Set while Home is the visible root of the stack; a pushed Confirm from
     /// quick add leaves the path empty but hides Home.
     var isTodayOnScreen = false
-    /// The window hosting the app's stack, used to detect a presented sheet,
-    /// alert or system sheet over Home.
+    /// The scene's key window, used to detect a presented sheet, alert or
+    /// system sheet over Home.
     weak var hostWindow: UIWindow?
     private weak var registeredService: (any ScreenshotServiceRegistering)?
 
@@ -175,80 +174,134 @@ final class WeeklyReportScreenshotController: ObservableObject {
         delegate.setRequestProvider(provider)
     }
 
+    /// Sets this delegate on the service every time, even when the service is
+    /// unchanged, so a delegate cleared or replaced elsewhere is restored.
     func register(with service: (any ScreenshotServiceRegistering)?) {
-        guard registeredService !== service else { return }
-        registeredService?.delegate = nil
+        if registeredService !== service, registeredService?.delegate === delegate {
+            registeredService?.delegate = nil
+        }
         registeredService = service
         service?.delegate = delegate
     }
 
     func unregister() {
-        registeredService?.delegate = nil
+        if registeredService?.delegate === delegate {
+            registeredService?.delegate = nil
+        }
         registeredService = nil
     }
 
+    var isRegistered: Bool {
+        registeredService != nil && registeredService?.delegate === delegate
+    }
+
     #if DEBUG
-    /// DEBUG-only Full Page diagnostics: whether the active scene's screenshot
-    /// service points at this delegate, and what the delegate would return now.
+    /// DEBUG-only Full Page diagnostics: whether the scene's screenshot service
+    /// points at this delegate, and what the delegate would return now.
     func logDiagnostics(_ reason: String, details: String) {
         let scene = hostWindow?.windowScene
-        let service = scene?.screenshotService
         let bytes = delegate.representationForCurrentRequest()?.count
-        FullPageDiagnostics.logger.debug("""
-            \(reason, privacy: .public): \(details, privacy: .public) \
-            window=\(self.hostWindow != nil, privacy: .public) \
-            sceneState=\(scene?.activationState.rawValue ?? -9, privacy: .public) \
-            service=\(service != nil, privacy: .public) \
-            delegateIsOurs=\(service?.delegate === self.delegate, privacy: .public) \
-            modal=\(self.isPresentingModally, privacy: .public) \
-            todayOnScreen=\(self.isTodayOnScreen, privacy: .public) \
-            pdfBytes=\(bytes.map(String.init) ?? "nil", privacy: .public)
-            """)
+        FullPageDiagnostics.log(
+            "\(reason): \(details) window=\(hostWindow != nil) "
+                + "sceneState=\(scene?.activationState.rawValue ?? -9) "
+                + "service=\(registeredService != nil) delegateIsOurs=\(isRegistered) "
+                + "modal=\(isPresentingModally) todayOnScreen=\(isTodayOnScreen) "
+                + "pdfBytes=\(bytes.map(String.init) ?? "nil")"
+        )
     }
     #endif
 }
 
-#if DEBUG
-import os
+/// Registers Full Page at scene level. The app has one window scene
+/// (multiple scenes are off), and the screenshot service only asks a delegate
+/// set on that scene's `screenshotService`. The old registration view sat on
+/// Home, the stack's root: pushing Health took Home's view out of the window,
+/// `didMoveToWindow` reported no window, and it cleared the service's delegate,
+/// so iOS never asked on Health (and a launch restored to Health never
+/// registered at all). This resolves the scene from the
+/// application, re-registers on every scene activation and foreground entry,
+/// and keeps the controller (and so the delegate the service holds weakly)
+/// alive for the app's lifetime.
+@MainActor
+final class FullPageSceneRegistry {
+    struct Target {
+        let service: (any ScreenshotServiceRegistering)?
+        let window: UIWindow?
+    }
 
+    static let shared = FullPageSceneRegistry()
+
+    private let resolve: @MainActor () -> Target?
+    private var controller: WeeklyReportScreenshotController?
+    private var observers: [NSObjectProtocol] = []
+
+    init(
+        notificationCenter: NotificationCenter = .default,
+        resolve: @escaping @MainActor () -> Target? = FullPageSceneRegistry.applicationWindowScene
+    ) {
+        self.resolve = resolve
+        let names: [(Notification.Name, String)] = [
+            (UIScene.willConnectNotification, "scene connected"),
+            (UIScene.didActivateNotification, "scene activated"),
+            (UIScene.willEnterForegroundNotification, "scene entering foreground")
+        ]
+        observers = names.map { name, reason in
+            notificationCenter.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refresh(reason) }
+            }
+        }
+    }
+
+    /// Called by the shell when it appears; safe to call repeatedly.
+    func attach(_ controller: WeeklyReportScreenshotController) {
+        self.controller = controller
+        refresh("shell appeared")
+    }
+
+    func refresh(_ reason: String) {
+        guard let controller else { return }
+        let target = resolve()
+        // Never unregister on a failed lookup or a detached window: the scene's
+        // service stays registered for the scene's lifetime.
+        if let window = target?.window { controller.hostWindow = window }
+        if let service = target?.service { controller.register(with: service) }
+        #if DEBUG
+        FullPageDiagnostics.log(
+            "registered (\(reason)): scene=\(target != nil) service=\(target?.service != nil) "
+                + "window=\(target?.window != nil) delegateIsOurs=\(controller.isRegistered)"
+        )
+        #endif
+    }
+
+    /// The foreground-active window scene, else any connected window scene.
+    static func applicationWindowScene() -> Target? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        guard let scene = scenes.first(where: { $0.activationState == .foregroundActive })
+            ?? scenes.first(where: { $0.activationState == .foregroundInactive })
+            ?? scenes.first else {
+            return nil
+        }
+        return Target(service: scene.screenshotService, window: scene.keyWindow ?? scene.windows.first)
+    }
+}
+
+#if DEBUG
+/// DEBUG-only: appends Full Page diagnostics to Documents/fullpage-diagnostics.log
+/// for a device check. Temporary; remove before #228 is ready.
 enum FullPageDiagnostics {
-    static let logger = Logger(subsystem: "WeeklyHealthReport", category: "FullPage")
+    static func log(_ line: String) {
+        guard let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+        let url = directory.appendingPathComponent("fullpage-diagnostics.log")
+        let data = Data((ISO8601DateFormatter().string(from: Date()) + " " + line + "\n").utf8)
+        if let handle = try? FileHandle(forWritingTo: url) {
+            defer { try? handle.close() }
+            _ = try? handle.seekToEnd()
+            try? handle.write(contentsOf: data)
+        } else {
+            try? data.write(to: url)
+        }
+    }
 }
 #endif
-
-struct WeeklyReportScreenshotSceneRegistration: UIViewRepresentable {
-    let controller: WeeklyReportScreenshotController
-
-    func makeUIView(context: Context) -> SceneRegistrationView {
-        let view = SceneRegistrationView()
-        view.controller = controller
-        view.sceneDidChange = { [weak controller, weak view] scene in
-            controller?.hostWindow = view?.window
-            controller?.register(with: scene?.screenshotService)
-        }
-        return view
-    }
-
-    func updateUIView(_ view: SceneRegistrationView, context: Context) {
-        controller.hostWindow = view.window
-        controller.register(with: view.window?.windowScene?.screenshotService)
-    }
-
-    static func dismantleUIView(
-        _ view: SceneRegistrationView,
-        coordinator: Void
-    ) {
-        view.controller?.unregister()
-        view.sceneDidChange = nil
-    }
-
-    final class SceneRegistrationView: UIView {
-        weak var controller: WeeklyReportScreenshotController?
-        var sceneDidChange: ((UIWindowScene?) -> Void)?
-
-        override func didMoveToWindow() {
-            super.didMoveToWindow()
-            sceneDidChange?(window?.windowScene)
-        }
-    }
-}
