@@ -119,7 +119,8 @@ struct AppShellView: View {
     private func destination(for route: AppRoute) -> some View {
         switch route {
         case .foodLog:
-            FoodIntakeHomeView(root: foodLedger, isHome: false)
+            if let foodLedger { FoodLogView(root: foodLedger, navigation: navigation) }
+            else { ContentUnavailableView("Food log unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
         case .healthReport:
             HealthReportView(viewModel: viewModel, presentationState: presentationState)
                 .navigationTitle("Health report")
@@ -186,7 +187,9 @@ struct AppShellView: View {
         case .developerTools:
             DeveloperToolsSettingsView(toggle: settings.developerTools, diagnostics: foodLedger?.searchDiagnostics)
         case .addFood:
-            if let foodLedger { AddFoodFlowView(root: foodLedger) }
+            if let foodLedger {
+                AddFoodFlowView(root: foodLedger, finish: FoodEntryFinish { day in navigation.finishFoodEntry(reportingDay: day) })
+            }
             else { ContentUnavailableView("Add food unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
         case .exportDestination:
             DriveDestinationSettingsView(session: dailyExport)
