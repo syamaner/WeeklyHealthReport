@@ -1,6 +1,6 @@
 # Food quick add contract v1 (#198)
 
-Status: **draft for owner review, 11 October 2026, revised after the architecture gate. Documents only; no code has changed.**
+Status: **approved by the owner on 12 October 2026 with every recommended answer (Q1 to Q11); implemented in #198 (PR #209).** Rebase notes for phases 3 and 4 are in the [phase plan](ux-revamp-phase-5-favourites.md#rebase-notes-12-october-2026-after-phases-3-and-4-merged).
 This is the change [ux-revamp-v1.md](ux-revamp-v1.md) calls "Quick add" (section "Contract changes > 4"). It builds on [food-confirmation-contract-v5.md](food-confirmation-contract-v5.md) (one Log action, `FoodLogPolicy`, D4 and D6) and sequences after phase 3 (#196, PR #207: recent foods, `FoodConfirmationService.relogInput`, food archive contract 5, schema `food-ledger-v5`). Phase plan: [ux-revamp-phase-5-favourites.md](ux-revamp-phase-5-favourites.md). Wireframes: [`Favourites.dc.html`](designs/ux-revamp-v1/Favourites.dc.html), [`QuickAdd.dc.html`](designs/ux-revamp-v1/QuickAdd.dc.html).
 
 **Entry condition:** PR #207 is merged and its archive contract 5, `relogInput` and `minimumContractVersion` are as described here. If not, sections 3 and 6 are re-derived before implementation.
@@ -184,7 +184,7 @@ Additional tests from the re-check:
 
 Confirmation v5 policy, requirement set, assertion grammar and estimate projection; the reviewed web gate; search and recent foods behaviour; inventory and Common foods data. Deferred: photo routes (#93), favourite-only save without logging, widgets or Siri, writing water to HealthKit, food in Daily JSON (#97).
 
-## 10. Owner decisions (recommended, awaiting approval)
+## 10. Owner decisions (approved 12 October 2026, recommended answers)
 
 | ID | Decision | Recommendation |
 |---|---|---|

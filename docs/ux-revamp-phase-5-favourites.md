@@ -1,6 +1,6 @@
 # UX revamp phase 5: favourites, quick add and water (#198) architecture gate
 
-Status: **draft for owner review, 11 October 2026.** Contract: [food-quick-add-contract-v1.md](food-quick-add-contract-v1.md). Specification: [ux-revamp-v1.md](ux-revamp-v1.md) (contract change 4). Wireframes: [`Favourites.dc.html`](designs/ux-revamp-v1/Favourites.dc.html), [`QuickAdd.dc.html`](designs/ux-revamp-v1/QuickAdd.dc.html).
+Status: **approved 12 October 2026 (Q1 to Q11); implemented on this branch.** Contract: [food-quick-add-contract-v1.md](food-quick-add-contract-v1.md). Specification: [ux-revamp-v1.md](ux-revamp-v1.md) (contract change 4). Wireframes: [`Favourites.dc.html`](designs/ux-revamp-v1/Favourites.dc.html), [`QuickAdd.dc.html`](designs/ux-revamp-v1/QuickAdd.dc.html).
 
 Entry condition: phase 3 (#196, PR #207: `relogInput`, archive contract 5) is merged. Contract tests land first; owner decisions Q1 to Q11 are approved before production code. Quick add creates a new log item at version 1 (amends the specification's "new version").
 
@@ -68,3 +68,10 @@ Checked against `main` at `def4b19` (phase 3 #207 as `34fae5d`, phase 4 #211 as 
 - **Water identity representation.** `PackingMediumState` and `FortificationState` have no `not_applicable` case, so the reference record uses the existing conventions for "nothing applies": packing medium `named("none")` and fortification `unfortified`. Bone, skin and drained are `not_applicable`. The candidate's edible quantity is the known 100 mL basis quantity (the CoFID convention), so v5 raises no edible quantity difference. Exact, fully known identity, as the contract requires.
 - **Water source release identifier.** `sourceReleaseID` is `weeklyhealthreport.reference:plain-water-v1` (source ID `weeklyhealthreport.reference`, release `plain-water-v1`), following the existing `<source>:<release>` identifier style.
 - **Home.** Home is redesigned in phase 6 (#199). This phase adds the quick-add chip row, the sheet and a plain water figure to the current Home only.
+
+### Implementation notes
+
+- **Switch sites.** The exhaustive switches over `ProvenanceSourceKind` are the three nutrient validation switches in `Nutrition.swift` (measured: admitted with a record ID; augmented and bounded: refused). No presentation code switches over provenance or capture kind, so there is no "App reference" label site; water entries are labelled by the plain water source line instead. Generic and reviewed web policies classify the new cases as not generic and not applicable (test J).
+- **Favourites store rules.** Both stores admit competing favourite and arrangement heads (as they arrive from an archive merge) and the projection fails explicitly; lineage, binding existence and the product-only binding are enforced at insert.
+- **Usual foods.** With Add food's Favourites row now opening Favourites, Usual foods (the renamed Common foods) is linked from Settings › Data. Its route and data are unchanged.
+- **Add food.** The Favourites section lists the quick-add items; a tap opens the same sheet or Confirm as a Home chip and, after Log, ends through Add food's single post-save exit.
