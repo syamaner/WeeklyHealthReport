@@ -45,15 +45,15 @@ public struct FoodLogDayContent: Sendable {
     public let entries: [Entry]
     public let removed: [RemovedEntry]
     /// Plain water logged on this day in mL (#198, Q8), the same figure as Home. Nil when none is
-    /// logged (No data, never 0 mL). The dietary water nutrient total keeps its known-minimum rule.
-    public let plainWaterMillilitres: Double?
+    /// logged (No data, never 0 mL); a known minimum when an entry cannot be scaled.
+    public let plainWater: FoodIntakeTotal?
 
     /// `estimates` is the set of entries whose current version is a labelled estimate; the caller
     /// computes it from stored evidence (`FoodEntryEstimateStatus`).
     public init(projection: FoodIntakeProjection, reportingDate: String, estimates: Set<LogItemID>,
-                plainWaterMillilitres: Double? = nil) {
+                plainWater: FoodIntakeTotal? = nil) {
         self.reportingDate = reportingDate
-        self.plainWaterMillilitres = plainWaterMillilitres
+        self.plainWater = plainWater
         totals = projection.rows.isEmpty ? nil : Self.stripKeys.compactMap { key in
             projection.summary.totals.first { $0.key == key }
         }

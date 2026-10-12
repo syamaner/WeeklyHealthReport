@@ -37,7 +37,7 @@ public struct FoodLogReadingService: Sendable {
         let projection = try FoodIntakeProjection(records: records, reportingDate: reportingDate)
         return FoodLogDayContent(projection: projection, reportingDate: reportingDate,
                                  estimates: estimates(projection.rows.map(\.logItemID)),
-                                 plainWaterMillilitres: try PlainWaterDayTotal.millilitres(records: records, reportingDate: reportingDate))
+                                 plainWater: try PlainWaterDayTotal.total(records: records, reportingDate: reportingDate))
     }
 
     /// Nil when the entry is missing or removed.

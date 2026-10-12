@@ -140,14 +140,14 @@ public struct FoodLogDayContentSnapshot: Equatable {
     public let totals: [FoodIntakeTotal]?
     public let entries: [FoodLogDayContent.Entry]
     public let removed: [FoodLogDayContent.RemovedEntry]
-    public let plainWaterMillilitres: Double?
+    public let plainWater: FoodIntakeTotal?
 
     public init(_ content: FoodLogDayContent) {
         reportingDate = content.reportingDate
         totals = content.totals
         entries = content.entries
         removed = content.removed
-        plainWaterMillilitres = content.plainWaterMillilitres
+        plainWater = content.plainWater
     }
 }
 

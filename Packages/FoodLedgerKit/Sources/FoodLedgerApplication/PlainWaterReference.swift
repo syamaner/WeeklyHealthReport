@@ -96,12 +96,14 @@ public struct PlainWaterReference: Sendable {
 
 /// Plain water logged on one reporting date, aggregated daily-first in mL (Q8): current heads are
 /// summed within the date; removed and superseded versions contribute nothing. Nil means No data
-/// (no plain water logged), never 0 mL.
+/// (no plain water logged), never 0 mL. A plain water entry whose amount cannot be scaled (for
+/// example edited to grams) makes the total a known minimum (`incompleteContributions > 0`).
 public enum PlainWaterDayTotal {
-    public static func millilitres(records: LedgerMutation, reportingDate: String) throws -> Double? {
+    public static func total(records: LedgerMutation, reportingDate: String) throws -> FoodIntakeTotal? {
         let superseded = Set(records.logItemVersions.compactMap(\.supersedesLogItemVersionID))
-        let heads = records.logItemVersions.filter { !superseded.contains($0.logItemVersionID) && $0.reportingDate.value == reportingDate }
-        let grouped = Dictionary(grouping: records.logItemVersions.filter { !superseded.contains($0.logItemVersionID) }, by: \.logItemID)
+        let current = records.logItemVersions.filter { !superseded.contains($0.logItemVersionID) }
+        let heads = current.filter { $0.reportingDate.value == reportingDate }
+        let grouped = Dictionary(grouping: current, by: \.logItemID)
         guard heads.allSatisfy({ grouped[$0.logItemID]?.count == 1 }) else { throw FoodIntakeProjectionError.competingVersions }
         let resolutions = Dictionary(records.resolutionVersions.map { ($0.resolutionVersionID, $0) }, uniquingKeysWith: { first, _ in first })
         let bases = Dictionary(records.resolutions.map { ($0.resolutionID, $0.basis) }, uniquingKeysWith: { first, _ in first })
@@ -113,6 +115,11 @@ public enum PlainWaterDayTotal {
                                           nutrients: resolution.nutrients)
         }
         guard !contributions.isEmpty else { return nil }
-        return FoodIntakeSummary(contributions: contributions).totals.first { $0.key == .water }?.knownAmount
+        return FoodIntakeSummary(contributions: contributions).totals.first { $0.key == .water }
+    }
+
+    /// The known amount only (nil for No data or when no plain water entry could be scaled).
+    public static func millilitres(records: LedgerMutation, reportingDate: String) throws -> Double? {
+        try total(records: records, reportingDate: reportingDate)?.knownAmount
     }
 }

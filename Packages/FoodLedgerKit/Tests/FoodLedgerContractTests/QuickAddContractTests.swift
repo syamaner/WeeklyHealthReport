@@ -556,6 +556,37 @@ final class QuickAddContractTests: XCTestCase {
         }
     }
 
+    func testHBuiltInWaterChangesAreRefusedOnceAWaterChainExists() throws {
+        for context in try QuickAddFixtures.contexts() {
+            defer { context.harness.cleanup() }
+            try context.favourites.saveBuiltInWater(label: LedgerText("Water"), millilitres: 300)
+            let records = try (context.harness.committer as! any FavouriteReading).favouriteRecords()
+            for change in [{ try context.favourites.saveBuiltInWater(label: LedgerText("Water"), millilitres: 400) },
+                           { try context.favourites.removeBuiltInWater() },
+                           { try context.favourites.arrange([.builtInWater]) }] {
+                XCTAssertThrowsError(try change()) {
+                    XCTAssertEqual($0 as? FavouritesServiceError, .builtInWaterAlreadySaved, context.harness.name)
+                }
+            }
+            XCTAssertEqual(try (context.harness.committer as! any FavouriteReading).favouriteRecords(), records, "Nothing written")
+        }
+    }
+
+    func test09PlainWaterTotalIsAKnownMinimumWhenAnEntryCannotBeScaled() throws {
+        for context in try QuickAddFixtures.contexts() {
+            defer { context.harness.cleanup() }
+            let water = try context.logWater(250)
+            let other = try context.logWater(330)
+            // Edit the second entry to grams: no water density is inferred, so it cannot be scaled.
+            var edit = try XCTUnwrap(context.confirmations.reopen(logItemID: other.logItem.logItemID))
+            FoodConfirmationReducer.reduce(state: &edit, action: .setQuantity(100, .grams))
+            _ = try context.confirmations.save(edit, operationID: context.ids.makeID(OperationTag.self))
+            let total = try XCTUnwrap(PlainWaterDayTotal.total(records: context.records(), reportingDate: water.logItemVersion.reportingDate.value))
+            XCTAssertEqual(total.knownAmount, 250, context.harness.name)
+            XCTAssertEqual(total.incompleteContributions, 1, "A known minimum, never presented as complete")
+        }
+    }
+
     // MARK: I. save_favourite_v1 idempotency
 
     func testISaveFavouriteIsIdempotentPerEntryVersion() throws {

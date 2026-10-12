@@ -66,9 +66,15 @@ public struct QuickAddChipRow: View {
         LazyVGrid(columns: columns, alignment: .leading, spacing: 8) {
             ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                 Button { open(item) } label: {
-                    HStack(spacing: 6) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Image(systemName: QuickAddText.isPlainWater(item) ? "drop" : "star").accessibilityHidden(true)
-                        Text(QuickAddText.chip(item)).lineLimit(2).multilineTextAlignment(.leading)
+                        // The amount is always shown in full; a long name truncates instead.
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(QuickAddText.title(item)).lineLimit(2).truncationMode(.tail)
+                            Text(QuickAddText.defaultAmount(item)).font(.subheadline).monospacedDigit()
+                                .fixedSize(horizontal: false, vertical: true).layoutPriority(1)
+                        }
+                        .multilineTextAlignment(.leading)
                         Spacer(minLength: 0)
                     }
                     .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
@@ -100,6 +106,10 @@ public final class QuickAddSheetModel: ObservableObject, Identifiable {
     private let now: @Sendable () -> Date
     public let calendar: Calendar
     private let logAction: @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
+    /// Called exactly once, after the one successful Log. The host dismisses the sheet here and
+    /// reloads (or ends the Add food journey); views never infer completion by observing `phase`.
+    /// A plain (non-Sendable) function: it is stored and called only on the main actor.
+    public var onLogged: ((StoredFoodConfirmation) -> Void)?
 
     public init(preparation: QuickAddPreparation, now: @escaping @Sendable () -> Date = { Date() },
                 calendar: Calendar = .autoupdatingCurrent,
@@ -172,16 +182,24 @@ public final class QuickAddSheetModel: ObservableObject, Identifiable {
         var accepted = state
         FoodConfirmationReducer.reduce(state: &accepted, action: .accept)
         do {
-            savedResult = try logAction(accepted)
+            let saved = try logAction(accepted)
+            savedResult = saved
             state = accepted
             phase = .saved
+            onLogged?(saved)
         } catch {
             phase = .failed(FoodConfirmationViewModel.message(for: error))
         }
     }
 
-    /// The state for Confirm ("Edit"): the current sheet state, not yet accepted.
-    public var editState: FoodConfirmationState { state }
+    /// The state for Confirm ("Edit"): the current sheet state, not yet accepted. Nil once saving
+    /// has started, so a logged sheet can never be logged again through Confirm.
+    public var editState: FoodConfirmationState? {
+        switch phase {
+        case .ready, .failed: state
+        case .saving, .saved: nil
+        }
+    }
 }
 
 private extension QuickAddSheetModel.Phase {
@@ -262,7 +280,7 @@ public struct QuickAddSheet: View {
         #endif
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: close) }
-            ToolbarItem(placement: .primaryAction) { Button("Edit", action: edit).disabled(model.phase == .saving) }
+            ToolbarItem(placement: .primaryAction) { Button("Edit", action: edit).disabled(model.editState == nil) }
         }
         .safeAreaInset(edge: .bottom) {
             VStack(spacing: 6) {

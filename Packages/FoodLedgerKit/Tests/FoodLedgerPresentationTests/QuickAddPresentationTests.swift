@@ -34,6 +34,30 @@ final class QuickAddPresentationTests: XCTestCase {
         return (store, confirmations, favourites)
     }
 
+    private func exactInput() throws -> PopulatedFoodConfirmation {
+        let evidenceID: EvidenceID = try LedgerID("00000000-0000-0000-0000-0000000000e1")
+        let evidence = try CaptureEvidence(evidenceID: evidenceID, kind: .synthetic, capturedAt: now, locale: LedgerText("en_GB"),
+            captureMethod: LedgerText("synthetic_fixture"), captureMethodVersion: LedgerText("v1"), originalPayload: .text(LedgerText("yoghurt")))
+        let release = SourceRelease(sourceReleaseID: try ExternalIdentifier("package:presentation-v1"), sourceID: try ExternalIdentifier("physical_package"),
+            releasedAt: now, artifactHash: try SHA256Digest(String(repeating: "c", count: 64)), schemaVersion: try LedgerText("v1"),
+            pipelineVersion: try LedgerText("v1"), licence: try LedgerText("user supplied evidence"), attribution: try LedgerText("synthetic"),
+            manifestHash: try SHA256Digest(String(repeating: "d", count: 64)))
+        let provenance = NutrientProvenance(sourceKind: .userVerifiedPanel, sourceID: release.sourceID, sourceReleaseID: release.sourceReleaseID, evidenceID: evidenceID)
+        let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in
+            guard key == .protein else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }
+            return try NutrientEntry(key: key, value: .measured(ExactNutrientValue(amount: 10, unit: .grams,
+                sourceValue: .exact(SourceExactNutrientValue(amount: 10, unit: LedgerText("g"), basis: .per100Grams)), provenance: [provenance])))
+        })
+        let identity = try DecisiveIdentity(preparation: PreparationState(kind: .asSold), bone: .notApplicable, skin: .notApplicable,
+            drained: .notApplicable, packingMedium: .named(LedgerText("none")), fortification: .unfortified, servingBasis: .per100Grams)
+        let quantity = EdibleQuantityIdentity.known(try PositiveQuantity(value: 100, unit: .grams), conversionVersionID: nil)
+        let candidate = try PopulatedFoodCandidate(candidate: ProviderNeutralCandidate(sourceReleaseID: release.sourceReleaseID,
+            recordID: ExternalIdentifier("fixture:yoghurt"), identity: identity, edibleQuantity: quantity, nutrients: nutrients,
+            evidenceIDs: [evidenceID]), name: LedgerText("Greek yoghurt"), itemClass: .food)
+        return try PopulatedFoodConfirmation(evidence: [evidence], sourceReleases: [release], candidates: [candidate],
+            expectedIdentity: identity, expectedEdibleQuantity: quantity)
+    }
+
     private func sheet(_ preparation: QuickAddPreparation, _ confirmations: FoodConfirmationService) -> QuickAddSheetModel {
         let now = self.now
         return QuickAddSheetModel(preparation: preparation, now: { now }, calendar: calendar) { state in
@@ -51,8 +75,13 @@ final class QuickAddPresentationTests: XCTestCase {
         XCTAssertEqual(model.sourceLine, QuickAddText.waterSourceLine)
         model.choosePreset(330)
         XCTAssertEqual(model.logTitle, "Log 330 mL")
+        var completions = 0
+        model.onLogged = { _ in completions += 1 }
+        XCTAssertNotNil(model.editState)
         model.log(); model.log()
         XCTAssertEqual(model.phase, .saved)
+        XCTAssertEqual(completions, 1, "The completion runs exactly once")
+        XCTAssertNil(model.editState, "Edit is unavailable once logged")
         XCTAssertEqual(try store.counts().operations, 1)
         XCTAssertEqual(model.savedResult?.logItemVersion.edibleQuantity.value, 330)
     }
@@ -98,7 +127,12 @@ final class QuickAddPresentationTests: XCTestCase {
         let (store, confirmations, favourites) = try services()
         var failNext = true
         let water = try PlainWaterReference(digester: SHA256Digester())
-        let model = FoodConfirmationViewModel(state: water.state(millilitres: 250), savesFavourite: true, favouriteAction: { id in
+        // Plain water never offers Save as favourite (QA D2); any other food does.
+        XCTAssertFalse(FoodConfirmationViewModel(state: water.state(millilitres: 250), savesFavourite: true,
+            favouriteAction: { _ in }) { _ in throw FoodConfirmationSaveError.noAcceptedCandidate }.offersFavourite)
+        var food = FoodConfirmationState(input: try exactInput(), prefillSourceQuantity: false)
+        FoodConfirmationReducer.reduce(state: &food, action: .setQuantity(150, .grams))
+        let model = FoodConfirmationViewModel(state: food, savesFavourite: true, favouriteAction: { id in
             if failNext { failNext = false; throw FoodLedgerStoreError.integrityFailure("synthetic") }
             _ = try favourites.saveFavourite(logItemVersionID: id)
         }) { state in
@@ -157,7 +191,11 @@ final class QuickAddPresentationTests: XCTestCase {
         XCTAssertEqual(QuickAddText.detail(.favourite(version), isEstimate: true), "150 g · Estimate")
         XCTAssertEqual(QuickAddText.detail(.favourite(version), isEstimate: nil), "150 g · Source can no longer be verified")
         XCTAssertEqual(FoodLogText.plainWater(nil), "No data")
-        XCTAssertEqual(FoodLogText.plainWater(730, locale: Locale(identifier: "en_GB")), "730 mL")
+        let complete = FoodIntakeTotal(key: .water, knownAmount: 730, incompleteContributions: 0, includesEstimates: false)
+        let minimum = FoodIntakeTotal(key: .water, knownAmount: 730, incompleteContributions: 1, includesEstimates: false)
+        XCTAssertEqual(FoodLogText.plainWater(complete, locale: Locale(identifier: "en_GB")), "730 mL")
+        XCTAssertEqual(FoodLogText.plainWater(minimum, locale: Locale(identifier: "en_GB")), "730 mL+")
+        XCTAssertEqual(FoodLogText.plainWaterAccessibility(minimum, locale: Locale(identifier: "en_GB")), "Plain water logged, at least 730 millilitres")
         XCTAssertEqual(FoodLogText.plainWaterAccessibility(nil), "Plain water logged, no data")
     }
 }

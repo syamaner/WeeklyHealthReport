@@ -38,7 +38,7 @@ struct FoodLogView: View {
                 addFoodSection
             case let .loaded(day):
                 if let totals = day.totals {
-                    totalsSection(totals, plainWater: day.plainWaterMillilitres)
+                    totalsSection(totals, plainWater: day.plainWater)
                 }
                 addFoodSection
                 if day.entries.isEmpty {
@@ -125,7 +125,7 @@ struct FoodLogView: View {
 
     // MARK: Totals
 
-    private func totalsSection(_ totals: [FoodIntakeTotal], plainWater: Double?) -> some View {
+    private func totalsSection(_ totals: [FoodIntakeTotal], plainWater: FoodIntakeTotal?) -> some View {
         Section {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading),
                                      count: dynamicTypeSize.isAccessibilitySize ? 1 : 4), alignment: .leading, spacing: 8) {

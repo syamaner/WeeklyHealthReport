@@ -155,7 +155,7 @@ final class FoodLedgerCompositionRoot {
     // MARK: Favourites and quick add (#198)
 
     /// Writes `save_favourite_v1` for a logged entry version (Confirm's "Save as favourite").
-    var favouriteAction: @MainActor (LogItemVersionID) throws -> Void {
+    var favouriteAction: @MainActor @Sendable (LogItemVersionID) throws -> Void {
         { [favourites] versionID in _ = try favourites.saveFavourite(logItemVersionID: versionID) }
     }
 
@@ -168,27 +168,42 @@ final class FoodLedgerCompositionRoot {
     /// Rebuilds a fresh confirmation for a quick-add item. Writes nothing.
     func quickAddPreparation(_ item: QuickAddItem) throws -> QuickAddPreparation { try favourites.prepare(item) }
 
+    /// The sheet logs the same input Confirm would: the rebuilt input runs through the same
+    /// volume-source enrichment as every other Confirm factory.
     func quickAddSheetModel(_ preparation: QuickAddPreparation) -> QuickAddSheetModel {
         let clock = confirmationClock
-        return QuickAddSheetModel(preparation: preparation, now: { clock.now() }, calendar: confirmationCalendar) { [confirmations, ids] state in
+        let prepared = preparation.replacingState(withMilkVolumeSource(preparation.state).state)
+        return QuickAddSheetModel(preparation: prepared, now: { clock.now() }, calendar: confirmationCalendar) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
 
     /// Confirm for a quick-add state: an ineligible favourite, or the sheet's Edit. Fresh explicit
-    /// confirmation through the same save path.
+    /// confirmation through the same save path, with the offered volume source carried into Confirm.
     func model(quickAdd state: FoodConfirmationState) -> FoodConfirmationViewModel {
         let clock = confirmationClock
-        return FoodConfirmationViewModel(state: state, now: { clock.now() }, calendar: confirmationCalendar,
+        let (prepared, offering) = withMilkVolumeSource(state)
+        return FoodConfirmationViewModel(state: prepared, volumeConversionOffering: offering, now: { clock.now() },
+                                         calendar: confirmationCalendar,
                                          favouriteAction: favouriteAction) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
 
-    /// Plain water logged on the date's reporting day (Q8). Nil means No data.
-    func plainWaterMillilitres(for date: Date, calendar: Calendar = .current) throws -> Double? {
-        try PlainWaterDayTotal.millilitres(records: store.archiveState().records,
-                                           reportingDate: FoodReportingDay.key(for: date, calendar: calendar))
+    /// An unsaved state with its input enriched by the milk volume source, keeping amount and time.
+    private func withMilkVolumeSource(_ state: FoodConfirmationState) -> (state: FoodConfirmationState, offering: (any FoodVolumeConversionOffering)?) {
+        let (input, offering) = withMilkVolumeSource(state.input)
+        guard input != state.input else { return (state, offering) }
+        var enriched = FoodConfirmationState(input: input, prefillSourceQuantity: false)
+        enriched.quantity = state.quantity
+        enriched.occurredAt = state.occurredAt
+        return (enriched, offering)
+    }
+
+    /// Plain water logged today as a total, so a known minimum keeps its style (Q8).
+    func plainWaterTotal(for date: Date, calendar: Calendar = .current) throws -> FoodIntakeTotal? {
+        try PlainWaterDayTotal.total(records: store.archiveState().records,
+                                     reportingDate: FoodReportingDay.key(for: date, calendar: calendar))
     }
 
     /// Recent foods for Add food: 10 items within 30 days, each source re-verified (P1, P3).
@@ -496,7 +511,8 @@ struct AddFoodFlowView: View {
     @State private var showsConfirmation = false
     @State private var relogFailed = false
     @State private var now = Date()
-    @State private var quickAddItems: [QuickAddItem] = []
+    /// Nil when favourites cannot be read (shown as a failure, never as empty).
+    @State private var quickAddItems: [QuickAddItem]? = []
     @State private var quickAddRequest: QuickAddItem?
 
     init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) { self.root = root; self.finish = finish }
@@ -514,8 +530,8 @@ struct AddFoodFlowView: View {
                             confirmationModel = model; showsConfirmation = true
                         } else { relogFailed = true }
                     })
-        .onAppear { now = root.confirmationNow; recents = root.recentFoods(); quickAddItems = root.quickAddItems() ?? [] }
-        .quickAdd(root: root, request: $quickAddRequest, finish: finish) { quickAddItems = root.quickAddItems() ?? [] }
+        .onAppear { now = root.confirmationNow; recents = root.recentFoods(); quickAddItems = root.quickAddItems() }
+        .quickAdd(root: root, request: $quickAddRequest, finish: finish) { quickAddItems = root.quickAddItems() }
         .alert("This food could not be opened", isPresented: $relogFailed) {
             Button("OK", role: .cancel) {}
         } message: { Text("Its saved source could not be verified. Search for it instead. Nothing was saved.") }
@@ -902,14 +918,9 @@ struct QuickAddPresenter: ViewModifier {
             }) { model in
                 NavigationStack {
                     QuickAddSheet(model: model, edit: {
-                        pendingEdit = model.editState; sheetModel = nil
+                        guard let state = model.editState else { return }
+                        pendingEdit = state; sheetModel = nil
                     }, close: { sheetModel = nil })
-                    .onChange(of: model.phase) { _, phase in
-                        guard phase == .saved else { return }
-                        sheetModel = nil
-                        // Inside Add food the journey ends through its single post-save exit.
-                        if !FoodEntryFinish.complete(finish, saved: model.savedResult) { logged() }
-                    }
                 }
                 .presentationDetents([.medium, .large])
             }
@@ -931,8 +942,21 @@ struct QuickAddPresenter: ViewModifier {
     private func open(_ item: QuickAddItem) {
         guard let preparation = try? root.quickAddPreparation(item) else { unverifiable = true; return }
         switch preparation.eligibility {
-        case .sheet: sheetModel = root.quickAddSheetModel(preparation)
+        case .sheet:
+            let model = root.quickAddSheetModel(preparation)
+            model.onLogged = QuickAddPresenter.completion(dismiss: { sheetModel = nil }, finish: finish, logged: logged)
+            sheetModel = model
         case .confirm: openConfirm(preparation.state)
+        }
+    }
+
+    /// After the one successful Log: dismiss the sheet, then end the Add food journey through its
+    /// single post-save exit or, elsewhere, reload the host.
+    static func completion(dismiss: @escaping () -> Void, finish: FoodEntryFinish?,
+                           logged: @escaping () -> Void) -> (StoredFoodConfirmation) -> Void {
+        { saved in
+            dismiss()
+            if !FoodEntryFinish.complete(finish, saved: saved) { logged() }
         }
     }
 

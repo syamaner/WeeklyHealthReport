@@ -19,7 +19,7 @@ struct FoodIntakeHomeView: View {
     @State private var quickAddItems: [QuickAddItem]? = []
     @State private var quickAddRequest: QuickAddItem?
     /// Plain water logged today (Q8). Nil means No data.
-    @State private var plainWater: Double?
+    @State private var plainWater: FoodIntakeTotal?
 
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
@@ -73,7 +73,10 @@ struct FoodIntakeHomeView: View {
                     Text("Totals cover known values only. Missing or bounded nutrients are not counted as zero.")
                 }
                 Section {
-                    if let items = quickAddItems {
+                    if let items = quickAddItems, items.isEmpty {
+                        Text("No favourites yet").foregroundStyle(.secondary)
+                        NavigationLink("Manage favourites", value: AppRoute.favourites)
+                    } else if let items = quickAddItems {
                         QuickAddChipRow(items: Array(items.prefix(FavouritesProjection.todayCount))) { quickAddRequest = $0 }
                             .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
                         NavigationLink("Manage favourites", value: AppRoute.favourites)
@@ -183,7 +186,7 @@ struct FoodIntakeHomeView: View {
             guard let root else { throw FoodIntakeProjectionError.missingReference }
             projection = try root.intakeProjection(for: selectedDate)
             estimates = projection.map { root.estimateLogItemIDs(in: $0.rows) } ?? []
-            plainWater = try root.plainWaterMillilitres(for: selectedDate)
+            plainWater = try root.plainWaterTotal(for: selectedDate)
             quickAddItems = root.quickAddItems()
             failure = nil
         } catch FoodIntakeProjectionError.competingVersions {

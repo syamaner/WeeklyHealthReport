@@ -39,7 +39,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         saveAction: @escaping @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
     ) {
         self.state = state
-        self.savesFavourite = savesFavourite && favouriteAction != nil
+        self.savesFavourite = savesFavourite && favouriteAction != nil && !Self.isPlainWaterSource(state)
         self.favouriteAction = favouriteAction
         self.now = now
         self.calendar = calendar
@@ -195,8 +195,15 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public static let estimateNotice = "Logged as an estimate. Unknown details stay unknown."
 
-    /// Whether the "Save as favourite" toggle is offered: a new entry with a favourite writer.
-    public var offersFavourite: Bool { favouriteAction != nil && state.reopened == nil }
+    /// Whether the "Save as favourite" toggle is offered: a new entry with a favourite writer, and
+    /// not plain water (already the built-in quick add, with its amount editable in Favourites).
+    public var offersFavourite: Bool {
+        favouriteAction != nil && state.reopened == nil && !Self.isPlainWaterSource(state)
+    }
+
+    public static func isPlainWaterSource(_ state: FoodConfirmationState) -> Bool {
+        state.selectedCandidate.candidate.sourceReleaseID.value == PlainWaterReference.sourceReleaseID
+    }
 
     public var logButtonTitle: String {
         if state.reopened != nil { return "Save changes" }

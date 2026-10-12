@@ -303,6 +303,50 @@ final class QuickAddAppTests: XCTestCase {
         return try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults)
     }
 
+    /// An exact synthetic product (user-verified panel, fully known identity).
+    private func exactInput(_ name: String = "Greek yoghurt") throws -> PopulatedFoodConfirmation {
+        let evidenceID = try EvidenceID(UUID().uuidString.lowercased())
+        let evidence = try CaptureEvidence(evidenceID: evidenceID, kind: .synthetic, capturedAt: Date(timeIntervalSince1970: 1_790_000_000),
+            locale: LedgerText("en_GB"), captureMethod: LedgerText("synthetic_fixture"), captureMethodVersion: LedgerText("v1"),
+            originalPayload: .text(LedgerText(name)))
+        let release = SourceRelease(sourceReleaseID: try ExternalIdentifier("package:quick-add-app-v1"),
+            sourceID: try ExternalIdentifier("physical_package"), releasedAt: Date(timeIntervalSince1970: 1_790_000_000),
+            artifactHash: try SHA256Digest(String(repeating: "c", count: 64)), schemaVersion: try LedgerText("food-contract-v1"),
+            pipelineVersion: try LedgerText("manual-capture-v1"), licence: try LedgerText("user supplied evidence"),
+            attribution: try LedgerText("synthetic fixture"), manifestHash: try SHA256Digest(String(repeating: "d", count: 64)))
+        let provenance = NutrientProvenance(sourceKind: .userVerifiedPanel, sourceID: release.sourceID,
+            sourceReleaseID: release.sourceReleaseID, evidenceID: evidenceID)
+        let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in
+            guard key == .energyConsumed else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }
+            return try NutrientEntry(key: key, value: .measured(ExactNutrientValue(amount: 57, unit: .kilocalories,
+                sourceValue: .exact(SourceExactNutrientValue(amount: 57, unit: LedgerText("kcal"), basis: .per100Grams)),
+                provenance: [provenance])))
+        })
+        let identity = try DecisiveIdentity(preparation: PreparationState(kind: .asSold), bone: .notApplicable, skin: .notApplicable,
+            drained: .notApplicable, packingMedium: .named(LedgerText("none")), fortification: .unfortified, servingBasis: .per100Grams)
+        let quantity = EdibleQuantityIdentity.known(try PositiveQuantity(value: 100, unit: .grams), conversionVersionID: nil)
+        let candidate = try PopulatedFoodCandidate(candidate: ProviderNeutralCandidate(sourceReleaseID: release.sourceReleaseID,
+            recordID: ExternalIdentifier("fixture:\(name)"), identity: identity, edibleQuantity: quantity, nutrients: nutrients,
+            evidenceIDs: [evidenceID]), name: LedgerText(name), itemClass: .food)
+        return try PopulatedFoodConfirmation(evidence: [evidence], sourceReleases: [release], candidates: [candidate],
+            expectedIdentity: identity, expectedEdibleQuantity: quantity)
+    }
+
+    /// Logs an exact food from Confirm with Save as favourite on; returns the new favourite.
+    private func favouriteFromConfirm(_ root: FoodLedgerCompositionRoot, _ name: String = "Greek yoghurt",
+                                      grams: Double = 150) throws -> FavouriteVersion {
+        let model = root.model(for: try exactInput(name), prefillSourceQuantity: false, savesFavourite: true)
+        XCTAssertTrue(model.offersFavourite)
+        XCTAssertEqual(model.logButtonTitle, "Log and save favourite")
+        model.send(.setQuantity(grams, .grams))
+        model.log()
+        XCTAssertEqual(model.favouriteOutcome, .saved, "\(model.state.phase)")
+        guard case let .favourite(favourite)? = try XCTUnwrap(root.quickAddItems()).last else {
+            throw XCTSkip("Expected the new favourite")
+        }
+        return favourite
+    }
+
     /// Home water chip: the sheet opens on a tap (nothing written), one Log saves 250 mL, and the
     /// same plain water figure appears on Home and in the Food Log.
     func testWaterChipLogsPlainWaterShownOnHomeAndInTheFoodLog() throws {
@@ -310,47 +354,120 @@ final class QuickAddAppTests: XCTestCase {
         let items = try XCTUnwrap(root.quickAddItems())
         XCTAssertEqual(items.first, .builtInWater)
         let today = root.confirmationNow
-        XCTAssertNil(try root.plainWaterMillilitres(for: today, calendar: root.confirmationDayCalendar), "No data, not 0 mL")
+        XCTAssertNil(try root.plainWaterTotal(for: today, calendar: root.confirmationDayCalendar), "No data, not 0 mL")
         let preparation = try root.quickAddPreparation(.builtInWater)
         XCTAssertEqual(preparation.eligibility, .sheet)
         let sheet = root.quickAddSheetModel(preparation)
-        XCTAssertNil(try root.plainWaterMillilitres(for: today, calendar: root.confirmationDayCalendar), "Opening the sheet writes nothing")
+        XCTAssertNil(try root.plainWaterTotal(for: today, calendar: root.confirmationDayCalendar), "Opening the sheet writes nothing")
         XCTAssertEqual(sheet.logTitle, "Log 250 mL")
         sheet.log(); sheet.log()
         XCTAssertEqual(sheet.phase, .saved)
         let saved = try XCTUnwrap(sheet.savedResult)
-        XCTAssertEqual(try root.plainWaterMillilitres(for: today, calendar: root.confirmationDayCalendar), 250)
+        XCTAssertEqual(try root.plainWaterTotal(for: today, calendar: root.confirmationDayCalendar)?.knownAmount, 250)
         let day = try root.foodLogService.day(reportingDate: saved.logItemVersion.reportingDate.value)
-        XCTAssertEqual(day.plainWaterMillilitres, 250)
+        XCTAssertEqual(day.plainWater?.knownAmount, 250)
         XCTAssertEqual(day.entries.count, 1, "One Log press saves once")
-        XCTAssertEqual(FoodLogText.plainWater(day.plainWaterMillilitres, locale: Locale(identifier: "en_GB")), "250 mL")
+        XCTAssertEqual(FoodLogText.plainWater(day.plainWater, locale: Locale(identifier: "en_GB")), "250 mL")
         XCTAssertTrue(try XCTUnwrap(root.quickAddItems()).contains(.builtInWater), "Logging water writes no favourite")
     }
 
+    /// QA D1: logging from the sheet runs the completion exactly once, which dismisses the sheet and
+    /// reloads the host (or ends Add food through its single exit); Edit is then unavailable.
+    func testSheetLogCompletesOnceDismissesAndBlocksEdit() throws {
+        let root = try makeRoot()
+        var dismissed = 0, reloaded = 0
+        let sheet = root.quickAddSheetModel(try root.quickAddPreparation(.builtInWater))
+        sheet.onLogged = QuickAddPresenter.completion(dismiss: { dismissed += 1 }, finish: nil, logged: { reloaded += 1 })
+        XCTAssertNotNil(sheet.editState)
+        sheet.log(); sheet.log()
+        XCTAssertEqual(dismissed, 1); XCTAssertEqual(reloaded, 1)
+        XCTAssertNil(sheet.editState, "A logged sheet cannot be logged again through Edit")
+        let coordinator = AppNavigationCoordinator(defaults: UserDefaults(suiteName: "quick-add-\(UUID().uuidString)")!)
+        coordinator.replacePath([.foodLog, .addFood])
+        var finished = 0
+        let inside = root.quickAddSheetModel(try root.quickAddPreparation(.builtInWater))
+        inside.onLogged = QuickAddPresenter.completion(dismiss: { dismissed += 1 },
+            finish: FoodEntryFinish { finished += 1; coordinator.finishFoodEntry(reportingDay: $0) }, logged: { reloaded += 1 })
+        inside.log()
+        XCTAssertEqual(finished, 1); XCTAssertEqual(reloaded, 1, "Inside Add food the journey finishes instead")
+        XCTAssertEqual(coordinator.path, [.foodLog])
+    }
+
     /// Confirm's "Save as favourite" writes the favourite after Log; the favourite then quick-adds
-    /// through the sheet, and editing it never changes the logged entry.
+    /// through the sheet.
     func testSaveAsFavouriteFromConfirmThenQuickAddFromTheChip() throws {
         let root = try makeRoot()
-        let water = try PlainWaterReference(digester: SHA256Digester())
-        let model = root.model(for: water.input, prefillSourceQuantity: false, savesFavourite: true)
-        XCTAssertTrue(model.offersFavourite)
-        XCTAssertEqual(model.logButtonTitle, "Log and save favourite")
-        model.send(.setQuantity(330, .millilitres))
-        model.log()
-        XCTAssertEqual(model.favouriteOutcome, .saved)
-        let items = try XCTUnwrap(root.quickAddItems())
-        guard case let .favourite(favourite) = items.last else { return XCTFail("Expected the new favourite") }
-        XCTAssertEqual(favourite.defaultAmount, try FavouriteAmount(value: 330, unit: .millilitres))
+        let favourite = try favouriteFromConfirm(root)
+        XCTAssertEqual(favourite.defaultAmount, try FavouriteAmount(value: 150, unit: .grams))
         let preparation = try root.quickAddPreparation(.favourite(favourite))
         XCTAssertEqual(preparation.eligibility, .sheet)
         let sheet = root.quickAddSheetModel(preparation)
         sheet.log()
-        XCTAssertEqual(try root.plainWaterMillilitres(for: root.confirmationNow, calendar: root.confirmationDayCalendar), 660)
+        XCTAssertEqual(sheet.savedResult?.logItemVersion.edibleQuantity.value, 150)
     }
 
-    /// Native renders (synthetic data): Favourites populated and empty, Home chips, the quick-add
-    /// sheet ready and with an invalid custom amount, Confirm with Save as favourite; standard and
-    /// accessibility text sizes, light and dark.
+    /// QA D2: Confirm never offers Save as favourite for plain water (already the built-in quick add).
+    func testPlainWaterConfirmDoesNotOfferSaveAsFavourite() throws {
+        let root = try makeRoot()
+        let water = try PlainWaterReference(digester: SHA256Digester())
+        let model = root.model(for: water.input, prefillSourceQuantity: false, savesFavourite: true)
+        XCTAssertFalse(model.offersFavourite)
+        XCTAssertFalse(model.savesFavourite)
+        model.send(.setQuantity(330, .millilitres))
+        XCTAssertNotEqual(model.logButtonTitle, "Log and save favourite")
+        model.log()
+        XCTAssertNotNil(model.savedResult)
+        XCTAssertEqual(try XCTUnwrap(root.quickAddItems()), [.builtInWater], "No second Water item")
+        XCTAssertFalse(root.model(quickAdd: try root.quickAddPreparation(.builtInWater).state).offersFavourite)
+    }
+
+    /// The sheet and Confirm for a milk favourite use the same enriched input (the volume source is
+    /// offered in Confirm), so both save the same entry.
+    func testMilkFavouriteSheetAndConfirmUseTheSameVolumeSourceInput() throws {
+        let root = try makeRoot()
+        let search = try root.genericFoodSearchModel(locale: Locale(identifier: "en_GB"))
+        search.query = "Milk, whole, pasteurised, average"
+        search.search()
+        guard case let .results(route) = search.phase,
+              let milk = route.confirmation.candidates.first(where: { $0.name.value.localizedCaseInsensitiveContains("whole") }) else {
+            throw XCTSkip("Expected offline CoFID whole milk")
+        }
+        let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence, sourceReleases: route.confirmation.sourceReleases,
+            candidates: [milk], expectedIdentity: milk.candidate.identity, expectedEdibleQuantity: milk.candidate.edibleQuantity)
+        let confirm = root.model(for: input, prefillSourceQuantity: false, savesFavourite: true)
+        confirm.send(.setQuantity(200, .millilitres))
+        confirm.answerPendingDifferencesForTest()
+        guard confirm.availableVolumeConversion != nil else { throw XCTSkip("Milk volume source not offered") }
+        confirm.applyAvailableVolumeConversion()
+        confirm.log()
+        XCTAssertEqual(confirm.favouriteOutcome, .saved, "\(confirm.state.phase)")
+        guard case let .favourite(favourite)? = try XCTUnwrap(root.quickAddItems()).last else { return XCTFail("favourite") }
+        XCTAssertEqual(favourite.defaultAmount.unit, .millilitres)
+        let preparation = try root.quickAddPreparation(.favourite(favourite))
+        let sheet = root.quickAddSheetModel(preparation)
+        let edit = root.model(quickAdd: preparation.state)
+        XCTAssertEqual(sheet.state.input, edit.state.input)
+        XCTAssertTrue(sheet.state.input.sourceReleases.contains { $0.sourceReleaseID.value.hasPrefix("phe-npm-2018") })
+        XCTAssertNotNil(edit.availableVolumeConversion, "Confirm carries the volume offering")
+        edit.answerPendingDifferencesForTest()
+        sheet.log(); edit.log()
+        let fromSheet = try XCTUnwrap(sheet.savedResult), fromConfirm = try XCTUnwrap(edit.savedResult)
+        XCTAssertEqual(fromSheet.logItemVersion.edibleQuantity, fromConfirm.logItemVersion.edibleQuantity)
+        XCTAssertEqual(fromSheet.resolutionVersion.nutrients, fromConfirm.resolutionVersion.nutrients)
+        XCTAssertEqual(fromSheet.sourceReleases.map(\.sourceReleaseID), fromConfirm.sourceReleases.map(\.sourceReleaseID))
+        XCTAssertEqual(fromSheet.quantityConversion == nil, fromConfirm.quantityConversion == nil)
+    }
+
+    /// Review: Add food shows a failure, not "No favourites yet", when favourites cannot be read.
+    func testAddFoodFavouritesStateDistinguishesFailureFromEmpty() {
+        XCTAssertEqual(AddFoodFavouritesState(nil, quickAdd: true), .failed)
+        XCTAssertEqual(AddFoodFavouritesState([], quickAdd: true), .empty)
+        XCTAssertEqual(AddFoodFavouritesState([.builtInWater], quickAdd: true), .items([.builtInWater]))
+    }
+
+    /// Native renders (synthetic data): Favourites populated and empty, Home chips (including a long
+    /// name, whose amount stays whole), the quick-add sheet ready and with an invalid custom amount,
+    /// Confirm with Save as favourite; standard and accessibility text sizes, light and dark.
     func testQuickAddScreensRender() throws {
         let root = try makeRoot()
         let empty = root.favouritesModel()
@@ -359,17 +476,16 @@ final class QuickAddAppTests: XCTestCase {
         render(NavigationStack { FavouritesView(model: empty, createFromSearch: {}, createFromBarcode: {}, createFromWebLookup: {}) }, "Favourites - water only")
         empty.setDefaultAmount(empty.today[0], to: 500)
         XCTAssertNil(empty.changeFailure)
-        let water = try PlainWaterReference(digester: SHA256Digester())
-        let confirmFavourite = root.model(for: water.input, prefillSourceQuantity: false, savesFavourite: true)
-        confirmFavourite.send(.setQuantity(330, .millilitres))
-        confirmFavourite.log()
+        _ = try favouriteFromConfirm(root, "Greek yoghurt with honey, walnuts and a very long descriptive name")
         let populated = root.favouritesModel()
         populated.reload()
         XCTAssertEqual(populated.today.count, 2)
+        let chips = try XCTUnwrap(root.quickAddItems())
+        XCTAssertTrue(chips.map(QuickAddText.defaultAmount).contains("150 g"))
         for (size, scheme, name) in [(DynamicTypeSize.large, ColorScheme.light, "standard light"), (.accessibility3, .dark, "accessibility dark")] {
             render(NavigationStack { FavouritesView(model: populated, createFromSearch: {}, createFromBarcode: {}, createFromWebLookup: {}) }
                 .environment(\.dynamicTypeSize, size).preferredColorScheme(scheme), "Favourites - \(name)")
-            render(NavigationStack { Form { QuickAddChipRow(items: try! XCTUnwrap(root.quickAddItems())) { _ in } } }
+            render(NavigationStack { Form { QuickAddChipRow(items: chips) { _ in } } }
                 .environment(\.dynamicTypeSize, size).preferredColorScheme(scheme), "Home chips - \(name)")
             let ready = root.quickAddSheetModel(try root.quickAddPreparation(.builtInWater))
             render(NavigationStack { QuickAddSheet(model: ready, edit: {}, close: {}) }
@@ -379,7 +495,7 @@ final class QuickAddAppTests: XCTestCase {
             XCTAssertEqual(invalid.blockedReason, QuickAddText.waterBoundText)
             render(NavigationStack { QuickAddSheet(model: invalid, edit: {}, close: {}) }
                 .environment(\.dynamicTypeSize, size).preferredColorScheme(scheme), "Quick add - custom invalid \(name)")
-            let confirm = root.model(for: try PlainWaterReference(digester: SHA256Digester()).input, savesFavourite: true)
+            let confirm = root.model(for: try exactInput(), savesFavourite: true)
             render(NavigationStack { FoodConfirmationView(model: confirm) {} }
                 .environment(\.dynamicTypeSize, size).preferredColorScheme(scheme), "Confirm - save as favourite \(name)")
         }
@@ -398,5 +514,15 @@ final class QuickAddAppTests: XCTestCase {
         add(attachment)
         XCTAssertEqual(image.size.width, 390)
         window.isHidden = true
+    }
+}
+
+private extension FoodConfirmationViewModel {
+    /// Answers any pending inline difference with the source's own value, as a user would.
+    func answerPendingDifferencesForTest() {
+        for facet in pendingDifferences {
+            let offered = offeredChoices(facet)
+            send(.decideDifference(facet, offered.first { $0 == .matchesSource } ?? offered[0]))
+        }
     }
 }

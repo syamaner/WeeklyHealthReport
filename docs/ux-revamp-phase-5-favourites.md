@@ -75,3 +75,15 @@ Checked against `main` at `def4b19` (phase 3 #207 as `34fae5d`, phase 4 #211 as 
 - **Favourites store rules.** Both stores admit competing favourite and arrangement heads (as they arrive from an archive merge) and the projection fails explicitly; lineage, binding existence and the product-only binding are enforced at insert.
 - **Usual foods.** With Add food's Favourites row now opening Favourites, Usual foods (the renamed Common foods) is linked from Settings › Data. Its route and data are unchanged.
 - **Add food.** The Favourites section lists the quick-add items; a tap opens the same sheet or Confirm as a Home chip and, after Log, ends through Add food's single post-save exit.
+
+### Review and journey QA fixes (12 October 2026, at 3a6264b)
+
+- **Sheet completion (QA D1, high).** The sheet's view model now calls a completion exactly once after the one successful Log; the host dismisses the sheet there and reloads Home (or ends Add food through its single post-save exit). Completion is no longer inferred by observing the model's phase from a parent that did not observe it. Edit is unavailable once saving has started, so a logged sheet cannot be logged again through Confirm.
+- **Favourites unreadable in Add food.** Add food shows "Favourites could not be read." with a way to Favourites, as Home does, instead of "No favourites yet".
+- **Volume source.** The quick-add sheet and the Confirm opened from quick add run the rebuilt input through the same milk volume source enrichment as every other Confirm factory, and Confirm carries the offering.
+- **Plain water and Save as favourite (QA D2), note for the owner.** Confirm no longer offers "Save as favourite" when the entry's source is the `plain-water-v1` reference: water is already the built-in quick add, and its name and default amount are editable in Favourites, so saving it again only produced a second "Water" item. No contract rule changed: a plain water favourite created by editing the built-in item is still a `.reference(.plainWaterV1)` chain, and the service still accepts a favourite bound to a saved water entry. If you want water entries to be favouritable from Confirm (for example several water sizes), that is a presentation change only.
+- **Home empty state (QA D3)** reads "No favourites yet" above Manage favourites. **Chips (QA D4)** show the name on one block (truncating if needed) and the amount in full on its own line.
+- **Plain water known minimum.** `PlainWaterDayTotal.total` returns the water total with its incomplete count; an entry edited to a unit that cannot be scaled makes the figure a known minimum, shown as "730 mL+" ("at least" for VoiceOver), the same style as the strip.
+- **Daily JSON admission** passes the projection's favourites to `minimumContractVersion`, so a document relabelled as contract 3 while carrying favourite records is rejected.
+- **Built-in water guards.** Saving, removing or arranging the built-in water item is refused (`builtInWaterAlreadySaved`) once any plain water favourite chain exists; nothing is written.
+- The Sendable conversion warnings in the composition root are fixed.

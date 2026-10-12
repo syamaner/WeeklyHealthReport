@@ -77,6 +77,13 @@ public struct QuickAddPreparation: Sendable {
     public let label: String
     /// Value and unit offered in the sheet, the default amount.
     public let defaultAmount: FavouriteAmount
+
+    /// The same preparation with an equivalent rebuilt state (for example the input enriched with
+    /// an offered volume source at the composition root). Eligibility is not re-derived.
+    public func replacingState(_ state: FoodConfirmationState) -> QuickAddPreparation {
+        QuickAddPreparation(item: item, state: state, eligibility: eligibility, isPlainWater: isPlainWater,
+                            label: label, defaultAmount: defaultAmount)
+    }
 }
 
 public enum FavouritesServiceError: Error, Equatable, Sendable {
@@ -84,6 +91,8 @@ public enum FavouritesServiceError: Error, Equatable, Sendable {
     case sourceUnverifiable
     case unknownFavourite
     case removedFavourite
+    /// The built-in water item was already saved or removed as a favourite chain (Q7).
+    case builtInWaterAlreadySaved
 }
 
 /// Favourite records and quick-add preparation (food quick add contract v1). Favourite operations
@@ -197,6 +206,7 @@ public final class FavouritesService: @unchecked Sendable {
     /// favourite record is written in the same operation (Q7) and the built-in item disappears.
     public func arrange(_ items: [QuickAddItem]) throws {
         let projection = try projection()
+        if items.contains(.builtInWater), !projection.showsBuiltInWater { throw FavouritesServiceError.builtInWaterAlreadySaved }
         let now = clock.now()
         var created = FavouriteMutation()
         let order: [FavouriteID] = try items.map { item in
@@ -220,6 +230,7 @@ public final class FavouritesService: @unchecked Sendable {
 
     /// Editing the built-in water item writes its favourite record (Q7).
     public func saveBuiltInWater(label: LedgerText, millilitres: Double) throws {
+        try requireBuiltInWater()
         let (entry, version) = try builtInWaterRecords(label: label,
             amount: FavouriteAmount(value: millilitres, unit: .millilitres), state: .active, at: clock.now())
         _ = try ledger.commitFavourites(FavouriteMutation(favourites: [entry], favouriteVersions: [version]),
@@ -229,10 +240,16 @@ public final class FavouritesService: @unchecked Sendable {
     /// Removing the built-in water item writes its favourite record as a removed version, which
     /// hides the built-in item for good.
     public func removeBuiltInWater() throws {
+        try requireBuiltInWater()
         let (entry, version) = try builtInWaterRecords(label: LedgerText(PlainWaterReference.name),
             amount: FavouriteAmount(value: QuickAddItem.builtInWaterMillilitres, unit: .millilitres), state: .removed, at: clock.now())
         _ = try ledger.commitFavourites(FavouriteMutation(favourites: [entry], favouriteVersions: [version]),
                                         type: .saveFavourite, operationID: ids.makeID(OperationTag.self))
+    }
+
+    /// The built-in item exists only until a plain water favourite chain does.
+    private func requireBuiltInWater() throws {
+        guard try projection().showsBuiltInWater else { throw FavouritesServiceError.builtInWaterAlreadySaved }
     }
 
     private func builtInWaterRecords(label: LedgerText, amount: FavouriteAmount, state: FavouriteState,
