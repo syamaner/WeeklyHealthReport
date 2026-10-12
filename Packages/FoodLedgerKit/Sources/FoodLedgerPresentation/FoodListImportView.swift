@@ -12,9 +12,9 @@ public enum FoodListLineStatus: Equatable, Sendable {
         case .candidates: "Choose a match"
         case .declined: "Declined"
         case .deferred: "Deferred"
-        case .context: "Context — not logged"
+        case .context: "Context, not logged"
         case .unresolved: "Unresolved"
-        case .failed: "Failed — retry available"
+        case .failed: "Failed, retry available"
         case .saved: "Saved"
         }
     }

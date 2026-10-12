@@ -86,6 +86,21 @@ enum DailyExportDayLabel {
         return "Today, up to \(time)"
     }
 
+    /// When a prepared snapshot's Health data runs to: "Today, 09:41" for a
+    /// snapshot of today, otherwise the same weekday date and time as "Data
+    /// up to", such as "Monday 12 October, 00:00" for yesterday's full day.
+    /// Uses only the snapshot's dates; the clock is never read. Unreadable
+    /// input is shown as is.
+    static func dataAsOf(_ dataAsOf: String, reportDate: String, todayReportDate: String?, locale: Locale) -> String {
+        let parts = dataAsOf.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
+        let timestamp = parts.count == 3 ? parts[1] : dataAsOf
+        if let todayReportDate, reportDate == todayReportDate,
+           let time = localTime(in: timestamp, onReportDate: todayReportDate) {
+            return "Today, \(time)"
+        }
+        return cutoff(dataAsOf, locale: locale)
+    }
+
     /// A weekday name for one of the previous seven days, such as
     /// "Saturday 5 September". Falls back to the report date itself.
     static func previousDay(reportDate: String, locale: Locale) -> String {

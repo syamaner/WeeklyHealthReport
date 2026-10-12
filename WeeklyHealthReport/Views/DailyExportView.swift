@@ -206,7 +206,12 @@ struct DailyExportView: View {
     private var includedSection: some View {
         Section {
             if let summary = session.previewSummary {
-                LabeledContent("Health data", value: "As of \(summary.dataAsOf)")
+                LabeledContent("Health data", value: DailyExportDayLabel.dataAsOf(
+                    summary.dataAsOf,
+                    reportDate: summary.reportDate,
+                    todayReportDate: todayID?.reportDate,
+                    locale: .autoupdatingCurrent
+                ))
                 LabeledContent("Nutrition", value: summary.nutritionSource)
             } else {
                 LabeledContent("Health data", value: "Not prepared")
@@ -278,7 +283,7 @@ struct DailyExportView: View {
                 ) {
                     Text("Choose a source").tag("")
                     ForEach(session.nutritionSources) { source in
-                        Text("\(source.name) — \(source.bundleIdentifier)")
+                        Text("\(source.name) · \(source.bundleIdentifier)")
                             .tag(source.bundleIdentifier)
                     }
                 }

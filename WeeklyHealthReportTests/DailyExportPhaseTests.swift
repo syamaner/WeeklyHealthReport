@@ -93,6 +93,23 @@ final class DailyExportPhaseTests: XCTestCase {
         XCTAssertEqual(DailyExportDayLabel.cutoff("unparseable", locale: locale), "unparseable")
     }
 
+    /// The Included "Health data" row reads like the day picker, never a raw ISO timestamp.
+    func testHealthDataAsOfIsReadableAndUsesOnlyTheSnapshot() {
+        let locale = Locale(identifier: "en_GB")
+        XCTAssertEqual(DailyExportDayLabel.dataAsOf("2026-10-12T09:41:00+01:00", reportDate: "2026-10-12",
+                                                    todayReportDate: "2026-10-12", locale: locale), "Today, 09:41")
+        XCTAssertEqual(DailyExportDayLabel.dataAsOf("2026-10-12T00:00:00+01:00", reportDate: "2026-10-11",
+                                                    todayReportDate: "2026-10-12", locale: locale),
+                       "Monday 12 October, 00:00", "yesterday's full day is not 'Today'")
+        XCTAssertEqual(DailyExportDayLabel.dataAsOf("2026-10-12T09:41:00+01:00", reportDate: "2026-10-12",
+                                                    todayReportDate: nil, locale: locale), "Monday 12 October, 09:41")
+        XCTAssertEqual(DailyExportDayLabel.dataAsOf("historical-v2|2026-10-11T00:00:00+01:00|2026-10-12T09:15:00+01:00",
+                                                    reportDate: "2026-10-10", todayReportDate: "2026-10-12", locale: locale),
+                       "Sunday 11 October, 00:00")
+        XCTAssertEqual(DailyExportDayLabel.dataAsOf("unparseable", reportDate: "2026-10-12",
+                                                    todayReportDate: "2026-10-12", locale: locale), "unparseable")
+    }
+
     func testPreviousDaysUseWeekdayNames() {
         let locale = Locale(identifier: "en_GB")
         XCTAssertEqual(DailyExportDayLabel.previousDay(reportDate: "2026-09-05", locale: locale), "Saturday 5 September")
