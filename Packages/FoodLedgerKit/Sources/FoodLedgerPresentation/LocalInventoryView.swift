@@ -100,7 +100,7 @@ public struct LocalInventoryView: View {
                         Button("Use name in food search") { searchFood(product) }
                     }
                 }
-                Text("Manage usual portions in Common Foods & Favourites. Food logging remains a separate confirmation; stock is not automatically depleted.").font(.caption)
+                Text("Manage usual portions in Usual foods. Food logging remains a separate confirmation; stock is not automatically depleted.").font(.caption)
             }
         }
         .navigationTitle("Receipt review")

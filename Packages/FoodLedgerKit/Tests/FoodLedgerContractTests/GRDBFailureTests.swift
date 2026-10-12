@@ -106,7 +106,7 @@ final class GRDBFailureTests: XCTestCase {
     }
 
     func testHistoricalMigrationsPreserveEveryCanonicalRecordAndOperationHash() throws {
-        for oldVersion in [1, 2, 3, 4] {
+        for oldVersion in [1, 2, 3, 4, 5] {
             let directory = try temporaryDirectory()
             defer { try? FileManager.default.removeItem(at: directory) }
             let database = directory.appendingPathComponent("food-ledger-v1.sqlite")
@@ -126,7 +126,12 @@ final class GRDBFailureTests: XCTestCase {
                     if oldVersion == 1 { try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v2_log_removal'") }
                     if oldVersion <= 2 { try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v3_weight_declaration'") }
                     if oldVersion <= 3 { try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v4_confirmation_decisions'") }
-                    try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v5_review_manifest'")
+                    if oldVersion <= 4 { try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v5_review_manifest'") }
+                    // Schema 6 only added the (empty) favourite tables: drop them to reconstruct schema 5.
+                    for table in ["favourite_arrangement_version", "favourite_version", "favourite"] {
+                        try db.execute(sql: "DROP TABLE \(table)")
+                    }
+                    try db.execute(sql: "DELETE FROM grdb_migrations WHERE identifier = 'v6_favourites'")
                     try db.execute(sql: "UPDATE ledger_metadata SET value = ? WHERE key = 'schema_identity'", arguments: ["food-ledger-v\(oldVersion)"])
                     try db.execute(sql: "PRAGMA user_version = \(oldVersion)")
                 }
@@ -140,7 +145,7 @@ final class GRDBFailureTests: XCTestCase {
             let queue = try DatabaseQueue(path: database.path)
             try queue.read { db in
                 XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), FoodLedgerGRDBStore.schemaVersion)
-                XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v5")
+                XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v6")
         }
         }
     }
@@ -161,21 +166,21 @@ final class GRDBFailureTests: XCTestCase {
         }
     }
 
-    func testSchemaFiveIsDeclinedByAnOlderOpenerAndNewerSchemasAreDeclinedHere() throws {
+    func testSchemaSixIsDeclinedByAnOlderOpenerAndNewerSchemasAreDeclinedHere() throws {
         let directory = try temporaryDirectory()
         defer { try? FileManager.default.removeItem(at: directory) }
         let database = directory.appendingPathComponent("food-ledger-v1.sqlite")
         _ = try FoodLedgerGRDBStore.temporary(directory: directory)
         let queue = try DatabaseQueue(path: database.path)
         try queue.read { db in
-            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 5)
-            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v5")
+            XCTAssertEqual(try Int.fetchOne(db, sql: "PRAGMA user_version"), 6)
+            XCTAssertEqual(try String.fetchOne(db, sql: "SELECT value FROM ledger_metadata WHERE key = 'schema_identity'"), "food-ledger-v6")
         }
-        // A schema-4 binary applies the same pre-migration rule (user_version > its schemaVersion),
-        // so it throws unknownSchema(5) for this store: simulate it by presenting this build with the next schema.
-        try queue.write { db in try db.execute(sql: "PRAGMA user_version = 6") }
+        // A schema-5 binary applies the same pre-migration rule (user_version > its schemaVersion),
+        // so it throws unknownSchema(6) for this store: simulate it by presenting this build with the next schema.
+        try queue.write { db in try db.execute(sql: "PRAGMA user_version = 7") }
         XCTAssertThrowsError(try FoodLedgerGRDBStore.temporary(directory: directory)) {
-            XCTAssertEqual($0 as? FoodLedgerStoreError, .unknownSchema(6))
+            XCTAssertEqual($0 as? FoodLedgerStoreError, .unknownSchema(7))
         }
     }
 

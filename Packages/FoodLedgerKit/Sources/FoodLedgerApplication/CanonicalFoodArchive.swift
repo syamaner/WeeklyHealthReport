@@ -37,29 +37,71 @@ public struct CanonicalFoodNutritionSummary: Codable, Equatable, Sendable {
 }
 
 public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
-    public static let foodContractVersion = 5
+    public static let foodContractVersion = 6
     public static let dailySchemaVersion = 4
 
     public let foodContractVersion: Int
     public let dailySchemaVersion: Int
     public let records: LedgerMutation
     public let summaries: [CanonicalFoodNutritionSummary]
+    /// Favourite records (contract 6). Encoded only when non-empty, so a projection without
+    /// favourites keeps exactly the bytes of earlier contracts.
+    public let favourites: FavouriteMutation
 
     public init(
         records: LedgerMutation,
         summaries: [CanonicalFoodNutritionSummary] = [],
+        favourites: FavouriteMutation = FavouriteMutation(),
         foodContractVersion: Int = Self.foodContractVersion,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder()
     ) throws {
         guard (1...Self.foodContractVersion).contains(foodContractVersion),
-              foodContractVersion >= Self.minimumContractVersion(for: records) else { throw FoodArchiveError.unsupportedFoodContract(foodContractVersion) }
+              foodContractVersion >= Self.minimumContractVersion(for: records, favourites: favourites) else { throw FoodArchiveError.unsupportedFoodContract(foodContractVersion) }
         self.foodContractVersion = foodContractVersion
         dailySchemaVersion = Self.dailySchemaVersion
         self.records = try Self.sorted(records, encoder: encoder)
         self.summaries = try Self.sort(summaries, encoder: encoder)
+        self.favourites = FavouriteMutation(
+            favourites: try Self.sort(favourites.favourites, encoder: encoder),
+            favouriteVersions: try Self.sort(favourites.favouriteVersions, encoder: encoder),
+            arrangements: try Self.sort(favourites.arrangements, encoder: encoder))
     }
 
-    public static func minimumContractVersion(for records: LedgerMutation) -> Int {
+    enum CodingKeys: String, CodingKey { case foodContractVersion, dailySchemaVersion, records, summaries, favourites }
+
+    public init(from decoder: any Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        foodContractVersion = try values.decode(Int.self, forKey: .foodContractVersion)
+        dailySchemaVersion = try values.decode(Int.self, forKey: .dailySchemaVersion)
+        records = try values.decode(LedgerMutation.self, forKey: .records)
+        summaries = try values.decode([CanonicalFoodNutritionSummary].self, forKey: .summaries)
+        let favourites = try values.decodeIfPresent(FavouriteMutation.self, forKey: .favourites)
+        // An explicitly empty member is not a canonical encoding.
+        if let favourites, favourites.isEmpty {
+            throw DecodingError.dataCorruptedError(forKey: .favourites, in: values, debugDescription: "Empty favourites member")
+        }
+        self.favourites = favourites ?? FavouriteMutation()
+    }
+
+    public func encode(to encoder: any Encoder) throws {
+        var values = encoder.container(keyedBy: CodingKeys.self)
+        try values.encode(foodContractVersion, forKey: .foodContractVersion)
+        try values.encode(dailySchemaVersion, forKey: .dailySchemaVersion)
+        try values.encode(records, forKey: .records)
+        try values.encode(summaries, forKey: .summaries)
+        if !favourites.isEmpty { try values.encode(favourites, forKey: .favourites) }
+    }
+
+    /// Lowest contract that can carry these records. Contract 6 conditions are checked first:
+    /// any favourite record, app reference provenance or reference definition evidence.
+    public static func minimumContractVersion(for records: LedgerMutation, favourites: FavouriteMutation = FavouriteMutation()) -> Int {
+        if !favourites.isEmpty { return 6 }
+        if records.evidence.contains(where: { $0.kind == .referenceDefinition }) { return 6 }
+        let provenance = records.resolutionVersions.flatMap { $0.nutrients.entries }
+            + records.candidateDecisions.flatMap { $0.candidate.nutrients.entries }
+        if provenance.contains(where: { entry in
+            ([entry.value] + entry.conflictCandidates).contains { $0.provenance.contains { $0.sourceKind == .appReferenceDefinition } }
+        }) { return 6 }
         // Reviewed web manifest v2 (single review action, recorded gate): contract 5.
         if records.evidence.contains(where: { $0.captureMethodVersion.value == ReviewedFoodProposalConfirmation.version }) { return 5 }
         if records.assertions.contains(where: { $0.confirmation != nil }) { return 4 }
@@ -123,15 +165,18 @@ public struct FoodArchiveState: Equatable, Sendable {
     public let records: LedgerMutation
     public let operations: [LedgerOperation]
     public let summaries: [CanonicalFoodNutritionSummary]
+    public let favourites: FavouriteMutation
 
     public init(
         records: LedgerMutation,
         operations: [LedgerOperation],
-        summaries: [CanonicalFoodNutritionSummary] = []
+        summaries: [CanonicalFoodNutritionSummary] = [],
+        favourites: FavouriteMutation = FavouriteMutation()
     ) {
         self.records = records
         self.operations = operations
         self.summaries = summaries
+        self.favourites = favourites
     }
 }
 
@@ -219,7 +264,8 @@ public struct FoodArchiveManifest: Codable, Equatable, Sendable {
             : foodContractVersion == 2 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2")]
             : foodContractVersion == 3 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3")]
             : foodContractVersion == 4 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4")]
-            : [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4"), try LedgerText("food-ledger-v5")]
+            : foodContractVersion == 5 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4"), try LedgerText("food-ledger-v5")]
+            : [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4"), try LedgerText("food-ledger-v5"), try LedgerText("food-ledger-v6")]
         self.sourceReleaseIDs = sourceReleaseIDs.sorted { $0.value < $1.value }
         self.watermarks = watermarks.sorted { $0.actorID.rawValue < $1.actorID.rawValue }
         self.recordCount = recordCount
@@ -263,6 +309,7 @@ public struct FoodArchiveGenerator: Sendable {
         let projection = try CanonicalFoodProjection(
             records: state.records,
             summaries: state.summaries,
+            favourites: state.favourites,
             encoder: encoder
         )
         let document = try CanonicalFoodDocument(
@@ -293,7 +340,7 @@ public struct FoodArchiveGenerator: Sendable {
             creatingActorID: creatingActorID,
             sourceReleaseIDs: projection.records.sourceReleases.map(\.sourceReleaseID),
             watermarks: watermarks,
-            recordCount: Self.recordCount(projection.records),
+            recordCount: Self.recordCount(projection.records, favourites: projection.favourites),
             operationCount: sortedOperations.count,
             members: members
         )
@@ -319,8 +366,9 @@ public struct FoodArchiveGenerator: Sendable {
         }.sorted { $0.actorID.rawValue < $1.actorID.rawValue }
     }
 
-    static func recordCount(_ records: LedgerMutation) -> Int {
-        records.evidence.count + records.assertions.count + records.products.count
+    /// Every record of the projection: ledger records plus favourite records.
+    static func recordCount(_ records: LedgerMutation, favourites: FavouriteMutation) -> Int {
+        favourites.recordCount + records.evidence.count + records.assertions.count + records.products.count
             + records.productVersions.count + records.libraryEntries.count
             + records.libraryEntryVersions.count + records.resolutions.count
             + records.resolutionVersions.count + records.logItems.count
@@ -345,7 +393,7 @@ public struct FoodArchiveVerifier: Sendable {
     public init(
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV4
+        operationRegistry: LedgerOperationRegistry = .builtInV6
     ) {
         self.encoder = encoder
         self.digester = digester
@@ -395,7 +443,8 @@ public struct FoodArchiveVerifier: Sendable {
                 document.projection.dailySchemaVersion
             )
         }
-        guard manifest.foodContractVersion >= CanonicalFoodProjection.minimumContractVersion(for: document.projection.records)
+        guard manifest.foodContractVersion >= CanonicalFoodProjection.minimumContractVersion(
+            for: document.projection.records, favourites: document.projection.favourites)
         else { throw FoodArchiveError.unsupportedFoodContract(manifest.foodContractVersion) }
         let expectedDocument = try CanonicalFoodDocument(
             projection: document.projection,
@@ -407,7 +456,7 @@ public struct FoodArchiveVerifier: Sendable {
             .sorted(by: { $0.value < $1.value })
         guard expectedDocument.snapshotID == document.snapshotID,
               document.snapshotID == manifest.snapshotID,
-              FoodArchiveGenerator.recordCount(document.projection.records)
+              FoodArchiveGenerator.recordCount(document.projection.records, favourites: document.projection.favourites)
                 == manifest.recordCount,
               sourceReleaseIDs == manifest.sourceReleaseIDs,
               try encoder.encode(document) == bundle.snapshot else {
@@ -418,19 +467,24 @@ public struct FoodArchiveVerifier: Sendable {
         guard operations.count == manifest.operationCount else {
             throw FoodArchiveError.memberMismatch("operation count")
         }
+        // The operation type selects the payload case; the verifier re-encodes that case and
+        // checks it against the stored payload bytes and hash.
         let transactions = try operations.map { operation -> LedgerTransaction in
-            let mutation: LedgerMutation
-            do { mutation = try decoder.decode(LedgerMutation.self, from: operation.payload) }
+            let payload: LedgerPayload
+            do { payload = try LedgerPayload.decode(operation.payload, type: operation.operationType) }
             catch { throw FoodArchiveError.malformedArchive("operation payload") }
-            let transaction = LedgerTransaction(mutation: mutation, operation: operation)
+            let transaction = LedgerTransaction(payload: payload, operation: operation)
             try operationVerifier.verify(transaction)
             return transaction
         }
         if transactions.contains(where: { transaction in
-            let required = transaction.operation.operationType == .confirmFoodV3 ? 4
-                : LedgerOperationType.declaredQuantityTypes.contains(transaction.operation.operationType) ? 3
-                : [.removeLogItem, .restoreLogItem].contains(transaction.operation.operationType) ? 2 : 1
-            return max(required, CanonicalFoodProjection.minimumContractVersion(for: transaction.mutation)) > manifest.foodContractVersion
+            let type = transaction.operation.operationType
+            let required = LedgerOperationType.favouriteTypes.contains(type) ? 6
+                : type == .confirmFoodV3 ? 4
+                : LedgerOperationType.declaredQuantityTypes.contains(type) ? 3
+                : [.removeLogItem, .restoreLogItem].contains(type) ? 2 : 1
+            return max(required, CanonicalFoodProjection.minimumContractVersion(
+                for: transaction.mutation, favourites: transaction.favourites)) > manifest.foodContractVersion
         }) { throw FoodArchiveError.unsupportedFoodContract(manifest.foodContractVersion) }
         try verifyActorChains(operations, watermarks: manifest.watermarks)
         return VerifiedFoodArchive(manifest: manifest, document: document, transactions: transactions)
@@ -542,6 +596,7 @@ public struct FoodArchiveImportService: Sendable {
         let stagedProjection = try CanonicalFoodProjection(
             records: stagedState.records,
             summaries: verified.document.projection.summaries,
+            favourites: stagedState.favourites,
             foodContractVersion: verified.document.projection.foodContractVersion,
             encoder: encoder
         )

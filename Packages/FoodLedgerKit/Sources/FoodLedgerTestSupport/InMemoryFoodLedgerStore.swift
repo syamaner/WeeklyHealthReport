@@ -13,7 +13,7 @@ public struct InMemoryFoodArchiveStaging: FoodArchiveStaging {
 }
 
 public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReading,
-    FoodConfirmationReading, FoodArchiveLedgerAccess, @unchecked Sendable
+    FoodConfirmationReading, FoodArchiveLedgerAccess, FavouriteReading, @unchecked Sendable
 {
     private struct State {
         var evidence: [String: CaptureEvidence] = [:]
@@ -33,6 +33,9 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
         var conflicts: [String: LedgerConflict] = [:]
         var sourceReleases: [String: SourceRelease] = [:]
         var sourceInstallations: [String: SourceInstallation] = [:]
+        var favourites: [String: FavouriteEntry] = [:]
+        var favouriteVersions: [String: FavouriteVersion] = [:]
+        var arrangements: [String: FavouriteArrangement] = [:]
         var operations: [String: LedgerOperation] = [:]
         var actorHeads: [String: ActorHead] = [:]
     }
@@ -44,7 +47,7 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
     public init(
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
         digester: any Digesting = SHA256Digester(),
-        operationRegistry: LedgerOperationRegistry = .builtInV4
+        operationRegistry: LedgerOperationRegistry = .builtInV6
     ) {
         verifier = OperationVerifier(
             encoder: encoder,
@@ -101,9 +104,25 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
                     sourceReleases: Array(state.sourceReleases.values),
                     sourceInstallations: Array(state.sourceInstallations.values)
                 ),
-                operations: Array(state.operations.values)
+                operations: Array(state.operations.values),
+                favourites: favouriteMutation(state)
             )
         }
+    }
+
+    public func favouriteRecords() throws -> FavouriteMutation {
+        withLock { favouriteMutation(state) }
+    }
+
+    private func favouriteMutation(_ state: State) -> FavouriteMutation {
+        FavouriteMutation(
+            favourites: state.favourites.values.sorted { $0.favouriteID.rawValue < $1.favouriteID.rawValue },
+            favouriteVersions: state.favouriteVersions.values.sorted { $0.favouriteVersionID.rawValue < $1.favouriteVersionID.rawValue },
+            arrangements: state.arrangements.values.sorted { $0.arrangementVersionID.rawValue < $1.arrangementVersionID.rawValue })
+    }
+
+    public func evidence(id: EvidenceID) throws -> CaptureEvidence? {
+        withLock { state.evidence[id.rawValue] }
     }
 
     public func counts() throws -> LedgerCounts {
@@ -192,6 +211,21 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
             guard let logVersion = state.logItemVersions.values
                 .filter({ $0.logItemID == logItemID })
                 .max(by: { $0.ordinal.value < $1.ordinal.value }) else { return nil }
+            return try aggregate(logVersion)
+        }
+    }
+
+    /// The aggregate of one immutable log item version (a favourite's pinned binding). Nil for an
+    /// unknown version or a removal version.
+    public func foodConfirmation(logItemVersionID: LogItemVersionID) throws -> StoredFoodConfirmation? {
+        try withLock {
+            guard let logVersion = state.logItemVersions[logItemVersionID.rawValue] else { return nil }
+            return try aggregate(logVersion)
+        }
+    }
+
+    private func aggregate(_ logVersion: LogItemVersion) throws -> StoredFoodConfirmation? {
+            let logItemID = logVersion.logItemID
             if case .removed = logVersion.composition { return nil }
             guard let logItem = state.logItems[logItemID.rawValue],
                   case let .product(productVersionID) = logVersion.composition,
@@ -243,7 +277,6 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
                 candidateDecision: decision,
                 assertions: assertions.sorted { $0.createdAt < $1.createdAt }
             )
-        }
     }
 
     private func withLock<T>(_ body: () throws -> T) rethrows -> T {
@@ -268,7 +301,10 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
         guard transaction.operation.previousOperationHash == head.operationHash else {
             throw FoodLedgerStoreError.actorHashMismatch
         }
-        try Self.apply(transaction.mutation, to: &state)
+        switch transaction.payload {
+        case let .ledger(mutation): try Self.apply(mutation, to: &state)
+        case let .favourites(mutation): try Self.apply(mutation, to: &state)
+        }
         state.operations[transaction.operation.operationID.rawValue] = transaction.operation
         state.actorHeads[transaction.operation.actorID.rawValue] = ActorHead(
             sequence: transaction.operation.actorSequence,
@@ -603,6 +639,57 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
         }
         try validateConflicts(mutation.conflicts, state: state)
         try insert(mutation.conflicts, into: &state.conflicts, key: { $0.conflictID.rawValue })
+    }
+
+    /// Favourite records: append-only, lineage within one favourite (or the arrangement chain),
+    /// bindings only to existing product log item versions. Competing heads are admitted and
+    /// surface as a failed favourites projection, as competing log heads do for intake.
+    private static func apply(_ mutation: FavouriteMutation, to state: inout State) throws {
+        try insert(mutation.favourites, into: &state.favourites, key: { $0.favouriteID.rawValue })
+        for version in mutation.favouriteVersions {
+            guard state.favourites[version.favouriteID.rawValue] != nil else {
+                throw FoodLedgerStoreError.missingReference(version.favouriteID.rawValue)
+            }
+            if let ancestor = version.supersedesFavouriteVersionID {
+                guard let predecessor = state.favouriteVersions[ancestor.rawValue] else {
+                    throw FoodLedgerStoreError.missingReference(ancestor.rawValue)
+                }
+                guard predecessor.favouriteID == version.favouriteID,
+                      predecessor.ordinal.value < version.ordinal.value else {
+                    throw FoodLedgerStoreError.integrityFailure("invalid lineage favourite_version")
+                }
+            } else {
+                guard version.ordinal.value == 1,
+                      !state.favouriteVersions.values.contains(where: { $0.favouriteID == version.favouriteID }) else {
+                    throw FoodLedgerStoreError.integrityFailure("invalid lineage favourite_version")
+                }
+            }
+            if case let .savedEntry(id) = version.binding {
+                guard let log = state.logItemVersions[id.rawValue] else {
+                    throw FoodLedgerStoreError.missingReference(id.rawValue)
+                }
+                guard case .product = log.composition else {
+                    throw FoodLedgerStoreError.integrityFailure("favourite binding is not a product entry")
+                }
+            }
+            try insert([version], into: &state.favouriteVersions, key: { $0.favouriteVersionID.rawValue })
+        }
+        for arrangement in mutation.arrangements {
+            if let ancestor = arrangement.supersedesArrangementVersionID {
+                guard let predecessor = state.arrangements[ancestor.rawValue] else {
+                    throw FoodLedgerStoreError.missingReference(ancestor.rawValue)
+                }
+                guard predecessor.ordinal.value < arrangement.ordinal.value else {
+                    throw FoodLedgerStoreError.integrityFailure("invalid lineage favourite_arrangement_version")
+                }
+            } else if arrangement.ordinal.value != 1 {
+                throw FoodLedgerStoreError.integrityFailure("invalid lineage favourite_arrangement_version")
+            }
+            for favouriteID in arrangement.order where state.favourites[favouriteID.rawValue] == nil {
+                throw FoodLedgerStoreError.missingReference(favouriteID.rawValue)
+            }
+            try insert([arrangement], into: &state.arrangements, key: { $0.arrangementVersionID.rawValue })
+        }
     }
 
     private static func validateNutrientProvenance(

@@ -1470,3 +1470,17 @@ Pricing as in the previous section (checked 11 October 2026): USD 4/M base input
 Boundary: `2026-10-11T15:29:00Z` → `2026-10-11T17:30:41Z`. 303 requests; maximum input 321,857. Cache writes: 1,269,292 5-minute, 0 1-hour. Exact API-equivalent USD 16.7244558.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-198-2026-10-12: Claude Code phase 5 favourites, quick add and plain water
+
+Same `claude-opus-5-5` session. The row covers the main session (owner decisions on the phase 5 and 6 contracts, release notes, the phase 7 merge-from-main and delivery, phase 5 orchestration and the phase 6 rebase hand-off) plus three phase 5 subagents (implementation and fix agent, invariant review, journey QA with one retest). The phase 6 subagent is excluded and recorded with that phase. This ledger edit, PR delivery and merge are outside the row.
+
+Pricing as in the previous section (checked 11 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output; standard speed, global inference, no paid server tools. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 5 favourites, quick add and plain water (#198), with subagents and shared orchestration | 119,502,461 (116,698,531) | 2,803,066 | 92,762 | 119,595,223 | $39.35 |
+
+Boundary: `2026-10-12T00:09:07Z` → `2026-10-12T01:45:29Z`. 420 requests (34 main session, 386 subagents); maximum input 576,636. Cache writes: 2,756,847 5-minute, 46,219 1-hour. Exact API-equivalent USD 39.3523892.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

@@ -69,6 +69,7 @@ enum DataSettingsContribution {
             rows: [
                 .link("Backup and restore", route: .dataBackup),
                 .link("Receipts and food inventory", route: .inventoryReview),
+                .link("Usual foods", route: .commonFoods),
                 .link("Nutrition updates", route: .foodReresolution)
             ]
         )

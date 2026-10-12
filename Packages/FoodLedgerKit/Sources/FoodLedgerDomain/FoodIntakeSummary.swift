@@ -19,6 +19,11 @@ public struct FoodIntakeTotal: Equatable, Sendable {
     public let knownAmount: Double?
     public let incompleteContributions: Int
     public let includesEstimates: Bool
+
+    public init(key: NutrientKey, knownAmount: Double?, incompleteContributions: Int, includesEstimates: Bool) {
+        self.key = key; self.knownAmount = knownAmount
+        self.incompleteContributions = incompleteContributions; self.includesEstimates = includesEstimates
+    }
 }
 
 public struct FoodIntakeSummary: Equatable, Sendable {

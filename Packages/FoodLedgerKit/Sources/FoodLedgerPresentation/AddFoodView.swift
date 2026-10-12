@@ -27,7 +27,7 @@ public struct AddFoodRecentRowText: Equatable, Sendable {
 }
 
 /// Add food (#196): one field for food and amount in the user's own words, the other entry
-/// routes, favourites (placeholder until #198) and recent foods. Nothing is logged here.
+/// routes, favourites (#198) and recent foods. Nothing is logged here.
 public struct AddFoodView: View {
     @State private var text = ""
     private let recents: [FoodRecentRelogItem]
@@ -37,15 +37,19 @@ public struct AddFoodView: View {
     private let scanBarcode: (() -> Void)?
     private let pasteOrDictate: (() -> Void)?
     private let favourites: (() -> Void)?
+    /// Nil when favourites cannot be read: shown as a failure with a way to Favourites, never as empty.
+    private let favouriteItems: [QuickAddItem]?
+    private let quickAdd: ((QuickAddItem) -> Void)?
     private let relog: (FoodRecentRelogItem) -> Void
 
     public init(recents: [FoodRecentRelogItem], now: Date = Date(), calendar: Calendar = .current,
                 initialText: String = "",
                 search: @escaping (String) -> Void, scanBarcode: (() -> Void)?, pasteOrDictate: (() -> Void)?,
-                favourites: (() -> Void)?, relog: @escaping (FoodRecentRelogItem) -> Void) {
+                favourites: (() -> Void)?, favouriteItems: [QuickAddItem]? = [], quickAdd: ((QuickAddItem) -> Void)? = nil,
+                relog: @escaping (FoodRecentRelogItem) -> Void) {
         self.recents = recents; self.now = now; self.calendar = calendar
         self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate
-        self.favourites = favourites; self.relog = relog
+        self.favourites = favourites; self.favouriteItems = favouriteItems; self.quickAdd = quickAdd; self.relog = relog
         _text = State(initialValue: initialText)
     }
 
@@ -74,9 +78,27 @@ public struct AddFoodView: View {
                 if let pasteOrDictate { routeRow("Paste or dictate a list", systemImage: "list.bullet", action: pasteOrDictate) }
                 if let favourites { routeRow("Favourites", systemImage: "star", action: favourites) }
             }
-            Section("Favourites") {
-                Text("No favourites yet").foregroundStyle(.secondary)
-            }
+            Section {
+                switch AddFoodFavouritesState(favouriteItems, quickAdd: quickAdd != nil) {
+                case .failed:
+                    Label(AddFoodFavouritesState.failedText, systemImage: "exclamationmark.triangle")
+                    if let favourites { routeRow("Review favourites", systemImage: "star", action: favourites) }
+                case .empty:
+                    Text(AddFoodFavouritesState.emptyText).foregroundStyle(.secondary)
+                case let .items(items):
+                    ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                        Button { quickAdd?(item) } label: {
+                            HStack {
+                                Text(QuickAddText.title(item)).foregroundStyle(.primary)
+                                Spacer(minLength: 8)
+                                Text(QuickAddText.defaultAmount(item)).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                            }.frame(minHeight: 44).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint("Opens quick add. Nothing is logged until you choose Log.")
+                    }
+                }
+            } header: { Text("Favourites") }
             Section {
                 if recents.isEmpty {
                     Text("No recent foods").foregroundStyle(.secondary)
@@ -130,4 +152,19 @@ public final class FoodSearchDiagnosticsLog: ObservableObject {
     public init() {}
     public func recordSearch(_ lines: [String]) { searchLines = lines }
     public func recordWebLookup(_ lines: [String]) { webLookupLines = lines }
+}
+
+/// What Add food's Favourites section shows (#198).
+public enum AddFoodFavouritesState: Equatable {
+    case failed
+    case empty
+    case items([QuickAddItem])
+
+    public static let failedText = "Favourites could not be read."
+    public static let emptyText = "No favourites yet"
+
+    public init(_ items: [QuickAddItem]?, quickAdd: Bool) {
+        guard let items else { self = .failed; return }
+        self = items.isEmpty || !quickAdd ? .empty : .items(items)
+    }
 }

@@ -76,14 +76,14 @@ final class ConfirmationV5ContractTests: XCTestCase {
             let ledger = try LedgerFixtures.service(harness.committer)
             XCTAssertThrowsError(try ledger.commit(decided, type: .confirmFood, operationID: LedgerFixtures.operationID(901)), harness.name)
             XCTAssertEqual(try harness.reader.counts().operations, 0, harness.name)
-            // This binary always exports its current contract (5, manifest v2), even without any decision record.
+            // This binary always exports its current contract (6, favourites), even without any decision record.
             _ = try ledger.commit(LedgerFixtures.baseMutation(), type: .createProduct, operationID: LedgerFixtures.operationID(902))
             let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
             let bundle = try FoodArchiveGenerator().generate(state: archive.archiveState(), ledgerID: LedgerText("v5"),
                 createdAt: LedgerFixtures.date, creatingActorID: LedgerFixtures.id(900, ActorTag.self))
             let verified = try FoodArchiveVerifier().verify(bundle)
-            XCTAssertEqual(verified.manifest.foodContractVersion, 5, harness.name)
-            XCTAssertEqual(verified.manifest.migrationIdentifiers.map(\.value).last, "food-ledger-v5", harness.name)
+            XCTAssertEqual(verified.manifest.foodContractVersion, CanonicalFoodProjection.foodContractVersion, harness.name)
+            XCTAssertEqual(verified.manifest.migrationIdentifiers.map(\.value).last, "food-ledger-v6", harness.name)
             XCTAssertFalse((1...3).contains(verified.manifest.foodContractVersion),
                 "Contract-3 admission (1...3) used by older binaries rejects every v5 archive")
         }
@@ -153,7 +153,7 @@ final class ConfirmationV5ContractTests: XCTestCase {
             let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
             let bundle = try FoodArchiveGenerator().generate(state: archive.archiveState(), ledgerID: LedgerText("estimate"),
                 createdAt: LedgerFixtures.date, creatingActorID: LedgerFixtures.id(900, ActorTag.self))
-            XCTAssertEqual(try FoodArchiveVerifier().verify(bundle).manifest.foodContractVersion, 5)
+            XCTAssertEqual(try FoodArchiveVerifier().verify(bundle).manifest.foodContractVersion, CanonicalFoodProjection.foodContractVersion)
             for destination in try LedgerFixtures.harnesses() {
                 defer { destination.cleanup() }
                 let live = try XCTUnwrap(destination.committer as? any FoodArchiveLedgerAccess)

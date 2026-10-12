@@ -240,8 +240,9 @@ final class ReviewManifestV2ContractTests: XCTestCase {
     // MARK: 8. Admission and storage
 
     func test08ContractFiveSchemaFiveAndDailyPinBoundaries() throws {
-        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 5)
-        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 5)
+        // Contract 6 (favourites, #198) followed; contract 5 conditions are unchanged.
+        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 6)
+        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 6)
         for harness in try LedgerFixtures.harnesses() {
             defer { harness.cleanup() }
             _ = try saveRepresentative(try ReviewedWebFixtures.v1Fixture("representative-serving").input, harness, operation: 1180)
@@ -256,8 +257,8 @@ final class ReviewManifestV2ContractTests: XCTestCase {
             let bundle = try FoodArchiveGenerator().generate(state: archive.archiveState(), ledgerID: LedgerText("manifest-v2"),
                 createdAt: LedgerFixtures.date, creatingActorID: LedgerFixtures.id(900, ActorTag.self))
             let verified = try FoodArchiveVerifier().verify(bundle)
-            XCTAssertEqual(verified.manifest.foodContractVersion, 5, harness.name)
-            XCTAssertEqual(verified.manifest.migrationIdentifiers.map(\.value).last, "food-ledger-v5", harness.name)
+            XCTAssertEqual(verified.manifest.foodContractVersion, 6, harness.name)
+            XCTAssertEqual(verified.manifest.migrationIdentifiers.map(\.value).last, "food-ledger-v6", harness.name)
             XCTAssertFalse((1...4).contains(verified.manifest.foodContractVersion), "A contract-4 build admits 1...4 only")
         }
         XCTAssertEqual(CanonicalFoodProjection.minimumContractVersion(for: try LedgerFixtures.baseMutation()), 1)
@@ -547,4 +548,8 @@ private struct StoredReader: FoodConfirmationReading {
     let saved: StoredFoodConfirmation
     func sourceRelease(id: ExternalIdentifier) throws -> SourceRelease? { saved.sourceReleases.first { $0.sourceReleaseID == id } }
     func foodConfirmation(logItemID: LogItemID) throws -> StoredFoodConfirmation? { logItemID == saved.logItem.logItemID ? saved : nil }
+    func foodConfirmation(logItemVersionID: LogItemVersionID) throws -> StoredFoodConfirmation? {
+        logItemVersionID == saved.logItemVersion.logItemVersionID ? saved : nil
+    }
+    func evidence(id: EvidenceID) throws -> CaptureEvidence? { saved.evidence.first { $0.evidenceID == id } }
 }
