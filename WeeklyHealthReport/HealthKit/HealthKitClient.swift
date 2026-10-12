@@ -261,10 +261,9 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         guard let bodyMassType = HKObjectType.quantityType(forIdentifier: .bodyMass) else {
             throw HealthDataError.missingBodyMassType
         }
-        guard let lookbackStart = calendar.date(
-            byAdding: .day,
-            value: -30,
-            to: date
+        guard let lookbackStart = HealthReportingPolicy.weightLatestLookbackStart(
+            asOf: date,
+            calendar: calendar
         ) else {
             return []
         }
