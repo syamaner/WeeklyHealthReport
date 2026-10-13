@@ -37,8 +37,9 @@ CODE_READ_DOCS = {
     "docs/generic-food-review-manifest-v2.md",
     # Cited by the today-so-far projection, its tests and Developer tools.
     "docs/today-so-far-projection-v1.md",
-    # Cited by the list grammar (food-list-lexical-v4) and its golden-table tests.
+    # Cited by the list grammars (food-list-lexical-v4, v5) and their golden-table tests.
     "docs/food-list-lexical-v4.md",
+    "docs/food-list-lexical-v5.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this

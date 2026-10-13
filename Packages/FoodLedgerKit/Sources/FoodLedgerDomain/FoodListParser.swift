@@ -54,13 +54,21 @@ public struct ParsedFoodListLine: Codable, Equatable, Sendable {
     /// Compared with the frozen v4 identifier, never the moving `version`, so a later grammar
     /// cannot misread lines stored as v4.
     public var isV4: Bool { grammarVersion == FoodListParser.v4Version }
+    /// True when the line was parsed by `food-list-lexical-v5`, by its frozen identifier.
+    public var isV5: Bool { grammarVersion == FoodListParser.v5Version }
+    /// True when the line's numerals were read under its recorded convention: a v4 or v5 line.
+    /// Both share the v4 numeral rule, amount reading and evidence form (food-list-lexical-v5);
+    /// a v3 line, or a version this build does not know, keeps the frozen v3 reading.
+    public var readsNumeralConvention: Bool { isV4 || isV5 }
 }
 
 /// A deliberately bounded grammar. Unrecognised units and multiple amounts stay unresolved.
 /// No food spelling, brand, household volume or nutrient value is inferred.
 public enum FoodListParser {
-    /// The current grammar, `parse(_:convention:)`. See docs/food-list-lexical-v4.md.
-    public static let version = v4Version
+    /// The current grammar, `parse(_:convention:)`. See docs/food-list-lexical-v5.md.
+    public static let version = v5Version
+    /// The frozen identifier of the v5 grammar, recorded on its lines and evidence.
+    public static let v5Version = "food-list-lexical-v5"
     /// The frozen identifier of the v4 grammar, recorded on its lines and evidence.
     public static let v4Version = "food-list-lexical-v4"
     /// The frozen locale-free grammar, `parse(_:)`, kept for lines and evidence that predate v4.
@@ -70,9 +78,17 @@ public enum FoodListParser {
 
     public enum ParseError: Error { case empty, tooLarge }
 
-    /// Parses under `food-list-lexical-v4`: numerals are read with the caller's convention, and a
-    /// numeral that could mean two values has no amount and an `ambiguousNumber` notice.
+    /// Parses under `food-list-lexical-v5`: the v4 numeral grammar, plus vague portion words
+    /// ("a handful of", "a pinch of", "a few", "a bit of") that get the `householdMeasure`
+    /// notice and no amount, so they are never read as a definite count.
     public static func parse(_ text: String, convention: NumeralConvention) throws -> [ParsedFoodListLine] {
+        try parse(text, grammar: .v5(convention))
+    }
+
+    /// The frozen `food-list-lexical-v4` grammar, unchanged: numerals are read with the caller's
+    /// convention, and a numeral that could mean two values has no amount and an
+    /// `ambiguousNumber` notice. Kept to reproduce stored v4 lines; new lists use v5.
+    public static func parseV4(_ text: String, convention: NumeralConvention) throws -> [ParsedFoodListLine] {
         try parse(text, grammar: .v4(convention))
     }
 
@@ -165,7 +181,8 @@ public enum FoodListParser {
     /// (#222). A pure re-derivation from `original`: the versioned parse output is unchanged.
     public static func amountNumeral(of line: ParsedFoodListLine) -> String? {
         guard line.quantity != nil else { return nil }
-        let grammar: Grammar = line.isV4 ? .v4(line.numeralConvention ?? .unspecified) : .v3
+        // v5 shares the v4 numeral token; a vague portion line has no amount and returns above.
+        let grammar: Grammar = line.readsNumeralConvention ? .v4(line.numeralConvention ?? .unspecified) : .v3
         let content = amountContent(line.original.trimmingCharacters(in: .whitespaces))
         if let prefix = capture(grammar.leadingPattern, in: content) { return prefix[1] }
         if let suffix = capture(grammar.trailingPattern, in: content) { return suffix[2] }
@@ -192,13 +209,15 @@ public enum FoodListParser {
         "cauliflour": "cauliflower", "yoghourt": "yoghurt"
     ]
 
-    /// The two grammars differ only in how a numeral is captured and read, and in what they record.
+    /// The grammars differ only in how a numeral is captured and read, whether vague portion
+    /// words are recognised (v5 only), and in what they record.
     private struct Grammar: Sendable {
         let leadingPattern: String
         let trailingPattern: String
         let read: @Sendable (String) -> Double?
         let version: String?
         let convention: NumeralConvention?
+        var vaguePortions = false
 
         static let v3 = Grammar(leadingPattern: leadingAmountPattern, trailingPattern: trailingAmountPattern,
                                 read: { FoodListParser.number($0) }, version: nil, convention: nil)
@@ -206,6 +225,11 @@ public enum FoodListParser {
             Grammar(leadingPattern: v4LeadingAmountPattern, trailingPattern: v4TrailingAmountPattern,
                     read: { FoodListParser.number($0, convention: convention) },
                     version: FoodListParser.v4Version, convention: convention)
+        }
+        static func v5(_ convention: NumeralConvention) -> Grammar {
+            Grammar(leadingPattern: v4LeadingAmountPattern, trailingPattern: v4TrailingAmountPattern,
+                    read: { FoodListParser.number($0, convention: convention) },
+                    version: FoodListParser.v5Version, convention: convention, vaguePortions: true)
         }
     }
 
@@ -238,7 +262,12 @@ public enum FoodListParser {
             amount = wordNumbers[prefix[1].lowercased()] ?? grammar.read(prefix[1])
             if amount == nil { notices.append(.ambiguousNumber) }
             let remainder = String(content.dropFirst(prefix[0].count))
-            if let token = capture(#"^([\p{L}]+)\b\.?\s*"#, in: remainder) {
+            if grammar.vaguePortions, let vague = capture(vaguePortionPattern, in: remainder) {
+                // v5: "a handful of", "two pinches", "a few" give no definite amount or unit.
+                notices.append(.householdMeasure)
+                amount = nil
+                query = withoutVaguePortion(remainder, phrase: vague[0])
+            } else if let token = capture(#"^([\p{L}]+)\b\.?\s*"#, in: remainder) {
                 let spelling = token[1].lowercased()
                 if let definition = units[spelling] {
                     unit = definition.0
@@ -275,6 +304,10 @@ public enum FoodListParser {
             if ["grm", "grms", "gramme", "mililitre", "mililitres", "milliliteres"].contains(suffix[3].lowercased()) {
                 notices.append(.unitSpelling)
             }
+        } else if grammar.vaguePortions, let vague = capture(vaguePortionPattern, in: content) {
+            // v5: "handful of almonds" names a vague portion rather than omitting one.
+            notices.append(.householdMeasure)
+            query = withoutVaguePortion(content, phrase: vague[0])
         } else {
             notices.append(.missingQuantity)
             query = content
@@ -315,6 +348,15 @@ public enum FoodListParser {
     private static let v4LeadingAmountPattern = #"(?i)^(½|"# + v4Numeral
         + #"|half\b|one\b|two\b|three\b|quarter\b|a\b|an\b)\s*(?:[x×]\s*(?=[\p{L}]))?"#
     private static let v4TrailingAmountPattern = #"(?i)^(.+?)\s+("# + v4Numeral + #")\s*([\p{L}]+)\.?$"#
+    /// food-list-lexical-v5: a vague portion word at the start of the amount position, optionally
+    /// after an article ("half a handful") and before "of". A closed list; see the v5 contract.
+    private static let vaguePortionPattern = #"(?i)^(?:(?:a|an)\s+)?(?:handfuls?|pinch(?:es)?|dash(?:es)?|splash(?:es)?|drizzles?|bits?|few)\b\s*(?:of\b\s*)?"#
+    /// The query without the vague portion phrase, which names no food; the original line keeps
+    /// it. A line that is only the phrase ("a handful") keeps it rather than leaving no query.
+    private static func withoutVaguePortion(_ text: String, phrase: String) -> String {
+        let rest = String(text.dropFirst(phrase.count)).trimmingCharacters(in: .whitespaces)
+        return rest.isEmpty ? text : rest
+    }
     private static func amountContent(_ text: String) -> String {
         text.replacingOccurrences(of: #"^[•*\-]\s+"#, with: "", options: .regularExpression)
     }
