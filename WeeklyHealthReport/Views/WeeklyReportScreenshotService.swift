@@ -143,11 +143,7 @@ final class WeeklyReportScreenshotDelegate: NSObject, UIScreenshotServiceDelegat
         // Each Full Page document is one continuous PDF page. Apple's documented zero-rect
         // fallback opens it at the top when the Form's viewport cannot be mapped
         // reliably into the separate report layout.
-        let data = representationForCurrentRequest()
-        #if DEBUG
-        FullPageDiagnostics.log("iOS requested Full Page: pdfBytes=\(data.map { String($0.count) } ?? "nil")")
-        #endif
-        completionHandler(data, 0, .zero)
+        completionHandler(representationForCurrentRequest(), 0, .zero)
     }
 }
 
@@ -194,22 +190,6 @@ final class WeeklyReportScreenshotController: ObservableObject {
     var isRegistered: Bool {
         registeredService != nil && registeredService?.delegate === delegate
     }
-
-    #if DEBUG
-    /// DEBUG-only Full Page diagnostics: whether the scene's screenshot service
-    /// points at this delegate, and what the delegate would return now.
-    func logDiagnostics(_ reason: String, details: String) {
-        let scene = hostWindow?.windowScene
-        let bytes = delegate.representationForCurrentRequest()?.count
-        FullPageDiagnostics.log(
-            "\(reason): \(details) window=\(hostWindow != nil) "
-                + "sceneState=\(scene?.activationState.rawValue ?? -9) "
-                + "service=\(registeredService != nil) delegateIsOurs=\(isRegistered) "
-                + "modal=\(isPresentingModally) todayOnScreen=\(isTodayOnScreen) "
-                + "pdfBytes=\(bytes.map(String.init) ?? "nil")"
-        )
-    }
-    #endif
 }
 
 /// Registers Full Page at scene level. The app has one window scene
@@ -240,14 +220,14 @@ final class FullPageSceneRegistry {
         resolve: @escaping @MainActor () -> Target? = FullPageSceneRegistry.applicationWindowScene
     ) {
         self.resolve = resolve
-        let names: [(Notification.Name, String)] = [
-            (UIScene.willConnectNotification, "scene connected"),
-            (UIScene.didActivateNotification, "scene activated"),
-            (UIScene.willEnterForegroundNotification, "scene entering foreground")
+        let names = [
+            UIScene.willConnectNotification,
+            UIScene.didActivateNotification,
+            UIScene.willEnterForegroundNotification
         ]
-        observers = names.map { name, reason in
+        observers = names.map { name in
             notificationCenter.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.refresh(reason) }
+                MainActor.assumeIsolated { self?.refresh() }
             }
         }
     }
@@ -255,22 +235,17 @@ final class FullPageSceneRegistry {
     /// Called by the shell when it appears; safe to call repeatedly.
     func attach(_ controller: WeeklyReportScreenshotController) {
         self.controller = controller
-        refresh("shell appeared")
+        refresh()
     }
 
-    func refresh(_ reason: String) {
+    /// Idempotent: re-resolves the scene and re-sets the delegate.
+    func refresh() {
         guard let controller else { return }
         let target = resolve()
         // Never unregister on a failed lookup or a detached window: the scene's
         // service stays registered for the scene's lifetime.
         if let window = target?.window { controller.hostWindow = window }
         if let service = target?.service { controller.register(with: service) }
-        #if DEBUG
-        FullPageDiagnostics.log(
-            "registered (\(reason)): scene=\(target != nil) service=\(target?.service != nil) "
-                + "window=\(target?.window != nil) delegateIsOurs=\(controller.isRegistered)"
-        )
-        #endif
     }
 
     /// The foreground-active window scene, else any connected window scene.
@@ -284,24 +259,3 @@ final class FullPageSceneRegistry {
         return Target(service: scene.screenshotService, window: scene.keyWindow ?? scene.windows.first)
     }
 }
-
-#if DEBUG
-/// DEBUG-only: appends Full Page diagnostics to Documents/fullpage-diagnostics.log
-/// for a device check. Temporary; remove before #228 is ready.
-enum FullPageDiagnostics {
-    static func log(_ line: String) {
-        guard let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            return
-        }
-        let url = directory.appendingPathComponent("fullpage-diagnostics.log")
-        let data = Data((ISO8601DateFormatter().string(from: Date()) + " " + line + "\n").utf8)
-        if let handle = try? FileHandle(forWritingTo: url) {
-            defer { try? handle.close() }
-            _ = try? handle.seekToEnd()
-            try? handle.write(contentsOf: data)
-        } else {
-            try? data.write(to: url)
-        }
-    }
-}
-#endif

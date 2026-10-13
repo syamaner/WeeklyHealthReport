@@ -100,21 +100,13 @@ struct AppShellView: View {
             .onDisappear {
                 screenshotController.isTodayOnScreen = false
                 // Home leaving the window (a push) must not affect registration.
-                FullPageSceneRegistry.shared.refresh("Home disappeared")
-                logFullPageDiagnostics("Home disappeared")
+                FullPageSceneRegistry.shared.refresh()
             }
             .onChange(of: navigation.path) {
                 navigation.recordDestination()
                 syncNotesPin()
                 // Cheap and idempotent: the screen that may be captured next is registered.
-                FullPageSceneRegistry.shared.refresh("path changed")
-                logFullPageDiagnostics("path changed")
-            }
-            .onChange(of: viewModel.isRefreshing) {
-                logFullPageDiagnostics("refreshing changed")
-            }
-            .onChange(of: presentationState.isTransientUIPresented) {
-                logFullPageDiagnostics("transient UI changed")
+                FullPageSceneRegistry.shared.refresh()
             }
             .onReceive(
                 NotificationCenter.default.publisher(
@@ -128,7 +120,7 @@ struct AppShellView: View {
                     for: UIApplication.didBecomeActiveNotification
                 )
             ) { _ in
-                FullPageSceneRegistry.shared.refresh("app became active")
+                FullPageSceneRegistry.shared.refresh()
                 navigation.didBecomeActive(
                     hasDraft: dailyExport.notes.currentDraft != nil,
                     availableRoutes: settings.availableRoutes
@@ -264,28 +256,6 @@ struct AppShellView: View {
             if let foodLedger { FavouritesFlowView(root: foodLedger) }
             else { ContentUnavailableView("Favourites unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
         }
-    }
-
-    /// DEBUG-only Full Page diagnostics (os_log subsystem "WeeklyHealthReport",
-    /// category "FullPage"); a no-op in release builds.
-    private func logFullPageDiagnostics(_ reason: String) {
-        #if DEBUG
-        let details = { [navigation, presentationState, viewModel] in
-            "path=\(navigation.path.map(\.rawValue)) "
-                + "transient=\(presentationState.isTransientUIPresented) "
-                + "medicationRequestActive=\(presentationState.isMedicationAuthorizationRequestActive) "
-                + "medicationHelp=\(presentationState.showsMedicationAccessHelp) "
-                + "refreshing=\(viewModel.isRefreshing) "
-                + "selection=\(viewModel.selection.rawValue) period=\(viewModel.period.selection.rawValue)"
-        }
-        let controller = screenshotController
-        controller.logDiagnostics(reason, details: details())
-        // Again once any push transition has settled, with fresh values.
-        Task { @MainActor in
-            try? await Task.sleep(for: .seconds(1.5))
-            controller.logDiagnostics(reason + " (+1.5 s)", details: details())
-        }
-        #endif
     }
 
     private func configureScreenshotProvider() {

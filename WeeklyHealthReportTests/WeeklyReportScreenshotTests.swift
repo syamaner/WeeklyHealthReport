@@ -722,7 +722,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         XCTAssertTrue(service.delegate === controller.delegate, "same service: delegate restored, not skipped")
 
         service.delegate = nil
-        registry.refresh("path changed")
+        registry.refresh()
         XCTAssertTrue(service.delegate === controller.delegate)
     }
 
@@ -747,12 +747,12 @@ final class WeeklyReportScreenshotTests: XCTestCase {
 
         // Push Health: the path changes, then Home disappears.
         path = [.healthReport]
-        registry.refresh("path changed")
+        registry.refresh()
         controller.isTodayOnScreen = false
         target = .init(service: nil, window: nil)
-        registry.refresh("Home disappeared")
+        registry.refresh()
         target = nil
-        registry.refresh("scene activated")
+        registry.refresh()
 
         XCTAssertTrue(service.delegate === controller.delegate, "still registered on Health")
         XCTAssertNotNil(controller.delegate.representationForCurrentRequest(), "Health still produces a PDF")
