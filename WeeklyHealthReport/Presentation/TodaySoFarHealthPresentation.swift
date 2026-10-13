@@ -20,10 +20,12 @@ struct TodaySoFarHealthRow: Equatable, Identifiable {
     var id: Kind { kind }
 }
 
-/// The whole card: either "Apple Health is not available" or five rows.
+/// The whole card: "Apple Health is not available", one "Could not read Apple
+/// Health." when every read failed (said once, not on every row), or five rows.
 struct TodaySoFarHealthCard: Equatable {
     enum Content: Equatable {
         case unavailable(String)
+        case failed(String)
         case rows([TodaySoFarHealthRow])
     }
 
@@ -41,9 +43,12 @@ struct TodaySoFarHealthCard: Equatable {
         // No value for today yet: loading (including while authorisation is
         // requested), or failed when the window itself could not be computed.
         guard let projection else {
-            let status: TodaySoFarHealthRow.Status = windowFailed ? .failed : .loading
+            if windowFailed {
+                return TodaySoFarHealthCard(
+                    content: .failed(HealthReportFormatter.todaySoFarFailed), footer: footer, asOf: nil)
+            }
             return TodaySoFarHealthCard(
-                content: .rows(TodaySoFarHealthRow.Kind.allCases.map { placeholder($0, status: status) }),
+                content: .rows(TodaySoFarHealthRow.Kind.allCases.map { placeholder($0, status: .loading) }),
                 footer: footer,
                 asOf: nil
             )
@@ -87,6 +92,10 @@ struct TodaySoFarHealthCard: Equatable {
                     reading, asOf: window.asOf, calendar: calendar, locale: locale), spoken)
             }
         ]
+        if rows.allSatisfy({ $0.status == .failed }) {
+            return TodaySoFarHealthCard(
+                content: .failed(HealthReportFormatter.todaySoFarFailed), footer: footer, asOf: asOf)
+        }
         return TodaySoFarHealthCard(content: .rows(rows), footer: footer, asOf: asOf)
     }
 
@@ -102,12 +111,7 @@ struct TodaySoFarHealthCard: Equatable {
 
     private static func placeholder(_ kind: TodaySoFarHealthRow.Kind, status: TodaySoFarHealthRow.Status) -> TodaySoFarHealthRow {
         let title = title(kind)
-        switch status {
-        case .loading:
-            return TodaySoFarHealthRow(kind: kind, title: title, value: "", accessibilityLabel: "\(title), loading", status: .loading)
-        default:
-            return failedRow(kind)
-        }
+        return TodaySoFarHealthRow(kind: kind, title: title, value: "", accessibilityLabel: "\(title), loading", status: .loading)
     }
 
     private static func failedRow(_ kind: TodaySoFarHealthRow.Kind) -> TodaySoFarHealthRow {

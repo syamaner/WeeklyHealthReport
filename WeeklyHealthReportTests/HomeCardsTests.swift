@@ -98,6 +98,23 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(noWater.nutrients.map(\.value), ["Unknown", "Unknown", "Unknown"])
     }
 
+    /// Several known minimums still make one short sentence, not one sentence per nutrient.
+    func testSeveralKnownMinimumsShareOneSentence() throws {
+        let gb = Locale(identifier: "en_GB")
+        let totals = [
+            total(.energyConsumed, 726, incomplete: 1), total(.protein, 30, incomplete: 1),
+            total(.carbohydrates, 89.4, incomplete: 1), total(.fatTotal, 20, incomplete: 1)
+        ]
+        let water = FoodIntakeTotal(key: .water, knownAmount: 370.5, incompleteContributions: 1, includesEstimates: false)
+        guard case .logged(let logged) = FoodHomeCardContent.make(itemCount: 5, totals: totals, plainWater: water, locale: gb) else {
+            return XCTFail("Expected a logged card")
+        }
+        XCTAssertEqual(logged.footnote,
+                       "“+” marks a known minimum: some entries have no value for energy, protein, carbohydrates, fat or plain water.")
+        XCTAssertEqual(logged.footnote?.filter { $0 == "." }.count, 1, "one sentence")
+        XCTAssertEqual(logged.energy.value, "726 kcal+", "values are unchanged")
+    }
+
     /// Review fix: the Food Log's "Includes estimates" caption also shows on Home.
     func testEstimatedTotalsKeepTheirCaption() throws {
         let gb = Locale(identifier: "en_GB")
@@ -281,8 +298,11 @@ final class HomeCardsTests: XCTestCase {
         let partial = TodaySoFarHealthInputs(
             steps: .value(DailyStepTotal(day: window.day, steps: 0, sourceNames: [])), activeEnergyKilocalories: .noData,
             asleepIntervals: .noData, weights: .failed, bloodPressure: .noData)
+        let failed = TodaySoFarHealthInputs(steps: .failed, activeEnergyKilocalories: .failed, asleepIntervals: .failed,
+                                            weights: .failed, bloodPressure: .failed)
         let states: [(String, TodaySoFarHealthInputs?)] = [
-            ("loading", nil), ("available", available), ("partial", partial), ("unavailable", .healthUnavailable)
+            ("loading", nil), ("available", available), ("partial", partial), ("failed", failed),
+            ("unavailable", .healthUnavailable)
         ]
         for (name, inputs) in states {
             let model = healthModel(inputs: inputs)
