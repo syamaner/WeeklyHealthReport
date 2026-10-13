@@ -28,10 +28,10 @@ public struct FoodNutritionReviewPresentation: Equatable, Sendable {
             let value: String
             if compatible {
                 if let amount = totals.first(where: { $0.key == key })?.knownAmount {
-                    value = "\(Self.number(amount)) \(key.canonicalUnit.rawValue)"
+                    value = Self.consumedValue(amount, key: key)
                 } else if let entry, case .bounded = entry.value { value = "Unavailable · source is bounded" }
-                else { value = "Not provided" }
-            } else { value = entry.map(Self.sourceValue) ?? "Not provided" }
+                else { value = Self.unknownValue }
+            } else { value = entry.map(Self.sourceValue) ?? Self.unknownValue }
             return Row(key: key, title: Self.label(key), value: value)
         }
         mainRows = Self.mainKeys.compactMap { key in rows.first { $0.key == key } }
@@ -91,8 +91,17 @@ public struct FoodNutritionReviewPresentation: Equatable, Sendable {
             else if let upper = value.upper { "\(value.upperClosed ? "≤" : "<") \(number(upper)) \(value.unit.rawValue)" }
             else if let lower = value.lower { "\(value.lowerClosed ? "≥" : ">") \(number(lower)) \(value.unit.rawValue)" }
             else { "Bounded · see source" }
-        case .unknown: "Not provided"
+        case .unknown: unknownValue
         }
+    }
+    /// An unknown nutrient value, worded as in the Food Log and the saved entry.
+    public static let unknownValue = "Unknown"
+    /// The amount eaten in the shared display format: whole kcal, other units to one decimal.
+    /// A positive amount too small to show is "Less than 0.1 g", never a zero.
+    public static func consumedValue(_ amount: Double, key: NutrientKey) -> String {
+        FoodDisplayNumber.capitalisedFirst(key == .energyConsumed
+            ? FoodDisplayNumber.energy(amount)
+            : FoodDisplayNumber.quantity(amount, unit: key.canonicalUnit.rawValue))
     }
     public static func number(_ value: Double) -> String {
         value.formatted(.number.precision(.significantDigits(1...6)))

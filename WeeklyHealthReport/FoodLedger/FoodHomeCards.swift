@@ -19,7 +19,7 @@ struct FoodHomeCardContent: Equatable {
         let entryCount: String
         let nutrients: [Row]
         let water: Row
-        /// One footnote naming each known minimum, or nil when every total is complete.
+        /// One sentence about the known minimums ("+"), or nil when every total is complete.
         let footnote: String?
     }
 
@@ -63,16 +63,28 @@ struct FoodHomeCardContent: Equatable {
                        caption: FoodLogText.totalCaption(total))
         }
         let minimums = ([NutrientKey.energyConsumed] + nutrientKeys).compactMap { key in
-            totals.first(where: { $0.key == key }).flatMap { knownMinimum($0, locale: locale) }
-        } + [plainWater.flatMap { waterMinimum($0, locale: locale) }].compactMap { $0 }
+            totals.first(where: { $0.key == key }).flatMap { total in
+                knownMinimum(total, locale: locale).map { (FoodLogText.label(key).lowercased(), $0) }
+            }
+        } + [plainWater.flatMap { waterMinimum($0, locale: locale) }.map { ("plain water", $0) }].compactMap { $0 }
         return .logged(Logged(
             energy: row(.energyConsumed),
             entryCount: entryCount(itemCount),
             nutrients: nutrientKeys.map(row),
             water: Row(label: FoodLogText.plainWaterLabel, value: FoodLogText.plainWater(plainWater, locale: locale),
                        accessibilityLabel: FoodLogText.plainWaterAccessibility(plainWater, locale: locale)),
-            footnote: minimums.isEmpty ? nil : minimums.joined(separator: " ")
+            footnote: footnote(minimums)
         ))
+    }
+
+    /// One sentence whatever the number of affected totals (#140 copy pass): the full
+    /// sentence for a single total, otherwise one line naming them all.
+    static func footnote(_ minimums: [(name: String, sentence: String)]) -> String? {
+        guard let first = minimums.first else { return nil }
+        guard minimums.count > 1 else { return first.sentence }
+        let names = minimums.map(\.name)
+        let list = names.dropLast().joined(separator: ", ") + " or " + (names.last ?? "")
+        return "“+” marks a known minimum: some entries have no value for \(list)."
     }
 
     static let loadingMessage = "Loading food log"

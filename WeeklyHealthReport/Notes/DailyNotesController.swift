@@ -68,9 +68,11 @@ final class DailyNotesController: ObservableObject {
         guard document.draft?.dayID != currentDayID else { return nil }
         return document.draft
     }
+    /// The empty-collection wording shared with Home's notes card.
+    static let noNotesLabel = "None yet"
     var noteCountLabel: String {
         switch notes.count {
-        case 0: "No notes"
+        case 0: Self.noNotesLabel
         case 1: "1 note"
         default: "\(notes.count) notes"
         }

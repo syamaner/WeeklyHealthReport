@@ -7,6 +7,13 @@ struct DeveloperDiagnosticsView: View {
     var body: some View {
         Form {
             TodaySoFarDiagnosticsSection(model: todaySoFar)
+            ReportReadFailuresDiagnosticsSection(
+                failures: viewModel.presentationSnapshot(
+                    includesMedicationSection: HealthReportView.includesMedicationSection,
+                    showsMorningBloodPressureDetails: true,
+                    showsEveningBloodPressureDetails: true
+                ).readFailures
+            )
             QueryDiagnosticsSection(period: viewModel.period)
             StepsDiagnosticsSection(state: viewModel.state)
             BodyMeasurementsDiagnosticsSections(
@@ -35,5 +42,28 @@ struct DeveloperDiagnosticsView: View {
         }
         .navigationTitle("Diagnostics")
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// The technical message behind each Health report row that reads "Could not
+/// read Apple Health." on screen. Shown only when a read failed.
+struct ReportReadFailuresDiagnosticsSection: View {
+    let failures: [ReportReadFailure]
+
+    @ViewBuilder
+    var body: some View {
+        if !failures.isEmpty {
+            Section("Health report read failures") {
+                ForEach(Array(failures.enumerated()), id: \.offset) { _, failure in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(failure.metric)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text(failure.message)
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+        }
     }
 }

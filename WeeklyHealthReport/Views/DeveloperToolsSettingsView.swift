@@ -15,7 +15,7 @@ struct DeveloperToolsSettingsView: View {
             #if DEBUG
             Section("Health report") {
                 NavigationLink(value: AppRoute.diagnostics) {
-                    Label("Developer Diagnostics", systemImage: "stethoscope")
+                    Label("Developer diagnostics", systemImage: "stethoscope")
                 }
             }
             #endif

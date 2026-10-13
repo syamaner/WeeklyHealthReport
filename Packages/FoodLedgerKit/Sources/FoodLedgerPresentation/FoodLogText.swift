@@ -18,12 +18,12 @@ public enum FoodLogText {
     // MARK: Numbers
 
     static func number(_ value: Double, fraction: ClosedRange<Int> = 0...1, locale: Locale) -> String {
-        value.formatted(.number.precision(.fractionLength(fraction)).locale(locale))
+        FoodDisplayNumber.amount(value, fraction: fraction, locale: locale)
     }
 
-    /// kcal to the nearest whole number, half away from zero.
+    /// kcal to the nearest whole number, half away from zero (the shared `FoodDisplayNumber`).
     public static func kcal(_ value: Double, locale: Locale = .current) -> String {
-        number(value.rounded(.toNearestOrAwayFromZero), fraction: 0...0, locale: locale)
+        FoodDisplayNumber.kcal(value, locale: locale)
     }
 
     public static func label(_ key: NutrientKey) -> String { FoodNutritionReviewPresentation.label(key) }
