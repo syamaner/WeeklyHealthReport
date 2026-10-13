@@ -103,6 +103,7 @@ jobs:
         env:
           WHR_RETRIEVAL_REPORT: ${{ runner.temp }}/retrieval-current.json
           WHR_RETRIEVAL_REPORT_V4: ${{ runner.temp }}/retrieval-v4-current.json
+          WHR_RETRIEVAL_REPORT_V5: ${{ runner.temp }}/retrieval-v5-current.json
         run: |
           set -euo pipefail
           swift test --package-path Packages/FoodLedgerKit
@@ -115,6 +116,10 @@ jobs:
             Tools/FoodSearchQuality/retrieval-scenarios-v4.json \
             "$WHR_RETRIEVAL_REPORT_V4" "$RUNNER_TEMP/retrieval-v4-metrics.json" \
             --verify-report Tools/FoodSearchQuality/retrieval-metrics-v4-final-v7.json
+          python3 Tools/FoodSearchQuality/score_retrieval.py \
+            Tools/FoodSearchQuality/retrieval-scenarios-v5.json \
+            "$WHR_RETRIEVAL_REPORT_V5" "$RUNNER_TEMP/retrieval-v5-metrics.json" \
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-v5-final-v9.json
 
   food-ledger-kit-isolation:
     name: FoodLedgerKit boundaries

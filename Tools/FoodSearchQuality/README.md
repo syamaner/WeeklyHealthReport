@@ -78,3 +78,21 @@ python3.12 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/re
 To rebuild the v4 labels, write the ungraded replays for ranking v6 and v7 and
 pass both to `build_retrieval_v4.py`. Raw replays are not retained (about 2 MB
 each); their hashes are in the manifest.
+
+## Current CI replay: composite v9 (13 October 2026)
+
+The replay now reads `retrieval-scenarios-v5.json` (the 78 v4 cases plus seven
+Taiwan source-order cases) and writes three reports from one run: v3 and v4 rows
+from the two-source composite (unchanged, still verified against
+`retrieval-metrics-final-v7.json` and `retrieval-metrics-v4-final-v7.json`), and
+v5 rows from the production composite with TFDA as a regional source and each
+case's market, verified against `retrieval-metrics-v5-final-v9.json`.
+`retrieval-metrics-v5-baseline-v8.json` scores the same labels with every source
+interleaved (the v8 behaviour); set `WHR_RETRIEVAL_REPORT_V5_BASELINE` to write
+that replay. See `docs/composite-regional-order-v9.md` and
+`v9-reproduction-manifest.json`.
+
+```sh
+WHR_RETRIEVAL_REPORT=/private/tmp/retrieval-current.json WHR_RETRIEVAL_REPORT_V4=/private/tmp/retrieval-v4-current.json WHR_RETRIEVAL_REPORT_V5=/private/tmp/retrieval-v5-current.json swift test --package-path Packages/FoodLedgerKit --filter RankedRetrievalDevelopmentTests/testReplay
+python3.12 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/retrieval-scenarios-v5.json /private/tmp/retrieval-v5-current.json /private/tmp/retrieval-v5-metrics.json --verify-report Tools/FoodSearchQuality/retrieval-metrics-v5-final-v9.json
+```

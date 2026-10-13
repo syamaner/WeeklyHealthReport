@@ -92,11 +92,15 @@ final class FoodLedgerCompositionRoot {
         )
         favourites = try FavouritesService(ledger: ledger, reader: store, confirmations: confirmations,
             clock: confirmationClock, ids: ids, digester: SHA256Digester(), calendar: confirmationCalendar)
+        // Taiwan rows follow UK and US rows unless the Settings market is Taiwan or the
+        // query names Taiwan or contains Chinese characters (composite-generic-ranking-v9).
+        let market = foodMarket
         genericFoodSearch = try CompositeGenericFoodSearch(sources: [
             CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
-            USDAGenericFoodSearch(ids: ids),
-            TFDAGenericFoodSearch(ids: ids)
-        ], ids: ids)
+            USDAGenericFoodSearch(ids: ids)
+        ], regionalSources: [TFDAGenericFoodSearch(ids: ids)], promotesRegional: { request in
+            RegionalSourceOrderPolicy.promotesTaiwan(query: request.text.value, marketIsTaiwan: market.market == .taiwan)
+        }, ids: ids)
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }
 

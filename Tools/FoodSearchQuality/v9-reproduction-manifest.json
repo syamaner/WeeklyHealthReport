@@ -1,0 +1,502 @@
+{
+  "schema": "retrieval-reproduction-v9",
+  "composite_version": "composite-generic-ranking-v9",
+  "policy_version": "regional-source-order-v1",
+  "scorer_python": "3.12 or later",
+  "v3_and_v4_reports_unchanged": true,
+  "v5": {
+    "label_reference": "retrieval-scenarios-v5.json",
+    "labels_built_by": "build_retrieval_v5.py from the union of the v8-equivalent and v9 replays",
+    "composite_sources": "CoFID, USDA, then TFDA as a regional source; scenario market replayed",
+    "baseline": "composite-generic-ranking-v8 equivalent (all three sources interleaved), retrieval-metrics-v5-baseline-v8.json",
+    "expected_report": "retrieval-metrics-v5-final-v9.json",
+    "changed_composite_summaries": {
+      "composite": {
+        "hitAt1": {
+          "before": 0.9041095890410958,
+          "after": 0.9863013698630136
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 0.952054794520548,
+          "after": 0.9931506849315068
+        },
+        "ndcgAt5": {
+          "before": 0.9381072510055234,
+          "after": 0.972187686483377
+        }
+      },
+      "composite/regional-default": {
+        "hitAt1": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "ndcgAt5": {
+          "before": 0.7872862307420262,
+          "after": 0.9382564168225619
+        }
+      },
+      "composite/rice": {
+        "hitAt1": {
+          "before": 0.0,
+          "after": 1.0
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 0.5,
+          "after": 1.0
+        },
+        "ndcgAt5": {
+          "before": 0.6608397947263838,
+          "after": 1.0
+        }
+      },
+      "composite/transfer-banana": {
+        "hitAt1": {
+          "before": 0.0,
+          "after": 1.0
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 0.5,
+          "after": 1.0
+        },
+        "ndcgAt5": {
+          "before": 0.6608397947263838,
+          "after": 1.0
+        }
+      }
+    },
+    "changed_observations": [
+      {
+        "id": "r053",
+        "source": "composite",
+        "before_grades": [
+          0,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "after_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ]
+      },
+      {
+        "id": "r054",
+        "source": "composite",
+        "before_grades": [
+          0,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "after_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ]
+      },
+      {
+        "id": "r055",
+        "source": "composite",
+        "before_grades": [
+          0,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "after_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ]
+      },
+      {
+        "id": "r056",
+        "source": "composite",
+        "before_grades": [
+          0,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ],
+        "after_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          1,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          0
+        ]
+      },
+      {
+        "id": "r059",
+        "source": "composite",
+        "before_grades": [
+          0,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "after_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "id": "r060",
+        "source": "composite",
+        "before_grades": [
+          0,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "after_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0
+        ]
+      },
+      {
+        "id": "r079",
+        "source": "composite",
+        "before_grades": [
+          2,
+          3,
+          2,
+          3,
+          2,
+          3,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "after_grades": [
+          3,
+          2,
+          3,
+          2,
+          3,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          2
+        ]
+      },
+      {
+        "id": "r080",
+        "source": "composite",
+        "before_grades": [
+          2,
+          3,
+          2,
+          3,
+          2,
+          3,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "after_grades": [
+          3,
+          2,
+          3,
+          2,
+          3,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          2
+        ]
+      },
+      {
+        "id": "r081",
+        "source": "composite",
+        "before_grades": [
+          2,
+          3,
+          3,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "after_grades": [
+          3,
+          3,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          2
+        ]
+      }
+    ]
+  },
+  "replays_retained": false,
+  "replay_sha256": {
+    "v5-composite-v8-equivalent": "84befa1ea4db10ea88798baa51c0ccd67405d8adff41969674a5718b91459edc",
+    "v5-composite-v9": "59ea347ca63874d0fc1d817f3b26781b283c2ade02815f7f295a3a063e75d62e"
+  },
+  "input_sha256": {
+    "Tools/FoodSearchQuality/retrieval-scenarios-v4.json": "b1265e4d4b6ff034e67a01a3ddbfa332272f0ff7d293fdf143cc782211e0e9af",
+    "Tools/FoodSearchQuality/retrieval-scenarios-v5.json": "7431bea44f0f1a0af51481a7ae3112ca62298afb7fd492490bbce9c3a98c0c56"
+  },
+  "source_sha256": {
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/CompositeGenericFoodSearch.swift": "81df016f42152abcb6c1f93ce26cc57e5eccc126d0f739a297edb764ac7afb25",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/RegionalSourceOrderPolicy.swift": "2d88f73f8c7735a4ce0994abc0403fd6c1ac119c51a7dbd1cf421b3e9df52317",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/GenericFoodRankingPolicy.swift": "88c59eaef05331ac7403c354c3d39548da665c8cdc2983fd3a362b37a10f16e7",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/TFDAGenericFoodSearch.swift": "b74773fba3e1ace45a9f6d0c3e785b9b43b4469c467265b137a30b58fd7d4ad6",
+    "Packages/FoodLedgerKit/Tests/FoodGenericSearchTests/RankedRetrievalDevelopmentTests.swift": "0d883a4589c8a789b4dbf641ab75ad87f62a8821c8aba5197e36147b0a11a26d",
+    "WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift": "9394f1b50299e956d56db1be0d71e6fed60479b7f46f74765dc007ad0093386e",
+    "Tools/FoodSearchQuality/score_retrieval.py": "90969bb74009935e879a803f7ae048781635799106e25cc3b418ac192b6250ef",
+    "Tools/FoodSearchQuality/build_retrieval_v5.py": "6cf434ec3016d83cd3b4ab82dbe3af462c888aea941b1c57898a17b27bba2e17"
+  },
+  "output_sha256": {
+    "retrieval-metrics-v5-baseline-v8.json": "9cc3e63b638f07c31a4af0bd6d56a121c669987ac0de4c26645e419934125d4b",
+    "retrieval-metrics-v5-final-v9.json": "01ff471d7687bf8e76a3eb66977c04a2bb0edfc437192ad646f4b2a7de3dd5e0"
+  },
+  "independentAcceptance": false
+}

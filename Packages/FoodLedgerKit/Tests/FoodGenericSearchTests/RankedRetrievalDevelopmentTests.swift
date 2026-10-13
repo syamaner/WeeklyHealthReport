@@ -34,7 +34,7 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
     }
 
     struct Fixture: Decodable { let version: String; let cases: [Scenario] }
-    struct Scenario: Decodable { let id: String; let query: String; let preparation: String? }
+    struct Scenario: Decodable { let id: String; let query: String; let preparation: String?; let market: String? }
     struct Row: Encodable {
         let id: String; let query: String; let source: String
         let records: [String]; let names: [String]; let sourceIDs: [String]
@@ -114,30 +114,48 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
     /// One replay of the latest scenario set feeds every frozen report version.
     /// v3 and v4 rows use the original two-source composite, so their earlier
     /// labels and expected reports stay comparable; v3 rows are the v4 rows for
-    /// the unchanged v3 case identifiers.
+    /// the unchanged v3 case identifiers. v5 rows use the production composite
+    /// with Taiwan TFDA as a regional source and the scenario's market.
     func testReplay() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
         let directory = root.appendingPathComponent("Tools/FoodSearchQuality")
-        let v3 = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: directory.appendingPathComponent("retrieval-scenarios-v3.json")))
-        let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: directory.appendingPathComponent("retrieval-scenarios-v4.json")))
-        XCTAssertEqual(v3.cases.map(\.id), Array(fixture.cases.prefix(v3.cases.count)).map(\.id))
-        XCTAssertEqual(v3.cases.map(\.query), Array(fixture.cases.prefix(v3.cases.count)).map(\.query))
+        func load(_ name: String) throws -> Fixture {
+            try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: directory.appendingPathComponent(name)))
+        }
+        let v3 = try load("retrieval-scenarios-v3.json"), v4 = try load("retrieval-scenarios-v4.json")
+        let fixture = try load("retrieval-scenarios-v5.json")
+        for earlier in [v3, v4] {
+            XCTAssertEqual(earlier.cases.map(\.id), Array(fixture.cases.prefix(earlier.cases.count)).map(\.id))
+            XCTAssertEqual(earlier.cases.map(\.query), Array(fixture.cases.prefix(earlier.cases.count)).map(\.query))
+        }
         let ids = ReplayIDs()
         let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
-        let sources: [(String, any GenericFoodSearching)] = [
-            ("cofid", cofid), ("usda", usda),
-            ("composite", CompositeGenericFoodSearch(sources: [cofid, usda], ids: ids))
-        ]
-        var rows: [Row] = []
+        let tfda = try TFDAGenericFoodSearch(ids: ids)
+        let twoSource = CompositeGenericFoodSearch(sources: [cofid, usda], ids: ids)
+        let baseline = ProcessInfo.processInfo.environment["WHR_RETRIEVAL_REPORT_V5_BASELINE"] != nil
+        var rows: [Row] = [], regionalRows: [Row] = [], baselineRows: [Row] = []
         for scenario in fixture.cases {
             let request = try replayRequest(scenario)
-            for (source, search) in sources { rows.append(try replayRow(scenario, source: source, request: request, search: search)) }
+            let regional = CompositeGenericFoodSearch(sources: [cofid, usda], regionalSources: [tfda], promotesRegional: { request in
+                RegionalSourceOrderPolicy.promotesTaiwan(query: request.text.value, marketIsTaiwan: scenario.market == "taiwan")
+            }, ids: ids)
+            let local = [try replayRow(scenario, source: "cofid", request: request, search: cofid),
+                         try replayRow(scenario, source: "usda", request: request, search: usda)]
+            rows += local + [try replayRow(scenario, source: "composite", request: request, search: twoSource)]
+            regionalRows += local + [try replayRow(scenario, source: "composite", request: request, search: regional)]
+            if baseline {
+                // composite-generic-ranking-v8 equivalent: every source interleaved.
+                let interleaved = CompositeGenericFoodSearch(sources: [cofid, usda, tfda], ids: ids)
+                baselineRows += local + [try replayRow(scenario, source: "composite", request: request, search: interleaved)]
+            }
         }
-        let v3IDs = Set(v3.cases.map(\.id))
+        let v3IDs = Set(v3.cases.map(\.id)), v4IDs = Set(v4.cases.map(\.id))
         try write(rows.filter { v3IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT")
-        try write(rows, environment: "WHR_RETRIEVAL_REPORT_V4")
+        try write(rows.filter { v4IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT_V4")
+        try write(regionalRows, environment: "WHR_RETRIEVAL_REPORT_V5")
+        if baseline { try write(baselineRows, environment: "WHR_RETRIEVAL_REPORT_V5_BASELINE") }
     }
 
     private func replayRequest(_ scenario: Scenario) throws -> GenericFoodSearchRequest {

@@ -31,7 +31,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Online search recovery v1](online-food-search-recovery-v1.md)
 - [Generic web proposal integration v1](generic-food-proposal-integration-v1.md) and [repair v2](generic-food-proposal-repair-v2.md)
 - [Open Food Facts barcode candidates v1](off-barcode-candidate-plan-v1.md)
-- [Taiwan food catalogue v1](taiwan-food-catalogue-v1.md)
+- [Taiwan food catalogue v1](taiwan-food-catalogue-v1.md) and [composite regional source order v9](composite-regional-order-v9.md) (Taiwan rows after UK and US unless the market or query indicates Taiwan)
 - [Source coverage and licence evaluation](food-source-coverage-and-licence-evaluation.md)
 
 ## Nutrition evaluation
