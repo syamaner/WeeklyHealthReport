@@ -91,6 +91,25 @@ final class AddFoodSearchPresentationTests: XCTestCase {
         let older = AddFoodRecentRowText(try item("2026-10-09T07:00:00Z", amount: try PositiveQuantity(value: 300, unit: .millilitres), energy: 105, estimate: false), now: now, calendar: london)
         XCTAssertTrue(older.detail.hasPrefix("Last: 300 mL · "))
         XCTAssertTrue(older.detail.contains("9"))
+        // One kcal format everywhere: grouped, no decimals, as the Food Log row shows it.
+        let large = AddFoodRecentRowText(try item("2026-10-10T18:00:00Z", amount: try PositiveQuantity(value: 2250.5, unit: .grams), energy: 2633.4, estimate: false), now: now, calendar: london)
+        XCTAssertEqual(large.energy, "\(FoodDisplayNumber.kcal(2633.4)) kcal")
+        XCTAssertEqual(large.energy, "\(FoodLogText.kcal(2633.4)) kcal")
+    }
+
+    func testSharedDisplayNumberGroupsKcalAndRoundsAmounts() throws {
+        let gb = Locale(identifier: "en_GB")
+        XCTAssertEqual(FoodDisplayNumber.kcal(2633.4, locale: gb), "2,633")
+        XCTAssertEqual(FoodDisplayNumber.kcal(259.5, locale: gb), "260")
+        XCTAssertEqual(FoodDisplayNumber.kcal(3.04, locale: gb), "3")
+        XCTAssertEqual(FoodDisplayNumber.amount(6.44, locale: gb), "6.4")
+        XCTAssertEqual(FoodDisplayNumber.amount(60.95, locale: gb), "61")
+        XCTAssertEqual(FoodDisplayNumber.amount(2250.5, locale: gb), "2,250.5")
+        XCTAssertEqual(FoodLogText.kcal(2633.4, locale: gb), FoodDisplayNumber.kcal(2633.4, locale: gb))
+        let summary = FoodSearchResultSummary(family: .ukReference, preparation: .cooked,
+            energy: .forAmount(kcal: 2633, quantity: try PositiveQuantity(value: 1200, unit: .grams)))
+        XCTAssertEqual(FoodSearchResultText.summaryLine(summary),
+                       "UK reference · cooked · \(FoodDisplayNumber.kcal(2633)) kcal for \(FoodDisplayNumber.amount(1200, fraction: 0...2)) g")
     }
 
     // MARK: Search view model

@@ -211,7 +211,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         guard nutritionReview.isConsumed,
               let energy = consumedNutrition.first(where: { $0.key == .energyConsumed }),
               energy.incompleteContributions == 0, let amount = energy.knownAmount else { return "Log" }
-        return "Log \(FoodNutritionReviewPresentation.number(amount)) kcal"
+        return "Log \(FoodDisplayNumber.kcal(amount)) kcal"
     }
 
     public var occurredAtRange: ClosedRange<Date> {

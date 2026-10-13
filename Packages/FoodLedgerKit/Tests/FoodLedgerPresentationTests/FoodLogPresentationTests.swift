@@ -196,6 +196,21 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertTrue(model.hasChangesToSave)
     }
 
+    /// The Log button and Confirm's nutrition use the shared display format: whole kcal (half
+    /// away from zero) and grams to one decimal, as the saved entry and Food Log show them.
+    func testLogTitleAndConsumedNutritionUseSharedDisplayFormat() throws {
+        let world = try World(now: now, calendar: calendar)
+        let model = FoodConfirmationViewModel(state: try world.newState(grams: 129.75), now: { [now] in now }, calendar: calendar) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        XCTAssertEqual(model.logButtonTitle, "Log 260 kcal", "259.5 kcal rounds like the Food Log row")
+        for row in model.nutritionReview.mainRows where row.value != FoodNutritionReviewPresentation.unknownValue {
+            let number = row.value.split(separator: " ").first.map(String.init) ?? ""
+            let decimals = number.split(separator: ".").dropFirst().first?.count ?? 0
+            XCTAssertLessThanOrEqual(decimals, row.key == .energyConsumed ? 0 : 1, row.value)
+        }
+    }
+
     // MARK: Review fixes (#211)
 
     /// Fix 3: after midnight or a time-zone change, a log showing "today" moves to the new

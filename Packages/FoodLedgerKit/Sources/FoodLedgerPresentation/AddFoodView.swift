@@ -21,8 +21,8 @@ public struct AddFoodRecentRowText: Equatable, Sendable {
             style.calendar = calendar; style.timeZone = calendar.timeZone
             day = recent.item.occurredAt.formatted(style)
         }
-        detail = (recent.isEstimate ? "Estimate · " : "") + "Last: \(amount.value.formatted()) \(unit) · \(day)"
-        energy = recent.item.energyKcal.map { "\(Int($0.rounded(.toNearestOrAwayFromZero))) kcal" }
+        detail = (recent.isEstimate ? "Estimate · " : "") + "Last: \(FoodDisplayNumber.amount(amount.value, fraction: 0...2)) \(unit) · \(day)"
+        energy = recent.item.energyKcal.map { "\(FoodDisplayNumber.kcal($0)) kcal" }
     }
 
     /// Accessibility text sizes stack the name, detail and energy (the Food Log row approach).
