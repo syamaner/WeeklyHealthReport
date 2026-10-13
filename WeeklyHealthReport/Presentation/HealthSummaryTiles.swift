@@ -146,8 +146,8 @@ enum HealthSummaryTiles {
     }
 
     /// A failure shows the shared short term in a tile; the section row says
-    /// "Could not read Apple Health." and the technical message stays in Copy all
-    /// and Developer tools. Every other row is copied verbatim.
+    /// "Could not read Apple Health." (as Copy all does) and the technical message
+    /// stays in Developer tools. Every other row is copied verbatim.
     private static func shortFailure(_ row: ReportDocument.Row) -> ReportDocument.Row {
         guard row.style == .failure else { return row }
         return ReportDocument.Row(

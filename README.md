@@ -42,7 +42,7 @@ scrolling form. It always includes every report section with all blood-pressure
 details shown, whatever is expanded on screen, but not the summary tiles or the
 navigation, export, copy, refresh or diagnostics controls. Its wording is the
 screen's (sentence-case labels, and "Could not read Apple Health." for a failed
-read), while Copy all keeps the copied-report wording shown below.
+read), while Copy all keeps the copied-report labels shown below.
 **Today** offers Full Page too: a one-page PDF of its cards as text (the date, Food
 logged, quick-add favourites, Health · today so far with its footer and "As of" time,
 and today's notes count), built from the cards' current content when iOS asks. Buttons
@@ -428,6 +428,8 @@ These are calendar periods, not a rolling 168-hour window. Last 7 days still con
 ## What gets copied
 
 The copied report is plain text. Latest weight, waist, blood oxygen and blood pressure are selected independently of the weekly period, so a measurement recorded today can appear alongside a report of completed days.
+
+A failed Apple Health read is copied as "Could not read Apple Health.", whether it is one metric row (for example `Daily Average: Could not read Apple Health.`) or a whole section such as Steps. The technical message is never copied; Developer tools lists it under "Health report read failures". No-data, unavailable and partial wording is copied unchanged.
 
 <details>
 <summary>See a synthetic copied report</summary>
