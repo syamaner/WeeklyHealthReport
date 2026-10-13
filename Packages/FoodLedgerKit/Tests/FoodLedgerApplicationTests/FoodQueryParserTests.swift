@@ -22,6 +22,26 @@ final class FoodQueryParserTests: XCTestCase {
         }
     }
 
+    func testCookedEggCountsAreCountsAndKeepTheMethodInTheFoodText() {
+        XCTAssertEqual(FoodQueryParser.version, "food-query-parser-v8")
+        for (input, food, count) in [("2 scrambled eggs", "scrambled egg", 2.0), ("two fried eggs", "fried egg", 2),
+                                     ("3 poached eggs", "poached egg", 3), ("a fried egg", "fried egg", 1),
+                                     ("2 x scrambled eggs", "scrambled egg", 2), ("2 boiled eggs", "egg", 2)] {
+            let parsed = FoodQueryParser.parse(input)
+            XCTAssertEqual(parsed.route, .search, input)
+            XCTAssertEqual(parsed.food, food, input)
+            XCTAssertEqual(parsed.quantity, .init(value: count, unit: "count"), input)
+            XCTAssertEqual(parsed.original, input)
+        }
+        // The new methods are bounded to eggs; other forms keep their v7 routes.
+        for input in ["2 fried bananas", "2 pan fried eggs", "not fried 2 eggs", "2 scrambled eggs 120g"] {
+            let parsed = FoodQueryParser.parse(input)
+            XCTAssertEqual(parsed.route, .clarify, input)
+            XCTAssertNil(parsed.quantity, input)
+        }
+        XCTAssertEqual(FoodQueryParser.parse("0 fried eggs").route, .reject)
+    }
+
     func testRawOrUncookedWithCookingMethodRequiresClarification() {
         for raw in ["raw", "uncooked"] {
             for method in ["cooked", "roast", "roasted", "boiled", "grilled", "broiled", "fried", "baked", "steamed", "braised", "poached", "stewed"] {
