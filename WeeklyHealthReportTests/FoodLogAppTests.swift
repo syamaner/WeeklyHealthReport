@@ -467,6 +467,35 @@ final class FoodLogAppTests: XCTestCase {
         }
     }
 
+    /// Owner change: with 200 mL whole milk on the per 100 g CoFID record, the sourced estimate
+    /// sits directly above "Log without nutrition" with its energy, at standard and accessibility
+    /// sizes; once applied it leaves the Log bar and Log states the total.
+    func testConfirmShowsTheMilkVolumeEstimateBesideLog() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        let list = try root.foodListModel(locale: Locale(identifier: "en_GB"))
+        list.input = "200 ml whole milk"
+        list.prepare()
+        list.search()
+        let policy = try CoFIDWholeMilkVolumeConversion()
+        let matches = try XCTUnwrap(list.selectedRow?.route?.matches)
+        let index = try XCTUnwrap(matches.firstIndex { policy.applies(to: $0.candidate) }, "CoFID whole milk is offered")
+        list.review(candidate: index)
+        let confirmation = try XCTUnwrap(list.confirmation)
+        XCTAssertEqual(confirmation.logButtonTitle, "Log without nutrition")
+        XCTAssertEqual(confirmation.volumeEstimateLogBarAction?.title, "Use whole-milk estimate (about 130 kcal)")
+        for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
+            renderPolish(NavigationStack { FoodConfirmationView(model: confirmation) {} }.environment(\.dynamicTypeSize, size),
+                         "Confirm milk estimate beside Log - \(name)")
+        }
+        confirmation.applyAvailableVolumeConversion()
+        XCTAssertNil(confirmation.volumeEstimateLogBarAction)
+        XCTAssertEqual(confirmation.logButtonTitle, "Log 130 kcal")
+        renderPolish(NavigationStack { FoodConfirmationView(model: confirmation) {} }, "Confirm milk estimate applied - standard")
+    }
+
     /// The barcode route opens the scanner once, on first opening, with no explainer tap; coming
     /// back from search or Confirm does not reopen it.
     func testBarcodeRouteStartsScanningOnceOnOpening() {

@@ -57,6 +57,62 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertTrue(model.consumedNutrition.allSatisfy { $0.knownAmount == nil })
     }
 
+    /// Owner change: the available estimate sits above Log, stating the energy applying it would
+    /// give; Log keeps "Log without nutrition" and nothing applies until the tap.
+    func testVolumeEstimateLogBarActionShowsBesideLogUntilApplied() throws {
+        let policy = try CoFIDWholeMilkVolumeConversion()
+        let search = try CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator())
+        let request = GenericFoodSearchRequest(
+            text: try LedgerText("Milk, whole, pasteurised, average"),
+            identity: GenericFoodIdentityQuery(), capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            locale: try LedgerText("en_GB")
+        )
+        guard case let .confirmation(route) = try search.search(request),
+              let milk = route.matches.map(\.candidate).first(where: policy.applies(to:)) else {
+            return XCTFail("Expected CoFID milk")
+        }
+        let input = try PopulatedFoodConfirmation(
+            evidence: route.confirmation.evidence,
+            sourceReleases: route.confirmation.sourceReleases + [policy.sourceRelease],
+            candidates: [milk], expectedIdentity: milk.candidate.identity,
+            expectedEdibleQuantity: milk.candidate.edibleQuantity
+        )
+        let model = FoodConfirmationViewModel(
+            state: FoodConfirmationState(input: input), volumeConversionOffering: policy
+        ) { _ in throw CocoaError(.fileWriteUnknown) }
+        XCTAssertNil(model.volumeEstimateLogBarAction, "no amount yet")
+        model.send(.setQuantity(200, .grams))
+        XCTAssertNil(model.volumeEstimateLogBarAction, "grams need no estimate")
+
+        model.send(.setQuantity(200, .millilitres))
+        let action = try XCTUnwrap(model.volumeEstimateLogBarAction)
+        XCTAssertEqual(action.title, "Use whole-milk estimate (about 130 kcal)")
+        XCTAssertEqual(action.accessibilityLabel, "Use whole-milk volume estimate, about 130 kcal")
+        XCTAssertEqual(model.logButtonTitle, "Log without nutrition", "Log keeps its own title")
+        XCTAssertNil(model.state.quantity.conversion, "showing the action applies nothing")
+
+        model.applyAvailableVolumeConversion()
+        XCTAssertNil(model.volumeEstimateLogBarAction, "hidden once applied")
+        XCTAssertEqual(model.logButtonTitle, "Log 130 kcal", "the action's energy is the applied Log total")
+        model.removeOfferedVolumeConversion()
+        XCTAssertNotNil(model.volumeEstimateLogBarAction, "offered again after removal")
+
+        model.send(.setQuantity(250, .millilitres))
+        XCTAssertEqual(model.volumeEstimateLogBarAction?.title, "Use whole-milk estimate (about 162 kcal)", "257.5 g × 63 kcal/100 g")
+        model.send(.setQuantity(0.5, .millilitres))
+        XCTAssertEqual(model.volumeEstimateLogBarAction?.title, "Use whole-milk estimate (less than 1 kcal)")
+
+        let withoutSource = FoodConfirmationViewModel(
+            state: FoodConfirmationState(input: try PopulatedFoodConfirmation(
+                evidence: route.confirmation.evidence, sourceReleases: route.confirmation.sourceReleases,
+                candidates: [milk], expectedIdentity: milk.candidate.identity,
+                expectedEdibleQuantity: milk.candidate.edibleQuantity)),
+            volumeConversionOffering: policy
+        ) { _ in throw CocoaError(.fileWriteUnknown) }
+        withoutSource.send(.setQuantity(200, .millilitres))
+        XCTAssertNil(withoutSource.volumeEstimateLogBarAction, "not offered when the tap could not apply it")
+    }
+
     func testArchiveGuidanceStatesIntegrityAndIndependentDeletionBoundaries() {
         XCTAssertTrue(FoodArchiveGuidance.integrity.contains("check integrity"))
         XCTAssertTrue(FoodArchiveGuidance.integrity.contains("do not encrypt or anonymise"))
