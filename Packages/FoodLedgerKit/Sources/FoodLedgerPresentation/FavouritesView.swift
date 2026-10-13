@@ -141,7 +141,7 @@ public final class FavouritesViewModel: ObservableObject {
 
     public static func removalMessage(_ row: FavouriteRow) -> String {
         QuickAddText.isPlainWater(row.item)
-            ? "Water will no longer appear on Today. You can add it back in Favourites with \u{201C}\(addWaterTitle)\u{201D}. Water you have already logged stays in your Food Log."
+            ? "Water will no longer appear in quick add. You can add it back in Favourites with \u{201C}\(addWaterTitle)\u{201D}. Water you have already logged stays in your Food Log."
             : "Entries you have already logged stay in your Food Log."
     }
 

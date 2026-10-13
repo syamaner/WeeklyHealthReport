@@ -67,7 +67,7 @@ final class HomeCardsTests: XCTestCase {
     // MARK: Food card
 
     func testEmptyFoodLogIsNotZero() {
-        XCTAssertEqual(FoodHomeCardContent.make(itemCount: 0, totals: [], plainWater: nil), .empty)
+        XCTAssertEqual(FoodHomeCardContent.make(itemCount: 0, totals: [], plainWater: nil, incompleteEntries: 0), .empty)
         XCTAssertEqual(FoodHomeCardContent.emptyMessage, "Nothing logged yet today")
     }
 
@@ -78,7 +78,7 @@ final class HomeCardsTests: XCTestCase {
             total(.fatTotal, 41, incomplete: 1)
         ]
         let water = FoodIntakeTotal(key: .water, knownAmount: 730, incompleteContributions: 0, includesEstimates: false)
-        guard case .logged(let logged) = FoodHomeCardContent.make(itemCount: 3, totals: totals, plainWater: water, locale: gb) else {
+        guard case .logged(let logged) = FoodHomeCardContent.make(itemCount: 3, totals: totals, plainWater: water, locale: gb, incompleteEntries: 1) else {
             return XCTFail("Expected a logged card")
         }
         XCTAssertEqual(logged.energy.value, "1,240 kcal")
@@ -92,7 +92,7 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(logged.water.accessibilityLabel, "Plain water logged, 730 millilitres")
 
         guard case .logged(let noWater) = FoodHomeCardContent.make(itemCount: 1, totals: [total(.energyConsumed, 200)],
-                                                                    plainWater: nil, locale: gb) else { return XCTFail("logged") }
+                                                                    plainWater: nil, locale: gb, incompleteEntries: 0) else { return XCTFail("logged") }
         XCTAssertEqual(noWater.water.value, "No data", "no plain water is No data, never 0 mL")
         XCTAssertNil(noWater.footnote)
         XCTAssertEqual(noWater.nutrients.map(\.value), ["Unknown", "Unknown", "Unknown"])
@@ -107,7 +107,8 @@ final class HomeCardsTests: XCTestCase {
             total(.carbohydrates, 89.4, incomplete: 1), total(.fatTotal, 20, incomplete: 1)
         ]
         let water = FoodIntakeTotal(key: .water, knownAmount: 370.5, incompleteContributions: 1, includesEstimates: false)
-        guard case .logged(let logged) = FoodHomeCardContent.make(itemCount: 5, totals: totals, plainWater: water, locale: gb) else {
+        guard case .logged(let logged) = FoodHomeCardContent.make(itemCount: 5, totals: totals, plainWater: water, locale: gb,
+                                                                  incompleteEntries: 1) else {
             return XCTFail("Expected a logged card")
         }
         XCTAssertEqual(logged.footnote, "Some values are unknown for 1 entry, so totals marked + are known minimums.")
@@ -116,10 +117,11 @@ final class HomeCardsTests: XCTestCase {
 
         guard case .logged(let counted) = FoodHomeCardContent.make(itemCount: 5, totals: totals, plainWater: water, locale: gb,
                                                                    incompleteEntries: 2) else { return XCTFail("logged") }
-        XCTAssertEqual(counted.footnote, "Some values are unknown for 2 entries, so totals marked + are known minimums.")
+        XCTAssertEqual(counted.footnote, "Some values are unknown for 2 entries, so totals marked + are known minimums.",
+                       "the count is the distinct entries passed in, never the per-total maximum")
 
         let unknownOnly = [total(.energyConsumed, 200), FoodIntakeTotal(key: .fatTotal, knownAmount: nil, incompleteContributions: 1, includesEstimates: false)]
-        guard case .logged(let none) = FoodHomeCardContent.make(itemCount: 1, totals: unknownOnly, plainWater: nil, locale: gb) else {
+        guard case .logged(let none) = FoodHomeCardContent.make(itemCount: 1, totals: unknownOnly, plainWater: nil, locale: gb, incompleteEntries: 1) else {
             return XCTFail("logged")
         }
         XCTAssertEqual(none.footnote, "Some values are unknown for 1 entry.", "no total is marked +, so none is called a minimum")
@@ -147,7 +149,7 @@ final class HomeCardsTests: XCTestCase {
             FoodIntakeTotal(key: .protein, knownAmount: 12, incompleteContributions: 0, includesEstimates: true),
             total(.carbohydrates, 40), total(.fatTotal, 9)
         ]
-        guard case .logged(let logged) = FoodHomeCardContent.make(itemCount: 2, totals: totals, plainWater: nil, locale: gb) else {
+        guard case .logged(let logged) = FoodHomeCardContent.make(itemCount: 2, totals: totals, plainWater: nil, locale: gb, incompleteEntries: 0) else {
             return XCTFail("Expected a logged card")
         }
         XCTAssertEqual(logged.energy.caption, "Includes estimates")
@@ -266,7 +268,7 @@ final class HomeCardsTests: XCTestCase {
             FoodIntakeTotal(key: .energyConsumed, knownAmount: 1240, incompleteContributions: 0, includesEstimates: true),
             total(.protein, 68), total(.carbohydrates, 150.5), total(.fatTotal, 41, incomplete: 1)
         ]
-        let state = FoodHomeCardContent.make(itemCount: 3, totals: totals, plainWater: nil, locale: gb)
+        let state = FoodHomeCardContent.make(itemCount: 3, totals: totals, plainWater: nil, locale: gb, incompleteEntries: 1)
         let section = FoodHomeCardContent.fullPageSection(state)
         XCTAssertEqual(section.title, "Food logged")
         XCTAssertEqual(section.rows.map(\.label), ["Energy", nil, "Protein", "Carbohydrates", "Fat", "Plain water logged"])

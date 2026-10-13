@@ -26,8 +26,11 @@ final class FavouriteSavingPresentationTests: XCTestCase {
             return try FavouritesProjection(records: FavouriteMutation(favourites: entries, favouriteVersions: versions))
         }
 
+        private(set) var savedIDs: [LogItemVersionID] = []
+
         func saveFavourite(logItemVersionID: LogItemVersionID) throws -> FavouriteVersion {
             saves += 1
+            savedIDs.append(logItemVersionID)
             if failures > 0 { failures -= 1; throw FoodLedgerStoreError.integrityFailure("synthetic") }
             active.insert(logItemVersionID)
             return try XCTUnwrap(projection().activeFavourite(boundTo: logItemVersionID))
@@ -87,6 +90,72 @@ final class FavouriteSavingPresentationTests: XCTestCase {
         XCTAssertEqual(store.saves, 2)
     }
 
+    /// Review question 1: a recent row showing an older version (the entry was edited elsewhere
+    /// while the list was open) pins the entry's current version, read at tap time; the row shows
+    /// the result. A removed entry fails and writes nothing.
+    func testRecentRowPinsTheCurrentVersionReadAtTapTime() throws {
+        let store = FakeStore()
+        let shown = try id(10), current = try id(11)
+        let logItemID: LogItemID = try LedgerID("00000000-0000-0000-0000-000000000777")
+        var head: LogItemVersionID? = current
+        var reads = 0
+        let model = FavouriteSaveModel(store: store) { requested in
+            XCTAssertEqual(requested, logItemID)
+            reads += 1
+            return head
+        }
+        model.refresh([shown])
+        model.save(shown, logItemID: logItemID)
+        XCTAssertEqual(reads, 1, "read at tap time")
+        XCTAssertEqual(store.savedIDs, [current], "never the older version the row shows")
+        XCTAssertEqual(model.state(for: shown), .saved)
+        XCTAssertEqual(model.state(for: current), .saved)
+        model.save(shown, logItemID: logItemID)
+        XCTAssertEqual(store.saves, 1, "a saved row writes nothing more")
+
+        // Current version already a favourite: shown as such, nothing written.
+        let other = try id(12), otherCurrent = try id(13)
+        store.active.insert(otherCurrent)
+        head = otherCurrent
+        model.save(other, logItemID: logItemID)
+        XCTAssertEqual(model.state(for: other), .alreadyFavourite)
+        XCTAssertEqual(store.saves, 1)
+
+        // Removed meanwhile: fails, nothing written.
+        let removed = try id(14)
+        head = nil
+        model.save(removed, logItemID: logItemID)
+        XCTAssertEqual(model.state(for: removed), .failed)
+        XCTAssertEqual(store.saves, 1)
+
+        // Unchanged head: saves the shown version.
+        let same = try id(15)
+        head = same
+        model.save(same, logItemID: logItemID)
+        XCTAssertEqual(store.savedIDs.last, same)
+    }
+
+    /// Review question 2: Try again is pressed while the alert dismisses; the retry runs only
+    /// after the dismissal, and a second failure presents the alert again.
+    func testRetryAlertRunsAfterDismissalAndRepresentsOnASecondFailure() {
+        var alert = FavouriteRetryAlert()
+        XCTAssertFalse(alert.isPresented)
+        alert.finished(.failed)
+        XCTAssertTrue(alert.isPresented)
+        alert.tryAgain()
+        XCTAssertTrue(alert.isPresented, "still dismissing")
+        XCTAssertFalse(alert.takeRetry(), "no retry while the alert is up")
+        alert.dismissed()
+        XCTAssertTrue(alert.takeRetry())
+        XCTAssertFalse(alert.takeRetry(), "consumed once")
+        alert.finished(.failed)
+        XCTAssertTrue(alert.isPresented, "a second failure presents the alert again")
+        alert.dismissed()
+        XCTAssertFalse(alert.takeRetry(), "Cancel runs nothing")
+        alert.finished(.saved)
+        XCTAssertFalse(alert.isPresented)
+    }
+
     func testFromWhatYouLoggedOffersOnlyPinnableNonWaterFoods() throws {
         func recent(_ number: Int, version: LogItemVersionID?, water: Bool) throws -> FoodRecentRelogItem {
             FoodRecentRelogItem(item: FoodRecentItem(logItemID: try LedgerID(String(format: "00000000-0000-0000-0000-%012x", 500 + number)),
@@ -129,6 +198,7 @@ final class FavouriteSavingPresentationTests: XCTestCase {
         XCTAssertFalse(model.canAddWater)
         XCTAssertEqual(FavouritesViewModel.removalTitle(water), "Remove Water from quick add?")
         XCTAssertTrue(FavouritesViewModel.removalMessage(water).contains("Add Water to quick add"))
+        XCTAssertTrue(FavouritesViewModel.removalMessage(water).hasPrefix("Water will no longer appear in quick add."))
         model.remove(water)
         XCTAssertTrue(model.today.isEmpty)
         XCTAssertTrue(model.canAddWater)

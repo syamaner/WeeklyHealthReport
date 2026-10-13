@@ -163,7 +163,14 @@ final class FoodLedgerCompositionRoot {
 
     /// Save as favourite from a saved entry or a recent food (owner decision A): the existing
     /// `save_favourite_v1` path, pinning the entry's current version.
-    func favouriteSaveModel() -> FavouriteSaveModel { FavouriteSaveModel(store: favourites) }
+    /// Recent rows re-read the entry's current product version at tap time.
+    func favouriteSaveModel() -> FavouriteSaveModel {
+        FavouriteSaveModel(store: favourites) { [store] logItemID in
+            guard let current = try store.foodConfirmation(logItemID: logItemID),
+                  case .product = current.logItemVersion.composition else { return nil }
+            return current.logItemVersion.logItemVersionID
+        }
+    }
 
     /// "From what you’ve logged": recent foods within 30 days, each source re-verified. Throws when
     /// the ledger cannot be read, so a failure is never shown as an empty list.

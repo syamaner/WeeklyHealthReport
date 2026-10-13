@@ -65,7 +65,7 @@ struct FoodHomeCardContent: Equatable {
         totals: [FoodIntakeTotal],
         plainWater: FoodIntakeTotal?,
         locale: Locale = .autoupdatingCurrent,
-        incompleteEntries: Int? = nil
+        incompleteEntries: Int
     ) -> State {
         guard itemCount > 0 else { return .empty }
         func row(_ key: NutrientKey) -> Row {
@@ -92,12 +92,10 @@ struct FoodHomeCardContent: Equatable {
 
     /// One short line whatever the number of affected totals (owner decision F, 13 October
     /// 2026): "Some values are unknown for 2 entries, so totals marked + are known minimums."
-    /// `entries` is the count of distinct entries; without it the largest per-total count is
-    /// used, which is exact when one total is affected.
-    static func footnote(_ affected: [FoodIntakeTotal], entries: Int? = nil) -> String? {
+    /// `entries` is the count of distinct entries (`incompleteEntries`).
+    static func footnote(_ affected: [FoodIntakeTotal], entries: Int) -> String? {
         guard !affected.isEmpty else { return nil }
-        let count = entries ?? affected.map(\.incompleteContributions).max() ?? 0
-        let unknown = "Some values are unknown for \(entryCount(max(count, 1)))"
+        let unknown = "Some values are unknown for \(entryCount(max(entries, 1)))"
         // "+" appears only beside a total with a known part; an all-unknown total reads "Unknown".
         return affected.contains { $0.knownAmount != nil }
             ? unknown + ", so totals marked + are known minimums." : unknown + "."

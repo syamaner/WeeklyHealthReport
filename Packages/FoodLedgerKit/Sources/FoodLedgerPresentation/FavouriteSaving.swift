@@ -59,8 +59,13 @@ public enum FavouriteSaveText {
 public final class FavouriteSaveModel: ObservableObject {
     @Published public private(set) var states: [LogItemVersionID: FavouriteSaveState] = [:]
     private let store: any FavouriteSaving
+    /// The entry's current product version, read at tap time; nil when it was removed.
+    private let currentVersion: ((LogItemID) throws -> LogItemVersionID?)?
 
-    public init(store: any FavouriteSaving) { self.store = store }
+    public init(store: any FavouriteSaving, currentVersion: ((LogItemID) throws -> LogItemVersionID?)? = nil) {
+        self.store = store
+        self.currentVersion = currentVersion
+    }
 
     public func state(for id: LogItemVersionID) -> FavouriteSaveState { states[id] ?? .available }
 
@@ -82,6 +87,27 @@ public final class FavouriteSaveModel: ObservableObject {
         states = next
     }
 
+    /// A recent row's save: the entry's current version is re-read at tap time, so a list left
+    /// open while the entry was edited elsewhere never pins the older version it shows. The row
+    /// (keyed by the version it shows) takes the result; a removed entry fails and writes nothing.
+    public func save(_ shown: LogItemVersionID, logItemID: LogItemID) {
+        guard let currentVersion else { return save(shown) }
+        switch state(for: shown) {
+        case .saving, .saved, .alreadyFavourite: return
+        case .available, .failed: break
+        }
+        let current: LogItemVersionID?
+        do { current = try currentVersion(logItemID) } catch { states[shown] = .failed; return }
+        guard let current else { states[shown] = .failed; return }
+        guard current != shown else { return save(shown) }
+        if projectionHasActive(current) { states[current] = .alreadyFavourite } else { save(current) }
+        states[shown] = states[current]
+    }
+
+    private func projectionHasActive(_ id: LogItemVersionID) -> Bool {
+        (try? store.projection().activeFavourite(boundTo: id)) != nil
+    }
+
     /// One save for this version. Ignored while saving or once it is a favourite.
     public func save(_ id: LogItemVersionID) {
         switch state(for: id) {
@@ -95,6 +121,29 @@ public final class FavouriteSaveModel: ObservableObject {
         } catch {
             states[id] = .failed
         }
+    }
+}
+
+/// The "Favourite not saved" alert with Try again, as pure state. Try again is pressed while the
+/// alert is dismissing, so the retry waits until the dismissal has finished; a second failure then
+/// presents the alert again instead of being swallowed by the dismissal.
+public struct FavouriteRetryAlert: Equatable, Sendable {
+    public private(set) var isPresented = false
+    public private(set) var retryPending = false
+
+    public init() {}
+
+    /// After a save: present on failure, otherwise stay hidden.
+    public mutating func finished(_ state: FavouriteSaveState) { isPresented = state == .failed }
+    /// The alert's Try again button.
+    public mutating func tryAgain() { retryPending = true }
+    /// The alert has gone (either button).
+    public mutating func dismissed() { isPresented = false }
+    /// Whether a retry should run now that the alert has gone; consumed once.
+    public mutating func takeRetry() -> Bool {
+        guard !isPresented, retryPending else { return false }
+        retryPending = false
+        return true
     }
 }
 
@@ -200,7 +249,7 @@ public struct FavouriteFromLoggedView: View {
         if AddFoodRecentRowText.stacks(at: dynamicTypeSize) || state == .failed {
             VStack(alignment: .leading, spacing: 6) {
                 label
-                control(state, id: id, title: text.title)
+                control(state, id: id, logItemID: recent.item.logItemID, title: text.title)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 4)
@@ -208,17 +257,17 @@ public struct FavouriteFromLoggedView: View {
             HStack {
                 label
                 Spacer(minLength: 8)
-                control(state, id: id, title: text.title)
+                control(state, id: id, logItemID: recent.item.logItemID, title: text.title)
             }
             .frame(minHeight: 44)
         }
     }
 
     @ViewBuilder
-    private func control(_ state: FavouriteSaveState, id: LogItemVersionID, title: String) -> some View {
+    private func control(_ state: FavouriteSaveState, id: LogItemVersionID, logItemID: LogItemID, title: String) -> some View {
         switch state {
         case .available, .saving:
-            Button { model.save(id) } label: {
+            Button { model.save(id, logItemID: logItemID) } label: {
                 Label(FavouriteSaveText.save, systemImage: "star").labelStyle(.titleAndIcon).font(.subheadline)
             }
             .buttonStyle(.borderless)
@@ -234,7 +283,7 @@ public struct FavouriteFromLoggedView: View {
             HStack {
                 Label(FavouriteSaveText.failed, systemImage: "exclamationmark.triangle").font(.subheadline)
                 Spacer(minLength: 8)
-                Button(FavouriteSaveText.tryAgain) { model.save(id) }.buttonStyle(.borderless).frame(minHeight: 44)
+                Button(FavouriteSaveText.tryAgain) { model.save(id, logItemID: logItemID) }.buttonStyle(.borderless).frame(minHeight: 44)
                     .accessibilityLabel("\(FavouriteSaveText.tryAgain), save \(title) as a favourite")
             }
         }

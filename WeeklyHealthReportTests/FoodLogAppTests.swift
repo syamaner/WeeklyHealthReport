@@ -596,6 +596,28 @@ final class QuickAddAppTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(root.quickAddItems()).count, 2, "built-in water and one favourite, no duplicate")
     }
 
+    /// Review question 1, through the composition root: the recent list is read, the entry is then
+    /// edited, and saving from the stale row pins the edited (current) version.
+    func testStaleRecentRowPinsTheCurrentVersion() throws {
+        let root = try makeRoot()
+        let confirm = root.model(for: try exactInput("Muesli"), prefillSourceQuantity: false)
+        confirm.send(.setQuantity(60, .grams))
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult)
+        let stale = try XCTUnwrap(try root.loggedFoods().first)
+        XCTAssertEqual(stale.logItemVersionID, saved.logItemVersion.logItemVersionID)
+        let edit = try XCTUnwrap(try root.model(reopening: saved.logItem.logItemID))
+        edit.send(.setQuantity(80, .grams))
+        edit.log()
+        let edited = try XCTUnwrap(edit.savedResult).logItemVersion.logItemVersionID
+        XCTAssertNotEqual(edited, stale.logItemVersionID)
+        let model = root.favouriteSaveModel()
+        model.save(try XCTUnwrap(stale.logItemVersionID), logItemID: stale.item.logItemID)
+        XCTAssertEqual(model.state(for: try XCTUnwrap(stale.logItemVersionID)), .saved)
+        guard case let .favourite(favourite)? = try XCTUnwrap(root.quickAddItems()).last else { return XCTFail("favourite") }
+        XCTAssertEqual(favourite.binding, .savedEntry(edited), "the current version, never the stale one")
+    }
+
     /// Native renders of the changed Favourites layouts: the Add section with "From what you’ve
     /// logged" and "Add Water to quick add", the list itself, and the saved entry's favourite
     /// section; default and accessibility3 text sizes.

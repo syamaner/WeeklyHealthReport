@@ -120,11 +120,12 @@ public struct AddFoodView: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Opens the confirmation with the last amount filled in")
-                        .modifier(RecentFavouriteActions(model: savingModel(recent), id: recent.logItemVersionID, title: row.title))
+                        .modifier(RecentFavouriteActions(model: savingModel(recent), id: recent.logItemVersionID,
+                                                         logItemID: recent.item.logItemID, title: row.title))
                     }
                 }
             } header: { Text("Recent") } footer: {
-                Text(favouriteSaving == nil
+                Text(!recents.contains { savingModel($0) != nil }
                      ? "Recent foods open the confirmation with the last amount filled in. Nothing is logged until you choose Log."
                      : "Recent foods open the confirmation with the last amount filled in. Nothing is logged until you choose Log. Swipe right or touch and hold to save one as a favourite.")
             }
@@ -203,11 +204,12 @@ struct RecentFavouriteBadge: View {
 struct RecentFavouriteActions: ViewModifier {
     let model: FavouriteSaveModel?
     let id: LogItemVersionID?
+    let logItemID: LogItemID
     let title: String
 
     func body(content: Content) -> some View {
         if let model, let id {
-            content.modifier(Actions(model: model, id: id, title: title))
+            content.modifier(Actions(model: model, id: id, logItemID: logItemID, title: title))
         } else {
             content
         }
@@ -216,8 +218,9 @@ struct RecentFavouriteActions: ViewModifier {
     private struct Actions: ViewModifier {
         @ObservedObject var model: FavouriteSaveModel
         let id: LogItemVersionID
+        let logItemID: LogItemID
         let title: String
-        @State private var showsFailure = false
+        @State private var alert = FavouriteRetryAlert()
 
         func body(content: Content) -> some View {
             let canSave = !model.state(for: id).isFavourite
@@ -237,15 +240,20 @@ struct RecentFavouriteActions: ViewModifier {
                 .accessibilityActions {
                     if canSave { Button(FavouriteSaveText.save, action: save) }
                 }
-                .alert(FavouriteSaveText.failed, isPresented: $showsFailure) {
-                    Button(FavouriteSaveText.tryAgain, action: save)
+                .alert(FavouriteSaveText.failed, isPresented: Binding(get: { alert.isPresented },
+                                                                      set: { if !$0 { alert.dismissed() } })) {
+                    Button(FavouriteSaveText.tryAgain) { alert.tryAgain() }
                     Button("Cancel", role: .cancel) {}
                 } message: { Text(FavouriteSaveText.failedMessage) }
+                // Try again runs only after the alert has gone, so a second failure presents it again.
+                .onChange(of: alert.isPresented) { _, shown in
+                    if !shown, alert.takeRetry() { Task { @MainActor in save() } }
+                }
         }
 
         private func save() {
-            model.save(id)
-            showsFailure = model.state(for: id) == .failed
+            model.save(id, logItemID: logItemID)
+            alert.finished(model.state(for: id))
         }
     }
 }
