@@ -14,10 +14,10 @@ extension ReportDocument {
     /// The same words Home uses for a failed read.
     static let readFailedMessage = "Could not read Apple Health."
 
-    /// Weight's average and trend are context values over the last seven
-    /// completed days, whatever period is selected; the latest weight may be today.
+    /// Weight's average covers the last seven completed days and its trend compares
+    /// them with the seven before, whatever period is selected; the latest weight may be today.
     static let weightDisplayFooter =
-        "Latest weight can include today. The average and trend use the last 7 completed days, whichever period is selected."
+        "Latest weight can include today. The average uses the last 7 completed days, and the trend compares them with the 7 days before, whichever period is selected."
 
     static let displaySectionTitles: [SectionID: String] = [
         .steps: "Steps",
@@ -72,6 +72,7 @@ extension ReportDocument {
     ]
 
     /// The document as the Health screen, its tiles and Full Page show it.
+    /// Idempotent: applying it to a display document changes nothing.
     func forDisplay() -> ReportDocument {
         ReportDocument(
             title: title,
@@ -88,14 +89,6 @@ extension ReportDocument {
         )
     }
 
-    /// Failed reads with their technical message, for Developer tools. The
-    /// message is the Copy all text of the row, unchanged.
-    var readFailures: [(section: String, label: String?, message: String)] {
-        sections.flatMap { section in
-            section.rows.filter { $0.style == .failure }.map { (section.title, $0.label, $0.value) }
-        }
-    }
-
     private static func displayRow(_ row: Row) -> Row {
         let label = row.label.map { displayRowLabels[row.id] ?? $0 }
         let value = row.style == .failure ? readFailedMessage : row.value
@@ -104,7 +97,8 @@ extension ReportDocument {
 
     private static func displayFooter(_ section: Section) -> String? {
         guard section.id == .weight,
-              section.rows.contains(where: { $0.id == "weight-average" }) else { return section.footer }
+              section.rows.contains(where: { $0.id == "weight-average" }),
+              section.footer?.contains(weightDisplayFooter) != true else { return section.footer }
         return [section.footer, weightDisplayFooter].compactMap { $0 }.joined(separator: "\n")
     }
 
@@ -113,5 +107,46 @@ extension ReportDocument {
         self.selection = selection
         self.period = period
         self.sections = sections
+    }
+}
+
+/// One failed Health read with its technical message, for Developer tools only.
+struct ReportReadFailure: Equatable {
+    let metric: String
+    let message: String
+}
+
+extension ReportPresentationSnapshot {
+    /// Every failed read with the message the read returned. Taken from the metric
+    /// states rather than the document, because a metric row keeps only "Query failed"
+    /// (Copy all's term) and drops the message.
+    var readFailures: [ReportReadFailure] {
+        func message<Value>(_ state: MetricState<Value>) -> String? {
+            if case .failed(let message) = state { return message }
+            return nil
+        }
+        var stepsMessage: String?
+        if case .failed(let message) = steps { stepsMessage = message }
+        let candidates: [(String, String?)] = [
+            ("Steps", stepsMessage),
+            ("Weight", message(weight)),
+            ("Body fat", message(bodyFat)),
+            ("Waist circumference", message(waist)),
+            ("Resting heart rate", message(restingHeartRate)),
+            ("HRV", message(hrv)),
+            ("Days with Apple Watch data", message(watchCoverage)),
+            ("Blood pressure", message(bloodPressure)),
+            ("VO₂ max", message(vo2Max)),
+            ("Blood oxygen", message(bloodOxygen)),
+            ("Glucose", message(glucose)),
+            ("Active energy", message(activeEnergy)),
+            ("Exercise", message(exercise)),
+            ("Workouts", message(workouts)),
+            ("Sleep", message(sleep)),
+            ("Medications", includesMedicationSection ? message(medications) : nil)
+        ]
+        return candidates.compactMap { metric, message in
+            message.map { ReportReadFailure(metric: metric, message: $0) }
+        }
     }
 }

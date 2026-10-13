@@ -292,7 +292,7 @@ struct DailyNoteEditorView: View {
         } header: {
             Text("On-device dictation")
         } footer: {
-            Text("This microphone path runs only when on-device recognition is supported. Audio is streamed only during listening and is never saved, exported or uploaded. Keyboard Dictation is controlled separately by iOS and is not covered by this guarantee.")
+            Text("The microphone button works only when this iPhone can recognise speech on the device. Audio is used only while listening and is never saved, exported or uploaded. The keyboard’s own dictation is run by iOS, so this promise does not cover it.")
         }
     }
 
@@ -378,7 +378,7 @@ struct DailyNoteEditorView: View {
                     }
                 }
             } footer: {
-                Text("Intentional line breaks are preserved. Leading and trailing whitespace is removed when you save.")
+                Text("Line breaks you add are kept. Blank space at the start and end is removed when you save.")
             }
         }
         .scrollDismissesKeyboard(.interactively)

@@ -95,6 +95,9 @@ final class AddFoodSearchPresentationTests: XCTestCase {
         let large = AddFoodRecentRowText(try item("2026-10-10T18:00:00Z", amount: try PositiveQuantity(value: 2250.5, unit: .grams), energy: 2633.4, estimate: false), now: now, calendar: london)
         XCTAssertEqual(large.energy, "\(FoodDisplayNumber.kcal(2633.4)) kcal")
         XCTAssertEqual(large.energy, "\(FoodLogText.kcal(2633.4)) kcal")
+        // A positive amount is never shown as 0.
+        let crumb = AddFoodRecentRowText(try item("2026-10-10T18:00:00Z", amount: try PositiveQuantity(value: 0.004, unit: .grams), energy: 0.1, estimate: false), now: now, calendar: london)
+        XCTAssertTrue(crumb.detail.hasPrefix("Last: less than \(FoodDisplayNumber.amount(0.1)) g · "), crumb.detail)
     }
 
     func testSharedDisplayNumberGroupsKcalAndRoundsAmounts() throws {
@@ -106,10 +109,18 @@ final class AddFoodSearchPresentationTests: XCTestCase {
         XCTAssertEqual(FoodDisplayNumber.amount(60.95, locale: gb), "61")
         XCTAssertEqual(FoodDisplayNumber.amount(2250.5, locale: gb), "2,250.5")
         XCTAssertEqual(FoodLogText.kcal(2633.4, locale: gb), FoodDisplayNumber.kcal(2633.4, locale: gb))
+        XCTAssertEqual(FoodDisplayNumber.energy(0.4, locale: gb), "less than 1 kcal")
+        XCTAssertEqual(FoodDisplayNumber.energy(0, locale: gb), "0 kcal", "a real zero stays zero")
+        XCTAssertEqual(FoodDisplayNumber.quantity(0.04, unit: "g", locale: gb), "less than 0.1 g")
+        XCTAssertEqual(FoodDisplayNumber.quantity(1.25, unit: "mL", locale: gb), "1.2 mL")
+        let tinySearch = FoodSearchResultSummary(family: .ukReference, preparation: .unknown,
+            energy: .forAmount(kcal: 0, quantity: try PositiveQuantity(value: 0.004, unit: .grams)))
+        XCTAssertEqual(FoodSearchResultText.summaryLine(tinySearch),
+                       "UK reference · 0 kcal for less than \(FoodDisplayNumber.amount(0.1)) g")
         let summary = FoodSearchResultSummary(family: .ukReference, preparation: .cooked,
             energy: .forAmount(kcal: 2633, quantity: try PositiveQuantity(value: 1200, unit: .grams)))
         XCTAssertEqual(FoodSearchResultText.summaryLine(summary),
-                       "UK reference · cooked · \(FoodDisplayNumber.kcal(2633)) kcal for \(FoodDisplayNumber.amount(1200, fraction: 0...2)) g")
+                       "UK reference · cooked · \(FoodDisplayNumber.kcal(2633)) kcal for \(FoodDisplayNumber.amount(1200)) g")
     }
 
     // MARK: Search view model

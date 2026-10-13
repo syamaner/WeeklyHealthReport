@@ -196,6 +196,21 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertTrue(model.hasChangesToSave)
     }
 
+    /// The mL-on-a-per-100 g warning applies only while mL drives nutrition; a measured gram
+    /// weight replaces it, so the "stays unknown" copy is not shown then.
+    func testVolumeWarningIsHiddenWhenMeasuredWeightDrivesNutrition() throws {
+        let world = try World(now: now, calendar: calendar)
+        let model = FoodConfirmationViewModel(state: try world.newState(grams: 150), now: { [now] in now }, calendar: calendar) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        model.send(.setQuantity(200, .millilitres))
+        XCTAssertTrue(try XCTUnwrap(model.quantityBasisWarning).contains("stays unknown"))
+        model.send(.beginDirectWeight)
+        XCTAssertNil(model.quantityBasisWarning)
+        XCTAssertEqual(FoodConfirmationView.evidenceCount(1), "1 saved item")
+        XCTAssertEqual(FoodConfirmationView.evidenceCount(3), "3 saved items")
+    }
+
     /// The Log button and Confirm's nutrition use the shared display format: whole kcal (half
     /// away from zero) and grams to one decimal, as the saved entry and Food Log show them.
     func testLogTitleAndConsumedNutritionUseSharedDisplayFormat() throws {
@@ -204,6 +219,12 @@ final class FoodLogPresentationTests: XCTestCase {
             throw CocoaError(.fileWriteUnknown)
         }
         XCTAssertEqual(model.logButtonTitle, "Log 260 kcal", "259.5 kcal rounds like the Food Log row")
+        // A positive energy below half a kcal is never "Log 0 kcal".
+        let tiny = FoodConfirmationViewModel(state: try world.newState(grams: 0.2), now: { [now] in now }, calendar: calendar) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        XCTAssertEqual(tiny.logButtonTitle, "Log less than 1 kcal", "0.4 kcal")
+        XCTAssertEqual(tiny.nutritionReview.mainRows.first { $0.key == .energyConsumed }?.value, "Less than 1 kcal")
         for row in model.nutritionReview.mainRows where row.value != FoodNutritionReviewPresentation.unknownValue {
             let number = row.value.split(separator: " ").first.map(String.init) ?? ""
             let decimals = number.split(separator: ".").dropFirst().first?.count ?? 0

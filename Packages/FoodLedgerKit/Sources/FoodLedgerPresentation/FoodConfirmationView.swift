@@ -82,7 +82,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public var quantityBasisWarning: String? {
         let basis = (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis
-        let unit = (try? state.quantity.calculationInput().unit) ?? state.quantity.unit
+        // A measured weight is always grams and drives nutrition, whatever the unit picker says.
+        let unit = state.quantity.directWeight != nil
+            ? .grams : (try? state.quantity.calculationInput().unit) ?? state.quantity.unit
         if state.isSourceRecipe && unit != .count {
             return "This recipe declares nutrition per source serving. Its cooked gram weight is unknown, so grams or mL cannot be converted to servings. Choose recipe servings or a source with a measured weight basis."
         }
@@ -211,7 +213,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         guard nutritionReview.isConsumed,
               let energy = consumedNutrition.first(where: { $0.key == .energyConsumed }),
               energy.incompleteContributions == 0, let amount = energy.knownAmount else { return "Log" }
-        return "Log \(FoodDisplayNumber.kcal(amount)) kcal"
+        return "Log \(FoodDisplayNumber.energy(amount))"
     }
 
     public var occurredAtRange: ClosedRange<Date> {
@@ -608,7 +610,7 @@ public struct FoodConfirmationView: View {
             }
             LabeledContent("Source release", value: model.state.selectedCandidate.candidate.sourceReleaseID.value)
             LabeledContent("Source record", value: model.state.selectedCandidate.candidate.recordID.value)
-            LabeledContent("Evidence", value: "\(model.state.selectedCandidate.candidate.evidenceIDs.count) retained item(s)")
+            LabeledContent("Evidence", value: Self.evidenceCount(model.state.selectedCandidate.candidate.evidenceIDs.count))
         }
     }
 
@@ -1048,6 +1050,9 @@ public struct FoodConfirmationView: View {
         case let .unknown(reason): "Unknown (\(String(describing: reason).replacingOccurrences(of: "_", with: " ")))"
         }
     }
+
+    /// "1 saved item", "3 saved items".
+    public static func evidenceCount(_ count: Int) -> String { count == 1 ? "1 saved item" : "\(count) saved items" }
 
     private static func number(_ value: Double) -> String { value.formatted(.number.precision(.fractionLength(0...3))) }
 

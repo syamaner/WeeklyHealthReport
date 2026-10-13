@@ -121,7 +121,7 @@ public enum FoodSearchResultText {
         if summary.preparation != .unknown, summary.preparation != .named { parts.append(preparation(summary.preparation)) }
         switch summary.energy {
         case let .forAmount(kcal, quantity):
-            parts.append("\(FoodDisplayNumber.kcal(Double(kcal))) kcal for \(FoodDisplayNumber.amount(quantity.value, fraction: 0...2)) \(quantity.unit == .millilitres ? "mL" : "g")")
+            parts.append("\(FoodDisplayNumber.kcal(Double(kcal))) kcal for \(FoodDisplayNumber.quantity(quantity.value, unit: quantity.unit == .millilitres ? "mL" : "g"))")
         case let .basisOnly(basis):
             parts.append(basisLabel(basis) + (summary.family == .packagedProduct ? " on label" : ""))
         }

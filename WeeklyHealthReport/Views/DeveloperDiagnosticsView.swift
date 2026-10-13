@@ -8,7 +8,11 @@ struct DeveloperDiagnosticsView: View {
         Form {
             TodaySoFarDiagnosticsSection(model: todaySoFar)
             ReportReadFailuresDiagnosticsSection(
-                failures: HealthReportView.expandedDocument(viewModel: viewModel).readFailures
+                failures: viewModel.presentationSnapshot(
+                    includesMedicationSection: HealthReportView.includesMedicationSection,
+                    showsMorningBloodPressureDetails: true,
+                    showsEveningBloodPressureDetails: true
+                ).readFailures
             )
             QueryDiagnosticsSection(period: viewModel.period)
             StepsDiagnosticsSection(state: viewModel.state)
@@ -44,7 +48,7 @@ struct DeveloperDiagnosticsView: View {
 /// The technical message behind each Health report row that reads "Could not
 /// read Apple Health." on screen. Shown only when a read failed.
 struct ReportReadFailuresDiagnosticsSection: View {
-    let failures: [(section: String, label: String?, message: String)]
+    let failures: [ReportReadFailure]
 
     @ViewBuilder
     var body: some View {
@@ -52,7 +56,7 @@ struct ReportReadFailuresDiagnosticsSection: View {
             Section("Health report read failures") {
                 ForEach(Array(failures.enumerated()), id: \.offset) { _, failure in
                     VStack(alignment: .leading, spacing: 2) {
-                        Text([failure.section, failure.label].compactMap { $0 }.joined(separator: " · "))
+                        Text(failure.metric)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(failure.message)

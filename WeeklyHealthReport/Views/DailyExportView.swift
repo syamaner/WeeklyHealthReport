@@ -137,7 +137,7 @@ struct DailyExportView: View {
         } header: {
             Text("Day")
         } footer: {
-            Text("Today runs from local midnight to the refresh cutoff. Earlier days include the full local day as currently visible in Apple Health. Changing the day discards the old preview, not saved notes.")
+            Text("Today covers midnight up to the moment the file was prepared. Earlier days cover the whole day as Apple Health shows it now. Changing the day discards the prepared file; saved notes are kept.")
         }
     }
 

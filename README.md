@@ -40,7 +40,9 @@ Page** representation. The app creates that report PDF in memory only when iOS
 requests it, using one stable snapshot and a document layout independent of the
 scrolling form. It always includes every report section with all blood-pressure
 details shown, whatever is expanded on screen, but not the summary tiles or the
-navigation, export, copy, refresh or diagnostics controls.
+navigation, export, copy, refresh or diagnostics controls. Its wording is the
+screen's (sentence-case labels, and "Could not read Apple Health." for a failed
+read), while Copy all keeps the copied-report wording shown below.
 **Today** offers Full Page too: a one-page PDF of its cards as text (the date, Food
 logged, quick-add favourites, Health · today so far with its footer and "As of" time,
 and today's notes count), built from the cards' current content when iOS asks. Buttons

@@ -1489,8 +1489,18 @@ extension WeeklyReportScreenshotTests {
         XCTAssertEqual(heart.rows.first { $0.id == "resting-heart-rate-average" }?.label, "Resting heart rate average")
         XCTAssertEqual(heart.rows.first { $0.id == "watch-coverage" }?.label, "Days with Apple Watch data")
 
-        // The technical message is kept for Developer tools.
-        XCTAssertTrue(document.readFailures.contains { $0.message == "Step query failed: \(entitlement)" })
+        // Developer tools gets each read's own message, including metric rows whose Copy all
+        // text is only "Query failed".
+        XCTAssertEqual(snapshot.readFailures, [
+            ReportReadFailure(metric: "Steps", message: entitlement),
+            ReportReadFailure(metric: "Resting heart rate", message: entitlement),
+            ReportReadFailure(metric: "Blood pressure", message: entitlement),
+            ReportReadFailure(metric: "Medications", message: entitlement)
+        ])
+        XCTAssertTrue(makeSnapshot(medications: .failed("x"), includesMedicationSection: false).readFailures.isEmpty)
+
+        // Idempotent: the display of a display document is the same document.
+        XCTAssertEqual(display.forDisplay(), display)
 
         // Tiles from the display document use the short plain term.
         let tiles = HealthSummaryTiles.make(from: display)
@@ -1512,6 +1522,8 @@ extension WeeklyReportScreenshotTests {
         XCTAssertEqual(weight.rows.first { $0.id == "weight-measured" }?.label, "Measured")
         XCTAssertEqual(weight.rows.first { $0.id == "weight-average" }?.label, "Average, last 7 completed days")
         XCTAssertEqual(weight.footer, ReportDocument.weightDisplayFooter)
+        XCTAssertTrue(weight.footer?.contains("the trend compares them with the 7 days before") == true)
+        XCTAssertEqual(display.forDisplay(), display, "the weight note is never appended twice")
         XCTAssertNil(source.footer, "Copy all gains no footer")
         XCTAssertEqual(source.rows.first { $0.id == "weight-average" }?.label, "7-day Average")
 
@@ -1522,6 +1534,25 @@ extension WeeklyReportScreenshotTests {
         // A failed weight read has no average row, so no note about one.
         let failed = ReportDocument.expanded(snapshot: makeSnapshot(weight: .failed("x")), calendar: calendar, locale: locale)
         XCTAssertNil(failed.forDisplay().sections.first { $0.id == .weight }?.footer)
+    }
+
+    /// Full Page renders the screen's wording, not Copy all's technical failure text.
+    @MainActor
+    func testFullPagePDFUsesDisplayWording() throws {
+        let entitlement = "Missing com.apple.developer.healthkit entitlement."
+        let document = ReportDocument.expanded(
+            snapshot: makeSnapshot(steps: .failed(entitlement), restingHeartRate: .failed(entitlement)),
+            calendar: testCalendar(),
+            locale: Locale(identifier: "en_GB")
+        )
+        let data = try XCTUnwrap(WeeklyReportPDFRenderer().pdfData(for: .healthReport(document)))
+        let pdf = try XCTUnwrap(PDFDocument(data: data))
+        let text = (0..<pdf.pageCount).compactMap { pdf.page(at: $0)?.string }.joined(separator: "\n")
+        XCTAssertTrue(text.contains("Could not read Apple Health."))
+        XCTAssertTrue(text.contains("Resting heart rate average"))
+        for diagnostic in ["entitlement", "query failed", "Query failed", "Resting HR"] {
+            XCTAssertFalse(text.contains(diagnostic), diagnostic)
+        }
     }
 
     func testTilesDoNotDependOnOnScreenBloodPressureExpansion() throws {

@@ -99,13 +99,9 @@ public struct FoodNutritionReviewPresentation: Equatable, Sendable {
     /// The amount eaten in the shared display format: whole kcal, other units to one decimal.
     /// A positive amount too small to show is "Less than 0.1 g", never a zero.
     public static func consumedValue(_ amount: Double, key: NutrientKey) -> String {
-        let unit = key.canonicalUnit.rawValue
-        if key == .energyConsumed {
-            return amount > 0 && amount < 0.5 ? "Less than 1 \(unit)" : "\(FoodDisplayNumber.kcal(amount)) \(unit)"
-        }
-        let smallest = 0.1
-        return amount > 0 && amount < smallest / 2
-            ? "Less than \(FoodDisplayNumber.amount(smallest)) \(unit)" : "\(FoodDisplayNumber.amount(amount)) \(unit)"
+        FoodDisplayNumber.capitalisedFirst(key == .energyConsumed
+            ? FoodDisplayNumber.energy(amount)
+            : FoodDisplayNumber.quantity(amount, unit: key.canonicalUnit.rawValue))
     }
     public static func number(_ value: Double) -> String {
         value.formatted(.number.precision(.significantDigits(1...6)))
