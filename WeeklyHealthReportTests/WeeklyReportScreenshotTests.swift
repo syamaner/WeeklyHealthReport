@@ -1443,8 +1443,9 @@ extension WeeklyReportScreenshotTests {
     // MARK: Screen copy (UX copy pass, #140)
 
     /// The screen, tiles and Full Page reword a failed read and Title Case labels; Copy all
-    /// (the README's text contract) keeps every byte, including the technical message.
-    func testDisplayDocumentRewordsFailuresAndLabelsWhileCopyAllIsUnchanged() throws {
+    /// (the README's text contract) keeps its labels and says "Could not read Apple Health."
+    /// for a failed read, with the technical message only in Developer tools.
+    func testDisplayDocumentRewordsFailuresAndLabelsWhileCopyAllKeepsLabels() throws {
         let calendar = testCalendar()
         let locale = Locale(identifier: "en_GB")
         let entitlement = "Missing com.apple.developer.healthkit entitlement."
@@ -1459,11 +1460,14 @@ extension WeeklyReportScreenshotTests {
         let display = document.forDisplay()
         let generatedAt = date(2026, 9, 10, hour: 12, calendar: calendar)
 
-        // Copy all is the canonical document: unchanged wording and the raw message.
+        // Copy all keeps its Title Case labels; a failed read is plain wording, no message.
         let copied = document.plainText(generatedAt: generatedAt, calendar: calendar, locale: locale)
-        XCTAssertTrue(copied.contains("Step query failed: \(entitlement)"))
-        XCTAssertTrue(copied.contains("Resting HR Average: Query failed"))
+        XCTAssertTrue(copied.contains("\nSteps\nCould not read Apple Health.\n"))
+        XCTAssertTrue(copied.contains("Resting HR Average: Could not read Apple Health."))
         XCTAssertTrue(copied.contains("\nBlood Pressure\n"))
+        for diagnostic in ["entitlement", "com.apple", "query failed", "Query failed"] {
+            XCTAssertFalse(copied.contains(diagnostic), diagnostic)
+        }
 
         // Same rows, ids, styles and order; only wording differs.
         XCTAssertEqual(display.sections.map(\.id), document.sections.map(\.id))
@@ -1507,6 +1511,134 @@ extension WeeklyReportScreenshotTests {
         XCTAssertEqual(tiles.first { $0.kind == .steps }?.primary.value, "Could not read")
         XCTAssertEqual(tiles.first { $0.kind == .restingHeartRate }?.primary.value, "Could not read")
     }
+
+    /// Golden Copy all text for a report with section-level and metric-row failures
+    /// (owner decision on #140): every failure reads "Could not read Apple Health.";
+    /// labels, other values, no-data wording and order are unchanged.
+    func testCopyAllGoldenTextWithFailedReads() throws {
+        let calendar = testCalendar()
+        let locale = Locale(identifier: "en_GB")
+        let entitlement = "Missing com.apple.developer.healthkit entitlement."
+        let generatedAt = date(2026, 9, 10, hour: 12, calendar: calendar)
+        let snapshot = makeSnapshot(
+            steps: .failed(entitlement),
+            bodyFat: .failed(entitlement),
+            glucose: .failed("Synthetic glucose failure"),
+            bloodPressure: .failed(entitlement),
+            restingHeartRate: .failed(entitlement),
+            activeEnergy: .failed("Synthetic failure"),
+            medications: .failed(entitlement),
+            includesMedicationSection: true
+        )
+        let document = ReportDocument.expanded(snapshot: snapshot, calendar: calendar, locale: locale)
+        let copied = document.plainText(generatedAt: generatedAt, calendar: calendar, locale: locale)
+
+        XCTAssertEqual(copied, Self.copyAllGoldenWithFailures)
+
+        // Only the failure rows differ from the rendering before this change.
+        let before = Self.legacyPlainText(document, generatedAt: generatedAt, calendar: calendar, locale: locale)
+        let beforeLines = before.components(separatedBy: "\n")
+        let copiedLines = copied.components(separatedBy: "\n")
+        XCTAssertEqual(beforeLines.count, copiedLines.count)
+        let failureValues = document.sections.flatMap(\.rows).filter { $0.style == .failure }.map(\.value)
+        let changed = zip(beforeLines, copiedLines).filter { $0 != $1 }
+        XCTAssertEqual(changed.count, failureValues.count)
+        for (old, new) in changed {
+            XCTAssertTrue(failureValues.contains { old.hasSuffix($0) }, old)
+            XCTAssertTrue(new.hasSuffix("Could not read Apple Health."), new)
+        }
+
+        // Developer tools still lists each read's technical message.
+        XCTAssertTrue(snapshot.readFailures.contains(ReportReadFailure(metric: "Steps", message: entitlement)))
+        XCTAssertTrue(snapshot.readFailures.contains(ReportReadFailure(metric: "Glucose", message: "Synthetic glucose failure")))
+        XCTAssertEqual(snapshot.readFailures.count, 7)
+    }
+
+    /// Without failures, Copy all is byte-identical to the rendering before the
+    /// failure-wording change.
+    func testCopyAllWithoutFailuresIsByteIdenticalToBefore() throws {
+        let calendar = testCalendar()
+        let locale = Locale(identifier: "en_GB")
+        let generatedAt = date(2026, 9, 10, hour: 12, calendar: calendar)
+        for snapshot in [makeFullFixtureSnapshot(), makeSnapshot(), makeSnapshot(includesMedicationSection: true)] {
+            let document = ReportDocument.expanded(snapshot: snapshot, calendar: calendar, locale: locale)
+            XCTAssertFalse(document.sections.flatMap(\.rows).contains { $0.style == .failure })
+            XCTAssertEqual(
+                document.plainText(generatedAt: generatedAt, calendar: calendar, locale: locale),
+                Self.legacyPlainText(document, generatedAt: generatedAt, calendar: calendar, locale: locale)
+            )
+        }
+    }
+
+    /// The Copy all renderer as it was before failures were reworded: every row value verbatim.
+    private static func legacyPlainText(
+        _ document: ReportDocument,
+        generatedAt: Date,
+        calendar: Calendar,
+        locale: Locale
+    ) -> String {
+        let generated = HealthReportFormatter.dateAndTime(generatedAt, calendar: calendar, locale: locale)
+        let preamble = [document.title, document.selection, document.period, "Generated: \(generated)"]
+            .joined(separator: "\n")
+        let sectionText = document.sections.map { section in
+            var lines = [section.title]
+            lines += section.rows.map { row in
+                row.label.map { "\($0): \(row.value)" } ?? row.value
+            }
+            if let footer = section.footer { lines.append(footer) }
+            return lines.joined(separator: "\n")
+        }
+        return ([preamble] + sectionText).joined(separator: "\n\n")
+    }
+
+    private static let copyAllGoldenWithFailures = """
+    Weekly Health Report
+    Last 7 Completed Days
+    3–9 Sep 2026
+    Generated: 10/09/26 - 12:00
+
+    Steps
+    Could not read Apple Health.
+
+    Weight
+    No weight data is visible, or Health access was not granted.
+
+    Body Composition
+    Could not read Apple Health.
+    Waist Circumference: No data
+
+    Heart
+    Resting HR Average: Could not read Apple Health.
+    Resting HR Trend: Could not read Apple Health.
+    HRV Average: No data
+    HRV Trend: No data
+    Watch Data Coverage: No data
+
+    Blood Pressure
+    Could not read Apple Health.
+    Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
+
+    Cardiorespiratory
+    Latest VO₂ Max: No data
+    Latest Blood Oxygen: No data
+    Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
+
+    Glucose
+    Daily Average: Could not read Apple Health.
+    Observed Range: Could not read Apple Health.
+    Data Coverage: Could not read Apple Health.
+
+    Activity
+    Active Energy: Could not read Apple Health.
+    Exercise: No data
+    Workouts: No data
+
+    Sleep
+    Average Sleep: No data
+
+    Medications Taken
+    Could not read Apple Health.
+    """
 
     /// Latest weight may be today; the average and trend use the last seven completed days.
     /// The screen says so; values and Copy all are unchanged.

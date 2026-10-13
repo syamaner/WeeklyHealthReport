@@ -6,8 +6,8 @@ import Foundation
 /// `ReportDocument` itself is the Copy all text, whose titles and labels the
 /// README specifies ("What gets copied"), so it is never reworded here. This
 /// projection changes wording only: section titles and fixed row labels in
-/// sentence case, plain copy for a failed read (the technical message stays in
-/// Copy all and Developer tools), and a note that the weight average uses the
+/// sentence case, plain copy for a failed read (as Copy all also says; the
+/// technical message stays in Developer tools), and a note that the weight average uses the
 /// last seven completed days. Values, row ids, styles and order are unchanged;
 /// names that come from Apple Health (workouts, medications) are never touched.
 extension ReportDocument {
@@ -119,7 +119,7 @@ struct ReportReadFailure: Equatable {
 extension ReportPresentationSnapshot {
     /// Every failed read with the message the read returned. Taken from the metric
     /// states rather than the document, because a metric row keeps only "Query failed"
-    /// (Copy all's term) and drops the message.
+    /// and drops the message, and no screen or copied text shows either.
     var readFailures: [ReportReadFailure] {
         func message<Value>(_ state: MetricState<Value>) -> String? {
             if case .failed(let message) = state { return message }
