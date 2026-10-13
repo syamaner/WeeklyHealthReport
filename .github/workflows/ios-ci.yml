@@ -102,6 +102,7 @@ jobs:
       - name: Build and test FoodLedgerKit and replay ranked retrieval
         env:
           WHR_RETRIEVAL_REPORT: ${{ runner.temp }}/retrieval-current.json
+          WHR_RETRIEVAL_REPORT_V4: ${{ runner.temp }}/retrieval-v4-current.json
         run: |
           set -euo pipefail
           swift test --package-path Packages/FoodLedgerKit
@@ -109,7 +110,11 @@ jobs:
           python3 Tools/FoodSearchQuality/score_retrieval.py \
             Tools/FoodSearchQuality/retrieval-scenarios-v3.json \
             "$WHR_RETRIEVAL_REPORT" "$RUNNER_TEMP/retrieval-metrics.json" \
-            --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-v6.json
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-v7.json
+          python3 Tools/FoodSearchQuality/score_retrieval.py \
+            Tools/FoodSearchQuality/retrieval-scenarios-v4.json \
+            "$WHR_RETRIEVAL_REPORT_V4" "$RUNNER_TEMP/retrieval-v4-metrics.json" \
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-v4-final-v7.json
 
   food-ledger-kit-isolation:
     name: FoodLedgerKit boundaries

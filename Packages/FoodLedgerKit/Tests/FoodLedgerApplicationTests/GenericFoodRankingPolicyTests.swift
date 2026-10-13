@@ -97,4 +97,47 @@ final class GenericFoodRankingPolicyTests: XCTestCase {
         XCTAssertTrue(GenericFoodRankingPolicy.prefers(explicit, over: implicit))
     }
 
+
+    func testUnrequestedPartWordsArePenalisedOnlyWhenPresentAndUnrequested() {
+        let query = "150 g grilled chicken", food = "grilled chicken"
+        let skin = GenericFoodRankingPolicy.preference(name: "Chicken, skin, roasted/grilled, moist", food: food, requestedText: query)
+        let meat = GenericFoodRankingPolicy.preference(name: "Chicken, breast, grilled without skin, meat only", food: food, requestedText: query)
+        XCTAssertTrue(GenericFoodRankingPolicy.prefers(meat, over: skin))
+        XCTAssertFalse(GenericFoodRankingPolicy.prefers(skin, over: meat))
+        for part in ["skin", "fat", "giblets", "liver"] {
+            let plain = GenericFoodRankingPolicy.preference(name: "Meat, cooked", food: "meat", requestedText: "meat")
+            let withPart = GenericFoodRankingPolicy.preference(name: "Meat, \(part), cooked", food: "meat", requestedText: "meat")
+            XCTAssertTrue(GenericFoodRankingPolicy.prefers(plain, over: withPart), part)
+            // A part the user named is never penalised.
+            let named = GenericFoodRankingPolicy.preference(name: "Meat, \(part), cooked", food: "meat \(part)", requestedText: "meat \(part)")
+            XCTAssertEqual(named, GenericFoodRankingPolicy.preference(name: "Meat, cooked", food: "meat \(part)", requestedText: "meat \(part)"), part)
+        }
+    }
+
+    func testNegatedQualifiedOrWeighingBasisPartWordsAreNotParts() {
+        // A record presenting a part loses to one that does not, before ordinary bonuses.
+        for (name, part) in [("Food, without skin, cooked", "skin"), ("Food, no skin, cooked", "skin"),
+                             ("Food, low fat, cooked", "fat"), ("Food, reduced fat, cooked", "fat"),
+                             ("Food, fat free, cooked", "fat"), ("Food, 2% fat, cooked", "fat"),
+                             ("Food, trimmed to 0\" fat, cooked", "fat"), ("Food, cooked, weighed with skin", "skin")] {
+            let candidate = GenericFoodRankingPolicy.preference(name: name, food: "food", requestedText: "food")
+            let presentPart = GenericFoodRankingPolicy.preference(name: "Food, plain, \(part)", food: "food", requestedText: "food")
+            XCTAssertTrue(GenericFoodRankingPolicy.prefers(candidate, over: presentPart), name)
+        }
+        for name in ["Meat, lean and fat, cooked", "Meat, meat and skin, cooked"] {
+            let candidate = GenericFoodRankingPolicy.preference(name: name, food: "meat", requestedText: "meat")
+            let form = GenericFoodRankingPolicy.preference(name: "Meat, sliced, cooked", food: "meat", requestedText: "meat")
+            XCTAssertTrue(GenericFoodRankingPolicy.prefers(form, over: candidate), name)
+        }
+    }
+
+    func testPartPenaltyFollowsSpecialisationsAndPrecedesFormsAndOrdinaryBonuses() {
+        let specialised = GenericFoodRankingPolicy.preference(name: "Food, dried", food: "food", requestedText: "food")
+        let part = GenericFoodRankingPolicy.preference(name: "Food, skin", food: "food", requestedText: "food")
+        XCTAssertTrue(GenericFoodRankingPolicy.prefers(part, over: specialised))
+        let wholeWithPart = GenericFoodRankingPolicy.preference(name: "Food, whole, skin", food: "food", requestedText: "food")
+        let sliced = GenericFoodRankingPolicy.preference(name: "Food, sliced", food: "food", requestedText: "food")
+        XCTAssertTrue(GenericFoodRankingPolicy.prefers(sliced, over: wholeWithPart))
+    }
+
 }

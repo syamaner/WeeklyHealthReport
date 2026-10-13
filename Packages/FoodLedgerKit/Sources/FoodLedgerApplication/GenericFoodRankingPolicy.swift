@@ -4,11 +4,12 @@ import Foundation
 /// These never establish food identity.
 /// Explicit selection, preparation and nutrition contracts remain separate.
 public enum GenericFoodRankingPolicy {
-    public static let version = "generic-representation-ranking-v6"
+    public static let version = "generic-representation-ranking-v7"
     public struct Preference: Equatable, Sendable {
         let primaryFood: Bool
         let parentheticalOnlyTerms: Int
         let unrequestedSpecialisations: Int
+        let unrequestedParts: Int
         let unrequestedForms: Int
         let ordinaryRepresentation: Int
         let additionalTerms: Int
@@ -19,6 +20,15 @@ public enum GenericFoodRankingPolicy {
         "evaporated", "condensed", "powder", "powdered", "dry", "dried", "dehydrated",
         "fruit", "flavoured", "flavored", "sweetened", "chocolate", "vanilla", "strawberry",
         "blueberry", "raspberry", "apricot", "pineapple", "coconut", "mango", "lemon", "red"
+    ]
+    // v7: a bounded list of separable animal parts that are commonly eaten
+    // separately and change the food materially. They are penalised only when
+    // the user did not name them, and only when the source name presents the
+    // part as present (never after "without"/"no", a fat-content qualifier or
+    // a weighing basis). This is a presentation preference, never identity.
+    private static let parts: Set<String> = ["skin", "fat", "giblets", "liver"]
+    private static let partQualifiers: Set<String> = [
+        "without", "no", "weighed", "low", "lower", "reduced", "less", "non", "zero", "half", "full"
     ]
     private static let forms: Set<String> = ["crumbled", "sliced", "diced", "chopped", "peeled"]
     private static let ordinary: Set<String> = ["plain", "average", "regular", "whole", "white"]
@@ -35,6 +45,7 @@ public enum GenericFoodRankingPolicy {
         return Preference(primaryFood: !head.isEmpty && head.isSubset(of: query),
             parentheticalOnlyTerms: query.intersection(candidate).subtracting(direct).count,
             unrequestedSpecialisations: extras.intersection(specialised).count,
+            unrequestedParts: presentParts(terms(rankingName)).subtracting(requested).count,
             unrequestedForms: extras.intersection(forms).count,
             ordinaryRepresentation: candidate.intersection(ordinary).count + (candidate.contains("whole") ? 1 : 0),
             additionalTerms: extras.subtracting(preparation).count)
@@ -47,6 +58,9 @@ public enum GenericFoodRankingPolicy {
         if lhs.unrequestedSpecialisations != rhs.unrequestedSpecialisations {
             return lhs.unrequestedSpecialisations < rhs.unrequestedSpecialisations
         }
+        if lhs.unrequestedParts != rhs.unrequestedParts {
+            return lhs.unrequestedParts < rhs.unrequestedParts
+        }
         if lhs.unrequestedForms != rhs.unrequestedForms {
             return lhs.unrequestedForms < rhs.unrequestedForms
         }
@@ -54,6 +68,18 @@ public enum GenericFoodRankingPolicy {
             return lhs.ordinaryRepresentation > rhs.ordinaryRepresentation
         }
         return lhs.additionalTerms < rhs.additionalTerms
+    }
+    /// Part words the name presents as present. A preceding negation, fat-content
+    /// qualifier, number or weighing basis, or a following "free", is not a part.
+    private static func presentParts(_ ordered: [String]) -> Set<String> {
+        var found = Set<String>()
+        for (index, term) in ordered.enumerated() where parts.contains(term) {
+            let previous = index > 0 ? ordered[index - 1] : ""
+            if partQualifiers.contains(previous) || (!previous.isEmpty && previous.allSatisfy(\.isNumber)) { continue }
+            if index + 1 < ordered.count, ordered[index + 1] == "free" { continue }
+            found.insert(term)
+        }
+        return found
     }
     // Parenthetical mentions remain eligible, but do not outrank directly named food/cuts.
     // This is lexical presentation only; it does not infer species or change source facts.

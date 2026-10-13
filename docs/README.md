@@ -26,7 +26,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 ## Food search and sources
 
 - [Unified food search contract v1](unified-food-search-contract-v1.md)
-- [Search quality v3](food-search-quality-v3.md) and [generic retrieval policy v5](generic-food-retrieval-policy-v5.md)
+- [Search quality v3](food-search-quality-v3.md) and [generic retrieval policy v5](generic-food-retrieval-policy-v5.md), extended by [generic food ranking v7](generic-food-ranking-v7.md) (unrequested part words)
 - [Query parser v1](food-query-parser-plan-v1.md), [input interpretation and nutrition review v1](food-input-interpretation-and-nutrition-review-v1.md), [English street-food input v1](english-street-food-input-v1.md)
 - [Online search recovery v1](online-food-search-recovery-v1.md)
 - [Generic web proposal integration v1](generic-food-proposal-integration-v1.md) and [repair v2](generic-food-proposal-repair-v2.md)

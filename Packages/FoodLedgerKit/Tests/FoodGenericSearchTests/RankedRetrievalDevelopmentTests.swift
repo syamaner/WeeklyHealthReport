@@ -54,6 +54,25 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
             }
         }
     }
+    func testUnrequestedPartsFollowMeatOnlyAndRequestedPartsLead() throws {
+        let ids = ReplayIDs()
+        let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
+        for source in [cofid as any GenericFoodSearching, CompositeGenericFoodSearch(sources: [cofid, usda], ids: ids)] {
+            let request = GenericFoodSearchRequest(text: try LedgerText("150 g grilled chicken"), capturedAt: Date(timeIntervalSince1970: 1700000000), locale: try LedgerText("en_GB"))
+            guard case let .confirmation(route) = try source.search(request) else { return XCTFail("grilled chicken") }
+            let names = route.matches.map { $0.candidate.name.value }
+            let first = try XCTUnwrap(names.first)
+            XCTAssertTrue(first.contains("meat only") && !first.hasPrefix("Chicken, skin"), first)
+            let skin = try XCTUnwrap(names.firstIndex { $0.hasPrefix("Chicken, skin, roasted/grilled") })
+            let meatOnly = try XCTUnwrap(names.firstIndex { $0.contains("without skin, meat only") })
+            XCTAssertLessThan(meatOnly, skin)
+            XCTAssertEqual(route.confirmation.evidence.first?.originalPayload, .text(request.text))
+            let liver = GenericFoodSearchRequest(text: try LedgerText("chicken liver"), capturedAt: request.capturedAt, locale: request.locale)
+            guard case let .confirmation(liverRoute) = try source.search(liver) else { return XCTFail("chicken liver") }
+            XCTAssertTrue(try XCTUnwrap(liverRoute.matches.first).candidate.name.value.lowercased().contains("liver"))
+        }
+    }
+
     func testExplicitQualifiersAndHardPreparationRemainAuthoritative() throws {
         let search = try USDAGenericFoodSearch(ids: ReplayIDs())
         for (text, required) in [("red rice", "red"), ("sheep milk", "sheep"), ("bison ribeye", "bison"), ("strawberry Greek yoghurt", "strawberry")] {
@@ -92,12 +111,19 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         }
     }
 
+    /// One replay of the latest scenario set feeds every frozen report version.
+    /// v3 and v4 rows use the original two-source composite, so their earlier
+    /// labels and expected reports stay comparable; v3 rows are the v4 rows for
+    /// the unchanged v3 case identifiers.
     func testReplay() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
-        let path = root.appendingPathComponent("Tools/FoodSearchQuality/retrieval-scenarios-v3.json")
-        let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: path))
+        let directory = root.appendingPathComponent("Tools/FoodSearchQuality")
+        let v3 = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: directory.appendingPathComponent("retrieval-scenarios-v3.json")))
+        let fixture = try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: directory.appendingPathComponent("retrieval-scenarios-v4.json")))
+        XCTAssertEqual(v3.cases.map(\.id), Array(fixture.cases.prefix(v3.cases.count)).map(\.id))
+        XCTAssertEqual(v3.cases.map(\.query), Array(fixture.cases.prefix(v3.cases.count)).map(\.query))
         let ids = ReplayIDs()
         let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
         let sources: [(String, any GenericFoodSearching)] = [
@@ -106,36 +132,48 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         ]
         var rows: [Row] = []
         for scenario in fixture.cases {
-            let preparation = try scenario.preparation.map { value in
-                try PreparationState(kind: XCTUnwrap(PreparationKind(rawValue: value)))
-            }
-            let request = GenericFoodSearchRequest(text: try LedgerText(scenario.query),
-                identity: GenericFoodIdentityQuery(preparation: preparation),
-                capturedAt: Date(timeIntervalSince1970: 1700000000), locale: try LedgerText("en_GB"))
-            for (source, search) in sources {
-                switch try search.search(request) {
-                case let .confirmation(route):
-                    XCTAssertEqual(route.confirmation.evidence.first?.originalPayload, .text(request.text))
-                    let candidates = route.matches.map(\.candidate)
-                    XCTAssertTrue(candidates.allSatisfy { candidate in
-                        route.confirmation.sourceReleases.contains { $0.sourceReleaseID == candidate.candidate.sourceReleaseID }
-                    })
-                    rows.append(Row(id: scenario.id, query: scenario.query, source: source,
-                        records: candidates.map { $0.candidate.recordID.value }, names: candidates.map { $0.name.value },
-                        sourceIDs: candidates.map { $0.candidate.sourceReleaseID.value }, candidates: candidates,
-                        releases: route.confirmation.sourceReleases,
-                        notes: candidates.map { FoodQueryCandidateAssessment.note(query: request.parsedQuery, candidate: $0) }, suggestions: []))
-                case let .noResult(route):
-                    XCTAssertEqual(route.evidence.originalPayload, .text(request.text))
-                    rows.append(Row(id: scenario.id, query: scenario.query, source: source, records: [], names: [],
-                        sourceIDs: [], candidates: [], releases: [], notes: [], suggestions: route.suggestedQueries))
-                }
-            }
+            let request = try replayRequest(scenario)
+            for (source, search) in sources { rows.append(try replayRow(scenario, source: source, request: request, search: search)) }
         }
-        if let output = ProcessInfo.processInfo.environment["WHR_RETRIEVAL_REPORT"] {
-            let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            try encoder.encode(rows).write(to: URL(fileURLWithPath: output))
+        let v3IDs = Set(v3.cases.map(\.id))
+        try write(rows.filter { v3IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT")
+        try write(rows, environment: "WHR_RETRIEVAL_REPORT_V4")
+    }
+
+    private func replayRequest(_ scenario: Scenario) throws -> GenericFoodSearchRequest {
+        let preparation = try scenario.preparation.map { value in
+            try PreparationState(kind: XCTUnwrap(PreparationKind(rawValue: value)))
         }
+        return GenericFoodSearchRequest(text: try LedgerText(scenario.query),
+            identity: GenericFoodIdentityQuery(preparation: preparation),
+            capturedAt: Date(timeIntervalSince1970: 1700000000), locale: try LedgerText("en_GB"))
+    }
+
+    private func replayRow(_ scenario: Scenario, source: String, request: GenericFoodSearchRequest,
+                           search: any GenericFoodSearching) throws -> Row {
+        switch try search.search(request) {
+        case let .confirmation(route):
+            XCTAssertEqual(route.confirmation.evidence.first?.originalPayload, .text(request.text))
+            let candidates = route.matches.map(\.candidate)
+            XCTAssertTrue(candidates.allSatisfy { candidate in
+                route.confirmation.sourceReleases.contains { $0.sourceReleaseID == candidate.candidate.sourceReleaseID }
+            })
+            return Row(id: scenario.id, query: scenario.query, source: source,
+                records: candidates.map { $0.candidate.recordID.value }, names: candidates.map { $0.name.value },
+                sourceIDs: candidates.map { $0.candidate.sourceReleaseID.value }, candidates: candidates,
+                releases: route.confirmation.sourceReleases,
+                notes: candidates.map { FoodQueryCandidateAssessment.note(query: request.parsedQuery, candidate: $0) }, suggestions: [])
+        case let .noResult(route):
+            XCTAssertEqual(route.evidence.originalPayload, .text(request.text))
+            return Row(id: scenario.id, query: scenario.query, source: source, records: [], names: [],
+                sourceIDs: [], candidates: [], releases: [], notes: [], suggestions: route.suggestedQueries)
+        }
+    }
+
+    private func write(_ rows: [Row], environment: String) throws {
+        guard let output = ProcessInfo.processInfo.environment[environment] else { return }
+        let encoder = JSONEncoder(); encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(rows).write(to: URL(fileURLWithPath: output))
     }
 }
 private final class ReplayIDs: LedgerIDGenerating, @unchecked Sendable {
