@@ -104,7 +104,12 @@ public final class InMemoryFoodLedgerStore: LedgerCommandCommitting, LedgerReadi
                     sourceReleases: Array(state.sourceReleases.values),
                     sourceInstallations: Array(state.sourceInstallations.values)
                 ),
-                operations: Array(state.operations.values),
+                // The same order as the GRDB store (actor, actor sequence, operation ID): dictionary
+                // iteration order is randomised per process, so callers must never see it.
+                operations: state.operations.values.sorted {
+                    ($0.actorID.rawValue, $0.actorSequence, $0.operationID.rawValue)
+                        < ($1.actorID.rawValue, $1.actorSequence, $1.operationID.rawValue)
+                },
                 favourites: favouriteMutation(state)
             )
         }
