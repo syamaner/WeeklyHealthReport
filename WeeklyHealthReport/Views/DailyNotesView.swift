@@ -6,6 +6,11 @@ struct DailyNotesView: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var notePendingDeletion: DailyNote?
 
+    /// "Tuesday 13 October" for a stored report date; never the raw ISO date in copy.
+    static func readableDay(_ reportDate: String, locale: Locale = .autoupdatingCurrent) -> String {
+        DailyExportDayLabel.previousDay(reportDate: reportDate, locale: locale)
+    }
+
     var body: some View {
         List {
             if let status = controller.storageStatusMessage {
@@ -59,12 +64,12 @@ struct DailyNotesView: View {
                 }
             }
 
-            Section("Saved for \(controller.currentDayID.reportDate)") {
+            Section("Saved for \(Self.readableDay(controller.currentDayID.reportDate))") {
                 if !controller.storageAvailable {
                     Text("Saved notes unavailable")
                         .foregroundStyle(.secondary)
                 } else if controller.notes.isEmpty {
-                    Text("No notes")
+                    Text(DailyNotesController.noNotesLabel)
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(controller.notes) { note in
@@ -78,7 +83,7 @@ struct DailyNotesView: View {
                                         .foregroundStyle(.primary)
                                         .multilineTextAlignment(.leading)
                                         .lineLimit(3)
-                                    Text("Unsaved changes — tap to continue")
+                                    Text("Unsaved changes. Tap to continue.")
                                         .font(.caption)
                                         .foregroundStyle(.orange)
                                 }
@@ -107,12 +112,12 @@ struct DailyNotesView: View {
             }
 
             Section {
-                Text("Saved notes remain on this device until they are included in a refreshed preview and you explicitly export it. Verified prior-day notes are then cleaned up lazily; unfinished drafts are kept.")
+                Text("Saved notes stay on this device until you export them. Once an export of an earlier day is confirmed, that day’s notes are removed later; unfinished drafts are kept.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
-        .navigationTitle("Notes: \(controller.currentDayID.reportDate)")
+        .navigationTitle("Notes")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
@@ -122,9 +127,9 @@ struct DailyNotesView: View {
                     }
                 } label: {
                     if controller.currentDraft == nil {
-                        Label("Add Note", systemImage: "plus")
+                        Label("Add note", systemImage: "plus")
                     } else {
-                        Label("Continue Draft", systemImage: "square.and.pencil")
+                        Label("Continue draft", systemImage: "square.and.pencil")
                     }
                 }
                 .disabled(!controller.storageAvailable || controller.recoverableDraft != nil)
@@ -207,7 +212,7 @@ struct DailyNoteEditorView: View {
 
     private var microphoneLabel: String {
         if speechController.canOpenPermissionSettings {
-            return "Permission Settings"
+            return "Permission settings"
         }
         return speechController.state == .listening ? "Stop" : "Microphone"
     }
@@ -311,7 +316,7 @@ struct DailyNoteEditorView: View {
                         .foregroundStyle(.red)
                 }
 
-                Button("Add Reviewed Text") {
+                Button("Add reviewed text") {
                     _ = speechController.acceptReviewTranscript()
                 }
                 .disabled(
@@ -320,7 +325,7 @@ struct DailyNoteEditorView: View {
                         .isEmpty
                 )
 
-                Button("Discard Recognised Text", role: .destructive) {
+                Button("Discard recognised text", role: .destructive) {
                     speechController.discardReviewTranscript()
                 }
             } header: {
@@ -350,7 +355,7 @@ struct DailyNoteEditorView: View {
             speechReviewSection
 
             Section {
-                Button("Save Note") {
+                Button("Save note") {
                     if controller.saveDraft() { dismiss() }
                 }
                 .disabled(
@@ -360,7 +365,7 @@ struct DailyNoteEditorView: View {
                         .isEmpty != false
                         || speechController.hasReviewTranscript
                 )
-                Button("Discard Draft", role: .destructive) {
+                Button("Discard draft", role: .destructive) {
                     showingDiscardConfirmation = true
                 }
                 .disabled(!controller.storageAvailable)
@@ -377,7 +382,7 @@ struct DailyNoteEditorView: View {
             }
         }
         .scrollDismissesKeyboard(.interactively)
-        .navigationTitle(controller.currentDraft?.editingNoteID == nil ? "New Note" : "Edit Note")
+        .navigationTitle(controller.currentDraft?.editingNoteID == nil ? "New note" : "Edit note")
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(speechController.hasReviewTranscript)
         .interactiveDismissDisabled(speechController.hasReviewTranscript)
@@ -391,7 +396,7 @@ struct DailyNoteEditorView: View {
         }
         .alert("Discard this draft?", isPresented: $showingDiscardConfirmation) {
             Button("Cancel", role: .cancel) {}
-            Button("Discard Draft", role: .destructive) {
+            Button("Discard draft", role: .destructive) {
                 speechController.discardReviewTranscript()
                 if controller.discardDraft() { dismiss() }
             }
