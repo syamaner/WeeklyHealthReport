@@ -113,7 +113,7 @@ final class FavouritesFromLoggedContractTests: XCTestCase {
             XCTAssertEqual(readded.label.value, "Big glass")
             XCTAssertEqual(readded.defaultAmount, try FavouriteAmount(value: 500, unit: .millilitres))
             XCTAssertEqual(readded.binding, .reference(.plainWaterV1))
-            XCTAssertEqual(try context.operations().last?.operationType, .reviseFavourite)
+            XCTAssertEqual(try context.operations().last?.operationType, .reviseFavourite, context.harness.name)
             XCTAssertEqual(try context.records().logItemVersions, logsBefore, "no log record")
 
             let records = try favouriteRecords(context)
@@ -130,6 +130,29 @@ final class FavouritesFromLoggedContractTests: XCTestCase {
             XCTAssertThrowsError(try context.favourites.removeBuiltInWater()) {
                 XCTAssertEqual($0 as? FavouritesServiceError, .builtInWaterAlreadySaved)
             }
+        }
+    }
+
+    /// Every store lists operations in commit order (actor, then actor sequence), so "the last
+    /// operation" means the same thing on each. Twenty operations make an accidental pass from an
+    /// unordered collection vanishingly unlikely.
+    func testArchiveStateListsOperationsInCommitOrderOnEveryStore() throws {
+        for context in try QuickAddFixtures.contexts() {
+            defer { context.harness.cleanup() }
+            try context.favourites.saveBuiltInWater(label: LedgerText("Big glass"), millilitres: 500)
+            let water = try XCTUnwrap(context.favourites.projection().favourites.first)
+            for _ in 0..<10 {
+                try context.favourites.remove(water.favouriteID)
+                try context.favourites.addWaterToQuickAdd()
+            }
+            let operations = try context.operations()
+            XCTAssertGreaterThanOrEqual(operations.count, 20, context.harness.name)
+            let ordered = operations.sorted {
+                ($0.actorID.rawValue, $0.actorSequence, $0.operationID.rawValue)
+                    < ($1.actorID.rawValue, $1.actorSequence, $1.operationID.rawValue)
+            }
+            XCTAssertEqual(operations.map(\.operationID), ordered.map(\.operationID), context.harness.name)
+            XCTAssertEqual(operations.last?.operationType, .reviseFavourite, context.harness.name)
         }
     }
 
