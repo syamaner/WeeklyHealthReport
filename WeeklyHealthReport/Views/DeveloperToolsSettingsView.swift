@@ -5,6 +5,8 @@ import FoodLedgerPresentation
 struct DeveloperToolsSettingsView: View {
     let toggle: SettingsToggle
     var diagnostics: FoodSearchDiagnosticsLog?
+    /// Whether this build has Google OAuth configuration (owner decision C moved the detail here).
+    var driveExportConfigured: Bool?
 
     var body: some View {
         Form {
@@ -12,6 +14,14 @@ struct DeveloperToolsSettingsView: View {
                 SettingsToggleRow(toggle: toggle)
             }
             if let diagnostics { FoodSearchDiagnosticsSection(log: diagnostics) }
+            if let driveExportConfigured {
+                Section("Google Drive export") {
+                    LabeledContent("OAuth configuration", value: driveExportConfigured ? "Present" : "Missing")
+                    Text(DriveExportAvailability.developerDetail(isConfigured: driveExportConfigured))
+                        .font(.caption)
+                        .textSelection(.enabled)
+                }
+            }
             #if DEBUG
             Section("Health report") {
                 NavigationLink(value: AppRoute.diagnostics) {
