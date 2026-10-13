@@ -113,7 +113,7 @@ struct FoodMarketSelectionView: View {
                     .accessibilityAddTraits(market == selection ? .isSelected : [])
                 }
             } footer: {
-                Text("Web lookup sends the chosen market with your food terms. Choose Unspecified to clear the preference.")
+                Text("Food search lists Taiwan results first when the market is Taiwan, or when your search names Taiwan or uses Chinese characters; otherwise they follow UK and US results. Web lookup sends the chosen market with your food terms. Choose Unspecified to clear the preference.")
             }
         }
         .navigationTitle("Food market")
