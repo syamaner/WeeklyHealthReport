@@ -544,7 +544,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         )
     }
 
-    func testOnlyVisibleHealthReportWithoutTransientPresentationIsEligible() {
+    func testOnlyVisibleHealthReportOrTodayWithoutTransientPresentationIsEligible() {
         var paths: [[AppRoute]] = [[]]
         paths += AppRoute.allCases.map { [$0] }
         paths += [
@@ -556,14 +556,54 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         ]
         for path in paths {
             for transient in [false, true] {
-                XCTAssertEqual(
-                    WeeklyReportScreenshotEligibility.isEligible(
-                        navigationPath: path, isTransientUIPresented: transient),
-                    path == [.healthReport] && !transient,
-                    "\(path) transient: \(transient)"
-                )
+                for todayOnScreen in [true, false] {
+                    let expected: FullPageScreen? = transient ? nil
+                        : path == [.healthReport] ? .healthReport
+                        : path.isEmpty && todayOnScreen ? .today
+                        : nil
+                    XCTAssertEqual(
+                        WeeklyReportScreenshotEligibility.screen(
+                            navigationPath: path, isTransientUIPresented: transient,
+                            isTodayOnScreen: todayOnScreen),
+                        expected,
+                        "\(path) transient: \(transient) today on screen: \(todayOnScreen)"
+                    )
+                    XCTAssertEqual(
+                        WeeklyReportScreenshotEligibility.isEligible(
+                            navigationPath: path, isTransientUIPresented: transient,
+                            isTodayOnScreen: todayOnScreen),
+                        expected != nil
+                    )
+                }
             }
         }
+    }
+
+    /// Health's rule is exactly as before: Home's visibility never affects it.
+    func testHealthReportEligibilityIgnoresTodayVisibility() {
+        for todayOnScreen in [true, false] {
+            XCTAssertEqual(WeeklyReportScreenshotEligibility.screen(
+                navigationPath: [.healthReport], isTransientUIPresented: false, isTodayOnScreen: todayOnScreen),
+                .healthReport)
+            XCTAssertNil(WeeklyReportScreenshotEligibility.screen(
+                navigationPath: [.healthReport], isTransientUIPresented: true, isTodayOnScreen: todayOnScreen))
+        }
+        XCTAssertEqual(WeeklyReportScreenshotEligibility.screen(navigationPath: [], isTransientUIPresented: false), .today)
+        XCTAssertNil(WeeklyReportScreenshotEligibility.screen(
+            navigationPath: [], isTransientUIPresented: false, isTodayOnScreen: false),
+            "a sheet or pushed confirmation over Home is not eligible")
+    }
+
+    func testDelegateRendersTodayDocumentThroughTheSameRenderer() {
+        let renderer = FakePDFRenderer(result: Data("pdf".utf8))
+        let delegate = WeeklyReportScreenshotDelegate(renderer: renderer)
+        let today = TodayFullPageDocument(date: "Monday 12 October", sections: [
+            .init(title: "Today\u{2019}s notes", rows: [.init(value: "None yet")])
+        ])
+        delegate.setRequestProvider { .today(today) }
+
+        XCTAssertEqual(delegate.representationForCurrentRequest(), Data("pdf".utf8))
+        XCTAssertEqual(renderer.documents, [.today(today)])
     }
 
     func testMedicationAuthorizationRequestIsAnExcludingTransientPresentation() {
@@ -633,9 +673,129 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         XCTAssertNil(delegate.representationForCurrentRequest())
         XCTAssertEqual(renderer.documents.count, 0)
 
-        delegate.setRequestProvider { self.makeDocument() }
+        delegate.setRequestProvider { .healthReport(self.makeDocument()) }
         XCTAssertNil(delegate.representationForCurrentRequest())
         XCTAssertEqual(renderer.documents.count, 1)
+    }
+
+    /// Device regression: the fully expanded, fully populated report goes through
+    /// the real renderer and the real delegate method and yields a usable PDF.
+    func testFullyExpandedPopulatedReportProducesFullPagePDF() throws {
+        let document = ReportDocument.expanded(
+            snapshot: makeFullFixtureSnapshot(), calendar: testCalendar(), locale: Locale(identifier: "en_GB"))
+        let delegate = WeeklyReportScreenshotDelegate()
+        delegate.setRequestProvider { .healthReport(document) }
+        let data = try XCTUnwrap(delegate.representationForCurrentRequest(), "Full Page returned no PDF")
+        let pdf = try XCTUnwrap(PDFDocument(data: data))
+        let page = try XCTUnwrap(pdf.page(at: 0))
+        let box = page.bounds(for: .mediaBox)
+        // Measured at 612 x 2,519 pt for 50 rows on 13 October 2026; far below the
+        // 14,400 pt PDF page-dimension limit.
+        XCTAssertEqual(pdf.pageCount, 1)
+        XCTAssertEqual(box.width, 612)
+        XCTAssertGreaterThan(box.height, 1_000)
+        XCTAssertLessThan(box.height, 14_400)
+    }
+
+    /// Device regression: registration no longer depends on a view reaching a
+    /// window. The registry resolves the scene itself, registers even when the
+    /// scene appears only after the shell, and restores a cleared delegate on
+    /// every scene activation.
+    func testSceneRegistryRegistersOnAttachAndEveryActivation() {
+        let center = NotificationCenter()
+        let service = FakeScreenshotService()
+        var target: FullPageSceneRegistry.Target?
+        let registry = FullPageSceneRegistry(notificationCenter: center) { target }
+        let controller = WeeklyReportScreenshotController(renderer: FakePDFRenderer(result: Data("pdf".utf8)))
+
+        registry.attach(controller)
+        XCTAssertNil(service.delegate)
+        XCTAssertFalse(controller.isRegistered, "no scene yet")
+
+        target = .init(service: service, window: nil)
+        center.post(name: UIScene.didActivateNotification, object: nil)
+        XCTAssertTrue(service.delegate === controller.delegate, "registered once the scene activates")
+        XCTAssertTrue(controller.isRegistered)
+
+        service.delegate = nil
+        center.post(name: UIScene.willEnterForegroundNotification, object: nil)
+        XCTAssertTrue(service.delegate === controller.delegate, "same service: delegate restored, not skipped")
+
+        service.delegate = nil
+        registry.refresh()
+        XCTAssertTrue(service.delegate === controller.delegate)
+    }
+
+    /// Device regression: pushing Health took Home's registration view out of
+    /// the window and cleared the delegate, so iOS never asked on Health. Home
+    /// disappearing, or a scene or window lookup that finds nothing mid-transition,
+    /// must leave the delegate registered and Health eligible.
+    func testPushingHealthKeepsTheDelegateRegistered() {
+        let service = FakeScreenshotService()
+        var target: FullPageSceneRegistry.Target? = .init(service: service, window: nil)
+        let registry = FullPageSceneRegistry(notificationCenter: NotificationCenter()) { target }
+        let controller = WeeklyReportScreenshotController(renderer: FakePDFRenderer(result: Data("pdf".utf8)))
+        var path: [AppRoute] = []
+        controller.setRequestProvider { [weak controller] in
+            WeeklyReportScreenshotEligibility.screen(navigationPath: path, isTransientUIPresented: false,
+                                                     isTodayOnScreen: controller?.isTodayOnScreen ?? false) == nil
+                ? nil : .healthReport(self.makeDocument())
+        }
+        registry.attach(controller)
+        controller.isTodayOnScreen = true
+        XCTAssertNotNil(controller.delegate.representationForCurrentRequest())
+
+        // Push Health: the path changes, then Home disappears.
+        path = [.healthReport]
+        registry.refresh()
+        controller.isTodayOnScreen = false
+        target = .init(service: nil, window: nil)
+        registry.refresh()
+        target = nil
+        registry.refresh()
+
+        XCTAssertTrue(service.delegate === controller.delegate, "still registered on Health")
+        XCTAssertNotNil(controller.delegate.representationForCurrentRequest(), "Health still produces a PDF")
+    }
+
+    func testSceneRegistryKeepsTheControllerAliveForTheWeakService() throws {
+        let service = FakeScreenshotService()
+        let registry = FullPageSceneRegistry(notificationCenter: NotificationCenter()) {
+            .init(service: service, window: nil)
+        }
+        var controller: WeeklyReportScreenshotController? = WeeklyReportScreenshotController(
+            renderer: FakePDFRenderer(result: Data("pdf".utf8)))
+        registry.attach(try XCTUnwrap(controller))
+        controller = nil
+        XCTAssertNotNil(service.delegate, "the service holds its delegate weakly; the registry keeps it alive")
+    }
+
+    /// Path, scene registration and the provider together: Health pushed from
+    /// Home's link is `[.healthReport]`, and a controller registered with a
+    /// service hands it the delegate that returns the PDF.
+    func testRegisteredControllerServesHealthAndTodayFullPage() throws {
+        let service = FakeScreenshotService()
+        let controller = WeeklyReportScreenshotController()
+        controller.register(with: service)
+        let report = ReportDocument.expanded(
+            snapshot: makeFullFixtureSnapshot(), calendar: testCalendar(), locale: Locale(identifier: "en_GB"))
+        let today = TodayFullPageDocument(date: "Monday 12 October", sections: [
+            .init(title: "Today\u{2019}s notes", rows: [.init(value: "None yet")])
+        ])
+        var path: [AppRoute] = [.healthReport]
+        controller.setRequestProvider {
+            switch WeeklyReportScreenshotEligibility.screen(navigationPath: path, isTransientUIPresented: false) {
+            case .healthReport: .healthReport(report)
+            case .today: .today(today)
+            case nil: nil
+            }
+        }
+        let delegate = try XCTUnwrap(service.delegate as? WeeklyReportScreenshotDelegate)
+        XCTAssertNotNil(delegate.representationForCurrentRequest())
+        path = []
+        XCTAssertNotNil(delegate.representationForCurrentRequest())
+        path = [.foodLog]
+        XCTAssertNil(delegate.representationForCurrentRequest())
     }
 
     func testRendererCreatesOnePageInMemoryPDF() throws {
@@ -1143,14 +1303,14 @@ private final class FakeScreenshotService: ScreenshotServiceRegistering {
 
 @MainActor
 private final class FakePDFRenderer: WeeklyReportPDFRendering {
-    private(set) var documents: [ReportDocument] = []
+    private(set) var documents: [FullPageDocument] = []
     private let result: Data?
 
     init(result: Data?) {
         self.result = result
     }
 
-    func pdfData(for document: ReportDocument) -> Data? {
+    func pdfData(for document: FullPageDocument) -> Data? {
         documents.append(document)
         return result
     }

@@ -27,9 +27,16 @@ struct NotesHomeCard: View {
         }
     }
 
+    /// Full Page shows the count only; note text stays behind the row.
+    static func fullPageSection(count: Int) -> TodayFullPageDocument.Section {
+        TodayFullPageDocument.Section(title: title, rows: [TodayFullPageDocument.Row(value: countLabel(count))])
+    }
+
     static func feature(controller: DailyNotesController) -> HomeFeature {
         HomeFeature(cards: [
-            HomeCard(id: .notes) { context in AnyView(NotesHomeCard(controller: controller, today: context.today)) }
+            HomeCard(id: .notes, fullPage: { _ in fullPageSection(count: controller.todayNoteCount) }) { context in
+                AnyView(NotesHomeCard(controller: controller, today: context.today))
+            }
         ])
     }
 }

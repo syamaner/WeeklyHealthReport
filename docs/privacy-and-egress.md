@@ -4,9 +4,9 @@ This is the single engineering list of what may leave the device, where it goes 
 
 ## Stays on the device unless the user sends it
 
-- **HealthKit data** leaves only inside a Daily JSON export the user reviews and sends, or a report the user copies, shares or screenshots.
-- **Notes** leave only inside the Daily JSON export for their day.
-- **The food log,** intake history, saved foods, favourites, drafts and inventory stay local, except an inventory backup file the user explicitly exports to a location they choose. Food-log entries are not part of the Daily JSON export today: the shipping Drive coordinator rejects payloads that contain them. Adding them is a separate contract (#97).
+- **HealthKit data** leaves only inside a Daily JSON export the user reviews and sends, or a report or Today screen the user copies, shares or screenshots (including the today-so-far Health values in Today's Full Page).
+- **Notes** leave only inside the Daily JSON export for their day. Today's Full Page shows only today's note count, never note text.
+- **The food log,** intake history, saved foods, favourites, drafts and inventory stay local, except an inventory backup file the user explicitly exports to a location they choose, and Today's Full Page when the user takes a screenshot and chooses Full Page: it contains today's food totals and quick-add favourite names and default amounts. Food-log entries are not part of the Daily JSON export today: the shipping Drive coordinator rejects payloads that contain them. Adding them is a separate contract (#97).
 - **Audio** never leaves. Speech recognition is on-device only.
 
 HealthKit access is read-only: authorisation `toShare` stays empty. No analytics, tracking, crash SDK, backend, account system or background delivery.
@@ -15,7 +15,7 @@ HealthKit access is read-only: authorisation `toShare` stays empty. No analytics
 
 | Destination | What is sent | When | Contract |
 |---|---|---|---|
-| Clipboard or share sheet | The report text or Full Page image | Only when the user chooses Copy all, Share or a screenshot | [README.md](../README.md) |
+| Clipboard, share sheet or the iOS screenshot editor | The report text, or a Full Page PDF of Health (the report) or Today (today's food totals, quick-add favourite names and amounts, today's note count and today-so-far Health values), created in memory | Only when the user chooses Copy all, Share, or a screenshot's Full Page and then saves or shares it; nothing is sent automatically | [README.md](../README.md) |
 | A file location the user chooses | The inventory backup file | Only when the user chooses to export a backup | [food-library-storage-and-backup-decision.md](food-library-storage-and-backup-decision.md) |
 | Google Drive (`drive.file`) | The exact reviewed Daily JSON bytes (health data, selected-source nutrition and that day's notes) and minimal export-identity metadata | Only when the user chooses Export | [daily-export-contract.md](daily-export-contract.md), [google-drive-export-plan.md](google-drive-export-plan.md) |
 | Google OAuth | Standard sign-in and revocation | When the user connects or revokes | [google-drive-product-setup.md](google-drive-product-setup.md) |
