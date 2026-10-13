@@ -47,10 +47,11 @@ dependencies. No automatic match acceptance or alternate save schema is added.
 
 ## Parsing envelope
 
-`food-list-lexical-v2` (and v3, v4) handles compact/spaced gram and millilitre forms, their plural
+`food-list-lexical-v2` (and v3, v4, v5) handles compact/spaced gram and millilitre forms, their plural
 and regional spellings, explicit kg/L scaling, decimal points, unambiguous decimal
 commas, simple fractions, `1x` counts, half/quarter and one/two/three counts, and
-bulleted lines. Articles `a` and `an` remain counts. A single trailing metric
+bulleted lines. Articles `a` and `an` remain counts, except before a vague portion
+word under v5 (see below). A single trailing metric
 amount is supported when no leading amount is present; competing amounts stay
 unresolved. A small unit dictionary recognises common spellings. One-edit
 matches to long unit words are flagged for correction; short units such as mg are
@@ -63,8 +64,15 @@ Times do not backdate a log: confirmed entries use the existing save-time date.
 The input limit is 200 lines and 30,000 characters, with rejection rather than
 silent truncation.
 
-New lists are parsed under `food-list-lexical-v4` ([contract](food-list-lexical-v4.md),
-#222): the review screen maps the device locale's decimal separator to a numeral
+New lists are parsed under `food-list-lexical-v5` ([contract](food-list-lexical-v5.md),
+#140 decision B3), which is v4 plus vague portion words. "A handful of", "a pinch of",
+"a dash of", "a splash of", "a drizzle of", "a bit of" and "a few" (with a number or
+article in front, or none) are never read as a definite count: the line keeps its food
+name, has no amount and carries the household-measure notice, so the needs-amount rule
+blocks saving until the user enters a measured amount. Everything else is as v4.
+
+Under `food-list-lexical-v4` ([contract](food-list-lexical-v4.md),
+#222), which v5 keeps unchanged for numerals, the review screen maps the device locale's decimal separator to a numeral
 convention (full-stop-decimal, comma-decimal or unspecified) and passes it to the pure
 parser, which reads numerals with the same rule as every other amount field. An
 English "1,500" is 1500; a German "1,5" is 1.5. A numeral that could mean two amounts
@@ -76,9 +84,10 @@ canonical text. A typed amount is made canonical with the amount field's locale,
 rule the field validated it with, before it reaches search or Confirm; the line's own
 convention applies only to its untouched parsed amount.
 
-Lines saved in a queue by an earlier build keep their `food-list-lexical-v3` parse and
-label and are never re-parsed. For them, and as a safety net for v4 lines restored in
-another locale, the review screen still checks the numeral behind each untouched
+Lines saved in a queue by an earlier build keep their `food-list-lexical-v3` or
+`food-list-lexical-v4` parse and label and are never re-parsed, so a v4 line that read
+"a handful" as one count keeps that proposal for the user to review. For v3 lines, and
+as a safety net for v4 and v5 lines restored in another locale, the review screen still checks the numeral behind each untouched
 parsed amount against the device locale and withholds an ambiguous one (#225).
 
 Uncertain numbers, household measures, pack multipliers and multiple amounts leave

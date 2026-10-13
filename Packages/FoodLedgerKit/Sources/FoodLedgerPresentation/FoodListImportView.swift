@@ -185,7 +185,13 @@ public final class FoodListImportViewModel: ObservableObject {
         }
         let parsed = try FoodListParser.parse(combined, convention: .fullStopDecimal)
         guard let last = parsed.last else { throw FoodListParser.ParseError.empty }
-        let draft = FoodListLineDraft(parsed: last, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        var draft = FoodListLineDraft(parsed: last, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        // A saved name is a food name, not a pasted portion: when it starts with a vague portion
+        // word ("Pinch of Nom Lasagne", "Splash orange") v5 still gives no amount, but the search
+        // query keeps the whole saved name rather than losing brand words (food-list-lexical-v5).
+        if portion == nil, last.isV5, last.notices.contains(.householdMeasure) {
+            draft.query = name.trimmingCharacters(in: .whitespaces)
+        }
         restoring = true
         input = combined
         rows.append(FoodListReviewRow(draft: draft))
@@ -607,13 +613,13 @@ public enum FoodListAmountText {
     }
 
     /// The line as handed to search and Confirm (food-list-lexical-v4, Q6). A typed amount on a v4
-    /// line becomes canonical text under this locale, the same rule the field validated it with,
+    /// (or v5) line becomes canonical text under this locale, the same rule the field validated it with,
     /// so the application never reinterprets it with the convention the line was parsed under
     /// (which differs after a region change). The untouched proposal and v3 lines pass unchanged.
     /// Nil when the typed text is refused here; the screen already blocks that line.
     public static func reviewed(_ draft: FoodListLineDraft, locale: Locale) -> FoodListLineDraft? {
         let typed = draft.quantityText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard draft.parsed.isV4, !draft.isAmountUntouched, !typed.isEmpty else { return draft }
+        guard draft.parsed.readsNumeralConvention, !draft.isAmountUntouched, !typed.isEmpty else { return draft }
         guard let canonical = FoodAmountFieldText.canonical(typed, locale: locale) else { return nil }
         var reviewed = draft
         reviewed.quantityText = canonical
