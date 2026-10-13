@@ -172,10 +172,21 @@ final class UXPolishPresentationTests: XCTestCase {
         ])
         XCTAssertNil(closest.badge)
         XCTAssertEqual(closest.details, [
-            "Closest candidate",
-            "Search terms: chicken grilled; parsed food terms; requested attributes need review; original query retained.",
-            "Candidate adds: breast", "Your entry adds: thigh"
+            "Closest match, not an exact name",
+            "Matched on: chicken grilled. Check the type and preparation are what you ate.",
+            "This match also mentions: breast", "Not in this match: thigh"
         ])
+        // The USDA wording of the same diagnostic reads the same way; other source notes are kept.
+        XCTAssertEqual(FoodListMatchRowText.plain(
+            "Search terms: beef; original query tokens retained; parsed food terms used for retrieval; attributes need review."),
+            "Matched on: beef. Check the type and preparation are what you ate.")
+        XCTAssertEqual(FoodListMatchRowText.plain("US composition estimate; review cut, grade, fat and preparation."),
+                       "US composition estimate; review cut, grade, fat and preparation.")
+        for detail in closest.details {
+            for jargon in ["parsed food terms", "original query retained", "candidate", "token"] {
+                XCTAssertFalse(detail.contains(jargon), "\(detail) contains \(jargon)")
+            }
+        }
         XCTAssertEqual(FoodListMatchRowText(isSavedFood: true, isExactName: false, materialDifferences: []),
                        FoodListMatchRowText(isSavedFood: true, isExactName: true, materialDifferences: []))
         XCTAssertEqual(FoodListMatchRowText(isSavedFood: true, isExactName: false, materialDifferences: []).badge, "Saved food")

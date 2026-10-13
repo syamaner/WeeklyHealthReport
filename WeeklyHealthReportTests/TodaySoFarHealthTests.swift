@@ -324,8 +324,14 @@ final class TodaySoFarHealthTests: XCTestCase {
         let loading = try Fixture.rows(TodaySoFarHealthCard.make(projection: nil, locale: gb))
         XCTAssertTrue(loading.allSatisfy { $0.status == .loading && $0.value.isEmpty })
         XCTAssertEqual(loading[0].accessibilityLabel, "Steps, loading")
-        let windowFailed = try Fixture.rows(TodaySoFarHealthCard.make(projection: nil, windowFailed: true, locale: gb))
-        XCTAssertTrue(windowFailed.allSatisfy { $0.status == .failed && $0.value == "Could not read Apple Health." })
+        // A whole-card failure says "Could not read Apple Health." once, not on every row.
+        let windowFailed = TodaySoFarHealthCard.make(projection: nil, windowFailed: true, locale: gb)
+        XCTAssertEqual(windowFailed.content, .failed("Could not read Apple Health."))
+        let everyReadFailed = TodaySoFarHealthCard.make(projection: .make(inputs: Fixture.inputs(
+            steps: .failed, energy: .failed, asleep: .failed, weights: .failed, bloodPressure: .failed), window: window), locale: gb)
+        XCTAssertEqual(everyReadFailed.content, .failed("Could not read Apple Health."))
+        XCTAssertEqual(everyReadFailed.asOf, "As of 14:32")
+        XCTAssertEqual(TodaySoFarHealthCardView.fullPageSection(everyReadFailed).rows.map(\.value), ["Could not read Apple Health."])
 
         let unavailable = TodaySoFarHealthCard.make(projection: .make(inputs: .healthUnavailable, window: window), locale: gb)
         XCTAssertEqual(unavailable.content, .unavailable("Apple Health is not available on this device."))

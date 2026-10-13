@@ -12,6 +12,9 @@ struct TodaySoFarHealthCardView: View {
             switch card.content {
             case .unavailable(let message):
                 Label(message, systemImage: "heart.slash")
+            case .failed(let message):
+                Label(message, systemImage: "exclamationmark.triangle")
+                Button("Try again") { Task { await model.handle(.pullToRefresh) } }
             case .rows(let rows):
                 ForEach(rows) { row in
                     TodaySoFarHealthRowView(row: row)
@@ -43,7 +46,7 @@ struct TodaySoFarHealthCardView: View {
         typealias Row = TodayFullPageDocument.Row
         let rows: [Row]
         switch card.content {
-        case .unavailable(let message):
+        case .unavailable(let message), .failed(let message):
             rows = [Row(value: message)]
         case .rows(let healthRows):
             rows = healthRows.map { Row($0.title, value: $0.status == .loading ? "Loading" : $0.value) }
