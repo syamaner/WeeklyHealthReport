@@ -109,6 +109,8 @@ public final class QuickAddSheetModel: ObservableObject, Identifiable {
     @Published public private(set) var savedResult: StoredFoodConfirmation?
     private let now: @Sendable () -> Date
     public let calendar: Calendar
+    /// Shown under When when the Food Log day could not be used (owner decision D).
+    public let whenNotice: String?
     private let logAction: @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
     /// Called exactly once, after the one successful Log. The host dismisses the sheet here and
     /// reloads (or ends the Add food journey); views never infer completion by observing `phase`.
@@ -116,9 +118,10 @@ public final class QuickAddSheetModel: ObservableObject, Identifiable {
     public var onLogged: ((StoredFoodConfirmation) -> Void)?
 
     public init(preparation: QuickAddPreparation, now: @escaping @Sendable () -> Date = { Date() },
-                calendar: Calendar = .autoupdatingCurrent,
+                calendar: Calendar = .autoupdatingCurrent, whenNotice: String? = nil,
                 log: @escaping @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation) {
         self.preparation = preparation
+        self.whenNotice = whenNotice
         state = preparation.state
         selectedPreset = preparation.state.quantity.value
         self.now = now; self.calendar = calendar; logAction = log
@@ -159,6 +162,11 @@ public final class QuickAddSheetModel: ObservableObject, Identifiable {
 
     public var displayedOccurredAt: Date { state.occurredAt ?? now() }
     public var occursNow: Bool { state.occurredAt == nil }
+
+    /// A time requirement shown inline under When (owner decision D), as on Confirm.
+    public var whenRequirementText: String? {
+        requirements.first { $0 == .occurredAtTooEarly || $0 == .occurredAtInFuture }.map(FoodLogRequirementText.text)
+    }
 
     public func choosePreset(_ value: Double) {
         guard phase != .saving, phase != .saved else { return }
@@ -272,6 +280,12 @@ public struct QuickAddSheet: View {
                 if !model.occursNow {
                     DatePicker("Time", selection: Binding(get: { model.displayedOccurredAt }, set: { model.setOccurredAt($0) }),
                                in: model.occurredAtRange)
+                }
+                if let requirement = model.whenRequirementText {
+                    Label(requirement, systemImage: "exclamationmark.triangle").font(.caption)
+                }
+                if let notice = model.whenNotice, model.occursNow {
+                    Text(notice).font(.caption)
                 }
             }
             if case let .failed(message) = model.phase {

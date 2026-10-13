@@ -54,6 +54,8 @@ struct SettingsRow: Identifiable {
     enum Kind {
         case link(detail: @MainActor () -> String?, route: AppRoute)
         case toggle(SettingsToggle)
+        /// Plain, non-tappable text, for a feature this build does not offer.
+        case text(detail: String?)
     }
 
     let id: String
@@ -66,6 +68,10 @@ struct SettingsRow: Identifiable {
         detail: @escaping @MainActor () -> String? = { nil }
     ) -> SettingsRow {
         SettingsRow(id: "route." + route.rawValue, title: title, kind: .link(detail: detail, route: route))
+    }
+
+    static func text(_ id: String, _ title: String, detail: String?) -> SettingsRow {
+        SettingsRow(id: "text." + id, title: title, kind: .text(detail: detail))
     }
 
     static func toggle(_ id: String, _ toggle: SettingsToggle) -> SettingsRow {
@@ -162,6 +168,11 @@ struct SettingsView: View {
             .accessibilityIdentifier("settings." + route.rawValue)
         case let .toggle(toggle):
             SettingsToggleRow(toggle: toggle)
+        case let .text(detail):
+            LabeledContent(row.title) {
+                if let detail { Text(detail) }
+            }
+            .accessibilityIdentifier("settings." + row.id)
         }
     }
 }

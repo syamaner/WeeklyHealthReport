@@ -290,6 +290,9 @@ public enum FoodConfirmationAction: Sendable {
     case setWeightBasis(UserWeightBasis?)
     case setQuantityText(String)
     case setQuantity(Double?, QuantityUnit)
+    /// The unit picker (owner decision B2, 13 Oct 2026): changing between count, g and mL clears
+    /// the amount, so `amountMissing` blocks Log until an amount is entered in the new unit.
+    case setQuantityUnit(QuantityUnit)
     case setConversion(QuantityConversionDraft?)
     case setPlateChoice(PlateWeightChoice)
     case beginSaving
@@ -369,6 +372,13 @@ public enum FoodConfirmationReducer {
             if (previousValue != value || previousUnit != unit) && (unit != .count || previousUnit != unit) {
                 state.quantity.conversion = nil
             }
+            state.phase = .editing
+        case let .setQuantityUnit(unit):
+            guard unit != state.quantity.unit else { return }
+            state.quantity.value = nil
+            state.quantity.invalidOriginalAmountText = nil
+            state.quantity.unit = unit
+            state.quantity.conversion = nil
             state.phase = .editing
         case let .setConversion(conversion):
             state.quantity.conversion = conversion

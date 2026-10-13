@@ -187,6 +187,26 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertEqual(world.store.removeCalls, 1)
     }
 
+    /// Owner decision D: the Food Log's Add food carries a past day (never today) and its footnote
+    /// says When starts there, or that the day is beyond the 7-day window.
+    func testAddFoodCarriesAPastDayAndExplainsWhen() async throws {
+        let world = try World(now: now, calendar: calendar)
+        let model = FoodLogViewModel(store: world.store, now: { [now] in now }, calendar: calendar)
+        XCTAssertNil(model.addFoodDayKey)
+        XCTAssertNil(model.addFoodFootnote)
+        await model.previousDay()
+        XCTAssertEqual(model.addFoodDayKey, model.selectedKey)
+        XCTAssertNotNil(model.addFoodWhen.occurredAt)
+        XCTAssertEqual(model.addFoodFootnote, "New foods start on this day at the current time. You can change When before logging.")
+        for _ in 0..<7 { await model.previousDay() }
+        XCTAssertEqual(model.addFoodWhen, .beyondBackdatingWindow)
+        XCTAssertEqual(model.addFoodFootnote, "Entries can be logged up to 7 days back. New foods are logged for now.")
+        XCTAssertEqual(FoodLogText.whenNotice(.beyondBackdatingWindow), "Entries can be logged up to 7 days back.")
+        XCTAssertNil(FoodLogText.whenNotice(.now))
+        XCTAssertEqual(FoodLogText.listImportNote(entryDay: "2026-10-10"), "List items are logged for now.")
+        XCTAssertNil(FoodLogText.listImportNote(entryDay: nil))
+    }
+
     func testNewEntryKeepsLogTitle() throws {
         let world = try World(now: now, calendar: calendar)
         let model = FoodConfirmationViewModel(state: try world.newState(grams: 150), now: { [now] in now }, calendar: calendar) { _ in
@@ -197,16 +217,19 @@ final class FoodLogPresentationTests: XCTestCase {
     }
 
     /// The mL-on-a-per-100 g warning applies only while mL drives nutrition; a measured gram
-    /// weight replaces it, so the "stays unknown" copy is not shown then.
+    /// weight replaces it, so the "no nutrition" copy and button title are not shown then.
     func testVolumeWarningIsHiddenWhenMeasuredWeightDrivesNutrition() throws {
         let world = try World(now: now, calendar: calendar)
         let model = FoodConfirmationViewModel(state: try world.newState(grams: 150), now: { [now] in now }, calendar: calendar) { _ in
             throw CocoaError(.fileWriteUnknown)
         }
         model.send(.setQuantity(200, .millilitres))
-        XCTAssertTrue(try XCTUnwrap(model.quantityBasisWarning).contains("stays unknown"))
+        XCTAssertTrue(try XCTUnwrap(model.quantityBasisWarning).contains("has no nutrition"))
+        XCTAssertEqual(model.logButtonTitle, "Log without nutrition")
         model.send(.beginDirectWeight)
         XCTAssertNil(model.quantityBasisWarning)
+        XCTAssertNil(model.unitBasisMismatch)
+        XCTAssertNotEqual(model.logButtonTitle, "Log without nutrition")
         XCTAssertEqual(FoodConfirmationView.evidenceCount(1), "1 saved item")
         XCTAssertEqual(FoodConfirmationView.evidenceCount(3), "3 saved items")
     }

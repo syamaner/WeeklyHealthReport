@@ -93,6 +93,7 @@ final class SettingsContributionTests: XCTestCase {
                 switch row.kind {
                 case let .link(detail, _): details.append(detail())
                 case let .toggle(toggle): toggle.set(true); toggle.set(false)
+                case .text: XCTFail("Food search has no plain text rows")
                 }
             }
             XCTAssertEqual(details, [savedKey == nil ? "Key missing" : "Revalidate key", "Unspecified"])
@@ -123,7 +124,7 @@ final class SettingsContributionTests: XCTestCase {
     }
 
     func testExportRowsHaveNoDetail() {
-        let section = ExportSettingsContribution.section()
+        let section = ExportSettingsContribution.section(driveExportAvailable: true)
         XCTAssertEqual(section.rows.map(\.route), [.exportDestination])
         for row in section.rows {
             guard case let .link(detail, _) = row.kind else { return XCTFail("Expected a link") }

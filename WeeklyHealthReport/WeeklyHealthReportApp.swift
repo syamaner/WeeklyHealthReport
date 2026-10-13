@@ -22,7 +22,8 @@ struct WeeklyHealthReportApp: App {
         settings = Self.makeSettings(
             foodLedger: foodLedger,
             defaults: .standard,
-            medicationAccessAvailable: Self.medicationAccessAvailable
+            medicationAccessAvailable: Self.medicationAccessAvailable,
+            driveExportAvailable: DailyDriveSessionController.bundleHasOAuthConfiguration
         )
         let healthClient = HealthKitClient(store: store)
         // One shared request: the report and Home both ask on launch (#199).
@@ -76,10 +77,11 @@ struct WeeklyHealthReportApp: App {
     static func makeSettings(
         foodLedger: FoodLedgerCompositionRoot?,
         defaults: UserDefaults,
-        medicationAccessAvailable: Bool
+        medicationAccessAvailable: Bool,
+        driveExportAvailable: Bool = true
     ) -> AppSettings {
         var sections = foodLedger?.settingsSections() ?? []
-        sections.append(ExportSettingsContribution.section())
+        sections.append(ExportSettingsContribution.section(driveExportAvailable: driveExportAvailable))
         if let appleHealth = AppleHealthSettingsContribution.section(
             medicationAccessAvailable: medicationAccessAvailable
         ) {

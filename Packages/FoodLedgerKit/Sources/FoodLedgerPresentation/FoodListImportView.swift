@@ -53,6 +53,11 @@ public final class FoodListImportViewModel: ObservableObject {
     private var restoring = true
     private var unreadableCheckpoint = false
     private let recoveredLogItemID: (@MainActor (OperationID) throws -> LogItemID?)?
+    /// Prepares a row's Confirm the way the search route does: the composition root adds the
+    /// whole-milk volume source and returns its offering when it applies. Nil offers none.
+    public typealias ConfirmationPreparation = @MainActor (FoodConfirmationState)
+        -> (state: FoodConfirmationState, offering: (any FoodVolumeConversionOffering)?)
+    private let prepareConfirmation: ConfirmationPreparation?
 
     public init(
         service: FoodListImportService, locale: LedgerText, ids: any LedgerIDGenerating,
@@ -62,8 +67,10 @@ public final class FoodListImportViewModel: ObservableObject {
         confirmationNow: @escaping @Sendable () -> Date = { Date() },
         confirmationCalendar: Calendar = .autoupdatingCurrent,
         amountLocale: Locale = .autoupdatingCurrent,
+        prepareConfirmation: ConfirmationPreparation? = nil,
         saveAction: @escaping @MainActor (FoodConfirmationState, OperationID) throws -> StoredFoodConfirmation
     ) {
+        self.prepareConfirmation = prepareConfirmation
         self.service = service
         self.locale = locale
         self.amountLocale = amountLocale
@@ -280,10 +287,11 @@ public final class FoodListImportViewModel: ObservableObject {
         guard confirmation == nil, let row = selectedRow, !row.isSaved, let route = row.route,
               let draft = FoodListAmountText.reviewed(row.draft, locale: amountLocale) else { return }
         do {
-            let state = try service.confirmation(for: draft, route: route, candidateIndex: index)
+            let built = try service.confirmation(for: draft, route: route, candidateIndex: index)
+            let prepared = prepareConfirmation?(built) ?? (state: built, offering: nil)
             confirmationRowID = row.id
-            confirmation = FoodConfirmationViewModel(state: state, now: confirmationNow,
-                                                     calendar: confirmationCalendar) { [weak self] state in
+            confirmation = FoodConfirmationViewModel(state: prepared.state, volumeConversionOffering: prepared.offering,
+                                                     now: confirmationNow, calendar: confirmationCalendar) { [weak self] state in
                 guard let self else { throw FoodLedgerValidationError.empty("review session") }
                 guard self.persist() else { throw FoodLedgerValidationError.invalidProvenance }
                 do {

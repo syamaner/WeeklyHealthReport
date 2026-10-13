@@ -3312,6 +3312,98 @@ extension DailyHealthExportTests {
         XCTAssertEqual(today, "Today, up to 08:00")
     }
 
+    /// Owner decision C: without OAuth configuration Export shows one line and plain Drive text,
+    /// Settings shows a non-tappable row and Developer tools holds the detail; configured but not
+    /// connected, the primary action is "Set up Google Drive". No transition changes.
+    @MainActor
+    func testExportPresentsGoogleDriveByAvailability() async throws {
+        XCTAssertEqual(DriveExportAvailability.resolve(isConfigured: false, setup: .notSetUp), .unavailableInBuild)
+        XCTAssertEqual(DriveExportAvailability.resolve(isConfigured: false, setup: .ready), .unavailableInBuild)
+        XCTAssertEqual(DriveExportAvailability.resolve(isConfigured: true, setup: .notSetUp), .needsSetup)
+        for setup in [DailyExportPhase.Setup.preparing, .needsNutritionSource, .ready, .needsAttention] {
+            XCTAssertEqual(DriveExportAvailability.resolve(isConfigured: true, setup: setup), .available, "\(setup)")
+        }
+        XCTAssertEqual(
+            [DailyExportPhase.Setup.preparing, .notSetUp, .needsNutritionSource, .ready, .needsAttention]
+                .filter(DriveExportAvailability.setupReturnsToExport),
+            [.needsNutritionSource, .ready]
+        )
+        XCTAssertEqual(DriveExportAvailability.unavailableLine, "Google Drive export isn’t available in this build")
+        XCTAssertTrue(DriveExportAvailability.developerDetail(isConfigured: false).contains("GoogleOAuthClientID"))
+
+        let notesStore = MutableDailyNotesStore()
+        func makeSession(configured: Bool, drive: PreparationDriveTransportFixture) throws -> DailyDriveSessionController {
+            let configuration = try DriveOAuthClientConfiguration(infoDictionary: [
+                "GoogleOAuthClientID": "synthetic-c.apps.googleusercontent.com",
+                "GoogleOAuthRedirectScheme": "com.googleusercontent.apps.synthetic-c"
+            ])
+            let oauth = FakeDriveOAuthSession()
+            oauth.hasStoredSession = false
+            return DailyDriveSessionController(
+                keychain: MemoryDailySessionStore(),
+                drive: drive,
+                exportService: DailyHealthExportService(
+                    healthData: RecordingDailyProvider { self.emptyInputs(window: $0) }, notesStore: notesStore),
+                identityStore: ControllerMemoryDailyIdentityStore(),
+                nutritionSourceSelection: FixedNutritionSourceSelection(bundleIdentifier: fixtureNutritionSource.bundleIdentifier),
+                notes: DailyNotesController(store: notesStore),
+                oauthSession: oauth,
+                oauthConfiguration: {
+                    guard configured else { throw DriveOAuthClientConfiguration.Failure.missingConfiguration }
+                    return configuration
+                }
+            )
+        }
+        let drive = PreparationDriveTransportFixture(createOutcomes: [])
+        let unconfigured = try makeSession(configured: false, drive: drive)
+        let stateBefore = unconfigured.presentationState
+        XCTAssertEqual(stateBefore, .needsAttention(.configurationUnavailable), "transitions unchanged")
+        XCTAssertEqual(DriveExportAvailability.resolve(isConfigured: unconfigured.isConfigured,
+                                                       setup: unconfigured.presentationState.phaseSetup), .unavailableInBuild)
+        let configured = try makeSession(configured: true, drive: drive)
+        XCTAssertEqual(configured.presentationState, .needsGoogleConnection)
+        XCTAssertEqual(DriveExportAvailability.resolve(isConfigured: configured.isConfigured,
+                                                       setup: configured.presentationState.phaseSetup), .needsSetup)
+        var setUpTaps = 0
+        for (name, view) in [
+            ("Export without Drive", AnyView(DailyExportView(session: unconfigured))),
+            ("Settings Google Drive without Drive", AnyView(DriveDestinationSettingsView(session: unconfigured))),
+            ("Export set up Google Drive", AnyView(DailyExportView(session: configured) { setUpTaps += 1 })),
+            ("Developer tools Drive detail", AnyView(DeveloperToolsSettingsView(
+                toggle: SettingsToggle(title: "Synthetic", read: { false }, write: { _ in }), driveExportConfigured: false)))
+        ] {
+            for size in [DynamicTypeSize.large, .accessibility3] {
+                let host = UIHostingController(rootView: NavigationStack { view }.environment(\.dynamicTypeSize, size))
+                let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+                window.rootViewController = host
+                window.isHidden = false
+                host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+                try await Task.sleep(for: .milliseconds(200))
+                let image = UIGraphicsImageRenderer(bounds: window.bounds).image { window.layer.render(in: $0.cgContext) }
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "\(name) - \(size)"; attachment.lifetime = .keepAlways
+                add(attachment)
+                window.isHidden = true
+            }
+        }
+        XCTAssertEqual(setUpTaps, 0, "rendering never opens setup")
+        XCTAssertEqual(unconfigured.presentationState, stateBefore, "rendering Export changes no state")
+        let snapshot = await drive.snapshot()
+        XCTAssertEqual(snapshot.accountCount, 0)
+        XCTAssertEqual(snapshot.uploadCount, 0)
+
+        let settings = WeeklyHealthReportApp.makeSettings(
+            foodLedger: nil,
+            defaults: UserDefaults(suiteName: "drive-settings-" + UUID().uuidString)!,
+            medicationAccessAvailable: false,
+            driveExportAvailable: false
+        )
+        let export = try XCTUnwrap(settings.sections.first { $0.id == .export })
+        XCTAssertEqual(export.rows.compactMap(\.route), [], "the row is not tappable")
+        guard case let .text(detail) = try XCTUnwrap(export.rows.first).kind else { return XCTFail("Expected plain text") }
+        XCTAssertEqual(detail, "Not available in this build")
+    }
+
     /// Opening Settings > Export sends no HealthKit, OAuth or Drive request
     /// and never prepares an export.
     @MainActor
@@ -3337,7 +3429,8 @@ extension DailyHealthExportTests {
         let settings = WeeklyHealthReportApp.makeSettings(
             foodLedger: nil,
             defaults: UserDefaults(suiteName: "drive-settings-" + UUID().uuidString)!,
-            medicationAccessAvailable: false
+            medicationAccessAvailable: false,
+            driveExportAvailable: true
         )
         XCTAssertEqual(settings.sections.first { $0.id == .export }?.rows.compactMap(\.route), [.exportDestination])
 
