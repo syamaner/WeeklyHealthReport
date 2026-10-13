@@ -9,7 +9,7 @@ import XCTest
 final class FoodListImportPresentationTests: XCTestCase {
     /// #222: a pasted numeral that could mean two amounts in the reader's locale is never
     /// proposed as a number; the line has no amount, says why, and the needs-amount rule applies.
-    /// Under food-list-lexical-v4 the parse itself reads the locale's convention.
+    /// Under food-list-lexical-v4 (and v5) the parse itself reads the locale's convention.
     func testPastedAmountsFollowTheReadersDecimalConvention() throws {
         let cases: [(String, String, String, Bool)] = [
             ("de_DE", "1.500 g rice", "", true),      // German grouping for 1500, or 1.5
@@ -40,7 +40,7 @@ final class FoodListImportPresentationTests: XCTestCase {
             XCTAssertEqual(says, explained, "\(identifier) \(text)")
             let convention = NumeralConvention(locale: Locale(identifier: identifier))
             XCTAssertEqual(try FoodListParser.parse(text, convention: convention).first, draft.parsed)
-            XCTAssertEqual(draft.parsed.grammarVersion, "food-list-lexical-v4")
+            XCTAssertEqual(draft.parsed.grammarVersion, "food-list-lexical-v5")
             XCTAssertEqual(draft.parsed.numeralConvention, convention)
         }
         // Once the user types an amount, it is theirs; the explanation goes.
@@ -96,8 +96,85 @@ final class FoodListImportPresentationTests: XCTestCase {
         XCTAssertEqual(confirmation.state.quantity.unit, .grams)
     }
 
+    /// food-list-lexical-v5 (#140, B3): a vague portion is never a count. The line has no amount
+    /// and says why, and Confirm opens empty with the needs-amount rule blocking Log, in every
+    /// numeral convention.
+    func testVaguePortionLinesReachConfirmWithoutAnAmount() throws {
+        for identifier in ["en_GB", "de_DE", "fr_FR", "ar_SA"] {
+            for text in ["a handful of fixture", "2 pinches of fixture", "a few fixture", "a bit of fixture"] {
+                let label = "\(identifier) \(text)"
+                let (model, search) = try listModel(locale: Locale(identifier: identifier))
+                model.input = text
+                model.prepare()
+                let draft = try XCTUnwrap(model.selectedRow?.draft, label)
+                XCTAssertEqual(draft.quantityText, "", label)
+                XCTAssertEqual(draft.query, "fixture", label)
+                XCTAssertEqual(draft.parsed.notices, [.householdMeasure], label)
+                XCTAssertEqual(draft.parsed.grammarVersion, "food-list-lexical-v5", label)
+                model.search()
+                XCTAssertEqual(search.lastEvidence?.captureMethodVersion.value, "food-list-lexical-v5", label)
+                model.review(candidate: 0)
+                let confirmation = try XCTUnwrap(model.confirmation, label)
+                XCTAssertNil(confirmation.state.quantity.value, label)
+                XCTAssertTrue(confirmation.requirements.contains(.amountMissing), label)
+                XCTAssertFalse(confirmation.canLog, label)
+            }
+        }
+    }
+
+    /// A common food whose saved name starts with a vague portion word keeps its whole name as
+    /// the search query (no brand words lost); without a usual portion it still has no amount.
+    func testCommonFoodNamesStartingWithVagueWordsKeepTheirName() throws {
+        for name in ["Pinch of Nom Lasagne", "Splash orange", "Bits & Bobs crisps", "A few cheeky peanuts"] {
+            let (model, search) = try listModel(locale: Locale(identifier: "en_GB"))
+            try model.addCommonFood(name: name, portion: nil)
+            let draft = try XCTUnwrap(model.selectedRow?.draft, name)
+            XCTAssertEqual(draft.query, name)
+            XCTAssertEqual(draft.quantityText, "", name)
+            XCTAssertEqual(draft.parsed.notices, [.householdMeasure], name)
+            model.search()
+            guard case let .descriptor(payload) = search.lastEvidence?.originalPayload else { return XCTFail("Missing descriptor") }
+            XCTAssertTrue(payload.value.contains(#""query":"\#(name)""#), payload.value)
+            XCTAssertEqual(search.lastEvidence?.captureMethodVersion.value, "food-list-lexical-v5", name)
+        }
+        let (model, _) = try listModel(locale: Locale(identifier: "en_GB"))
+        try model.addCommonFood(name: "Pinch of Nom Lasagne", portion: InventoryAmount(value: 250, unit: .grams))
+        let draft = try XCTUnwrap(model.selectedRow?.draft)
+        XCTAssertEqual(draft.query, "Pinch of Nom Lasagne")
+        XCTAssertEqual(draft.parsed.quantity, 250)
+        XCTAssertEqual(draft.parsed.notices, [])
+    }
+
+    /// A queue saved by a v4 build restores with its v4 lines intact, never re-parsed under v5:
+    /// a stored "a handful of fixture" keeps its v4 count proposal and v4 label.
+    func testRestoredV4LinesKeepTheirParseAndLabel() throws {
+        let checkpoint = MemoryCheckpoint()
+        let ids = ListIDs()
+        let stored = try FoodListParser.parseV4("a handful of fixture\n1,500 g fixture", convention: .fullStopDecimal).map {
+            FoodListLineDraft(parsed: $0, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        }
+        let encoded = try JSONEncoder().encode(FoodListCheckpoint(
+            input: "a handful of fixture\n1,500 g fixture", inputMethod: .pastedOrTyped, drafts: stored,
+            dispositions: ["pending", "pending"], savedIDs: [nil, nil], selectedID: stored[0].id
+        ))
+        try checkpoint.save(try JSONDecoder().decode(FoodListCheckpoint.self, from: encoded))
+
+        let search = ListSearch()
+        let model = FoodListImportViewModel(
+            service: FoodListImportService(searcher: search), locale: try LedgerText("en_GB"), ids: ids,
+            checkpointStore: checkpoint, amountLocale: Locale(identifier: "en_GB")
+        ) { _, _ in throw FoodLedgerValidationError.invalidProvenance }
+        XCTAssertEqual(model.rows.map(\.draft.parsed), stored.map(\.parsed), "v4 parses are kept, not re-parsed")
+        XCTAssertEqual(model.rows.map(\.draft.parsed.grammarVersion), ["food-list-lexical-v4", "food-list-lexical-v4"])
+        XCTAssertEqual(model.rows.map(\.draft.quantityText), ["1.0", "1500.0"])
+        model.search()
+        XCTAssertEqual(search.lastEvidence?.captureMethodVersion.value, "food-list-lexical-v4")
+        guard case let .descriptor(payload) = search.lastEvidence?.originalPayload else { return XCTFail("Missing descriptor") }
+        XCTAssertEqual(payload.value, #"{"lineNumber":1,"notices":[],"numeralConvention":"full_stop_decimal","original":"a handful of fixture","quantity":"1","query":"handful of fixture","unit":"count"}"#)
+    }
+
     /// Q1 and Q6 end to end: an English "1,500 g" reaches Confirm as 1500 g, and a typed German
-    /// "2,5" as 2.5; evidence is stamped v4 with the line's convention.
+    /// "2,5" as 2.5; new lines are stamped v5 with the line's convention.
     func testV4AmountsReachConfirmAndEvidenceByTheLinesConvention() throws {
         let (english, englishSearch) = try listModel(locale: Locale(identifier: "en_GB"))
         english.input = "1,500 g fixture"
@@ -105,7 +182,7 @@ final class FoodListImportPresentationTests: XCTestCase {
         english.search()
         english.review(candidate: 0)
         XCTAssertEqual(english.confirmation?.state.quantity.value, 1500)
-        XCTAssertEqual(englishSearch.lastEvidence?.captureMethodVersion.value, "food-list-lexical-v4")
+        XCTAssertEqual(englishSearch.lastEvidence?.captureMethodVersion.value, "food-list-lexical-v5")
         guard case let .descriptor(payload) = englishSearch.lastEvidence?.originalPayload else { return XCTFail("Missing descriptor") }
         XCTAssertTrue(payload.value.contains(#""numeralConvention":"full_stop_decimal""#))
         XCTAssertTrue(payload.value.contains(#""quantity":"1500""#))
@@ -122,7 +199,7 @@ final class FoodListImportPresentationTests: XCTestCase {
     }
 
     /// A queue saved by a v3 build restores with its v3 lines intact: they are not re-parsed,
-    /// keep the #225 withholding and are searched with the v3 label; new lines are v4.
+    /// keep the #225 withholding and are searched with the v3 label; new lines are v5.
     func testRestoredV3LinesKeepTheirParseAndLabel() throws {
         let checkpoint = MemoryCheckpoint()
         let ids = ListIDs()
@@ -154,7 +231,7 @@ final class FoodListImportPresentationTests: XCTestCase {
         try model.addCommonFood(name: "fixture", portion: InventoryAmount(value: 0.125, unit: .grams))
         let added = try XCTUnwrap(model.selectedRow?.draft)
         XCTAssertEqual(added.parsed.original, "0.125 g fixture", "the app writes canonical text")
-        XCTAssertEqual(added.parsed.grammarVersion, "food-list-lexical-v4")
+        XCTAssertEqual(added.parsed.grammarVersion, "food-list-lexical-v5")
         XCTAssertEqual(added.parsed.numeralConvention, .fullStopDecimal, "the convention it was written in")
         XCTAssertEqual(added.parsed.quantity, 0.125)
     }
