@@ -240,6 +240,11 @@ public final class FoodConfirmationViewModel: ObservableObject {
         save()
     }
 
+    /// The unit picker: a different unit clears the amount (B2), so Log waits for a new amount.
+    public func chooseQuantityUnit(_ unit: QuantityUnit) {
+        send(.setQuantityUnit(unit))
+    }
+
     public func send(_ action: FoodConfirmationAction) {
         FoodConfirmationReducer.reduce(state: &state, action: action)
     }
@@ -898,10 +903,13 @@ public struct FoodConfirmationView: View {
     }
 
     private var quantityUnitBinding: Binding<QuantityUnit> {
-        Binding(get: { model.state.quantity.unit }, set: {
-            model.send(.setQuantity(FoodAmountFieldText.parse(totalText, locale: locale), $0))
-            model.send(.setQuantityText(FoodAmountFieldText.reducerText(totalText, locale: locale)))
-            if $0 == .count { updateConversion() }
+        Binding(get: { model.state.quantity.unit }, set: { unit in
+            // B2: a different unit clears the amount (in the reducer), so the old number is never
+            // reread in the new unit; the field follows the state.
+            guard unit != model.state.quantity.unit else { return }
+            model.chooseQuantityUnit(unit)
+            totalText = ""
+            if unit == .count { updateConversion() }
         })
     }
 

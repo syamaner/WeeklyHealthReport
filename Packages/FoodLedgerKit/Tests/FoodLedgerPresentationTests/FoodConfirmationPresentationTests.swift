@@ -211,6 +211,24 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertTrue(message.contains("Choose a different match or add the food details"))
     }
 
+    /// B2: the unit picker clears the amount through the reducer, so Log is blocked with the
+    /// amount requirement until a new amount is typed; Log then states whole kcal.
+    func testUnitPickerClearsTheAmountAndBlocksLog() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        model.send(.setQuantity(150, .grams))
+        XCTAssertTrue(model.canLog)
+        model.chooseQuantityUnit(.millilitres)
+        XCTAssertNil(model.state.quantity.value)
+        XCTAssertEqual(model.requirements, [.amountMissing])
+        XCTAssertFalse(model.canLog)
+        XCTAssertEqual(model.blockedReason, "Enter an amount greater than zero.")
+        model.chooseQuantityUnit(.grams)
+        model.send(.setQuantityText("150"))
+        XCTAssertTrue(model.canLog)
+    }
+
     func testReferenceBasisAndConsumedPreviewNeverInferDensity() throws {
         let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
             throw CocoaError(.fileWriteUnknown)
