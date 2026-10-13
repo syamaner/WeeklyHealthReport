@@ -103,6 +103,7 @@ Line 36 ("one main screen", "Copy Report" becomes Copy all and the current shell
   - Export hides the "Needs attention" section when it has no visible action; the verified result shows a readable day and cutoff; "Exact file" and a separate, visibly disabled "Review exact JSON" button replace the hint-only row.
   - Settings uses the Export status wording for a build without OAuth configuration.
   - Tiles show the short "Query failed" term for any failure row; the full message stays in the section row, Copy all and Full Page. Tiles are otherwise verbatim.
+    - Superseded on 13 October 2026 (#230, #233; owner decision recorded on #140): section rows, Full Page and Copy all say "Could not read Apple Health.", tiles say "Could not read", and the technical message appears only in Developer tools.
   - The in-form Copy all button is a full-width, centred title and icon in its own section; Health uses compact section spacing to reduce the gap under collapsed sections.
   - The period choice resets to "Last 7 days" on relaunch on main as well (it was never persisted); unchanged here.
   - `Tools/check-app-boundaries.sh` now scans subfolders and allows `@preconcurrency import Foundation` and trailing comments.
