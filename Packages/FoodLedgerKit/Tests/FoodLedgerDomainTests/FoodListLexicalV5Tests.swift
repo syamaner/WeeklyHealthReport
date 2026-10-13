@@ -13,7 +13,10 @@ final class FoodListLexicalV5Tests: XCTestCase {
         ("2 handfuls of almonds", "almonds"),
         ("two handfuls almonds", "almonds"),
         ("half a handful of oats", "oats"),
+        // Nothing after the phrase: the line after its leading amount, never an empty query.
         ("a handful", "handful"),
+        ("a handful of", "handful of"),
+        ("pinch", "pinch"),
         ("- a handful of blueberries", "blueberries"),
         ("a pinch of salt", "salt"),
         ("pinch salt", "salt"),

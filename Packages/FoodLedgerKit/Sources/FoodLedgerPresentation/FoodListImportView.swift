@@ -178,7 +178,13 @@ public final class FoodListImportViewModel: ObservableObject {
         }
         let parsed = try FoodListParser.parse(combined, convention: .fullStopDecimal)
         guard let last = parsed.last else { throw FoodListParser.ParseError.empty }
-        let draft = FoodListLineDraft(parsed: last, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        var draft = FoodListLineDraft(parsed: last, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        // A saved name is a food name, not a pasted portion: when it starts with a vague portion
+        // word ("Pinch of Nom Lasagne", "Splash orange") v5 still gives no amount, but the search
+        // query keeps the whole saved name rather than losing brand words (food-list-lexical-v5).
+        if portion == nil, last.isV5, last.notices.contains(.householdMeasure) {
+            draft.query = name.trimmingCharacters(in: .whitespaces)
+        }
         restoring = true
         input = combined
         rows.append(FoodListReviewRow(draft: draft))

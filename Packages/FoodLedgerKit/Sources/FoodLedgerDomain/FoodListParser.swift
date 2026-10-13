@@ -352,7 +352,8 @@ public enum FoodListParser {
     /// after an article ("half a handful") and before "of". A closed list; see the v5 contract.
     private static let vaguePortionPattern = #"(?i)^(?:(?:a|an)\s+)?(?:handfuls?|pinch(?:es)?|dash(?:es)?|splash(?:es)?|drizzles?|bits?|few)\b\s*(?:of\b\s*)?"#
     /// The query without the vague portion phrase, which names no food; the original line keeps
-    /// it. A line that is only the phrase ("a handful") keeps it rather than leaving no query.
+    /// it. When nothing follows the phrase, the query is the text after the leading amount
+    /// ("a handful" gives "handful", "a handful of" gives "handful of"), never empty.
     private static func withoutVaguePortion(_ text: String, phrase: String) -> String {
         let rest = String(text.dropFirst(phrase.count)).trimmingCharacters(in: .whitespaces)
         return rest.isEmpty ? text : rest

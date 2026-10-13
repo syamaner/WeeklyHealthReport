@@ -122,6 +122,29 @@ final class FoodListImportPresentationTests: XCTestCase {
         }
     }
 
+    /// A common food whose saved name starts with a vague portion word keeps its whole name as
+    /// the search query (no brand words lost); without a usual portion it still has no amount.
+    func testCommonFoodNamesStartingWithVagueWordsKeepTheirName() throws {
+        for name in ["Pinch of Nom Lasagne", "Splash orange", "Bits & Bobs crisps", "A few cheeky peanuts"] {
+            let (model, search) = try listModel(locale: Locale(identifier: "en_GB"))
+            try model.addCommonFood(name: name, portion: nil)
+            let draft = try XCTUnwrap(model.selectedRow?.draft, name)
+            XCTAssertEqual(draft.query, name)
+            XCTAssertEqual(draft.quantityText, "", name)
+            XCTAssertEqual(draft.parsed.notices, [.householdMeasure], name)
+            model.search()
+            guard case let .descriptor(payload) = search.lastEvidence?.originalPayload else { return XCTFail("Missing descriptor") }
+            XCTAssertTrue(payload.value.contains(#""query":"\#(name)""#), payload.value)
+            XCTAssertEqual(search.lastEvidence?.captureMethodVersion.value, "food-list-lexical-v5", name)
+        }
+        let (model, _) = try listModel(locale: Locale(identifier: "en_GB"))
+        try model.addCommonFood(name: "Pinch of Nom Lasagne", portion: InventoryAmount(value: 250, unit: .grams))
+        let draft = try XCTUnwrap(model.selectedRow?.draft)
+        XCTAssertEqual(draft.query, "Pinch of Nom Lasagne")
+        XCTAssertEqual(draft.parsed.quantity, 250)
+        XCTAssertEqual(draft.parsed.notices, [])
+    }
+
     /// A queue saved by a v4 build restores with its v4 lines intact, never re-parsed under v5:
     /// a stored "a handful of fixture" keeps its v4 count proposal and v4 label.
     func testRestoredV4LinesKeepTheirParseAndLabel() throws {

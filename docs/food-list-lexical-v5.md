@@ -55,7 +55,7 @@ A vague word anywhere else in the line (`rice with a handful of peas`, `almonds 
 | `quantity` | none |
 | `unit` | none |
 | `notices` | `householdMeasure` (after `ambiguousNumber` when the leading numeral is ambiguous), plus any notice v4 would add after the amount (multiple amounts, supplement, recipe, coffee preparation) |
-| `query` | the rest of the line after the vague phrase and `of` (`almonds`); the phrase names no food and would only weaken search. A line that is only the phrase (`a handful`) keeps it as the query rather than leaving none |
+| `query` | the rest of the line after the vague phrase and `of` (`almonds`); the phrase names no food and would only weaken search. When nothing follows the phrase, the query is the line after its leading amount, so it is never empty: `a handful` gives `handful`, `a handful of` gives `handful of`, and `pinch` gives `pinch` |
 | `original` | unchanged, so the user and the evidence still see "a handful of almonds" |
 | `grammarVersion` | `food-list-lexical-v5` |
 | `numeralConvention` | the convention the line was parsed under, as in v4 |
@@ -81,7 +81,9 @@ A vague word anywhere else in the line (`rice with a handful of peas`, `almonds 
 
 Every line of the v4 golden corpus that contains no vague portion parses under v5 exactly as under v4, apart from the grammar version.
 
-Known limits, accepted: a product whose name starts with a vague word and has no amount (`a Dash water`) gets `householdMeasure` instead of v4's count; this fails safe, since the user enters the amount. Other vague words (`little`, `some`, `bowl`, `glass`) are outside this closed list; `a little bit of cheese` still reads as v4 does (a count of "little bit of cheese"). Widening the list needs a further version.
+Known limits, accepted: a pasted brand or product name that starts with a vague word and has no amount (`a Dash water`, `Pinch of Nom lasagne`) gets `householdMeasure` instead of v4's count or missing quantity, and the brand word is dropped from the search query (`a Dash water` searches for `water`). This fails safe: the user enters the amount, the original line is kept, and the query stays editable.
+
+Common foods added by the app are different: their text is a saved food name, not a pasted portion. When a common food with no usual portion has a name starting with a vague word (`Pinch of Nom Lasagne`, `Splash orange`, `Bits & Bobs crisps`), the line still has no amount and the household-measure notice, but its search query is the whole saved name (`FoodListImportViewModel.addCommonFood`). With a usual portion the app writes the amount first ("250 g Pinch of Nom Lasagne"), so the vague rule does not apply. Other vague words (`little`, `some`, `bowl`, `glass`) are outside this closed list; `a little bit of cheese` still reads as v4 does (a count of "little bit of cheese"). Widening the list needs a further version.
 
 ## Versions, stored lines and evidence
 
@@ -94,7 +96,7 @@ Known limits, accepted: a product whose name starts with a vague word and has no
 
 ## Confirm and the review screen
 
-No presentation or application rule changes. A vague line reaches the review screen with an empty amount and the household-measure notice, and Confirm opens with no amount (unit grams, the existing default for a line with no unit), so the needs-amount rule blocks Log until the user enters a measured amount. The #225 withholding safety net is unchanged and does not apply (there is no parsed amount to withhold).
+No application rule changes; the only presentation change is the common-food query rule above. A vague line reaches the review screen with an empty amount and the household-measure notice, and Confirm opens with no amount (unit grams, the existing default for a line with no unit), so the needs-amount rule blocks Log until the user enters a measured amount. The #225 withholding safety net is unchanged and does not apply (there is no parsed amount to withhold).
 
 ## Receipts and other callers: out of scope
 
@@ -113,7 +115,7 @@ All synthetic, offline and deterministic.
 1. **Golden vague table** (`FoodListLexicalV5Tests`): every vague form above, under `fullStopDecimal`, `commaDecimal` and `unspecified`, asserting no amount, no unit, the notices, the query, the version and the convention; and every v4 golden numeral form before a vague word, with `ambiguousNumber` exactly where v4 finds the numeral ambiguous.
 2. **v4 fixtures byte-identical**: `FoodListLexicalV4Tests` runs unchanged against the frozen `parseV4`; every non-vague line of the v4 corpus, plus look-alike words, parses under v5 exactly as under v4 apart from the version; the frozen v4 path still reads "a handful of almonds" as one count.
 3. **Restored lines unchanged**: stored v3 and v4 lines decode and re-encode byte-identically and keep their version; a v4 queue restored in the review screen keeps its parse, proposal and v4 evidence label (`FoodListImportPresentationTests`); an unknown version is not read as v4 or v5.
-4. **Confirm prefill empty**: a vague line reaches Confirm with no amount and `amountMissing` blocks Log, in en_GB, de_DE, fr_FR and a locale with an unrecognised decimal separator (`FoodListImportPresentationTests`, `CoFIDGenericFoodSearchTests`); its evidence is stamped v5 with the household-measure notice.
+4. **Confirm prefill empty**: a vague line reaches Confirm with no amount and `amountMissing` blocks Log, in en_GB, de_DE, fr_FR and a locale with an unrecognised decimal separator (`FoodListImportPresentationTests`, `CoFIDGenericFoodSearchTests`); its evidence is stamped v5 with the household-measure notice. A common food whose saved name starts with a vague word keeps the whole name as its query and evidence query, with and without a usual portion (`FoodListImportPresentationTests`).
 5. **Evidence**: a v5 line's descriptor bytes equal the v4 descriptor for the same line, stamped v5; stored v4 lines keep their v4 label and bytes.
 6. **Receipts unaffected**: a pinned `receipt-lexical-v1` snapshot of receipt lines starting with vague-looking words, and `ReceiptParserTests` unchanged.
 7. **Evaluation gates**: `FoodSearchQuality` and `FoodQueryEvaluation` do not use `FoodListParser` and stay unchanged. The full gates in `AGENTS.md` run once the code is stable.
