@@ -47,6 +47,8 @@ public struct AddFoodView: View {
     private let favouriteItems: [QuickAddItem]?
     private let quickAdd: ((QuickAddItem) -> Void)?
     private let relog: (FoodRecentRelogItem) -> Void
+    /// Save as favourite on recent rows (owner decision A); nil hides it.
+    private let favouriteSaving: FavouriteSaveModel?
     /// Under the list route when Add food carries a past Food Log day: list items are logged
     /// for now (confirmation v5 section 10), unlike the other routes.
     private let listImportNote: String?
@@ -55,10 +57,12 @@ public struct AddFoodView: View {
                 initialText: String = "",
                 search: @escaping (String) -> Void, scanBarcode: (() -> Void)?, pasteOrDictate: (() -> Void)?,
                 favourites: (() -> Void)?, favouriteItems: [QuickAddItem]? = [], quickAdd: ((QuickAddItem) -> Void)? = nil,
+                favouriteSaving: FavouriteSaveModel? = nil,
                 listImportNote: String? = nil,
                 relog: @escaping (FoodRecentRelogItem) -> Void) {
         self.listImportNote = listImportNote
         self.recents = recents; self.now = now; self.calendar = calendar
+        self.favouriteSaving = favouriteSaving
         self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate
         self.favourites = favourites; self.favouriteItems = favouriteItems; self.quickAdd = quickAdd; self.relog = relog
         _text = State(initialValue: initialText)
@@ -119,26 +123,53 @@ public struct AddFoodView: View {
                     ForEach(recents, id: \.item.logItemID) { recent in
                         let row = AddFoodRecentRowText(recent, now: now, calendar: calendar)
                         Button { relog(recent) } label: {
-                            recentRow(row).frame(minHeight: 44).contentShape(Rectangle())
+                            recentRow(row, recent: recent).frame(minHeight: 44).contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Opens the confirmation with the last amount filled in")
+                        .modifier(RecentFavouriteActions(model: savingModel(recent), id: recent.logItemVersionID,
+                                                         logItemID: recent.item.logItemID, title: row.title))
                     }
                 }
             } header: { Text("Recent") } footer: {
-                Text("Recent foods open the confirmation with the last amount filled in. Nothing is logged until you choose Log.")
+                if let favouriteSaving {
+                    RecentFooter(model: favouriteSaving, recents: recents.filter { savingModel($0) != nil })
+                } else {
+                    Text(RecentFooter.text(showsSaveHint: false))
+                }
             }
         }
         .navigationTitle("Add food")
     }
 
+    /// Whether any row can still be saved: pinnable, not plain water and not already a favourite.
+    @MainActor
+    public static func showsSaveHint(_ recents: [FoodRecentRelogItem], model: FavouriteSaveModel) -> Bool {
+        recents.contains { recent in
+            guard let id = recent.logItemVersionID, !recent.isPlainWater else { return false }
+            return !model.state(for: id).isFavourite
+        }
+    }
+
+    /// The saving model for a row that may be saved: verified, pinnable and not plain water.
+    private func savingModel(_ recent: FoodRecentRelogItem) -> FavouriteSaveModel? {
+        guard recent.logItemVersionID != nil, !recent.isPlainWater else { return nil }
+        return favouriteSaving
+    }
+
     @ViewBuilder
-    private func recentRow(_ row: AddFoodRecentRowText) -> some View {
+    private func favouriteBadge(_ recent: FoodRecentRelogItem) -> some View {
+        if let model = savingModel(recent), let id = recent.logItemVersionID { RecentFavouriteBadge(model: model, id: id) }
+    }
+
+    @ViewBuilder
+    private func recentRow(_ row: AddFoodRecentRowText, recent: FoodRecentRelogItem) -> some View {
         if AddFoodRecentRowText.stacks(at: dynamicTypeSize) {
             // Stacked at accessibility sizes, as in the Food Log, so the name never breaks mid-word.
             VStack(alignment: .leading, spacing: 4) {
                 Text(row.title).foregroundStyle(.primary)
                 Text(row.detail).font(.caption).foregroundStyle(.secondary)
+                favouriteBadge(recent)
                 if let energy = row.energy { Text(energy).font(.subheadline).foregroundStyle(.secondary).monospacedDigit() }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -148,6 +179,7 @@ public struct AddFoodView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(row.title).foregroundStyle(.primary)
                     Text(row.detail).font(.caption).foregroundStyle(.secondary)
+                    favouriteBadge(recent)
                 }
                 Spacer(minLength: 8)
                 if let energy = row.energy { Text(energy).font(.subheadline).foregroundStyle(.secondary).monospacedDigit() }
@@ -169,6 +201,95 @@ public struct AddFoodView: View {
                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
             }.frame(minHeight: 44).contentShape(Rectangle())
         }.buttonStyle(.plain)
+    }
+}
+
+/// Add food's Recent footer. The swipe hint appears only while at least one row can still be saved
+/// (pinnable, not plain water, not already a favourite).
+struct RecentFooter: View {
+    @ObservedObject var model: FavouriteSaveModel
+    /// Rows that offer the action (pinnable and not plain water).
+    let recents: [FoodRecentRelogItem]
+
+    static func text(showsSaveHint: Bool) -> String {
+        "Recent foods open the confirmation with the last amount filled in. Nothing is logged until you choose Log."
+            + (showsSaveHint ? " Swipe right or touch and hold to save one as a favourite." : "")
+    }
+
+    var body: some View {
+        Text(Self.text(showsSaveHint: AddFoodView.showsSaveHint(recents, model: model)))
+    }
+}
+
+/// "Already a favourite" or "Saved as favourite" on a recent row, never colour alone.
+struct RecentFavouriteBadge: View {
+    @ObservedObject var model: FavouriteSaveModel
+    let id: LogItemVersionID
+
+    var body: some View {
+        let state = model.state(for: id)
+        if state.isFavourite {
+            Label(FavouriteSaveText.title(state), systemImage: "star.fill").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Save as favourite on a recent row: a leading swipe, the context menu and a VoiceOver action. A
+/// failure says "Favourite not saved" with Try again; the logged entry is unchanged either way.
+struct RecentFavouriteActions: ViewModifier {
+    let model: FavouriteSaveModel?
+    let id: LogItemVersionID?
+    let logItemID: LogItemID
+    let title: String
+
+    func body(content: Content) -> some View {
+        if let model, let id {
+            content.modifier(Actions(model: model, id: id, logItemID: logItemID, title: title))
+        } else {
+            content
+        }
+    }
+
+    private struct Actions: ViewModifier {
+        @ObservedObject var model: FavouriteSaveModel
+        let id: LogItemVersionID
+        let logItemID: LogItemID
+        let title: String
+        @State private var alert = FavouriteRetryAlert()
+
+        func body(content: Content) -> some View {
+            let canSave = !model.state(for: id).isFavourite
+            content
+                .swipeActions(edge: .leading) {
+                    if canSave {
+                        Button(action: save) { Label(FavouriteSaveText.save, systemImage: "star") }.tint(.orange)
+                    }
+                }
+                .contextMenu {
+                    if canSave {
+                        Button(action: save) { Label(FavouriteSaveText.save, systemImage: "star") }
+                    } else {
+                        Label(FavouriteSaveText.title(model.state(for: id)), systemImage: "star.fill")
+                    }
+                }
+                .accessibilityActions {
+                    if canSave { Button(FavouriteSaveText.save, action: save) }
+                }
+                .alert(FavouriteSaveText.failed, isPresented: Binding(get: { alert.isPresented },
+                                                                      set: { if !$0 { alert.dismissed() } })) {
+                    Button(FavouriteSaveText.tryAgain) { alert.tryAgain() }
+                    Button("Cancel", role: .cancel) {}
+                } message: { Text(FavouriteSaveText.failedMessage) }
+                // Try again runs only after the alert has gone, so a second failure presents it again.
+                .onChange(of: alert.isPresented) { _, shown in
+                    if !shown, alert.takeRetry() { Task { @MainActor in save() } }
+                }
+        }
+
+        private func save() {
+            model.save(id, logItemID: logItemID)
+            alert.finished(model.state(for: id))
+        }
     }
 }
 

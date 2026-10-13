@@ -66,6 +66,21 @@ public struct FavouritesProjection: Equatable, Sendable {
     public func activeFavourite(boundTo logItemVersionID: LogItemVersionID) -> FavouriteVersion? {
         favourites.first { $0.binding == .savedEntry(logItemVersionID) }
     }
+
+    /// Plain water is offered for re-adding (Q7 amendment, 13 October 2026) only when its built-in
+    /// item is hidden and no plain water favourite is active: every water chain was removed.
+    public var canAddWater: Bool {
+        !showsBuiltInWater && !favourites.contains { $0.binding == .reference(.plainWaterV1) }
+    }
+
+    /// The removed plain water chain that "Add Water to quick add" continues: the earliest created
+    /// (ties by favourite ID), so the choice is deterministic and no second chain is started.
+    func removedWaterHead(created: [FavouriteID: Date]) -> FavouriteVersion? {
+        heads.values.filter { $0.binding == .reference(.plainWaterV1) && $0.state == .removed }.min {
+            let left = created[$0.favouriteID] ?? $0.createdAt, right = created[$1.favouriteID] ?? $1.createdAt
+            return left == right ? $0.favouriteID.rawValue < $1.favouriteID.rawValue : left < right
+        }
+    }
 }
 
 /// A rebuilt, unsaved quick-add state and where it may be logged.
@@ -245,6 +260,25 @@ public final class FavouritesService: @unchecked Sendable {
             amount: FavouriteAmount(value: QuickAddItem.builtInWaterMillilitres, unit: .millilitres), state: .removed, at: clock.now())
         _ = try ledger.commitFavourites(FavouriteMutation(favourites: [entry], favouriteVersions: [version]),
                                         type: .saveFavourite, operationID: ids.makeID(OperationTag.self))
+    }
+
+    /// "Add Water to quick add" (Q7 amendment, owner-approved 13 October 2026): after the water
+    /// item was removed, appends a new active version to the removed plain water chain
+    /// (`revise_favourite_v1`), keeping its label and default amount. It never starts a second
+    /// chain. A no-op when water is already offered (the built-in item or an active water
+    /// favourite), so repeating it writes nothing.
+    public func addWaterToQuickAdd() throws {
+        let records = try reader.favouriteRecords()
+        let projection = try FavouritesProjection(records: records)
+        guard projection.canAddWater else { return }
+        let created = Dictionary(records.favourites.map { ($0.favouriteID, $0.createdAt) }, uniquingKeysWith: { first, _ in first })
+        guard let head = projection.removedWaterHead(created: created) else { return }
+        let version = try FavouriteVersion(
+            favouriteVersionID: ids.makeID(FavouriteVersionTag.self), favouriteID: head.favouriteID,
+            ordinal: VersionOrdinal(head.ordinal.value + 1), supersedesFavouriteVersionID: head.favouriteVersionID,
+            binding: head.binding, label: head.label, defaultAmount: head.defaultAmount, state: .active, createdAt: clock.now())
+        _ = try ledger.commitFavourites(FavouriteMutation(favouriteVersions: [version]), type: .reviseFavourite,
+                                        operationID: ids.makeID(OperationTag.self))
     }
 
     /// The built-in item exists only until a plain water favourite chain does.

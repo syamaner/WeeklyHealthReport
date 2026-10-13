@@ -719,6 +719,123 @@ final class QuickAddAppTests: XCTestCase {
         XCTAssertEqual(AddFoodFavouritesState([.builtInWater], quickAdd: true), .items([.builtInWater]))
     }
 
+    /// Owner decision A: logging without Save as favourite, then saving from the saved entry and
+    /// from "From what you’ve logged" pins the current version; a repeat shows Already a favourite.
+    func testSaveAsFavouriteFromTheSavedEntryAndFromWhatYouLogged() throws {
+        let root = try makeRoot()
+        let confirm = root.model(for: try exactInput("Skyr"), prefillSourceQuantity: false)
+        confirm.send(.setQuantity(170, .grams))
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult)
+        let versionID = saved.logItemVersion.logItemVersionID
+        let logged = try root.loggedFoods()
+        XCTAssertEqual(logged.first?.logItemVersionID, versionID)
+        XCTAssertEqual(FavouriteFromLoggedView.offered(logged).map(\.name), ["Skyr"])
+
+        let fromEntry = root.favouriteSaveModel()
+        fromEntry.refresh([versionID])
+        XCTAssertEqual(fromEntry.state(for: versionID), .available)
+        fromEntry.save(versionID)
+        XCTAssertEqual(fromEntry.state(for: versionID), .saved)
+        guard case let .favourite(favourite)? = try XCTUnwrap(root.quickAddItems()).last else { return XCTFail("favourite") }
+        XCTAssertEqual(favourite.binding, .savedEntry(versionID))
+        XCTAssertEqual(favourite.defaultAmount, try FavouriteAmount(value: 170, unit: .grams))
+
+        let fromList = root.favouriteSaveModel()
+        fromList.refresh(logged.compactMap(\.logItemVersionID))
+        XCTAssertEqual(fromList.state(for: versionID), .alreadyFavourite)
+        fromList.save(versionID)
+        XCTAssertEqual(try XCTUnwrap(root.quickAddItems()).count, 2, "built-in water and one favourite, no duplicate")
+    }
+
+    /// Review question 1, through the composition root: the recent list is read, the entry is then
+    /// edited, and saving from the stale row pins the edited (current) version.
+    func testStaleRecentRowPinsTheCurrentVersion() throws {
+        let root = try makeRoot()
+        let confirm = root.model(for: try exactInput("Muesli"), prefillSourceQuantity: false)
+        confirm.send(.setQuantity(60, .grams))
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult)
+        let stale = try XCTUnwrap(try root.loggedFoods().first)
+        XCTAssertEqual(stale.logItemVersionID, saved.logItemVersion.logItemVersionID)
+        let edit = try XCTUnwrap(try root.model(reopening: saved.logItem.logItemID))
+        edit.send(.setQuantity(80, .grams))
+        edit.log()
+        let edited = try XCTUnwrap(edit.savedResult).logItemVersion.logItemVersionID
+        XCTAssertNotEqual(edited, stale.logItemVersionID)
+        let model = root.favouriteSaveModel()
+        model.save(try XCTUnwrap(stale.logItemVersionID), logItemID: stale.item.logItemID)
+        XCTAssertEqual(model.state(for: try XCTUnwrap(stale.logItemVersionID)), .saved)
+        guard case let .favourite(favourite)? = try XCTUnwrap(root.quickAddItems()).last else { return XCTFail("favourite") }
+        XCTAssertEqual(favourite.binding, .savedEntry(edited), "the current version, never the stale one")
+    }
+
+    /// Journey QA: a saved plain water entry names its source plainly and keeps the mL symbol;
+    /// other entries keep their family name.
+    func testSavedEntrySourceLineForPlainWaterAndFood() async throws {
+        let root = try makeRoot()
+        let sheet = root.quickAddSheetModel(try root.quickAddPreparation(.builtInWater))
+        sheet.log()
+        let water = try XCTUnwrap(sheet.savedResult)
+        let waterDetail = try XCTUnwrap(try root.foodLogService.savedEntry(water.logItem.logItemID))
+        XCTAssertEqual(FoodLogText.source(waterDetail), "Plain water · per 100 mL")
+        let confirm = root.model(for: try exactInput("Rye bread"), prefillSourceQuantity: false)
+        confirm.send(.setQuantity(40, .grams))
+        confirm.log()
+        let food = try XCTUnwrap(confirm.savedResult)
+        let foodDetail = try XCTUnwrap(try root.foodLogService.savedEntry(food.logItem.logItemID))
+        XCTAssertTrue(FoodLogText.source(foodDetail).hasSuffix(" · per 100 g"), FoodLogText.source(foodDetail))
+        XCTAssertFalse(FoodLogText.source(foodDetail).hasPrefix(FoodLogText.plainWaterSourceName))
+    }
+
+    /// Native renders of the changed Favourites layouts: the Add section with "From what you’ve
+    /// logged" and "Add Water to quick add", the list itself, and the saved entry's favourite
+    /// section; default and accessibility3 text sizes.
+    func testFavouritesFromLoggedScreensRender() async throws {
+        let root = try makeRoot()
+        let confirm = root.model(for: try exactInput("Overnight oats with blueberries and a long descriptive name"), prefillSourceQuantity: false)
+        confirm.send(.setQuantity(200, .grams))
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult)
+        let favourites = root.favouritesModel()
+        favourites.reload()
+        favourites.remove(try XCTUnwrap(favourites.today.first))
+        XCTAssertTrue(favourites.canAddWater)
+        let logged = try root.loggedFoods()
+        let saving = root.favouriteSaveModel()
+        saving.refresh(logged.compactMap(\.logItemVersionID))
+        let failing = root.favouriteSaveModel()
+        for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
+            render(NavigationStack {
+                FavouritesView(model: favourites, createFromLogged: {}, createFromSearch: {}, createFromBarcode: {}, createFromWebLookup: {})
+            }.environment(\.dynamicTypeSize, size), "Favourites - water removed, add section \(name)")
+            render(NavigationStack {
+                FavouriteFromLoggedView(content: .items(logged), now: root.confirmationNow, calendar: root.confirmationDayCalendar,
+                                        model: saving, retry: {})
+            }.environment(\.dynamicTypeSize, size), "From what you've logged - \(name)")
+            render(NavigationStack {
+                FavouriteFromLoggedView(content: .failed, now: root.confirmationNow, calendar: root.confirmationDayCalendar,
+                                        model: failing, retry: {})
+            }.environment(\.dynamicTypeSize, size), "From what you've logged - failed \(name)")
+            let entry = root.savedEntryModel(saved.logItem.logItemID)
+            await entry.load()
+            XCTAssertEqual(entry.phase, .loaded)
+            XCTAssertEqual(entry.detail?.isPlainWater, false)
+            render(NavigationStack {
+                SavedFoodEntryView(model: entry, favourites: root.favouriteSaveModel(),
+                                   calendar: root.confirmationDayCalendar, now: { root.confirmationNow })
+            }.environment(\.dynamicTypeSize, size), "Saved entry - save as favourite \(name)")
+        }
+        saving.save(saved.logItemVersion.logItemVersionID)
+        render(NavigationStack {
+            FavouriteFromLoggedView(content: .items(logged), now: root.confirmationNow, calendar: root.confirmationDayCalendar,
+                                    model: saving, retry: {})
+        }, "From what you've logged - saved")
+        favourites.addWater()
+        XCTAssertFalse(favourites.canAddWater)
+        XCTAssertEqual(favourites.today.first?.title, "Water")
+    }
+
     /// Native renders (synthetic data): Favourites populated and empty, Home chips (including a long
     /// name, whose amount stays whole), the quick-add sheet ready and with an invalid custom amount,
     /// Confirm with Save as favourite; standard and accessibility text sizes, light and dark.

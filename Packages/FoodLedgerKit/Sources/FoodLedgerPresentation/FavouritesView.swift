@@ -13,6 +13,8 @@ public protocol FavouritesManaging: AnyObject {
     func arrange(_ items: [QuickAddItem]) throws
     func saveBuiltInWater(label: LedgerText, millilitres: Double) throws
     func removeBuiltInWater() throws
+    /// Q7 amendment: re-adds plain water after its item was removed; a no-op when already offered.
+    func addWaterToQuickAdd() throws
 }
 
 extension FavouritesService: FavouritesManaging {}
@@ -24,6 +26,10 @@ public struct FavouriteRow: Equatable, Identifiable {
     public let title: String
     public let detail: String
     public let isUnverifiable: Bool
+
+    public init(id: String, item: QuickAddItem, title: String, detail: String, isUnverifiable: Bool) {
+        self.id = id; self.item = item; self.title = title; self.detail = detail; self.isUnverifiable = isUnverifiable
+    }
 }
 
 @MainActor
@@ -34,6 +40,8 @@ public final class FavouritesViewModel: ObservableObject {
     @Published public private(set) var today: [FavouriteRow] = []
     @Published public private(set) var others: [FavouriteRow] = []
     @Published public private(set) var changeFailure: String?
+    /// "Add Water to quick add" is offered: the water item was removed and none is active.
+    @Published public private(set) var canAddWater = false
     private let store: any FavouritesManaging
 
     public static let competingMessage = "Favourites changed on another device and need review before they can be shown."
@@ -50,11 +58,12 @@ public final class FavouritesViewModel: ObservableObject {
             let rows = projection.quickAddItems.map(row)
             today = Array(rows.prefix(FavouritesProjection.todayCount))
             others = Array(rows.dropFirst(FavouritesProjection.todayCount))
+            canAddWater = projection.canAddWater
             phase = .loaded
         } catch is FavouritesProjectionError {
-            today = []; others = []; phase = .failed(Self.competingMessage)
+            today = []; others = []; canAddWater = false; phase = .failed(Self.competingMessage)
         } catch {
-            today = []; others = []; phase = .failed(Self.unreadableMessage)
+            today = []; others = []; canAddWater = false; phase = .failed(Self.unreadableMessage)
         }
     }
 
@@ -117,6 +126,25 @@ public final class FavouritesViewModel: ObservableObject {
         }
     }
 
+    /// Re-adds plain water to quick add (Q7 amendment, 13 October 2026).
+    public func addWater() {
+        perform { try store.addWaterToQuickAdd() }
+    }
+
+    public static let addWaterTitle = "Add Water to quick add"
+    public static let addWaterFooter = "Water was removed from quick add. Adding it back keeps its name and amount."
+
+    /// The removal confirmation. Water says how to add it back, since its item is built in.
+    public static func removalTitle(_ row: FavouriteRow) -> String {
+        QuickAddText.isPlainWater(row.item) ? "Remove Water from quick add?" : "Remove this favourite?"
+    }
+
+    public static func removalMessage(_ row: FavouriteRow) -> String {
+        QuickAddText.isPlainWater(row.item)
+            ? "Water will no longer appear in quick add. You can add it back in Favourites with \u{201C}\(addWaterTitle)\u{201D}. Water you have already logged stays in your Food Log."
+            : "Entries you have already logged stay in your Food Log."
+    }
+
     private func perform(_ change: () throws -> Void) {
         do { try change(); changeFailure = nil } catch { changeFailure = Self.notSavedMessage }
         reload()
@@ -127,18 +155,19 @@ public final class FavouritesViewModel: ObservableObject {
 /// routes that create a favourite. Photo routes are not available yet (#93).
 public struct FavouritesView: View {
     @ObservedObject private var model: FavouritesViewModel
+    private let createFromLogged: (() -> Void)?
     private let createFromSearch: () -> Void
     private let createFromBarcode: () -> Void
     private let createFromWebLookup: () -> Void
     @State private var editing: FavouriteRow?
     @State private var labelText = ""
     @State private var amountText = ""
-    @State private var removing: FavouriteRow?
     @Environment(\.locale) private var locale
 
-    public init(model: FavouritesViewModel, createFromSearch: @escaping () -> Void,
+    public init(model: FavouritesViewModel, createFromLogged: (() -> Void)? = nil, createFromSearch: @escaping () -> Void,
                 createFromBarcode: @escaping () -> Void, createFromWebLookup: @escaping () -> Void) {
         self.model = model
+        self.createFromLogged = createFromLogged
         self.createFromSearch = createFromSearch; self.createFromBarcode = createFromBarcode
         self.createFromWebLookup = createFromWebLookup
     }
@@ -174,14 +203,31 @@ public struct FavouritesView: View {
                     }
                 }
             }
+            if createFromLogged != nil || showsAddWater {
+                Section {
+                    if let createFromLogged {
+                        createRow(FavouriteFromLoggedView.title, systemImage: "clock.arrow.circlepath", action: createFromLogged,
+                                  hint: "Lists foods you have logged recently. Saving one as a favourite logs nothing.")
+                    }
+                    if showsAddWater {
+                        Button { model.addWater() } label: {
+                            Label(FavouritesViewModel.addWaterTitle, systemImage: "drop")
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        }
+                        .accessibilityHint("Puts the plain water item back on quick add. Nothing is logged.")
+                    }
+                } header: { Text("Add a favourite") } footer: {
+                    Text(showsAddWater ? Self.addFooter + " " + FavouritesViewModel.addWaterFooter : Self.addFooter)
+                }
+            }
             Section {
-                createRow("Food search", systemImage: "magnifyingglass", action: createFromSearch)
-                createRow("Barcode", systemImage: "barcode.viewfinder", action: createFromBarcode)
-                createRow("Web lookup", systemImage: "globe", action: createFromWebLookup)
+                createRow("Food search", systemImage: "magnifyingglass", action: createFromSearch, hint: Self.logNowHint("food search"))
+                createRow("Barcode", systemImage: "barcode.viewfinder", action: createFromBarcode, hint: Self.logNowHint("barcode"))
+                createRow("Web lookup", systemImage: "globe", action: createFromWebLookup, hint: Self.logNowHint("web lookup"))
                 unavailableRow("Photo of nutrition label")
                 unavailableRow("Photo of the food")
-            } header: { Text("Create a favourite from") } footer: {
-                Text("A favourite keeps its source and a default amount, so logging it later takes one step.")
+            } header: { Text(Self.logNowHeader) } footer: {
+                Text(Self.logNowFooter)
             }
         }
         .navigationTitle("Favourites")
@@ -194,14 +240,25 @@ public struct FavouritesView: View {
         .sheet(item: $editing) { row in
             NavigationStack {
                 FavouriteEditor(labelText: $labelText, amountText: $amountText, unitLabel: unitLabel(row.item),
+                                removalTitle: FavouritesViewModel.removalTitle(row),
+                                removalMessage: FavouritesViewModel.removalMessage(row),
                                 cancel: { editing = nil }, save: { save(row) },
-                                remove: { removing = row; editing = nil })
+                                remove: { model.remove(row); editing = nil })
             }
         }
-        .alert("Remove this favourite?", isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } })) {
-            Button("Remove", role: .destructive) { if let removing { model.remove(removing) }; removing = nil }
-            Button("Cancel", role: .cancel) { removing = nil }
-        } message: { Text("Entries you have already logged stay in your Food Log.") }
+    }
+
+    private var showsAddWater: Bool { model.phase == .loaded && model.canAddWater }
+
+    public static let addFooter = "A favourite keeps its source and a default amount, so logging it later takes one step."
+
+    /// The search, barcode and web routes log the food now and save it as a favourite (owner
+    /// decision A); Confirm shows When, so the time can be changed before Log.
+    public static let logNowHeader = "Log now and save favourite"
+    public static let logNowFooter = "These log the food as well as saving it. Check When on the confirmation before you choose Log."
+
+    static func logNowHint(_ route: String) -> String {
+        "Opens \(route). Log records the food at the time shown under When and saves it as a favourite."
     }
 
     private func rowView(_ row: FavouriteRow) -> some View {
@@ -246,7 +303,7 @@ public struct FavouritesView: View {
         }
     }
 
-    private func createRow(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+    private func createRow(_ title: String, systemImage: String, action: @escaping () -> Void, hint: String) -> some View {
         Button(action: action) {
             HStack {
                 Label(title, systemImage: systemImage).foregroundStyle(.primary)
@@ -255,7 +312,7 @@ public struct FavouritesView: View {
             }.frame(minHeight: 44).contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityHint("Opens \(title.lowercased()). Log the food with Save as favourite on to create a favourite.")
+        .accessibilityHint(hint)
     }
 
     private func unavailableRow(_ title: String) -> some View {
@@ -280,10 +337,14 @@ struct FavouriteEditor: View {
     @Binding var labelText: String
     @Binding var amountText: String
     let unitLabel: String
+    var removalTitle = "Remove this favourite?"
+    var removalMessage = "Entries you have already logged stay in your Food Log."
     let cancel: () -> Void
     let save: () -> Void
     let remove: () -> Void
     @FocusState private var editingAmount: AmountFieldFocus?
+    /// Removal is always confirmed, inside the editor so the alert never races the sheet's dismissal.
+    @State private var confirmsRemoval = false
 
     var body: some View {
         Form {
@@ -299,11 +360,15 @@ struct FavouriteEditor: View {
                 Text("Changing a favourite never changes entries you have already logged.")
             }
             Section {
-                Button("Remove favourite", role: .destructive, action: remove).frame(minHeight: 44)
+                Button("Remove favourite", role: .destructive) { confirmsRemoval = true }.frame(minHeight: 44)
             }
         }
         .amountKeyboardDismissal($editingAmount, placement: Self.donePlacement)
         .navigationTitle("Edit favourite")
+        .alert(removalTitle, isPresented: $confirmsRemoval) {
+            Button("Remove", role: .destructive, action: remove)
+            Button("Cancel", role: .cancel) {}
+        } message: { Text(removalMessage) }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel", action: cancel) }
             ToolbarItem(placement: .confirmationAction) { Button("Save", action: save) }
