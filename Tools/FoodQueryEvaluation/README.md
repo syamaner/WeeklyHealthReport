@@ -64,3 +64,30 @@ Frozen synthetic predictions are retained as deterministic gzip files in
 `score.py` with the matching fixture. The report pins SHA-256 of the uncompressed
 prediction bytes and fixture bytes. Reasons are diagnostic and not scored.
 No personal diary contents are included in these prediction files.
+
+## Current checkpoint: v6 (food-query-parser-v8)
+
+523 cases: v5 unchanged plus 12 egg-count cases (`build_v6.py`, family
+`egg_count_v6`). Expectations were written against food-query-parser-v7, whose
+hash the manifest records. Seven are counts ("2 scrambled eggs", "two fried
+eggs", "3 poached eggs", "a fried egg", "one poached egg", "2 x scrambled eggs"
+and a branded form); five are boundaries that must not become counts or must
+reject ("2 scrambled eggs 120g", "2 fried bananas", "2 pan fried eggs",
+"not fried 2 eggs", "0 fried eggs"). See `docs/food-query-parser-v8.md`.
+
+| Run | Routing | Quantity | Search cases, all fields | Unexpected prefills |
+|---|---:|---:|---:|---:|
+| v6 first run (parser v7) | 518/523 | 516/523 | 347/354 | 0 |
+| v6 final (parser v8) | 523/523 | 523/523 | 354/354 | 0 |
+
+The v5 gate still passes unchanged with parser v8 (511/511 routing and quantity,
+every v5 report field equal to `metrics-v5-final.json` except the predictions hash,
+which differs only in diagnostic reason strings of three clarification cases that
+predate this change). CI now gates v6.
+
+```sh
+python3 Tools/FoodQueryEvaluation/validate.py v6
+swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryDiscoveryPolicy.swift Tools/FoodQueryEvaluation/run.swift -o /tmp/whr-query-eval
+/tmp/whr-query-eval Tools/FoodQueryEvaluation/synthetic-v6.json /tmp/query-results.json
+python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v6.json /tmp/query-results.json /tmp/query-report.json --gate
+```
