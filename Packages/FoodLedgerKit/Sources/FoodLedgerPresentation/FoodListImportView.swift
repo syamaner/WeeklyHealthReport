@@ -377,7 +377,7 @@ public struct FoodListImportView: View {
                 }
                 if let row = model.selectedRow { editor(row) }
                 Section {
-                    Text("Your list and review progress are saved on this device. Resume here after reopening the app; matches are refreshed before confirmation.")
+                    Text("Your list and progress are saved on this device, so you can carry on here after reopening the app.")
                         .font(.caption)
                     Button("Start another list") { confirmsNewList = true }
                 }
@@ -429,8 +429,8 @@ public struct FoodListImportView: View {
                     Label(FoodListNotice.ambiguousNumber.message, systemImage: "exclamationmark.triangle").font(.caption)
                 }
                 VStack(alignment: .leading) {
-                    Text("Food name and modifiers").font(.caption)
-                    TextField("Food name and modifiers", text: binding(row, \.query))
+                    Text("Food").font(.caption)
+                    TextField("Food", text: binding(row, \.query))
                 }
                 if let suggestion = FoodListParser.suggestedQuery(row.draft.query) {
                     Button("Use spelling: \(suggestion)") {
@@ -474,8 +474,8 @@ public struct FoodListImportView: View {
                     .disabled(row.draft.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || amountRefused)
                 if case let .unresolved(message) = row.status { Text(message) }
                 if case let .failed(message) = row.status { Text(message) }
-                Button("Defer this line") { model.deferLine() }
-                Button("Decline this line", role: .cancel) { model.declineLine() }
+                Button("Skip for now") { model.deferLine() }
+                Button("Don’t log this line", role: .cancel) { model.declineLine() }
             }
             if let route = row.route {
                 Section("Choose a match to review") {
@@ -564,11 +564,24 @@ public struct FoodListMatchRowText: Equatable, Sendable {
 
     public init(isSavedFood: Bool, isExactName: Bool, materialDifferences: [String]) {
         badge = isSavedFood ? "Saved food" : isExactName ? "Exact name" : nil
-        let closest = isSavedFood || isExactName ? [] : ["Closest candidate"]
-        details = closest + materialDifferences.map {
-            $0.replacingOccurrences(of: "candidate_only_token:", with: "Candidate adds: ")
-                .replacingOccurrences(of: "query_only_token:", with: "Your entry adds: ")
+        let closest = isSavedFood || isExactName ? [] : ["Closest match, not an exact name"]
+        details = closest + materialDifferences.map(Self.plain)
+    }
+
+    /// Plain wording for one stored match difference. The stored text is source evidence and
+    /// never changes; only its display is reworded, so search diagnostics do not reach the user.
+    static func plain(_ difference: String) -> String {
+        if difference.hasPrefix("candidate_only_token:") {
+            return "This match also mentions: " + difference.dropFirst("candidate_only_token:".count)
         }
+        if difference.hasPrefix("query_only_token:") {
+            return "Not in this match: " + difference.dropFirst("query_only_token:".count)
+        }
+        if difference.hasPrefix("Search terms: ") {
+            let terms = difference.dropFirst("Search terms: ".count).prefix { $0 != ";" }
+            return "Matched on: \(terms). Check the type and preparation are what you ate."
+        }
+        return difference
     }
 }
 

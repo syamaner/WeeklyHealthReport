@@ -52,7 +52,7 @@ struct FoodVoiceInputView: View {
                         Button("Discard this speech candidate", role: .destructive) { speech.discardReviewTranscript() }
                     }
                 }
-                Section("Editable food text — not saved") {
+                Section("Editable food text (not saved)") {
                     TextEditor(text: $draft.text).frame(minHeight: 160).accessibilityLabel("Recognised food text")
                         .disabled(active)
                     Toggle("I checked every quantity and unit, and put each item on its own line", isOn: $draft.checkedNumbersAndUnits)

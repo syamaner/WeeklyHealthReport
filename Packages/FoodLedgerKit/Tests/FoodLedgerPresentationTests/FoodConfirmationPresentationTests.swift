@@ -61,7 +61,7 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         )
         XCTAssertEqual(
             FoodConfirmationViewModel.message(for: FoodConfirmationSaveError.invalidQuantity),
-            "Enter a finite quantity greater than zero."
+            "Enter an amount greater than zero."
         )
         XCTAssertEqual(
             FoodConfirmationViewModel.message(
@@ -215,7 +215,7 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
             throw CocoaError(.fileWriteUnknown)
         }
-        XCTAssertEqual(model.nutritionReferenceTitle, "Reference nutrition — Per 100 g")
+        XCTAssertEqual(model.nutritionReferenceTitle, "Reference nutrition: Per 100 g")
         XCTAssertEqual(FoodConfirmationViewModel.nutrientLabel(.energyConsumed), "Energy")
         model.send(.setQuantity(200, .millilitres))
         XCTAssertTrue(model.consumedNutrition.allSatisfy { $0.knownAmount == nil })
@@ -236,7 +236,7 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         let model = FoodConfirmationViewModel(state: try fixtureState(basis: .per100Millilitres, knownProtein: true)) { _ in
             throw CocoaError(.fileWriteUnknown)
         }
-        XCTAssertEqual(model.nutritionReferenceTitle, "Reference nutrition — Per 100 mL")
+        XCTAssertEqual(model.nutritionReferenceTitle, "Reference nutrition: Per 100 mL")
         model.send(.setQuantity(200, .millilitres))
         XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, 16)
         model.send(.setQuantity(200, .grams))
@@ -292,7 +292,7 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         let corrected = try fixtureState(basis: .per100Millilitres, knownProtein: true).selectedCandidate
         model.send(.applyCorrection(FoodCorrection(name: corrected.name, brand: nil, variant: nil,
             identity: corrected.candidate.identity, nutrients: corrected.candidate.nutrients, reason: try LedgerText("Synthetic basis correction"))))
-        XCTAssertEqual(model.nutritionReferenceTitle, "Reference nutrition — Per 100 g")
+        XCTAssertEqual(model.nutritionReferenceTitle, "Reference nutrition: Per 100 g")
         XCTAssertEqual(model.consumedNutritionBasisLabel, "User-corrected calculation basis: Per 100 mL")
         XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, 16)
     }
