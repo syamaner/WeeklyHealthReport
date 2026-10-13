@@ -40,6 +40,8 @@ CODE_READ_DOCS = {
     # Cited by the list grammars (food-list-lexical-v4, v5) and their golden-table tests.
     "docs/food-list-lexical-v4.md",
     "docs/food-list-lexical-v5.md",
+    # Cited by the shared lexical policy (food-lexical-terms-v9), its tests and CI.
+    "docs/food-lexical-terms-v9.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this

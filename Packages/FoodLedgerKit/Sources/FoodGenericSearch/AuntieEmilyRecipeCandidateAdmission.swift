@@ -61,7 +61,7 @@ public struct AuntieEmilyRecipeCandidateAdmission: FoodSourceCandidateAdmitting 
     }
     private static func terms(_ text: String) -> Set<String> {
         let ignored: Set<String> = ["with", "and", "n", "fried"]
-        return Set(GenericFoodSearchTerms.tokens(text).filter { !ignored.contains($0) }.map {
+        return Set(GenericFoodSearchTerms.literalTokens(text).filter { !ignored.contains($0) }.map {
             switch $0 { case "taiwanese": "taiwan"; case "noodles", "noodle": "pasta"; case "eggs": "egg"; default: $0 }
         })
     }

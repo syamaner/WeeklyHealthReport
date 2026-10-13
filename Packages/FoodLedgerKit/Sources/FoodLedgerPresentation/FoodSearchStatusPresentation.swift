@@ -174,8 +174,8 @@ public enum FoodSearchResultText {
         guard let query else { return nil }
         var notes: [String] = []
         if let literal = query.attributes["unspecified_percent"] { notes.append("\(literal)% meaning needs review") }
-        let requested = Set(GenericFoodRankingPolicy.terms(query.food ?? query.original))
-        let actual = Set(GenericFoodRankingPolicy.terms(candidate.name.value))
+        let requested = Set(GenericFoodRankingPolicy.literalTerms(query.food ?? query.original))
+        let actual = Set(GenericFoodRankingPolicy.literalTerms(candidate.name.value))
         if requested.contains("greek"), requested.contains("style") != actual.contains("style") {
             notes.append(actual.contains("style") ? "Greek-style alternative" : "Greek yoghurt alternative")
         }

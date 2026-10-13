@@ -7,7 +7,7 @@ public enum TFDASearchError: Error, Equatable { case missingCorpus, hashMismatch
 
 /// Reviewed Taiwan composition records. Retrieval aliases never change source identity or values.
 public final class TFDAGenericFoodSearch: GenericFoodSearching, @unchecked Sendable {
-    public static let matcherVersion = "tfda-reviewed-ranking-v1"
+    public static let matcherVersion = "tfda-reviewed-ranking-v2"
     public static let corpusSHA256 = "95949fcb64a6a45ede5298080ded30feebb9608e1054fa7d3dca6f422a67d72a"
     private let corpus: TFDACorpus
     private let release: SourceRelease
