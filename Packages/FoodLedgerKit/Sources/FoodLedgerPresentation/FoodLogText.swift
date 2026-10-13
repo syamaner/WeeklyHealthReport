@@ -218,8 +218,14 @@ public enum FoodLogText {
         return nil
     }
 
+    public static let plainWaterSourceName = "Plain water"
+
+    /// "UK reference · per 100 g"; the app's plain water reference reads "Plain water · per 100 mL".
+    /// Only the first letter of the basis is lowered, so unit symbols such as mL keep their case.
     public static func source(_ detail: SavedFoodEntryDetail) -> String {
-        "\(FoodSearchResultText.family(detail.sourceFamily)) · \(FoodNutritionReviewPresentation.basisLabel(detail.basis).lowercased())"
+        let name = detail.isPlainWater ? plainWaterSourceName : FoodSearchResultText.family(detail.sourceFamily)
+        let basis = FoodNutritionReviewPresentation.basisLabel(detail.basis)
+        return "\(name) · \(basis.prefix(1).lowercased() + basis.dropFirst())"
     }
 
     public static func facet(_ facet: IdentityContradiction) -> String {

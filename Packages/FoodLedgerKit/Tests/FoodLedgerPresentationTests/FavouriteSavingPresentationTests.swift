@@ -156,6 +156,29 @@ final class FavouriteSavingPresentationTests: XCTestCase {
         XCTAssertFalse(alert.isPresented)
     }
 
+    /// Journey QA: Add food's swipe hint shows only while a row can still be saved.
+    func testAddFoodSwipeHintOnlyWhileARowCanBeSaved() throws {
+        func recent(_ number: Int, version: LogItemVersionID?, water: Bool = false) throws -> FoodRecentRelogItem {
+            FoodRecentRelogItem(item: FoodRecentItem(logItemID: try LedgerID(String(format: "00000000-0000-0000-0000-%012x", 600 + number)),
+                sourceReleaseID: try ExternalIdentifier("fixture:release"), recordID: try ExternalIdentifier("fixture:\(number)"),
+                occurredAt: Date(timeIntervalSince1970: 1_791_800_000), lastAmount: try PositiveQuantity(value: 150, unit: .grams), energyKcal: 90),
+                name: "Food \(number)", isEstimate: false, logItemVersionID: version, isPlainWater: water)
+        }
+        let store = FakeStore()
+        let saved = try id(20), open = try id(21)
+        store.active = [saved]
+        let model = FavouriteSaveModel(store: store)
+        let favourite = try recent(1, version: saved), available = try recent(2, version: open)
+        let water = try recent(3, version: try id(22), water: true), unpinnable = try recent(4, version: nil)
+        model.refresh([saved, open])
+        XCTAssertTrue(AddFoodView.showsSaveHint([favourite, available, water, unpinnable], model: model))
+        XCTAssertFalse(AddFoodView.showsSaveHint([favourite, water, unpinnable], model: model),
+                       "already a favourite, plain water and unpinnable rows cannot be saved")
+        XCTAssertFalse(AddFoodView.showsSaveHint([], model: model))
+        model.save(open)
+        XCTAssertFalse(AddFoodView.showsSaveHint([favourite, available], model: model), "hidden once the last row is saved")
+    }
+
     func testFromWhatYouLoggedOffersOnlyPinnableNonWaterFoods() throws {
         func recent(_ number: Int, version: LogItemVersionID?, water: Bool) throws -> FoodRecentRelogItem {
             FoodRecentRelogItem(item: FoodRecentItem(logItemID: try LedgerID(String(format: "00000000-0000-0000-0000-%012x", 500 + number)),

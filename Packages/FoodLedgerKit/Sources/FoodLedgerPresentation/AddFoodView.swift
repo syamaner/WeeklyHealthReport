@@ -125,12 +125,23 @@ public struct AddFoodView: View {
                     }
                 }
             } header: { Text("Recent") } footer: {
-                Text(!recents.contains { savingModel($0) != nil }
-                     ? "Recent foods open the confirmation with the last amount filled in. Nothing is logged until you choose Log."
-                     : "Recent foods open the confirmation with the last amount filled in. Nothing is logged until you choose Log. Swipe right or touch and hold to save one as a favourite.")
+                if let favouriteSaving {
+                    RecentFooter(model: favouriteSaving, recents: recents.filter { savingModel($0) != nil })
+                } else {
+                    Text(RecentFooter.text(showsSaveHint: false))
+                }
             }
         }
         .navigationTitle("Add food")
+    }
+
+    /// Whether any row can still be saved: pinnable, not plain water and not already a favourite.
+    @MainActor
+    public static func showsSaveHint(_ recents: [FoodRecentRelogItem], model: FavouriteSaveModel) -> Bool {
+        recents.contains { recent in
+            guard let id = recent.logItemVersionID, !recent.isPlainWater else { return false }
+            return !model.state(for: id).isFavourite
+        }
     }
 
     /// The saving model for a row that may be saved: verified, pinnable and not plain water.
@@ -183,6 +194,23 @@ public struct AddFoodView: View {
                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
             }.frame(minHeight: 44).contentShape(Rectangle())
         }.buttonStyle(.plain)
+    }
+}
+
+/// Add food's Recent footer. The swipe hint appears only while at least one row can still be saved
+/// (pinnable, not plain water, not already a favourite).
+struct RecentFooter: View {
+    @ObservedObject var model: FavouriteSaveModel
+    /// Rows that offer the action (pinnable and not plain water).
+    let recents: [FoodRecentRelogItem]
+
+    static func text(showsSaveHint: Bool) -> String {
+        "Recent foods open the confirmation with the last amount filled in. Nothing is logged until you choose Log."
+            + (showsSaveHint ? " Swipe right or touch and hold to save one as a favourite." : "")
+    }
+
+    var body: some View {
+        Text(Self.text(showsSaveHint: AddFoodView.showsSaveHint(recents, model: model)))
     }
 }
 

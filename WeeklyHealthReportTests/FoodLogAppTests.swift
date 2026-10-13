@@ -618,6 +618,24 @@ final class QuickAddAppTests: XCTestCase {
         XCTAssertEqual(favourite.binding, .savedEntry(edited), "the current version, never the stale one")
     }
 
+    /// Journey QA: a saved plain water entry names its source plainly and keeps the mL symbol;
+    /// other entries keep their family name.
+    func testSavedEntrySourceLineForPlainWaterAndFood() async throws {
+        let root = try makeRoot()
+        let sheet = root.quickAddSheetModel(try root.quickAddPreparation(.builtInWater))
+        sheet.log()
+        let water = try XCTUnwrap(sheet.savedResult)
+        let waterDetail = try XCTUnwrap(try root.foodLogService.savedEntry(water.logItem.logItemID))
+        XCTAssertEqual(FoodLogText.source(waterDetail), "Plain water · per 100 mL")
+        let confirm = root.model(for: try exactInput("Rye bread"), prefillSourceQuantity: false)
+        confirm.send(.setQuantity(40, .grams))
+        confirm.log()
+        let food = try XCTUnwrap(confirm.savedResult)
+        let foodDetail = try XCTUnwrap(try root.foodLogService.savedEntry(food.logItem.logItemID))
+        XCTAssertTrue(FoodLogText.source(foodDetail).hasSuffix(" · per 100 g"), FoodLogText.source(foodDetail))
+        XCTAssertFalse(FoodLogText.source(foodDetail).hasPrefix(FoodLogText.plainWaterSourceName))
+    }
+
     /// Native renders of the changed Favourites layouts: the Add section with "From what you’ve
     /// logged" and "Add Water to quick add", the list itself, and the saved entry's favourite
     /// section; default and accessibility3 text sizes.
