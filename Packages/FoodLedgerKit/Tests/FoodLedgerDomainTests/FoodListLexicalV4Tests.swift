@@ -38,7 +38,7 @@ final class FoodListLexicalV4Tests: XCTestCase {
             for (convention, expected) in [(NumeralConvention.fullStopDecimal, fullStop), (.commaDecimal, comma), (.unspecified, unspecified)] {
                 XCTAssertEqual(FoodListParser.number(numeral, convention: convention), expected, "\(numeral) \(convention)")
                 for text in ["\(numeral) g rice", "rice \(numeral) g"] {
-                    let line = try XCTUnwrap(FoodListParser.parse(text, convention: convention).first)
+                    let line = try XCTUnwrap(FoodListParser.parseV4(text, convention: convention).first)
                     let label = "\(text) \(convention)"
                     XCTAssertEqual(line.quantity, expected, label)
                     XCTAssertEqual(line.query, "rice", label)
@@ -69,11 +69,11 @@ final class FoodListLexicalV4Tests: XCTestCase {
 
     /// Q1: "1,500" groups only under full-stop-decimal; kg and L still scale.
     func testGroupedAmountsScaleWithTheirUnit() throws {
-        let english = try XCTUnwrap(FoodListParser.parse("1,500 kg rice", convention: .fullStopDecimal).first)
+        let english = try XCTUnwrap(FoodListParser.parseV4("1,500 kg rice", convention: .fullStopDecimal).first)
         XCTAssertEqual(english.quantity, 1_500_000)
-        let german = try XCTUnwrap(FoodListParser.parse("1,500 kg Reis", convention: .commaDecimal).first)
+        let german = try XCTUnwrap(FoodListParser.parseV4("1,500 kg Reis", convention: .commaDecimal).first)
         XCTAssertEqual(german.quantity, 1500)
-        let litres = try XCTUnwrap(FoodListParser.parse("1,5 l milk", convention: .commaDecimal).first)
+        let litres = try XCTUnwrap(FoodListParser.parseV4("1,5 l milk", convention: .commaDecimal).first)
         XCTAssertEqual(litres.quantity, 1500)
         XCTAssertEqual(litres.unit, .millilitres)
     }
@@ -89,7 +89,7 @@ final class FoodListLexicalV4Tests: XCTestCase {
         for text in lines {
             let legacy = try XCTUnwrap(FoodListParser.parse(text).first)
             for convention in NumeralConvention.allCases {
-                let line = try XCTUnwrap(FoodListParser.parse(text, convention: convention).first)
+                let line = try XCTUnwrap(FoodListParser.parseV4(text, convention: convention).first)
                 let label = "\(text) \(convention)"
                 XCTAssertEqual(line.quantity, legacy.quantity, label)
                 XCTAssertEqual(line.unit, legacy.unit, label)
@@ -103,7 +103,7 @@ final class FoodListLexicalV4Tests: XCTestCase {
     /// The frozen v3 grammar, its version and its encoding are unchanged; the shared v3 numeral
     /// rule (receipts, inventory) still reads "1,500" as ambiguous and "1.500" as 1.5.
     func testV3GrammarAndEncodingAreFrozen() throws {
-        XCTAssertEqual(FoodListParser.version, "food-list-lexical-v4")
+        XCTAssertEqual(FoodListParser.v4Version, "food-list-lexical-v4")
         XCTAssertEqual(FoodListParser.legacyVersion, "food-list-lexical-v3")
         let legacy = try XCTUnwrap(FoodListParser.parse("1.500 g rice").first)
         XCTAssertEqual(legacy.quantity, 1.5)
@@ -122,7 +122,7 @@ final class FoodListLexicalV4Tests: XCTestCase {
         XCTAssertNil(decoded.grammarVersion)
         XCTAssertEqual(String(decoding: try encoder.encode(decoded), as: UTF8.self), v3JSON, "a v3 line re-encodes byte-identically")
 
-        let v4 = try XCTUnwrap(FoodListParser.parse("150 g rice", convention: .commaDecimal).first)
+        let v4 = try XCTUnwrap(FoodListParser.parseV4("150 g rice", convention: .commaDecimal).first)
         XCTAssertEqual(
             String(decoding: try encoder.encode(v4), as: UTF8.self),
             #"{"grammarVersion":"food-list-lexical-v4","lineNumber":1,"notices":[],"numeralConvention":"comma_decimal","original":"150 g rice","quantity":150,"query":"rice","unit":"g"}"#
