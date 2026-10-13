@@ -55,6 +55,14 @@ public final class FoodLogViewModel: ObservableObject {
     /// The selected day as a date for display and the picker (noon in the calendar's time zone).
     public var selectedDate: Date { navigation.date(forKey: selectedKey) ?? now() }
     public var latestSelectableDate: Date { now() }
+    /// The day Add food carries when opened from here (owner decision D): the selected past day,
+    /// or nil on today. Never persisted.
+    public var addFoodDayKey: String? { isToday ? nil : selectedKey }
+    /// What When will start as for the selected day, read now for the footnote.
+    public var addFoodWhen: FoodEntryWhenPrefill {
+        FoodEntryWhenPrefill.resolve(dayKey: addFoodDayKey, now: now(), calendar: calendar)
+    }
+    public var addFoodFootnote: String? { FoodLogText.addFoodFootnote(addFoodWhen, isToday: isToday) }
 
     public func load() async {
         loadToken += 1

@@ -18,6 +18,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public let calendar: Calendar
     private let volumeConversionOffering: (any FoodVolumeConversionOffering)?
     private let searchInterpretation: FoodQueryInterpretation?
+    /// Shown beside When when the Food Log day could not be used (owner decision D).
+    public let whenNotice: String?
     public var quantitySuggestion: ParsedFoodQuery.Quantity? { searchInterpretation?.quantitySuggestion }
     public var displayedName: LedgerText { state.correction?.name ?? state.reopened?.productVersion.name ?? state.selectedCandidate.name }
     public var displayedBrand: LedgerText? { state.correction?.brand ?? state.reopened?.productVersion.brand ?? state.selectedCandidate.brand }
@@ -36,9 +38,11 @@ public final class FoodConfirmationViewModel: ObservableObject {
         calendar: Calendar = .autoupdatingCurrent,
         savesFavourite: Bool = false,
         favouriteAction: (@MainActor (LogItemVersionID) throws -> Void)? = nil,
+        whenNotice: String? = nil,
         saveAction: @escaping @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
     ) {
         self.state = state
+        self.whenNotice = whenNotice
         self.savesFavourite = savesFavourite && favouriteAction != nil && !Self.isPlainWaterSource(state)
         self.favouriteAction = favouriteAction
         self.now = now
@@ -277,6 +281,12 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public var displayedOccurredAt: Date { state.occurredAt ?? now() }
 
     public var occursNow: Bool { state.occurredAt == nil }
+
+    /// A time requirement shown inline under When, for example after midnight moves the window
+    /// past a prefilled day (owner decision D); the Log bar states it as well.
+    public var whenRequirementText: String? {
+        requirements.first { $0 == .occurredAtTooEarly || $0 == .occurredAtInFuture }.map(FoodLogRequirementText.text)
+    }
 
     /// A reopened entry older than the backdating window keeps its stored time: the picker is
     /// replaced by a read-only value, so no clamped or refused time can be written back.
@@ -608,9 +618,15 @@ public struct FoodConfirmationView: View {
                 get: { model.displayedOccurredAt },
                 set: { model.send(.setOccurredAt($0)) }),
                 in: model.occurredAtRange)
+            if let requirement = model.whenRequirementText {
+                Label(requirement, systemImage: "exclamationmark.triangle").font(.caption)
+            }
             if !model.occursNow && model.state.reopened == nil {
                 Button("Use now") { model.send(.setOccurredAt(nil)) }
                     .frame(minHeight: 44)
+            }
+            if let notice = model.whenNotice, model.occursNow {
+                Text(notice).font(.caption)
             }
         }
     }

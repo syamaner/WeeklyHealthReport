@@ -157,7 +157,7 @@ struct FoodLogView: View {
     private var addFoodSection: some View {
         Section {
             // A Button, not a NavigationLink: inside a Form a link ignores the button style.
-            Button { navigation.append(.addFood) } label: {
+            Button { navigation.openAddFood(fromFoodLogDay: model.addFoodDayKey) } label: {
                 Label("Add food", systemImage: "plus").font(.headline)
                     .frame(maxWidth: .infinity, minHeight: 50)
             }
@@ -165,7 +165,7 @@ struct FoodLogView: View {
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
         } footer: {
-            if !model.isToday { Text(FoodLogText.pastDayFootnote) }
+            if let footnote = model.addFoodFootnote { Text(footnote) }
         }
     }
 

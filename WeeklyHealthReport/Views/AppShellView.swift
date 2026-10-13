@@ -248,7 +248,9 @@ struct AppShellView: View {
             DeveloperToolsSettingsView(toggle: settings.developerTools, diagnostics: foodLedger?.searchDiagnostics)
         case .addFood:
             if let foodLedger {
-                AddFoodFlowView(root: foodLedger, finish: FoodEntryFinish { day in navigation.finishFoodEntry(reportingDay: day) })
+                AddFoodFlowView(root: foodLedger, finish: FoodEntryFinish(entryDay: navigation.addFoodEntryDay) { day in
+                    navigation.finishFoodEntry(reportingDay: day)
+                })
             }
             else { ContentUnavailableView("Add food unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
         case .exportDestination:

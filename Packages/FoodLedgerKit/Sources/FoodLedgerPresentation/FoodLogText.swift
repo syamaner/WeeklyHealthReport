@@ -9,7 +9,26 @@ public enum FoodLogText {
     public static let emptyTitle = "No food logged"
     public static let emptyMessage = "An empty log does not mean no food was eaten."
     public static let swipeFootnote = "Swipe an entry to remove it. Removed entries can be restored."
-    public static let pastDayFootnote = "New foods are logged for now. To log on this day, set When on the confirm screen."
+    /// Add food from a past day (owner decision D): When starts on that day at the current time.
+    public static let pastDayFootnote = "New foods start on this day at the current time. You can change When before logging."
+    /// A selected day older than the backdating window: When falls back to Now.
+    public static let backdatingLimitNotice = "Entries can be logged up to \(FoodLogPolicy.backdatingDays) days back."
+    public static let beyondBackdatingFootnote = "\(backdatingLimitNotice) New foods are logged for now."
+
+    /// The Add food footnote on the Food Log for the selected day, or nil for today.
+    public static func addFoodFootnote(_ prefill: FoodEntryWhenPrefill, isToday: Bool) -> String? {
+        guard !isToday else { return nil }
+        switch prefill {
+        case .day: return pastDayFootnote
+        case .beyondBackdatingWindow: return beyondBackdatingFootnote
+        case .now: return nil
+        }
+    }
+
+    /// The note beside When on Confirm and the quick-add sheet when the day could not be used.
+    public static func whenNotice(_ prefill: FoodEntryWhenPrefill) -> String? {
+        prefill == .beyondBackdatingWindow ? backdatingLimitNotice : nil
+    }
     public static let removeAlertTitle = "Remove this entry?"
     public static let removeAlertMessage = "It leaves this day’s totals. You can restore it from Removed in the Food Log."
     public static let savedEntryFootnote = "Edit keeps the original as history. Exports already sent are not changed."

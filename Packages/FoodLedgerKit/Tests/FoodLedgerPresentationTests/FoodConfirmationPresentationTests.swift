@@ -281,6 +281,23 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertNil(count.unitBasisMismatch)
     }
 
+    /// Owner decision D: Confirm states a time outside the window under When (as well as in the
+    /// Log bar), and shows the backdating notice only while When is Now.
+    func testWhenRequirementAndNoticeAreInline() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        var state = try fixtureState()
+        state.occurredAt = now.addingTimeInterval(-8 * 86_400 - 3_600)
+        let model = FoodConfirmationViewModel(state: state, now: { now }, calendar: Calendar(identifier: .gregorian),
+                                              whenNotice: FoodLogText.backdatingLimitNotice) { _ in throw CocoaError(.fileWriteUnknown) }
+        XCTAssertEqual(model.whenRequirementText, "Choose a time within the last 7 days.")
+        XCTAssertEqual(model.blockedReason, model.whenRequirementText)
+        model.send(.setOccurredAt(now.addingTimeInterval(3_600)))
+        XCTAssertEqual(model.whenRequirementText, "Choose a time that is not in the future.")
+        model.send(.setOccurredAt(nil))
+        XCTAssertNil(model.whenRequirementText)
+        XCTAssertEqual(model.whenNotice, "Entries can be logged up to 7 days back.")
+    }
+
     func testReferenceBasisAndConsumedPreviewNeverInferDensity() throws {
         let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
             throw CocoaError(.fileWriteUnknown)

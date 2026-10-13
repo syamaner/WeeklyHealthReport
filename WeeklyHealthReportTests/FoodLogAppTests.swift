@@ -105,6 +105,99 @@ final class FoodLogAppTests: XCTestCase {
         XCTAssertEqual(received, ["2026-10-09"])
     }
 
+    // MARK: Add food day (owner decision D)
+
+    /// The coordinator carries the Food Log day to Add food only while that Add food sits on the
+    /// Food Log; Home, a restored Add food, closing it and Done all leave none. Never persisted.
+    func testAddFoodDayIsCarriedOnlyFromTheFoodLogAndNeverPersisted() {
+        let defaults = isolatedDefaults()
+        let coordinator = AppNavigationCoordinator(defaults: defaults)
+        coordinator.restoreIfNeeded(hasDraft: false, availableRoutes: Set(AppRoute.allCases))
+        coordinator.replacePath([.foodLog])
+        coordinator.openAddFood(fromFoodLogDay: "2026-10-10")
+        XCTAssertEqual(coordinator.path, [.foodLog, .addFood])
+        XCTAssertEqual(coordinator.addFoodEntryDay, "2026-10-10")
+        coordinator.recordDestination()
+        XCTAssertEqual(coordinator.storedDestination, "addFood", "only the route is stored, never the day")
+        XCTAssertNil(AppNavigationCoordinator(defaults: defaults).addFoodEntryDay)
+        coordinator.acceptPathChange([.foodLog])
+        XCTAssertNil(coordinator.addFoodEntryDay, "closing Add food forgets the day")
+        coordinator.acceptPathChange([.foodLog, .addFood])
+        XCTAssertNil(coordinator.addFoodEntryDay, "a later Add food does not inherit it")
+        coordinator.openAddFood(fromFoodLogDay: nil)
+        XCTAssertNil(coordinator.addFoodEntryDay, "today carries no day")
+        coordinator.replacePath([])
+        coordinator.acceptPathChange([.addFood])
+        XCTAssertNil(coordinator.addFoodEntryDay, "Add food from Home stays Now")
+        coordinator.replacePath([.foodLog])
+        coordinator.openAddFood(fromFoodLogDay: "2026-10-09")
+        coordinator.finishFoodEntry(reportingDay: "2026-10-09")
+        XCTAssertEqual(coordinator.path, [.foodLog])
+        XCTAssertNil(coordinator.addFoodEntryDay)
+    }
+
+    /// Search, barcode, web lookup, recent foods and quick add all start When on the Food Log day
+    /// at the current clock time; a day beyond the window stays Now with the notice; the sheet's
+    /// Edit keeps the sheet's When; Log saves on that day and Done returns to it.
+    func testAddFoodFromAPastDayPrefillsWhenOnEveryRoute() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        let calendar = root.confirmationDayCalendar
+        let now = root.confirmationNow
+        let yesterday = FoodReportingDay.key(for: try XCTUnwrap(calendar.date(byAdding: .day, value: -1, to: now)), calendar: calendar)
+        let tooOld = FoodReportingDay.key(for: try XCTUnwrap(calendar.date(byAdding: .day, value: -9, to: now)), calendar: calendar)
+        let coordinator = AppNavigationCoordinator(defaults: isolatedDefaults())
+        coordinator.replacePath([.foodLog])
+        coordinator.openAddFood(fromFoodLogDay: yesterday)
+        let finish = FoodEntryFinish(entryDay: coordinator.addFoodEntryDay) { coordinator.finishFoodEntry(reportingDay: $0) }
+        let hosts: [(String, Any?)] = [
+            ("Add food", AddFoodFlowView(root: root, finish: finish)),
+            ("search", GenericFoodSearchFlowView(root: root, initialQuery: "clementine", finish: finish)),
+            ("web lookup", OpenRouterFoodReviewFlowView(root: root, initialQuery: "tofu", finish: finish)),
+            ("barcode", BarcodeFoodFlowView(root: root, finish: finish))
+        ]
+        for (name, host) in hosts {
+            let carried = Mirror(reflecting: try XCTUnwrap(host, name)).descendant("finish") as? FoodEntryFinish
+            XCTAssertEqual(carried?.entryDay, yesterday, name)
+        }
+        // Search, web lookup and barcode share root.model(for:entryDay:).
+        let confirm = try savedClementineModel(root, entryDay: yesterday)
+        let saved = try XCTUnwrap(confirm.savedResult)
+        XCTAssertEqual(saved.logItemVersion.reportingDate.value, yesterday)
+        XCTAssertTrue(FoodEntryFinish.complete(finish, saved: saved))
+        XCTAssertEqual(coordinator.path, [.foodLog])
+        XCTAssertEqual(coordinator.takeFoodLogFocusDay(), yesterday)
+        // Recent foods.
+        let relog = try XCTUnwrap(try root.model(relogging: saved.logItem.logItemID, entryDay: yesterday))
+        XCTAssertEqual(relog.state.occurredAt.map { FoodReportingDay.key(for: $0, calendar: calendar) }, yesterday)
+        XCTAssertNil(try XCTUnwrap(try root.model(relogging: saved.logItem.logItemID)).state.occurredAt, "no day: Now")
+        // Quick add: the sheet, Confirm for an ineligible item, and the sheet's Edit.
+        let water = try root.quickAddPreparation(.builtInWater)
+        let sheet = root.quickAddSheetModel(water, entryDay: yesterday)
+        XCTAssertFalse(sheet.occursNow)
+        XCTAssertEqual(FoodReportingDay.key(for: sheet.displayedOccurredAt, calendar: calendar), yesterday)
+        XCTAssertNil(sheet.whenNotice)
+        sheet.setOccurredAt(nil)
+        XCTAssertNil(root.model(quickAdd: try XCTUnwrap(sheet.editState)).state.occurredAt, "Edit keeps the sheet's Now")
+        let direct = root.model(quickAdd: water.state, entryDay: yesterday)
+        XCTAssertEqual(direct.state.occurredAt.map { FoodReportingDay.key(for: $0, calendar: calendar) }, yesterday)
+        // Beyond the window: Now, with the notice on Confirm and the sheet.
+        let old = root.quickAddSheetModel(water, entryDay: tooOld)
+        XCTAssertTrue(old.occursNow)
+        XCTAssertEqual(old.whenNotice, "Entries can be logged up to 7 days back.")
+        let oldConfirm = root.model(quickAdd: water.state, entryDay: tooOld)
+        XCTAssertNil(oldConfirm.state.occurredAt)
+        XCTAssertEqual(oldConfirm.whenNotice, "Entries can be logged up to 7 days back.")
+        for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
+            renderPolish(NavigationStack { FoodConfirmationView(model: direct) {} }.environment(\.dynamicTypeSize, size),
+                         "Confirm from a past day - \(name)")
+            renderPolish(NavigationStack { QuickAddSheet(model: old, edit: {}, close: {}) }.environment(\.dynamicTypeSize, size),
+                         "Quick add beyond the window - \(name)")
+        }
+    }
+
     // MARK: Journey QA fixes
 
     /// D1: every Add food Confirm host (search, web lookup, barcode, recent) holds the finish passed
@@ -373,7 +466,7 @@ final class FoodLogAppTests: XCTestCase {
         window.isHidden = true
     }
 
-    private func savedClementineModel(_ root: FoodLedgerCompositionRoot) throws -> FoodConfirmationViewModel {
+    private func savedClementineModel(_ root: FoodLedgerCompositionRoot, entryDay: String? = nil) throws -> FoodConfirmationViewModel {
         let search = try root.genericFoodSearchModel(locale: Locale(identifier: "en_GB"))
         search.query = "clementine"
         search.search()
@@ -381,7 +474,7 @@ final class FoodLogAppTests: XCTestCase {
         let candidate = try XCTUnwrap(route.confirmation.candidates.first)
         let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence, sourceReleases: route.confirmation.sourceReleases,
             candidates: [candidate], expectedIdentity: candidate.candidate.identity, expectedEdibleQuantity: candidate.candidate.edibleQuantity)
-        let confirmation = root.model(for: input)
+        let confirmation = root.model(for: input, entryDay: entryDay)
         let identity = try DecisiveIdentity(preparation: PreparationState(kind: .raw), bone: .notApplicable, skin: .skinless,
             drained: .notApplicable, packingMedium: .named(LedgerText("none — synthetic fixture")), fortification: .unfortified,
             servingBasis: candidate.candidate.identity.servingBasis)

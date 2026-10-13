@@ -11,6 +11,9 @@ final class AppNavigationCoordinator: ObservableObject {
     @Published private(set) var path: [AppRoute] = []
     /// A reporting-day key the Food Log selects when it next appears (#197, F4). Never persisted.
     @Published private(set) var foodLogFocusDay: String?
+    /// The Food Log day Add food was opened from (owner decision D, 13 Oct 2026): When starts on
+    /// that day. Never persisted; read only while that Add food sits directly on the Food Log.
+    private var addFoodDay: String?
     private var protectedPath: [AppRoute]?
     private(set) var hasRestored = false
     private let defaults: UserDefaults
@@ -27,10 +30,29 @@ final class AppNavigationCoordinator: ObservableObject {
     func acceptPathChange(_ proposedPath: [AppRoute]) {
         guard protectedPath == nil else { return }
         path = proposedPath
+        forgetAddFoodDayIfClosed()
     }
 
     func replacePath(_ newPath: [AppRoute]) {
         path = newPath
+        forgetAddFoodDayIfClosed()
+    }
+
+    /// Add food from the Food Log. A past `day` (a reporting-day key) becomes Confirm's When.
+    func openAddFood(fromFoodLogDay day: String?) {
+        addFoodDay = day
+        path.append(.addFood)
+    }
+
+    /// The day for the open Add food: set only when it was opened from the Food Log. A restored
+    /// `[.addFood]` or an Add food opened from Home has none, so When stays Now.
+    var addFoodEntryDay: String? {
+        guard let index = path.lastIndex(of: .addFood), index > 0, path[index - 1] == .foodLog else { return nil }
+        return addFoodDay
+    }
+
+    private func forgetAddFoodDayIfClosed() {
+        if !path.contains(.addFood) { addFoodDay = nil }
     }
 
     func append(_ route: AppRoute) {
@@ -47,6 +69,7 @@ final class AppNavigationCoordinator: ObservableObject {
             foodLogFocusDay = nil
             path = []
         }
+        addFoodDay = nil
     }
 
     /// Returns and clears the focus day.
