@@ -72,9 +72,17 @@ public struct FoodRecentRelogItem: Equatable, Sendable {
     /// Display name of the restored source candidate.
     public let name: String
     public let isEstimate: Bool
+    /// The verified current version of the entry: what "Save as favourite" pins (Q2). Nil only
+    /// for callers that never offer saving.
+    public let logItemVersionID: LogItemVersionID?
+    /// The app's plain water reference: it has its own quick-add item, so it is not offered as a
+    /// favourite here (as on Confirm).
+    public let isPlainWater: Bool
 
-    public init(item: FoodRecentItem, name: String, isEstimate: Bool) {
+    public init(item: FoodRecentItem, name: String, isEstimate: Bool,
+                logItemVersionID: LogItemVersionID? = nil, isPlainWater: Bool = false) {
         self.item = item; self.name = name; self.isEstimate = isEstimate
+        self.logItemVersionID = logItemVersionID; self.isPlainWater = isPlainWater
     }
 }
 
@@ -96,7 +104,11 @@ public struct FoodRecentItemsService: Sendable {
             guard let saved = try? reader.foodConfirmation(logItemID: item.logItemID),
                   let input = try? confirmations.relogInput(saved),
                   let isEstimate = try? confirmations.isEstimate(saved) else { return nil }
-            return FoodRecentRelogItem(item: item, name: input.candidates[0].name.value, isEstimate: isEstimate)
+            // Only a current product version can be pinned; a removal head never reaches here.
+            guard case .product = saved.logItemVersion.composition else { return nil }
+            return FoodRecentRelogItem(item: item, name: input.candidates[0].name.value, isEstimate: isEstimate,
+                                       logItemVersionID: saved.logItemVersion.logItemVersionID,
+                                       isPlainWater: PlainWaterReference.isPlainWater(saved.resolutionVersion))
         }.prefix(limit).map { $0 }
     }
 }

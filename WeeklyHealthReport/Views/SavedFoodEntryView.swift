@@ -7,13 +7,18 @@ import FoodLedgerPresentation
 /// from the edit model, so it never opens blank; Edit opens Confirm in edit mode.
 struct SavedFoodEntryView: View {
     @StateObject private var model: SavedFoodEntryViewModel
+    /// Save as favourite from the saved entry (owner decision A); nil hides it.
+    @StateObject private var favourites: FavouriteSaveModelBox
     private let calendar: Calendar
     private let now: () -> Date
     @State private var showsEdit = false
     @Environment(\.dismiss) private var dismiss
 
-    init(model: @autoclosure @escaping () -> SavedFoodEntryViewModel, calendar: Calendar, now: @escaping () -> Date) {
+    init(model: @autoclosure @escaping () -> SavedFoodEntryViewModel,
+         favourites: @autoclosure @escaping () -> FavouriteSaveModel? = nil,
+         calendar: Calendar, now: @escaping () -> Date) {
         _model = StateObject(wrappedValue: model())
+        _favourites = StateObject(wrappedValue: FavouriteSaveModelBox(favourites()))
         self.calendar = calendar
         self.now = now
     }
@@ -46,6 +51,10 @@ struct SavedFoodEntryView: View {
                 Button("OK") { model.changeAlert = nil }
             } message: { Text(model.changeAlert.map(FoodLogText.changeAlert) ?? "") }
             .onChange(of: model.didRemove) { _, removed in if removed { dismiss() } }
+            // The favourite pins the current version, so an edit re-reads its state.
+            .onChange(of: model.detail?.logItemVersionID, initial: true) { _, id in
+                if let id { favourites.model?.refresh([id]) }
+            }
     }
 
     /// Each state has its own title, so missing and failed are distinct even to VoiceOver.
@@ -93,6 +102,9 @@ struct SavedFoodEntryView: View {
                 }
             }
             nutrition(detail)
+            if let saving = favourites.model, !detail.isPlainWater {
+                FavouriteSaveSection(model: saving, logItemVersionID: detail.logItemVersionID)
+            }
             Section("Source") {
                 Text(FoodLogText.source(detail))
                 if let variant = detail.variant { Text(variant).font(.subheadline).foregroundStyle(.secondary) }
@@ -147,6 +159,12 @@ struct SavedFoodEntryView: View {
             Button("Back") { dismiss() }
         }
     }
+}
+
+/// Holds an optional favourite saving model for `@StateObject` ownership.
+final class FavouriteSaveModelBox: ObservableObject {
+    let model: FavouriteSaveModel?
+    init(_ model: FavouriteSaveModel?) { self.model = model }
 }
 
 /// Confirm in edit mode, hosted by the saved entry (#197). Its own type so tests render the

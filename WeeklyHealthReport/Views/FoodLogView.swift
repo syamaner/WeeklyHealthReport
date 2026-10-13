@@ -63,7 +63,8 @@ struct FoodLogView: View {
         }
         .refreshable { await model.load() }
         .navigationDestination(item: $openedEntry) { id in
-            SavedFoodEntryView(model: root.savedEntryModel(id), calendar: model.calendar, now: { root.confirmationNow })
+            SavedFoodEntryView(model: root.savedEntryModel(id), favourites: root.favouriteSaveModel(),
+                               calendar: model.calendar, now: { root.confirmationNow })
         }
         .onChange(of: openedEntry) { _, entry in if entry == nil { Task { await model.load() } } }
         // `presenting` captures the entry when the alert appears; dismissal clears pendingRemoval

@@ -47,13 +47,17 @@ public struct AddFoodView: View {
     private let favouriteItems: [QuickAddItem]?
     private let quickAdd: ((QuickAddItem) -> Void)?
     private let relog: (FoodRecentRelogItem) -> Void
+    /// Save as favourite on recent rows (owner decision A); nil hides it.
+    private let favouriteSaving: FavouriteSaveModel?
 
     public init(recents: [FoodRecentRelogItem], now: Date = Date(), calendar: Calendar = .current,
                 initialText: String = "",
                 search: @escaping (String) -> Void, scanBarcode: (() -> Void)?, pasteOrDictate: (() -> Void)?,
                 favourites: (() -> Void)?, favouriteItems: [QuickAddItem]? = [], quickAdd: ((QuickAddItem) -> Void)? = nil,
+                favouriteSaving: FavouriteSaveModel? = nil,
                 relog: @escaping (FoodRecentRelogItem) -> Void) {
         self.recents = recents; self.now = now; self.calendar = calendar
+        self.favouriteSaving = favouriteSaving
         self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate
         self.favourites = favourites; self.favouriteItems = favouriteItems; self.quickAdd = quickAdd; self.relog = relog
         _text = State(initialValue: initialText)
@@ -112,26 +116,41 @@ public struct AddFoodView: View {
                     ForEach(recents, id: \.item.logItemID) { recent in
                         let row = AddFoodRecentRowText(recent, now: now, calendar: calendar)
                         Button { relog(recent) } label: {
-                            recentRow(row).frame(minHeight: 44).contentShape(Rectangle())
+                            recentRow(row, recent: recent).frame(minHeight: 44).contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityHint("Opens the confirmation with the last amount filled in")
+                        .modifier(RecentFavouriteActions(model: savingModel(recent), id: recent.logItemVersionID, title: row.title))
                     }
                 }
             } header: { Text("Recent") } footer: {
-                Text("Recent foods open the confirmation with the last amount filled in. Nothing is logged until you choose Log.")
+                Text(favouriteSaving == nil
+                     ? "Recent foods open the confirmation with the last amount filled in. Nothing is logged until you choose Log."
+                     : "Recent foods open the confirmation with the last amount filled in. Nothing is logged until you choose Log. Swipe right or touch and hold to save one as a favourite.")
             }
         }
         .navigationTitle("Add food")
     }
 
+    /// The saving model for a row that may be saved: verified, pinnable and not plain water.
+    private func savingModel(_ recent: FoodRecentRelogItem) -> FavouriteSaveModel? {
+        guard recent.logItemVersionID != nil, !recent.isPlainWater else { return nil }
+        return favouriteSaving
+    }
+
     @ViewBuilder
-    private func recentRow(_ row: AddFoodRecentRowText) -> some View {
+    private func favouriteBadge(_ recent: FoodRecentRelogItem) -> some View {
+        if let model = savingModel(recent), let id = recent.logItemVersionID { RecentFavouriteBadge(model: model, id: id) }
+    }
+
+    @ViewBuilder
+    private func recentRow(_ row: AddFoodRecentRowText, recent: FoodRecentRelogItem) -> some View {
         if AddFoodRecentRowText.stacks(at: dynamicTypeSize) {
             // Stacked at accessibility sizes, as in the Food Log, so the name never breaks mid-word.
             VStack(alignment: .leading, spacing: 4) {
                 Text(row.title).foregroundStyle(.primary)
                 Text(row.detail).font(.caption).foregroundStyle(.secondary)
+                favouriteBadge(recent)
                 if let energy = row.energy { Text(energy).font(.subheadline).foregroundStyle(.secondary).monospacedDigit() }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -141,6 +160,7 @@ public struct AddFoodView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(row.title).foregroundStyle(.primary)
                     Text(row.detail).font(.caption).foregroundStyle(.secondary)
+                    favouriteBadge(recent)
                 }
                 Spacer(minLength: 8)
                 if let energy = row.energy { Text(energy).font(.subheadline).foregroundStyle(.secondary).monospacedDigit() }
@@ -162,6 +182,71 @@ public struct AddFoodView: View {
                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.secondary).accessibilityHidden(true)
             }.frame(minHeight: 44).contentShape(Rectangle())
         }.buttonStyle(.plain)
+    }
+}
+
+/// "Already a favourite" or "Saved as favourite" on a recent row, never colour alone.
+struct RecentFavouriteBadge: View {
+    @ObservedObject var model: FavouriteSaveModel
+    let id: LogItemVersionID
+
+    var body: some View {
+        let state = model.state(for: id)
+        if state.isFavourite {
+            Label(FavouriteSaveText.title(state), systemImage: "star.fill").font(.caption).foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// Save as favourite on a recent row: a leading swipe, the context menu and a VoiceOver action. A
+/// failure says "Favourite not saved" with Try again; the logged entry is unchanged either way.
+struct RecentFavouriteActions: ViewModifier {
+    let model: FavouriteSaveModel?
+    let id: LogItemVersionID?
+    let title: String
+
+    func body(content: Content) -> some View {
+        if let model, let id {
+            content.modifier(Actions(model: model, id: id, title: title))
+        } else {
+            content
+        }
+    }
+
+    private struct Actions: ViewModifier {
+        @ObservedObject var model: FavouriteSaveModel
+        let id: LogItemVersionID
+        let title: String
+        @State private var showsFailure = false
+
+        func body(content: Content) -> some View {
+            let canSave = !model.state(for: id).isFavourite
+            content
+                .swipeActions(edge: .leading) {
+                    if canSave {
+                        Button(action: save) { Label(FavouriteSaveText.save, systemImage: "star") }.tint(.orange)
+                    }
+                }
+                .contextMenu {
+                    if canSave {
+                        Button(action: save) { Label(FavouriteSaveText.save, systemImage: "star") }
+                    } else {
+                        Label(FavouriteSaveText.title(model.state(for: id)), systemImage: "star.fill")
+                    }
+                }
+                .accessibilityActions {
+                    if canSave { Button(FavouriteSaveText.save, action: save) }
+                }
+                .alert(FavouriteSaveText.failed, isPresented: $showsFailure) {
+                    Button(FavouriteSaveText.tryAgain, action: save)
+                    Button("Cancel", role: .cancel) {}
+                } message: { Text(FavouriteSaveText.failedMessage) }
+        }
+
+        private func save() {
+            model.save(id)
+            showsFailure = model.state(for: id) == .failed
+        }
     }
 }
 
