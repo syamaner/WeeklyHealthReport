@@ -66,6 +66,24 @@ final class AppNavigationTests: XCTestCase {
         }
     }
 
+    /// Owner decision C: "Set up Google Drive" on Export opens Settings > Export, which returns to
+    /// Export once setup no longer blocks it; opened from Settings, it never pops by itself.
+    func testDriveSetupFromExportReturnsToExport() {
+        let coordinator = AppNavigationCoordinator(defaults: isolatedDefaults())
+        coordinator.replacePath([.healthReport, .dailyExport])
+        coordinator.append(.exportDestination)
+        XCTAssertTrue(coordinator.exportSetupReturnsToExport)
+        coordinator.returnToExport()
+        XCTAssertEqual(coordinator.path, [.healthReport, .dailyExport])
+        XCTAssertFalse(coordinator.exportSetupReturnsToExport)
+        coordinator.returnToExport()
+        XCTAssertEqual(coordinator.path, [.healthReport, .dailyExport], "nothing to pop")
+        coordinator.replacePath([.settings, .exportDestination])
+        XCTAssertFalse(coordinator.exportSetupReturnsToExport)
+        coordinator.returnToExport()
+        XCTAssertEqual(coordinator.path, [.settings, .exportDestination])
+    }
+
     /// #199 (D11): Home's notes routes are new raw values, pin the shared notes
     /// controller to today, and leave the export's notes routes unchanged.
     func testTodayNotesRoutesAreAppendedAndPinToday() {

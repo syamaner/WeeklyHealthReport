@@ -78,6 +78,17 @@ final class AppNavigationCoordinator: ObservableObject {
         return foodLogFocusDay
     }
 
+    /// Settings > Export opened from Export's "Set up Google Drive" (owner decision C).
+    var exportSetupReturnsToExport: Bool {
+        path.count >= 2 && Array(path.suffix(2)) == [.dailyExport, .exportDestination]
+    }
+
+    /// Pops Drive setup back to Export; does nothing when setup was opened from Settings.
+    func returnToExport() {
+        guard exportSetupReturnsToExport else { return }
+        path.removeLast()
+    }
+
     /// The gear entry point on Home.
     func openSettings() {
         append(.settings)

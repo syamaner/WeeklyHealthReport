@@ -173,7 +173,7 @@ struct AppShellView: View {
             HealthReportView(viewModel: viewModel, presentationState: presentationState)
                 .navigationTitle("Health report")
         case .dailyExport:
-            DailyExportView(session: dailyExport)
+            DailyExportView(session: dailyExport) { navigation.append(.exportDestination) }
         case .genericFoodSearch:
             if let foodLedger,
                let flow = GenericFoodSearchFlowView(root: foodLedger) {
@@ -245,7 +245,8 @@ struct AppShellView: View {
         case .medicationAccess:
             MedicationAccessHelpView()
         case .developerTools:
-            DeveloperToolsSettingsView(toggle: settings.developerTools, diagnostics: foodLedger?.searchDiagnostics)
+            DeveloperToolsSettingsView(toggle: settings.developerTools, diagnostics: foodLedger?.searchDiagnostics,
+                                       driveExportConfigured: dailyExport.isConfigured)
         case .addFood:
             if let foodLedger {
                 AddFoodFlowView(root: foodLedger, finish: FoodEntryFinish(entryDay: navigation.addFoodEntryDay) { day in
@@ -254,7 +255,8 @@ struct AppShellView: View {
             }
             else { ContentUnavailableView("Add food unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
         case .exportDestination:
-            DriveDestinationSettingsView(session: dailyExport)
+            DriveDestinationSettingsView(session: dailyExport,
+                                         returnToExport: navigation.exportSetupReturnsToExport ? { navigation.returnToExport() } : nil)
         case .favourites:
             if let foodLedger { FavouritesFlowView(root: foodLedger) }
             else { ContentUnavailableView("Favourites unavailable", systemImage: "exclamationmark.triangle", description: Text("The local food ledger could not be opened.")) }
