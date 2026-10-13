@@ -123,7 +123,8 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
     /// v3 and v4 rows use the original two-source composite, so their earlier
     /// labels and expected reports stay comparable; v3 rows are the v4 rows for
     /// the unchanged v3 case identifiers. v5 rows use the production composite
-    /// with Taiwan TFDA as a regional source and the scenario's market.
+    /// with Taiwan TFDA as a regional source and the scenario's market; v6
+    /// rows are the v5 rows plus the plural/singular cases (food-lexical-terms-v9).
     func testReplay() throws {
         let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .deletingLastPathComponent().deletingLastPathComponent()
@@ -133,8 +134,9 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
             try JSONDecoder().decode(Fixture.self, from: Data(contentsOf: directory.appendingPathComponent(name)))
         }
         let v3 = try load("retrieval-scenarios-v3.json"), v4 = try load("retrieval-scenarios-v4.json")
-        let fixture = try load("retrieval-scenarios-v5.json")
-        for earlier in [v3, v4] {
+        let v5 = try load("retrieval-scenarios-v5.json")
+        let fixture = try load("retrieval-scenarios-v6.json")
+        for earlier in [v3, v4, v5] {
             XCTAssertEqual(earlier.cases.map(\.id), Array(fixture.cases.prefix(earlier.cases.count)).map(\.id))
             XCTAssertEqual(earlier.cases.map(\.query), Array(fixture.cases.prefix(earlier.cases.count)).map(\.query))
         }
@@ -142,7 +144,7 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
         let tfda = try TFDAGenericFoodSearch(ids: ids)
         let baseline = ProcessInfo.processInfo.environment["WHR_RETRIEVAL_REPORT_V5_BASELINE"] != nil
-        let v3IDs = Set(v3.cases.map(\.id)), v4IDs = Set(v4.cases.map(\.id))
+        let v3IDs = Set(v3.cases.map(\.id)), v4IDs = Set(v4.cases.map(\.id)), v5IDs = Set(v5.cases.map(\.id))
         var rows: [Row] = [], regionalRows: [Row] = [], baselineRows: [Row] = []
         for scenario in fixture.cases {
             let request = try replayRequest(scenario)
@@ -170,8 +172,9 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         }
         try write(rows.filter { v3IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT")
         try write(rows, environment: "WHR_RETRIEVAL_REPORT_V4")
-        try write(regionalRows, environment: "WHR_RETRIEVAL_REPORT_V5")
-        if baseline { try write(baselineRows, environment: "WHR_RETRIEVAL_REPORT_V5_BASELINE") }
+        try write(regionalRows.filter { v5IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT_V5")
+        try write(regionalRows, environment: "WHR_RETRIEVAL_REPORT_V6")
+        if baseline { try write(baselineRows.filter { v5IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT_V5_BASELINE") }
     }
 
     func testTwoSourceRowsEqualRegionalRowsWithoutTaiwanWhenNotPromoted() throws {

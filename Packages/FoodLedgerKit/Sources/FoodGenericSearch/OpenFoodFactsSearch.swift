@@ -26,7 +26,7 @@ public struct OpenFoodFactsSearch: FoodSearchEnriching {
         try Task.checkCancellation()
         let parsed = query.interpretation.parsedQuery
         guard query.interpretation.allowsDiscovery, let food = parsed.food else { throw FoodSearchEnrichmentError.invalidQuery }
-        let terms = GenericFoodSearchTerms.tokens([parsed.attributes["brand"], FoodQueryPreparationPolicy.foodTerms(for: parsed)].compactMap { $0 }.joined(separator: " "))
+        let terms = GenericFoodSearchTerms.literalTokens([parsed.attributes["brand"], FoodQueryPreparationPolicy.foodTerms(for: parsed)].compactMap { $0 }.joined(separator: " "))
         guard !terms.isEmpty else { throw FoodSearchEnrichmentError.invalidQuery }
         let response = try await transport.search(foodTerms: Self.retrievalText(parsed, food: food))
         try Task.checkCancellation()
@@ -53,8 +53,8 @@ public struct OpenFoodFactsSearch: FoodSearchEnriching {
             }
             seen[gtin.value] = artifact
             guard let name = product["product_name"] as? String,
-                  GenericFoodSearchTerms.acceptsFoodForm(name: name, query: terms) else { continue }
-            let candidateTerms = GenericFoodSearchTerms.tokens(name + " " + (product["brands"] as? String ?? ""))
+                  GenericFoodSearchTerms.acceptsFoodForm(name: name, query: terms, literal: true) else { continue }
+            let candidateTerms = GenericFoodSearchTerms.literalTokens(name + " " + (product["brands"] as? String ?? ""))
             if let literal = parsed.attributes["unspecified_percent"] {
                 let named = FoodQueryParser.parse(name)
                 guard named.allowsCandidateDiscovery,
@@ -63,10 +63,10 @@ public struct OpenFoodFactsSearch: FoodSearchEnriching {
             let missing = terms.subtracting(candidateTerms)
             var category: String?
             if !missing.isEmpty {
-                let brand = GenericFoodSearchTerms.tokens(product["brands"] as? String ?? "")
+                let brand = GenericFoodSearchTerms.literalTokens(product["brands"] as? String ?? "")
                 guard !brand.isEmpty, brand.isSubset(of: terms),
                       let tag = (product["categories_tags"] as? [String] ?? []).sorted().first(where: {
-                          $0.hasPrefix("en:") && Set(missing.map(Self.categoryTerm)).isSubset(of: Set(GenericFoodSearchTerms.tokens(String($0.dropFirst(3))).map(Self.categoryTerm)))
+                          $0.hasPrefix("en:") && Set(missing.map(Self.categoryTerm)).isSubset(of: Set(GenericFoodSearchTerms.literalTokens(String($0.dropFirst(3))).map(Self.categoryTerm)))
                       }) else { continue }
                 category = String(tag.dropFirst(3)).replacingOccurrences(of: "-", with: " ")
             }
@@ -75,7 +75,7 @@ public struct OpenFoodFactsSearch: FoodSearchEnriching {
                 artifact: artifact, gtin: gtin, evidence: evidence, retrievedAt: now, searchScore: score,
                 searchCategory: category) else { continue }
             let matches = input.candidates.map { GenericFoodMatch(candidate: $0,
-                isExactName: GenericFoodSearchTerms.tokens(name) == GenericFoodSearchTerms.tokens(query.foodTerms)) }
+                isExactName: GenericFoodSearchTerms.literalTokens(name) == GenericFoodSearchTerms.literalTokens(query.foodTerms)) }
             result = try FoodSearchResultMerger.merge(result, .confirmation(GenericFoodConfirmationRoute(confirmation: input, matches: matches)))
         }
         try Task.checkCancellation()

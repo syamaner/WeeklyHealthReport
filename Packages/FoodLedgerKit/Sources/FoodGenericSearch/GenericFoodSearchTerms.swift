@@ -4,8 +4,12 @@ import FoodLedgerApplication
 /// Retrieval-only spelling equivalents. Original evidence and identity are unchanged.
 /// Complete token coverage is required; these terms never infer a recipe or a cut.
 enum GenericFoodSearchTerms {
-    static let version = "food-lexical-terms-v8"
+    static let version = FoodLexicalPlurals.version
+    /// Catalogue retrieval terms (CoFID, USDA, TFDA and their ranking), plurals folded.
     static func tokens(_ text: String) -> Set<String> { Set(terms(text)) }
+    /// `food-lexical-terms-v8` terms for live source admission and page identity,
+    /// which keep their own versions and are not changed by plural folding.
+    static func literalTokens(_ text: String) -> Set<String> { Set(GenericFoodRankingPolicy.literalTerms(text)) }
     private static func terms(_ text: String) -> [String] { GenericFoodRankingPolicy.terms(text) }
 
     /// The comma-delimited primary name must be wholly contained in the query.
@@ -18,9 +22,11 @@ enum GenericFoodSearchTerms {
     /// A use/serving suggestion does not identify the requested food. This bounded
     /// pancake rule distinguishes the finished food from syrup and uncooked products.
     /// Explicit searches for those products remain eligible; no source facts change.
-    static func acceptsFoodForm(name: String, query: Set<String>) -> Bool {
+    /// `literal` keeps food-lexical-terms-v8 candidate terms for live sources, whose
+    /// query terms are literal too.
+    static func acceptsFoodForm(name: String, query: Set<String>, literal: Bool = false) -> Bool {
         guard query.contains("pancake") else { return true }
-        let candidate = tokens(name)
+        let candidate = literal ? literalTokens(name) : tokens(name)
         let productForms: [Set<String>] = [["syrup", "syrups"], ["mix", "mixes"], ["batter"]]
         return productForms.allSatisfy { candidate.isDisjoint(with: $0) || !query.isDisjoint(with: $0) }
     }

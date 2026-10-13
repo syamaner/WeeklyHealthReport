@@ -131,7 +131,7 @@ public actor OFFHTTPSearchTransport: OFFSearchTransport {
         // Retain every other literal descriptor, including brand, flavour and preparation.
         let withoutPercentage = terms.replacingOccurrences(
             of: #"(-?\d+(?:\.\d+)?)\s*(?:%|percent)"#, with: " ", options: [.regularExpression, .caseInsensitive])
-        let required = GenericFoodSearchTerms.tokens(withoutPercentage)
+        let required = GenericFoodSearchTerms.literalTokens(withoutPercentage)
         guard !required.isEmpty else { return hits }
         func isExplicitMatch(_ hit: [String: Any]) -> Bool {
             guard let name = hit["product_name"] as? String else { return false }
@@ -139,7 +139,7 @@ public actor OFFHTTPSearchTransport: OFFSearchTransport {
             guard named.allowsCandidateDiscovery,
                   (named.attributes["unspecified_percent"] ?? named.attributes["fat_percent"]) == percentage else { return false }
             let brands = (hit["brands"] as? [String])?.joined(separator: " ") ?? (hit["brands"] as? String ?? "")
-            return required.isSubset(of: GenericFoodSearchTerms.tokens(name + " " + brands))
+            return required.isSubset(of: GenericFoodSearchTerms.literalTokens(name + " " + brands))
         }
         return hits.enumerated().map { (offset: $0.offset, hit: $0.element, explicit: isExplicitMatch($0.element)) }
             .sorted { lhs, rhs in

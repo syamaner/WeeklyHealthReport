@@ -47,14 +47,14 @@ public struct AlproSourceCandidateAdmission: FoodSourceCandidateAdmitting {
             return name
         }
         guard names.count == 1, let name = names.first else { return nil }
-        let nameTerms = GenericFoodSearchTerms.tokens(name)
-        let headingTerms = GenericFoodSearchTerms.tokens(try headings[0].text())
+        let nameTerms = GenericFoodSearchTerms.literalTokens(name)
+        let headingTerms = GenericFoodSearchTerms.literalTokens(try headings[0].text())
         guard nameTerms.contains("alpro"), headingTerms.count >= 2,
               headingTerms.isSubset(of: nameTerms) else { return nil }
         let parsed = FoodQueryParser.parse(query.foodTerms)
         guard parsed.allowsCandidateDiscovery, let food = parsed.food,
               Set(parsed.attributes.keys).isSubset(of: ["brand"]) else { return nil }
-        let terms = GenericFoodSearchTerms.tokens([parsed.attributes["brand"], food].compactMap { $0 }.joined(separator: " "))
+        let terms = GenericFoodSearchTerms.literalTokens([parsed.attributes["brand"], food].compactMap { $0 }.joined(separator: " "))
         guard !terms.isEmpty, terms.isSubset(of: nameTerms) else { return nil }
         try Task.checkCancellation()
         return try ManufacturerSourceCandidateBuilder.make(name: name, panel: panel, page: page, evidence: evidence,

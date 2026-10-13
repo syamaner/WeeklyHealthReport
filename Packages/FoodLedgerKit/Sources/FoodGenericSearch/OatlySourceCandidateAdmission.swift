@@ -23,9 +23,9 @@ public struct OatlySourceCandidateAdmission: FoodSourceCandidateAdmitting {
         let catalogueURL = "https://www.oatly.com" + String(source.page.finalURL.path.dropFirst("/en-gb".count))
         guard productURL == source.page.finalURL.absoluteString || productURL == catalogueURL else { return nil }
         let name = try title.attr("content")
-        let titleTerms = GenericFoodSearchTerms.tokens(name)
-        let headingTerms = GenericFoodSearchTerms.tokens(try heading.text())
-        guard headingTerms.count >= 2, headingTerms == GenericFoodSearchTerms.tokens(productName),
+        let titleTerms = GenericFoodSearchTerms.literalTokens(name)
+        let headingTerms = GenericFoodSearchTerms.literalTokens(try heading.text())
+        guard headingTerms.count >= 2, headingTerms == GenericFoodSearchTerms.literalTokens(productName),
               headingTerms.isSubset(of: titleTerms), ["oatly", "united", "kingdom"].allSatisfy(titleTerms.contains),
               let score = ManufacturerSourcePageIdentity.score(query: query, name: "Oatly " + (try heading.text())) else { return nil }
         return try ManufacturerSourceCandidateBuilder.make(name: name, panel: panel, page: source.page,

@@ -91,3 +91,27 @@ swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swif
 /tmp/whr-query-eval Tools/FoodQueryEvaluation/synthetic-v6.json /tmp/query-results.json
 python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v6.json /tmp/query-results.json /tmp/query-report.json --gate
 ```
+
+## Current checkpoint: v7 (food-lexical-terms-v9, parser unchanged)
+
+542 cases: v6 unchanged plus 19 plural food-name cases (`build_v7.py`, family
+`plural_food_v7`). The parser is still food-query-parser-v8; the cases pin the
+food text it hands to retrieval, where food-lexical-terms-v9 folds plurals (see
+`docs/food-lexical-terms-v9.md`). Expectations were written before the first
+run against the parser hash in `manifest-v7.json`.
+
+| Run | Routing | Quantity | Search cases, all fields | Unexpected prefills |
+|---|---:|---:|---:|---:|
+| v7 first and final run (parser v8) | 542/542 | 542/542 | 372/372 | 0 |
+
+The only field difference is the tentative food on the clarify case "a handful
+of walnuts" (expected "walnuts"), which the gate does not score. The v6 gate
+still passes and its predictions are byte-identical to `predictions/v6-final.json.gz`.
+CI now gates v7.
+
+```sh
+python3 Tools/FoodQueryEvaluation/validate.py v7
+swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryDiscoveryPolicy.swift Tools/FoodQueryEvaluation/run.swift -o /tmp/whr-query-eval
+/tmp/whr-query-eval Tools/FoodQueryEvaluation/synthetic-v7.json /tmp/query-results.json
+python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v7.json /tmp/query-results.json /tmp/query-report.json --gate
+```

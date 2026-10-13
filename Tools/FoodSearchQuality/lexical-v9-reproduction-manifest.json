@@ -1,0 +1,205 @@
+{
+  "schema": "retrieval-reproduction-lexical-v9",
+  "lexical_version": "food-lexical-terms-v9",
+  "ranking_version": "generic-representation-ranking-v8",
+  "matcher_versions": [
+    "cofid-generic-ranking-v14",
+    "usda-generic-ranking-v15",
+    "tfda-reviewed-ranking-v2"
+  ],
+  "composite_version": "composite-generic-ranking-v9",
+  "scorer_python": "3.12 or later",
+  "baseline": "food-lexical-terms-v8 code at origin/feat/search-ranking-v7 0ad98321, replaying retrieval-scenarios-v6.json",
+  "v8_reports_reproduced": [
+    "retrieval-metrics-final-v7.json",
+    "retrieval-metrics-v4-final-v7.json",
+    "retrieval-metrics-v5-final-v9.json"
+  ],
+  "v6": {
+    "label_reference": "retrieval-scenarios-v6.json",
+    "labels_built_by": "build_retrieval_v6.py from the v8 replay then the v9 replay",
+    "label_extensions": "r063, r064 (oat rule), r083, r085 (build_retrieval_v5 guava rule); existing grades unchanged"
+  },
+  "changed_summaries_v8_to_v9": {
+    "v3": {
+      "cofid": {
+        "hitAt1": [
+          0.975609756097561,
+          1.0
+        ],
+        "hitAt5": [
+          0.975609756097561,
+          1.0
+        ],
+        "mrr": [
+          0.975609756097561,
+          1.0
+        ],
+        "ndcgAt5": [
+          0.9289261485513224,
+          0.9521819625048107
+        ]
+      },
+      "usda": {},
+      "composite": {
+        "ndcgAt5": [
+          0.9838621616335115,
+          0.9903097084207537
+        ]
+      }
+    },
+    "v4": {
+      "cofid": {
+        "hitAt1": [
+          0.9795918367346939,
+          1.0
+        ],
+        "hitAt5": [
+          0.9795918367346939,
+          1.0
+        ],
+        "mrr": [
+          0.9795918367346939,
+          1.0
+        ],
+        "ndcgAt5": [
+          0.936728479250676,
+          0.9563363223879309
+        ]
+      },
+      "usda": {},
+      "composite": {
+        "ndcgAt5": [
+          0.9769413015430033,
+          0.9826303134140996
+        ]
+      }
+    },
+    "v5": {
+      "cofid": {
+        "hitAt1": [
+          0.9814814814814815,
+          1.0
+        ],
+        "hitAt5": [
+          0.9814814814814815,
+          1.0
+        ],
+        "mrr": [
+          0.9814814814814815,
+          1.0
+        ],
+        "ndcgAt5": [
+          0.9423777221747228,
+          0.9602348650318656
+        ]
+      },
+      "usda": {
+        "ndcgAt5": [
+          0.971854318233625,
+          0.9564891385111766
+        ]
+      },
+      "composite": {
+        "ndcgAt5": [
+          0.9755191891657639,
+          0.9788013500489356
+        ]
+      }
+    },
+    "v6": {
+      "cofid": {
+        "hitAt1": [
+          0.9411764705882353,
+          1.0
+        ],
+        "hitAt5": [
+          0.9411764705882353,
+          1.0
+        ],
+        "mrr": [
+          0.9411764705882353,
+          1.0
+        ],
+        "ndcgAt5": [
+          0.9052395715882684,
+          0.9746654126443048
+        ]
+      },
+      "usda": {
+        "hitAt1": [
+          0.872093023255814,
+          0.9302325581395349
+        ],
+        "hitAt5": [
+          0.9302325581395349,
+          1.0
+        ],
+        "mrr": [
+          0.9011627906976745,
+          0.9631782945736433
+        ],
+        "ndcgAt5": [
+          0.9086204276012881,
+          0.9597205118741756
+        ]
+      },
+      "composite": {
+        "hitAt1": [
+          0.9444444444444444,
+          0.9888888888888889
+        ],
+        "hitAt5": [
+          0.9555555555555556,
+          1.0
+        ],
+        "mrr": [
+          0.95,
+          0.9944444444444445
+        ],
+        "ndcgAt5": [
+          0.9134415967465003,
+          0.9584284491423763
+        ]
+      }
+    }
+  },
+  "replays_retained": false,
+  "replay_sha256": {
+    "v3-lexical-v8": "077bebe6c544d82b34c1f0c49b6fbb1e4fc9ac3c6fb3c6949fc70b92a6b09a5c",
+    "v4-lexical-v8": "2eb9289733101a38715d2a6163ced314944b504f15b9f0a654defb3b13e7debf",
+    "v5-lexical-v8": "e51c14bcda9675a2015df352a0c51edff458367e71b52e48076d1155d5e0d771",
+    "v6-lexical-v8": "03e2187dee6a40a33ca3de42d8c381743f9316a82f194902919f932bd77231d0",
+    "v3-lexical-v9": "13b0c3922f9d14cbbe20870ae69b8bee4ca3b5afdf94e4a1f18b435eb7c16703",
+    "v4-lexical-v9": "243a1d5207ac3961cd1ee2495f8ea7c611e4d4394947bec1a1e311204e49dbe5",
+    "v5-lexical-v9": "40a72d5c6c64c88efa50252d6f98d8c1bb1acf05658dc2e01ff368189c5be2a7",
+    "v6-lexical-v9": "e80b18aef647c973a4be4e395455aa896507d5e08c5495223e1a198259c8065b"
+  },
+  "input_sha256": {
+    "Tools/FoodSearchQuality/retrieval-scenarios-v3.json": "93771a450b5fa0374e247b743ceb3333e4dfdd8bfd7376e27000ca2fa6f41922",
+    "Tools/FoodSearchQuality/retrieval-scenarios-v4.json": "a0c1963d78a618c1acc65b4e55c9df692e5a16a96970c7cf0da6a7545d63a670",
+    "Tools/FoodSearchQuality/retrieval-scenarios-v5.json": "898a2b572fa2ad732d35886eacc770c67555e006fb83b56b4da4fd214cf35db4",
+    "Tools/FoodSearchQuality/retrieval-scenarios-v6.json": "e84da2b022f9d4cd8f02911ba92cc0057d648fb64b037edbe02fc0741e4ddf13"
+  },
+  "source_sha256": {
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodLexicalPlurals.swift": "ae0cfc5399ba1e4166f08ac87ddd891246b7812c5a275f1a2735308621b5f5ab",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/GenericFoodRankingPolicy.swift": "8daf2738f6aad332e90087f1e3209244d5d001cc24d804e6a30329ab26673621",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/CompositeGenericFoodSearch.swift": "81df016f42152abcb6c1f93ce26cc57e5eccc126d0f739a297edb764ac7afb25",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/GenericFoodSearchTerms.swift": "078a59cfc11ad45c0c619c1760a70ddfba75f4797637f51e75f0be30151116c2",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/CoFIDGenericFoodSearch.swift": "3b552087a6c2076bb4de527ce3e6abcfe9632ae0c4b05627196619790e6a77b1",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/USDAGenericFoodSearch.swift": "92c4ed781fa628170867175cbc1b50157ba067d68bfb593930d59dd0ff3d831a",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/TFDAGenericFoodSearch.swift": "f7d225ad042184d202891913f11137700a62bdeba11eebe64f974d7d8d26adb3",
+    "Packages/FoodLedgerKit/Tests/FoodGenericSearchTests/RankedRetrievalDevelopmentTests.swift": "24a5f43ed826c9fdefc4a4c9204b3f7c1bb42b04be1adfc870c97f4ac62412c5",
+    "Tools/FoodSearchQuality/score_retrieval.py": "90969bb74009935e879a803f7ae048781635799106e25cc3b418ac192b6250ef",
+    "Tools/FoodSearchQuality/build_retrieval_v5.py": "696e1570fc06c48957721d92ecd5370c0f9e8af3f2afa4b5afac788193d43e04",
+    "Tools/FoodSearchQuality/build_retrieval_v6.py": "81bd08c4e2d0ad55747ecf2cc4d03e2c2e8ec3a62e509c9ca803f05279ed8a54"
+  },
+  "output_sha256": {
+    "retrieval-metrics-final-lexical-v9.json": "c755a527fb0f078366a6c93453a723634cd3e90e008da9c25618037b32327aad",
+    "retrieval-metrics-v4-final-lexical-v9.json": "5a946673b3339d31aeeebb467f3fd7ca5d2dee36152665c46ec54a263dd57560",
+    "retrieval-metrics-v5-final-lexical-v9.json": "1abdb908f571f160459a031c7f5671a0ec608f141a185f6e389578ae80d895dd",
+    "retrieval-metrics-v6-baseline-lexical-v8.json": "0b676075ecafef96367d2d880c22df7a54a81cd7aebe54904abbe75bcaba6df4",
+    "retrieval-metrics-v6-final-lexical-v9.json": "ef7dd07f1c936d6cc3c6c0109f64d52a59b06355b2b4dd05b2b8d04dbfeacf83"
+  },
+  "independentAcceptance": false
+}

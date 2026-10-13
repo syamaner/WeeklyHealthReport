@@ -48,8 +48,8 @@ enum ManufacturerSourcePageIdentity {
         let parsed = FoodQueryParser.parse(query.foodTerms)
         guard name.count <= 300, parsed.allowsCandidateDiscovery, let food = parsed.food,
               Set(parsed.attributes.keys).isSubset(of: ["brand", "fat_descriptor"]) else { return nil }
-        let wanted = GenericFoodSearchTerms.tokens([parsed.attributes["brand"], parsed.attributes["fat_descriptor"], food].compactMap { $0 }.joined(separator: " "))
-        let actual = GenericFoodSearchTerms.tokens(name)
+        let wanted = GenericFoodSearchTerms.literalTokens([parsed.attributes["brand"], parsed.attributes["fat_descriptor"], food].compactMap { $0 }.joined(separator: " "))
+        let actual = GenericFoodSearchTerms.literalTokens(name)
         guard !wanted.isEmpty, wanted.isSubset(of: actual) else { return nil }
         return Double(wanted.count) / Double(max(1, actual.count))
     }

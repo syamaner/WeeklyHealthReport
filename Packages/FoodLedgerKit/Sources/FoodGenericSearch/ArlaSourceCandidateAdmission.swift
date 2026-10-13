@@ -27,10 +27,10 @@ public struct ArlaSourceCandidateAdmission: FoodSourceCandidateAdmitting {
               let model = try? JSONSerialization.jsonObject(with: modelBytes) as? [String: Any],
               (model["additionalInformation"] as? [String: Any])?["ean"] as? String == ean else { return nil }
         let displayName = try heading.text()
-        let headingTerms = GenericFoodSearchTerms.tokens(displayName)
+        let headingTerms = GenericFoodSearchTerms.literalTokens(displayName)
         guard headingTerms.contains("arla"),
-              headingTerms == GenericFoodSearchTerms.tokens(brand + " " + name),
-              headingTerms == GenericFoodSearchTerms.tokens(try title.attr("content")),
+              headingTerms == GenericFoodSearchTerms.literalTokens(brand + " " + name),
+              headingTerms == GenericFoodSearchTerms.literalTokens(try title.attr("content")),
               let score = ManufacturerSourcePageIdentity.score(query: query, name: displayName) else { return nil }
         return try ManufacturerSourceCandidateBuilder.make(name: displayName, panel: panel, page: source.page,
             evidence: evidence, lexicalScore: score, namespace: "arla", label: "Arla UK", version: Self.version)
