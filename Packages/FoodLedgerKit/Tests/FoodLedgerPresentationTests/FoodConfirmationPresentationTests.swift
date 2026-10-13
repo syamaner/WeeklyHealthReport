@@ -34,7 +34,13 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertNotNil(model.availableVolumeConversion)
         XCTAssertNil(model.state.quantity.conversion)
         XCTAssertTrue(model.consumedNutrition.allSatisfy { $0.knownAmount == nil })
+        // B1: before the estimate, mL on this per 100 g record logs without nutrition, and both
+        // "Enter grams instead" and the sourced estimate are offered.
+        XCTAssertEqual(model.logButtonTitle, "Log without nutrition")
+        XCTAssertEqual(model.sourceUnitAction?.actionTitle, "Enter grams instead")
         model.applyAvailableVolumeConversion()
+        XCTAssertNil(model.unitBasisMismatch, "the estimate reaches the gram basis")
+        XCTAssertEqual(model.logButtonTitle, "Log 130 kcal")
         XCTAssertEqual(model.state.quantity.conversion?.convertedQuantity.value, 206)
         XCTAssertTrue(model.quantityBasisWarning?.contains("Estimated edible mass") == true)
         XCTAssertEqual(try XCTUnwrap(model.consumedNutrition.first { $0.key == .energyConsumed }?.knownAmount), 129.78, accuracy: 0.0001)
@@ -227,6 +233,52 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         model.chooseQuantityUnit(.grams)
         model.send(.setQuantityText("150"))
         XCTAssertTrue(model.canLog)
+    }
+
+    /// B1: an amount whose unit cannot be scaled to the source basis logs without nutrition, says
+    /// so on the button, and offers the source's unit inline (clearing the amount). The v5 rule is
+    /// unchanged: such a save is still allowed.
+    func testUnscalableUnitLogsWithoutNutritionAndOffersTheSourceUnit() throws {
+        let grams = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true), savesFavourite: true,
+                                              favouriteAction: { _ in }) { _ in throw CocoaError(.fileWriteUnknown) }
+        grams.send(.setQuantity(200, .millilitres))
+        XCTAssertEqual(grams.unitBasisMismatch, .millilitresOnGramBasis)
+        XCTAssertEqual(grams.logButtonTitle, "Log without nutrition", "wins over the favourite title")
+        XCTAssertTrue(grams.canLog, "presentation only: confirmation v5 still allows the save")
+        XCTAssertEqual(grams.sourceUnitAction?.actionTitle, "Enter grams instead")
+        XCTAssertEqual(grams.quantityBasisWarning, "This food’s nutrition is per 100 g, and millilitres cannot be converted to grams for it. Logged in mL, this entry has no nutrition.")
+        grams.useSourceBasisUnit()
+        XCTAssertEqual(grams.state.quantity.unit, .grams)
+        XCTAssertNil(grams.state.quantity.value, "the amount is cleared, not reread in grams")
+        XCTAssertNil(grams.unitBasisMismatch)
+        XCTAssertFalse(grams.canLog)
+        XCTAssertEqual(grams.logButtonTitle, "Log and save favourite")
+
+        let millilitres = FoodConfirmationViewModel(state: try fixtureState(basis: .per100Millilitres, knownProtein: true)) { _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+        millilitres.send(.setQuantity(200, .grams))
+        XCTAssertEqual(millilitres.unitBasisMismatch, .gramsOnMillilitreBasis)
+        XCTAssertEqual(millilitres.sourceUnitAction?.actionTitle, "Enter mL instead")
+        XCTAssertEqual(millilitres.logButtonTitle, "Log without nutrition")
+        millilitres.useSourceBasisUnit()
+        XCTAssertEqual(millilitres.state.quantity.unit, .millilitres)
+        XCTAssertNil(millilitres.state.quantity.value)
+        millilitres.send(.setQuantity(200, .millilitres))
+        XCTAssertEqual(millilitres.logButtonTitle, "Log")
+        // A measured weight is grams whatever the picker says: no unit action can resolve it.
+        millilitres.send(.beginDirectWeight)
+        millilitres.send(.setDirectWeight(150))
+        XCTAssertEqual(millilitres.unitBasisMismatch, .gramsOnMillilitreBasis)
+        XCTAssertNil(millilitres.sourceUnitAction)
+        XCTAssertEqual(millilitres.logButtonTitle, "Log without nutrition")
+        // A count converted to grams scales on a per 100 g source.
+        let count = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in throw CocoaError(.fileWriteUnknown) }
+        count.chooseQuantityUnit(.count)
+        count.send(.setQuantity(2, .count))
+        count.send(.setConversion(QuantityConversionDraft(
+            convertedQuantity: try PositiveQuantity(value: 150, unit: .grams), methodVersion: try LedgerText("measured-v1"))))
+        XCTAssertNil(count.unitBasisMismatch)
     }
 
     func testReferenceBasisAndConsumedPreviewNeverInferDensity() throws {

@@ -315,6 +315,31 @@ final class FoodLogAppTests: XCTestCase {
         }
     }
 
+    /// B1: Confirm with mL on a per 100 g source renders "Log without nutrition" and the inline
+    /// "Enter grams instead" action at standard and accessibility sizes (synthetic data).
+    func testConfirmWithAnUnscalableUnitRendersLogWithoutNutrition() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        let search = try root.genericFoodSearchModel(locale: Locale(identifier: "en_GB"))
+        search.query = "clementine"
+        search.search()
+        guard case let .results(route) = search.phase else { throw XCTSkip("Expected offline fruit candidates") }
+        let candidate = try XCTUnwrap(route.confirmation.candidates.first)
+        XCTAssertEqual(candidate.candidate.identity.servingBasis, .per100Grams)
+        let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence, sourceReleases: route.confirmation.sourceReleases,
+            candidates: [candidate], expectedIdentity: candidate.candidate.identity, expectedEdibleQuantity: candidate.candidate.edibleQuantity)
+        let model = root.model(for: input)
+        model.send(.setQuantity(200, .millilitres))
+        XCTAssertEqual(model.logButtonTitle, "Log without nutrition")
+        XCTAssertEqual(model.sourceUnitAction?.actionTitle, "Enter grams instead")
+        for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
+            renderPolish(NavigationStack { FoodConfirmationView(model: model) {} }.environment(\.dynamicTypeSize, size),
+                         "Confirm mL on per 100 g - \(name)")
+        }
+    }
+
     /// The barcode route opens the scanner once, on first opening, with no explainer tap; coming
     /// back from search or Confirm does not reopen it.
     func testBarcodeRouteStartsScanningOnceOnOpening() {

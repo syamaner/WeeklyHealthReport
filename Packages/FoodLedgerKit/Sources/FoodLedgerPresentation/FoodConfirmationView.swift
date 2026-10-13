@@ -98,12 +98,63 @@ public final class FoodConfirmationViewModel: ObservableObject {
             if let conversion = state.quantity.conversion {
                 return "Converted edible amount: \(conversion.convertedQuantity.value.formatted()) \(conversion.convertedQuantity.unit.rawValue) using the recorded method. Check that the conversion describes the food as eaten."
             }
-            return "This food’s nutrition is per 100 g, and millilitres cannot be converted to grams for it. Enter the amount in grams, or choose a match given per 100 mL. Otherwise nutrition for this entry stays unknown."
+            return "This food’s nutrition is per 100 g, and millilitres cannot be converted to grams for it. Logged in mL, this entry has no nutrition."
         }
         if basis == .per100Millilitres && unit == .grams {
-            return "This food’s nutrition is per 100 mL, and grams cannot be converted to millilitres for it. Enter the amount in mL, or choose a match given per 100 g. Otherwise nutrition for this entry stays unknown."
+            return "This food’s nutrition is per 100 mL, and grams cannot be converted to millilitres for it. Logged in grams, this entry has no nutrition."
         }
         return nil
+    }
+
+    /// The amount's unit cannot be scaled to the source basis (owner decision B1): mL on a
+    /// per 100 g source, or g on a per 100 mL source, with no conversion that reaches the basis.
+    /// Presentation only: confirmation v5 still allows the save, with nutrition unknown.
+    public enum UnitBasisMismatch: Equatable, Sendable {
+        case millilitresOnGramBasis
+        case gramsOnMillilitreBasis
+
+        /// The unit the inline action switches to.
+        public var sourceUnit: QuantityUnit {
+            switch self {
+            case .millilitresOnGramBasis: .grams
+            case .gramsOnMillilitreBasis: .millilitres
+            }
+        }
+
+        public var actionTitle: String {
+            switch self {
+            case .millilitresOnGramBasis: "Enter grams instead"
+            case .gramsOnMillilitreBasis: "Enter mL instead"
+            }
+        }
+    }
+
+    public static let logWithoutNutritionTitle = "Log without nutrition"
+
+    public var unitBasisMismatch: UnitBasisMismatch? {
+        guard !state.isSourceRecipe, !state.usesSourceDeclaredServing else { return nil }
+        let basis = (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis
+        // The unit nutrition is scaled from: a measured weight is grams; a conversion supplies its own unit.
+        let unit = state.quantity.directWeight != nil
+            ? .grams : state.quantity.conversion?.convertedQuantity.unit ?? state.quantity.unit
+        switch (basis, unit) {
+        case (.per100Grams, .millilitres): return .millilitresOnGramBasis
+        case (.per100Millilitres, .grams): return .gramsOnMillilitreBasis
+        default: return nil
+        }
+    }
+
+    /// "Enter grams instead" / "Enter mL instead": switches to the source's unit and clears the
+    /// amount (B2), so nothing is reread in the new unit.
+    public func useSourceBasisUnit() {
+        guard let unit = sourceUnitAction?.sourceUnit else { return }
+        chooseQuantityUnit(unit)
+    }
+
+    /// The mismatch when the inline unit action can resolve it: not under a measured weight,
+    /// which is always grams whatever the unit picker says.
+    public var sourceUnitAction: UnitBasisMismatch? {
+        state.quantity.directWeight == nil ? unitBasisMismatch : nil
     }
 
     public static func nutrientLabel(_ value: NutrientKey) -> String {
@@ -209,6 +260,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public var logButtonTitle: String {
         if state.reopened != nil { return "Save changes" }
+        if unitBasisMismatch != nil { return Self.logWithoutNutritionTitle }
         if savesFavourite && offersFavourite { return "Log and save favourite" }
         guard nutritionReview.isConsumed,
               let energy = consumedNutrition.first(where: { $0.key == .energyConsumed }),
@@ -673,6 +725,13 @@ public struct FoodConfirmationView: View {
             whenRow
             if let warning = model.quantityBasisWarning {
                 Label(warning, systemImage: "exclamationmark.triangle").font(.caption)
+            }
+            if let mismatch = model.sourceUnitAction {
+                Button(mismatch.actionTitle) {
+                    model.useSourceBasisUnit()
+                    totalText = ""
+                }
+                .frame(minHeight: 44)
             }
             if let offer = model.availableVolumeConversion {
                 Button("Use sourced whole-milk volume estimate") { model.applyAvailableVolumeConversion() }

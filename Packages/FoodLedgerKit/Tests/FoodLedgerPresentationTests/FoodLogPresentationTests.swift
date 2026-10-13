@@ -197,16 +197,19 @@ final class FoodLogPresentationTests: XCTestCase {
     }
 
     /// The mL-on-a-per-100 g warning applies only while mL drives nutrition; a measured gram
-    /// weight replaces it, so the "stays unknown" copy is not shown then.
+    /// weight replaces it, so the "no nutrition" copy and button title are not shown then.
     func testVolumeWarningIsHiddenWhenMeasuredWeightDrivesNutrition() throws {
         let world = try World(now: now, calendar: calendar)
         let model = FoodConfirmationViewModel(state: try world.newState(grams: 150), now: { [now] in now }, calendar: calendar) { _ in
             throw CocoaError(.fileWriteUnknown)
         }
         model.send(.setQuantity(200, .millilitres))
-        XCTAssertTrue(try XCTUnwrap(model.quantityBasisWarning).contains("stays unknown"))
+        XCTAssertTrue(try XCTUnwrap(model.quantityBasisWarning).contains("has no nutrition"))
+        XCTAssertEqual(model.logButtonTitle, "Log without nutrition")
         model.send(.beginDirectWeight)
         XCTAssertNil(model.quantityBasisWarning)
+        XCTAssertNil(model.unitBasisMismatch)
+        XCTAssertNotEqual(model.logButtonTitle, "Log without nutrition")
         XCTAssertEqual(FoodConfirmationView.evidenceCount(1), "1 saved item")
         XCTAssertEqual(FoodConfirmationView.evidenceCount(3), "3 saved items")
     }
