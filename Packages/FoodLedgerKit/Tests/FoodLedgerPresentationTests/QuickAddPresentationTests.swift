@@ -117,6 +117,29 @@ final class QuickAddPresentationTests: XCTestCase {
         XCTAssertEqual(model.phase, .saved)
     }
 
+    /// Owner decision D: a sheet opened from a past Food Log day starts When on that day; a day
+    /// beyond the window shows the notice and stays Now; an out-of-window time is stated under When.
+    func testSheetWhenFromAPastDayAndItsInlineNotices() throws {
+        let (_, confirmations, favourites) = try services()
+        var preparation = try favourites.prepare(.builtInWater)
+        let yesterday = try XCTUnwrap(FoodEntryWhenPrefill.resolve(
+            dayKey: FoodReportingDay.key(for: now.addingTimeInterval(-86_400), calendar: calendar), now: now, calendar: calendar).occurredAt)
+        var state = preparation.state
+        state.occurredAt = yesterday
+        preparation = preparation.replacingState(state)
+        let model = sheet(preparation, confirmations)
+        XCTAssertFalse(model.occursNow)
+        XCTAssertEqual(model.displayedOccurredAt, yesterday)
+        XCTAssertNil(model.whenRequirementText)
+        XCTAssertTrue(model.canLog)
+        model.setOccurredAt(now.addingTimeInterval(-9 * 86_400))
+        XCTAssertEqual(model.whenRequirementText, "Choose a time within the last 7 days.")
+        let fallback = QuickAddSheetModel(preparation: try favourites.prepare(.builtInWater), now: { [now] in now }, calendar: calendar,
+                                          whenNotice: FoodLogText.whenNotice(.beyondBackdatingWindow)) { _ in throw CocoaError(.fileWriteUnknown) }
+        XCTAssertTrue(fallback.occursNow)
+        XCTAssertEqual(fallback.whenNotice, "Entries can be logged up to 7 days back.")
+    }
+
     func testIneligibleFavouriteRoutesToConfirm() throws {
         let (_, confirmations, favourites) = try services()
         let water = try PlainWaterReference(digester: SHA256Digester())

@@ -49,13 +49,18 @@ public struct AddFoodView: View {
     private let relog: (FoodRecentRelogItem) -> Void
     /// Save as favourite on recent rows (owner decision A); nil hides it.
     private let favouriteSaving: FavouriteSaveModel?
+    /// Under the list route when Add food carries a past Food Log day: list items are logged
+    /// for now (confirmation v5 section 10), unlike the other routes.
+    private let listImportNote: String?
 
     public init(recents: [FoodRecentRelogItem], now: Date = Date(), calendar: Calendar = .current,
                 initialText: String = "",
                 search: @escaping (String) -> Void, scanBarcode: (() -> Void)?, pasteOrDictate: (() -> Void)?,
                 favourites: (() -> Void)?, favouriteItems: [QuickAddItem]? = [], quickAdd: ((QuickAddItem) -> Void)? = nil,
                 favouriteSaving: FavouriteSaveModel? = nil,
+                listImportNote: String? = nil,
                 relog: @escaping (FoodRecentRelogItem) -> Void) {
+        self.listImportNote = listImportNote
         self.recents = recents; self.now = now; self.calendar = calendar
         self.favouriteSaving = favouriteSaving
         self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate
@@ -87,6 +92,8 @@ public struct AddFoodView: View {
                 if let scanBarcode { routeRow("Scan barcode", systemImage: "barcode.viewfinder", action: scanBarcode) }
                 if let pasteOrDictate { routeRow("Paste or dictate a list", systemImage: "list.bullet", action: pasteOrDictate) }
                 if let favourites { routeRow("Favourites", systemImage: "star", action: favourites) }
+            } footer: {
+                if pasteOrDictate != nil, let listImportNote { Text(listImportNote) }
             }
             Section {
                 switch AddFoodFavouritesState(favouriteItems, quickAdd: quickAdd != nil) {

@@ -3,14 +3,22 @@ import SwiftUI
 struct DailyExportView: View {
     @ObservedObject var session: DailyDriveSessionController
     @ObservedObject private var notes: DailyNotesController
+    /// Opens Settings > Export from the "Set up Google Drive" action (owner decision C). Without
+    /// it (previews and render tests) the action is a plain navigation link to the same route.
+    private let openDriveSetup: (() -> Void)?
     @Environment(\.scenePhase) private var scenePhase
     @State private var exactJSON: ExactJSONInspection?
     @State private var showingTrashedDestinationConfirmation = false
     @State private var showingTrashedFileConfirmation = false
 
-    init(session: DailyDriveSessionController) {
+    init(session: DailyDriveSessionController, openDriveSetup: (() -> Void)? = nil) {
         self.session = session
+        self.openDriveSetup = openDriveSetup
         _notes = ObservedObject(wrappedValue: session.notes)
+    }
+
+    private var driveAvailability: DriveExportAvailability {
+        DriveExportAvailability.resolve(isConfigured: session.isConfigured, setup: session.presentationState.phaseSetup)
     }
 
     var body: some View {
@@ -30,7 +38,7 @@ struct DailyExportView: View {
                 includedSection
                 exportSection
             case .needsAttention:
-                if hasVisibleAttentionAction {
+                if hasVisibleAttentionAction && driveAvailability != .unavailableInBuild {
                     attentionSection
                 }
                 if session.presentationState.actions.contains(.authorizeNutrition) {
@@ -152,13 +160,27 @@ struct DailyExportView: View {
         )
     }
 
+    @ViewBuilder
     private var resultSection: some View {
+        if driveAvailability == .unavailableInBuild {
+            // One line; the technical detail is in Developer tools.
+            Section {
+                Label(DriveExportAvailability.unavailableLine, systemImage: "icloud.slash")
+            } header: {
+                Text("Status")
+            }
+        } else {
+            statusSection
+        }
+    }
+
+    private var statusSection: some View {
         Section {
             switch phase {
             case .notSetUp:
                 Label("Not set up", systemImage: "exclamationmark.circle")
-                if session.isConfigured {
-                    NavigationLink("Set up Google Drive", value: AppRoute.exportDestination)
+                if driveAvailability == .needsSetup {
+                    setUpDriveButton
                 }
             case .preparing:
                 HStack {
@@ -200,6 +222,20 @@ struct DailyExportView: View {
             Text("Status")
         } footer: {
             Text("Opening this screen prepares the file on this device. Nothing is sent until you choose Export.")
+        }
+    }
+
+    /// The primary action while Drive is configured but not connected.
+    @ViewBuilder
+    private var setUpDriveButton: some View {
+        if let openDriveSetup {
+            Button(action: openDriveSetup) {
+                Text(DriveExportAvailability.setUpTitle).frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("export.setUpDrive")
+        } else {
+            NavigationLink(DriveExportAvailability.setUpTitle, value: AppRoute.exportDestination)
         }
     }
 
@@ -256,13 +292,20 @@ struct DailyExportView: View {
         }
     }
 
+    @ViewBuilder
     private var driveSection: some View {
-        Section {
-            NavigationLink(value: AppRoute.exportDestination) {
-                LabeledContent("Google Drive", value: session.destinationLabel)
+        if driveAvailability == .unavailableInBuild {
+            Section {
+                LabeledContent("Google Drive", value: DriveExportAvailability.unavailableRowValue)
             }
-        } footer: {
-            Text("Account and folder are managed in Settings.")
+        } else {
+            Section {
+                NavigationLink(value: AppRoute.exportDestination) {
+                    LabeledContent("Google Drive", value: session.destinationLabel)
+                }
+            } footer: {
+                Text("Account and folder are managed in Settings.")
+            }
         }
     }
 

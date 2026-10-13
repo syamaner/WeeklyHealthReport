@@ -66,6 +66,39 @@ final class AppNavigationTests: XCTestCase {
         }
     }
 
+    /// Owner decision C: "Set up Google Drive" on Export opens Settings > Export, which returns to
+    /// Export once setup no longer blocks it; opened from Settings, it never pops by itself.
+    func testDriveSetupFromExportReturnsToExport() {
+        let coordinator = AppNavigationCoordinator(defaults: isolatedDefaults())
+        coordinator.replacePath([.healthReport, .dailyExport])
+        // The ordinary Drive row on Export opens the same route but never returns by itself.
+        coordinator.acceptPathChange([.healthReport, .dailyExport, .exportDestination])
+        XCTAssertFalse(coordinator.exportSetupReturnsToExport)
+        coordinator.returnToExport()
+        XCTAssertEqual(coordinator.path, [.healthReport, .dailyExport, .exportDestination])
+        coordinator.acceptPathChange([.healthReport, .dailyExport])
+        // The set-up button: one shot.
+        coordinator.openDriveSetupFromExport()
+        XCTAssertEqual(coordinator.path, [.healthReport, .dailyExport, .exportDestination])
+        XCTAssertTrue(coordinator.exportSetupReturnsToExport)
+        coordinator.returnToExport()
+        XCTAssertEqual(coordinator.path, [.healthReport, .dailyExport])
+        XCTAssertFalse(coordinator.exportSetupReturnsToExport)
+        coordinator.returnToExport()
+        XCTAssertEqual(coordinator.path, [.healthReport, .dailyExport], "nothing to pop")
+        coordinator.acceptPathChange([.healthReport, .dailyExport, .exportDestination])
+        XCTAssertFalse(coordinator.exportSetupReturnsToExport, "the flag was used once")
+        coordinator.acceptPathChange([.healthReport, .dailyExport])
+        coordinator.openDriveSetupFromExport()
+        coordinator.acceptPathChange([.healthReport, .dailyExport])
+        coordinator.acceptPathChange([.healthReport, .dailyExport, .exportDestination])
+        XCTAssertFalse(coordinator.exportSetupReturnsToExport, "backing out by hand clears it")
+        coordinator.replacePath([.settings, .exportDestination])
+        XCTAssertFalse(coordinator.exportSetupReturnsToExport)
+        coordinator.returnToExport()
+        XCTAssertEqual(coordinator.path, [.settings, .exportDestination])
+    }
+
     /// #199 (D11): Home's notes routes are new raw values, pin the shared notes
     /// controller to today, and leave the export's notes routes unchanged.
     func testTodayNotesRoutesAreAppendedAndPinToday() {

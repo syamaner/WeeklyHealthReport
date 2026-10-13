@@ -87,7 +87,7 @@ Ineligible favourites open the full Confirm with the same state for fresh explic
 
 ### Sheet content
 
-Title "Quick add <label>", food line, presets, Other amount, When (Now by default), a plain source line and "Log <amount>". Estimates never reach the sheet. Water presets: 150, 250, 330 and 500 mL. Food favourites offer the default amount plus Other amount in the same unit; a unit change opens Confirm (Q5). The Q10 upper bound is a **sheet-only input bound** surfaced as `amountTextInvalid`; Confirm is not bounded and no policy version changes.
+Title "Quick add <label>", food line, presets, Other amount, When (Now by default), a plain source line and "Log <amount>". When the sheet opens from Add food on a past Food Log day, When starts on that day at the current clock time instead (owner decision D, 13 October 2026; presentation only, `FoodLogPolicy` still decides the save). Estimates never reach the sheet. Water presets: 150, 250, 330 and 500 mL. Food favourites offer the default amount plus Other amount in the same unit; a unit change opens Confirm (Q5). The Q10 upper bound is a **sheet-only input bound** surfaced as `amountTextInvalid`; Confirm is not bounded and no policy version changes.
 
 ## 4. Water: one fixed reference record
 

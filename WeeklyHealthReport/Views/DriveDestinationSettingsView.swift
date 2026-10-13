@@ -6,12 +6,15 @@ import SwiftUI
 /// Export screen used before #200.
 struct DriveDestinationSettingsView: View {
     @ObservedObject var session: DailyDriveSessionController
+    /// Set when this screen was opened from Export's "Set up Google Drive" (owner decision C):
+    /// once Drive no longer blocks the export, the screen returns there.
+    var returnToExport: (() -> Void)? = nil
 
     var body: some View {
         Form {
             if !session.isConfigured {
                 Section {
-                    Text(Self.configurationUnavailableText)
+                    Text(DriveExportAvailability.unavailableLine)
                         .foregroundStyle(.secondary)
                 }
             } else {
@@ -66,15 +69,9 @@ struct DriveDestinationSettingsView: View {
         }
         .navigationTitle("Google Drive")
         .navigationBarTitleDisplayMode(.inline)
-    }
-
-    /// The one wording for a build without OAuth configuration, shared with
-    /// the Export screen's status.
-    static var configurationUnavailableText: String {
-        DailyExportStatusCatalogue.status(
-            for: .needsAttention(.configurationUnavailable),
-            hasStoredSession: false
-        )
+        .onChange(of: session.presentationState.phaseSetup) { _, setup in
+            if let returnToExport, DriveExportAvailability.setupReturnsToExport(setup) { returnToExport() }
+        }
     }
 
     private func perform(_ action: DriveDestinationAction) {

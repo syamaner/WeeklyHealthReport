@@ -254,6 +254,9 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     private(set) var exactJSONConstructionCount = 0
 
     var isConfigured: Bool { (try? oauthConfiguration()) != nil }
+    /// The same check against the main bundle, for building Settings before any session exists.
+    /// Reads Info.plist only; no request.
+    static var bundleHasOAuthConfiguration: Bool { (try? DriveOAuthClientConfiguration.fromMainBundle()) != nil }
     var canExport: Bool {
         previewIsCurrent && account != nil && activeDestination != nil && !busy
             && presentationState == .readyToExport

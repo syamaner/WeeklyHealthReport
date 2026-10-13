@@ -2,14 +2,19 @@ import Foundation
 import FoodLedgerPresentation
 
 /// Drive account and folder setup (#200). The factory takes no session, so
-/// building Settings cannot prepare an export or reach the network.
+/// building Settings cannot prepare an export or reach the network. A build
+/// without OAuth configuration shows the row as plain text (owner decision C).
 enum ExportSettingsContribution {
-    static func section() -> SettingsSection {
+    static let rowTitle = "Google Drive account and folder"
+
+    static func section(driveExportAvailable: Bool) -> SettingsSection {
         SettingsSection(
             id: .export,
             title: "Export",
             footer: nil,
-            rows: [.link("Google Drive account and folder", route: .exportDestination)]
+            rows: [driveExportAvailable
+                ? .link(rowTitle, route: .exportDestination)
+                : .text("googleDrive", rowTitle, detail: DriveExportAvailability.unavailableRowValue)]
         )
     }
 }
