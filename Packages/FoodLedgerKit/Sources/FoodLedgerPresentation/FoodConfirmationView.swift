@@ -122,7 +122,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
         return usesOfferedVolumeEstimate ? Self.offeredVolumeEstimateLabel : conversion.methodVersion.value
     }
 
-    public static let offeredVolumeEstimateLabel = "Whole milk volume estimate (CoFID)"
+    /// The factor is PHE 2018 Annex A Table 4 (citing McCance and Widdowson), checked as 1.03 by the
+    /// adapter; it is not a CoFID field, so the label never names CoFID (admission v1).
+    public static let offeredVolumeEstimateLabel = "Whole milk volume estimate (1.03 g per mL, PHE)"
 
     private var usesOfferedVolumeEstimate: Bool {
         guard let sourceID = state.quantity.conversion?.sourceReleaseID,

@@ -42,8 +42,9 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertNil(model.unitBasisMismatch, "the estimate reaches the gram basis")
         XCTAssertEqual(model.logButtonTitle, "Log 130 kcal")
         // The main screen names the estimate plainly; the method identifier stays in its details.
-        XCTAssertEqual(model.conversionMethodLabel, "Whole milk volume estimate (CoFID)")
+        XCTAssertEqual(model.conversionMethodLabel, "Whole milk volume estimate (1.03 g per mL, PHE)")
         XCTAssertFalse(try XCTUnwrap(model.conversionMethodLabel).contains("cofid-"))
+        XCTAssertFalse(try XCTUnwrap(model.conversionMethodLabel).contains("CoFID"), "the factor is not a CoFID field")
         XCTAssertTrue(try XCTUnwrap(model.state.quantity.conversion).methodVersion.value.contains("milk"), "identifier kept in the state")
         XCTAssertEqual(model.state.quantity.conversion?.convertedQuantity.value, 206)
         XCTAssertTrue(model.quantityBasisWarning?.contains("Estimated edible mass") == true)

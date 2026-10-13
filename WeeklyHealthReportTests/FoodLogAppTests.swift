@@ -453,7 +453,7 @@ final class FoodLogAppTests: XCTestCase {
         XCTAssertNotNil(confirmation.availableVolumeConversion)
         XCTAssertNil(confirmation.state.occurredAt, "list items keep Now")
         confirmation.applyAvailableVolumeConversion()
-        XCTAssertEqual(confirmation.conversionMethodLabel, "Whole milk volume estimate (CoFID)")
+        XCTAssertEqual(confirmation.conversionMethodLabel, "Whole milk volume estimate (1.03 g per mL, PHE)")
         XCTAssertNotEqual(confirmation.logButtonTitle, "Log without nutrition")
 
         let note = FoodLogText.listImportNote(entryDay: "2026-10-10")
