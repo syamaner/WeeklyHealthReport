@@ -33,8 +33,8 @@ public enum FoodQueryCandidateAssessment {
         if let literal = query.attributes["unspecified_percent"] {
             return "Requested \(literal)%: its meaning is not verified. Compare the product and enter the consumed amount during review."
         }
-        let requestedTerms = Set(GenericFoodRankingPolicy.terms(query.food ?? query.original))
-        let candidateTerms = Set(GenericFoodRankingPolicy.terms(candidate.name.value))
+        let requestedTerms = Set(GenericFoodRankingPolicy.literalTerms(query.food ?? query.original))
+        let candidateTerms = Set(GenericFoodRankingPolicy.literalTerms(candidate.name.value))
         let typeNote: String? = requestedTerms.contains("greek") && requestedTerms.contains("style") != candidateTerms.contains("style")
             ? "Tentative alternative: Greek yoghurt and Greek-style yoghurt are different types. Compare the catalogue name before accepting." : nil
         guard let requested = query.attributes["fat_percent"] else { return typeNote }

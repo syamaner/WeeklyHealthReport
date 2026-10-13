@@ -81,10 +81,16 @@ EXTENDED = {
 }
 
 
+# Explicit overrides for new v6 labels only (frozen sets are untouched): a
+# different species sharing the food word is a related record, not the food.
+SPECIES = ("guavas, strawberry",)
+
+
 def v5_grade(fruit, record, name, taiwan):
     sys.path.insert(0, str(ROOT))
     from build_retrieval_v5 import grade as regional_grade
-    return regional_grade(fruit, record, name, taiwan)
+    value = regional_grade(fruit, record, name, taiwan)
+    return min(value, 2) if name.lower().startswith(SPECIES) else value
 
 
 def main():

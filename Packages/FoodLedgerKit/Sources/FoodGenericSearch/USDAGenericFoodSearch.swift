@@ -64,7 +64,7 @@ public final class USDAGenericFoodSearch: GenericFoodSearching, @unchecked Senda
         let ranked = try corpus.records.compactMap { record -> (USDARecord, Double, GenericFoodRankingPolicy.Preference)? in
             let candidateTokens = Self.tokens(record.name)
             guard tokens.isSubset(of: candidateTokens),
-                  GenericFoodSearchTerms.acceptsFoodForm(name: record.name, query: tokens), GenericFoodRankingPolicy.allowsDerivativeFoodName(record.name, query: food), try Self.accepts(request.identity, identity: Self.identity(record), name: record.name, parsed: parsed) else { return nil }
+                  GenericFoodSearchTerms.acceptsFoodForm(name: record.name, query: tokens, literal: false), GenericFoodRankingPolicy.allowsDerivativeFoodName(record.name, query: food), try Self.accepts(request.identity, identity: Self.identity(record), name: record.name, parsed: parsed) else { return nil }
             let primaryBonus = GenericFoodSearchTerms.primaryNameMatches(record.name, query: tokens) ? 0.3 : 0
             return (record, (Double(tokens.count) / Double(candidateTokens.count) + primaryBonus) / 1.3,
                 GenericFoodRankingPolicy.preference(name: record.name, food: food, requestedText: request.text.value))

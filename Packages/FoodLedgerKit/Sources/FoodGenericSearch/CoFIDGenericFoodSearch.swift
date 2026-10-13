@@ -205,7 +205,7 @@ public final class CoFIDGenericFoodSearch: GenericFoodSearching, @unchecked Send
             let candidate = Self.normalized(record.name)
             let candidateTokens = GenericFoodSearchTerms.tokens(record.name)
             guard meaningfulTokens.isSubset(of: candidateTokens),
-                  GenericFoodSearchTerms.acceptsFoodForm(name: record.name, query: meaningfulTokens),
+                  GenericFoodSearchTerms.acceptsFoodForm(name: record.name, query: meaningfulTokens, literal: false),
                   GenericFoodRankingPolicy.allowsDerivativeFoodName(record.name, query: food),
                   Self.contradictions(query: request.identity, record: record, parsed: parsed).isEmpty else { continue }
             let intersection = meaningfulTokens.intersection(candidateTokens)

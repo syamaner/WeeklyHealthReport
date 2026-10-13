@@ -24,7 +24,7 @@ enum GenericFoodSearchTerms {
     /// Explicit searches for those products remain eligible; no source facts change.
     /// `literal` keeps food-lexical-terms-v8 candidate terms for live sources, whose
     /// query terms are literal too.
-    static func acceptsFoodForm(name: String, query: Set<String>, literal: Bool = false) -> Bool {
+    static func acceptsFoodForm(name: String, query: Set<String>, literal: Bool) -> Bool {
         guard query.contains("pancake") else { return true }
         let candidate = literal ? literalTokens(name) : tokens(name)
         let productForms: [Set<String>] = [["syrup", "syrups"], ["mix", "mixes"], ["batter"]]
@@ -39,14 +39,24 @@ enum GenericFoodSearchTerms {
         let unknown = query.filter { !vocabulary.contains($0) }
         guard unknown.count == 1, let miss = unknown.first, miss.count >= 5 else { return [] }
         let retained = query.subtracting([miss])
-        let replacements = vocabulary.filter { word in
-            word.count >= 5 && oneEdit(miss, word) && entries.contains { retained.union([word]).isSubset(of: $0) }
-        }.sorted()
+        // Matching uses folded terms; the suggestion is built from the user's own
+        // literal terms and a source spelling, so a folded form ("french fry") is
+        // never shown. Only the corrected token changes.
+        let literalQuery = GenericFoodRankingPolicy.literalTerms(text)
+        let typed = literalQuery.filter { fold($0) == miss }
+        var spellings: [String: String] = [:]
+        for word in Set(names.flatMap(GenericFoodRankingPolicy.literalTerms)) where word.count >= 5
+            && typed.contains(where: { oneEdit($0, word) }) && entries.contains(where: { retained.union([fold(word)]).isSubset(of: $0) }) {
+            // One spelling per folded word, so "walnut" and "walnuts" are not both offered.
+            spellings[fold(word)] = min(spellings[fold(word)] ?? word, word)
+        }
         // Suggestions require another explicit search, never silently alter evidence.
-        return replacements.prefix(3).map { replacement in
-            terms(text).map { $0 == miss ? replacement : $0 }.joined(separator: " ")
+        return spellings.values.sorted().prefix(3).map { replacement in
+            literalQuery.map { fold($0) == miss ? replacement : $0 }.joined(separator: " ")
         }
     }
+
+    private static func fold(_ literal: String) -> String { terms(literal).first ?? literal }
 
     private static func oneEdit(_ a: String, _ b: String) -> Bool {
         let x = Array(a), y = Array(b)
