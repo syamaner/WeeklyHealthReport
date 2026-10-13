@@ -4,9 +4,10 @@ import Foundation
 /// These never establish food identity.
 /// Explicit selection, preparation and nutrition contracts remain separate.
 public enum GenericFoodRankingPolicy {
-    public static let version = "generic-representation-ranking-v7"
+    public static let version = "generic-representation-ranking-v8"
     public struct Preference: Equatable, Sendable {
         let primaryFood: Bool
+        let foldedOnlyTerms: Int
         let parentheticalOnlyTerms: Int
         let unrequestedSpecialisations: Int
         let unrequestedParts: Int
@@ -49,16 +50,26 @@ public enum GenericFoodRankingPolicy {
         let head = tokens(String(name.split(separator: ",", maxSplits: 1).first ?? ""))
         let extras = candidate.subtracting(requested)
         let direct = tokens(outsideParentheses(name))
+        // v8: a food term the name spells in the same number as the query precedes
+        // one matched only after plural folding ("walnuts": "Nuts, walnuts" before
+        // "Oil, walnut"). Primary-name matches keep precedence, so "Guavas, raw"
+        // still leads for "guava". Lexical presentation only, never identity.
+        let literalCandidate = Set(literalTerms(rankingName))
+        let foldedOnly = Set(literalTerms(requestedText)).filter { term in
+            !literalCandidate.contains(term) && candidate.contains(folded(term))
+        }
         return Preference(primaryFood: !head.isEmpty && head.isSubset(of: query),
+            foldedOnlyTerms: foldedOnly.count,
             parentheticalOnlyTerms: query.intersection(candidate).subtracting(direct).count,
             unrequestedSpecialisations: extras.intersection(specialised).count,
-            unrequestedParts: presentParts(rankingName).subtracting(requested).count,
+            unrequestedParts: Set(presentParts(rankingName).map(FoodLexicalPlurals.singular)).subtracting(requested).count,
             unrequestedForms: extras.intersection(forms).count,
             ordinaryRepresentation: candidate.intersection(ordinary).count + (candidate.contains("whole") ? 1 : 0),
             additionalTerms: extras.subtracting(preparation).count)
     }
     public static func prefers(_ lhs: Preference, over rhs: Preference) -> Bool {
         if lhs.primaryFood != rhs.primaryFood { return lhs.primaryFood }
+        if lhs.foldedOnlyTerms != rhs.foldedOnlyTerms { return lhs.foldedOnlyTerms < rhs.foldedOnlyTerms }
         if lhs.parentheticalOnlyTerms != rhs.parentheticalOnlyTerms {
             return lhs.parentheticalOnlyTerms < rhs.parentheticalOnlyTerms
         }
@@ -125,8 +136,20 @@ public enum GenericFoodRankingPolicy {
 
     private static func tokens(_ text: String) -> Set<String> { Set(terms(text)) }
 
-    /// Canonical lexical terms shared by retrieval and ranking; original evidence is never rewritten.
-    public static func terms(_ text: String) -> [String] {
+    /// Canonical lexical terms shared by catalogue retrieval and ranking
+    /// (`food-lexical-terms-v9`): the v8 literal terms with plural forms folded
+    /// by `FoodLexicalPlurals` before the closed equivalents apply, so query and
+    /// source names fold identically. Original evidence is never rewritten.
+    public static func terms(_ text: String) -> [String] { literalTerms(text).map(folded) }
+
+    private static func folded(_ term: String) -> String {
+        let singular = FoodLexicalPlurals.singular(term)
+        return equivalents[singular] ?? singular
+    }
+
+    /// `food-lexical-terms-v8` terms without plural folding. Live source
+    /// admission and page-identity checks keep these until they are versioned.
+    public static func literalTerms(_ text: String) -> [String] {
         let folded = text.folding(options: [.diacriticInsensitive, .widthInsensitive], locale: Locale(identifier: "en_US_POSIX"))
         let aliases = ["aubergines": "aubergine", "eggplant": "aubergine", "eggplants": "aubergine",
             "garbanzo": "chickpea", "garbanzos": "chickpea", "yogurt": "yoghurt", "yogurts": "yoghurt"]
@@ -137,7 +160,12 @@ public enum GenericFoodRankingPolicy {
             .replacingOccurrences(of: "chick pea", with: "chickpea")
             .replacingOccurrences(of: "peas chick", with: "chickpea")
             .replacingOccurrences(of: "pea chick", with: "chickpea")
-        let equivalents = [
+        let connectors: Set<String> = ["and", "with", "the", "of", "in", "from", "a", "an"]
+        return normalized.split(separator: " ").map(String.init)
+            .filter { !connectors.contains($0) }.map { equivalents[$0] ?? $0 }
+    }
+
+    private static let equivalents = [
         "syrups": "syrup", "pancakes": "pancake", "clementines": "clementine", "oranges": "orange", "mandarins": "mandarin",
         "tangerines": "tangerine", "grapes": "grape", "pears": "pear",
         "peaches": "peach", "plums": "plum", "apricots": "apricot",
@@ -148,9 +176,5 @@ public enum GenericFoodRankingPolicy {
         "onions": "onion", "beans": "bean", "peas": "pea", "lentils": "lentil",
         "roast": "roasted", "slice": "sliced", "slices": "sliced",
         "seeds": "seed", "chickpeas": "chickpea", "zucchini": "courgette", "courgettes": "courgette"
-        ]
-        let connectors: Set<String> = ["and", "with", "the", "of", "in", "from", "a", "an"]
-        return normalized.split(separator: " ").map(String.init)
-            .filter { !connectors.contains($0) }.map { equivalents[$0] ?? $0 }
-    }
+    ]
 }

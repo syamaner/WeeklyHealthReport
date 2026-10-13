@@ -106,22 +106,29 @@ jobs:
           WHR_RETRIEVAL_REPORT: ${{ runner.temp }}/retrieval-current.json
           WHR_RETRIEVAL_REPORT_V4: ${{ runner.temp }}/retrieval-v4-current.json
           WHR_RETRIEVAL_REPORT_V5: ${{ runner.temp }}/retrieval-v5-current.json
+          WHR_RETRIEVAL_REPORT_V6: ${{ runner.temp }}/retrieval-v6-current.json
         run: |
           set -euo pipefail
           swift test --package-path Packages/FoodLedgerKit
           python3 -m unittest discover -s Tools/FoodSearchQuality/tests -v
+          # food-lexical-terms-v9: frozen v3 to v5 labels scored on the current replay,
+          # plus the v6 plural cases (docs/food-lexical-terms-v9.md).
           python3 Tools/FoodSearchQuality/score_retrieval.py \
             Tools/FoodSearchQuality/retrieval-scenarios-v3.json \
             "$WHR_RETRIEVAL_REPORT" "$RUNNER_TEMP/retrieval-metrics.json" \
-            --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-v7.json
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-final-lexical-v9.json
           python3 Tools/FoodSearchQuality/score_retrieval.py \
             Tools/FoodSearchQuality/retrieval-scenarios-v4.json \
             "$WHR_RETRIEVAL_REPORT_V4" "$RUNNER_TEMP/retrieval-v4-metrics.json" \
-            --verify-report Tools/FoodSearchQuality/retrieval-metrics-v4-final-v7.json
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-v4-final-lexical-v9.json
           python3 Tools/FoodSearchQuality/score_retrieval.py \
             Tools/FoodSearchQuality/retrieval-scenarios-v5.json \
             "$WHR_RETRIEVAL_REPORT_V5" "$RUNNER_TEMP/retrieval-v5-metrics.json" \
-            --verify-report Tools/FoodSearchQuality/retrieval-metrics-v5-final-v9.json
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-v5-final-lexical-v9.json
+          python3 Tools/FoodSearchQuality/score_retrieval.py \
+            Tools/FoodSearchQuality/retrieval-scenarios-v6.json \
+            "$WHR_RETRIEVAL_REPORT_V6" "$RUNNER_TEMP/retrieval-v6-metrics.json" \
+            --verify-report Tools/FoodSearchQuality/retrieval-metrics-v6-final-lexical-v9.json
 
   food-ledger-kit-isolation:
     name: FoodLedgerKit boundaries
@@ -389,11 +396,11 @@ jobs:
       - name: Verify food query development regressions
         run: |
           set -euo pipefail
-          python3 Tools/FoodQueryEvaluation/validate.py v6
+          python3 Tools/FoodQueryEvaluation/validate.py v7
           python3 -m unittest discover -s Tools/FoodQueryEvaluation/tests
           swiftc Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryParser.swift Packages/FoodLedgerKit/Sources/FoodLedgerApplication/FoodQueryDiscoveryPolicy.swift Tools/FoodQueryEvaluation/run.swift -o "$RUNNER_TEMP/food-query-eval"
-          "$RUNNER_TEMP/food-query-eval" Tools/FoodQueryEvaluation/synthetic-v6.json "$RUNNER_TEMP/food-query-results.json"
-          python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v6.json "$RUNNER_TEMP/food-query-results.json" "$RUNNER_TEMP/food-query-report.json" --gate
+          "$RUNNER_TEMP/food-query-eval" Tools/FoodQueryEvaluation/synthetic-v7.json "$RUNNER_TEMP/food-query-results.json"
+          python3 Tools/FoodQueryEvaluation/score.py Tools/FoodQueryEvaluation/synthetic-v7.json "$RUNNER_TEMP/food-query-results.json" "$RUNNER_TEMP/food-query-report.json" --gate
 
       - name: Run Xcode static analysis
         run: |

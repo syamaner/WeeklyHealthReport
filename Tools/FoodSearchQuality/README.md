@@ -97,3 +97,24 @@ that replay. See `docs/composite-regional-order-v9.md` and
 WHR_RETRIEVAL_REPORT=/private/tmp/retrieval-current.json WHR_RETRIEVAL_REPORT_V4=/private/tmp/retrieval-v4-current.json WHR_RETRIEVAL_REPORT_V5=/private/tmp/retrieval-v5-current.json swift test --package-path Packages/FoodLedgerKit --filter RankedRetrievalDevelopmentTests/testReplay
 python3.12 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/retrieval-scenarios-v5.json /private/tmp/retrieval-v5-current.json /private/tmp/retrieval-v5-metrics.json --verify-report Tools/FoodSearchQuality/retrieval-metrics-v5-final-v9.json
 ```
+
+## Current CI replay: food lexical terms v9 (13 October 2026)
+
+The replay now reads `retrieval-scenarios-v6.json` (the 87 v5 cases plus 18
+plural/singular cases, `build_retrieval_v6.py`) and writes four reports from
+one run. Plural folding changes some earlier rows, so the frozen v3, v4 and v5
+labels are now verified against `retrieval-metrics-final-lexical-v9.json`,
+`retrieval-metrics-v4-final-lexical-v9.json` and
+`retrieval-metrics-v5-final-lexical-v9.json`; the earlier expected reports stay
+and still reproduce from the v8 code. v6 rows are verified against
+`retrieval-metrics-v6-final-lexical-v9.json`, and
+`retrieval-metrics-v6-baseline-lexical-v8.json` scores the same labels on the
+v8 replay. To rebuild the v6 labels, pass the ungraded v8 replay and then the
+v9 replay to `build_retrieval_v6.py`. See `docs/food-lexical-terms-v9.md`,
+`lexical-v9-reproduction-manifest.json` and the offline audit in
+`lexical-v9-audit/`.
+
+```sh
+WHR_RETRIEVAL_REPORT=/private/tmp/retrieval-current.json WHR_RETRIEVAL_REPORT_V4=/private/tmp/retrieval-v4-current.json WHR_RETRIEVAL_REPORT_V5=/private/tmp/retrieval-v5-current.json WHR_RETRIEVAL_REPORT_V6=/private/tmp/retrieval-v6-current.json swift test --package-path Packages/FoodLedgerKit --filter RankedRetrievalDevelopmentTests/testReplay
+python3.12 Tools/FoodSearchQuality/score_retrieval.py Tools/FoodSearchQuality/retrieval-scenarios-v6.json /private/tmp/retrieval-v6-current.json /private/tmp/retrieval-v6-metrics.json --verify-report Tools/FoodSearchQuality/retrieval-metrics-v6-final-lexical-v9.json
+```

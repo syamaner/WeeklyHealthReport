@@ -128,6 +128,11 @@ replay on `main` took about 42 s locally. The remaining 10 to 15 s locally, more
 the hosted runner, would leave under a minute of margin, so the job timeout is 15
 minutes. Revisit it if the job's measured duration falls back well below 10 minutes.
 
+Food lexical terms v9 adds 18 replay cases (105 in all) and a same-number ranking
+check. Locally the replay test took 70.1 s against 53.0 s, and the whole package
+suite 189 s of test time (250 s with the build), so the 15-minute timeout still
+leaves several minutes of margin on the hosted runner.
+
 ## Codecov disclosure boundary
 
 The pinned Codecov action runs only after the local coverage gate passes. Its
