@@ -153,6 +153,9 @@ final class WeeklyReportScreenshotController: ObservableObject {
     /// Set while Home is the visible root of the stack; a pushed Confirm from
     /// quick add leaves the path empty but hides Home.
     var isTodayOnScreen = false
+    /// The day of Home's last refresh; Today's Full Page uses it so its date
+    /// matches the header and the cards it renders.
+    var todayRefreshedDay: Date?
     /// The scene's key window, used to detect a presented sheet, alert or
     /// system sheet over Home.
     weak var hostWindow: UIWindow?

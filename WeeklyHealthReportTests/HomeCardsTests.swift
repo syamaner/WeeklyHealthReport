@@ -178,6 +178,32 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(document.sections[2].rows, [.init(value: "1 note")])
     }
 
+    /// Review fix: Today's Full Page is dated with the day of Home's last
+    /// refresh (the header's day), not a later clock reading.
+    func testHomeReportsItsRefreshedDayForTheFullPageDate() throws {
+        var clock = asOf
+        var reported: [Date] = []
+        let controller = WeeklyReportScreenshotController()
+        let view = NavigationStack {
+            HomeView(features: [], now: { clock }, calendar: self.calendar, dayRefreshed: { day in
+                reported.append(day)
+                controller.todayRefreshedDay = day
+            })
+        }
+        render(view, name: "Home - refreshed day")
+        let deadline = Date().addingTimeInterval(2)
+        while reported.isEmpty && Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        XCTAssertEqual(reported.first, asOf)
+
+        clock = date(13, 0, 5)  // after midnight, before Home refreshes again
+        let day = try XCTUnwrap(controller.todayRefreshedDay)
+        let document = HomeView.fullPageDocument([], today: day, calendar: calendar, locale: Locale(identifier: "en_GB"))
+        XCTAssertEqual(document.date, "Monday 12 October")
+        XCTAssertEqual(document.date, HomeView.header(asOf, calendar: calendar, locale: Locale(identifier: "en_GB")))
+    }
+
     /// The Full Page reads the cards' current content each time it is built.
     func testTodayFullPageFollowsTheCurrentCardContent() {
         let notes = DailyNotesController(store: EmptyDailyNotesStore(), calendar: calendar, now: { self.asOf })

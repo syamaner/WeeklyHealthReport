@@ -60,7 +60,8 @@ struct AppShellView: View {
             HomeView(
                 features: homeFeatures,
                 now: { foodLedger?.confirmationNow ?? Date() },
-                calendar: foodLedger?.confirmationDayCalendar ?? .autoupdatingCurrent
+                calendar: foodLedger?.confirmationDayCalendar ?? .autoupdatingCurrent,
+                dayRefreshed: { [screenshotController] day in screenshotController.todayRefreshedDay = day }
             )
             .navigationTitle("Today")
             .toolbar {
@@ -288,7 +289,8 @@ struct AppShellView: View {
                 let features = Self.homeFeatures(foodHome: foodHome, todaySoFar: todaySoFar, notes: notes)
                 return .today(HomeView.fullPageDocument(
                     features,
-                    today: foodLedger?.confirmationNow ?? Date(),
+                    // The day of Home's last refresh, as in its header and cards.
+                    today: screenshotController.todayRefreshedDay ?? foodLedger?.confirmationNow ?? Date(),
                     calendar: foodLedger?.confirmationDayCalendar ?? .autoupdatingCurrent
                 ))
             }

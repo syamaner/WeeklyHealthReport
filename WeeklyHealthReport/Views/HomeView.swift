@@ -75,6 +75,9 @@ struct HomeView: View {
     let features: [HomeFeature]
     let now: () -> Date
     let calendar: Calendar
+    /// Reports the day of each refresh, so Today's Full Page dates its
+    /// document with the same day as the header and the cards it renders.
+    var dayRefreshed: @MainActor (Date) -> Void = { _ in }
     @State private var today: Date?
     @Environment(\.scenePhase) private var scenePhase
 
@@ -129,7 +132,9 @@ struct HomeView: View {
     }
 
     private func refresh(_ trigger: HomeRefreshTrigger) async {
-        today = now()
+        let day = now()
+        today = day
+        dayRefreshed(day)
         for feature in features {
             await feature.refresh(trigger)
         }
