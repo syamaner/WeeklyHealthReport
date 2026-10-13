@@ -1,3 +1,4 @@
+import PDFKit
 import SwiftUI
 import UIKit
 import XCTest
@@ -134,6 +135,135 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(NotesHomeCard.countLabel(1), "1 note")
         XCTAssertEqual(NotesHomeCard.countLabel(4), "4 notes")
         XCTAssertEqual(NotesHomeCard.title, "Today\u{2019}s notes")
+    }
+
+    // MARK: Health link
+
+    func testHealthCardLinksReadAsHealthSummaries() {
+        XCTAssertEqual(TodaySoFarHealthCardView.title, "Health · today so far")
+        XCTAssertEqual(TodaySoFarHealthCardView.linkTitle, "Health summaries")
+        XCTAssertEqual(TodaySoFarHealthCardView.healthHint, "Opens the Health summaries for completed days")
+    }
+
+    // MARK: Today's Full Page
+
+    func testTodayFullPageListsEveryCardWithContentInCardOrder() async throws {
+        let notes = DailyNotesController(store: EmptyDailyNotesStore(), calendar: calendar, now: { self.asOf })
+        XCTAssertTrue(notes.beginNewDraft())
+        XCTAssertTrue(notes.updateDraftText("Synthetic note"))
+        XCTAssertTrue(notes.saveDraft())
+        let health = healthModel(inputs: TodaySoFarHealthInputs(
+            steps: .value(DailyStepTotal(day: try XCTUnwrap(TodaySoFarWindow.capture(at: asOf, calendar: calendar)).day,
+                                         steps: 6412, sourceNames: ["Synthetic phone"])),
+            activeEnergyKilocalories: .noData, asleepIntervals: .noData, weights: .noData, bloodPressure: .noData))
+        await health.handle(.pullToRefresh)
+        let features = [
+            NotesHomeCard.feature(controller: notes),
+            TodaySoFarHealthCardView.feature(model: health, readsHealthData: false),
+            FoodHomeCards.feature(model: FoodHomeModel(root: nil))
+        ]
+
+        let document = HomeView.fullPageDocument(features, today: asOf, calendar: calendar, locale: Locale(identifier: "en_GB"))
+
+        XCTAssertEqual(document.date, "Monday 12 October")
+        // Add food is only a control and quick add is hidden without a ledger.
+        XCTAssertEqual(document.sections.map(\.title), ["Food logged", "Health · today so far", "Today\u{2019}s notes"])
+        XCTAssertEqual(document.sections[0].rows, [.init(value: FoodHomeCardContent.unavailableMessage)])
+        let healthSection = document.sections[1]
+        XCTAssertEqual(healthSection.rows.map(\.label), ["Steps", "Active energy", "Sleep", "Weight", "Blood pressure"])
+        // The card formats with the device locale; the rows and footer are the card's own strings.
+        XCTAssertTrue(healthSection.rows[0].value.hasSuffix(" so far"), healthSection.rows[0].value)
+        XCTAssertTrue(healthSection.footer?.contains(HealthReportFormatter.todaySoFarFooter) == true)
+        XCTAssertTrue(healthSection.footer?.contains("As of ") == true, healthSection.footer ?? "")
+        XCTAssertEqual(document.sections[2].rows, [.init(value: "1 note")])
+    }
+
+    /// Review fix: Today's Full Page is dated with the day of Home's last
+    /// refresh (the header's day), not a later clock reading.
+    func testHomeReportsItsRefreshedDayForTheFullPageDate() throws {
+        var clock = asOf
+        var reported: [Date] = []
+        let controller = WeeklyReportScreenshotController()
+        let view = NavigationStack {
+            HomeView(features: [], now: { clock }, calendar: self.calendar, dayRefreshed: { day in
+                reported.append(day)
+                controller.todayRefreshedDay = day
+            })
+        }
+        render(view, name: "Home - refreshed day")
+        let deadline = Date().addingTimeInterval(2)
+        while reported.isEmpty && Date() < deadline {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        XCTAssertEqual(reported.first, asOf)
+
+        clock = date(13, 0, 5)  // after midnight, before Home refreshes again
+        let day = try XCTUnwrap(controller.todayRefreshedDay)
+        let document = HomeView.fullPageDocument([], today: day, calendar: calendar, locale: Locale(identifier: "en_GB"))
+        XCTAssertEqual(document.date, "Monday 12 October")
+        XCTAssertEqual(document.date, HomeView.header(asOf, calendar: calendar, locale: Locale(identifier: "en_GB")))
+    }
+
+    /// The Full Page reads the cards' current content each time it is built.
+    func testTodayFullPageFollowsTheCurrentCardContent() {
+        let notes = DailyNotesController(store: EmptyDailyNotesStore(), calendar: calendar, now: { self.asOf })
+        let features = [NotesHomeCard.feature(controller: notes)]
+        XCTAssertEqual(HomeView.fullPageDocument(features, today: asOf, calendar: calendar).sections[0].rows,
+                       [.init(value: "None yet")])
+        XCTAssertTrue(notes.beginNewDraft())
+        XCTAssertTrue(notes.updateDraftText("Synthetic note"))
+        XCTAssertTrue(notes.saveDraft())
+        XCTAssertEqual(HomeView.fullPageDocument(features, today: asOf, calendar: calendar).sections[0].rows,
+                       [.init(value: "1 note")])
+    }
+
+    func testFoodAndQuickAddFullPageSectionsUseTheCardsWords() throws {
+        let gb = Locale(identifier: "en_GB")
+        let totals = [
+            FoodIntakeTotal(key: .energyConsumed, knownAmount: 1240, incompleteContributions: 0, includesEstimates: true),
+            total(.protein, 68), total(.carbohydrates, 150.5), total(.fatTotal, 41, incomplete: 1)
+        ]
+        let state = FoodHomeCardContent.make(itemCount: 3, totals: totals, plainWater: nil, locale: gb)
+        let section = FoodHomeCardContent.fullPageSection(state)
+        XCTAssertEqual(section.title, "Food logged")
+        XCTAssertEqual(section.rows.map(\.label), ["Energy", nil, "Protein", "Carbohydrates", "Fat", "Plain water logged"])
+        XCTAssertEqual(section.rows.map(\.value), ["1,240 kcal", "3 entries", "68 g", "150.5 g", "41 g+", "No data"])
+        XCTAssertEqual(section.rows[0].note, "Includes estimates")
+        XCTAssertEqual(section.footer, "Fat unknown for 1 entry, so 41 g is a known minimum.")
+        XCTAssertEqual(FoodHomeCardContent.fullPageSection(.empty).rows, [.init(value: "Nothing logged yet today")])
+        XCTAssertEqual(FoodHomeCardContent.fullPageSection(.loading).rows, [.init(value: "Loading food log")])
+
+        XCTAssertNil(QuickAddHomeCard.fullPageSection(.unavailable))
+        XCTAssertEqual(QuickAddHomeCard.fullPageSection(.items([]))?.rows, [.init(value: "No favourites yet")])
+        let water = try XCTUnwrap(QuickAddHomeCard.fullPageSection(.items([.builtInWater])))
+        XCTAssertEqual(water.title, "Quick add")
+        XCTAssertEqual(water.rows.map(\.label), ["Water"])
+        XCTAssertEqual(QuickAddHomeCard.fullPageSection(.unreadable)?.rows, [.init(value: "Favourites could not be read.")])
+    }
+
+    func testTodayFullPagePDFContainsEveryCardsText() throws {
+        let document = TodayFullPageDocument(date: "Monday 12 October", sections: [
+            .init(title: "Food logged", rows: [.init("Energy", value: "1,240 kcal", note: "Includes estimates"),
+                                              .init(value: "3 entries")],
+                  footer: "Fat unknown for 1 entry, so 41 g is a known minimum."),
+            .init(title: "Quick add", rows: [.init("Water", value: "250 mL")]),
+            .init(title: "Health today so far", rows: [.init("Steps", value: "6,412")],
+                  footer: "Today is still in progress.\nAs of 14:32"),
+            .init(title: "Notes for today", rows: [.init(value: "1 note")])
+        ])
+        let data = try XCTUnwrap(WeeklyReportPDFRenderer().pdfData(for: .today(document)))
+        let pdf = try XCTUnwrap(PDFDocument(data: data))
+        XCTAssertEqual(pdf.pageCount, 1)
+        let page = try XCTUnwrap(pdf.page(at: 0))
+        let text = try XCTUnwrap(page.string)
+        for expected in ["Today", "Monday 12 October", "Food logged", "Energy", "1,240 kcal", "Includes estimates",
+                         "3 entries", "known minimum", "Quick add", "Water", "250 mL", "Health today so far",
+                         "Steps", "6,412", "As of 14:32", "Notes for today", "1 note"] {
+            XCTAssertTrue(text.contains(expected), "Missing from Today's Full Page: \(expected)")
+        }
+        let titleRange = (text as NSString).range(of: "Today")
+        let titleBounds = try XCTUnwrap(page.selection(for: titleRange)).bounds(for: page)
+        XCTAssertGreaterThan(titleBounds.midY, page.bounds(for: .mediaBox).midY)
     }
 
     // MARK: Native renders

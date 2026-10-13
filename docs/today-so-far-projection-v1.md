@@ -12,7 +12,7 @@ Home shows a few provisional health values for the current local day. This docum
 | Daily JSON export | Selected day: today from local midnight to the frozen refresh cutoff, or one of the previous seven complete days | [daily-export-contract.md](daily-export-contract.md), `DailyExportWindow` |
 | Home "today so far" | Today from local midnight to the projection's captured instant; provisional, labelled, never stored or exported | this document |
 
-The Home projection is a third, separate path. It never feeds the report, the copied text, the Full Page document or the Daily JSON export, and none of those feed it. The README gains one line under "How the calculations work" stating this third rule (D10).
+The Home projection is a third, separate path. It never feeds the report, the copied text, the Health report's Full Page document or the Daily JSON export, and none of those feed it. Today's Full Page is Home rendered as a document, not one of those outputs (D10 clarification). The README gains one line under "How the calculations work" stating this third rule (D10).
 
 ## 2. Window
 
@@ -159,7 +159,7 @@ Simulator evidence proves software behaviour only. On a device, with Developer t
 | D7 | Live updating | No observer queries or timers; triggers in section 6; "As of HH:mm" | Approved |
 | D8 | Health unavailable device | Show the card in the unavailable state, not hidden | Approved |
 | D9 | Active energy beside food energy | Never a net or balance; separate cards | Approved |
-| D10 | Exception to "show every metric in the main screen, copied report and Diagnostics" (AGENTS.md) | Home highlights appear on Home and in Diagnostics only. They are provisional, partial-day values; adding them to the copied report or export would mix a third day rule into completed-day and selected-day outputs. README records the rule | Approved |
+| D10 | Exception to "show every metric in the main screen, copied report and Diagnostics" (AGENTS.md) | Home highlights appear on Home and in Diagnostics only. They are provisional, partial-day values; adding them to the copied report or export would mix a third day rule into completed-day and selected-day outputs. README records the rule. Clarification (owner-approved, 13 October 2026, #228): Today's Full Page renders Home itself, labelled "today so far", in a document separate from Health's Full Page; it is not the report, Copy all or the export, and none of those gain Home strings | Approved |
 | D11 | Home notes row day | Pinned to today, independent of the export's selected day (phase plan) | Approved |
 
 ## 12. Known gaps carried, not fixed here

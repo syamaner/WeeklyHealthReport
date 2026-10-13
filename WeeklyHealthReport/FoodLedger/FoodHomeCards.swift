@@ -75,6 +75,23 @@ struct FoodHomeCardContent: Equatable {
         ))
     }
 
+    static let loadingMessage = "Loading food log"
+
+    /// The card as plain text for Today's Full Page, in the card's own words.
+    static func fullPageSection(_ state: State) -> TodayFullPageDocument.Section {
+        typealias Row = TodayFullPageDocument.Row
+        switch state {
+        case .loading: return .init(title: title, rows: [Row(value: loadingMessage)])
+        case .unavailable: return .init(title: title, rows: [Row(value: unavailableMessage)])
+        case .failed(let message): return .init(title: title, rows: [Row(value: message)])
+        case .empty: return .init(title: title, rows: [Row(value: emptyMessage)])
+        case .logged(let logged):
+            let energy = Row(logged.energy.label, value: logged.energy.value, note: logged.energy.caption)
+            let others = (logged.nutrients + [logged.water]).map { Row($0.label, value: $0.value, note: $0.caption) }
+            return .init(title: title, rows: [energy, Row(value: logged.entryCount)] + others, footer: logged.footnote)
+        }
+    }
+
     static func entryCount(_ count: Int) -> String {
         count == 1 ? "1 entry" : "\(count) entries"
     }
@@ -155,9 +172,14 @@ enum FoodHomeCards {
     static func feature(model: FoodHomeModel) -> HomeFeature {
         HomeFeature(
             cards: [
-                HomeCard(id: .food) { _ in AnyView(FoodHomeCard(model: model)) },
+                HomeCard(id: .food, fullPage: { _ in FoodHomeCardContent.fullPageSection(model.state) }) { _ in
+                    AnyView(FoodHomeCard(model: model))
+                },
+                // Add food is only a control, so Full Page omits it.
                 HomeCard(id: .addFood) { _ in AnyView(AddFoodHomeCard(available: model.root != nil)) },
-                HomeCard(id: .quickAdd) { _ in AnyView(QuickAddHomeCard(model: model)) }
+                HomeCard(id: .quickAdd, fullPage: { _ in QuickAddHomeCard.fullPageSection(model.quickAdd) }) { _ in
+                    AnyView(QuickAddHomeCard(model: model))
+                }
             ],
             decorate: { view in AnyView(view.modifier(FoodHomeQuickAddHost(model: model))) },
             refresh: { _ in model.reload() }
@@ -186,7 +208,7 @@ struct FoodHomeCard: View {
         Section {
             switch model.state {
             case .loading:
-                ProgressView("Loading food log")
+                ProgressView(FoodHomeCardContent.loadingMessage)
             case .unavailable:
                 Label(FoodHomeCardContent.unavailableMessage, systemImage: "exclamationmark.triangle")
             case .failed(let message):
@@ -253,6 +275,27 @@ struct AddFoodHomeCard: View {
 struct QuickAddHomeCard: View {
     @ObservedObject var model: FoodHomeModel
 
+    static let title = "Quick add"
+    static let noFavourites = "No favourites yet"
+    static let unreadable = "Favourites could not be read."
+
+    /// Full Page lists each chip's name and default amount; the chips themselves
+    /// and the favourites links are controls. Nil when the card is hidden.
+    static func fullPageSection(_ state: FoodHomeModel.QuickAddState) -> TodayFullPageDocument.Section? {
+        typealias Row = TodayFullPageDocument.Row
+        switch state {
+        case .unavailable:
+            return nil
+        case .items(let items):
+            let rows = items.isEmpty
+                ? [Row(value: noFavourites)]
+                : items.map { Row(QuickAddText.title($0), value: QuickAddText.defaultAmount($0)) }
+            return .init(title: title, rows: rows)
+        case .unreadable:
+            return .init(title: title, rows: [Row(value: unreadable)])
+        }
+    }
+
     var body: some View {
         switch model.quickAdd {
         case .unavailable:
@@ -260,20 +303,20 @@ struct QuickAddHomeCard: View {
         case .items(let items):
             Section {
                 if items.isEmpty {
-                    Text("No favourites yet").foregroundStyle(.secondary)
+                    Text(Self.noFavourites).foregroundStyle(.secondary)
                 } else {
                     QuickAddChipRow(items: items) { model.quickAddRequest = $0 }
                         .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
                 }
                 NavigationLink("Manage favourites", value: AppRoute.favourites)
-            } header: { Text("Quick add") } footer: {
+            } header: { Text(Self.title) } footer: {
                 Text("A quick add opens a short confirmation. Nothing is logged until you choose Log.")
             }
         case .unreadable:
             Section {
-                Label("Favourites could not be read.", systemImage: "exclamationmark.triangle")
+                Label(Self.unreadable, systemImage: "exclamationmark.triangle")
                 NavigationLink("Review favourites", value: AppRoute.favourites)
-            } header: { Text("Quick add") }
+            } header: { Text(Self.title) }
         }
     }
 }

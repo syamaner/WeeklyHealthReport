@@ -60,7 +60,8 @@ struct AppShellView: View {
             HomeView(
                 features: homeFeatures,
                 now: { foodLedger?.confirmationNow ?? Date() },
-                calendar: foodLedger?.confirmationDayCalendar ?? .autoupdatingCurrent
+                calendar: foodLedger?.confirmationDayCalendar ?? .autoupdatingCurrent,
+                dayRefreshed: { [screenshotController] day in screenshotController.todayRefreshedDay = day }
             )
             .navigationTitle("Today")
             .toolbar {
@@ -71,10 +72,6 @@ struct AppShellView: View {
                     .accessibilityLabel("Settings")
                     .accessibilityIdentifier("settingsButton")
                 }
-            }
-            .background {
-                WeeklyReportScreenshotSceneRegistration(controller: screenshotController)
-                    .frame(width: 0, height: 0)
             }
             .navigationDestination(for: AppRoute.self) { route in
                 destination(for: route)
@@ -92,16 +89,25 @@ struct AppShellView: View {
                 }
             }
             .onAppear {
+                screenshotController.isTodayOnScreen = true
                 configureScreenshotProvider()
+                FullPageSceneRegistry.shared.attach(screenshotController)
                 navigation.restoreIfNeeded(
                     hasDraft: dailyExport.notes.currentDraft != nil,
                     availableRoutes: settings.availableRoutes
                 )
                 syncNotesPin()
             }
+            .onDisappear {
+                screenshotController.isTodayOnScreen = false
+                // Home leaving the window (a push) must not affect registration.
+                FullPageSceneRegistry.shared.refresh()
+            }
             .onChange(of: navigation.path) {
                 navigation.recordDestination()
                 syncNotesPin()
+                // Cheap and idempotent: the screen that may be captured next is registered.
+                FullPageSceneRegistry.shared.refresh()
             }
             .onReceive(
                 NotificationCenter.default.publisher(
@@ -115,6 +121,7 @@ struct AppShellView: View {
                     for: UIApplication.didBecomeActiveNotification
                 )
             ) { _ in
+                FullPageSceneRegistry.shared.refresh()
                 navigation.didBecomeActive(
                     hasDraft: dailyExport.notes.currentDraft != nil,
                     availableRoutes: settings.availableRoutes
@@ -125,10 +132,20 @@ struct AppShellView: View {
 
     /// Home's features in one place; `HomeView` only sorts and renders their cards.
     private var homeFeatures: [HomeFeature] {
+        Self.homeFeatures(foodHome: foodHome, todaySoFar: todaySoFar, notes: dailyExport.notes)
+    }
+
+    /// Home's features from their models; also used by Today's Full Page so the
+    /// PDF reads the same current card content as the screen.
+    private static func homeFeatures(
+        foodHome: FoodHomeModel,
+        todaySoFar: TodaySoFarHealthModel,
+        notes: DailyNotesController
+    ) -> [HomeFeature] {
         [
             FoodHomeCards.feature(model: foodHome),
-            TodaySoFarHealthCardView.feature(model: todaySoFar, readsHealthData: !Self.isHostedUnitTest),
-            NotesHomeCard.feature(controller: dailyExport.notes)
+            TodaySoFarHealthCardView.feature(model: todaySoFar, readsHealthData: !isHostedUnitTest),
+            NotesHomeCard.feature(controller: notes)
         ]
     }
 
@@ -243,21 +260,40 @@ struct AppShellView: View {
     }
 
     private func configureScreenshotProvider() {
+        let foodHome = foodHome
+        let todaySoFar = todaySoFar
+        let notes = dailyExport.notes
+        let foodLedger = foodLedger
         screenshotController.setRequestProvider {
-            [weak viewModel, weak navigation, weak presentationState] in
+            [weak viewModel, weak navigation, weak presentationState, weak screenshotController] in
             guard let viewModel,
                   let navigation,
                   let presentationState,
-                  WeeklyReportScreenshotEligibility.isEligible(
+                  let screenshotController,
+                  let screen = WeeklyReportScreenshotEligibility.screen(
                     navigationPath: navigation.path,
-                    isTransientUIPresented: presentationState.isTransientUIPresented
+                    isTransientUIPresented: presentationState.isTransientUIPresented,
+                    isTodayOnScreen: screenshotController.isTodayOnScreen
+                        && !screenshotController.isPresentingModally
                   ) else {
                 return nil
             }
 
-            // Full Page is always the expanded document, independent of
-            // what is expanded on screen.
-            return HealthReportView.fullPageDocument(viewModel: viewModel)
+            switch screen {
+            case .healthReport:
+                // Full Page is always the expanded document, independent of
+                // what is expanded on screen.
+                return HealthReportView.fullPageDocument(viewModel: viewModel).map { .healthReport($0) }
+            case .today:
+                // Built now from the same models as Home's cards, never a stale copy.
+                let features = Self.homeFeatures(foodHome: foodHome, todaySoFar: todaySoFar, notes: notes)
+                return .today(HomeView.fullPageDocument(
+                    features,
+                    // The day of Home's last refresh, as in its header and cards.
+                    today: screenshotController.todayRefreshedDay ?? foodLedger?.confirmationNow ?? Date(),
+                    calendar: foodLedger?.confirmationDayCalendar ?? .autoupdatingCurrent
+                ))
+            }
         }
     }
 }

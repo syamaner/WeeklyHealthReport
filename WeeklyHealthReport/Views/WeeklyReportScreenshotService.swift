@@ -9,27 +9,73 @@ protocol ScreenshotServiceRegistering: AnyObject {
 
 extension UIScreenshotService: ScreenshotServiceRegistering {}
 
+/// The screens that offer Full Page.
+enum FullPageScreen: Equatable {
+    case today
+    case healthReport
+}
+
+/// What Full Page renders: the Health report document or Today's cards.
+enum FullPageDocument: Equatable {
+    case healthReport(ReportDocument)
+    case today(TodayFullPageDocument)
+}
+
 enum WeeklyReportScreenshotEligibility {
+    /// Health: exactly `[.healthReport]` with no transient UI (unchanged).
+    /// Today: the empty path with no transient UI, while Home itself is on
+    /// screen (not covered by a sheet or a pushed confirmation).
+    static func screen(
+        navigationPath: [AppRoute],
+        isTransientUIPresented: Bool,
+        isTodayOnScreen: Bool = true
+    ) -> FullPageScreen? {
+        guard !isTransientUIPresented else { return nil }
+        if navigationPath == [.healthReport] { return .healthReport }
+        if navigationPath.isEmpty && isTodayOnScreen { return .today }
+        return nil
+    }
+
     static func isEligible(
         navigationPath: [AppRoute],
-        isTransientUIPresented: Bool
+        isTransientUIPresented: Bool,
+        isTodayOnScreen: Bool = true
     ) -> Bool {
-        navigationPath == [.healthReport] && !isTransientUIPresented
+        screen(
+            navigationPath: navigationPath,
+            isTransientUIPresented: isTransientUIPresented,
+            isTodayOnScreen: isTodayOnScreen
+        ) != nil
     }
 }
 
 @MainActor
 protocol WeeklyReportPDFRendering {
-    func pdfData(for document: ReportDocument) -> Data?
+    func pdfData(for document: FullPageDocument) -> Data?
 }
 
 @MainActor
 struct WeeklyReportPDFRenderer: WeeklyReportPDFRendering {
     private let pageWidth: CGFloat = 612
 
+    func pdfData(for document: FullPageDocument) -> Data? {
+        switch document {
+        case .healthReport(let report): pdfData(for: report)
+        case .today(let today): pdfData(for: today)
+        }
+    }
+
     func pdfData(for document: ReportDocument) -> Data? {
+        pdfData(rendering: WeeklyReportPDFView(document: document))
+    }
+
+    func pdfData(for document: TodayFullPageDocument) -> Data? {
+        pdfData(rendering: TodayFullPagePDFView(document: document))
+    }
+
+    private func pdfData(rendering content: some View) -> Data? {
         let imageRenderer = ImageRenderer(
-            content: WeeklyReportPDFView(document: document)
+            content: content
                 .frame(width: pageWidth)
                 .fixedSize(horizontal: false, vertical: true)
         )
@@ -68,7 +114,7 @@ struct WeeklyReportPDFRenderer: WeeklyReportPDFRendering {
 
 @MainActor
 final class WeeklyReportScreenshotDelegate: NSObject, UIScreenshotServiceDelegate {
-    typealias RequestProvider = () -> ReportDocument?
+    typealias RequestProvider = () -> FullPageDocument?
 
     private let renderer: any WeeklyReportPDFRendering
     private var requestProvider: RequestProvider?
@@ -94,7 +140,7 @@ final class WeeklyReportScreenshotDelegate: NSObject, UIScreenshotServiceDelegat
             CGRect
         ) -> Void
     ) {
-        // This report is one continuous PDF page. Apple's documented zero-rect
+        // Each Full Page document is one continuous PDF page. Apple's documented zero-rect
         // fallback opens it at the top when the Form's viewport cannot be mapped
         // reliably into the separate report layout.
         completionHandler(representationForCurrentRequest(), 0, .zero)
@@ -104,7 +150,20 @@ final class WeeklyReportScreenshotDelegate: NSObject, UIScreenshotServiceDelegat
 @MainActor
 final class WeeklyReportScreenshotController: ObservableObject {
     let delegate: WeeklyReportScreenshotDelegate
+    /// Set while Home is the visible root of the stack; a pushed Confirm from
+    /// quick add leaves the path empty but hides Home.
+    var isTodayOnScreen = false
+    /// The day of Home's last refresh; Today's Full Page uses it so its date
+    /// matches the header and the cards it renders.
+    var todayRefreshedDay: Date?
+    /// The scene's key window, used to detect a presented sheet, alert or
+    /// system sheet over Home.
+    weak var hostWindow: UIWindow?
     private weak var registeredService: (any ScreenshotServiceRegistering)?
+
+    var isPresentingModally: Bool {
+        hostWindow?.rootViewController?.presentedViewController != nil
+    }
 
     init(renderer: (any WeeklyReportPDFRendering)? = nil) {
         delegate = WeeklyReportScreenshotDelegate(renderer: renderer)
@@ -114,50 +173,92 @@ final class WeeklyReportScreenshotController: ObservableObject {
         delegate.setRequestProvider(provider)
     }
 
+    /// Sets this delegate on the service every time, even when the service is
+    /// unchanged, so a delegate cleared or replaced elsewhere is restored.
     func register(with service: (any ScreenshotServiceRegistering)?) {
-        guard registeredService !== service else { return }
-        registeredService?.delegate = nil
+        if registeredService !== service, registeredService?.delegate === delegate {
+            registeredService?.delegate = nil
+        }
         registeredService = service
         service?.delegate = delegate
     }
 
     func unregister() {
-        registeredService?.delegate = nil
+        if registeredService?.delegate === delegate {
+            registeredService?.delegate = nil
+        }
         registeredService = nil
+    }
+
+    var isRegistered: Bool {
+        registeredService != nil && registeredService?.delegate === delegate
     }
 }
 
-struct WeeklyReportScreenshotSceneRegistration: UIViewRepresentable {
-    let controller: WeeklyReportScreenshotController
-
-    func makeUIView(context: Context) -> SceneRegistrationView {
-        let view = SceneRegistrationView()
-        view.controller = controller
-        view.sceneDidChange = { [weak controller] scene in
-            controller?.register(with: scene?.screenshotService)
-        }
-        return view
+/// Registers Full Page at scene level. The app has one window scene
+/// (multiple scenes are off), and the screenshot service only asks a delegate
+/// set on that scene's `screenshotService`. The old registration view sat on
+/// Home, the stack's root: pushing Health took Home's view out of the window,
+/// `didMoveToWindow` reported no window, and it cleared the service's delegate,
+/// so iOS never asked on Health (and a launch restored to Health never
+/// registered at all). This resolves the scene from the
+/// application, re-registers on every scene activation and foreground entry,
+/// and keeps the controller (and so the delegate the service holds weakly)
+/// alive for the app's lifetime.
+@MainActor
+final class FullPageSceneRegistry {
+    struct Target {
+        let service: (any ScreenshotServiceRegistering)?
+        let window: UIWindow?
     }
 
-    func updateUIView(_ view: SceneRegistrationView, context: Context) {
-        controller.register(with: view.window?.windowScene?.screenshotService)
-    }
+    static let shared = FullPageSceneRegistry()
 
-    static func dismantleUIView(
-        _ view: SceneRegistrationView,
-        coordinator: Void
+    private let resolve: @MainActor () -> Target?
+    private var controller: WeeklyReportScreenshotController?
+    private var observers: [NSObjectProtocol] = []
+
+    init(
+        notificationCenter: NotificationCenter = .default,
+        resolve: @escaping @MainActor () -> Target? = FullPageSceneRegistry.applicationWindowScene
     ) {
-        view.controller?.unregister()
-        view.sceneDidChange = nil
+        self.resolve = resolve
+        let names = [
+            UIScene.willConnectNotification,
+            UIScene.didActivateNotification,
+            UIScene.willEnterForegroundNotification
+        ]
+        observers = names.map { name in
+            notificationCenter.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refresh() }
+            }
+        }
     }
 
-    final class SceneRegistrationView: UIView {
-        weak var controller: WeeklyReportScreenshotController?
-        var sceneDidChange: ((UIWindowScene?) -> Void)?
+    /// Called by the shell when it appears; safe to call repeatedly.
+    func attach(_ controller: WeeklyReportScreenshotController) {
+        self.controller = controller
+        refresh()
+    }
 
-        override func didMoveToWindow() {
-            super.didMoveToWindow()
-            sceneDidChange?(window?.windowScene)
+    /// Idempotent: re-resolves the scene and re-sets the delegate.
+    func refresh() {
+        guard let controller else { return }
+        let target = resolve()
+        // Never unregister on a failed lookup or a detached window: the scene's
+        // service stays registered for the scene's lifetime.
+        if let window = target?.window { controller.hostWindow = window }
+        if let service = target?.service { controller.register(with: service) }
+    }
+
+    /// The foreground-active window scene, else any connected window scene.
+    static func applicationWindowScene() -> Target? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        guard let scene = scenes.first(where: { $0.activationState == .foregroundActive })
+            ?? scenes.first(where: { $0.activationState == .foregroundInactive })
+            ?? scenes.first else {
+            return nil
         }
+        return Target(service: scene.screenshotService, window: scene.keyWindow ?? scene.windows.first)
     }
 }
