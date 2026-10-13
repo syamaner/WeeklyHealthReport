@@ -26,12 +26,12 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 ## Food search and sources
 
 - [Unified food search contract v1](unified-food-search-contract-v1.md)
-- [Search quality v3](food-search-quality-v3.md) and [generic retrieval policy v5](generic-food-retrieval-policy-v5.md)
-- [Query parser v1](food-query-parser-plan-v1.md), [input interpretation and nutrition review v1](food-input-interpretation-and-nutrition-review-v1.md), [English street-food input v1](english-street-food-input-v1.md)
+- [Search quality v3](food-search-quality-v3.md) and [generic retrieval policy v5](generic-food-retrieval-policy-v5.md), extended by [generic food ranking v7](generic-food-ranking-v7.md) (unrequested part words)
+- [Query parser v1](food-query-parser-plan-v1.md) and [query parser v8](food-query-parser-v8.md) (cooked egg counts), [input interpretation and nutrition review v1](food-input-interpretation-and-nutrition-review-v1.md), [English street-food input v1](english-street-food-input-v1.md)
 - [Online search recovery v1](online-food-search-recovery-v1.md)
 - [Generic web proposal integration v1](generic-food-proposal-integration-v1.md) and [repair v2](generic-food-proposal-repair-v2.md)
 - [Open Food Facts barcode candidates v1](off-barcode-candidate-plan-v1.md)
-- [Taiwan food catalogue v1](taiwan-food-catalogue-v1.md)
+- [Taiwan food catalogue v1](taiwan-food-catalogue-v1.md) and [composite regional source order v9](composite-regional-order-v9.md) (Taiwan rows after UK and US unless the market or query indicates Taiwan)
 - [Source coverage and licence evaluation](food-source-coverage-and-licence-evaluation.md)
 
 ## Nutrition evaluation

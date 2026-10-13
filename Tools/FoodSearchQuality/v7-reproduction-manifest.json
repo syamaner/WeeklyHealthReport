@@ -1,0 +1,400 @@
+{
+  "schema": "retrieval-reproduction-v7",
+  "base_commit": "c94da260d3379d8c6270c22079f4ebdaa20e3ca9",
+  "ranking_version": "generic-representation-ranking-v7",
+  "adapter_versions": {
+    "cofid": "cofid-generic-ranking-v13",
+    "usda": "usda-generic-ranking-v14"
+  },
+  "scorer_python": "3.12 or later (sum() of floats changed in 3.12; summaries differ in the last bit on 3.11)",
+  "v3": {
+    "label_reference": "retrieval-scenarios-v3.json",
+    "labels_unchanged": true,
+    "baseline_report": "retrieval-metrics-final-v6.json",
+    "baseline_reproduced_exactly": true,
+    "expected_report": "retrieval-metrics-final-v7.json",
+    "all_summaries_equal_to_v6": true,
+    "changed_observations": [
+      {
+        "id": "r028",
+        "source": "composite",
+        "before_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          0,
+          3,
+          3
+        ],
+        "after_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ]
+      },
+      {
+        "id": "r028",
+        "source": "usda",
+        "before_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          0,
+          3,
+          3
+        ],
+        "after_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ]
+      },
+      {
+        "id": "r029",
+        "source": "composite",
+        "before_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          0,
+          3,
+          3
+        ],
+        "after_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ]
+      },
+      {
+        "id": "r029",
+        "source": "usda",
+        "before_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          0,
+          3,
+          3
+        ],
+        "after_grades": [
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3,
+          3
+        ]
+      }
+    ]
+  },
+  "v4": {
+    "label_reference": "retrieval-scenarios-v4.json",
+    "labels_built_by": "build_retrieval_v4.py from the union of the ranking v6 and v7 replays",
+    "baseline_report": "retrieval-metrics-v4-baseline-v6.json",
+    "expected_report": "retrieval-metrics-v4-final-v7.json",
+    "new_family_summaries": {
+      "cofid/produce-skin": {
+        "hitAt1": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "ndcgAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "incorrectVariantAt1": {
+          "before": 0,
+          "after": 0
+        },
+        "incorrectVariantsAt5": {
+          "before": 0,
+          "after": 0
+        }
+      },
+      "cofid/requested-part": {
+        "hitAt1": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "ndcgAt5": {
+          "before": 0.9625128349964738,
+          "after": 0.9625128349964738
+        },
+        "incorrectVariantAt1": {
+          "before": 0,
+          "after": 0
+        },
+        "incorrectVariantsAt5": {
+          "before": 0,
+          "after": 0
+        }
+      },
+      "cofid/unrequested-part": {
+        "hitAt1": {
+          "before": 0.5,
+          "after": 1.0
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 0.75,
+          "after": 1.0
+        },
+        "ndcgAt5": {
+          "before": 0.6646521880300136,
+          "after": 0.9760755960211669
+        },
+        "incorrectVariantAt1": {
+          "before": 2,
+          "after": 0
+        },
+        "incorrectVariantsAt5": {
+          "before": 4,
+          "after": 4
+        }
+      },
+      "composite/produce-skin": {
+        "hitAt1": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "ndcgAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "incorrectVariantAt1": {
+          "before": 0,
+          "after": 0
+        },
+        "incorrectVariantsAt5": {
+          "before": 0,
+          "after": 0
+        }
+      },
+      "composite/requested-part": {
+        "hitAt1": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "ndcgAt5": {
+          "before": 0.9625128349964738,
+          "after": 0.9625128349964738
+        },
+        "incorrectVariantAt1": {
+          "before": 0,
+          "after": 0
+        },
+        "incorrectVariantsAt5": {
+          "before": 0,
+          "after": 0
+        }
+      },
+      "composite/unrequested-part": {
+        "hitAt1": {
+          "before": 0.25,
+          "after": 0.75
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 0.625,
+          "after": 0.875
+        },
+        "ndcgAt5": {
+          "before": 0.5395205351703425,
+          "after": 0.8688132842301487
+        },
+        "incorrectVariantAt1": {
+          "before": 2,
+          "after": 0
+        },
+        "incorrectVariantsAt5": {
+          "before": 2,
+          "after": 2
+        }
+      },
+      "usda/produce-skin": {
+        "hitAt1": {
+          "before": null,
+          "after": null
+        },
+        "hitAt5": {
+          "before": null,
+          "after": null
+        },
+        "mrr": {
+          "before": null,
+          "after": null
+        },
+        "ndcgAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "incorrectVariantAt1": {
+          "before": 0,
+          "after": 0
+        },
+        "incorrectVariantsAt5": {
+          "before": 0,
+          "after": 0
+        }
+      },
+      "usda/requested-part": {
+        "hitAt1": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "ndcgAt5": {
+          "before": 0.8481018339113542,
+          "after": 0.8481018339113542
+        },
+        "incorrectVariantAt1": {
+          "before": 0,
+          "after": 0
+        },
+        "incorrectVariantsAt5": {
+          "before": 0,
+          "after": 0
+        }
+      },
+      "usda/unrequested-part": {
+        "hitAt1": {
+          "before": 0.75,
+          "after": 0.75
+        },
+        "hitAt5": {
+          "before": 1.0,
+          "after": 1.0
+        },
+        "mrr": {
+          "before": 0.875,
+          "after": 0.875
+        },
+        "ndcgAt5": {
+          "before": 0.8042838754843525,
+          "after": 0.9272990477698235
+        },
+        "incorrectVariantAt1": {
+          "before": 0,
+          "after": 0
+        },
+        "incorrectVariantsAt5": {
+          "before": 1,
+          "after": 0
+        }
+      }
+    }
+  },
+  "replays_retained": false,
+  "replay_sha256": {
+    "v3-ranking-v6": "a7a3ae955265a7a4a83a7cb125031a19d52425f215d4c0bbe0c452aa478122c3",
+    "v3-ranking-v7": "077bebe6c544d82b34c1f0c49b6fbb1e4fc9ac3c6fb3c6949fc70b92a6b09a5c",
+    "v4-ranking-v6": "3dd45ef693838666d802dd744cdaa3b23305f20014e4d892af2cce491ca61dab",
+    "v4-ranking-v7": "2eb9289733101a38715d2a6163ced314944b504f15b9f0a654defb3b13e7debf"
+  },
+  "input_sha256": {
+    "Tools/FoodSearchQuality/retrieval-scenarios-v3.json": "93771a450b5fa0374e247b743ceb3333e4dfdd8bfd7376e27000ca2fa6f41922",
+    "Tools/FoodSearchQuality/retrieval-scenarios-v4.json": "a0c1963d78a618c1acc65b4e55c9df692e5a16a96970c7cf0da6a7545d63a670"
+  },
+  "source_sha256": {
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/GenericFoodRankingPolicy.swift": "c96f17f57c08d0af55219e440b7a0b621a823d5e28ce045e3f9f0e5f594dfe56",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/CompositeGenericFoodSearch.swift": "81df016f42152abcb6c1f93ce26cc57e5eccc126d0f739a297edb764ac7afb25",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/CoFIDGenericFoodSearch.swift": "de9bf3eb691105b33ec5bee4cbfe25b68544d2b8ca475bfb22f529900112f378",
+    "Packages/FoodLedgerKit/Sources/FoodGenericSearch/USDAGenericFoodSearch.swift": "6445542c33a3ec420d02f7a7c413d4b3e8a75690f29a47ebb825a84d39bfffda",
+    "Packages/FoodLedgerKit/Tests/FoodGenericSearchTests/RankedRetrievalDevelopmentTests.swift": "95970159b3b5722aa6e8dc2e7eb33b55c9f7ec80d90b1cc0a6d57db74cbedb27",
+    "Tools/FoodSearchQuality/score_retrieval.py": "90969bb74009935e879a803f7ae048781635799106e25cc3b418ac192b6250ef",
+    "Tools/FoodSearchQuality/build_retrieval_v4.py": "1bd5b87b14508739f1a1e5921769bb72a66fabf3047791eb5139e89a7c738ee2"
+  },
+  "output_sha256": {
+    "retrieval-metrics-final-v7.json": "d60328e35df551fbf8169050303b54b0113143d414387036c56755f89deb2957",
+    "retrieval-metrics-v4-baseline-v6.json": "f9cb9d891804c4116bf6191f3b73a638d6652faddb50c70eff477a09be1f1a4c",
+    "retrieval-metrics-v4-final-v7.json": "4594422fc711c5663ecc315f998fca0489166916c7f562526c6afabfca158549"
+  },
+  "independentAcceptance": false
+}

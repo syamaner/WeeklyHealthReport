@@ -127,6 +127,35 @@ final class CoFIDGenericFoodSearchTests: XCTestCase {
         }
     }
 
+    func testCookedEggCountsStayBasisOnlyWithoutInventedEnergy() throws {
+        let ids = SequenceIDs()
+        // CoFID has no poached egg record, so the two-source composite is used.
+        let search = CompositeGenericFoodSearch(sources: [try CoFIDGenericFoodSearch(ids: ids), try USDAGenericFoodSearch(ids: ids)], ids: ids)
+        for text in ["2 scrambled eggs", "two fried eggs", "3 poached eggs"] {
+            let parsed = FoodQueryParser.parse(text)
+            XCTAssertEqual(parsed.quantity?.unit, "count", text)
+            guard case let .confirmation(route) = try search.search(request(text)) else { return XCTFail("Expected egg candidates: " + text) }
+            var state = FoodConfirmationState(input: route.confirmation, queryQuantity: parsed.quantity)
+            XCTAssertEqual(state.quantity.unit, .count, text)
+            XCTAssertEqual(state.quantity.value, parsed.quantity?.value, text)
+            XCTAssertNil(state.quantity.conversion, text)
+            XCTAssertThrowsError(try state.quantity.calculatedEdibleQuantity()) { error in
+                XCTAssertEqual(error as? FoodQuantityValidationError, .missingConversion)
+            }
+            XCTAssertEqual(state.input.evidence.first?.originalPayload, .text(try LedgerText(text)))
+            FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            let store = InMemoryFoodLedgerStore()
+            let service = FoodConfirmationService(
+                ledger: FoodLedgerService(actorID: try ids.makeID(ActorTag.self), committer: store,
+                    clock: FixedClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester()),
+                reader: store, clock: FixedClock(), ids: ids, digester: SHA256Digester())
+            XCTAssertThrowsError(try service.save(state, operationID: try ids.makeID(OperationTag.self))) { error in
+                XCTAssertEqual(error as? FoodConfirmationSaveError, .unmetRequirements([.countNeedsMeasuredAmount]), text)
+            }
+            XCTAssertEqual(try store.counts().operations, 0)
+        }
+    }
+
     func testWholeMilkVolumeEstimateIsRecordBoundAndSurvivesSaveReopen() throws {
         let ids = SequenceIDs()
         let search = try CoFIDGenericFoodSearch(ids: ids)
