@@ -19,7 +19,7 @@ struct FoodHomeCardContent: Equatable {
         let entryCount: String
         let nutrients: [Row]
         let water: Row
-        /// One sentence about the known minimums ("+"), or nil when every total is complete.
+        /// One line about the known minimums ("+"), or nil when every total is complete.
         let footnote: String?
     }
 
@@ -42,14 +42,30 @@ struct FoodHomeCardContent: Equatable {
         locale: Locale = .autoupdatingCurrent
     ) -> State {
         make(itemCount: projection.summary.itemCount, totals: projection.summary.totals,
-             plainWater: plainWater, locale: locale)
+             plainWater: plainWater, locale: locale,
+             incompleteEntries: incompleteEntries(projection.rows.map(\.totals), dayTotals: projection.summary.totals,
+                                                  plainWater: plainWater))
+    }
+
+    /// Distinct current entries behind the card's known minimums: an entry counts once when any
+    /// shown total it contributes to (energy, protein, carbohydrates, fat) lacks its value. Plain
+    /// water that cannot be scaled also lacks energy, so the larger count covers it.
+    static func incompleteEntries(_ rows: [[FoodIntakeTotal]], dayTotals: [FoodIntakeTotal], plainWater: FoodIntakeTotal?) -> Int {
+        let affected = ([NutrientKey.energyConsumed] + nutrientKeys).filter { key in
+            (dayTotals.first { $0.key == key }?.incompleteContributions ?? 0) > 0
+        }
+        let entries = rows.filter { totals in
+            affected.contains { key in (totals.first { $0.key == key }?.incompleteContributions ?? 1) > 0 }
+        }.count
+        return max(entries, plainWater?.incompleteContributions ?? 0)
     }
 
     static func make(
         itemCount: Int,
         totals: [FoodIntakeTotal],
         plainWater: FoodIntakeTotal?,
-        locale: Locale = .autoupdatingCurrent
+        locale: Locale = .autoupdatingCurrent,
+        incompleteEntries: Int? = nil
     ) -> State {
         guard itemCount > 0 else { return .empty }
         func row(_ key: NutrientKey) -> Row {
@@ -62,29 +78,29 @@ struct FoodHomeCardContent: Equatable {
                        accessibilityLabel: FoodLogText.totalAccessibility(total, locale: locale),
                        caption: FoodLogText.totalCaption(total))
         }
-        let minimums = ([NutrientKey.energyConsumed] + nutrientKeys).compactMap { key in
-            totals.first(where: { $0.key == key }).flatMap { total in
-                knownMinimum(total, locale: locale).map { (FoodLogText.label(key).lowercased(), $0) }
-            }
-        } + [plainWater.flatMap { waterMinimum($0, locale: locale) }.map { ("plain water", $0) }].compactMap { $0 }
+        let affected = (([NutrientKey.energyConsumed] + nutrientKeys).compactMap { key in totals.first { $0.key == key } }
+            + [plainWater].compactMap { $0 }).filter { $0.incompleteContributions > 0 }
         return .logged(Logged(
             energy: row(.energyConsumed),
             entryCount: entryCount(itemCount),
             nutrients: nutrientKeys.map(row),
             water: Row(label: FoodLogText.plainWaterLabel, value: FoodLogText.plainWater(plainWater, locale: locale),
                        accessibilityLabel: FoodLogText.plainWaterAccessibility(plainWater, locale: locale)),
-            footnote: footnote(minimums)
+            footnote: footnote(affected, entries: incompleteEntries)
         ))
     }
 
-    /// One sentence whatever the number of affected totals (#140 copy pass): the full
-    /// sentence for a single total, otherwise one line naming them all.
-    static func footnote(_ minimums: [(name: String, sentence: String)]) -> String? {
-        guard let first = minimums.first else { return nil }
-        guard minimums.count > 1 else { return first.sentence }
-        let names = minimums.map(\.name)
-        let list = names.dropLast().joined(separator: ", ") + " or " + (names.last ?? "")
-        return "“+” marks a known minimum: some entries have no value for \(list)."
+    /// One short line whatever the number of affected totals (owner decision F, 13 October
+    /// 2026): "Some values are unknown for 2 entries, so totals marked + are known minimums."
+    /// `entries` is the count of distinct entries; without it the largest per-total count is
+    /// used, which is exact when one total is affected.
+    static func footnote(_ affected: [FoodIntakeTotal], entries: Int? = nil) -> String? {
+        guard !affected.isEmpty else { return nil }
+        let count = entries ?? affected.map(\.incompleteContributions).max() ?? 0
+        let unknown = "Some values are unknown for \(entryCount(max(count, 1)))"
+        // "+" appears only beside a total with a known part; an all-unknown total reads "Unknown".
+        return affected.contains { $0.knownAmount != nil }
+            ? unknown + ", so totals marked + are known minimums." : unknown + "."
     }
 
     static let loadingMessage = "Loading food log"
@@ -116,15 +132,6 @@ struct FoodHomeCardContent: Equatable {
         }
     }
 
-    /// "Fat unknown for 1 entry, so 41 g is a known minimum."
-    private static func knownMinimum(_ total: FoodIntakeTotal, locale: Locale) -> String? {
-        guard total.incompleteContributions > 0 else { return nil }
-        let label = FoodLogText.label(total.key)
-        let entries = entryCount(total.incompleteContributions)
-        guard let value = amount(total, locale: locale) else { return "\(label) unknown for \(entries)." }
-        return "\(label) unknown for \(entries), so \(value) is a known minimum."
-    }
-
     /// "1,240 kcal" or "41 g" without the known-minimum mark; nil when unknown.
     private static func amount(_ total: FoodIntakeTotal, locale: Locale) -> String? {
         guard total.knownAmount != nil else { return nil }
@@ -132,12 +139,6 @@ struct FoodHomeCardContent: Equatable {
                                        incompleteContributions: 0, includesEstimates: total.includesEstimates)
         let value = FoodLogText.total(complete, locale: locale)
         return total.key == .energyConsumed ? value + " kcal" : value
-    }
-
-    private static func waterMinimum(_ total: FoodIntakeTotal, locale: Locale) -> String? {
-        guard total.incompleteContributions > 0, total.knownAmount != nil else { return nil }
-        let value = FoodLogText.plainWater(total, locale: locale)
-        return "Plain water amount unknown for \(entryCount(total.incompleteContributions)), so \(value.hasSuffix("+") ? String(value.dropLast()) : value) is a known minimum."
     }
 }
 
