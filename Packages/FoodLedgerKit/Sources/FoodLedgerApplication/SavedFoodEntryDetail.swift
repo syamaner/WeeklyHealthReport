@@ -36,6 +36,8 @@ public struct SavedFoodEntryDetail: Sendable {
     public let sourceFamily: FoodSearchResultSummary.SourceFamily
     public let decisions: [FoodLogFacetDecision]
     public let history: [FoodEntryHistoryEvent]
+    /// The app's plain water reference: not offered as a favourite (it has its own quick add item).
+    public let isPlainWater: Bool
 
     public init(stored: StoredFoodConfirmation, isEstimate: Bool, history: [FoodEntryHistoryEvent]) {
         let log = stored.logItemVersion
@@ -54,6 +56,7 @@ public struct SavedFoodEntryDetail: Sendable {
             if case .augmented = entry.value { return entry.key } else { return nil }
         })
         basis = stored.resolution.basis
+        isPlainWater = PlainWaterReference.isPlainWater(stored.resolutionVersion)
         nutrition = Self.nutrition(quantity: log.edibleQuantity, basis: stored.resolution.basis,
                                    nutrients: stored.resolutionVersion.nutrients,
                                    quantityIsEstimate: log.weightDeclaration?.basis == .estimated)

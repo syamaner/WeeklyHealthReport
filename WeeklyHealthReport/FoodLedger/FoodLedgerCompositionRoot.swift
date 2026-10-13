@@ -178,6 +178,25 @@ final class FoodLedgerCompositionRoot {
 
     func favouritesModel() -> FavouritesViewModel { FavouritesViewModel(store: favourites) }
 
+    /// Save as favourite from a saved entry or a recent food (owner decision A): the existing
+    /// `save_favourite_v1` path, pinning the entry's current version.
+    /// Recent rows re-read the entry's current product version at tap time.
+    func favouriteSaveModel() -> FavouriteSaveModel {
+        FavouriteSaveModel(store: favourites) { [store] logItemID in
+            guard let current = try store.foodConfirmation(logItemID: logItemID),
+                  case .product = current.logItemVersion.composition else { return nil }
+            return current.logItemVersion.logItemVersionID
+        }
+    }
+
+    /// "From what you’ve logged": recent foods within 30 days, each source re-verified. Throws when
+    /// the ledger cannot be read, so a failure is never shown as an empty list.
+    func loggedFoods(limit: Int = 25) throws -> [FoodRecentRelogItem] {
+        let records = try store.archiveState().records
+        return FoodRecentItemsService(reader: store, confirmations: confirmations)
+            .items(records: records, now: confirmationClock.now(), calendar: confirmationCalendar, limit: limit)
+    }
+
     /// Quick-add items in order (built-in water first until a water favourite exists). Nil when the
     /// favourites cannot be read or have competing versions.
     func quickAddItems() -> [QuickAddItem]? { try? favourites.projection().quickAddItems }
@@ -548,8 +567,12 @@ struct AddFoodFlowView: View {
     /// Nil when favourites cannot be read (shown as a failure, never as empty).
     @State private var quickAddItems: [QuickAddItem]? = []
     @State private var quickAddRequest: QuickAddItem?
+    @StateObject private var favouriteSaving: FavouriteSaveModel
 
-    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) { self.root = root; self.finish = finish }
+    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) {
+        self.root = root; self.finish = finish
+        _favouriteSaving = StateObject(wrappedValue: root.favouriteSaveModel())
+    }
 
     var body: some View {
         AddFoodView(recents: recents, now: now, calendar: root.confirmationDayCalendar,
@@ -559,6 +582,7 @@ struct AddFoodFlowView: View {
                     favourites: { showsFavourites = true },
                     favouriteItems: quickAddItems,
                     quickAdd: { quickAddRequest = $0 },
+                    favouriteSaving: favouriteSaving,
                     listImportNote: FoodLogText.listImportNote(entryDay: finish?.entryDay),
                     relog: { recent in
                         if let model = try? root.model(relogging: recent.item.logItemID, entryDay: finish?.entryDay) {
@@ -566,6 +590,7 @@ struct AddFoodFlowView: View {
                         } else { relogFailed = true }
                     })
         .onAppear { now = root.confirmationNow; recents = root.recentFoods(); quickAddItems = root.quickAddItems() }
+        .onChange(of: recents.compactMap(\.logItemVersionID), initial: true) { _, ids in favouriteSaving.refresh(ids) }
         .quickAdd(root: root, request: $quickAddRequest, finish: finish) { quickAddItems = root.quickAddItems() }
         .alert("This food could not be opened", isPresented: $relogFailed) {
             Button("OK", role: .cancel) {}
@@ -928,6 +953,7 @@ struct FavouritesFlowView: View {
     @State private var showsSearch = false
     @State private var showsBarcode = false
     @State private var showsWebLookup = false
+    @State private var showsLogged = false
 
     init(root: FoodLedgerCompositionRoot) {
         self.root = root
@@ -935,8 +961,10 @@ struct FavouritesFlowView: View {
     }
 
     var body: some View {
-        FavouritesView(model: model, createFromSearch: { showsSearch = true }, createFromBarcode: { showsBarcode = true },
-                       createFromWebLookup: { showsWebLookup = true })
+        FavouritesView(model: model, createFromLogged: { showsLogged = true }, createFromSearch: { showsSearch = true },
+                       createFromBarcode: { showsBarcode = true }, createFromWebLookup: { showsWebLookup = true })
+        .navigationDestination(isPresented: $showsLogged) { FavouriteFromLoggedFlowView(root: root) }
+        .onChange(of: showsLogged) { _, shown in if !shown { model.reload() } }
         .navigationDestination(isPresented: $showsSearch) {
             if let flow = GenericFoodSearchFlowView(root: root, finish: returnHere, savesFavourite: true) { flow }
             else { ContentUnavailableView("Food search unavailable", systemImage: "exclamationmark.triangle") }
@@ -953,6 +981,35 @@ struct FavouritesFlowView: View {
         FoodEntryFinish { _ in
             showsSearch = false; showsBarcode = false; showsWebLookup = false
             model.reload()
+        }
+    }
+}
+
+/// "From what you’ve logged" (owner decision A): recent foods with Save as favourite. Reading the
+/// list writes nothing; each save pins that food's current logged version.
+struct FavouriteFromLoggedFlowView: View {
+    private let root: FoodLedgerCompositionRoot
+    @StateObject private var saving: FavouriteSaveModel
+    @State private var content: FavouriteFromLoggedView.Content = .loading
+
+    init(root: FoodLedgerCompositionRoot) {
+        self.root = root
+        _saving = StateObject(wrappedValue: root.favouriteSaveModel())
+    }
+
+    var body: some View {
+        FavouriteFromLoggedView(content: content, now: root.confirmationNow, calendar: root.confirmationDayCalendar,
+                                model: saving, retry: load)
+            .onAppear(perform: load)
+    }
+
+    private func load() {
+        do {
+            let items = try root.loggedFoods()
+            saving.refresh(items.compactMap(\.logItemVersionID))
+            content = .items(items)
+        } catch {
+            content = .failed
         }
     }
 }
