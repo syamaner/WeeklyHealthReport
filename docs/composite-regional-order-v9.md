@@ -17,8 +17,10 @@ any of these holds:
 - the query names Taiwan as a word ("taiwan", "taiwanese");
 - the query contains Chinese (Han) characters, for example 香蕉 or 芭樂.
 
-When promoted, all three sources interleave exactly as in v8. Japanese kana,
-"Thai" and other words do not promote Taiwan.
+When promoted, all three sources interleave exactly as in v8. The character
+test is script-based, not language detection: any Han character promotes
+Taiwan, including Japanese kanji and simplified Chinese. Japanese kana alone,
+"Thai" and other words do not.
 
 The rule sits inside the existing tiers. Preparation-verified rows still precede
 unverified ones and requested-fat matches still lead their tier, so a verified
@@ -41,11 +43,18 @@ composite searches. Stored records keep `composite-generic-ranking-v8` (or older
 and still decode, because the version is free text in the record. No schema,
 archive or export format changes.
 
+The evidence records the composite version, not whether Taiwan was promoted
+for that search. Order is presentation only: it depends on the Settings market
+at search time (and on the query text, which the evidence keeps), and the
+saved record is the user's explicit selection, whatever its position was.
+Reproducing an old list order therefore needs the market setting of the time,
+which is not stored.
+
 ## Evaluation
 
 Until now the CI replay used a two-source composite (CoFID and USDA), so the
 production position of TFDA rows was never measured. `retrieval-scenarios-v5.json`
-keeps the 78 v4 cases and adds seven: three default-market cases (120 g banana,
+keeps the 80 v4 cases and adds seven (r081 to r087): three default-market cases (120 g banana,
 banana, guava), two Taiwan-market cases (120 g banana, guava) and two Chinese
 queries (香蕉, 芭樂). The v5 replay uses the production composite and replays each
 case's market. Labels for the new cases come from `build_retrieval_v5.py`: plain
@@ -56,8 +65,11 @@ development labels, not independent acceptance.
 Results (Python 3.12 scorer):
 
 - v3 and v4 reports are byte-identical to the ranking v7 reports.
-- v5, composite, v8-equivalent to v9: hit@1 0.904 to 0.986, MRR 0.952 to 0.993,
-  nDCG@5 0.938 to 0.972. The rice and banana families recover hit@1 from 0.0
+- Replay cost: the two-source rows for the v3 and v4 labels are derived from the
+  regional composite row by removing TFDA records, which is exact when Taiwan is
+  not promoted (asserted for every v3 and v4 case and by a dedicated test).
+- v5, composite, v8-equivalent to v9: hit@1 0.907 to 0.987, MRR 0.953 to 0.993,
+  nDCG@5 0.942 to 0.976. The rice and banana families recover hit@1 from 0.0
   to 1.0 (TFDA "White rice, cooked" and the Beijiao banana no longer lead).
   The default-market family nDCG@5 rises from 0.787 to 0.938.
 - Taiwan-market and Chinese-query cases are identical before and after.

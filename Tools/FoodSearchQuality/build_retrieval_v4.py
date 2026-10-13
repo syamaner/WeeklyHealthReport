@@ -20,7 +20,11 @@ NEW_CASES = [
     ("r076", "unrequested-part", "150g roast pork"),
     ("r077", "requested-part", "roast chicken with skin"),
     ("r078", "requested-part", "chicken liver"),
+    ("r079", "produce-skin", "eating apple"),
+    ("r080", "produce-skin", "200g baked potato"),
 ]
+PROCESSED = ("juice", "sauce", "pie", "chips", "crisps", "canned", "dried", "dehydrated", "mashed", "frozen",
+             "salad", "croquettes", "fritters", "waffles", "hash", "pancakes", "puffs", "flour", "powder")
 
 
 def fields(name):
@@ -71,6 +75,20 @@ def requested_part_grade(query, name):
     return 2, False
 
 
+def produce_skin_grade(query, name):
+    """Produce eaten with its skin is not an unrequested part: skin-on is preferred."""
+    f = fields(name)
+    text = name.lower()
+    food = "apple" if "apple" in query else "potato"
+    if not f[0].startswith(food) or any(word in text for word in PROCESSED):
+        return 1, False
+    if food == "potato" and "baked" not in text:
+        return 1, False
+    if "flesh only" in text or "without skin" in text or "peeled" in text:
+        return 2, False
+    return 3, False
+
+
 def main():
     data = json.loads((ROOT / "retrieval-scenarios-v3.json").read_text())
     replay = [row for path in sys.argv[1:] for row in json.loads(Path(path).read_text())]
@@ -79,7 +97,8 @@ def main():
         for row in replay:
             if row["id"] == case_id:
                 names.update(zip(row["records"], row["names"]))
-        grade = unrequested_part_grade if family == "unrequested-part" else requested_part_grade
+        grade = {"unrequested-part": unrequested_part_grade, "requested-part": requested_part_grade,
+                 "produce-skin": produce_skin_grade}[family]
         graded = {rid: grade(query, name) for rid, name in sorted(names.items())}
         data["cases"].append({
             "family": family,
@@ -91,7 +110,7 @@ def main():
             "query": query,
         })
     data.update(version="retrieval-scenarios-v4",
-                focus="v3 cases plus unrequested and requested part words (ranking v7)",
+                focus="v3 cases plus unrequested and requested part words and produce skin (ranking v7)",
                 labelRules="build_retrieval_v4.py name rules; same-author development labels")
     out = ROOT / "retrieval-scenarios-v4.json"
     out.write_text(json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False) + "\n")

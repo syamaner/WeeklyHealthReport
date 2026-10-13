@@ -5090,9 +5090,9 @@
       "family": "unrequested-part",
       "grades": [
         3,
+        3,
         0,
         2,
-        3,
         0,
         1
       ],
@@ -5101,7 +5101,7 @@
       "id": "r073",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 2,
-      "ndcg5": 0.8627089570214734,
+      "ndcg5": 0.9521511920423338,
       "observed": "relevant",
       "rr": 1.0,
       "source": "cofid",
@@ -5138,9 +5138,9 @@
         3,
         3,
         3,
+        3,
         0,
         2,
-        3,
         0,
         1,
         1,
@@ -5153,7 +5153,7 @@
       "id": "r073",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 1,
-      "ndcg5": 0.8420926525813925,
+      "ndcg5": 0.9392116896542794,
       "observed": "relevant",
       "rr": 1.0,
       "source": "composite",
@@ -5165,9 +5165,9 @@
       "family": "unrequested-part",
       "grades": [
         3,
+        3,
         0,
         2,
-        3,
         0,
         1
       ],
@@ -5176,7 +5176,7 @@
       "id": "r074",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 2,
-      "ndcg5": 0.8627089570214734,
+      "ndcg5": 0.9521511920423338,
       "observed": "relevant",
       "rr": 1.0,
       "source": "cofid",
@@ -5213,9 +5213,9 @@
         3,
         3,
         3,
+        3,
         0,
         2,
-        3,
         0,
         1,
         1,
@@ -5228,7 +5228,7 @@
       "id": "r074",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 1,
-      "ndcg5": 0.8420926525813925,
+      "ndcg5": 0.9392116896542794,
       "observed": "relevant",
       "rr": 1.0,
       "source": "composite",
@@ -5456,8 +5456,8 @@
         2,
         2,
         3,
-        1,
-        2
+        3,
+        3
       ],
       "hit1": true,
       "hit5": true,
@@ -5493,8 +5493,8 @@
         2,
         2,
         3,
-        1,
-        2
+        3,
+        3
       ],
       "hit1": true,
       "hit5": true,
@@ -5569,13 +5569,144 @@
       "rr": 1.0,
       "source": "composite",
       "tentativeOnly": false
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        3,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r079",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "cofid",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": false,
+      "expected": "empty",
+      "family": "produce-skin",
+      "grades": [],
+      "hit1": false,
+      "hit5": false,
+      "id": "r079",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": null,
+      "observed": "empty",
+      "rr": 0,
+      "source": "usda",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        3,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r079",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "composite",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r080",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "cofid",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": false,
+      "expected": "tentative",
+      "family": "produce-skin",
+      "grades": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "hit1": false,
+      "hit5": false,
+      "id": "r080",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "tentative",
+      "rr": 0,
+      "source": "usda",
+      "tentativeOnly": true
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r080",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "composite",
+      "tentativeOnly": false
     }
   ],
   "independentAcceptance": false,
   "summaries": {
     "cofid": {
       "appropriateNoResult": 29,
-      "cases": 78,
+      "cases": 80,
       "catalogueGapCases": 31,
       "confusionMatrix": {
         "empty": {
@@ -5583,20 +5714,20 @@
         },
         "relevant": {
           "empty": 1,
-          "relevant": 46
+          "relevant": 48
         },
         "tentative": {
           "tentative": 2
         }
       },
-      "exactCoverageCases": 47,
-      "gradedCases": 49,
-      "hitAt1": 0.9787234042553191,
-      "hitAt5": 0.9787234042553191,
+      "exactCoverageCases": 49,
+      "gradedCases": 51,
+      "hitAt1": 0.9795918367346939,
+      "hitAt5": 0.9795918367346939,
       "incorrectVariantAt1": 12,
       "incorrectVariantsAt5": 31,
-      "mrr": 0.9787234042553191,
-      "ndcgAt5": 0.9304952647294439,
+      "mrr": 0.9795918367346939,
+      "ndcgAt5": 0.936728479250676,
       "noResultCases": 29,
       "tentativeOnlyCases": 2
     },
@@ -5675,6 +5806,26 @@
       },
       "exactCoverageCases": 4,
       "gradedCases": 4,
+      "hitAt1": 1.0,
+      "hitAt5": 1.0,
+      "incorrectVariantAt1": 0,
+      "incorrectVariantsAt5": 0,
+      "mrr": 1.0,
+      "ndcgAt5": 1.0,
+      "noResultCases": 0,
+      "tentativeOnlyCases": 0
+    },
+    "cofid/produce-skin": {
+      "appropriateNoResult": 0,
+      "cases": 2,
+      "catalogueGapCases": 0,
+      "confusionMatrix": {
+        "relevant": {
+          "relevant": 2
+        }
+      },
+      "exactCoverageCases": 2,
+      "gradedCases": 2,
       "hitAt1": 1.0,
       "hitAt5": 1.0,
       "incorrectVariantAt1": 0,
@@ -5900,7 +6051,7 @@
       "incorrectVariantAt1": 0,
       "incorrectVariantsAt5": 4,
       "mrr": 1.0,
-      "ndcgAt5": 0.9313544785107367,
+      "ndcgAt5": 0.9760755960211669,
       "noResultCases": 0,
       "tentativeOnlyCases": 0
     },
@@ -5946,24 +6097,24 @@
     },
     "composite": {
       "appropriateNoResult": 12,
-      "cases": 78,
+      "cases": 80,
       "catalogueGapCases": 12,
       "confusionMatrix": {
         "empty": {
           "empty": 12
         },
         "relevant": {
-          "relevant": 66
+          "relevant": 68
         }
       },
-      "exactCoverageCases": 66,
-      "gradedCases": 66,
-      "hitAt1": 0.9848484848484849,
+      "exactCoverageCases": 68,
+      "gradedCases": 68,
+      "hitAt1": 0.9852941176470589,
       "hitAt5": 1.0,
       "incorrectVariantAt1": 9,
       "incorrectVariantsAt5": 71,
-      "mrr": 0.9924242424242424,
-      "ndcgAt5": 0.9732995519814918,
+      "mrr": 0.9926470588235294,
+      "ndcgAt5": 0.9769413015430033,
       "noResultCases": 12,
       "tentativeOnlyCases": 0
     },
@@ -6044,6 +6195,26 @@
       "incorrectVariantsAt5": 0,
       "mrr": 1.0,
       "ndcgAt5": 0.8546456263113074,
+      "noResultCases": 0,
+      "tentativeOnlyCases": 0
+    },
+    "composite/produce-skin": {
+      "appropriateNoResult": 0,
+      "cases": 2,
+      "catalogueGapCases": 0,
+      "confusionMatrix": {
+        "relevant": {
+          "relevant": 2
+        }
+      },
+      "exactCoverageCases": 2,
+      "gradedCases": 2,
+      "hitAt1": 1.0,
+      "hitAt5": 1.0,
+      "incorrectVariantAt1": 0,
+      "incorrectVariantsAt5": 0,
+      "mrr": 1.0,
+      "ndcgAt5": 1.0,
       "noResultCases": 0,
       "tentativeOnlyCases": 0
     },
@@ -6263,7 +6434,7 @@
       "incorrectVariantAt1": 0,
       "incorrectVariantsAt5": 2,
       "mrr": 0.875,
-      "ndcgAt5": 0.8202537656937052,
+      "ndcgAt5": 0.8688132842301487,
       "noResultCases": 0,
       "tentativeOnlyCases": 0
     },
@@ -6308,27 +6479,30 @@
       "tentativeOnlyCases": 0
     },
     "usda": {
-      "appropriateNoResult": 12,
-      "cases": 78,
-      "catalogueGapCases": 12,
+      "appropriateNoResult": 13,
+      "cases": 80,
+      "catalogueGapCases": 14,
       "confusionMatrix": {
         "empty": {
-          "empty": 12
+          "empty": 13
         },
         "relevant": {
           "relevant": 66
+        },
+        "tentative": {
+          "tentative": 1
         }
       },
       "exactCoverageCases": 66,
-      "gradedCases": 66,
+      "gradedCases": 67,
       "hitAt1": 0.9242424242424242,
       "hitAt5": 1.0,
       "incorrectVariantAt1": 15,
       "incorrectVariantsAt5": 72,
       "mrr": 0.9621212121212122,
-      "ndcgAt5": 0.9692956198912271,
-      "noResultCases": 12,
-      "tentativeOnlyCases": 0
+      "ndcgAt5": 0.969753894221209,
+      "noResultCases": 13,
+      "tentativeOnlyCases": 1
     },
     "usda/catalogue-miss": {
       "appropriateNoResult": 5,
@@ -6409,6 +6583,29 @@
       "ndcgAt5": 0.753741145977712,
       "noResultCases": 0,
       "tentativeOnlyCases": 0
+    },
+    "usda/produce-skin": {
+      "appropriateNoResult": 1,
+      "cases": 2,
+      "catalogueGapCases": 2,
+      "confusionMatrix": {
+        "empty": {
+          "empty": 1
+        },
+        "tentative": {
+          "tentative": 1
+        }
+      },
+      "exactCoverageCases": 0,
+      "gradedCases": 1,
+      "hitAt1": null,
+      "hitAt5": null,
+      "incorrectVariantAt1": 0,
+      "incorrectVariantsAt5": 0,
+      "mrr": null,
+      "ndcgAt5": 1.0,
+      "noResultCases": 1,
+      "tentativeOnlyCases": 1
     },
     "usda/requested-part": {
       "appropriateNoResult": 0,

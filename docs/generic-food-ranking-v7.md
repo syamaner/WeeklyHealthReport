@@ -23,15 +23,30 @@ rare in these catalogues, their records already rank below the meat through
 the primary-food rule, or they are a weighing basis ("weighed with bone")
 rather than an eaten part. Widening the list needs a new version.
 
-A part word counts only when the source name presents the part as present:
+A part word counts only in closed animal-part positions, and only when the
+user did not type it anywhere in the original text ("chicken liver", "roast
+chicken with skin" are never penalised). The name is read one comma field at a
+time:
 
-- a part the user typed anywhere in the original text is not penalised
-  ("chicken liver", "roast chicken with skin");
-- a part directly after `without`, `no` or `weighed` is not a part
-  ("without skin", "weighed with skin");
-- `fat` after a fat-content qualifier (`low`, `lower`, `reduced`, `less`,
-  `non`, `zero`, `half`, `full`) or a number, or before `free`, is a fat
-  content, not a part ("low fat", "2% fat", "trimmed to 0" fat", "fat free").
+- the whole primary name is a part ("Liver, chicken", "Giblets, chicken");
+- the second field starts with a part ("Chicken, skin, roasted/grilled",
+  "Chicken, skin (drumsticks and thighs), cooked", "Pork, fat, cooked");
+- a field contains one of the part phrases "meat and skin", "lean and fat",
+  "separable fat", "skin only" or "fat only".
+
+A field never counts when it contains a weighing basis, a removal, a negation
+or a fat-content word: `weighed`, `removed`, `excluding`, `without`, `no`,
+`trimmed`, `free`, `reduced`, `content`, `low`, `lower`, `medium`, `high`,
+`higher`, `extra`, `less`, `non`, `zero`, `half`, `full`, or a number. So
+"fillets weighed with bones and skin", "skin and breading removed", "excluding
+skin", "medium fat", "fat trimmed", "2% fat" and "trimmed to 0" fat" are not
+parts.
+
+Produce skin is part of the eaten food, not an animal part. "Apples, raw, with
+skin", "flesh and skin" (potatoes, apples) and "includes skin" (plums,
+cherries, apricots, courgette) are in none of the positions above and never
+count. A poultry record cooked with its skin and eaten as meat only
+("Chicken, breast, grilled with skin, meat only") does not count either.
 
 The count is the number of distinct part words, so "meat and skin" counts once.
 
@@ -41,9 +56,9 @@ Primary-food, parenthetical and specialisation comparisons keep precedence.
 Lexical eligibility, full meaningful-token coverage, preparation as a hard
 constraint, source identity, evidence, nutrients and the explicit Log action are
 unchanged. The policy still never selects or saves a candidate; it orders the
-list the user chooses from. A record cooked with its skin and eaten as meat only
-("grilled with skin, meat only") still counts the part; this is a known
-conservative imprecision, recorded rather than special-cased.
+list the user chooses from. The positions are lexical: a part named in another
+position (for example a third field that is only "skin") is not counted, which
+keeps the rule narrow rather than complete.
 
 ## Versions and stored values
 
@@ -58,9 +73,11 @@ are unchanged by this rule.
 ## Evaluation
 
 `Tools/FoodSearchQuality/retrieval-scenarios-v4.json` keeps the 72 frozen v3
-cases byte-for-byte in content and adds six: four unrequested-part cases
-(150 g grilled chicken, grilled chicken, 200g roast chicken, 150g roast pork)
-and two requested-part cases (roast chicken with skin, chicken liver). Labels
+cases byte-for-byte in content and adds eight: four unrequested-part cases
+(150 g grilled chicken, grilled chicken, 200g roast chicken, 150g roast pork),
+two requested-part cases (roast chicken with skin, chicken liver) and two
+produce-skin cases (eating apple, 200g baked potato) where the skin-on record
+is preferred. Labels
 for the new cases come from the name rules in `build_retrieval_v4.py`, applied
 to every record either ranking version retrieved. They are same-author
 development labels, not independent acceptance.
@@ -71,12 +88,21 @@ Results (CoFID, USDA and the two-source composite, scored with Python 3.12):
   raw-ribeye observations change (a "lean and fat" record leaves rank 8).
   `retrieval-metrics-final-v7.json` is the new exact expected report.
 - v4 unrequested-part family, ranking v6 to v7: composite hit@1 0.25 to 0.75,
-  MRR 0.625 to 0.875, nDCG@5 0.540 to 0.820; CoFID hit@1 0.5 to 1.0; USDA
-  nDCG@5 0.804 to 0.927. Incorrect part records at rank 1 fall from 2 to 0.
-- v4 requested-part family: identical before and after (hit@1 1.0 in every source).
+  MRR 0.625 to 0.875, nDCG@5 0.540 to 0.869; CoFID hit@1 0.5 to 1.0, nDCG@5
+  0.665 to 0.976; USDA nDCG@5 0.804 to 0.927. Incorrect part records at rank 1
+  fall from 2 to 0.
+- v4 requested-part and produce-skin families: identical before and after
+  (produce-skin nDCG@5 1.0; "Potatoes, old, baked, flesh and skin" stays first).
 - No summary metric in any source or family decreased.
 
 `v7-reproduction-manifest.json` binds the inputs, source hashes, replay hashes
 and the changed observations. The target query "150 g grilled chicken" now
-starts with "Chicken, breast, grilled without skin, meat only" in CoFID and the
-composite, ahead of "Chicken, skin, roasted/grilled, moist".
+starts with "Chicken, breast, grilled with skin, meat only", then "Chicken,
+breast, grilled without skin, meat only" and the two USDA skinless breast
+records in the composite; "Chicken, skin, roasted/grilled, moist" falls from
+rank 1 to rank 5.
+
+An earlier draft of this version counted any skin or fat word not preceded by a
+short qualifier list. Invariant review found that it demoted produce skin and
+missed several fat-content and removal wordings, so the closed positions above
+replaced it before merge.

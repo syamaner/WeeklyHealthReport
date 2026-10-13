@@ -13,20 +13,20 @@
     "changed_composite_summaries": {
       "composite": {
         "hitAt1": {
-          "before": 0.9041095890410958,
-          "after": 0.9863013698630136
+          "before": 0.9066666666666666,
+          "after": 0.9866666666666667
         },
         "hitAt5": {
           "before": 1.0,
           "after": 1.0
         },
         "mrr": {
-          "before": 0.952054794520548,
-          "after": 0.9931506849315068
+          "before": 0.9533333333333334,
+          "after": 0.9933333333333333
         },
         "ndcgAt5": {
-          "before": 0.9381072510055234,
-          "after": 0.972187686483377
+          "before": 0.942347565300653,
+          "after": 0.9755191891657639
         }
       },
       "composite/regional-default": {
@@ -366,87 +366,87 @@
         ]
       },
       {
-        "id": "r079",
-        "source": "composite",
-        "before_grades": [
-          2,
-          3,
-          2,
-          3,
-          2,
-          3,
-          1,
-          1,
-          1,
-          1,
-          0,
-          1,
-          1,
-          1,
-          1,
-          1
-        ],
-        "after_grades": [
-          3,
-          2,
-          3,
-          2,
-          3,
-          1,
-          1,
-          1,
-          1,
-          0,
-          1,
-          1,
-          1,
-          1,
-          1,
-          2
-        ]
-      },
-      {
-        "id": "r080",
-        "source": "composite",
-        "before_grades": [
-          2,
-          3,
-          2,
-          3,
-          2,
-          3,
-          1,
-          1,
-          1,
-          1,
-          0,
-          1,
-          1,
-          1,
-          1,
-          1
-        ],
-        "after_grades": [
-          3,
-          2,
-          3,
-          2,
-          3,
-          1,
-          1,
-          1,
-          1,
-          0,
-          1,
-          1,
-          1,
-          1,
-          1,
-          2
-        ]
-      },
-      {
         "id": "r081",
+        "source": "composite",
+        "before_grades": [
+          2,
+          3,
+          2,
+          3,
+          2,
+          3,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "after_grades": [
+          3,
+          2,
+          3,
+          2,
+          3,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          2
+        ]
+      },
+      {
+        "id": "r082",
+        "source": "composite",
+        "before_grades": [
+          2,
+          3,
+          2,
+          3,
+          2,
+          3,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "after_grades": [
+          3,
+          2,
+          3,
+          2,
+          3,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          2
+        ]
+      },
+      {
+        "id": "r083",
         "source": "composite",
         "before_grades": [
           2,
@@ -477,26 +477,26 @@
   },
   "replays_retained": false,
   "replay_sha256": {
-    "v5-composite-v8-equivalent": "84befa1ea4db10ea88798baa51c0ccd67405d8adff41969674a5718b91459edc",
-    "v5-composite-v9": "59ea347ca63874d0fc1d817f3b26781b283c2ade02815f7f295a3a063e75d62e"
+    "v5-composite-v8-equivalent": "ad067a4eb36b782883fd066ae38ee65110916faed0f7de41983e10a432a65462",
+    "v5-composite-v9": "e51c14bcda9675a2015df352a0c51edff458367e71b52e48076d1155d5e0d771"
   },
   "input_sha256": {
-    "Tools/FoodSearchQuality/retrieval-scenarios-v4.json": "b1265e4d4b6ff034e67a01a3ddbfa332272f0ff7d293fdf143cc782211e0e9af",
-    "Tools/FoodSearchQuality/retrieval-scenarios-v5.json": "7431bea44f0f1a0af51481a7ae3112ca62298afb7fd492490bbce9c3a98c0c56"
+    "Tools/FoodSearchQuality/retrieval-scenarios-v4.json": "a0c1963d78a618c1acc65b4e55c9df692e5a16a96970c7cf0da6a7545d63a670",
+    "Tools/FoodSearchQuality/retrieval-scenarios-v5.json": "898a2b572fa2ad732d35886eacc770c67555e006fb83b56b4da4fd214cf35db4"
   },
   "source_sha256": {
     "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/CompositeGenericFoodSearch.swift": "81df016f42152abcb6c1f93ce26cc57e5eccc126d0f739a297edb764ac7afb25",
     "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/RegionalSourceOrderPolicy.swift": "2d88f73f8c7735a4ce0994abc0403fd6c1ac119c51a7dbd1cf421b3e9df52317",
-    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/GenericFoodRankingPolicy.swift": "88c59eaef05331ac7403c354c3d39548da665c8cdc2983fd3a362b37a10f16e7",
+    "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/GenericFoodRankingPolicy.swift": "c96f17f57c08d0af55219e440b7a0b621a823d5e28ce045e3f9f0e5f594dfe56",
     "Packages/FoodLedgerKit/Sources/FoodGenericSearch/TFDAGenericFoodSearch.swift": "b74773fba3e1ace45a9f6d0c3e785b9b43b4469c467265b137a30b58fd7d4ad6",
-    "Packages/FoodLedgerKit/Tests/FoodGenericSearchTests/RankedRetrievalDevelopmentTests.swift": "0d883a4589c8a789b4dbf641ab75ad87f62a8821c8aba5197e36147b0a11a26d",
+    "Packages/FoodLedgerKit/Tests/FoodGenericSearchTests/RankedRetrievalDevelopmentTests.swift": "c8316cdd5f1f8ca654f69eac16852ea325f8fe60356142c443e1ed41ee0ddf2a",
     "WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift": "9394f1b50299e956d56db1be0d71e6fed60479b7f46f74765dc007ad0093386e",
     "Tools/FoodSearchQuality/score_retrieval.py": "90969bb74009935e879a803f7ae048781635799106e25cc3b418ac192b6250ef",
-    "Tools/FoodSearchQuality/build_retrieval_v5.py": "6cf434ec3016d83cd3b4ab82dbe3af462c888aea941b1c57898a17b27bba2e17"
+    "Tools/FoodSearchQuality/build_retrieval_v5.py": "696e1570fc06c48957721d92ecd5370c0f9e8af3f2afa4b5afac788193d43e04"
   },
   "output_sha256": {
-    "retrieval-metrics-v5-baseline-v8.json": "9cc3e63b638f07c31a4af0bd6d56a121c669987ac0de4c26645e419934125d4b",
-    "retrieval-metrics-v5-final-v9.json": "01ff471d7687bf8e76a3eb66977c04a2bb0edfc437192ad646f4b2a7de3dd5e0"
+    "retrieval-metrics-v5-baseline-v8.json": "19894b0895ddac6016213b5db2cfaac601b5dacef6327edab611665809768756",
+    "retrieval-metrics-v5-final-v9.json": "ad1d1a972b0376f53c66687284f9fd5c0a29b2e2238f2953528705ac59014acc"
   },
   "independentAcceptance": false
 }

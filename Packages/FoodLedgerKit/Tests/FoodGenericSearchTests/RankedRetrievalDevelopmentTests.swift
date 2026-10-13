@@ -40,6 +40,14 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         let records: [String]; let names: [String]; let sourceIDs: [String]
         let candidates: [PopulatedFoodCandidate]; let releases: [SourceRelease]
         let notes: [String?]; let suggestions: [String]
+
+        func removingTaiwanRecords() -> Row {
+            let keep = records.indices.filter { !records[$0].hasPrefix("tfda:") }
+            return Row(id: id, query: query, source: source, records: keep.map { records[$0] }, names: keep.map { names[$0] },
+                       sourceIDs: keep.map { sourceIDs[$0] }, candidates: keep.map { candidates[$0] },
+                       releases: releases.filter { !$0.sourceReleaseID.value.hasPrefix("tfda") },
+                       notes: keep.map { notes[$0] }, suggestions: suggestions)
+        }
     }
     func testGenericRepresentationPreferenceRunsBeforeTruncationAndAcrossSources() throws {
         let ids = ReplayIDs()
@@ -133,29 +141,50 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
         let ids = ReplayIDs()
         let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
         let tfda = try TFDAGenericFoodSearch(ids: ids)
-        let twoSource = CompositeGenericFoodSearch(sources: [cofid, usda], ids: ids)
         let baseline = ProcessInfo.processInfo.environment["WHR_RETRIEVAL_REPORT_V5_BASELINE"] != nil
+        let v3IDs = Set(v3.cases.map(\.id)), v4IDs = Set(v4.cases.map(\.id))
         var rows: [Row] = [], regionalRows: [Row] = [], baselineRows: [Row] = []
         for scenario in fixture.cases {
             let request = try replayRequest(scenario)
+            let promoted = RegionalSourceOrderPolicy.promotesTaiwan(query: scenario.query, marketIsTaiwan: scenario.market == "taiwan")
             let regional = CompositeGenericFoodSearch(sources: [cofid, usda], regionalSources: [tfda], promotesRegional: { request in
                 RegionalSourceOrderPolicy.promotesTaiwan(query: request.text.value, marketIsTaiwan: scenario.market == "taiwan")
             }, ids: ids)
             let local = [try replayRow(scenario, source: "cofid", request: request, search: cofid),
                          try replayRow(scenario, source: "usda", request: request, search: usda)]
-            rows += local + [try replayRow(scenario, source: "composite", request: request, search: twoSource)]
-            regionalRows += local + [try replayRow(scenario, source: "composite", request: request, search: regional)]
+            let composite = try replayRow(scenario, source: "composite", request: request, search: regional)
+            regionalRows += local + [composite]
+            if v4IDs.contains(scenario.id) {
+                // When Taiwan is not promoted, v9 places every TFDA row after the UK and US
+                // rows without reordering them, so the two-source composite used by the
+                // v3 and v4 labels is exactly the regional row without TFDA records.
+                // This avoids searching CoFID and USDA a third time per case.
+                XCTAssertFalse(promoted, scenario.id)
+                rows += local + [composite.removingTaiwanRecords()]
+            }
             if baseline {
                 // composite-generic-ranking-v8 equivalent: every source interleaved.
                 let interleaved = CompositeGenericFoodSearch(sources: [cofid, usda, tfda], ids: ids)
                 baselineRows += local + [try replayRow(scenario, source: "composite", request: request, search: interleaved)]
             }
         }
-        let v3IDs = Set(v3.cases.map(\.id)), v4IDs = Set(v4.cases.map(\.id))
         try write(rows.filter { v3IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT")
-        try write(rows.filter { v4IDs.contains($0.id) }, environment: "WHR_RETRIEVAL_REPORT_V4")
+        try write(rows, environment: "WHR_RETRIEVAL_REPORT_V4")
         try write(regionalRows, environment: "WHR_RETRIEVAL_REPORT_V5")
         if baseline { try write(baselineRows, environment: "WHR_RETRIEVAL_REPORT_V5_BASELINE") }
+    }
+
+    func testTwoSourceRowsEqualRegionalRowsWithoutTaiwanWhenNotPromoted() throws {
+        let ids = ReplayIDs()
+        let cofid = try CoFIDGenericFoodSearch(ids: ids), usda = try USDAGenericFoodSearch(ids: ids)
+        let regional = CompositeGenericFoodSearch(sources: [cofid, usda], regionalSources: [try TFDAGenericFoodSearch(ids: ids)], ids: ids)
+        let twoSource = CompositeGenericFoodSearch(sources: [cofid, usda], ids: ids)
+        for query in ["120 g banana", "rice", "guava", "100g apple", "250g cooked weight sirloin", "milk"] {
+            let scenario = Scenario(id: query, query: query, preparation: nil, market: nil)
+            let request = try replayRequest(scenario)
+            XCTAssertEqual(try replayRow(scenario, source: "composite", request: request, search: regional).removingTaiwanRecords().records,
+                           try replayRow(scenario, source: "composite", request: request, search: twoSource).records, query)
+        }
     }
 
     private func replayRequest(_ scenario: Scenario) throws -> GenericFoodSearchRequest {

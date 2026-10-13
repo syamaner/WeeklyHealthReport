@@ -5569,13 +5569,144 @@
       "rr": 1.0,
       "source": "composite",
       "tentativeOnly": false
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        3,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r079",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "cofid",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": false,
+      "expected": "empty",
+      "family": "produce-skin",
+      "grades": [],
+      "hit1": false,
+      "hit5": false,
+      "id": "r079",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": null,
+      "observed": "empty",
+      "rr": 0,
+      "source": "usda",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        3,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r079",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "composite",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r080",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "cofid",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": false,
+      "expected": "tentative",
+      "family": "produce-skin",
+      "grades": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "hit1": false,
+      "hit5": false,
+      "id": "r080",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "tentative",
+      "rr": 0,
+      "source": "usda",
+      "tentativeOnly": true
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r080",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "composite",
+      "tentativeOnly": false
     }
   ],
   "independentAcceptance": false,
   "summaries": {
     "cofid": {
       "appropriateNoResult": 29,
-      "cases": 78,
+      "cases": 80,
       "catalogueGapCases": 31,
       "confusionMatrix": {
         "empty": {
@@ -5583,20 +5714,20 @@
         },
         "relevant": {
           "empty": 1,
-          "relevant": 46
+          "relevant": 48
         },
         "tentative": {
           "tentative": 2
         }
       },
-      "exactCoverageCases": 47,
-      "gradedCases": 49,
-      "hitAt1": 0.9361702127659575,
-      "hitAt5": 0.9787234042553191,
+      "exactCoverageCases": 49,
+      "gradedCases": 51,
+      "hitAt1": 0.9387755102040817,
+      "hitAt5": 0.9795918367346939,
       "incorrectVariantAt1": 14,
       "incorrectVariantsAt5": 31,
-      "mrr": 0.9574468085106383,
-      "ndcgAt5": 0.9087236491799972,
+      "mrr": 0.9591836734693877,
+      "ndcgAt5": 0.9123031139180365,
       "noResultCases": 29,
       "tentativeOnlyCases": 2
     },
@@ -5675,6 +5806,26 @@
       },
       "exactCoverageCases": 4,
       "gradedCases": 4,
+      "hitAt1": 1.0,
+      "hitAt5": 1.0,
+      "incorrectVariantAt1": 0,
+      "incorrectVariantsAt5": 0,
+      "mrr": 1.0,
+      "ndcgAt5": 1.0,
+      "noResultCases": 0,
+      "tentativeOnlyCases": 0
+    },
+    "cofid/produce-skin": {
+      "appropriateNoResult": 0,
+      "cases": 2,
+      "catalogueGapCases": 0,
+      "confusionMatrix": {
+        "relevant": {
+          "relevant": 2
+        }
+      },
+      "exactCoverageCases": 2,
+      "gradedCases": 2,
       "hitAt1": 1.0,
       "hitAt5": 1.0,
       "incorrectVariantAt1": 0,
@@ -5946,24 +6097,24 @@
     },
     "composite": {
       "appropriateNoResult": 12,
-      "cases": 78,
+      "cases": 80,
       "catalogueGapCases": 12,
       "confusionMatrix": {
         "empty": {
           "empty": 12
         },
         "relevant": {
-          "relevant": 66
+          "relevant": 68
         }
       },
-      "exactCoverageCases": 66,
-      "gradedCases": 66,
-      "hitAt1": 0.9545454545454546,
+      "exactCoverageCases": 68,
+      "gradedCases": 68,
+      "hitAt1": 0.9558823529411765,
       "hitAt5": 1.0,
       "incorrectVariantAt1": 11,
       "incorrectVariantsAt5": 71,
-      "mrr": 0.9772727272727273,
-      "ndcgAt5": 0.9562854167982576,
+      "mrr": 0.9779411764705882,
+      "ndcgAt5": 0.957571139833603,
       "noResultCases": 12,
       "tentativeOnlyCases": 0
     },
@@ -6044,6 +6195,26 @@
       "incorrectVariantsAt5": 0,
       "mrr": 1.0,
       "ndcgAt5": 0.8546456263113074,
+      "noResultCases": 0,
+      "tentativeOnlyCases": 0
+    },
+    "composite/produce-skin": {
+      "appropriateNoResult": 0,
+      "cases": 2,
+      "catalogueGapCases": 0,
+      "confusionMatrix": {
+        "relevant": {
+          "relevant": 2
+        }
+      },
+      "exactCoverageCases": 2,
+      "gradedCases": 2,
+      "hitAt1": 1.0,
+      "hitAt5": 1.0,
+      "incorrectVariantAt1": 0,
+      "incorrectVariantsAt5": 0,
+      "mrr": 1.0,
+      "ndcgAt5": 1.0,
       "noResultCases": 0,
       "tentativeOnlyCases": 0
     },
@@ -6308,27 +6479,30 @@
       "tentativeOnlyCases": 0
     },
     "usda": {
-      "appropriateNoResult": 12,
-      "cases": 78,
-      "catalogueGapCases": 12,
+      "appropriateNoResult": 13,
+      "cases": 80,
+      "catalogueGapCases": 14,
       "confusionMatrix": {
         "empty": {
-          "empty": 12
+          "empty": 13
         },
         "relevant": {
           "relevant": 66
+        },
+        "tentative": {
+          "tentative": 1
         }
       },
       "exactCoverageCases": 66,
-      "gradedCases": 66,
+      "gradedCases": 67,
       "hitAt1": 0.9242424242424242,
       "hitAt5": 1.0,
       "incorrectVariantAt1": 15,
       "incorrectVariantsAt5": 73,
       "mrr": 0.9621212121212122,
-      "ndcgAt5": 0.9618401549042289,
-      "noResultCases": 12,
-      "tentativeOnlyCases": 0
+      "ndcgAt5": 0.9624097048310314,
+      "noResultCases": 13,
+      "tentativeOnlyCases": 1
     },
     "usda/catalogue-miss": {
       "appropriateNoResult": 5,
@@ -6409,6 +6583,29 @@
       "ndcgAt5": 0.753741145977712,
       "noResultCases": 0,
       "tentativeOnlyCases": 0
+    },
+    "usda/produce-skin": {
+      "appropriateNoResult": 1,
+      "cases": 2,
+      "catalogueGapCases": 2,
+      "confusionMatrix": {
+        "empty": {
+          "empty": 1
+        },
+        "tentative": {
+          "tentative": 1
+        }
+      },
+      "exactCoverageCases": 0,
+      "gradedCases": 1,
+      "hitAt1": null,
+      "hitAt5": null,
+      "incorrectVariantAt1": 0,
+      "incorrectVariantsAt5": 0,
+      "mrr": null,
+      "ndcgAt5": 1.0,
+      "noResultCases": 1,
+      "tentativeOnlyCases": 1
     },
     "usda/requested-part": {
       "appropriateNoResult": 0,

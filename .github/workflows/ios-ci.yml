@@ -93,7 +93,9 @@ jobs:
     needs: changes
     # Fail closed: only an explicit documentation-only decision skips this job.
     if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
-    timeout-minutes: 10
+    # 15, not 10: main already takes 8m08s-8m31s and the retrieval replay now
+    # also covers the production three-source composite (see "FoodLedgerKit job timeout" in the CI analysis doc).
+    timeout-minutes: 15
 
     steps:
       - name: Check out repository

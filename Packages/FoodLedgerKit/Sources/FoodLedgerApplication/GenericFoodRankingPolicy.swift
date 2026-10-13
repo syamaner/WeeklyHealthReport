@@ -21,14 +21,21 @@ public enum GenericFoodRankingPolicy {
         "fruit", "flavoured", "flavored", "sweetened", "chocolate", "vanilla", "strawberry",
         "blueberry", "raspberry", "apricot", "pineapple", "coconut", "mango", "lemon", "red"
     ]
-    // v7: a bounded list of separable animal parts that are commonly eaten
-    // separately and change the food materially. They are penalised only when
-    // the user did not name them, and only when the source name presents the
-    // part as present (never after "without"/"no", a fat-content qualifier or
-    // a weighing basis). This is a presentation preference, never identity.
+    // v7: a bounded list of separable animal parts that change the food
+    // materially. A part counts only in the closed animal-part positions below
+    // and only when the user did not name it. Produce skin ("with skin",
+    // "flesh and skin", "includes skin") and fat-content wording never count.
+    // This is a presentation preference, never identity.
     private static let parts: Set<String> = ["skin", "fat", "giblets", "liver"]
-    private static let partQualifiers: Set<String> = [
-        "without", "no", "weighed", "low", "lower", "reduced", "less", "non", "zero", "half", "full"
+    // Phrases that present an animal part as eaten with, or instead of, the meat.
+    private static let partPhrases: [[String]] = [
+        ["meat", "and", "skin"], ["lean", "and", "fat"], ["separable", "fat"], ["skin", "only"], ["fat", "only"]
+    ]
+    // A field with any of these describes a weighing basis, a removal or a
+    // fat content, not a part that is eaten.
+    private static let partExemptions: Set<String> = [
+        "weighed", "removed", "excluding", "without", "no", "trimmed", "free", "reduced", "content",
+        "low", "lower", "medium", "high", "higher", "extra", "less", "non", "zero", "half", "full"
     ]
     private static let forms: Set<String> = ["crumbled", "sliced", "diced", "chopped", "peeled"]
     private static let ordinary: Set<String> = ["plain", "average", "regular", "whole", "white"]
@@ -45,7 +52,7 @@ public enum GenericFoodRankingPolicy {
         return Preference(primaryFood: !head.isEmpty && head.isSubset(of: query),
             parentheticalOnlyTerms: query.intersection(candidate).subtracting(direct).count,
             unrequestedSpecialisations: extras.intersection(specialised).count,
-            unrequestedParts: presentParts(terms(rankingName)).subtracting(requested).count,
+            unrequestedParts: presentParts(rankingName).subtracting(requested).count,
             unrequestedForms: extras.intersection(forms).count,
             ordinaryRepresentation: candidate.intersection(ordinary).count + (candidate.contains("whole") ? 1 : 0),
             additionalTerms: extras.subtracting(preparation).count)
@@ -69,15 +76,23 @@ public enum GenericFoodRankingPolicy {
         }
         return lhs.additionalTerms < rhs.additionalTerms
     }
-    /// Part words the name presents as present. A preceding negation, fat-content
-    /// qualifier, number or weighing basis, or a following "free", is not a part.
-    private static func presentParts(_ ordered: [String]) -> Set<String> {
+    /// Part words in the closed animal-part positions: the whole primary name is a
+    /// part ("Liver, chicken"), the second field starts with a part ("Chicken, skin,
+    /// roasted"), or a field contains a part phrase ("meat and skin", "lean and fat",
+    /// "separable fat", "skin only", "fat only"). Exempt fields never count.
+    private static func presentParts(_ name: String) -> Set<String> {
         var found = Set<String>()
-        for (index, term) in ordered.enumerated() where parts.contains(term) {
-            let previous = index > 0 ? ordered[index - 1] : ""
-            if partQualifiers.contains(previous) || (!previous.isEmpty && previous.allSatisfy(\.isNumber)) { continue }
-            if index + 1 < ordered.count, ordered[index + 1] == "free" { continue }
-            found.insert(term)
+        for (index, field) in name.lowercased().split(separator: ",").enumerated() {
+            let words = field.split { !$0.isLetter && !$0.isNumber }.map(String.init)
+            guard !words.isEmpty, partExemptions.isDisjoint(with: words),
+                  !words.contains(where: { $0.allSatisfy(\.isNumber) }) else { continue }
+            if index == 0, words.count == 1, parts.contains(words[0]) { found.insert(words[0]) }
+            if index == 1, parts.contains(words[0]) { found.insert(words[0]) }
+            for phrase in partPhrases where words.count >= phrase.count {
+                for start in 0...(words.count - phrase.count) where Array(words[start..<(start + phrase.count)]) == phrase {
+                    found.formUnion(phrase.filter(parts.contains))
+                }
+            }
         }
         return found
     }

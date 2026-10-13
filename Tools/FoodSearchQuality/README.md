@@ -61,7 +61,7 @@ acceptance. v73 preserves the failing v4 comparison and the full current replay.
 ## Current CI replay: ranking v7 (13 October 2026)
 
 CI verifies two reports from one replay of `retrieval-scenarios-v4.json`
-(the 72 v3 cases plus six part-word cases). The v3 rows are scored with the
+(the 72 v3 cases plus eight part-word and produce-skin cases). The v3 rows are scored with the
 unchanged v3 labels against `retrieval-metrics-final-v7.json`; every summary
 equals v6 and only four raw-ribeye tails change. The full v4 rows are scored
 against `retrieval-metrics-v4-final-v7.json`; `retrieval-metrics-v4-baseline-v6.json`
@@ -81,9 +81,10 @@ each); their hashes are in the manifest.
 
 ## Current CI replay: composite v9 (13 October 2026)
 
-The replay now reads `retrieval-scenarios-v5.json` (the 78 v4 cases plus seven
+The replay now reads `retrieval-scenarios-v5.json` (the 80 v4 cases plus seven
 Taiwan source-order cases) and writes three reports from one run: v3 and v4 rows
-from the two-source composite (unchanged, still verified against
+use the two-source composite order, derived from the regional composite row by
+removing TFDA records (exact when Taiwan is not promoted; still verified against
 `retrieval-metrics-final-v7.json` and `retrieval-metrics-v4-final-v7.json`), and
 v5 rows from the production composite with TFDA as a regional source and each
 case's market, verified against `retrieval-metrics-v5-final-v9.json`.

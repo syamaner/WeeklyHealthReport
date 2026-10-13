@@ -5102,9 +5102,9 @@
       "family": "unrequested-part",
       "grades": [
         3,
+        3,
         0,
         2,
-        3,
         0,
         1
       ],
@@ -5113,7 +5113,7 @@
       "id": "r073",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 2,
-      "ndcg5": 0.8627089570214734,
+      "ndcg5": 0.9521511920423338,
       "observed": "relevant",
       "rr": 1.0,
       "source": "cofid",
@@ -5150,9 +5150,9 @@
         3,
         3,
         3,
+        3,
         0,
         2,
-        3,
         0,
         1,
         1,
@@ -5165,7 +5165,7 @@
       "id": "r073",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 1,
-      "ndcg5": 0.8420926525813925,
+      "ndcg5": 0.9392116896542794,
       "observed": "relevant",
       "rr": 1.0,
       "source": "composite",
@@ -5177,9 +5177,9 @@
       "family": "unrequested-part",
       "grades": [
         3,
+        3,
         0,
         2,
-        3,
         0,
         1
       ],
@@ -5188,7 +5188,7 @@
       "id": "r074",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 2,
-      "ndcg5": 0.8627089570214734,
+      "ndcg5": 0.9521511920423338,
       "observed": "relevant",
       "rr": 1.0,
       "source": "cofid",
@@ -5225,9 +5225,9 @@
         3,
         3,
         3,
+        3,
         0,
         2,
-        3,
         0,
         1,
         1,
@@ -5240,7 +5240,7 @@
       "id": "r074",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 1,
-      "ndcg5": 0.8420926525813925,
+      "ndcg5": 0.9392116896542794,
       "observed": "relevant",
       "rr": 1.0,
       "source": "composite",
@@ -5468,8 +5468,8 @@
         2,
         2,
         3,
-        1,
-        2
+        3,
+        3
       ],
       "hit1": true,
       "hit5": true,
@@ -5505,8 +5505,8 @@
         2,
         2,
         3,
-        1,
-        2
+        3,
+        3
       ],
       "hit1": true,
       "hit5": true,
@@ -5585,6 +5585,137 @@
     {
       "exactCoverage": true,
       "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        3,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r079",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "cofid",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": false,
+      "expected": "empty",
+      "family": "produce-skin",
+      "grades": [],
+      "hit1": false,
+      "hit5": false,
+      "id": "r079",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": null,
+      "observed": "empty",
+      "rr": 0,
+      "source": "usda",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        3,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r079",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "composite",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r080",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "cofid",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": false,
+      "expected": "tentative",
+      "family": "produce-skin",
+      "grades": [
+        1,
+        1,
+        1,
+        1
+      ],
+      "hit1": false,
+      "hit5": false,
+      "id": "r080",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "tentative",
+      "rr": 0,
+      "source": "usda",
+      "tentativeOnly": true
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
+      "family": "produce-skin",
+      "grades": [
+        3,
+        2,
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1
+      ],
+      "hit1": true,
+      "hit5": true,
+      "id": "r080",
+      "incorrectVariantAt1": false,
+      "incorrectVariantsAt5": 0,
+      "ndcg5": 1.0,
+      "observed": "relevant",
+      "rr": 1.0,
+      "source": "composite",
+      "tentativeOnly": false
+    },
+    {
+      "exactCoverage": true,
+      "expected": "relevant",
       "family": "regional-default",
       "grades": [
         3,
@@ -5595,7 +5726,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r079",
+      "id": "r081",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -5622,7 +5753,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r079",
+      "id": "r081",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -5655,7 +5786,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r079",
+      "id": "r081",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 0.9437905251661792,
@@ -5677,7 +5808,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r080",
+      "id": "r082",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -5704,7 +5835,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r080",
+      "id": "r082",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -5737,7 +5868,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r080",
+      "id": "r082",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 0.9437905251661792,
@@ -5756,7 +5887,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r081",
+      "id": "r083",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -5780,7 +5911,7 @@
       ],
       "hit1": false,
       "hit5": false,
-      "id": "r081",
+      "id": "r083",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -5807,7 +5938,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r081",
+      "id": "r083",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 0.9271882001353271,
@@ -5829,7 +5960,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r082",
+      "id": "r084",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -5856,7 +5987,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r082",
+      "id": "r084",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -5889,7 +6020,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r082",
+      "id": "r084",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 0.9171614320403716,
@@ -5908,7 +6039,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r083",
+      "id": "r085",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -5932,7 +6063,7 @@
       ],
       "hit1": false,
       "hit5": false,
-      "id": "r083",
+      "id": "r085",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -5959,7 +6090,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r083",
+      "id": "r085",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -5975,7 +6106,7 @@
       "grades": [],
       "hit1": false,
       "hit5": false,
-      "id": "r084",
+      "id": "r086",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": null,
@@ -5991,7 +6122,7 @@
       "grades": [],
       "hit1": false,
       "hit5": false,
-      "id": "r084",
+      "id": "r086",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": null,
@@ -6009,7 +6140,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r084",
+      "id": "r086",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -6025,7 +6156,7 @@
       "grades": [],
       "hit1": false,
       "hit5": false,
-      "id": "r085",
+      "id": "r087",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": null,
@@ -6041,7 +6172,7 @@
       "grades": [],
       "hit1": false,
       "hit5": false,
-      "id": "r085",
+      "id": "r087",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": null,
@@ -6059,7 +6190,7 @@
       ],
       "hit1": true,
       "hit5": true,
-      "id": "r085",
+      "id": "r087",
       "incorrectVariantAt1": false,
       "incorrectVariantsAt5": 0,
       "ndcg5": 1.0,
@@ -6073,7 +6204,7 @@
   "summaries": {
     "cofid": {
       "appropriateNoResult": 31,
-      "cases": 85,
+      "cases": 87,
       "catalogueGapCases": 33,
       "confusionMatrix": {
         "empty": {
@@ -6081,20 +6212,20 @@
         },
         "relevant": {
           "empty": 1,
-          "relevant": 51
+          "relevant": 53
         },
         "tentative": {
           "tentative": 2
         }
       },
-      "exactCoverageCases": 52,
-      "gradedCases": 54,
-      "hitAt1": 0.9807692307692307,
-      "hitAt5": 0.9807692307692307,
+      "exactCoverageCases": 54,
+      "gradedCases": 56,
+      "hitAt1": 0.9814814814814815,
+      "hitAt5": 0.9814814814814815,
       "incorrectVariantAt1": 12,
       "incorrectVariantsAt5": 31,
-      "mrr": 0.9807692307692307,
-      "ndcgAt5": 0.9369308883656066,
+      "mrr": 0.9814814814814815,
+      "ndcgAt5": 0.9423777221747228,
       "noResultCases": 31,
       "tentativeOnlyCases": 2
     },
@@ -6173,6 +6304,26 @@
       },
       "exactCoverageCases": 4,
       "gradedCases": 4,
+      "hitAt1": 1.0,
+      "hitAt5": 1.0,
+      "incorrectVariantAt1": 0,
+      "incorrectVariantsAt5": 0,
+      "mrr": 1.0,
+      "ndcgAt5": 1.0,
+      "noResultCases": 0,
+      "tentativeOnlyCases": 0
+    },
+    "cofid/produce-skin": {
+      "appropriateNoResult": 0,
+      "cases": 2,
+      "catalogueGapCases": 0,
+      "confusionMatrix": {
+        "relevant": {
+          "relevant": 2
+        }
+      },
+      "exactCoverageCases": 2,
+      "gradedCases": 2,
       "hitAt1": 1.0,
       "hitAt5": 1.0,
       "incorrectVariantAt1": 0,
@@ -6458,7 +6609,7 @@
       "incorrectVariantAt1": 0,
       "incorrectVariantsAt5": 4,
       "mrr": 1.0,
-      "ndcgAt5": 0.9313544785107367,
+      "ndcgAt5": 0.9760755960211669,
       "noResultCases": 0,
       "tentativeOnlyCases": 0
     },
@@ -6504,24 +6655,24 @@
     },
     "composite": {
       "appropriateNoResult": 12,
-      "cases": 85,
+      "cases": 87,
       "catalogueGapCases": 12,
       "confusionMatrix": {
         "empty": {
           "empty": 12
         },
         "relevant": {
-          "relevant": 73
+          "relevant": 75
         }
       },
-      "exactCoverageCases": 73,
-      "gradedCases": 73,
-      "hitAt1": 0.9863013698630136,
+      "exactCoverageCases": 75,
+      "gradedCases": 75,
+      "hitAt1": 0.9866666666666667,
       "hitAt5": 1.0,
       "incorrectVariantAt1": 9,
       "incorrectVariantsAt5": 71,
-      "mrr": 0.9931506849315068,
-      "ndcgAt5": 0.972187686483377,
+      "mrr": 0.9933333333333333,
+      "ndcgAt5": 0.9755191891657639,
       "noResultCases": 12,
       "tentativeOnlyCases": 0
     },
@@ -6602,6 +6753,26 @@
       "incorrectVariantsAt5": 0,
       "mrr": 1.0,
       "ndcgAt5": 0.8546456263113074,
+      "noResultCases": 0,
+      "tentativeOnlyCases": 0
+    },
+    "composite/produce-skin": {
+      "appropriateNoResult": 0,
+      "cases": 2,
+      "catalogueGapCases": 0,
+      "confusionMatrix": {
+        "relevant": {
+          "relevant": 2
+        }
+      },
+      "exactCoverageCases": 2,
+      "gradedCases": 2,
+      "hitAt1": 1.0,
+      "hitAt5": 1.0,
+      "incorrectVariantAt1": 0,
+      "incorrectVariantsAt5": 0,
+      "mrr": 1.0,
+      "ndcgAt5": 1.0,
       "noResultCases": 0,
       "tentativeOnlyCases": 0
     },
@@ -6881,7 +7052,7 @@
       "incorrectVariantAt1": 0,
       "incorrectVariantsAt5": 2,
       "mrr": 0.875,
-      "ndcgAt5": 0.8202537656937052,
+      "ndcgAt5": 0.8688132842301487,
       "noResultCases": 0,
       "tentativeOnlyCases": 0
     },
@@ -6926,30 +7097,30 @@
       "tentativeOnlyCases": 0
     },
     "usda": {
-      "appropriateNoResult": 14,
-      "cases": 85,
-      "catalogueGapCases": 16,
+      "appropriateNoResult": 15,
+      "cases": 87,
+      "catalogueGapCases": 18,
       "confusionMatrix": {
         "empty": {
-          "empty": 14
+          "empty": 15
         },
         "relevant": {
           "relevant": 69
         },
         "tentative": {
-          "tentative": 2
+          "tentative": 3
         }
       },
       "exactCoverageCases": 69,
-      "gradedCases": 71,
+      "gradedCases": 72,
       "hitAt1": 0.927536231884058,
       "hitAt5": 1.0,
       "incorrectVariantAt1": 15,
       "incorrectVariantsAt5": 72,
       "mrr": 0.9637681159420289,
-      "ndcgAt5": 0.9714579001805774,
-      "noResultCases": 14,
-      "tentativeOnlyCases": 2
+      "ndcgAt5": 0.971854318233625,
+      "noResultCases": 15,
+      "tentativeOnlyCases": 3
     },
     "usda/catalogue-miss": {
       "appropriateNoResult": 5,
@@ -7030,6 +7201,29 @@
       "ndcgAt5": 0.753741145977712,
       "noResultCases": 0,
       "tentativeOnlyCases": 0
+    },
+    "usda/produce-skin": {
+      "appropriateNoResult": 1,
+      "cases": 2,
+      "catalogueGapCases": 2,
+      "confusionMatrix": {
+        "empty": {
+          "empty": 1
+        },
+        "tentative": {
+          "tentative": 1
+        }
+      },
+      "exactCoverageCases": 0,
+      "gradedCases": 1,
+      "hitAt1": null,
+      "hitAt5": null,
+      "incorrectVariantAt1": 0,
+      "incorrectVariantsAt5": 0,
+      "mrr": null,
+      "ndcgAt5": 1.0,
+      "noResultCases": 1,
+      "tentativeOnlyCases": 1
     },
     "usda/regional-default": {
       "appropriateNoResult": 0,

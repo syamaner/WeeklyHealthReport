@@ -12,13 +12,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).parent
 NEW_CASES = [
-    ("r079", "regional-default", "120 g banana", None, "banana"),
-    ("r080", "regional-default", "banana", None, "banana"),
-    ("r081", "regional-default", "guava", None, "guava"),
-    ("r082", "regional-market", "120 g banana", "taiwan", "banana"),
-    ("r083", "regional-market", "guava", "taiwan", "guava"),
-    ("r084", "regional-query", "香蕉", None, "banana"),
-    ("r085", "regional-query", "芭樂", None, "guava"),
+    ("r081", "regional-default", "120 g banana", None, "banana"),
+    ("r082", "regional-default", "banana", None, "banana"),
+    ("r083", "regional-default", "guava", None, "guava"),
+    ("r084", "regional-market", "120 g banana", "taiwan", "banana"),
+    ("r085", "regional-market", "guava", "taiwan", "guava"),
+    ("r086", "regional-query", "香蕉", None, "banana"),
+    ("r087", "regional-query", "芭樂", None, "guava"),
 ]
 PROCESSED = ("dehydrated", "powder", "sauce", "nectar", "canned", "dried", "chips")
 VARIETY = ("overripe", "ripe")

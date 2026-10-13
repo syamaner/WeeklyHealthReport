@@ -115,6 +115,19 @@ including the helper tests in `Build and test`.
 
 The test step passes `-parallel-testing-enabled NO`. On the hosted three-core runner a second simulator clone took minutes to boot and competed for CPU with the real test runner; on one `main` run it never finished booting, and on a PR run the contention slowed render tests enough to fail a readiness deadline and push the job past its 20-minute timeout (run 38198192162). Running serially matches the local gate command.
 
+## FoodLedgerKit job timeout
+
+The "FoodLedgerKit build and contracts" job runs the whole package suite and then
+scores the retrieval replay. Before search ranking v7 / composite v9 it took 8m08s
+to 8m31s on `main` against a 10-minute timeout. The replay now also covers the
+production three-source composite with each scenario's market (retrieval scenarios
+v5). It reuses the CoFID and USDA rows and derives the two-source composite rows
+from the regional composite instead of searching a third time, which brought the
+local replay test from 70.3 s (first version) to 53.0 s for 87 cases; the 72-case
+replay on `main` took about 42 s locally. The remaining 10 to 15 s locally, more on
+the hosted runner, would leave under a minute of margin, so the job timeout is 15
+minutes. Revisit it if the job's measured duration falls back well below 10 minutes.
+
 ## Codecov disclosure boundary
 
 The pinned Codecov action runs only after the local coverage gate passes. Its

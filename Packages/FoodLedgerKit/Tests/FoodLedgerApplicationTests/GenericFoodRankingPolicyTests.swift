@@ -114,28 +114,53 @@ final class GenericFoodRankingPolicyTests: XCTestCase {
         }
     }
 
+    /// True when `name` is ranked as presenting the part: the same name with the
+    /// part word replaced by a neutral word is preferred only if the penalty applies.
+    private func countsPart(_ name: String, food: String = "food", part: String) -> Bool {
+        let candidate = GenericFoodRankingPolicy.preference(name: name, food: food, requestedText: food)
+        let neutral = name.replacingOccurrences(of: "\\b\(part)\\b", with: "qqq", options: [.regularExpression, .caseInsensitive])
+        let reference = GenericFoodRankingPolicy.preference(name: neutral, food: food, requestedText: food)
+        return GenericFoodRankingPolicy.prefers(reference, over: candidate)
+    }
+
     func testNegatedQualifiedOrWeighingBasisPartWordsAreNotParts() {
-        // A record presenting a part loses to one that does not, before ordinary bonuses.
         for (name, part) in [("Food, without skin, cooked", "skin"), ("Food, no skin, cooked", "skin"),
+                             ("Food, excluding skin, cooked", "skin"),
                              ("Food, low fat, cooked", "fat"), ("Food, reduced fat, cooked", "fat"),
                              ("Food, fat free, cooked", "fat"), ("Food, 2% fat, cooked", "fat"),
-                             ("Food, trimmed to 0\" fat, cooked", "fat"), ("Food, cooked, weighed with skin", "skin")] {
-            let candidate = GenericFoodRankingPolicy.preference(name: name, food: "food", requestedText: "food")
-            let presentPart = GenericFoodRankingPolicy.preference(name: "Food, plain, \(part)", food: "food", requestedText: "food")
-            XCTAssertTrue(GenericFoodRankingPolicy.prefers(candidate, over: presentPart), name)
+                             ("Food, medium fat, cooked", "fat"), ("Food, high fat, cooked", "fat"),
+                             ("Food, higher fat, cooked", "fat"), ("Food, extra lean and fat", "fat"),
+                             ("Food, fat trimmed, cooked", "fat"), ("Food, trimmed to 0\" fat, cooked", "fat"),
+                             ("Food, cooked, weighed with skin", "skin"),
+                             ("Fish, fillets weighed with bones and skin", "skin"),
+                             ("Food, skin and breading removed, fried", "skin")] {
+            XCTAssertFalse(countsPart(name, part: part), name)
         }
-        for name in ["Meat, lean and fat, cooked", "Meat, meat and skin, cooked"] {
-            let candidate = GenericFoodRankingPolicy.preference(name: name, food: "meat", requestedText: "meat")
-            let form = GenericFoodRankingPolicy.preference(name: "Meat, sliced, cooked", food: "meat", requestedText: "meat")
-            XCTAssertTrue(GenericFoodRankingPolicy.prefers(form, over: candidate), name)
+    }
+
+    func testAnimalPartPositionsCountAndProduceSkinDoesNot() {
+        for (name, part) in [("Food, skin, roasted", "skin"), ("Food, fat, cooked", "fat"), ("Liver, food, raw", "liver"),
+                             ("Food, whole, roasted, meat and skin", "skin"), ("Food, separable lean and fat, cooked", "fat"),
+                             ("Food, separable fat, cooked", "fat"), ("Food, broilers, skin only, cooked", "skin"),
+                             ("Food, skin (drumsticks and thighs), cooked", "skin")] {
+            XCTAssertTrue(countsPart(name, part: part), name)
         }
+        // Produce skin is part of the eaten food, never an unrequested animal part.
+        for name in ["Apples, raw, with skin", "Apples, eating, raw, flesh and skin", "Potatoes, baked, flesh and skin",
+                     "Plums, average, raw, includes skin", "Chicken, breast, grilled with skin, meat only"] {
+            let food = name.split(separator: ",")[0].lowercased()
+            XCTAssertFalse(countsPart(name, food: food, part: "skin"), name)
+        }
+        let apple = "apple", withSkin = GenericFoodRankingPolicy.preference(name: "Apples, raw, with skin", food: apple, requestedText: apple)
+        let withoutSkin = GenericFoodRankingPolicy.preference(name: "Apples, raw, without skin", food: apple, requestedText: apple)
+        XCTAssertFalse(GenericFoodRankingPolicy.prefers(withoutSkin, over: withSkin))
     }
 
     func testPartPenaltyFollowsSpecialisationsAndPrecedesFormsAndOrdinaryBonuses() {
         let specialised = GenericFoodRankingPolicy.preference(name: "Food, dried", food: "food", requestedText: "food")
         let part = GenericFoodRankingPolicy.preference(name: "Food, skin", food: "food", requestedText: "food")
         XCTAssertTrue(GenericFoodRankingPolicy.prefers(part, over: specialised))
-        let wholeWithPart = GenericFoodRankingPolicy.preference(name: "Food, whole, skin", food: "food", requestedText: "food")
+        let wholeWithPart = GenericFoodRankingPolicy.preference(name: "Food, skin, whole", food: "food", requestedText: "food")
         let sliced = GenericFoodRankingPolicy.preference(name: "Food, sliced", food: "food", requestedText: "food")
         XCTAssertTrue(GenericFoodRankingPolicy.prefers(sliced, over: wholeWithPart))
     }
