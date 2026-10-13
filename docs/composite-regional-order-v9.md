@@ -66,7 +66,7 @@ Results (Python 3.12 scorer):
 
 - v3 and v4 reports are byte-identical to the ranking v7 reports.
 - Replay cost: the two-source rows for the v3 and v4 labels are derived from the
-  regional composite row by removing TFDA records, which is exact when Taiwan is
+  regional composite row by removing TFDA records, which is exact for scored fields when Taiwan is
   not promoted (asserted for every v3 and v4 case and by a dedicated test).
 - v5, composite, v8-equivalent to v9: hit@1 0.907 to 0.987, MRR 0.953 to 0.993,
   nDCG@5 0.942 to 0.976. The rice and banana families recover hit@1 from 0.0

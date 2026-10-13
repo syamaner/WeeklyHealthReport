@@ -387,7 +387,7 @@
     "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/CompositeGenericFoodSearch.swift": "81df016f42152abcb6c1f93ce26cc57e5eccc126d0f739a297edb764ac7afb25",
     "Packages/FoodLedgerKit/Sources/FoodGenericSearch/CoFIDGenericFoodSearch.swift": "de9bf3eb691105b33ec5bee4cbfe25b68544d2b8ca475bfb22f529900112f378",
     "Packages/FoodLedgerKit/Sources/FoodGenericSearch/USDAGenericFoodSearch.swift": "6445542c33a3ec420d02f7a7c413d4b3e8a75690f29a47ebb825a84d39bfffda",
-    "Packages/FoodLedgerKit/Tests/FoodGenericSearchTests/RankedRetrievalDevelopmentTests.swift": "c8316cdd5f1f8ca654f69eac16852ea325f8fe60356142c443e1ed41ee0ddf2a",
+    "Packages/FoodLedgerKit/Tests/FoodGenericSearchTests/RankedRetrievalDevelopmentTests.swift": "95970159b3b5722aa6e8dc2e7eb33b55c9f7ec80d90b1cc0a6d57db74cbedb27",
     "Tools/FoodSearchQuality/score_retrieval.py": "90969bb74009935e879a803f7ae048781635799106e25cc3b418ac192b6250ef",
     "Tools/FoodSearchQuality/build_retrieval_v4.py": "1bd5b87b14508739f1a1e5921769bb72a66fabf3047791eb5139e89a7c738ee2"
   },

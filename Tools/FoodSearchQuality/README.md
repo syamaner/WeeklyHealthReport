@@ -84,7 +84,7 @@ each); their hashes are in the manifest.
 The replay now reads `retrieval-scenarios-v5.json` (the 80 v4 cases plus seven
 Taiwan source-order cases) and writes three reports from one run: v3 and v4 rows
 use the two-source composite order, derived from the regional composite row by
-removing TFDA records (exact when Taiwan is not promoted; still verified against
+removing TFDA records (exact for scored fields when Taiwan is not promoted; still verified against
 `retrieval-metrics-final-v7.json` and `retrieval-metrics-v4-final-v7.json`), and
 v5 rows from the production composite with TFDA as a regional source and each
 case's market, verified against `retrieval-metrics-v5-final-v9.json`.

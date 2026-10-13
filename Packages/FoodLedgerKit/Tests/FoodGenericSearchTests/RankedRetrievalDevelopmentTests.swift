@@ -157,7 +157,7 @@ final class RankedRetrievalDevelopmentTests: XCTestCase {
             if v4IDs.contains(scenario.id) {
                 // When Taiwan is not promoted, v9 places every TFDA row after the UK and US
                 // rows without reordering them, so the two-source composite used by the
-                // v3 and v4 labels is exactly the regional row without TFDA records.
+                // v3 and v4 labels is the regional row without TFDA records (exact for scored fields).
                 // This avoids searching CoFID and USDA a third time per case.
                 XCTAssertFalse(promoted, scenario.id)
                 rows += local + [composite.removingTaiwanRecords()]

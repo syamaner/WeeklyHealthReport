@@ -489,7 +489,7 @@
     "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/RegionalSourceOrderPolicy.swift": "2d88f73f8c7735a4ce0994abc0403fd6c1ac119c51a7dbd1cf421b3e9df52317",
     "Packages/FoodLedgerKit/Sources/FoodLedgerApplication/GenericFoodRankingPolicy.swift": "c96f17f57c08d0af55219e440b7a0b621a823d5e28ce045e3f9f0e5f594dfe56",
     "Packages/FoodLedgerKit/Sources/FoodGenericSearch/TFDAGenericFoodSearch.swift": "b74773fba3e1ace45a9f6d0c3e785b9b43b4469c467265b137a30b58fd7d4ad6",
-    "Packages/FoodLedgerKit/Tests/FoodGenericSearchTests/RankedRetrievalDevelopmentTests.swift": "c8316cdd5f1f8ca654f69eac16852ea325f8fe60356142c443e1ed41ee0ddf2a",
+    "Packages/FoodLedgerKit/Tests/FoodGenericSearchTests/RankedRetrievalDevelopmentTests.swift": "95970159b3b5722aa6e8dc2e7eb33b55c9f7ec80d90b1cc0a6d57db74cbedb27",
     "WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift": "9394f1b50299e956d56db1be0d71e6fed60479b7f46f74765dc007ad0093386e",
     "Tools/FoodSearchQuality/score_retrieval.py": "90969bb74009935e879a803f7ae048781635799106e25cc3b418ac192b6250ef",
     "Tools/FoodSearchQuality/build_retrieval_v5.py": "696e1570fc06c48957721d92ecd5370c0f9e8af3f2afa4b5afac788193d43e04"
