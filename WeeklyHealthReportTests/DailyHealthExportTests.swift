@@ -2145,7 +2145,7 @@ final class DailyHealthExportTests: XCTestCase {
                 for: .needsAttention(.configurationUnavailable),
                 hasStoredSession: false
             ),
-            "Drive export is disabled until this app has its own local OAuth client configuration."
+            "Google Drive export is not set up in this version of the app, so nothing can be sent."
         )
         XCTAssertEqual(
             DailyExportStatusCatalogue.status(

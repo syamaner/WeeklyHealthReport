@@ -12,6 +12,8 @@ public struct AddFoodRecentRowText: Equatable, Sendable {
         title = recent.name
         let amount = recent.item.lastAmount
         let unit = amount.unit == .grams ? "g" : amount.unit == .millilitres ? "mL" : (amount.value == 1 ? "piece" : "pieces")
+        let shownAmount = amount.unit == .count
+            ? "\(FoodDisplayNumber.amount(amount.value)) \(unit)" : FoodDisplayNumber.quantity(amount.value, unit: unit)
         let day: String
         if calendar.isDate(recent.item.occurredAt, inSameDayAs: now) { day = "today" }
         else if let yesterday = calendar.date(byAdding: .day, value: -1, to: now),
@@ -21,8 +23,8 @@ public struct AddFoodRecentRowText: Equatable, Sendable {
             style.calendar = calendar; style.timeZone = calendar.timeZone
             day = recent.item.occurredAt.formatted(style)
         }
-        detail = (recent.isEstimate ? "Estimate · " : "") + "Last: \(amount.value.formatted()) \(unit) · \(day)"
-        energy = recent.item.energyKcal.map { "\(Int($0.rounded(.toNearestOrAwayFromZero))) kcal" }
+        detail = (recent.isEstimate ? "Estimate · " : "") + "Last: \(shownAmount) · \(day)"
+        energy = recent.item.energyKcal.map { "\(FoodDisplayNumber.kcal($0)) kcal" }
     }
 
     /// Accessibility text sizes stack the name, detail and energy (the Food Log row approach).

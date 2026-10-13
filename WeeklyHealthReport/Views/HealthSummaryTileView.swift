@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Renders one summary tile. Values and styles come verbatim from report
 /// rows; the style changes emphasis only and never carries meaning by colour
-/// alone (failures also read "Query failed" or the section's failure text).
+/// alone (failures also read "Could not read").
 struct HealthSummaryTileView: View {
     let tile: HealthSummaryTile
 

@@ -137,7 +137,7 @@ enum DailyExportStatusCatalogue {
     private static func status(for attention: DailyExportAttention) -> String {
         switch attention {
         case .configurationUnavailable:
-            "Drive export is disabled until this app has its own local OAuth client configuration."
+            "Google Drive export is not set up in this version of the app, so nothing can be sent."
         case .googleUnavailable:
             "The stored Google account could not be revalidated. No export ran."
         case .destinationRequired:

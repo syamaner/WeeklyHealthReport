@@ -46,8 +46,9 @@ extension ReportDocument {
     }
 }
 
-/// A Health summary tile. It repeats rows of the expanded report document
-/// verbatim (failures use the short "Query failed" term): no new metric, query, threshold, colour coding or
+/// A Health summary tile. It repeats rows of the expanded display document
+/// (`ReportDocument.expanded(...).forDisplay()`) verbatim (failures use the short
+/// "Could not read" term): no new metric, query, threshold, colour coding or
 /// interpretation, and it never appears in copied text or Full Page.
 struct HealthSummaryTile: Equatable, Identifiable {
     enum Kind: String, CaseIterable {
@@ -115,8 +116,8 @@ enum HealthSummaryTiles {
         )
     ]
 
-    /// Pass the expanded document (`ReportDocument.expanded`), never the
-    /// on-screen one: some detail rows exist only when details are shown.
+    /// Pass the expanded display document (`ReportDocument.expanded(...).forDisplay()`),
+    /// never the on-screen one: some detail rows exist only when details are shown.
     static func make(from document: ReportDocument) -> [HealthSummaryTile] {
         pins.compactMap { pin in
             guard let section = document.sections.first(where: { $0.id == pin.section }) else {
@@ -144,14 +145,15 @@ enum HealthSummaryTiles {
         }
     }
 
-    /// A failure shows the shared short term in a tile; the full message stays
-    /// in the section row and in Copy all. Every other row is copied verbatim.
+    /// A failure shows the shared short term in a tile; the section row says
+    /// "Could not read Apple Health." and the technical message stays in Copy all
+    /// and Developer tools. Every other row is copied verbatim.
     private static func shortFailure(_ row: ReportDocument.Row) -> ReportDocument.Row {
         guard row.style == .failure else { return row }
         return ReportDocument.Row(
             row.id,
             label: row.label,
-            value: MetricRowVocabulary.queryFailed,
+            value: MetricRowVocabulary.couldNotRead,
             style: row.style
         )
     }
@@ -165,7 +167,7 @@ enum HealthSummaryTiles {
         case "steps-no-data": value = MetricRowVocabulary.noData
         case "steps-unavailable": value = MetricRowVocabulary.unavailable
         case "steps-no-completed-days": value = MetricRowVocabulary.noCompletedDays
-        case "steps-failed": value = MetricRowVocabulary.queryFailed
+        case "steps-failed": value = MetricRowVocabulary.couldNotRead
         default: return row
         }
         return ReportDocument.Row(row.id, label: row.label, value: value, style: row.style)

@@ -82,7 +82,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public var quantityBasisWarning: String? {
         let basis = (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis
-        let unit = (try? state.quantity.calculationInput().unit) ?? state.quantity.unit
+        // A measured weight is always grams and drives nutrition, whatever the unit picker says.
+        let unit = state.quantity.directWeight != nil
+            ? .grams : (try? state.quantity.calculationInput().unit) ?? state.quantity.unit
         if state.isSourceRecipe && unit != .count {
             return "This recipe declares nutrition per source serving. Its cooked gram weight is unknown, so grams or mL cannot be converted to servings. Choose recipe servings or a source with a measured weight basis."
         }
@@ -96,10 +98,10 @@ public final class FoodConfirmationViewModel: ObservableObject {
             if let conversion = state.quantity.conversion {
                 return "Converted edible amount: \(conversion.convertedQuantity.value.formatted()) \(conversion.convertedQuantity.unit.rawValue) using the recorded method. Check that the conversion describes the food as eaten."
             }
-            return "This source is per 100 g. Choose a source per 100 mL or enter a measured gram amount; no density is inferred. Nutrient totals are unavailable for this unit."
+            return "This food’s nutrition is per 100 g, and millilitres cannot be converted to grams for it. Enter the amount in grams, or choose a match given per 100 mL. Otherwise nutrition for this entry stays unknown."
         }
         if basis == .per100Millilitres && unit == .grams {
-            return "This source is per 100 mL. Choose a source per 100 g or enter a measured volume; no density is inferred. Nutrient totals are unavailable for this unit."
+            return "This food’s nutrition is per 100 mL, and grams cannot be converted to millilitres for it. Enter the amount in mL, or choose a match given per 100 g. Otherwise nutrition for this entry stays unknown."
         }
         return nil
     }
@@ -109,7 +111,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     public var nutritionReferenceTitle: String {
-        "Reference nutrition — \(FoodConfirmationView.basisLabel(state.selectedCandidate.candidate.identity.servingBasis))"
+        "Reference nutrition: \(FoodConfirmationView.basisLabel(state.selectedCandidate.candidate.identity.servingBasis))"
     }
 
     public var consumedNutritionBasisLabel: String {
@@ -138,8 +140,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
         if state.quantity.directWeight != nil, state.quantity.value == nil, state.quantity.invalidOriginalAmountText != true { return nil }
         guard let value = state.quantity.value, value.isFinite, value > 0 else {
             return state.quantity.directWeight == nil
-                ? "Enter a finite amount greater than zero, or use ‘Enter measured weight’ for a separate edible gram total."
-                : "Correct the original amount to a finite value greater than zero, or clear this optional field. Your gram total is retained."
+                ? "Enter an amount greater than zero, or use ‘Enter measured weight’ to give the weight you ate in grams."
+                : "Enter an original amount greater than zero, or clear this optional field. Your weight in grams is kept."
         }
         return nil
     }
@@ -211,7 +213,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         guard nutritionReview.isConsumed,
               let energy = consumedNutrition.first(where: { $0.key == .energyConsumed }),
               energy.incompleteContributions == 0, let amount = energy.knownAmount else { return "Log" }
-        return "Log \(FoodNutritionReviewPresentation.number(amount)) kcal"
+        return "Log \(FoodDisplayNumber.energy(amount))"
     }
 
     public var occurredAtRange: ClosedRange<Date> {
@@ -272,7 +274,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         if let error = error as? DirectWeightError {
             switch error {
             case .missingBasis: return "Choose measured weight or user-entered estimate beside the gram total."
-            case .invalidTotal: return "Enter a finite total edible gram weight greater than zero."
+            case .invalidTotal: return "Enter the weight you ate in grams, greater than zero."
             case .needsReconfirmation: return "Check that the weight still describes this food, then choose ‘Keep this weight’."
             }
         }
@@ -284,7 +286,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         case FoodConfirmationSaveError.staleDecisions:
             "The food changed after you answered. Answer the questions again, then log."
         case FoodConfirmationSaveError.invalidQuantity:
-            "Enter a finite quantity greater than zero."
+            "Enter an amount greater than zero."
         case FoodConfirmationSaveError.invalidReviewedSource:
             "The reviewed source values or their serving basis changed. Return to the source review; identity corrections cannot change its nutrition."
         case FoodQuantityValidationError.missingConversion:
@@ -608,7 +610,7 @@ public struct FoodConfirmationView: View {
             }
             LabeledContent("Source release", value: model.state.selectedCandidate.candidate.sourceReleaseID.value)
             LabeledContent("Source record", value: model.state.selectedCandidate.candidate.recordID.value)
-            LabeledContent("Evidence", value: "\(model.state.selectedCandidate.candidate.evidenceIDs.count) retained item(s)")
+            LabeledContent("Evidence", value: Self.evidenceCount(model.state.selectedCandidate.candidate.evidenceIDs.count))
         }
     }
 
@@ -622,7 +624,7 @@ public struct FoodConfirmationView: View {
             }
             if let suggestion = model.quantitySuggestion, model.state.quantity.value == nil,
                model.state.quantity.directWeight == nil, !model.state.usesSourceDeclaredServing {
-                Button("Use \(FoodNutritionReviewPresentation.number(suggestion.value)) count from description") {
+                Button("Use \(FoodNutritionReviewPresentation.number(suggestion.value)) from your description") {
                     model.send(.setQuantity(suggestion.value, .count))
                     totalText = editableNumber(suggestion.value)
                 }
@@ -631,24 +633,24 @@ public struct FoodConfirmationView: View {
             Button("Enter measured weight") { model.send(.beginDirectWeight); directWeightText = "" }
                 .disabled(model.state.quantity.directWeight != nil || model.state.usesSourceDeclaredServing)
             if model.state.quantity.directWeight != nil {
-                Text("Weigh edible food as eaten—peeled, boiled or fried. Exclude peel, shell, bone and anything you did not eat.").font(.caption)
+                Text("Weigh the food as you ate it, for example peeled, boiled or fried. Leave out peel, shell, bone and anything you did not eat.").font(.caption)
                 TextField(usesPlate ? "Total food and plate weight (g)" : "Total edible weight (g)", text: $directWeightText)
                     .amountKeyboard($editingAmount, .confirmDirectWeight)
                     .onChange(of: directWeightText) { _, value in model.send(.setDirectWeight(FoodAmountFieldText.parse(value, locale: locale))) }
                     .accessibilityLabel("Total edible weight in grams")
                 if usesPlate { Text("Enter the food and plate total here. The empty plate weight below is subtracted to obtain edible grams.").font(.caption) }
-                Picker("Weight basis", selection: Binding<UserWeightBasis?>(
+                Picker("How you got the weight", selection: Binding<UserWeightBasis?>(
                     get: { model.state.quantity.directWeight?.basis },
                     set: { model.send(.setWeightBasis($0)) })) {
-                    Text("Choose measured or estimated").tag(UserWeightBasis?.none)
-                    Text("User-reported measured weight").tag(UserWeightBasis?.some(.measured))
-                    Text("User-entered estimate").tag(UserWeightBasis?.some(.estimated))
+                    Text("Choose one").tag(UserWeightBasis?.none)
+                    Text("I weighed it").tag(UserWeightBasis?.some(.measured))
+                    Text("I estimated it").tag(UserWeightBasis?.some(.estimated))
                 }
                 ForEach(model.directWeightRequirements, id: \.self) { Text($0).font(.caption) }
                 if model.state.quantity.directWeight?.needsReconfirmation == true {
                     Button("Keep this weight") { model.send(.confirmRetainedWeight) }.frame(minHeight: 44)
                 }
-                Text("Original amount below is retained separately; changing a count does not replace your gram total.").font(.caption)
+                Text("The original amount below is kept as well. Changing it does not change your weight in grams.").font(.caption)
                 Button("Use original amount instead") { model.send(.endDirectWeight) }
             }
             TextField(model.state.isSourceRecipe ? "Recipe servings eaten" : model.state.usesSourceDeclaredServing ? "Source servings eaten" : model.state.quantity.directWeight == nil ? "Quantity" : "Original amount (optional)", text: $totalText)
@@ -1048,6 +1050,9 @@ public struct FoodConfirmationView: View {
         case let .unknown(reason): "Unknown (\(String(describing: reason).replacingOccurrences(of: "_", with: " ")))"
         }
     }
+
+    /// "1 saved item", "3 saved items".
+    public static func evidenceCount(_ count: Int) -> String { count == 1 ? "1 saved item" : "\(count) saved items" }
 
     private static func number(_ value: Double) -> String { value.formatted(.number.precision(.fractionLength(0...3))) }
 

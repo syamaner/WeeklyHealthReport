@@ -32,7 +32,7 @@ final class SearchQuantityHandoffTests: XCTestCase {
             XCTAssertEqual(confirmation.state.quantity.unit, unit)
             XCTAssertNil(confirmation.state.quantity.conversion)
             if unit == .millilitres && input.candidates[0].candidate.identity.servingBasis == .per100Grams {
-                XCTAssertTrue(try XCTUnwrap(confirmation.quantityBasisWarning).contains("no density is inferred"))
+                XCTAssertTrue(try XCTUnwrap(confirmation.quantityBasisWarning).contains("millilitres cannot be converted to grams"))
             }
             XCTAssertEqual(confirmation.state.decision, .undecided)
             XCTAssertEqual(confirmation.state.phase, .editing)

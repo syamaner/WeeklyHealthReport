@@ -18,7 +18,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Intake home projection v1](intake-home-projection-v1.md) and [intake management v2](intake-management-v2.md) (removal, restoration, reporting day)
 - [Today-so-far health projection v1](today-so-far-projection-v1.md) (Home provisional health highlights, separate from report and export) and the [phase 6 Home plan](ux-revamp-phase-6-home.md)
 - [Food drafts and common foods](food-drafts-and-common-foods.md), [food list import](food-list-import.md)
-- [Food list lexical v4](food-list-lexical-v4.md) (locale-aware list amount grammar)
+- [Food list lexical v4](food-list-lexical-v4.md) (locale-aware list amount grammar) and [v5](food-list-lexical-v5.md) (vague portions such as "a handful" need an amount)
 - [Local inventory contract](local-inventory-contract.md)
 - [Storage and backup decision](food-library-storage-and-backup-decision.md)
 - [HealthKit food write plan](food-healthkit-write-plan.md) (planning; HealthKit stays read-only)

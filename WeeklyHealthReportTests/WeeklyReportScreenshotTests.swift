@@ -658,6 +658,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
             "Last refreshed",
             "Developer Diagnostics",
             "Medication Access",
+            "Medication access",
             "Export prepared snapshot"
         ]
 
@@ -1386,7 +1387,7 @@ extension WeeklyReportScreenshotTests {
             (.loading, "Loading…", .loading),
             (.noDataOrAccess, "No data", .secondary),
             (.healthUnavailable, "Unavailable", .secondary),
-            (.failed, "Query failed", .failure)
+            (.failed, "Could not read", .failure)
         ]
         for (stateCase, stepsValue, stepsStyle) in expectedSteps {
             let document = ReportDocument.expanded(
@@ -1413,7 +1414,7 @@ extension WeeklyReportScreenshotTests {
                 let source = try XCTUnwrap(section.rows.first { $0.id == pin.primaryRowID } ?? section.rows.first)
                 // Verbatim, except that failures use the short shared term.
                 let expected = source.style == .failure
-                    ? ReportDocument.Row(source.id, label: source.label, value: "Query failed", style: .failure)
+                    ? ReportDocument.Row(source.id, label: source.label, value: "Could not read", style: .failure)
                     : source
                 XCTAssertEqual(tile.primary, expected, "\(tile.kind), \(stateCase)")
             }
@@ -1426,7 +1427,7 @@ extension WeeklyReportScreenshotTests {
             locale: Locale(identifier: "en_GB")
         )
         let weightTile = try XCTUnwrap(HealthSummaryTiles.make(from: failedDocument).first { $0.kind == .weight })
-        XCTAssertEqual(weightTile.primary.value, "Query failed")
+        XCTAssertEqual(weightTile.primary.value, "Could not read")
         XCTAssertEqual(weightTile.primary.style, .failure)
         XCTAssertTrue(failedDocument.searchableText.contains("com.apple.developer.healthkit entitlement missing"))
 
@@ -1437,6 +1438,121 @@ extension WeeklyReportScreenshotTests {
         ))
         XCTAssertEqual(noCompletedDays.first?.primary.value, "No completed days")
         XCTAssertNotEqual(MetricRowVocabulary.noCompletedDays, MetricRowVocabulary.unavailable)
+    }
+
+    // MARK: Screen copy (UX copy pass, #140)
+
+    /// The screen, tiles and Full Page reword a failed read and Title Case labels; Copy all
+    /// (the README's text contract) keeps every byte, including the technical message.
+    func testDisplayDocumentRewordsFailuresAndLabelsWhileCopyAllIsUnchanged() throws {
+        let calendar = testCalendar()
+        let locale = Locale(identifier: "en_GB")
+        let entitlement = "Missing com.apple.developer.healthkit entitlement."
+        let snapshot = makeSnapshot(
+            steps: .failed(entitlement),
+            bloodPressure: .failed(entitlement),
+            restingHeartRate: .failed(entitlement),
+            medications: .failed(entitlement),
+            includesMedicationSection: true
+        )
+        let document = ReportDocument.expanded(snapshot: snapshot, calendar: calendar, locale: locale)
+        let display = document.forDisplay()
+        let generatedAt = date(2026, 9, 10, hour: 12, calendar: calendar)
+
+        // Copy all is the canonical document: unchanged wording and the raw message.
+        let copied = document.plainText(generatedAt: generatedAt, calendar: calendar, locale: locale)
+        XCTAssertTrue(copied.contains("Step query failed: \(entitlement)"))
+        XCTAssertTrue(copied.contains("Resting HR Average: Query failed"))
+        XCTAssertTrue(copied.contains("\nBlood Pressure\n"))
+
+        // Same rows, ids, styles and order; only wording differs.
+        XCTAssertEqual(display.sections.map(\.id), document.sections.map(\.id))
+        for (shown, source) in zip(display.sections, document.sections) {
+            XCTAssertEqual(shown.rows.map(\.id), source.rows.map(\.id))
+            XCTAssertEqual(shown.rows.map(\.style), source.rows.map(\.style))
+            for (row, original) in zip(shown.rows, source.rows) where original.style != .failure {
+                XCTAssertEqual(row.value, original.value, row.id)
+            }
+        }
+        let shownText = display.searchableText
+        for diagnostic in ["entitlement", "com.apple", "query failed", "Query failed"] {
+            XCTAssertFalse(shownText.contains(diagnostic), diagnostic)
+        }
+        let failedRows = display.sections.flatMap(\.rows).filter { $0.style == .failure }
+        XCTAssertFalse(failedRows.isEmpty)
+        XCTAssertTrue(failedRows.allSatisfy { $0.value == "Could not read Apple Health." })
+
+        // Sentence case on screen; README's Copy all labels stay as they are.
+        XCTAssertEqual(display.sections.first { $0.id == .bloodPressure }?.title, "Blood pressure")
+        XCTAssertEqual(display.sections.first { $0.id == .medications }?.title, "Medications taken")
+        let heart = try XCTUnwrap(display.sections.first { $0.id == .heart })
+        XCTAssertEqual(heart.rows.first { $0.id == "resting-heart-rate-average" }?.label, "Resting heart rate average")
+        XCTAssertEqual(heart.rows.first { $0.id == "watch-coverage" }?.label, "Days with Apple Watch data")
+
+        // Developer tools gets each read's own message, including metric rows whose Copy all
+        // text is only "Query failed".
+        XCTAssertEqual(snapshot.readFailures, [
+            ReportReadFailure(metric: "Steps", message: entitlement),
+            ReportReadFailure(metric: "Resting heart rate", message: entitlement),
+            ReportReadFailure(metric: "Blood pressure", message: entitlement),
+            ReportReadFailure(metric: "Medications", message: entitlement)
+        ])
+        XCTAssertTrue(makeSnapshot(medications: .failed("x"), includesMedicationSection: false).readFailures.isEmpty)
+
+        // Idempotent: the display of a display document is the same document.
+        XCTAssertEqual(display.forDisplay(), display)
+
+        // Tiles from the display document use the short plain term.
+        let tiles = HealthSummaryTiles.make(from: display)
+        XCTAssertEqual(tiles.first { $0.kind == .steps }?.primary.value, "Could not read")
+        XCTAssertEqual(tiles.first { $0.kind == .restingHeartRate }?.primary.value, "Could not read")
+    }
+
+    /// Latest weight may be today; the average and trend use the last seven completed days.
+    /// The screen says so; values and Copy all are unchanged.
+    func testDisplayWeightSeparatesLatestFromCompletedDayAverage() throws {
+        let calendar = testCalendar()
+        let locale = Locale(identifier: "en_GB")
+        let document = ReportDocument.expanded(snapshot: makeFullFixtureSnapshot(), calendar: calendar, locale: locale)
+        let display = document.forDisplay()
+        let weight = try XCTUnwrap(display.sections.first { $0.id == .weight })
+        let source = try XCTUnwrap(document.sections.first { $0.id == .weight })
+        XCTAssertEqual(weight.rows.map(\.value), source.rows.map(\.value))
+        XCTAssertEqual(weight.rows.first { $0.id == "weight-latest" }?.label, "Latest weight")
+        XCTAssertEqual(weight.rows.first { $0.id == "weight-measured" }?.label, "Measured")
+        XCTAssertEqual(weight.rows.first { $0.id == "weight-average" }?.label, "Average, last 7 completed days")
+        XCTAssertEqual(weight.footer, ReportDocument.weightDisplayFooter)
+        XCTAssertTrue(weight.footer?.contains("the trend compares them with the 7 days before") == true)
+        XCTAssertEqual(display.forDisplay(), display, "the weight note is never appended twice")
+        XCTAssertNil(source.footer, "Copy all gains no footer")
+        XCTAssertEqual(source.rows.first { $0.id == "weight-average" }?.label, "7-day Average")
+
+        let tile = try XCTUnwrap(HealthSummaryTiles.make(from: display).first { $0.kind == .weight })
+        XCTAssertEqual(tile.primary.label, "Average, last 7 completed days")
+        XCTAssertEqual(tile.primary.value, source.rows.first { $0.id == "weight-average" }?.value)
+
+        // A failed weight read has no average row, so no note about one.
+        let failed = ReportDocument.expanded(snapshot: makeSnapshot(weight: .failed("x")), calendar: calendar, locale: locale)
+        XCTAssertNil(failed.forDisplay().sections.first { $0.id == .weight }?.footer)
+    }
+
+    /// Full Page renders the screen's wording, not Copy all's technical failure text.
+    @MainActor
+    func testFullPagePDFUsesDisplayWording() throws {
+        let entitlement = "Missing com.apple.developer.healthkit entitlement."
+        let document = ReportDocument.expanded(
+            snapshot: makeSnapshot(steps: .failed(entitlement), restingHeartRate: .failed(entitlement)),
+            calendar: testCalendar(),
+            locale: Locale(identifier: "en_GB")
+        )
+        let data = try XCTUnwrap(WeeklyReportPDFRenderer().pdfData(for: .healthReport(document)))
+        let pdf = try XCTUnwrap(PDFDocument(data: data))
+        let text = (0..<pdf.pageCount).compactMap { pdf.page(at: $0)?.string }.joined(separator: "\n")
+        XCTAssertTrue(text.contains("Could not read Apple Health."))
+        XCTAssertTrue(text.contains("Resting heart rate average"))
+        for diagnostic in ["entitlement", "query failed", "Query failed", "Resting HR"] {
+            XCTAssertFalse(text.contains(diagnostic), diagnostic)
+        }
     }
 
     func testTilesDoNotDependOnOnScreenBloodPressureExpansion() throws {
