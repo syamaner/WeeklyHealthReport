@@ -86,8 +86,8 @@ final class FoodConfirmationPresentationTests: XCTestCase {
 
         model.send(.setQuantity(200, .millilitres))
         let action = try XCTUnwrap(model.volumeEstimateLogBarAction)
-        XCTAssertEqual(action.title, "Use whole-milk estimate (about 130 kcal)")
-        XCTAssertEqual(action.accessibilityLabel, "Use whole-milk volume estimate, about 130 kcal")
+        XCTAssertEqual(action.title, "Use sourced whole-milk volume estimate (about 130 kcal)")
+        XCTAssertEqual(action.accessibilityLabel, "Use sourced whole-milk volume estimate, about 130 kcal")
         XCTAssertEqual(model.logButtonTitle, "Log without nutrition", "Log keeps its own title")
         XCTAssertNil(model.state.quantity.conversion, "showing the action applies nothing")
 
@@ -98,9 +98,9 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertNotNil(model.volumeEstimateLogBarAction, "offered again after removal")
 
         model.send(.setQuantity(250, .millilitres))
-        XCTAssertEqual(model.volumeEstimateLogBarAction?.title, "Use whole-milk estimate (about 162 kcal)", "257.5 g × 63 kcal/100 g")
+        XCTAssertEqual(model.volumeEstimateLogBarAction?.title, "Use sourced whole-milk volume estimate (about 162 kcal)", "257.5 g × 63 kcal/100 g")
         model.send(.setQuantity(0.5, .millilitres))
-        XCTAssertEqual(model.volumeEstimateLogBarAction?.title, "Use whole-milk estimate (less than 1 kcal)")
+        XCTAssertEqual(model.volumeEstimateLogBarAction?.title, "Use sourced whole-milk volume estimate (less than 1 kcal)")
 
         let withoutSource = FoodConfirmationViewModel(
             state: FoodConfirmationState(input: try PopulatedFoodConfirmation(
@@ -111,6 +111,56 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         ) { _ in throw CocoaError(.fileWriteUnknown) }
         withoutSource.send(.setQuantity(200, .millilitres))
         XCTAssertNil(withoutSource.volumeEstimateLogBarAction, "not offered when the tap could not apply it")
+        XCTAssertNotNil(withoutSource.availableVolumeConversion)
+        XCTAssertNil(withoutSource.applicableVolumeConversion, "the amount-section button is gated the same way")
+        XCTAssertEqual(model.applicableVolumeConversion, model.availableVolumeConversion)
+    }
+
+    /// An offering whose applied amount still cannot be scaled leaves the kcal out (never
+    /// invented), and the action is disabled while a save is in progress.
+    func testVolumeEstimateLogBarActionOmitsUnknownEnergyAndDisablesWhileSaving() throws {
+        let policy = try CoFIDWholeMilkVolumeConversion()
+        let search = try CoFIDGenericFoodSearch(ids: RandomLedgerIDGenerator())
+        let request = GenericFoodSearchRequest(
+            text: try LedgerText("Milk, whole, pasteurised, average"),
+            identity: GenericFoodIdentityQuery(), capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            locale: try LedgerText("en_GB")
+        )
+        guard case let .confirmation(route) = try search.search(request),
+              let milk = route.matches.map(\.candidate).first(where: policy.applies(to:)) else {
+            return XCTFail("Expected CoFID milk")
+        }
+        let input = try PopulatedFoodConfirmation(
+            evidence: route.confirmation.evidence,
+            sourceReleases: route.confirmation.sourceReleases + [policy.sourceRelease],
+            candidates: [milk], expectedIdentity: milk.candidate.identity,
+            expectedEdibleQuantity: milk.candidate.edibleQuantity
+        )
+        let stub = UnscalableVolumeOffering(sourceRelease: policy.sourceRelease, sourceURL: policy.sourceURL)
+        let unknown = FoodConfirmationViewModel(
+            state: FoodConfirmationState(input: input), volumeConversionOffering: stub
+        ) { _ in throw CocoaError(.fileWriteUnknown) }
+        unknown.send(.setQuantity(200, .millilitres))
+        let fallback = try XCTUnwrap(unknown.volumeEstimateLogBarAction)
+        XCTAssertEqual(fallback.title, "Use sourced whole-milk volume estimate", "no kcal when applying gives none")
+        XCTAssertEqual(fallback.accessibilityLabel, "Use sourced whole-milk volume estimate")
+        XCTAssertTrue(fallback.isEnabled)
+
+        var enabledDuringSave: Bool?
+        weak var saving: FoodConfirmationViewModel?
+        let model = FoodConfirmationViewModel(
+            state: FoodConfirmationState(input: input), volumeConversionOffering: policy
+        ) { _ in
+            enabledDuringSave = saving?.volumeEstimateLogBarAction?.isEnabled
+            throw CocoaError(.fileWriteUnknown)
+        }
+        saving = model
+        model.send(.setQuantity(200, .millilitres))
+        XCTAssertEqual(model.volumeEstimateLogBarAction?.isEnabled, true)
+        model.save()
+        XCTAssertEqual(enabledDuringSave, false, "disabled while saving")
+        XCTAssertEqual(model.volumeEstimateLogBarAction?.isEnabled, true, "enabled again after a failed save")
+        XCTAssertNil(model.state.quantity.conversion, "saving never applies the estimate")
     }
 
     func testArchiveGuidanceStatesIntegrityAndIndependentDeletionBoundaries() {
@@ -641,5 +691,18 @@ final class FoodConfirmationPresentationTests: XCTestCase {
             expectedIdentity: identity,
             expectedEdibleQuantity: .known(quantity, conversionVersionID: nil)
         ))
+    }
+}
+
+/// Offers a "conversion" that stays in millilitres, so the per 100 g source still cannot be
+/// scaled after applying it: the energy for the action is unknown.
+private struct UnscalableVolumeOffering: FoodVolumeConversionOffering {
+    let sourceRelease: SourceRelease
+    let sourceURL: URL
+
+    func offer(for candidate: PopulatedFoodCandidate, original: PositiveQuantity) throws -> QuantityConversionDraft? {
+        guard original.unit == .millilitres else { return nil }
+        return QuantityConversionDraft(convertedQuantity: original, methodVersion: try LedgerText("stub-unscalable-v1"),
+                                       sourceReleaseID: sourceRelease.sourceReleaseID)
     }
 }

@@ -485,7 +485,7 @@ final class FoodLogAppTests: XCTestCase {
         list.review(candidate: index)
         let confirmation = try XCTUnwrap(list.confirmation)
         XCTAssertEqual(confirmation.logButtonTitle, "Log without nutrition")
-        XCTAssertEqual(confirmation.volumeEstimateLogBarAction?.title, "Use whole-milk estimate (about 130 kcal)")
+        XCTAssertEqual(confirmation.volumeEstimateLogBarAction?.title, "Use sourced whole-milk volume estimate (about 130 kcal)")
         for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
             renderPolish(NavigationStack { FoodConfirmationView(model: confirmation) {} }.environment(\.dynamicTypeSize, size),
                          "Confirm milk estimate beside Log - \(name)")

@@ -67,7 +67,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     /// The offered estimate when tapping it would apply it (its source release is on Confirm).
-    private var applicableVolumeConversion: QuantityConversionDraft? {
+    /// Both estimate actions are gated on this, so neither shows when a tap would do nothing.
+    public var applicableVolumeConversion: QuantityConversionDraft? {
         guard let conversion = availableVolumeConversion,
               state.input.sourceReleases.contains(where: { $0.sourceReleaseID == conversion.sourceReleaseID }) else { return nil }
         return conversion
@@ -80,21 +81,27 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public struct VolumeEstimateLogBarAction: Equatable, Sendable {
         public let title: String
         public let accessibilityLabel: String
+        /// False while saving: the amount must not change under a save in progress.
+        public let isEnabled: Bool
         public static let accessibilityHint = "Estimates grams from the millilitres entered using a sourced whole-milk factor. Nothing is logged until you press Log."
     }
 
+    /// The admission rule's wording (cofid-whole-milk-volume-admission-v1).
+    public static let volumeEstimateActionTitle = "Use sourced whole-milk volume estimate"
+
     public var volumeEstimateLogBarAction: VolumeEstimateLogBarAction? {
         guard savedResult == nil, let conversion = applicableVolumeConversion else { return nil }
+        let isEnabled = state.phase != .saving
         var applied = state
         FoodConfirmationReducer.reduce(state: &applied, action: .setConversion(conversion))
         guard applied.quantity.conversion == conversion,
               let kcal = Self.knownConsumedEnergy(applied, quantityIsEstimate: true) else {
-            return VolumeEstimateLogBarAction(title: "Use whole-milk estimate",
-                                              accessibilityLabel: "Use whole-milk volume estimate")
+            return VolumeEstimateLogBarAction(title: Self.volumeEstimateActionTitle,
+                                              accessibilityLabel: Self.volumeEstimateActionTitle, isEnabled: isEnabled)
         }
         let energy = kcal > 0 && kcal < 0.5 ? FoodDisplayNumber.energy(kcal) : "about \(FoodDisplayNumber.energy(kcal))"
-        return VolumeEstimateLogBarAction(title: "Use whole-milk estimate (\(energy))",
-                                          accessibilityLabel: "Use whole-milk volume estimate, \(energy)")
+        return VolumeEstimateLogBarAction(title: "\(Self.volumeEstimateActionTitle) (\(energy))",
+                                          accessibilityLabel: "\(Self.volumeEstimateActionTitle), \(energy)", isEnabled: isEnabled)
     }
 
     public func removeOfferedVolumeConversion() {
@@ -714,7 +721,7 @@ public struct FoodConfirmationView: View {
                             .frame(maxWidth: .infinity, minHeight: 44)
                     }
                     .buttonStyle(.bordered)
-                    .disabled(model.state.phase == .saving)
+                    .disabled(!estimate.isEnabled)
                     .accessibilityLabel(estimate.accessibilityLabel)
                     .accessibilityHint(FoodConfirmationViewModel.VolumeEstimateLogBarAction.accessibilityHint)
                 }
@@ -824,8 +831,8 @@ public struct FoodConfirmationView: View {
                 }
                 .frame(minHeight: 44)
             }
-            if let offer = model.availableVolumeConversion {
-                Button("Use sourced whole-milk volume estimate") { model.applyAvailableVolumeConversion() }
+            if let offer = model.applicableVolumeConversion {
+                Button(FoodConfirmationViewModel.volumeEstimateActionTitle) { model.applyAvailableVolumeConversion() }
                 Text("\(model.state.quantity.value?.formatted() ?? "") mL gives about \(offer.convertedQuantity.value.formatted()) g. This estimate applies only to the selected UK CoFID whole pasteurised milk record. Check the food before using it; measured edible grams remain an alternative.")
                     .font(.caption)
             }
