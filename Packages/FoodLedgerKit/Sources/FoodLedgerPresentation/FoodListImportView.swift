@@ -53,6 +53,11 @@ public final class FoodListImportViewModel: ObservableObject {
     private var restoring = true
     private var unreadableCheckpoint = false
     private let recoveredLogItemID: (@MainActor (OperationID) throws -> LogItemID?)?
+    /// Prepares a row's Confirm the way the search route does: the composition root adds the
+    /// whole-milk volume source and returns its offering when it applies. Nil offers none.
+    public typealias ConfirmationPreparation = @MainActor (FoodConfirmationState)
+        -> (state: FoodConfirmationState, offering: (any FoodVolumeConversionOffering)?)
+    private let prepareConfirmation: ConfirmationPreparation?
 
     public init(
         service: FoodListImportService, locale: LedgerText, ids: any LedgerIDGenerating,
@@ -62,8 +67,10 @@ public final class FoodListImportViewModel: ObservableObject {
         confirmationNow: @escaping @Sendable () -> Date = { Date() },
         confirmationCalendar: Calendar = .autoupdatingCurrent,
         amountLocale: Locale = .autoupdatingCurrent,
+        prepareConfirmation: ConfirmationPreparation? = nil,
         saveAction: @escaping @MainActor (FoodConfirmationState, OperationID) throws -> StoredFoodConfirmation
     ) {
+        self.prepareConfirmation = prepareConfirmation
         self.service = service
         self.locale = locale
         self.amountLocale = amountLocale
@@ -178,7 +185,13 @@ public final class FoodListImportViewModel: ObservableObject {
         }
         let parsed = try FoodListParser.parse(combined, convention: .fullStopDecimal)
         guard let last = parsed.last else { throw FoodListParser.ParseError.empty }
-        let draft = FoodListLineDraft(parsed: last, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        var draft = FoodListLineDraft(parsed: last, operationID: try ids.makeID(OperationTag.self), evidenceID: try ids.makeID(EvidenceTag.self))
+        // A saved name is a food name, not a pasted portion: when it starts with a vague portion
+        // word ("Pinch of Nom Lasagne", "Splash orange") v5 still gives no amount, but the search
+        // query keeps the whole saved name rather than losing brand words (food-list-lexical-v5).
+        if portion == nil, last.isV5, last.notices.contains(.householdMeasure) {
+            draft.query = name.trimmingCharacters(in: .whitespaces)
+        }
         restoring = true
         input = combined
         rows.append(FoodListReviewRow(draft: draft))
@@ -274,10 +287,11 @@ public final class FoodListImportViewModel: ObservableObject {
         guard confirmation == nil, let row = selectedRow, !row.isSaved, let route = row.route,
               let draft = FoodListAmountText.reviewed(row.draft, locale: amountLocale) else { return }
         do {
-            let state = try service.confirmation(for: draft, route: route, candidateIndex: index)
+            let built = try service.confirmation(for: draft, route: route, candidateIndex: index)
+            let prepared = prepareConfirmation?(built) ?? (state: built, offering: nil)
             confirmationRowID = row.id
-            confirmation = FoodConfirmationViewModel(state: state, now: confirmationNow,
-                                                     calendar: confirmationCalendar) { [weak self] state in
+            confirmation = FoodConfirmationViewModel(state: prepared.state, volumeConversionOffering: prepared.offering,
+                                                     now: confirmationNow, calendar: confirmationCalendar) { [weak self] state in
                 guard let self else { throw FoodLedgerValidationError.empty("review session") }
                 guard self.persist() else { throw FoodLedgerValidationError.invalidProvenance }
                 do {
@@ -377,7 +391,7 @@ public struct FoodListImportView: View {
                 }
                 if let row = model.selectedRow { editor(row) }
                 Section {
-                    Text("Your list and review progress are saved on this device. Resume here after reopening the app; matches are refreshed before confirmation.")
+                    Text("Your list and progress are saved on this device, so you can carry on here after reopening the app.")
                         .font(.caption)
                     Button("Start another list") { confirmsNewList = true }
                 }
@@ -429,8 +443,8 @@ public struct FoodListImportView: View {
                     Label(FoodListNotice.ambiguousNumber.message, systemImage: "exclamationmark.triangle").font(.caption)
                 }
                 VStack(alignment: .leading) {
-                    Text("Food name and modifiers").font(.caption)
-                    TextField("Food name and modifiers", text: binding(row, \.query))
+                    Text("Food").font(.caption)
+                    TextField("Food", text: binding(row, \.query))
                 }
                 if let suggestion = FoodListParser.suggestedQuery(row.draft.query) {
                     Button("Use spelling: \(suggestion)") {
@@ -474,8 +488,8 @@ public struct FoodListImportView: View {
                     .disabled(row.draft.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || amountRefused)
                 if case let .unresolved(message) = row.status { Text(message) }
                 if case let .failed(message) = row.status { Text(message) }
-                Button("Defer this line") { model.deferLine() }
-                Button("Decline this line", role: .cancel) { model.declineLine() }
+                Button("Skip for now") { model.deferLine() }
+                Button("Don’t log this line", role: .cancel) { model.declineLine() }
             }
             if let route = row.route {
                 Section("Choose a match to review") {
@@ -564,11 +578,24 @@ public struct FoodListMatchRowText: Equatable, Sendable {
 
     public init(isSavedFood: Bool, isExactName: Bool, materialDifferences: [String]) {
         badge = isSavedFood ? "Saved food" : isExactName ? "Exact name" : nil
-        let closest = isSavedFood || isExactName ? [] : ["Closest candidate"]
-        details = closest + materialDifferences.map {
-            $0.replacingOccurrences(of: "candidate_only_token:", with: "Candidate adds: ")
-                .replacingOccurrences(of: "query_only_token:", with: "Your entry adds: ")
+        let closest = isSavedFood || isExactName ? [] : ["Closest match, not an exact name"]
+        details = closest + materialDifferences.map(Self.plain)
+    }
+
+    /// Plain wording for one stored match difference. The stored text is source evidence and
+    /// never changes; only its display is reworded, so search diagnostics do not reach the user.
+    static func plain(_ difference: String) -> String {
+        if difference.hasPrefix("candidate_only_token:") {
+            return "This match also mentions: " + difference.dropFirst("candidate_only_token:".count)
         }
+        if difference.hasPrefix("query_only_token:") {
+            return "Not in this match: " + difference.dropFirst("query_only_token:".count)
+        }
+        if difference.hasPrefix("Search terms: ") {
+            let terms = difference.dropFirst("Search terms: ".count).prefix { $0 != ";" }
+            return "Matched on: \(terms). Check the type and preparation are what you ate."
+        }
+        return difference
     }
 }
 
@@ -586,13 +613,13 @@ public enum FoodListAmountText {
     }
 
     /// The line as handed to search and Confirm (food-list-lexical-v4, Q6). A typed amount on a v4
-    /// line becomes canonical text under this locale, the same rule the field validated it with,
+    /// (or v5) line becomes canonical text under this locale, the same rule the field validated it with,
     /// so the application never reinterprets it with the convention the line was parsed under
     /// (which differs after a region change). The untouched proposal and v3 lines pass unchanged.
     /// Nil when the typed text is refused here; the screen already blocks that line.
     public static func reviewed(_ draft: FoodListLineDraft, locale: Locale) -> FoodListLineDraft? {
         let typed = draft.quantityText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard draft.parsed.isV4, !draft.isAmountUntouched, !typed.isEmpty else { return draft }
+        guard draft.parsed.readsNumeralConvention, !draft.isAmountUntouched, !typed.isEmpty else { return draft }
         guard let canonical = FoodAmountFieldText.canonical(typed, locale: locale) else { return nil }
         var reviewed = draft
         reviewed.quantityText = canonical

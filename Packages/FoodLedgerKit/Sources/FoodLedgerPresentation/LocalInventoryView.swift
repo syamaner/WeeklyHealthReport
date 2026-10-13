@@ -110,7 +110,7 @@ public struct LocalInventoryView: View {
     private func reviewEditor(_ line: ReceiptLineProposal, source: InventorySource) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Original: \(line.original)").textSelection(.enabled)
-            if let price = line.priceText { Text("Printed price: \(price) — not a quantity") }
+            if let price = line.priceText { Text("Printed price: \(price) (not a quantity)") }
             ForEach(line.notices, id: \.self) { Text($0).font(.caption) }
             Toggle("Select for batch acceptance", isOn: Binding(
                 get: { model.selectedLines.contains(source.lineKey(line.lineNumber)) },

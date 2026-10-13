@@ -153,3 +153,37 @@ enum DailyExportDayLabel {
 private extension Character {
     var isASCIIDigit: Bool { isASCII && isNumber }
 }
+
+/// How Export and Settings present Google Drive (owner decision C, 13 October 2026).
+/// Presentation only: the export state machine and its transitions are unchanged.
+enum DriveExportAvailability: Equatable {
+    /// The build has no OAuth client configuration: Drive rows are plain text and the
+    /// technical detail lives in Developer tools.
+    case unavailableInBuild
+    /// Configured but not connected: the primary action is "Set up Google Drive".
+    case needsSetup
+    /// Connected, or a later state with its own actions.
+    case available
+
+    static func resolve(isConfigured: Bool, setup: DailyExportPhase.Setup) -> DriveExportAvailability {
+        guard isConfigured else { return .unavailableInBuild }
+        return setup == .notSetUp ? .needsSetup : .available
+    }
+
+    static let unavailableLine = "Google Drive export isn’t available in this build"
+    static let unavailableRowValue = "Not available in this build"
+    static let setUpTitle = "Set up Google Drive"
+
+    /// Setup opened from Export returns there once Drive no longer blocks the export: the file
+    /// is ready, or only the nutrition source (chosen on Export) is still needed.
+    static func setupReturnsToExport(_ setup: DailyExportPhase.Setup) -> Bool {
+        setup == .ready || setup == .needsNutritionSource
+    }
+
+    /// The Developer tools detail. Plain text only; no identifier or credential.
+    static func developerDetail(isConfigured: Bool) -> String {
+        isConfigured
+            ? "A Google OAuth client configuration is present in this build."
+            : "This build has no Google OAuth client configuration (GoogleOAuthClientID and GoogleOAuthRedirectScheme in Info.plist), so Export never prepares or sends a file and the Drive rows in Export and Settings are plain text."
+    }
+}

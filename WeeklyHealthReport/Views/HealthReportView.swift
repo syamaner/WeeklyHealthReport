@@ -51,8 +51,8 @@ struct HealthReportView: View {
                 presentationState.showsMorningBloodPressureDetails,
             showsEveningBloodPressureDetails:
                 presentationState.showsEveningBloodPressureDetails
-        ))
-        let tiles = HealthSummaryTiles.make(from: Self.expandedDocument(viewModel: viewModel))
+        )).forDisplay()
+        let tiles = HealthSummaryTiles.make(from: Self.expandedDocument(viewModel: viewModel).forDisplay())
         return Form {
             Section {
                 Picker("Reporting period", selection: $viewModel.selection) {
@@ -129,7 +129,7 @@ struct HealthReportView: View {
                 .listRowInsets(EdgeInsets())
                 .listRowBackground(Color.clear)
             } footer: {
-                Text("Copy all includes every section with all details shown. Summary tiles repeat section values and are not copied.")
+                Text("Copy all copies every section as text, with all details shown. The summary tiles are not copied.")
             }
 
             Section {
@@ -153,7 +153,7 @@ struct HealthReportView: View {
                 }
                 .accessibilityIdentifier("health.export")
             } footer: {
-                Text("Refresh, review and export are separate manual actions.")
+                Text("Nothing is exported until you choose Export on the next screen.")
             }
         }
         .listSectionSpacing(.compact)

@@ -107,6 +107,8 @@ Rebased onto `main` with phases 3 (#207), 4 (#211) and 7 (#210), and compared wi
   - "Today’s notes" uses the curly apostrophe.
   - Contract item 11 (accepted): `WeeklyReportScreenshotTests` changed only its two Home render sites, from the deleted `FoodIntakeHomeView` to `FoodHomeCard`, plus new tests; no fixture changed. A water-only day reading 0 kcal and 0 g follows the approved quick add Q1 (water's energy and macros are exact zeros).
 
+**Owner decision F (13 October 2026).** The health card's header is plain text again (partly reversing PR #228's tappable header); its only link is the "Health summaries" row with the subtitle "Completed days", keeping the VoiceOver hint. The food card's known-minimum footnote is one line in every case: "Some values are unknown for N entries, so totals marked + are known minimums.", where N counts distinct current entries lacking a shown total.
+
 **Needs owner decision**
 
 None. Every change above is a file, type or placement reference. Phase 5's Q8 (plain water logged on Home) is already owner-approved in its own contract and replaces this plan's earlier "water once the reference exists" wording without changing a phase 6 rule.

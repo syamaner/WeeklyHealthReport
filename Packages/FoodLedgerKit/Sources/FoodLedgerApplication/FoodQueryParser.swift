@@ -29,7 +29,7 @@ public struct ParsedFoodQuery: Codable, Equatable, Sendable {
 }
 
 public enum FoodQueryParser {
-    public static let version = "food-query-parser-v7"
+    public static let version = "food-query-parser-v8"
     public static func parse(_ original: String, recognisedBrands: [String] = ["olympus", "olympos", "quaker", "quakers", "kirkland", "costco", "ortiz", "coop", "the estate dairy"]) -> ParsedFoodQuery {
         var text = original.folding(options: .widthInsensitive, locale: Locale(identifier: "en_GB")).lowercased().trimmingCharacters(in: .whitespacesAndNewlines)
         var attributes: [String: String] = [:]
@@ -164,7 +164,8 @@ public enum FoodQueryParser {
         if text.contains("homemade") || text.contains("smoothie") || text.contains("mixed vegetables") { reasons.append("recipe_unknown") }
         // A bounded whole-item name admits counts, never an estimated mass.
         // The end anchor keeps pepper soup/sauce and other preparations out.
-        let countedFood = #"(?:medium\s+)?(?:soft boiled\s+|boiled\s+)?(?:eggs?|bananas?|avocados?|apples?|clementines?|mandarins?|pretzels?)\b"#
+        // v8: scrambled, fried and poached count only before eggs; the method stays in the food text.
+        let countedFood = #"(?:medium\s+)?(?:(?:soft boiled\s+|boiled\s+)?(?:eggs?|bananas?|avocados?|apples?|clementines?|mandarins?|pretzels?)|(?:scrambled|fried|poached)\s+eggs?)\b"#
         let discretePepper = #"(?:(?:small|medium|large)\s+)?(?:(?:red|green|yellow|orange|bell)\s+)*peppers?(?:\s+(?:raw|cooked))?\s*$"#
         let countPattern = #"^(half|zero|one|two|three|a|an|-?\d+(?:\.\d+)?)\s*x?\s*(?:an?\s+)?(?=(?:"# + countedFood + #"|"# + discretePepper + #"))"#
         if let m = matches(countPattern, text).first {

@@ -63,7 +63,8 @@ struct FoodLogView: View {
         }
         .refreshable { await model.load() }
         .navigationDestination(item: $openedEntry) { id in
-            SavedFoodEntryView(model: root.savedEntryModel(id), calendar: model.calendar, now: { root.confirmationNow })
+            SavedFoodEntryView(model: root.savedEntryModel(id), favourites: root.favouriteSaveModel(),
+                               calendar: model.calendar, now: { root.confirmationNow })
         }
         .onChange(of: openedEntry) { _, entry in if entry == nil { Task { await model.load() } } }
         // `presenting` captures the entry when the alert appears; dismissal clears pendingRemoval
@@ -157,7 +158,7 @@ struct FoodLogView: View {
     private var addFoodSection: some View {
         Section {
             // A Button, not a NavigationLink: inside a Form a link ignores the button style.
-            Button { navigation.append(.addFood) } label: {
+            Button { navigation.openAddFood(fromFoodLogDay: model.addFoodDayKey) } label: {
                 Label("Add food", systemImage: "plus").font(.headline)
                     .frame(maxWidth: .infinity, minHeight: 50)
             }
@@ -165,7 +166,7 @@ struct FoodLogView: View {
             .listRowInsets(EdgeInsets())
             .listRowBackground(Color.clear)
         } footer: {
-            if !model.isToday { Text(FoodLogText.pastDayFootnote) }
+            if let footnote = model.addFoodFootnote { Text(footnote) }
         }
     }
 

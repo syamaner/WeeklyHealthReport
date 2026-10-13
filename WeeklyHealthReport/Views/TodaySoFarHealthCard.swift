@@ -12,6 +12,9 @@ struct TodaySoFarHealthCardView: View {
             switch card.content {
             case .unavailable(let message):
                 Label(message, systemImage: "heart.slash")
+            case .failed(let message):
+                Label(message, systemImage: "exclamationmark.triangle")
+                Button("Try again") { Task { await model.handle(.pullToRefresh) } }
             case .rows(let rows):
                 ForEach(rows) { row in
                     TodaySoFarHealthRowView(row: row)
@@ -20,11 +23,20 @@ struct TodaySoFarHealthCardView: View {
                     Button("Try again") { Task { await model.handle(.pullToRefresh) } }
                 }
             }
-            NavigationLink(Self.linkTitle, value: AppRoute.healthReport)
-                .accessibilityHint(Self.healthHint)
-                .accessibilityIdentifier("homeHealthSummaries")
+            NavigationLink(value: AppRoute.healthReport) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(Self.linkTitle)
+                    Text(Self.linkSubtitle).font(.caption).foregroundStyle(.secondary)
+                }
+                .frame(minHeight: 44)
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityHint(Self.healthHint)
+            .accessibilityIdentifier("homeHealthSummaries")
         } header: {
-            TodaySoFarHealthHeader()
+            // A plain header (owner decision F, 13 October 2026): the one way to Health is the
+            // "Health summaries" row below.
+            Text(Self.title)
         } footer: {
             VStack(alignment: .leading, spacing: 2) {
                 Text(card.footer)
@@ -35,6 +47,7 @@ struct TodaySoFarHealthCardView: View {
 
     static let title = "Health · today so far"
     static let linkTitle = "Health summaries"
+    static let linkSubtitle = "Completed days"
     static let healthHint = "Opens the Health summaries for completed days"
 
     /// The card as plain text for Today's Full Page: the same rows, footer and
@@ -43,7 +56,7 @@ struct TodaySoFarHealthCardView: View {
         typealias Row = TodayFullPageDocument.Row
         let rows: [Row]
         switch card.content {
-        case .unavailable(let message):
+        case .unavailable(let message), .failed(let message):
             rows = [Row(value: message)]
         case .rows(let healthRows):
             rows = healthRows.map { Row($0.title, value: $0.status == .loading ? "Loading" : $0.value) }
@@ -75,28 +88,6 @@ struct TodaySoFarHealthCardView: View {
         case .calendarDayChanged: .calendarDayChanged
         case .pullToRefresh: .pullToRefresh
         }
-    }
-}
-
-/// The card header doubles as a link to the Health summaries, styled as a
-/// header with a chevron, like the Health screen's section headers.
-private struct TodaySoFarHealthHeader: View {
-    var body: some View {
-        NavigationLink(value: AppRoute.healthReport) {
-            HStack {
-                Text(TodaySoFarHealthCardView.title)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .accessibilityHidden(true)
-            }
-            .frame(minHeight: 44)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(TodaySoFarHealthCardView.title)
-        .accessibilityHint(TodaySoFarHealthCardView.healthHint)
-        .accessibilityAddTraits([.isButton, .isHeader])
-        .accessibilityIdentifier("homeHealthHeader")
     }
 }
 

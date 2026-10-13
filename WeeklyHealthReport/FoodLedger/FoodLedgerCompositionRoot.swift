@@ -92,21 +92,28 @@ final class FoodLedgerCompositionRoot {
         )
         favourites = try FavouritesService(ledger: ledger, reader: store, confirmations: confirmations,
             clock: confirmationClock, ids: ids, digester: SHA256Digester(), calendar: confirmationCalendar)
+        // Taiwan rows follow UK and US rows unless the Settings market is Taiwan or the
+        // query names Taiwan or contains Chinese characters (composite-generic-ranking-v9).
+        let market = foodMarket
         genericFoodSearch = try CompositeGenericFoodSearch(sources: [
             CoFIDGenericFoodSearch(library: PersonalLibraryGenericFoodSearch(reader: store), ids: ids),
-            USDAGenericFoodSearch(ids: ids),
-            TFDAGenericFoodSearch(ids: ids)
-        ], ids: ids)
+            USDAGenericFoodSearch(ids: ids)
+        ], regionalSources: [TFDAGenericFoodSearch(ids: ids)], promotesRegional: { request in
+            RegionalSourceOrderPolicy.promotesTaiwan(query: request.text.value, marketIsTaiwan: market.market == .taiwan)
+        }, ids: ids)
         milkVolumeConversion = try CoFIDWholeMilkVolumeConversion()
     }
 
-    func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil, searchInterpretation: FoodQueryInterpretation? = nil, prefillSourceQuantity: Bool = true, savesFavourite: Bool = false) -> FoodConfirmationViewModel {
+    func model(for input: PopulatedFoodConfirmation, queryQuantity: ParsedFoodQuery.Quantity? = nil, searchInterpretation: FoodQueryInterpretation? = nil, prefillSourceQuantity: Bool = true, savesFavourite: Bool = false, entryDay: String? = nil) -> FoodConfirmationViewModel {
         let (prepared, offering) = withMilkVolumeSource(input)
-        let state = FoodConfirmationState(input: prepared, queryQuantity: queryQuantity, prefillSourceQuantity: prefillSourceQuantity)
+        var state = FoodConfirmationState(input: prepared, queryQuantity: queryQuantity, prefillSourceQuantity: prefillSourceQuantity)
+        let when = entryWhen(day: entryDay)
+        state.occurredAt = when.occurredAt
         let clock = confirmationClock
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, searchInterpretation: searchInterpretation,
                                          now: { clock.now() }, calendar: confirmationCalendar,
-                                         savesFavourite: savesFavourite, favouriteAction: favouriteAction) { [confirmations, ids] state in
+                                         savesFavourite: savesFavourite, favouriteAction: favouriteAction,
+                                         whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
             try confirmations.save(
                 state,
                 operationID: ids.makeID(OperationTag.self),
@@ -134,9 +141,16 @@ final class FoodLedgerCompositionRoot {
         return (prepared, offering)
     }
 
+    /// When for a new entry from Add food at this moment (owner decision D): a past Food Log day
+    /// at the current clock time, or Now. Read with the confirmation clock and calendar, so the
+    /// prefill and the save service agree on the window.
+    func entryWhen(day: String?) -> FoodEntryWhenPrefill {
+        FoodEntryWhenPrefill.resolve(dayKey: day, now: confirmationClock.now(), calendar: confirmationCalendar)
+    }
+
     /// Confirm for logging a recent food again as a new entry: source re-verified, last value
     /// and unit prefilled, nothing saved until Log.
-    func model(relogging logItemID: LogItemID) throws -> FoodConfirmationViewModel? {
+    func model(relogging logItemID: LogItemID, entryDay: String? = nil) throws -> FoodConfirmationViewModel? {
         guard var state = try confirmations.relogState(logItemID: logItemID) else { return nil }
         let (prepared, offering) = withMilkVolumeSource(state.input)
         if prepared != state.input {
@@ -144,10 +158,13 @@ final class FoodLedgerCompositionRoot {
             state = FoodConfirmationState(input: prepared, prefillSourceQuantity: false)
             state.quantity = quantity
         }
+        let when = entryWhen(day: entryDay)
+        state.occurredAt = when.occurredAt
         let clock = confirmationClock
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering,
                                          now: { clock.now() }, calendar: confirmationCalendar,
-                                         favouriteAction: favouriteAction) { [confirmations, ids] state in
+                                         favouriteAction: favouriteAction,
+                                         whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
@@ -161,6 +178,25 @@ final class FoodLedgerCompositionRoot {
 
     func favouritesModel() -> FavouritesViewModel { FavouritesViewModel(store: favourites) }
 
+    /// Save as favourite from a saved entry or a recent food (owner decision A): the existing
+    /// `save_favourite_v1` path, pinning the entry's current version.
+    /// Recent rows re-read the entry's current product version at tap time.
+    func favouriteSaveModel() -> FavouriteSaveModel {
+        FavouriteSaveModel(store: favourites) { [store] logItemID in
+            guard let current = try store.foodConfirmation(logItemID: logItemID),
+                  case .product = current.logItemVersion.composition else { return nil }
+            return current.logItemVersion.logItemVersionID
+        }
+    }
+
+    /// "From what you’ve logged": recent foods within 30 days, each source re-verified. Throws when
+    /// the ledger cannot be read, so a failure is never shown as an empty list.
+    func loggedFoods(limit: Int = 25) throws -> [FoodRecentRelogItem] {
+        let records = try store.archiveState().records
+        return FoodRecentItemsService(reader: store, confirmations: confirmations)
+            .items(records: records, now: confirmationClock.now(), calendar: confirmationCalendar, limit: limit)
+    }
+
     /// Quick-add items in order (built-in water first until a water favourite exists). Nil when the
     /// favourites cannot be read or have competing versions.
     func quickAddItems() -> [QuickAddItem]? { try? favourites.projection().quickAddItems }
@@ -170,22 +206,36 @@ final class FoodLedgerCompositionRoot {
 
     /// The sheet logs the same input Confirm would: the rebuilt input runs through the same
     /// volume-source enrichment as every other Confirm factory.
-    func quickAddSheetModel(_ preparation: QuickAddPreparation) -> QuickAddSheetModel {
+    func quickAddSheetModel(_ preparation: QuickAddPreparation, entryDay: String? = nil) -> QuickAddSheetModel {
         let clock = confirmationClock
-        let prepared = preparation.replacingState(withMilkVolumeSource(preparation.state).state)
-        return QuickAddSheetModel(preparation: prepared, now: { clock.now() }, calendar: confirmationCalendar) { [confirmations, ids] state in
+        var state = withMilkVolumeSource(preparation.state).state
+        let when = entryWhen(day: entryDay)
+        state.occurredAt = when.occurredAt
+        let prepared = preparation.replacingState(state)
+        return QuickAddSheetModel(preparation: prepared, now: { clock.now() }, calendar: confirmationCalendar,
+                                  whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
 
     /// Confirm for a quick-add state: an ineligible favourite, or the sheet's Edit. Fresh explicit
     /// confirmation through the same save path, with the offered volume source carried into Confirm.
-    func model(quickAdd state: FoodConfirmationState) -> FoodConfirmationViewModel {
+    /// `entryDay` applies only when Confirm opens straight from a quick-add item; the sheet's Edit
+    /// passes nil and keeps the When already chosen on the sheet.
+    func model(quickAdd state: FoodConfirmationState, entryDay: String? = nil) -> FoodConfirmationViewModel {
         let clock = confirmationClock
-        let (prepared, offering) = withMilkVolumeSource(state)
+        let enriched = withMilkVolumeSource(state)
+        var prepared = enriched.state
+        let offering = enriched.offering
+        var whenNotice: String?
+        if let entryDay {
+            let when = entryWhen(day: entryDay)
+            prepared.occurredAt = when.occurredAt
+            whenNotice = FoodLogText.whenNotice(when)
+        }
         return FoodConfirmationViewModel(state: prepared, volumeConversionOffering: offering, now: { clock.now() },
                                          calendar: confirmationCalendar,
-                                         favouriteAction: favouriteAction) { [confirmations, ids] state in
+                                         favouriteAction: favouriteAction, whenNotice: whenNotice) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }
@@ -323,7 +373,9 @@ final class FoodLedgerCompositionRoot {
             },
             confirmationNow: { [confirmationClock] in confirmationClock.now() },
             confirmationCalendar: confirmationCalendar,
-            amountLocale: locale
+            amountLocale: locale,
+            // The same whole-milk volume source and offering as the search route.
+            prepareConfirmation: { [weak self] state in self?.withMilkVolumeSource(state) ?? (state: state, offering: nil) }
         ) { [confirmations] state, operationID in
             try confirmations.save(
                 state, operationID: operationID,
@@ -474,7 +526,7 @@ struct GenericFoodSearchFlowView: View {
                               recordDiagnostics: { [diagnostics = root.searchDiagnostics] in diagnostics.recordSearch($0) }) { input in
             // Snapshot selection and amount once; navigation renders reuse this model.
             confirmationModel = root.model(for: input, queryQuantity: searchModel.effectiveAmount, searchInterpretation: searchModel.interpretation,
-                                           prefillSourceQuantity: false, savesFavourite: savesFavourite)
+                                           prefillSourceQuantity: false, savesFavourite: savesFavourite, entryDay: finish?.entryDay)
             showsConfirmation = true
         }
         .onAppear {
@@ -515,8 +567,12 @@ struct AddFoodFlowView: View {
     /// Nil when favourites cannot be read (shown as a failure, never as empty).
     @State private var quickAddItems: [QuickAddItem]? = []
     @State private var quickAddRequest: QuickAddItem?
+    @StateObject private var favouriteSaving: FavouriteSaveModel
 
-    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) { self.root = root; self.finish = finish }
+    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) {
+        self.root = root; self.finish = finish
+        _favouriteSaving = StateObject(wrappedValue: root.favouriteSaveModel())
+    }
 
     var body: some View {
         AddFoodView(recents: recents, now: now, calendar: root.confirmationDayCalendar,
@@ -526,12 +582,15 @@ struct AddFoodFlowView: View {
                     favourites: { showsFavourites = true },
                     favouriteItems: quickAddItems,
                     quickAdd: { quickAddRequest = $0 },
+                    favouriteSaving: favouriteSaving,
+                    listImportNote: FoodLogText.listImportNote(entryDay: finish?.entryDay),
                     relog: { recent in
-                        if let model = try? root.model(relogging: recent.item.logItemID) {
+                        if let model = try? root.model(relogging: recent.item.logItemID, entryDay: finish?.entryDay) {
                             confirmationModel = model; showsConfirmation = true
                         } else { relogFailed = true }
                     })
         .onAppear { now = root.confirmationNow; recents = root.recentFoods(); quickAddItems = root.quickAddItems() }
+        .onChange(of: recents.compactMap(\.logItemVersionID), initial: true) { _, ids in favouriteSaving.refresh(ids) }
         .quickAdd(root: root, request: $quickAddRequest, finish: finish) { quickAddItems = root.quickAddItems() }
         .alert("This food could not be opened", isPresented: $relogFailed) {
             Button("OK", role: .cancel) {}
@@ -578,7 +637,7 @@ struct OpenRouterFoodReviewFlowView: View {
     var body: some View {
         GenericFoodProposalReviewView(model: reviewModel, credentials: credentials,
                                       recordDiagnostics: { [diagnostics = root.searchDiagnostics] in diagnostics.recordWebLookup($0) }) { input in
-            confirmationModel = root.model(for: input, prefillSourceQuantity: false, savesFavourite: savesFavourite)
+            confirmationModel = root.model(for: input, prefillSourceQuantity: false, savesFavourite: savesFavourite, entryDay: finish?.entryDay)
             showsConfirmation = true
         }
         .navigationDestination(isPresented: $showsConfirmation) {
@@ -825,7 +884,7 @@ struct BarcodeFoodFlowView: View {
             Section("Saved food found") {
                 Text(route.confirmation.candidates[0].name.value)
                 Button("Review and confirm") {
-                    confirmationModel = root.model(for: route.confirmation, savesFavourite: savesFavourite)
+                    confirmationModel = root.model(for: route.confirmation, savesFavourite: savesFavourite, entryDay: finish?.entryDay)
                     showsConfirmation = true
                 }
             }
@@ -860,7 +919,7 @@ struct BarcodeFoodFlowView: View {
                 guard !Task.isCancelled, generation == offGeneration else { return }
                 switch outcome {
                 case let .candidate(confirmation):
-                    confirmationModel = root.model(for: confirmation, savesFavourite: savesFavourite)
+                    confirmationModel = root.model(for: confirmation, savesFavourite: savesFavourite, entryDay: finish?.entryDay)
                     showsConfirmation = true
                 case .notFound: offMessage = "No product found. Your barcode is retained; you can use generic search."
                 case .insufficientData: offMessage = "The product has insufficient nutrition or an ambiguous basis. Use generic search; nothing was selected or saved."
@@ -894,6 +953,7 @@ struct FavouritesFlowView: View {
     @State private var showsSearch = false
     @State private var showsBarcode = false
     @State private var showsWebLookup = false
+    @State private var showsLogged = false
 
     init(root: FoodLedgerCompositionRoot) {
         self.root = root
@@ -901,8 +961,10 @@ struct FavouritesFlowView: View {
     }
 
     var body: some View {
-        FavouritesView(model: model, createFromSearch: { showsSearch = true }, createFromBarcode: { showsBarcode = true },
-                       createFromWebLookup: { showsWebLookup = true })
+        FavouritesView(model: model, createFromLogged: { showsLogged = true }, createFromSearch: { showsSearch = true },
+                       createFromBarcode: { showsBarcode = true }, createFromWebLookup: { showsWebLookup = true })
+        .navigationDestination(isPresented: $showsLogged) { FavouriteFromLoggedFlowView(root: root) }
+        .onChange(of: showsLogged) { _, shown in if !shown { model.reload() } }
         .navigationDestination(isPresented: $showsSearch) {
             if let flow = GenericFoodSearchFlowView(root: root, finish: returnHere, savesFavourite: true) { flow }
             else { ContentUnavailableView("Food search unavailable", systemImage: "exclamationmark.triangle") }
@@ -919,6 +981,35 @@ struct FavouritesFlowView: View {
         FoodEntryFinish { _ in
             showsSearch = false; showsBarcode = false; showsWebLookup = false
             model.reload()
+        }
+    }
+}
+
+/// "From what you’ve logged" (owner decision A): recent foods with Save as favourite. Reading the
+/// list writes nothing; each save pins that food's current logged version.
+struct FavouriteFromLoggedFlowView: View {
+    private let root: FoodLedgerCompositionRoot
+    @StateObject private var saving: FavouriteSaveModel
+    @State private var content: FavouriteFromLoggedView.Content = .loading
+
+    init(root: FoodLedgerCompositionRoot) {
+        self.root = root
+        _saving = StateObject(wrappedValue: root.favouriteSaveModel())
+    }
+
+    var body: some View {
+        FavouriteFromLoggedView(content: content, now: root.confirmationNow, calendar: root.confirmationDayCalendar,
+                                model: saving, retry: load)
+            .onAppear(perform: load)
+    }
+
+    private func load() {
+        do {
+            let items = try root.loggedFoods()
+            saving.refresh(items.compactMap(\.logItemVersionID))
+            content = .items(items)
+        } catch {
+            content = .failed
         }
     }
 }
@@ -973,10 +1064,10 @@ struct QuickAddPresenter: ViewModifier {
         guard let preparation = try? root.quickAddPreparation(item) else { unverifiable = true; return }
         switch preparation.eligibility {
         case .sheet:
-            let model = root.quickAddSheetModel(preparation)
+            let model = root.quickAddSheetModel(preparation, entryDay: finish?.entryDay)
             model.onLogged = QuickAddPresenter.completion(dismiss: { sheetModel = nil }, finish: finish, logged: logged)
             sheetModel = model
-        case .confirm: openConfirm(preparation.state)
+        case .confirm: openConfirm(preparation.state, entryDay: finish?.entryDay)
         }
     }
 
@@ -990,8 +1081,8 @@ struct QuickAddPresenter: ViewModifier {
         }
     }
 
-    private func openConfirm(_ state: FoodConfirmationState) {
-        confirmModel = root.model(quickAdd: state)
+    private func openConfirm(_ state: FoodConfirmationState, entryDay: String? = nil) {
+        confirmModel = root.model(quickAdd: state, entryDay: entryDay)
         showsConfirm = true
     }
 }

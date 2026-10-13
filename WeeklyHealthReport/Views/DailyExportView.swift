@@ -3,14 +3,22 @@ import SwiftUI
 struct DailyExportView: View {
     @ObservedObject var session: DailyDriveSessionController
     @ObservedObject private var notes: DailyNotesController
+    /// Opens Settings > Export from the "Set up Google Drive" action (owner decision C). Without
+    /// it (previews and render tests) the action is a plain navigation link to the same route.
+    private let openDriveSetup: (() -> Void)?
     @Environment(\.scenePhase) private var scenePhase
     @State private var exactJSON: ExactJSONInspection?
     @State private var showingTrashedDestinationConfirmation = false
     @State private var showingTrashedFileConfirmation = false
 
-    init(session: DailyDriveSessionController) {
+    init(session: DailyDriveSessionController, openDriveSetup: (() -> Void)? = nil) {
         self.session = session
+        self.openDriveSetup = openDriveSetup
         _notes = ObservedObject(wrappedValue: session.notes)
+    }
+
+    private var driveAvailability: DriveExportAvailability {
+        DriveExportAvailability.resolve(isConfigured: session.isConfigured, setup: session.presentationState.phaseSetup)
     }
 
     var body: some View {
@@ -30,7 +38,7 @@ struct DailyExportView: View {
                 includedSection
                 exportSection
             case .needsAttention:
-                if hasVisibleAttentionAction {
+                if hasVisibleAttentionAction && driveAvailability != .unavailableInBuild {
                     attentionSection
                 }
                 if session.presentationState.actions.contains(.authorizeNutrition) {
@@ -42,7 +50,7 @@ struct DailyExportView: View {
             driveSection
 
             Section {
-                Text("Workouts include available heart-rate summaries, HealthKit-estimated active energy, native distance and separately evidenced accepted treadmill distance, PacePrompt execution intervals and native heart-rate zones. Missing data stays explicitly unavailable. Interval distance may cover only part of an interval. Individual associated heart-rate readings include timestamps, BPM and source identifiers when available. Gaps are retained; readings are not interpolated.")
+                Text("Workouts include heart-rate summaries and zones, active energy estimated by Apple Health, distance (including treadmill distance you accepted) and PacePrompt intervals when they are available. An interval’s distance may cover only part of it. Each heart-rate reading keeps its time and source. Anything missing is marked as unavailable; gaps are never filled in.")
                     .font(.caption)
             } header: {
                 Text("About the file")
@@ -57,7 +65,7 @@ struct DailyExportView: View {
                         .padding()
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .navigationTitle("Exact JSON")
+                .navigationTitle("Exact file")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) {
@@ -137,7 +145,7 @@ struct DailyExportView: View {
         } header: {
             Text("Day")
         } footer: {
-            Text("Today runs from local midnight to the refresh cutoff. Earlier days include the full local day as currently visible in Apple Health. Changing the day discards the old preview, not saved notes.")
+            Text("Today covers midnight up to the moment the file was prepared. Earlier days cover the whole day as Apple Health shows it now. Changing the day discards the prepared file; saved notes are kept.")
         }
     }
 
@@ -152,13 +160,27 @@ struct DailyExportView: View {
         )
     }
 
+    @ViewBuilder
     private var resultSection: some View {
+        if driveAvailability == .unavailableInBuild {
+            // One line; the technical detail is in Developer tools.
+            Section {
+                Label(DriveExportAvailability.unavailableLine, systemImage: "icloud.slash")
+            } header: {
+                Text("Status")
+            }
+        } else {
+            statusSection
+        }
+    }
+
+    private var statusSection: some View {
         Section {
             switch phase {
             case .notSetUp:
                 Label("Not set up", systemImage: "exclamationmark.circle")
-                if session.isConfigured {
-                    NavigationLink("Set up Google Drive", value: AppRoute.exportDestination)
+                if driveAvailability == .needsSetup {
+                    setUpDriveButton
                 }
             case .preparing:
                 HStack {
@@ -199,7 +221,21 @@ struct DailyExportView: View {
         } header: {
             Text("Status")
         } footer: {
-            Text("Opening this screen restores known choices and prepares a fresh snapshot in memory. Nothing is sent until you choose Export.")
+            Text("Opening this screen prepares the file on this device. Nothing is sent until you choose Export.")
+        }
+    }
+
+    /// The primary action while Drive is configured but not connected.
+    @ViewBuilder
+    private var setUpDriveButton: some View {
+        if let openDriveSetup {
+            Button(action: openDriveSetup) {
+                Text(DriveExportAvailability.setUpTitle).frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.borderedProminent)
+            .accessibilityIdentifier("export.setUpDrive")
+        } else {
+            NavigationLink(DriveExportAvailability.setUpTitle, value: AppRoute.exportDestination)
         }
     }
 
@@ -220,7 +256,7 @@ struct DailyExportView: View {
             }
             NavigationLink(value: AppRoute.notes) {
                 LabeledContent(
-                    "Notes for \(notes.currentDayID.reportDate)",
+                    "Notes for \(DailyExportDayLabel.previousDay(reportDate: notes.currentDayID.reportDate, locale: .autoupdatingCurrent))",
                     value: notes.storageAvailable ? notes.noteCountLabel : "Unavailable"
                 )
             }
@@ -240,7 +276,7 @@ struct DailyExportView: View {
                     Text("Not prepared")
                 }
             }
-            Button("Review exact JSON") {
+            Button("View exact file") {
                 if let text = session.makeExactPreviewText() {
                     exactJSON = ExactJSONInspection(text: text)
                 }
@@ -252,17 +288,24 @@ struct DailyExportView: View {
         } header: {
             Text("Included")
         } footer: {
-            Text("Drafts remain local. A saved-note change invalidates the prepared snapshot and disables export until refresh finishes again. The exact file is constructed only when you review it.")
+            Text("Drafts stay on this device. After you save a note change, the file is prepared again before you can export. The exact file is built only when you view it.")
         }
     }
 
+    @ViewBuilder
     private var driveSection: some View {
-        Section {
-            NavigationLink(value: AppRoute.exportDestination) {
-                LabeledContent("Google Drive", value: session.destinationLabel)
+        if driveAvailability == .unavailableInBuild {
+            Section {
+                LabeledContent("Google Drive", value: DriveExportAvailability.unavailableRowValue)
             }
-        } footer: {
-            Text("Account and folder are managed in Settings.")
+        } else {
+            Section {
+                NavigationLink(value: AppRoute.exportDestination) {
+                    LabeledContent("Google Drive", value: session.destinationLabel)
+                }
+            } footer: {
+                Text("Account and folder are managed in Settings.")
+            }
         }
     }
 
@@ -318,13 +361,13 @@ struct DailyExportView: View {
             }
             .disabled(!session.exporting)
             if session.presentationState.actions.contains(.recoverCanonicalFile) {
-                Button("Recover existing canonical JSON") {
+                Button("Recover the file already in Drive") {
                     Task { await session.recoverSelectedFile() }
                 }
                 .disabled(session.busy || !session.isConfigured || session.preview == nil)
             }
         } footer: {
-            Text("Export preserves these frozen bytes, verifies remote metadata and exact bytes, and never queues an automatic retry.")
+            Text("Export sends this exact file and checks that Drive saved it unchanged. If it fails, nothing is retried automatically; you choose when to try again.")
         }
     }
 
@@ -362,7 +405,7 @@ struct DailyExportView: View {
                 .disabled(session.busy)
             }
             if session.presentationState.actions.contains(.recoverCanonicalFile) {
-                Button("Recover explicitly selected canonical JSON") {
+                Button("Recover the file you selected") {
                     Task { await session.recoverSelectedFile() }
                 }
                 .disabled(session.busy || session.preview == nil || !session.isConfigured)

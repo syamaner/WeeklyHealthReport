@@ -87,7 +87,7 @@ Ineligible favourites open the full Confirm with the same state for fresh explic
 
 ### Sheet content
 
-Title "Quick add <label>", food line, presets, Other amount, When (Now by default), a plain source line and "Log <amount>". Estimates never reach the sheet. Water presets: 150, 250, 330 and 500 mL. Food favourites offer the default amount plus Other amount in the same unit; a unit change opens Confirm (Q5). The Q10 upper bound is a **sheet-only input bound** surfaced as `amountTextInvalid`; Confirm is not bounded and no policy version changes.
+Title "Quick add <label>", food line, presets, Other amount, When (Now by default), a plain source line and "Log <amount>". When the sheet opens from Add food on a past Food Log day, When starts on that day at the current clock time instead (owner decision D, 13 October 2026; presentation only, `FoodLogPolicy` still decides the save). Estimates never reach the sheet. Water presets: 150, 250, 330 and 500 mL. Food favourites offer the default amount plus Other amount in the same unit; a unit change opens Confirm (Q5). The Q10 upper bound is a **sheet-only input bound** surfaced as `amountTextInvalid`; Confirm is not bounded and no policy version changes.
 
 ## 4. Water: one fixed reference record
 
@@ -98,6 +98,7 @@ Title "Quick add <label>", food line, presets, Other amount, When (Now by defaul
 - **Versioning.** Immutable; any change is `plain-water-v2` with a new release and evidence ID, and v1 entries keep resolving to v1.
 - **Plain water entry predicate.** A current log head whose effective resolution has provenance `app_reference_definition`, source release `plain-water-v1` and record ID `plain-water`. A corrected entry whose resolution no longer has that provenance leaves the set.
 - **Built-in water (Q7).** A built-in Water 250 mL quick-add item is shown first unless a `FavouriteVersion` chain with binding `.reference(.plainWaterV1)` exists (active or removed). Logging from it writes only the log entry, never a favourite. Editing or reordering it writes the favourite (and arrangement) records; removing it writes the favourite record plus a `removed` version, which hides the built-in item for good.
+  - **Amendment (owner-approved 13 October 2026).** Removing water is confirmed first, and once every plain water chain is removed Favourites offers "Add Water to quick add", which appends a new `active` version (`revise_favourite_v1`, same label and default amount) to the earliest-created removed plain water chain; it never starts a second chain, writes nothing while water is offered, and the built-in item stays hidden.
 
 ### Daily-first aggregation in mL
 
@@ -194,7 +195,7 @@ Confirmation v5 policy, requirement set, assertion grammar and estimate projecti
 | Q4 | Record the favourite on the log entry | No; the entry is identical to a Confirm save |
 | Q5 | Sheet amounts for food favourites | Default amount plus Other amount in the same unit; a unit change opens Confirm |
 | Q6 | Two meanings of "favourite" | Keep inventory data; rename its copy to "Usual foods" and "Add to review" in presentation only |
-| Q7 | Water as the first quick-add item | Built-in item, hidden once a water favourite chain exists; logging from it writes no favourite |
+| Q7 | Water as the first quick-add item | Built-in item, hidden once a water favourite chain exists; logging from it writes no favourite. Amended 13 October 2026: water can be added back after removal (section 4) |
 | Q8 | Home water figure | Plain water logged (complete); dietary water nutrient total keeps the known-minimum rule |
 | Q9 | Version bump | Archive contract 6 and schema `food-ledger-v6` after phase 3's contract 5; Daily JSON pin stays `<= 3` |
 | Q10 | Custom water amount bound | Sheet-only: greater than 0 and at most 5000 mL, surfaced as `amountTextInvalid`; Confirm unbounded; no policy version change |

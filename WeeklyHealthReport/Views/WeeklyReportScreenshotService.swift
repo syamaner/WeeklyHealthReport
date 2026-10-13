@@ -66,7 +66,7 @@ struct WeeklyReportPDFRenderer: WeeklyReportPDFRendering {
     }
 
     func pdfData(for document: ReportDocument) -> Data? {
-        pdfData(rendering: WeeklyReportPDFView(document: document))
+        pdfData(rendering: WeeklyReportPDFView(document: document.forDisplay()))
     }
 
     func pdfData(for document: TodayFullPageDocument) -> Data? {

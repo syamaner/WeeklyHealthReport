@@ -21,6 +21,33 @@ final class FoodConfirmationReducerTests: XCTestCase {
         XCTAssertEqual(try store.counts().logItemVersions, 0)
     }
 
+    /// Owner decision B2: changing the unit between count, g and mL clears the amount (and any
+    /// conversion or invalid text), so `amountMissing` blocks Log; the same unit changes nothing.
+    func testUnitChangeClearsTheAmountSoLogWaitsForANewOne() throws {
+        let now = FixedClock.date
+        var state = FoodConfirmationState(input: try fixtureInput())
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(150, .grams))
+        XCTAssertFalse(FoodLogPolicy.requirements(state, now: now, calendar: .current).contains(.amountMissing))
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantityUnit(.grams))
+        XCTAssertEqual(state.quantity.value, 150, "the same unit keeps the amount")
+        for unit in [QuantityUnit.millilitres, .count, .grams] {
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(2, state.quantity.unit))
+            if state.quantity.unit == .count {
+                FoodConfirmationReducer.reduce(state: &state, action: .setConversion(QuantityConversionDraft(
+                    convertedQuantity: try PositiveQuantity(value: 120, unit: .grams), methodVersion: try LedgerText("measured-v1"))))
+            }
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantityText("abc"))
+            XCTAssertEqual(state.quantity.invalidOriginalAmountText, true)
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantityUnit(unit))
+            XCTAssertEqual(state.quantity.unit, unit)
+            XCTAssertNil(state.quantity.value, "\(unit)")
+            XCTAssertNil(state.quantity.conversion, "\(unit)")
+            XCTAssertNil(state.quantity.invalidOriginalAmountText, "\(unit)")
+            XCTAssertEqual(state.phase, .editing)
+            XCTAssertTrue(FoodLogPolicy.requirements(state, now: now, calendar: .current).contains(.amountMissing), "\(unit)")
+        }
+    }
+
     func testSaveAndProjectionShareCanonicalLocalDateWithNonGregorianDisplayCalendar() throws {
         var calendar = Calendar(identifier: .buddhist)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "Pacific/Auckland"))

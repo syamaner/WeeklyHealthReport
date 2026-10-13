@@ -409,7 +409,8 @@ final class HealthReportFormatterTests: XCTestCase {
             "No weight data is visible, or Health access was not granted."
         ))
         XCTAssertTrue(text.contains("Waist Circumference: No data"))
-        XCTAssertTrue(text.contains("Daily Average: Query failed"))
+        XCTAssertTrue(text.contains("Daily Average: Could not read Apple Health."))
+        XCTAssertFalse(text.contains("Synthetic glucose failure"))
         XCTAssertTrue(text.contains("Latest VO₂ Max: No data"))
         XCTAssertTrue(text.contains("Latest Blood Oxygen: No data"))
         XCTAssertTrue(text.contains(

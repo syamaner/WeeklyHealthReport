@@ -9,7 +9,11 @@ enum MetricRowVocabulary {
     static let noData = "No data"
     static let unavailable = "Unavailable"
     static let noCompletedDays = "No completed days"
+    /// The document's internal term for a failed metric read. Copy all and the
+    /// screens show "Could not read Apple Health." instead (README "What gets copied").
     static let queryFailed = "Query failed"
+    /// The Health tiles' short term for a failed read; screens never say "query".
+    static let couldNotRead = "Could not read"
     static let insufficientHistory = "Insufficient history"
     static let noPeriodData = "No period data"
 }

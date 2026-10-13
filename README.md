@@ -33,14 +33,16 @@ examples; the repository does not contain exported or personal HealthKit values.
 | Medications | Taken medication events, dose and time on iOS 26 or later |
 | Daily JSON only | Source-filtered nutrition totals, completed-day averages and trends for all 39 Apple Health dietary quantity types, plus private date-bound notes you type and explicitly export |
 
-The app opens on **Today**, from which **Health summaries** (or the **Health · today so far** card header) opens **Health**, the completed-day report: a period picker with its visible range, summary tiles that repeat a few section values, and collapsible sections. **Health → Export a day** opens the manual **Export** screen for the Daily JSON file; the Google Drive account and folder live in **Settings → Export**, and opening that screen sends no request. A separate Developer Diagnostics screen checks daily values against Apple Health. **Copy all** (in the toolbar or below the sections) puts a human-readable version of every section, with all details shown, on the iOS clipboard; the summary tiles are not copied.
+The app opens on **Today**, from which the **Health summaries** row on the **Health · today so far** card opens **Health**, the completed-day report: a period picker with its visible range, summary tiles that repeat a few section values, and collapsible sections. **Health → Export a day** opens the manual **Export** screen for the Daily JSON file; the Google Drive account and folder live in **Settings → Export**, and opening that screen sends no request. A separate Developer Diagnostics screen checks daily values against Apple Health. **Copy all** (in the toolbar or below the sections) puts a human-readable version of every section, with all details shown, on the iOS clipboard; the summary tiles are not copied.
 
 On the main report, a normal system screenshot also offers Apple's native **Full
 Page** representation. The app creates that report PDF in memory only when iOS
 requests it, using one stable snapshot and a document layout independent of the
 scrolling form. It always includes every report section with all blood-pressure
 details shown, whatever is expanded on screen, but not the summary tiles or the
-navigation, export, copy, refresh or diagnostics controls.
+navigation, export, copy, refresh or diagnostics controls. Its wording is the
+screen's (sentence-case labels, and "Could not read Apple Health." for a failed
+read), while Copy all keeps the copied-report labels shown below.
 **Today** offers Full Page too: a one-page PDF of its cards as text (the date, Food
 logged, quick-add favourites, Health · today so far with its footer and "As of" time,
 and today's notes count), built from the cards' current content when iOS asks. Buttons
@@ -122,8 +124,8 @@ The app opens on **Today** ([phase 6 plan](docs/ux-revamp-phase-6-home.md)): a f
 with today's logged energy, protein, carbohydrates, fat and plain water (linking to the
 Food Log), **Add food**, quick-add chips, a provisional **Health · today so far** card
 (steps, active energy, last night's sleep, latest weight and blood pressure, with an
-"As of" time; tap the card's header or its **Health summaries** row to open Health, and
-Export is one tap further) and today's notes. The Food Log
+"As of" time; its plain header is not a link, and its **Health summaries** row ("Completed days") opens Health, with
+Export one tap further) and today's notes. The Food Log
 ([phase 4 plan](docs/ux-revamp-phase-4-food-log.md)) has previous and next day buttons
 and a date picker; a totals strip for energy, protein, carbohydrates and fat, where "+"
 marks a known minimum and an empty day shows no totals; entries by time with an
@@ -267,7 +269,9 @@ provide usual foods, aliases, usual portions and add-to-review to an explicit re
 These usual foods are separate from source-bound **favourites** ([quick add contract](docs/food-quick-add-contract-v1.md)):
 a favourite pins a logged entry (or the app's plain water reference) and a default amount, and a Home chip
 opens a one-step quick-add sheet; nothing is logged until Log, estimates and corrected entries open the full
-Confirm, and editing a favourite never changes logged entries. Home and the Food Log show **plain water
+Confirm, and editing a favourite never changes logged entries. A favourite can also be saved later from a saved entry,
+a recent food on Add food, or **Favourites → From what you've logged**, pinning that entry's current version; removing
+the Water item is confirmed and **Add Water to quick add** brings it back. Home and the Food Log show **plain water
 logged** for the day (No data when none), separate from the dietary water nutrient total.
 Pasted lists resume after reopening the app. Inventory has its own versioned
 backup, available from **Settings → Backup and restore**; existing food-ledger
@@ -424,6 +428,8 @@ These are calendar periods, not a rolling 168-hour window. Last 7 days still con
 ## What gets copied
 
 The copied report is plain text. Latest weight, waist, blood oxygen and blood pressure are selected independently of the weekly period, so a measurement recorded today can appear alongside a report of completed days.
+
+A failed Apple Health read is copied as "Could not read Apple Health.", whether it is one metric row (for example `Daily Average: Could not read Apple Health.`) or a whole section such as Steps. The technical message is never copied; Developer tools lists it under "Health report read failures". No-data, unavailable and partial wording is copied unchanged.
 
 <details>
 <summary>See a synthetic copied report</summary>

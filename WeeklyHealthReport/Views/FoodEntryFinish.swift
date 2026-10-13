@@ -4,7 +4,11 @@ import FoodLedgerApplication
 /// to every nested Confirm host (search, web lookup, barcode, recent), because environment values
 /// do not reach destinations pushed from inside those hosts. Hosts outside Add food have none and
 /// keep their own back behaviour.
+///
+/// It also carries the Food Log day Add food was opened from (owner decision D), so every
+/// nested Confirm and the quick-add sheet start When on that day. Nil means Now.
 struct FoodEntryFinish {
+    var entryDay: String? = nil
     let finish: (_ reportingDay: String?) -> Void
     func callAsFunction(_ reportingDay: String?) { finish(reportingDay) }
 

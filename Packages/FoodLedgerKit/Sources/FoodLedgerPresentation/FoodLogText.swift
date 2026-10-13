@@ -9,7 +9,34 @@ public enum FoodLogText {
     public static let emptyTitle = "No food logged"
     public static let emptyMessage = "An empty log does not mean no food was eaten."
     public static let swipeFootnote = "Swipe an entry to remove it. Removed entries can be restored."
-    public static let pastDayFootnote = "New foods are logged for now. To log on this day, set When on the confirm screen."
+    /// Add food from a past day (owner decision D): When starts on that day at the current time.
+    public static let pastDayFootnote = "New foods start on this day at the current time. You can change When before logging."
+    /// A selected day older than the backdating window: When falls back to Now.
+    public static let backdatingLimitNotice = "Entries can be logged up to \(FoodLogPolicy.backdatingDays) days back."
+    public static let beyondBackdatingFootnote = "\(backdatingLimitNotice) New foods are logged for now."
+
+    /// Add food from a past day: list import keeps Now (confirmation v5 section 10).
+    public static let listImportNowNote = "List items are logged for now."
+
+    /// The list-route note on Add food: only when Add food carries a past day.
+    public static func listImportNote(entryDay: String?) -> String? {
+        entryDay == nil ? nil : listImportNowNote
+    }
+
+    /// The Add food footnote on the Food Log for the selected day, or nil for today.
+    public static func addFoodFootnote(_ prefill: FoodEntryWhenPrefill, isToday: Bool) -> String? {
+        guard !isToday else { return nil }
+        switch prefill {
+        case .day: return pastDayFootnote
+        case .beyondBackdatingWindow: return beyondBackdatingFootnote
+        case .now: return nil
+        }
+    }
+
+    /// The note beside When on Confirm and the quick-add sheet when the day could not be used.
+    public static func whenNotice(_ prefill: FoodEntryWhenPrefill) -> String? {
+        prefill == .beyondBackdatingWindow ? backdatingLimitNotice : nil
+    }
     public static let removeAlertTitle = "Remove this entry?"
     public static let removeAlertMessage = "It leaves this day’s totals. You can restore it from Removed in the Food Log."
     public static let savedEntryFootnote = "Edit keeps the original as history. Exports already sent are not changed."
@@ -18,12 +45,12 @@ public enum FoodLogText {
     // MARK: Numbers
 
     static func number(_ value: Double, fraction: ClosedRange<Int> = 0...1, locale: Locale) -> String {
-        value.formatted(.number.precision(.fractionLength(fraction)).locale(locale))
+        FoodDisplayNumber.amount(value, fraction: fraction, locale: locale)
     }
 
-    /// kcal to the nearest whole number, half away from zero.
+    /// kcal to the nearest whole number, half away from zero (the shared `FoodDisplayNumber`).
     public static func kcal(_ value: Double, locale: Locale = .current) -> String {
-        number(value.rounded(.toNearestOrAwayFromZero), fraction: 0...0, locale: locale)
+        FoodDisplayNumber.kcal(value, locale: locale)
     }
 
     public static func label(_ key: NutrientKey) -> String { FoodNutritionReviewPresentation.label(key) }
@@ -218,8 +245,14 @@ public enum FoodLogText {
         return nil
     }
 
+    public static let plainWaterSourceName = "Plain water"
+
+    /// "UK reference · per 100 g"; the app's plain water reference reads "Plain water · per 100 mL".
+    /// Only the first letter of the basis is lowered, so unit symbols such as mL keep their case.
     public static func source(_ detail: SavedFoodEntryDetail) -> String {
-        "\(FoodSearchResultText.family(detail.sourceFamily)) · \(FoodNutritionReviewPresentation.basisLabel(detail.basis).lowercased())"
+        let name = detail.isPlainWater ? plainWaterSourceName : FoodSearchResultText.family(detail.sourceFamily)
+        let basis = FoodNutritionReviewPresentation.basisLabel(detail.basis)
+        return "\(name) · \(basis.prefix(1).lowercased() + basis.dropFirst())"
     }
 
     public static func facet(_ facet: IdentityContradiction) -> String {

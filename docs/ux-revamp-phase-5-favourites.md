@@ -87,3 +87,8 @@ Checked against `main` at `def4b19` (phase 3 #207 as `34fae5d`, phase 4 #211 as 
 - **Daily JSON admission** passes the projection's favourites to `minimumContractVersion`, so a document relabelled as contract 3 while carrying favourite records is rejected.
 - **Built-in water guards.** Saving, removing or arranging the built-in water item is refused (`builtInWaterAlreadySaved`) once any plain water favourite chain exists; nothing is written.
 - The Sendable conversion warnings in the composition root are fixed.
+
+### Owner decisions A and F (13 October 2026)
+
+- **A, no contract change.** "Save as favourite" is offered on the saved entry and on recent foods (a leading swipe, the context menu and a VoiceOver action on Add food, and the new **From what you've logged** list, first in Favourites' "Add a favourite" section). Each uses `saveFavourite(logItemVersionID:)` on the entry's current, non-removed version (Q2), shows "Already a favourite" when an active favourite pins it, and on failure "Favourite not saved" with Try again. Plain water is not offered (it has its own item). The search, barcode and web routes stay, under "Log now and save favourite", and Confirm keeps When visible.
+- **F, Q7 amendment.** Removing water (built in or stored) is confirmed in the editor; once every plain water chain is removed, "Add Water to quick add" appends an active version to the removed chain. Both stores are covered by `FavouritesFromLoggedContractTests`.
