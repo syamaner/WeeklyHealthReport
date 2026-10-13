@@ -41,6 +41,10 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         model.applyAvailableVolumeConversion()
         XCTAssertNil(model.unitBasisMismatch, "the estimate reaches the gram basis")
         XCTAssertEqual(model.logButtonTitle, "Log 130 kcal")
+        // The main screen names the estimate plainly; the method identifier stays in its details.
+        XCTAssertEqual(model.conversionMethodLabel, "Whole milk volume estimate (CoFID)")
+        XCTAssertFalse(try XCTUnwrap(model.conversionMethodLabel).contains("cofid-"))
+        XCTAssertTrue(try XCTUnwrap(model.state.quantity.conversion).methodVersion.value.contains("milk"), "identifier kept in the state")
         XCTAssertEqual(model.state.quantity.conversion?.convertedQuantity.value, 206)
         XCTAssertTrue(model.quantityBasisWarning?.contains("Estimated edible mass") == true)
         XCTAssertEqual(try XCTUnwrap(model.consumedNutrition.first { $0.key == .energyConsumed }?.knownAmount), 129.78, accuracy: 0.0001)
@@ -243,7 +247,10 @@ final class FoodConfirmationPresentationTests: XCTestCase {
                                               favouriteAction: { _ in }) { _ in throw CocoaError(.fileWriteUnknown) }
         grams.send(.setQuantity(200, .millilitres))
         XCTAssertEqual(grams.unitBasisMismatch, .millilitresOnGramBasis)
-        XCTAssertEqual(grams.logButtonTitle, "Log without nutrition", "wins over the favourite title")
+        XCTAssertEqual(grams.logButtonTitle, "Log without nutrition and save favourite", "both apply")
+        grams.savesFavourite = false
+        XCTAssertEqual(grams.logButtonTitle, "Log without nutrition")
+        grams.savesFavourite = true
         XCTAssertTrue(grams.canLog, "presentation only: confirmation v5 still allows the save")
         XCTAssertEqual(grams.sourceUnitAction?.actionTitle, "Enter grams instead")
         XCTAssertEqual(grams.quantityBasisWarning, "This food’s nutrition is per 100 g, and millilitres cannot be converted to grams for it. Logged in mL, this entry has no nutrition.")
@@ -296,6 +303,28 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         model.send(.setOccurredAt(nil))
         XCTAssertNil(model.whenRequirementText)
         XCTAssertEqual(model.whenNotice, "Entries can be logged up to 7 days back.")
+    }
+
+    /// Review fix: a unit change clears the typed count conversion as well as the state's, so
+    /// count, g, count never brings an earlier conversion back.
+    func testCountToGramsToCountDoesNotRestoreAnEarlierConversion() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in throw CocoaError(.fileWriteUnknown) }
+        let locale = Locale(identifier: "en_GB")
+        var fields = FoodConfirmationView.ConversionFields(text: "150", unit: .grams, method: "kitchen scale")
+        model.chooseQuantityUnit(.count)
+        model.send(.setQuantity(2, .count))
+        model.send(.setConversion(fields.draft(locale: locale)))
+        XCTAssertEqual(model.state.quantity.conversion?.convertedQuantity.value, 150)
+        XCTAssertEqual(model.conversionMethodLabel, "kitchen scale", "a typed method is shown as typed")
+        model.chooseQuantityUnit(.grams)
+        fields = .cleared // what the view does on the switch
+        XCTAssertNil(model.state.quantity.conversion)
+        model.chooseQuantityUnit(.count)
+        model.send(.setConversion(fields.draft(locale: locale)))
+        XCTAssertNil(model.state.quantity.conversion, "nothing comes back")
+        XCTAssertEqual(fields, FoodConfirmationView.ConversionFields(text: "", unit: .grams, method: ""))
+        XCTAssertTrue(model.requirements.contains(.countNeedsMeasuredAmount))
+        XCTAssertNil(FoodConfirmationView.ConversionFields(text: "150", unit: .grams, method: " ").draft(locale: locale))
     }
 
     func testReferenceBasisAndConsumedPreviewNeverInferDensity() throws {

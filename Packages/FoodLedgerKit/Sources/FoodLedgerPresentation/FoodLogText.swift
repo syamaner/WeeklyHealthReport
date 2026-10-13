@@ -15,6 +15,14 @@ public enum FoodLogText {
     public static let backdatingLimitNotice = "Entries can be logged up to \(FoodLogPolicy.backdatingDays) days back."
     public static let beyondBackdatingFootnote = "\(backdatingLimitNotice) New foods are logged for now."
 
+    /// Add food from a past day: list import keeps Now (confirmation v5 section 10).
+    public static let listImportNowNote = "List items are logged for now."
+
+    /// The list-route note on Add food: only when Add food carries a past day.
+    public static func listImportNote(entryDay: String?) -> String? {
+        entryDay == nil ? nil : listImportNowNote
+    }
+
     /// The Add food footnote on the Food Log for the selected day, or nil for today.
     public static func addFoodFootnote(_ prefill: FoodEntryWhenPrefill, isToday: Bool) -> String? {
         guard !isToday else { return nil }

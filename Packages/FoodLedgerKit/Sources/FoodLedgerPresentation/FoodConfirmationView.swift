@@ -78,6 +78,15 @@ public final class FoodConfirmationViewModel: ObservableObject {
         return volumeConversionOffering?.sourceURL
     }
 
+    /// The conversion's method as shown on the main screen. The offered estimate's method
+    /// identifier stays behind "Volume estimate source"; a typed method is the user's own words.
+    public var conversionMethodLabel: String? {
+        guard let conversion = state.quantity.conversion else { return nil }
+        return usesOfferedVolumeEstimate ? Self.offeredVolumeEstimateLabel : conversion.methodVersion.value
+    }
+
+    public static let offeredVolumeEstimateLabel = "Whole milk volume estimate (CoFID)"
+
     private var usesOfferedVolumeEstimate: Bool {
         guard let sourceID = state.quantity.conversion?.sourceReleaseID,
               let offering = volumeConversionOffering else { return false }
@@ -264,8 +273,11 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public var logButtonTitle: String {
         if state.reopened != nil { return "Save changes" }
-        if unitBasisMismatch != nil { return Self.logWithoutNutritionTitle }
-        if savesFavourite && offersFavourite { return "Log and save favourite" }
+        let savesAsFavourite = savesFavourite && offersFavourite
+        if unitBasisMismatch != nil {
+            return savesAsFavourite ? "\(Self.logWithoutNutritionTitle) and save favourite" : Self.logWithoutNutritionTitle
+        }
+        if savesAsFavourite { return "Log and save favourite" }
         guard nutritionReview.isConsumed,
               let energy = consumedNutrition.first(where: { $0.key == .energyConsumed }),
               energy.incompleteContributions == 0, let amount = energy.knownAmount else { return "Log" }
@@ -746,6 +758,7 @@ public struct FoodConfirmationView: View {
                 Button(mismatch.actionTitle) {
                     model.useSourceBasisUnit()
                     totalText = ""
+                    resetConversionFields()
                 }
                 .frame(minHeight: 44)
             }
@@ -755,12 +768,15 @@ public struct FoodConfirmationView: View {
                     .font(.caption)
             }
             if let conversion = model.state.quantity.conversion {
-                LabeledContent("Weight or volume method", value: conversion.methodVersion.value)
-                    .accessibilityLabel("Conversion version \(conversion.methodVersion.value)")
+                let method = model.conversionMethodLabel ?? conversion.methodVersion.value
+                LabeledContent("Weight or volume method", value: method)
+                    .accessibilityLabel("Weight or volume method, \(method)")
                 if let url = model.volumeConversionSourceURL,
                    let sourceID = conversion.sourceReleaseID,
                    let source = model.state.input.sourceReleases.first(where: { $0.sourceReleaseID == sourceID }) {
                     DisclosureGroup("Volume estimate source") {
+                        LabeledContent("Method identifier", value: conversion.methodVersion.value)
+                            .font(.caption).textSelection(.enabled)
                         Text(source.attribution.value).font(.caption).textSelection(.enabled)
                         Text(source.licence.value).font(.caption2).textSelection(.enabled)
                         Link("Open conversion source", destination: url)
@@ -984,24 +1000,46 @@ public struct FoodConfirmationView: View {
             guard unit != model.state.quantity.unit else { return }
             model.chooseQuantityUnit(unit)
             totalText = ""
-            if unit == .count { updateConversion() }
+            resetConversionFields()
         })
     }
 
+    /// A unit change clears the typed conversion too (the reducer already cleared the state's),
+    /// so count, g, count never brings back an earlier conversion.
+    private func resetConversionFields() {
+        let fields = ConversionFields.cleared
+        conversionText = fields.text
+        conversionUnit = fields.unit
+        conversionMethod = fields.method
+    }
+
     private func updateConversion() {
-        guard model.state.quantity.unit == .count,
-              let value = FoodAmountFieldText.parse(conversionText, locale: locale),
-              let quantity = try? PositiveQuantity(value: value, unit: conversionUnit),
-              let method = try? LedgerText(conversionMethod) else {
-            model.send(.setConversion(nil))
-            return
+        guard model.state.quantity.unit == .count else { model.send(.setConversion(nil)); return }
+        model.send(.setConversion(ConversionFields(text: conversionText, unit: conversionUnit, method: conversionMethod)
+            .draft(locale: locale)))
+    }
+
+    /// The typed count conversion on Confirm: converted amount, its unit and how it was measured.
+    public struct ConversionFields: Equatable, Sendable {
+        public var text: String
+        public var unit: QuantityUnit
+        public var method: String
+
+        public init(text: String, unit: QuantityUnit, method: String) {
+            self.text = text; self.unit = unit; self.method = method
         }
-        model.send(.setConversion(QuantityConversionDraft(
-            convertedQuantity: quantity,
-            methodVersion: method,
-            sourceReleaseID: nil,
-            evidenceID: nil
-        )))
+
+        /// The fields after a unit change: empty, grams.
+        public static let cleared = ConversionFields(text: "", unit: .grams, method: "")
+
+        /// The conversion these fields describe, or nil when any part is missing or invalid.
+        public func draft(locale: Locale) -> QuantityConversionDraft? {
+            guard let value = FoodAmountFieldText.parse(text, locale: locale),
+                  let quantity = try? PositiveQuantity(value: value, unit: unit),
+                  let methodText = try? LedgerText(method) else { return nil }
+            return QuantityConversionDraft(convertedQuantity: quantity, methodVersion: methodText,
+                                           sourceReleaseID: nil, evidenceID: nil)
+        }
     }
 
     private var emptyPlateGrams: Double? {

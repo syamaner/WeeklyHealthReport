@@ -433,6 +433,40 @@ final class FoodLogAppTests: XCTestCase {
         }
     }
 
+    /// QA fix: list import's Confirm offers the whole-milk volume estimate like the search route,
+    /// and Add food tells the user list items keep Now when a past day is carried.
+    func testListImportOffersTheMilkVolumeEstimateAndStatesNow() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        let list = try root.foodListModel(locale: Locale(identifier: "en_GB"))
+        list.input = "200 ml whole milk"
+        list.prepare()
+        list.search()
+        let policy = try CoFIDWholeMilkVolumeConversion()
+        let matches = try XCTUnwrap(list.selectedRow?.route?.matches)
+        let index = try XCTUnwrap(matches.firstIndex { policy.applies(to: $0.candidate) }, "CoFID whole milk is offered")
+        list.review(candidate: index)
+        let confirmation = try XCTUnwrap(list.confirmation)
+        XCTAssertEqual(confirmation.state.quantity.unit, .millilitres)
+        XCTAssertNotNil(confirmation.availableVolumeConversion)
+        XCTAssertNil(confirmation.state.occurredAt, "list items keep Now")
+        confirmation.applyAvailableVolumeConversion()
+        XCTAssertEqual(confirmation.conversionMethodLabel, "Whole milk volume estimate (CoFID)")
+        XCTAssertNotEqual(confirmation.logButtonTitle, "Log without nutrition")
+
+        let note = FoodLogText.listImportNote(entryDay: "2026-10-10")
+        for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
+            renderPolish(NavigationStack {
+                AddFoodView(recents: [], search: { _ in }, scanBarcode: {}, pasteOrDictate: {}, favourites: {},
+                            listImportNote: note, relog: { _ in })
+            }.environment(\.dynamicTypeSize, size), "Add food from a past day - \(name)")
+            renderPolish(NavigationStack { FoodConfirmationView(model: confirmation) {} }.environment(\.dynamicTypeSize, size),
+                         "List Confirm with milk estimate - \(name)")
+        }
+    }
+
     /// The barcode route opens the scanner once, on first opening, with no explainer tap; coming
     /// back from search or Confirm does not reopen it.
     func testBarcodeRouteStartsScanningOnceOnOpening() {

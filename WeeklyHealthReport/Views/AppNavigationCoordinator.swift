@@ -53,6 +53,7 @@ final class AppNavigationCoordinator: ObservableObject {
 
     private func forgetAddFoodDayIfClosed() {
         if !path.contains(.addFood) { addFoodDay = nil }
+        if path.last != .exportDestination { driveSetupOpenedFromExport = false }
     }
 
     func append(_ route: AppRoute) {
@@ -79,13 +80,24 @@ final class AppNavigationCoordinator: ObservableObject {
     }
 
     /// Settings > Export opened from Export's "Set up Google Drive" (owner decision C).
-    var exportSetupReturnsToExport: Bool {
-        path.count >= 2 && Array(path.suffix(2)) == [.dailyExport, .exportDestination]
+    /// One-shot and never persisted: set only by Export's "Set up Google Drive" button, not by
+    /// the ordinary Drive row or Settings, and cleared once that screen closes or returns.
+    private var driveSetupOpenedFromExport = false
+
+    /// Export's "Set up Google Drive": opens Settings > Export, which returns here after setup.
+    func openDriveSetupFromExport() {
+        driveSetupOpenedFromExport = true
+        path.append(.exportDestination)
     }
 
-    /// Pops Drive setup back to Export; does nothing when setup was opened from Settings.
+    var exportSetupReturnsToExport: Bool {
+        driveSetupOpenedFromExport && path.count >= 2 && Array(path.suffix(2)) == [.dailyExport, .exportDestination]
+    }
+
+    /// Pops Drive setup back to Export once; does nothing unless the set-up button opened it.
     func returnToExport() {
         guard exportSetupReturnsToExport else { return }
+        driveSetupOpenedFromExport = false
         path.removeLast()
     }
 

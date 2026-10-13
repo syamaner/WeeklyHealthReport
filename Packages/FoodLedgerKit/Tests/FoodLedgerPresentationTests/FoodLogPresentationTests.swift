@@ -203,6 +203,8 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertEqual(model.addFoodFootnote, "Entries can be logged up to 7 days back. New foods are logged for now.")
         XCTAssertEqual(FoodLogText.whenNotice(.beyondBackdatingWindow), "Entries can be logged up to 7 days back.")
         XCTAssertNil(FoodLogText.whenNotice(.now))
+        XCTAssertEqual(FoodLogText.listImportNote(entryDay: "2026-10-10"), "List items are logged for now.")
+        XCTAssertNil(FoodLogText.listImportNote(entryDay: nil))
     }
 
     func testNewEntryKeepsLogTitle() throws {

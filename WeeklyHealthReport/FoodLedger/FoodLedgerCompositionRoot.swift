@@ -350,7 +350,9 @@ final class FoodLedgerCompositionRoot {
             },
             confirmationNow: { [confirmationClock] in confirmationClock.now() },
             confirmationCalendar: confirmationCalendar,
-            amountLocale: locale
+            amountLocale: locale,
+            // The same whole-milk volume source and offering as the search route.
+            prepareConfirmation: { [weak self] state in self?.withMilkVolumeSource(state) ?? (state: state, offering: nil) }
         ) { [confirmations] state, operationID in
             try confirmations.save(
                 state, operationID: operationID,
@@ -553,6 +555,7 @@ struct AddFoodFlowView: View {
                     favourites: { showsFavourites = true },
                     favouriteItems: quickAddItems,
                     quickAdd: { quickAddRequest = $0 },
+                    listImportNote: FoodLogText.listImportNote(entryDay: finish?.entryDay),
                     relog: { recent in
                         if let model = try? root.model(relogging: recent.item.logItemID, entryDay: finish?.entryDay) {
                             confirmationModel = model; showsConfirmation = true

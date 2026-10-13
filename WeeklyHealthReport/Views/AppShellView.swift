@@ -173,7 +173,7 @@ struct AppShellView: View {
             HealthReportView(viewModel: viewModel, presentationState: presentationState)
                 .navigationTitle("Health report")
         case .dailyExport:
-            DailyExportView(session: dailyExport) { navigation.append(.exportDestination) }
+            DailyExportView(session: dailyExport) { navigation.openDriveSetupFromExport() }
         case .genericFoodSearch:
             if let foodLedger,
                let flow = GenericFoodSearchFlowView(root: foodLedger) {
