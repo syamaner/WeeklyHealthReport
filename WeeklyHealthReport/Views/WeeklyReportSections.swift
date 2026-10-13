@@ -118,7 +118,7 @@ struct MedicationReportSection: View {
                     }
                 }
 
-                Button("Medication Access", action: requestAccess)
+                Button("Medication access", action: requestAccess)
             }
         } header: {
             ReportSectionHeader(title: section.title, isExpanded: $isExpanded)
