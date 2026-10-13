@@ -174,6 +174,9 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
     }
 
     func fetchWorkouts(for period: ReportPeriod) async throws -> [WorkoutRecord] {
+        // Mirrors WorkoutHealthKitProjection.records, which checks for task
+        // cancellation explicitly while other HealthKit reads run to completion.
+        try Task.checkCancellation()
         guard let day = period.completedDays.first else { return [] }
         return [WorkoutRecord(
             id: fixtureID,
