@@ -316,6 +316,31 @@ final class WeeklyReportViewModelTests: XCTestCase {
         assertSnapshotMatchesPublishedStates(viewModel)
     }
 
+    /// Same failure mode for the medication-only refresh: a cancelled caller
+    /// must not publish medications as "Query failed".
+    func testCallerCancellationDoesNotFailMedicationOnlyRefresh() async throws {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 2, hour: 12, calendar: calendar)
+        let period = ReportPeriod.make(selection: .lastSevenCompletedDays, now: refreshDate, calendar: calendar)
+        let provider = FakeHealthDataProvider(
+            medicationResponses: [[medicationRecord(name: "Medication", in: period)]],
+            pauseFirstMedicationFetch: true
+        )
+        let viewModel = makeViewModel(provider: provider, calendar: calendar, dates: [refreshDate])
+
+        let caller = Task { await viewModel.refreshMedications() }
+        await provider.waitUntilFirstMedicationFetchIsPaused()
+        caller.cancel()
+        await provider.resumeFirstMedicationFetch()
+        await caller.value
+
+        XCTAssertEqual(
+            try XCTUnwrap(viewModel.medicationState.value).groups.first?.medicationName,
+            "Medication"
+        )
+        XCTAssertFalse(viewModel.isRefreshing)
+    }
+
     func testSendableHealthDataFixtureSerializesConcurrentResponseOwnership() async throws {
         let calendar = testCalendar()
         let firstDate = date(2026, 9, 1, hour: 12, calendar: calendar)

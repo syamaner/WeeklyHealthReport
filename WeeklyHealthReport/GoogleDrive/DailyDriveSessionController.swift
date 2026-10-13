@@ -401,6 +401,19 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     func prepareForPresentation() async {
+        await surviveCallerCancellation { await self.performPrepareForPresentation() }
+    }
+
+    /// Runs a HealthKit-reading operation in its own unstructured task. A
+    /// caller's cancellation (a view task ending) would otherwise reach the
+    /// export service's cancellation checks and be shown as a failed or
+    /// unavailable state. `busy` still serialises these operations.
+    private func surviveCallerCancellation(_ work: @escaping @MainActor () async -> Void) async {
+        let task = Task { await work() }
+        await task.value
+    }
+
+    private func performPrepareForPresentation() async {
         if !busy { lastExportOutcome = nil }
         guard !busy, isConfigured else {
             if !isConfigured {
@@ -491,6 +504,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     func refreshPreview() async {
+        await surviveCallerCancellation { await self.performRefreshPreview() }
+    }
+
+    private func performRefreshPreview() async {
         await run("Reading a fresh on-device daily snapshot…") {
             guard let bundleIdentifier = self.selectedNutritionSourceBundleIdentifier else {
                 throw DailyHealthExportError.nutritionSourceRequired
@@ -506,6 +523,10 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     }
 
     func refreshNutritionSources() async {
+        await surviveCallerCancellation { await self.performRefreshNutritionSources() }
+    }
+
+    private func performRefreshNutritionSources() async {
         await run("Requesting nutrition read access and discovering visible sources…") {
             let sources = try await self.exportService.discoverNutritionSources()
             self.nutritionSources = sources

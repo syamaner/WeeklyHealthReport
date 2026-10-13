@@ -818,7 +818,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
             todayWatchSamples = try await fetchAppleWatchHeartRateSampleDates(in: window.day)
             todayActiveEnergy = try await fetchActiveEnergyKilocalories(in: window.day)
             todayExercise = try await fetchExerciseMinutes(in: window.day)
-            todayWorkouts = try await WorkoutQueryDiagnostics.$caller.withValue("dailyExport day") {
+            todayWorkouts = try await WorkoutQueryDiagnostics.labelled("dailyExport day") {
                 try await fetchWorkouts(in: window.day, recoverAcceptedDistance: includeWorkoutEnrichment, includeHeartRateReadings: includeWorkoutEnrichment)
             }
         }
@@ -836,7 +836,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         let contextWatch = try await fetchAppleWatchHeartRateSampleDates(for: window.context)
         let contextActiveEnergy = try await fetchActiveEnergyKilocalories(for: window.context)
         let contextExercise = try await fetchExerciseMinutes(for: window.context)
-        let contextWorkouts = try await WorkoutQueryDiagnostics.$caller.withValue("dailyExport context") {
+        let contextWorkouts = try await WorkoutQueryDiagnostics.labelled("dailyExport context") {
             try await fetchWorkouts(for: window.context)
         }
         let contextSleep = try await fetchAsleepIntervals(

@@ -185,7 +185,14 @@ final class WeeklyReportViewModel: ObservableObject {
         reportStates.medications = .failed(message)
     }
 
+    /// Runs in its own unstructured task for the same reason as `refresh()`:
+    /// a caller's cancellation must not publish medications as failed.
     func refreshMedications() async {
+        let refresh = Task { await performMedicationRefresh() }
+        await refresh.value
+    }
+
+    private func performMedicationRefresh() async {
         medicationRefreshGeneration += 1
         let generation = medicationRefreshGeneration
         activeMedicationRefreshGeneration = generation
@@ -487,7 +494,7 @@ final class WeeklyReportViewModel: ObservableObject {
 
         do {
             let period = period
-            let workouts = try await WorkoutQueryDiagnostics.$caller.withValue(
+            let workouts = try await WorkoutQueryDiagnostics.labelled(
                 "healthReport generation=\(generation)"
             ) {
                 try await healthData.fetchWorkouts(for: period)

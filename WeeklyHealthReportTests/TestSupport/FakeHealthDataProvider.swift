@@ -201,7 +201,7 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
         for period: ReportPeriod
     ) async throws -> [MedicationDoseRecord] {
         guard let day = period.completedDays.first else { return [] }
-        return await control.nextMedicationDoses(
+        let doses = await control.nextMedicationDoses(
             responses: medicationResponses,
             fallback: [MedicationDoseRecord(
                 id: fixtureID,
@@ -212,6 +212,10 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
                 unitLabel: "dose"
             )]
         )
+        // A HealthKit query that observes task cancellation throws, so a
+        // cancelled caller would otherwise publish "Query failed".
+        try Task.checkCancellation()
+        return doses
     }
 
     private func heartValues(

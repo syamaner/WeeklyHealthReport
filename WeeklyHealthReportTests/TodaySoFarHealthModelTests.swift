@@ -47,6 +47,29 @@ final class TodaySoFarHealthModelTests: XCTestCase {
         XCTAssertEqual(model.projection?.window.asOf, at(9, 30), "the older refresh never overwrites the newer one")
     }
 
+    /// Same failure mode as the report (#229): pull to refresh and the
+    /// diagnostics `.task` are cancelled when their view goes away. A read that
+    /// observes that cancellation must not be shown as failed.
+    func testCallerCancellationMidReadIsNotShownAsFailed() async {
+        let reader = FakeTodaySoFarReader()
+        reader.inputs = TodaySoFarHealthInputs(
+            steps: .value(DailyStepTotal(day: DateInterval(), steps: 4200, sourceNames: [])),
+            activeEnergyKilocalories: .noData, asleepIntervals: .noData, weights: .noData, bloodPressure: .noData)
+        reader.suspendFirstRead = true
+        let model = makeModel(reader: reader, dates: [at(9, 0)])
+
+        let caller = Task { await model.handle(.pullToRefresh) }
+        await reader.waitForSuspendedRead()
+        caller.cancel()
+        reader.resumeSuspendedRead()
+        await caller.value
+
+        XCTAssertEqual(reader.cancelledReads, 0, "the read ran outside the cancelled caller")
+        XCTAssertEqual(model.projection?.steps, .value(.init(count: 4200, sourceNames: [])))
+        XCTAssertEqual(model.projection?.sleep, .noData)
+        XCTAssertFalse(model.isRefreshing)
+    }
+
     func testRolloverClearsThePreviousDayBeforeTheNewRead() async {
         let reader = FakeTodaySoFarReader()
         reader.inputs = TodaySoFarHealthInputs(
@@ -141,6 +164,9 @@ final class FakeTodaySoFarReader: TodaySoFarHealthReading {
     var inputs = TodaySoFarHealthInputs(
         steps: .noData, activeEnergyKilocalories: .noData, asleepIntervals: .noData, weights: .noData, bloodPressure: .noData)
     private(set) var windows: [TodaySoFarWindow] = []
+    /// Reads that observed task cancellation and so returned every metric as
+    /// failed, as `HealthKitClient.todaySoFarOutcome` maps a thrown error.
+    private(set) var cancelledReads = 0
     var suspendFirstRead = false
     var didSuspend = false
     private var continuation: CheckedContinuation<Void, Never>?
@@ -155,6 +181,12 @@ final class FakeTodaySoFarReader: TodaySoFarHealthReading {
                 suspendedWaiters.forEach { $0.resume() }
                 suspendedWaiters = []
             }
+        }
+        if Task.isCancelled {
+            cancelledReads += 1
+            return TodaySoFarHealthInputs(
+                steps: .failed, activeEnergyKilocalories: .failed, asleepIntervals: .failed,
+                weights: .failed, bloodPressure: .failed)
         }
         return inputs
     }

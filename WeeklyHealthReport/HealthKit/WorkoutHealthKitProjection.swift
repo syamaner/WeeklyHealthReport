@@ -188,22 +188,41 @@ enum WorkoutHealthKitProjection {
 /// builds compile every call to a no-op, so shipping behaviour is unchanged.
 /// Lines carry no health values beyond a workout count.
 enum WorkoutQueryDiagnostics {
-    /// Who asked for workouts, for example `healthReport generation=3`. Set by
-    /// the caller with `$caller.withValue`; unstructured child tasks inherit it.
-    @TaskLocal static var caller = "unlabelled"
+    #if DEBUG
+    /// Who asked for workouts, for example `healthReport generation=3`. Set
+    /// through `labelled`; unstructured child tasks inherit it.
+    @TaskLocal private static var caller = "unlabelled"
+    #endif
 
+    /// Runs `operation` with a caller label for the log. Release builds run
+    /// the operation directly and never build the label.
+    @inline(__always)
+    static func labelled<Value>(
+        _ label: @autoclosure () -> String,
+        _ operation: () async throws -> Value
+    ) async rethrows -> Value {
+        #if DEBUG
+        return try await $caller.withValue(label(), operation: operation)
+        #else
+        return try await operation()
+        #endif
+    }
+
+    @inline(__always)
     static func recordStart(interval: DateInterval) {
         #if DEBUG
         append("event=start interval=\(stamp(interval.start))..\(stamp(interval.end))")
         #endif
     }
 
+    @inline(__always)
     static func recordSuccess(count: Int) {
         #if DEBUG
         append("event=success count=\(count)")
         #endif
     }
 
+    @inline(__always)
     static func recordFailure(stage: String, error: Error) {
         #if DEBUG
         let nsError = error as NSError
