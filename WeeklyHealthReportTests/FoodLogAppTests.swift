@@ -252,6 +252,52 @@ final class FoodLogAppTests: XCTestCase {
         window.isHidden = true
     }
 
+    /// Owner decision, 14 October 2026: on a Food Log day older than the backdating window, Add
+    /// food is replaced by the window text and Go to today, at default and accessibility sizes
+    /// (visual check attached). Day 7 back keeps Add food.
+    func testFoodLogBeyondTheBackdatingWindowOffersGoToToday() async throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let defaults = isolatedDefaults()
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults)
+        let calendar = root.confirmationDayCalendar
+        let now = root.confirmationNow
+        let dayKey = { (offset: Int) in
+            FoodReportingDay.key(for: try XCTUnwrap(calendar.date(byAdding: .day, value: -offset, to: now)), calendar: calendar)
+        }
+        let sevenBack = try dayKey(7)
+        let eightBack = try dayKey(8)
+        let model = root.foodLogModel()
+        await model.showDay(sevenBack)
+        XCTAssertTrue(model.canAddFoodForSelectedDay)
+        XCTAssertEqual(model.addFoodDayKey, sevenBack)
+        await model.showDay(eightBack)
+        XCTAssertFalse(model.canAddFoodForSelectedDay)
+        XCTAssertNil(model.addFoodFootnote)
+        await model.returnToToday()
+        XCTAssertTrue(model.isToday)
+
+        for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
+            let navigation = AppNavigationCoordinator(defaults: defaults)
+            // Done from Add food on the Food Log is the route that sets a focus day.
+            navigation.replacePath([.foodLog, .addFood])
+            navigation.finishFoodEntry(reportingDay: eightBack)
+            let controller = UIHostingController(rootView: NavigationStack {
+                FoodLogView(root: root, navigation: navigation).environment(\.dynamicTypeSize, size)
+            })
+            let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+            window.rootViewController = controller
+            window.isHidden = false
+            try await Task.sleep(for: .seconds(1.5)) // yields the main actor so the view appears and loads
+            let image = UIGraphicsImageRenderer(bounds: window.bounds).image { window.layer.render(in: $0.cgContext) }
+            let attachment = XCTAttachment(image: image)
+            attachment.name = "Food Log - beyond the backdating window - \(name)"; attachment.lifetime = .keepAlways
+            add(attachment)
+            XCTAssertEqual(image.size.width, 390)
+            window.isHidden = true
+        }
+    }
+
     // MARK: Single post-save exit
 
     /// After a save, Confirm offers exactly one exit, labelled by its host, and no back button,
@@ -613,6 +659,47 @@ final class QuickAddAppTests: XCTestCase {
             evidenceIDs: [evidenceID]), name: LedgerText(name), itemClass: .food)
         return try PopulatedFoodConfirmation(evidence: [evidence], sourceReleases: [release], candidates: [candidate],
             expectedIdentity: identity, expectedEdibleQuantity: quantity)
+    }
+
+    /// Favourites opened from Add food on a past Food Log day: the create routes (Food search,
+    /// Barcode, Web lookup) carry Add food's finish, so When starts on that day, Log saves there and
+    /// Done returns to the Food Log on it. Opened from Home or Settings, they log for now.
+    func testFavouriteCreatedFromAddFoodOnAPastDayLogsThereAndFinishesAddFood() throws {
+        let root = try makeRoot()
+        let calendar = root.confirmationDayCalendar
+        let yesterday = FoodReportingDay.key(for: try XCTUnwrap(calendar.date(byAdding: .day, value: -1, to: root.confirmationNow)),
+                                             calendar: calendar)
+        let coordinator = AppNavigationCoordinator(defaults: UserDefaults(suiteName: "favourites-day-\(UUID().uuidString)")!)
+        coordinator.replacePath([.foodLog])
+        coordinator.openAddFood(fromFoodLogDay: yesterday)
+        XCTAssertEqual(coordinator.path, [.foodLog, .addFood])
+        let addFood = AddFoodFlowView(root: root, finish: FoodEntryFinish(entryDay: coordinator.addFoodEntryDay) {
+            coordinator.finishFoodEntry(reportingDay: $0)
+        })
+        let favourites = addFood.favouritesFlow
+        XCTAssertEqual((Mirror(reflecting: favourites).descendant("finish") as? FoodEntryFinish)?.entryDay, yesterday,
+                       "Add food passes its finish to Favourites")
+        let create = favourites.createFinish
+        XCTAssertEqual(create.entryDay, yesterday, "search, barcode and web lookup carry the day")
+
+        let confirm = root.model(for: try exactInput(), prefillSourceQuantity: false, savesFavourite: true, entryDay: create.entryDay)
+        XCTAssertEqual(confirm.state.occurredAt.map { FoodReportingDay.key(for: $0, calendar: calendar) }, yesterday,
+                       "When starts on the Food Log day")
+        confirm.send(.setQuantity(150, .grams))
+        confirm.log()
+        XCTAssertEqual(confirm.favouriteOutcome, .saved, "\(confirm.state.phase)")
+        let saved = try XCTUnwrap(confirm.savedResult)
+        XCTAssertEqual(saved.logItemVersion.reportingDate.value, yesterday, "saved on that day")
+        XCTAssertTrue(FoodEntryFinish.complete(create, saved: saved), "Done finishes Add food")
+        XCTAssertEqual(coordinator.path, [.foodLog])
+        XCTAssertEqual(coordinator.takeFoodLogFocusDay(), yesterday)
+
+        // From Home or Settings, Favourites has no Add food finish: Now, and Done stays in Favourites.
+        let standalone = FavouritesFlowView(root: root)
+        XCTAssertNil(Mirror(reflecting: standalone).descendant("finish") as? FoodEntryFinish)
+        XCTAssertNil(standalone.createFinish.entryDay)
+        XCTAssertNil(root.model(for: try exactInput("Oat milk"), prefillSourceQuantity: false, savesFavourite: true,
+                                entryDay: standalone.createFinish.entryDay).state.occurredAt, "logs for now")
     }
 
     /// Logs an exact food from Confirm with Save as favourite on; returns the new favourite.
