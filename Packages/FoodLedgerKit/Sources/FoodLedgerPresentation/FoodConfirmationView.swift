@@ -62,9 +62,46 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     public func applyAvailableVolumeConversion() {
-        guard let conversion = availableVolumeConversion,
-              state.input.sourceReleases.contains(where: { $0.sourceReleaseID == conversion.sourceReleaseID }) else { return }
+        guard let conversion = applicableVolumeConversion else { return }
         send(.setConversion(conversion))
+    }
+
+    /// The offered estimate when tapping it would apply it (its source release is on Confirm).
+    /// Both estimate actions are gated on this, so neither shows when a tap would do nothing.
+    public var applicableVolumeConversion: QuantityConversionDraft? {
+        guard let conversion = availableVolumeConversion,
+              state.input.sourceReleases.contains(where: { $0.sourceReleaseID == conversion.sourceReleaseID }) else { return nil }
+        return conversion
+    }
+
+    /// The estimate action shown directly above Log while the estimate is available and not
+    /// applied. Its energy is the Log total that tapping it would produce, computed from the same
+    /// reducer and totals; nil energy (unknown or incomplete) leaves the kcal out. Never applies
+    /// anything by itself.
+    public struct VolumeEstimateLogBarAction: Equatable, Sendable {
+        public let title: String
+        public let accessibilityLabel: String
+        /// False while saving: the amount must not change under a save in progress.
+        public let isEnabled: Bool
+        public static let accessibilityHint = "Estimates grams from the millilitres entered using a sourced whole-milk factor. Nothing is logged until you press Log."
+    }
+
+    /// The admission rule's wording (cofid-whole-milk-volume-admission-v1).
+    public static let volumeEstimateActionTitle = "Use sourced whole-milk volume estimate"
+
+    public var volumeEstimateLogBarAction: VolumeEstimateLogBarAction? {
+        guard savedResult == nil, let conversion = applicableVolumeConversion else { return nil }
+        let isEnabled = state.phase != .saving
+        var applied = state
+        FoodConfirmationReducer.reduce(state: &applied, action: .setConversion(conversion))
+        guard applied.quantity.conversion == conversion,
+              let kcal = Self.knownConsumedEnergy(applied, quantityIsEstimate: true) else {
+            return VolumeEstimateLogBarAction(title: Self.volumeEstimateActionTitle,
+                                              accessibilityLabel: Self.volumeEstimateActionTitle, isEnabled: isEnabled)
+        }
+        let energy = kcal > 0 && kcal < 0.5 ? FoodDisplayNumber.energy(kcal) : "about \(FoodDisplayNumber.energy(kcal))"
+        return VolumeEstimateLogBarAction(title: "\(Self.volumeEstimateActionTitle) (\(energy))",
+                                          accessibilityLabel: "\(Self.volumeEstimateActionTitle), \(energy)", isEnabled: isEnabled)
     }
 
     public func removeOfferedVolumeConversion() {
@@ -85,7 +122,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
         return usesOfferedVolumeEstimate ? Self.offeredVolumeEstimateLabel : conversion.methodVersion.value
     }
 
-    public static let offeredVolumeEstimateLabel = "Whole milk volume estimate (CoFID)"
+    /// The factor is PHE 2018 Annex A Table 4 (citing McCance and Widdowson), checked as 1.03 by the
+    /// adapter; it is not a CoFID field, so the label never names CoFID (admission v1).
+    public static let offeredVolumeEstimateLabel = "Whole milk volume estimate (1.03 g per mL, PHE)"
 
     private var usesOfferedVolumeEstimate: Bool {
         guard let sourceID = state.quantity.conversion?.sourceReleaseID,
@@ -185,19 +224,37 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     public var consumedNutrition: [FoodIntakeTotal] {
+        Self.consumedNutrition(state, quantityIsEstimate: state.quantity.directWeight?.basis == .estimated || usesOfferedVolumeEstimate)
+    }
+
+    private static func consumedNutrition(_ state: FoodConfirmationState, quantityIsEstimate: Bool) -> [FoodIntakeTotal] {
         guard let quantity = try? state.calculatedEdibleQuantity() else { return [] }
         return FoodIntakeSummary(contributions: [FoodIntakeContribution(
             quantity: quantity,
             basis: (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis,
             nutrients: state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients,
-            quantityIsEstimate: state.quantity.directWeight?.basis == .estimated || usesOfferedVolumeEstimate
+            quantityIsEstimate: quantityIsEstimate
         )]).totals
     }
 
     public var nutritionReview: FoodNutritionReviewPresentation {
+        Self.nutritionReview(state, totals: consumedNutrition)
+    }
+
+    private static func nutritionReview(_ state: FoodConfirmationState, totals: [FoodIntakeTotal]) -> FoodNutritionReviewPresentation {
         FoodNutritionReviewPresentation(nutrients: state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients,
             sourceBasis: (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis,
-            edibleQuantity: try? state.calculatedEdibleQuantity(), totals: consumedNutrition)
+            edibleQuantity: try? state.calculatedEdibleQuantity(), totals: totals)
+    }
+
+    /// The complete consumed energy the Log button states ("Log 130 kcal"), or nil when it is
+    /// unknown, partial or not scalable.
+    private static func knownConsumedEnergy(_ state: FoodConfirmationState, quantityIsEstimate: Bool) -> Double? {
+        let totals = consumedNutrition(state, quantityIsEstimate: quantityIsEstimate)
+        guard nutritionReview(state, totals: totals).isConsumed,
+              let energy = totals.first(where: { $0.key == .energyConsumed }),
+              energy.incompleteContributions == 0 else { return nil }
+        return energy.knownAmount
     }
 
     public var originalAmountRequirement: String? {
@@ -278,9 +335,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
             return savesAsFavourite ? "\(Self.logWithoutNutritionTitle) and save favourite" : Self.logWithoutNutritionTitle
         }
         if savesAsFavourite { return "Log and save favourite" }
-        guard nutritionReview.isConsumed,
-              let energy = consumedNutrition.first(where: { $0.key == .energyConsumed }),
-              energy.incompleteContributions == 0, let amount = energy.knownAmount else { return "Log" }
+        guard let amount = Self.knownConsumedEnergy(state, quantityIsEstimate: state.quantity.directWeight?.basis == .estimated
+                                                        || usesOfferedVolumeEstimate) else { return "Log" }
         return "Log \(FoodDisplayNumber.energy(amount))"
     }
 
@@ -656,6 +712,21 @@ public struct FoodConfirmationView: View {
             .background(.bar)
         } else {
             VStack(spacing: 6) {
+                // Secondary and next to Log, so the sourced estimate is not missed when Log
+                // would save without nutrition. It only applies the estimate; Log still saves.
+                if let estimate = model.volumeEstimateLogBarAction {
+                    Button {
+                        model.applyAvailableVolumeConversion()
+                    } label: {
+                        Text(estimate.title)
+                            .multilineTextAlignment(.center)
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!estimate.isEnabled)
+                    .accessibilityLabel(estimate.accessibilityLabel)
+                    .accessibilityHint(FoodConfirmationViewModel.VolumeEstimateLogBarAction.accessibilityHint)
+                }
                 Button {
                     model.log()
                 } label: {
@@ -762,8 +833,8 @@ public struct FoodConfirmationView: View {
                 }
                 .frame(minHeight: 44)
             }
-            if let offer = model.availableVolumeConversion {
-                Button("Use sourced whole-milk volume estimate") { model.applyAvailableVolumeConversion() }
+            if let offer = model.applicableVolumeConversion {
+                Button(FoodConfirmationViewModel.volumeEstimateActionTitle) { model.applyAvailableVolumeConversion() }
                 Text("\(model.state.quantity.value?.formatted() ?? "") mL gives about \(offer.convertedQuantity.value.formatted()) g. This estimate applies only to the selected UK CoFID whole pasteurised milk record. Check the food before using it; measured edible grams remain an alternative.")
                     .font(.caption)
             }
