@@ -174,6 +174,9 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
     }
 
     func fetchWorkouts(for period: ReportPeriod) async throws -> [WorkoutRecord] {
+        // Mirrors WorkoutHealthKitProjection.records, which checks for task
+        // cancellation explicitly while other HealthKit reads run to completion.
+        try Task.checkCancellation()
         guard let day = period.completedDays.first else { return [] }
         return [WorkoutRecord(
             id: fixtureID,
@@ -198,7 +201,7 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
         for period: ReportPeriod
     ) async throws -> [MedicationDoseRecord] {
         guard let day = period.completedDays.first else { return [] }
-        return await control.nextMedicationDoses(
+        let doses = await control.nextMedicationDoses(
             responses: medicationResponses,
             fallback: [MedicationDoseRecord(
                 id: fixtureID,
@@ -209,6 +212,10 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
                 unitLabel: "dose"
             )]
         )
+        // A HealthKit query that observes task cancellation throws, so a
+        // cancelled caller would otherwise publish "Query failed".
+        try Task.checkCancellation()
+        return doses
     }
 
     private func heartValues(

@@ -35,38 +35,46 @@ enum WorkoutHealthKitProjection {
     /// Query only exact associated legacy aggregate identities, in bounded batches.
     /// New v3 metadata and unrelated workouts cause no sample query.
     static func records(_ workouts: [HKWorkout], store: HKHealthStore, recoverAcceptedDistance: Bool = true, includeHeartRateReadings: Bool = false, activityName: (HKWorkoutActivityType) -> String) async throws -> [WorkoutRecord] {
-        var records = workouts.map { record($0, activityName: activityName($0.workoutActivityType)) }
-        let native = Dictionary(workouts.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
-        let requests = zip(workouts, records).compactMap { workout, record in
-            record.enrichment.flatMap { LegacyWorkoutDistanceRequest.make(workoutID: workout.uuid, source: workout.sourceRevision.source.bundleIdentifier, enrichment: $0) }
-        }
-        let recovered = try await LegacyWorkoutDistanceRecovery.resolve(requests, enabled: recoverAcceptedDistance) { batch, limit in
-            let alternatives = try batch.map { request -> NSPredicate in
-                guard let workout = native[request.workoutID] else { throw WorkoutAcceptedDistancePolicy.Invalid.metadata }
-                return NSCompoundPredicate(andPredicateWithSubpredicates: [
-                    HKQuery.predicateForObjects(from: workout),
-                    HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeySyncIdentifier, allowedValues: [request.syncIdentifier])
-                ])
+        var stage = "legacyDistanceRecovery"
+        do {
+            var records = workouts.map { record($0, activityName: activityName($0.workoutActivityType)) }
+            let native = Dictionary(workouts.map { ($0.uuid, $0) }, uniquingKeysWith: { first, _ in first })
+            let requests = zip(workouts, records).compactMap { workout, record in
+                record.enrichment.flatMap { LegacyWorkoutDistanceRequest.make(workoutID: workout.uuid, source: workout.sourceRevision.source.bundleIdentifier, enrichment: $0) }
             }
-            let descriptor = HKSampleQueryDescriptor(predicates: [.quantitySample(type: HKQuantityType(.distanceWalkingRunning),
-                predicate: NSCompoundPredicate(orPredicateWithSubpredicates: alternatives))], sortDescriptors: [], limit: limit)
-            return try await descriptor.result(for: store).map(legacyDistanceSample)
+            let recovered = try await LegacyWorkoutDistanceRecovery.resolve(requests, enabled: recoverAcceptedDistance) { batch, limit in
+                let alternatives = try batch.map { request -> NSPredicate in
+                    guard let workout = native[request.workoutID] else { throw WorkoutAcceptedDistancePolicy.Invalid.metadata }
+                    return NSCompoundPredicate(andPredicateWithSubpredicates: [
+                        HKQuery.predicateForObjects(from: workout),
+                        HKQuery.predicateForObjects(withMetadataKey: HKMetadataKeySyncIdentifier, allowedValues: [request.syncIdentifier])
+                    ])
+                }
+                let descriptor = HKSampleQueryDescriptor(predicates: [.quantitySample(type: HKQuantityType(.distanceWalkingRunning),
+                    predicate: NSCompoundPredicate(orPredicateWithSubpredicates: alternatives))], sortDescriptors: [], limit: limit)
+                return try await descriptor.result(for: store).map(legacyDistanceSample)
 
-        }
-        for index in records.indices {
-            if let distance = recovered[records[index].id] { records[index].enrichment?.acceptedDistance = distance }
-        }
-        if includeHeartRateReadings {
-            for index in records.indices {
-                try Task.checkCancellation()
-                guard let enrichment = records[index].enrichment else { continue }
-                let readings = try await heartRateReadings(workouts[index], store: store, enrichment: enrichment)
-                records[index].enrichment?.enrichmentVersion = 3
-                records[index].enrichment?.heartRateReadings = readings
             }
+            for index in records.indices {
+                if let distance = recovered[records[index].id] { records[index].enrichment?.acceptedDistance = distance }
+            }
+            stage = "heartRateReadings"
+            if includeHeartRateReadings {
+                for index in records.indices {
+                    try Task.checkCancellation()
+                    guard let enrichment = records[index].enrichment else { continue }
+                    let readings = try await heartRateReadings(workouts[index], store: store, enrichment: enrichment)
+                    records[index].enrichment?.enrichmentVersion = 3
+                    records[index].enrichment?.heartRateReadings = readings
+                }
+            }
+            stage = "finalCancellationCheck"
+            try Task.checkCancellation()
+            return records
+        } catch {
+            WorkoutQueryDiagnostics.recordFailure(stage: stage, error: error)
+            throw error
         }
-        try Task.checkCancellation()
-        return records
     }
 
     /// Expand native quantity series; never substitute the parent sample's summary.
@@ -171,6 +179,80 @@ enum WorkoutHealthKitProjection {
         }) else { return .noDataOrAccess }
         let result = WorkoutHeartRateZones(state: "available", source: source, zones: zones)
         return result.isValid ? result : .noDataOrAccess
+    }
+    #endif
+}
+
+/// DEBUG-only device diagnostics for the workout read path (#228 follow-up).
+/// Appends one line per event to `Documents/workouts-diagnostics.log`. Release
+/// builds compile every call to a no-op, so shipping behaviour is unchanged.
+/// Lines carry no health values beyond a workout count.
+enum WorkoutQueryDiagnostics {
+    #if DEBUG
+    /// Who asked for workouts, for example `healthReport generation=3`. Set
+    /// through `labelled`; unstructured child tasks inherit it.
+    @TaskLocal private static var caller = "unlabelled"
+    #endif
+
+    /// Runs `operation` with a caller label for the log. Release builds run
+    /// the operation directly and never build the label.
+    @inline(__always)
+    static func labelled<Value>(
+        _ label: @autoclosure () -> String,
+        _ operation: () async throws -> Value
+    ) async rethrows -> Value {
+        #if DEBUG
+        return try await $caller.withValue(label(), operation: operation)
+        #else
+        return try await operation()
+        #endif
+    }
+
+    @inline(__always)
+    static func recordStart(interval: DateInterval) {
+        #if DEBUG
+        append("event=start interval=\(stamp(interval.start))..\(stamp(interval.end))")
+        #endif
+    }
+
+    @inline(__always)
+    static func recordSuccess(count: Int) {
+        #if DEBUG
+        append("event=success count=\(count)")
+        #endif
+    }
+
+    @inline(__always)
+    static func recordFailure(stage: String, error: Error) {
+        #if DEBUG
+        let nsError = error as NSError
+        let description = nsError.localizedDescription.replacingOccurrences(of: "\n", with: " ")
+        append("event=failure stage=\(stage) type=\(String(reflecting: type(of: error))) "
+            + "domain=\(nsError.domain) code=\(nsError.code) description=\"\(description)\"")
+        #endif
+    }
+
+    #if DEBUG
+    private static let lock = NSLock()
+
+    private static func stamp(_ date: Date) -> String {
+        date.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: true).timeZone(separator: .omitted))
+    }
+
+    private static func append(_ event: String) {
+        let line = "\(stamp(Date())) caller=\(caller) taskCancelled=\(Task.isCancelled) \(event)\n"
+        guard let data = line.data(using: .utf8),
+              let directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first else { return }
+        let url = directory.appendingPathComponent("workouts-diagnostics.log")
+        lock.lock()
+        defer { lock.unlock() }
+        if !FileManager.default.fileExists(atPath: url.path) {
+            FileManager.default.createFile(atPath: url.path, contents: nil)
+        }
+        guard let handle = try? FileHandle(forWritingTo: url) else { return }
+        defer { try? handle.close() }
+        _ = try? handle.seekToEnd()
+        try? handle.write(contentsOf: data)
     }
     #endif
 }

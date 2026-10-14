@@ -74,7 +74,17 @@ final class TodaySoFarHealthModel: ObservableObject {
         self.calendar = calendar
     }
 
+    /// Runs the refresh in its own unstructured task. Pull to refresh and the
+    /// diagnostics `.task` are cancelled when their view goes away, and a
+    /// HealthKit read that observes that cancellation would otherwise be shown
+    /// as a failed read. A newer refresh still supersedes this one through the
+    /// generation check.
     func handle(_ trigger: Trigger) async {
+        let work = Task { await perform(trigger) }
+        await work.value
+    }
+
+    private func perform(_ trigger: Trigger) async {
         if trigger == .homeAppeared, !hasRequestedAuthorization {
             hasRequestedAuthorization = true
             // A completed sheet says nothing about read access; refresh either way.

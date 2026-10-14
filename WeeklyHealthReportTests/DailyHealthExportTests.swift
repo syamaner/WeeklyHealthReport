@@ -3102,6 +3102,11 @@ private final class FailingDailyProvider: DailyHealthExportDataProviding {
     }
 }
 
+/// Holds the task that called the controller so a fake read can cancel it.
+private final class CallerTaskBox: @unchecked Sendable {
+    var task: Task<Void, Never>?
+}
+
 private final class RecordingDailyProvider: DailyHealthExportDataProviding {
     let isHealthDataAvailable = true
     private let sources: [NutritionSource]
@@ -3239,6 +3244,50 @@ extension DailyHealthExportTests {
             XCTAssertNotNil(session.preview)
             XCTAssertNil(session.lastExportOutcome, "\(kind)")
         }
+    }
+
+    /// Same failure mode as the report (#229): if the task that asked for a
+    /// preview is cancelled while HealthKit is being read, the snapshot must
+    /// still complete rather than surface the cancellation as a failed state.
+    /// The exported bytes match an uncancelled refresh of the same inputs.
+    @MainActor
+    func testCallerCancellationMidReadStillProducesThePreview() async throws {
+        let (control, _) = await makePreviewLifecycleSession()
+        let expected = try XCTUnwrap(control.preview)
+
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 8, calendar: calendar)
+        let notesStore = MutableDailyNotesStore()
+        let caller = CallerTaskBox()
+        let provider = RecordingDailyProvider { window in
+            caller.task?.cancel()
+            return self.emptyInputs(window: window)
+        }
+        let session = DailyDriveSessionController(
+            keychain: MemoryDailySessionStore(),
+            drive: DailyDriveAPI(),
+            exportService: DailyHealthExportService(
+                healthData: provider,
+                notesStore: notesStore,
+                calendar: calendar,
+                now: { cutoff }
+            ),
+            identityStore: ControllerMemoryDailyIdentityStore(),
+            nutritionSourceSelection: FixedNutritionSourceSelection(
+                bundleIdentifier: fixtureNutritionSource.bundleIdentifier
+            ),
+            notes: DailyNotesController(store: notesStore, calendar: calendar, now: { cutoff })
+        )
+        let task = Task { await session.refreshPreview() }
+        caller.task = task
+        await task.value
+
+        XCTAssertTrue(task.isCancelled, "the caller was cancelled during the read")
+        XCTAssertEqual(provider.fetchCount, 1)
+        let preview = try XCTUnwrap(session.preview, "a caller cancellation must not discard the preview")
+        XCTAssertEqual(preview.bytes, expected.bytes)
+        XCTAssertEqual(session.presentationState, control.presentationState)
+        XCTAssertEqual(session.status, control.status)
     }
 
     @MainActor

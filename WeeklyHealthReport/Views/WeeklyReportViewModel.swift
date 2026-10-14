@@ -185,7 +185,14 @@ final class WeeklyReportViewModel: ObservableObject {
         reportStates.medications = .failed(message)
     }
 
+    /// Runs in its own unstructured task for the same reason as `refresh()`:
+    /// a caller's cancellation must not publish medications as failed.
     func refreshMedications() async {
+        let refresh = Task { await performMedicationRefresh() }
+        await refresh.value
+    }
+
+    private func performMedicationRefresh() async {
         medicationRefreshGeneration += 1
         let generation = medicationRefreshGeneration
         activeMedicationRefreshGeneration = generation
@@ -219,7 +226,16 @@ final class WeeklyReportViewModel: ObservableObject {
         }
     }
 
+    /// Runs the refresh in its own unstructured task so a caller's cancellation
+    /// (for example Home's `.task` ending when Health is pushed) cannot abandon
+    /// it half way and leave a cancellation reported as "Query failed". A newer
+    /// refresh still supersedes this one through the generation checks.
     func refresh() async {
+        let refresh = Task { await performRefresh() }
+        await refresh.value
+    }
+
+    private func performRefresh() async {
         refreshGeneration += 1
         let generation = refreshGeneration
         activeRefreshGeneration = generation
@@ -477,7 +493,12 @@ final class WeeklyReportViewModel: ObservableObject {
         guard generation == refreshGeneration else { return }
 
         do {
-            let workouts = try await healthData.fetchWorkouts(for: period)
+            let period = period
+            let workouts = try await WorkoutQueryDiagnostics.labelled(
+                "healthReport generation=\(generation)"
+            ) {
+                try await healthData.fetchWorkouts(for: period)
+            }
             guard generation == refreshGeneration else { return }
             // HealthKit does not disclose read denial. An empty result could be
             // either zero workouts or no read visibility, so do not claim zero.
