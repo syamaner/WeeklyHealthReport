@@ -160,12 +160,11 @@ struct FoodLogView: View {
         if model.canAddFoodForSelectedDay {
             addFoodButtonSection
         } else {
-            // Beyond the backdating window Add food would log for now, so it is not offered here.
+            // Beyond the backdating window Add food would log for now, so it is not offered here;
+            // the day header's Return to today selects today.
             Section {
                 Text(FoodLogText.addFoodBeyondWindow)
                     .fixedSize(horizontal: false, vertical: true)
-                Button(FoodLogText.goToToday) { Task { await model.returnToToday() } }
-                    .frame(minHeight: 44)
             }
         }
     }

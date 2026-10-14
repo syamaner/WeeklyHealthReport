@@ -210,7 +210,7 @@ final class FoodLogPresentationTests: XCTestCase {
     }
 
     /// Owner decision, 14 October 2026: day 7 back still offers Add food, prefilled on that day;
-    /// day 8 back replaces it with the window text and Go to today, which selects today.
+    /// day 8 back replaces it with the window text, and Return to today selects today.
     func testAddFoodIsReplacedBeyondTheBackdatingWindow() async throws {
         let london = Self.zone("Europe/London")
         let clock = Clock(Self.instant("2026-10-14T08:42:17Z")) // 09:42:17 BST
@@ -228,8 +228,7 @@ final class FoodLogPresentationTests: XCTestCase {
         await model.showDay("2026-10-06")
         XCTAssertFalse(model.canAddFoodForSelectedDay, "day 8 back")
         XCTAssertNil(model.addFoodFootnote)
-        XCTAssertEqual(FoodLogText.addFoodBeyondWindow, "Entries can only be added up to 7 days back.")
-        XCTAssertEqual(FoodLogText.goToToday, "Go to today")
+        XCTAssertEqual(FoodLogText.addFoodBeyondWindow, "Entries can be logged up to 7 days back.")
         await model.returnToToday()
         XCTAssertTrue(model.isToday)
         XCTAssertEqual(model.selectedKey, "2026-10-14")

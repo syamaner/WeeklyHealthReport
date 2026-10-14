@@ -33,17 +33,23 @@ final class FoodLedgerCompositionRoot {
     private let inventoryURL: URL
     /// One clock and one calendar for Confirm: the view model's When bounds and the
     /// authoritative save service use the same values (food_confirmation_v5).
-    private let confirmationClock: any LedgerClock = SystemLedgerClock()
-    private let confirmationCalendar: Calendar = .autoupdatingCurrent
+    private let confirmationClock: any LedgerClock
+    private let confirmationCalendar: Calendar
     private let draftURL: URL
     private var activeInventory: LocalInventoryViewModel?
     private var inventoryService: LocalInventoryService?
     private var activeReresolution: FoodReresolutionViewModel?
 
+    /// `confirmationClock` and `confirmationCalendar` are injectable so tests can fix the day
+    /// rules (the backdating window) instead of racing the live clock.
     init(
         fileManager: FileManager = .default,
-        userDefaults: UserDefaults = .standard
+        userDefaults: UserDefaults = .standard,
+        confirmationClock: any LedgerClock = SystemLedgerClock(),
+        confirmationCalendar: Calendar = .autoupdatingCurrent
     ) throws {
+        self.confirmationClock = confirmationClock
+        self.confirmationCalendar = confirmationCalendar
         let applicationSupport = try fileManager.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,

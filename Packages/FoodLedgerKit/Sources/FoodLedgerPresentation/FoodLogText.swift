@@ -14,9 +14,8 @@ public enum FoodLogText {
     /// A selected day older than the backdating window: When falls back to Now.
     public static let backdatingLimitNotice = "Entries can be logged up to \(FoodLogPolicy.backdatingDays) days back."
     /// Shown in place of Add food on a Food Log day older than the backdating window (owner
-    /// decision, 14 October 2026), with a Go to today button.
-    public static let addFoodBeyondWindow = "Entries can only be added up to \(FoodLogPolicy.backdatingDays) days back."
-    public static let goToToday = "Go to today"
+    /// decision, 14 October 2026); the day header's Return to today selects today.
+    public static let addFoodBeyondWindow = backdatingLimitNotice
 
     /// Add food from a past day: list import keeps Now (confirmation v5 section 10).
     public static let listImportNowNote = "List items are logged for now."

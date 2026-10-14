@@ -65,7 +65,7 @@ public final class FoodLogViewModel: ObservableObject {
     public var addFoodFootnote: String? { FoodLogText.addFoodFootnote(addFoodWhen, isToday: isToday) }
     /// Whether the Food Log offers Add food for the selected day: false only for a day older than
     /// the backdating window (the same `FoodEntryWhenPrefill` rule Confirm uses), where the view
-    /// shows `FoodLogText.addFoodBeyondWindow` and Go to today instead (owner decision, 14 October 2026).
+    /// shows `FoodLogText.addFoodBeyondWindow` instead (owner decision, 14 October 2026).
     public var canAddFoodForSelectedDay: Bool { addFoodWhen != .beyondBackdatingWindow }
 
     public func load() async {

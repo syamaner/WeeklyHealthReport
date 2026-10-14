@@ -252,43 +252,52 @@ final class FoodLogAppTests: XCTestCase {
         window.isHidden = true
     }
 
+    /// A root on a fixed clock and calendar (09:42:17 BST on 14 October 2026), so the backdating
+    /// window cannot move under the test at midnight.
+    private func fixedDayRoot(_ directory: URL, _ defaults: UserDefaults) throws -> FoodLedgerCompositionRoot {
+        var london = Calendar(identifier: .gregorian)
+        london.timeZone = try XCTUnwrap(TimeZone(identifier: "Europe/London"))
+        return try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults,
+            confirmationClock: FixedFoodLogClock(), confirmationCalendar: london)
+    }
+
     /// Owner decision, 14 October 2026: on a Food Log day older than the backdating window, Add
-    /// food is replaced by the window text and Go to today, at default and accessibility sizes
-    /// (visual check attached). Day 7 back keeps Add food.
-    func testFoodLogBeyondTheBackdatingWindowOffersGoToToday() async throws {
+    /// food is replaced by the window text; day 7 back keeps Add food with its day.
+    func testFoodLogOffersAddFoodOnlyWithinTheBackdatingWindow() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
-        let defaults = isolatedDefaults()
-        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults)
-        let calendar = root.confirmationDayCalendar
-        let now = root.confirmationNow
-        let dayKey = { (offset: Int) in
-            FoodReportingDay.key(for: try XCTUnwrap(calendar.date(byAdding: .day, value: -offset, to: now)), calendar: calendar)
-        }
-        let sevenBack = try dayKey(7)
-        let eightBack = try dayKey(8)
+        let root = try fixedDayRoot(directory, isolatedDefaults())
         let model = root.foodLogModel()
-        await model.showDay(sevenBack)
+        XCTAssertEqual(model.selectedKey, "2026-10-14")
+        await model.showDay("2026-10-07")
         XCTAssertTrue(model.canAddFoodForSelectedDay)
-        XCTAssertEqual(model.addFoodDayKey, sevenBack)
-        await model.showDay(eightBack)
+        XCTAssertEqual(model.addFoodDayKey, "2026-10-07")
+        await model.showDay("2026-10-06")
         XCTAssertFalse(model.canAddFoodForSelectedDay)
         XCTAssertNil(model.addFoodFootnote)
         await model.returnToToday()
         XCTAssertTrue(model.isToday)
+        XCTAssertTrue(model.canAddFoodForSelectedDay)
+    }
 
+    /// The beyond-window Food Log day at default and accessibility sizes (visual check attached).
+    func testFoodLogBeyondTheBackdatingWindowRenders() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let defaults = isolatedDefaults()
+        let root = try fixedDayRoot(directory, defaults)
         for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
             let navigation = AppNavigationCoordinator(defaults: defaults)
             // Done from Add food on the Food Log is the route that sets a focus day.
             navigation.replacePath([.foodLog, .addFood])
-            navigation.finishFoodEntry(reportingDay: eightBack)
+            navigation.finishFoodEntry(reportingDay: "2026-10-06")
             let controller = UIHostingController(rootView: NavigationStack {
                 FoodLogView(root: root, navigation: navigation).environment(\.dynamicTypeSize, size)
             })
             let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
             window.rootViewController = controller
             window.isHidden = false
-            try await Task.sleep(for: .seconds(1.5)) // yields the main actor so the view appears and loads
+            RunLoop.main.run(until: Date().addingTimeInterval(0.6))
             let image = UIGraphicsImageRenderer(bounds: window.bounds).image { window.layer.render(in: $0.cgContext) }
             let attachment = XCTAttachment(image: image)
             attachment.name = "Food Log - beyond the backdating window - \(name)"; attachment.lifetime = .keepAlways
@@ -1012,4 +1021,8 @@ private extension FoodConfirmationViewModel {
             send(.decideDifference(facet, offered.first { $0 == .matchesSource } ?? offered[0]))
         }
     }
+}
+
+private struct FixedFoodLogClock: LedgerClock {
+    func now() -> Date { Date(timeIntervalSince1970: 1_791_967_337) } // 2026-10-14T08:42:17Z
 }
