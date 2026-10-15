@@ -316,6 +316,7 @@ final class HealthReportFormatterTests: XCTestCase {
         Steps
         Average Daily Steps: 2,727
         Data Coverage: 7 / 7 days
+        Steps Trend: Insufficient history
         Weekly Total: 19,089
 
         Activity
@@ -418,6 +419,7 @@ final class HealthReportFormatterTests: XCTestCase {
         Steps
         Average Daily Steps: 2,727
         Data Coverage: 7 / 7 days
+        Steps Trend: Insufficient history
         Weekly Total: 19,089
 
         Weight
@@ -593,7 +595,7 @@ final class HealthReportFormatterTests: XCTestCase {
     ) -> ReportPresentationSnapshot {
         ReportPresentationSnapshot(
             period: period,
-            steps: steps.map(StepsState.loaded) ?? .noDataOrAccess,
+            steps: steps.map { .loaded($0) } ?? .noDataOrAccess,
             weight: weight.map(MetricState.available) ?? .noDataOrAccess,
             bodyFat: bodyFat.map(MetricState.available) ?? .noDataOrAccess,
             waist: waist.map(MetricState.available) ?? .noDataOrAccess,

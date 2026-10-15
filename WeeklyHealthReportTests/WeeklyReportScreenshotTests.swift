@@ -267,6 +267,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         section|steps|Steps
         steps|steps-average|Average Daily Steps|7,000|standard
         steps|steps-coverage|Data Coverage|7 / 7 days|standard
+        steps|steps-trend|Steps Trend|+6% vs previous 7d|standard
         steps|steps-total|Weekly Total|49,000|standard
         footer|steps|
         section|activity|Activity
@@ -508,6 +509,76 @@ final class WeeklyReportScreenshotTests: XCTestCase {
 
         XCTAssertEqual(section.rows.first { $0.id == "steps-average" }?.value, "7,000")
         XCTAssertEqual(section.rows.first { $0.id == "steps-coverage" }?.value, "2 / 3 days")
+    }
+
+    func testStepsTrendRowForTrendInsufficientHistoryZeroPreviousAndFailedPreviousRead() throws {
+        func day(_ offset: Int, _ steps: Double?) -> DailyStepTotal {
+            DailyStepTotal(
+                day: DateInterval(start: Date(timeIntervalSinceReferenceDate: Double(offset) * 86_400), duration: 86_400),
+                steps: steps,
+                sourceNames: []
+            )
+        }
+        let current = (0 ..< 7).map { day($0, 10_600) }
+        let summary = try XCTUnwrap(StepSummary.aggregate(current))
+        func rows(_ trend: StepTrendRead) throws -> [ReportDocument.Row] {
+            let document = ReportDocument(
+                snapshot: makeSnapshot(steps: .loaded(summary, trend: trend)),
+                calendar: testCalendar(),
+                locale: Locale(identifier: "en_GB")
+            )
+            return try XCTUnwrap(document.sections.first { $0.id == .steps }).rows
+        }
+        func calculated(_ previous: [Double?]) throws -> StepTrendRead {
+            .calculated(try XCTUnwrap(StepTrendSummary.calculate(
+                current: current,
+                previous: previous.enumerated().map { day($0.offset - 7, $0.element) },
+                completedDayCount: 7
+            )))
+        }
+
+        let withTrend = try rows(try calculated(Array(repeating: 10_000, count: 7)))
+        let shortHistory = try rows(try calculated([10_000, 10_000, 10_000, 10_000, nil, nil, nil]))
+        let zeroPrevious = try rows(try calculated(Array(repeating: 0, count: 7)))
+        let failedPrevious = try rows(.previousFailed("Synthetic previous failure"))
+
+        XCTAssertEqual(withTrend.map(\.id), ["steps-average", "steps-coverage", "steps-trend", "steps-total"])
+        XCTAssertEqual(withTrend[2], ReportDocument.Row("steps-trend", label: "Steps Trend", value: "+6% vs previous 7d"))
+        for trendRows in [shortHistory, zeroPrevious, failedPrevious] {
+            XCTAssertEqual(trendRows[2], ReportDocument.Row(
+                "steps-trend", label: "Steps Trend", value: "Insufficient history", style: .secondary
+            ))
+            // The current rows are byte-identical whatever the previous side did.
+            XCTAssertEqual(trendRows.filter { $0.id != "steps-trend" }, withTrend.filter { $0.id != "steps-trend" })
+        }
+        XCTAssertFalse(failedPrevious.contains { $0.value.contains("Synthetic") })
+        let failures = makeSnapshot(steps: .loaded(summary, trend: .previousFailed("Synthetic previous failure")))
+            .readFailures
+        XCTAssertEqual(failures, [ReportReadFailure(
+            metric: "Steps trend (previous period)", message: "Synthetic previous failure"
+        )])
+
+        let display = ReportDocument(
+            snapshot: makeSnapshot(steps: .loaded(summary, trend: try calculated(Array(repeating: 10_000, count: 7)))),
+            calendar: testCalendar(),
+            locale: Locale(identifier: "en_GB")
+        ).forDisplay()
+        let displayRow = try XCTUnwrap(display.sections.first { $0.id == .steps }?.rows.first { $0.id == "steps-trend" })
+        XCTAssertEqual(displayRow.label, "Steps trend")
+        XCTAssertEqual(displayRow.value, "+6% vs previous 7d")
+    }
+
+    func testStepsTrendRowIsAbsentWhenStepsHaveNoCurrentValues() throws {
+        for state in [StepsState.loading, .noDataOrAccess, .healthUnavailable, .noCompletedDays, .failed("x")] {
+            let document = ReportDocument(
+                snapshot: makeSnapshot(steps: state),
+                calendar: testCalendar(),
+                locale: Locale(identifier: "en_GB")
+            )
+            let section = try XCTUnwrap(document.sections.first { $0.id == .steps })
+            XCTAssertEqual(section.rows.count, 1, "\(state)")
+            XCTAssertFalse(section.rows.contains { $0.id == "steps-trend" }, "\(state)")
+        }
     }
 
     func testDocumentPreservesUnavailableAndFailedStepStates() {
@@ -943,10 +1014,26 @@ final class WeeklyReportScreenshotTests: XCTestCase {
 
         return ReportPresentationSnapshot(
             period: period,
-            steps: .loaded(StepSummary(
-                dailyTotals: [], totalSteps: 49_000, averageDailySteps: 7_000,
-                reportingDayCount: 7, daysWithVisibleData: 7
-            )),
+            steps: .loaded(
+                StepSummary(
+                    dailyTotals: [], totalSteps: 49_000, averageDailySteps: 7_000,
+                    reportingDayCount: 7, daysWithVisibleData: 7
+                ),
+                trend: .calculated(StepTrendSummary(
+                    current: StepSummary(
+                        dailyTotals: [], totalSteps: 49_000, averageDailySteps: 7_000,
+                        reportingDayCount: 7, daysWithVisibleData: 7
+                    ),
+                    previous: StepSummary(
+                        dailyTotals: [], totalSteps: 46_200, averageDailySteps: 6_600,
+                        reportingDayCount: 7, daysWithVisibleData: 7
+                    ),
+                    previousDailyTotals: [],
+                    completedDayCount: 7,
+                    requiredSampledDays: 5,
+                    change: (7_000 - 6_600) / 6_600 * 100
+                ))
+            ),
             weight: .available(WeightTrendSummary(
                 latest: WeightMeasurement(date: measured, kilograms: 100.6),
                 currentSevenDayAverage: 100.8,
@@ -1367,6 +1454,9 @@ extension WeeklyReportScreenshotTests {
             "steps-coverage", nil, "resting-heart-rate-trend",
             "weight-trend", "blood-pressure-morning-coverage"
         ])
+        XCTAssertEqual(HealthSummaryTiles.pins.map(\.trendRowID), [
+            "steps-trend", nil, nil, nil, nil
+        ])
         let tiles = HealthSummaryTiles.make(from: document)
         XCTAssertEqual(tiles.map(\.kind), HealthSummaryTile.Kind.allCases)
         for (tile, pin) in zip(tiles, HealthSummaryTiles.pins) {
@@ -1379,7 +1469,15 @@ extension WeeklyReportScreenshotTests {
             } else {
                 XCTAssertNil(tile.detail)
             }
+            if let trendID = pin.trendRowID {
+                XCTAssertNotNil(tile.trend, "\(pin.kind)")
+                XCTAssertEqual(tile.trend, section.rows.first { $0.id == trendID }, "\(pin.kind)")
+            } else {
+                XCTAssertNil(tile.trend)
+            }
         }
+        let stepsTile = try XCTUnwrap(tiles.first { $0.kind == .steps })
+        XCTAssertEqual(stepsTile.trend?.value, "+6% vs previous 7d")
         let weight = try XCTUnwrap(tiles.first { $0.kind == .weight })
         XCTAssertEqual(weight.primary.label, "7-day Average")
     }
@@ -1410,6 +1508,7 @@ extension WeeklyReportScreenshotTests {
             XCTAssertEqual(steps.primary.value, stepsValue, "\(stateCase)")
             XCTAssertEqual(steps.primary.style, stepsStyle, "\(stateCase)")
             XCTAssertNil(steps.detail)
+            XCTAssertNil(steps.trend)
 
             for tile in tiles where tile.kind != .steps {
                 let pin = try XCTUnwrap(HealthSummaryTiles.pins.first { $0.kind == tile.kind })

@@ -4,6 +4,7 @@ import Foundation
 enum FixtureError: LocalizedError {
     case authorizationFailure
     case glucoseFailure
+    case stepsFailure
 
     var errorDescription: String? {
         switch self {
@@ -11,6 +12,8 @@ enum FixtureError: LocalizedError {
             "Synthetic authorization failure"
         case .glucoseFailure:
             "Synthetic glucose query failure"
+        case .stepsFailure:
+            "Synthetic steps query failure"
         }
     }
 }
@@ -24,6 +27,7 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
     private let weightResponses: [[WeightMeasurement]]
     private let medicationResponses: [[MedicationDoseRecord]]
     private let control: FakeHealthDataControl
+    private let stepsResponse: (@Sendable (ReportPeriod) throws -> [DailyStepTotal])?
 
     init(
         isHealthDataAvailable: Bool = true,
@@ -33,8 +37,10 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
         weightResponses: [[WeightMeasurement]] = [],
         pauseFirstWeightFetch: Bool = false,
         medicationResponses: [[MedicationDoseRecord]] = [],
-        pauseFirstMedicationFetch: Bool = false
+        pauseFirstMedicationFetch: Bool = false,
+        stepsResponse: (@Sendable (ReportPeriod) throws -> [DailyStepTotal])? = nil
     ) {
+        self.stepsResponse = stepsResponse
         self.isHealthDataAvailable = isHealthDataAvailable
         self.supportsMedicationData = supportsMedicationData
         self.authorizationError = authorizationError
@@ -75,7 +81,8 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
     }
 
     func fetchDailySteps(for period: ReportPeriod) async throws -> [DailyStepTotal] {
-        period.completedDays.enumerated().map { index, day in
+        if let stepsResponse { return try stepsResponse(period) }
+        return period.completedDays.enumerated().map { index, day in
             DailyStepTotal(
                 day: day,
                 steps: Double(index + 1) * 1_000,

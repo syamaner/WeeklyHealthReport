@@ -16,7 +16,7 @@ struct HealthSummaryTileView: View {
                     .foregroundStyle(.secondary)
             }
             value(tile.primary, font: .title3)
-            if let detail = tile.detail {
+            ForEach([tile.detail, tile.trend].compactMap { $0 }) { detail in
                 VStack(alignment: .leading, spacing: 0) {
                     if let label = detail.label {
                         Text(label)
@@ -57,7 +57,7 @@ struct HealthSummaryTileView: View {
 
     private var accessibilityText: String {
         var parts = [tile.title]
-        for row in [tile.primary, tile.detail].compactMap({ $0 }) {
+        for row in [tile.primary, tile.detail, tile.trend].compactMap({ $0 }) {
             if let label = row.label {
                 parts.append("\(label): \(row.value)")
             } else {

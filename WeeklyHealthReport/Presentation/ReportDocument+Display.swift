@@ -37,6 +37,7 @@ extension ReportDocument {
     static let displayRowLabels: [String: String] = [
         "steps-average": "Average daily steps",
         "steps-coverage": "Data coverage",
+        "steps-trend": "Steps trend",
         "steps-total": "Weekly total",
         "weight-latest": "Latest weight",
         "weight-average": "Average, last 7 completed days",
@@ -126,9 +127,15 @@ extension ReportPresentationSnapshot {
             return nil
         }
         var stepsMessage: String?
-        if case .failed(let message) = steps { stepsMessage = message }
+        var stepsPreviousMessage: String?
+        switch steps {
+        case .failed(let message): stepsMessage = message
+        case .loaded(_, .previousFailed(let message)): stepsPreviousMessage = message
+        default: break
+        }
         let candidates: [(String, String?)] = [
             ("Steps", stepsMessage),
+            ("Steps trend (previous period)", stepsPreviousMessage),
             ("Weight", message(weight)),
             ("Body fat", message(bodyFat)),
             ("Waist circumference", message(waist)),

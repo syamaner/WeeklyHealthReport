@@ -17,7 +17,7 @@ struct StepsDiagnosticsSection: View {
 
     @ViewBuilder
     var body: some View {
-        if case .loaded(let summary) = state {
+        if case .loaded(let summary, let trend) = state {
             Section("Steps") {
                 LabeledContent(
                     "Average daily steps",
@@ -27,22 +27,80 @@ struct StepsDiagnosticsSection: View {
                     "Data coverage",
                     value: HealthReportFormatter.stepCoverage(summary)
                 )
-                ForEach(summary.dailyTotals) { daily in
-                    VStack(alignment: .leading, spacing: 4) {
-                        LabeledContent(
-                            daily.day.start.formatted(
-                                .dateTime.weekday(.abbreviated).day().month(.abbreviated)
-                            ),
-                            value: daily.steps.map {
-                                $0.formatted(.number.precision(.fractionLength(0)))
-                            } ?? "No visible data"
-                        )
-                        if !daily.sourceNames.isEmpty {
-                            Text(daily.sourceNames.joined(separator: ", "))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+                StepDailyTotalsDiagnostics(totals: summary.dailyTotals)
+            }
+            StepTrendDiagnosticsSection(trend: trend)
+        }
+    }
+}
+
+/// The steps trend's inputs, unrounded, for the Apple Health comparison in
+/// docs/health-steps-trend-v1.md section 8.
+private struct StepTrendDiagnosticsSection: View {
+    let trend: StepTrendRead
+
+    var body: some View {
+        Section("Steps trend vs previous period") {
+            LabeledContent("Policy", value: StepTrendPolicy.identifier)
+            switch trend {
+            case .notRead:
+                LabeledContent("Previous period", value: "Not read")
+            case .previousFailed(let message):
+                LabeledContent("Previous period read failed", value: message)
+            case .calculated(let summary):
+                LabeledContent("Completed days (N)", value: String(summary.completedDayCount))
+                LabeledContent(
+                    "Required sampled days per side",
+                    value: summary.requiredSampledDays.map(String.init)
+                        ?? "None, N below \(StepTrendPolicy.minimumCompletedDays)"
+                )
+                LabeledContent("Current average (unrounded)", value: Self.exact(summary.current.averageDailySteps))
+                LabeledContent("Current sampled days", value: String(summary.current.daysWithVisibleData))
+                if let first = summary.previousDailyTotals.first,
+                   let last = summary.previousDailyTotals.last {
+                    LabeledContent("Previous start", value: DiagnosticFormat.date(first.day.start))
+                    LabeledContent("Previous end (exclusive)", value: DiagnosticFormat.date(last.day.end))
+                }
+                LabeledContent(
+                    "Previous average (unrounded)",
+                    value: summary.previous.map { Self.exact($0.averageDailySteps) } ?? "No visible data"
+                )
+                LabeledContent(
+                    "Previous sampled days",
+                    value: String(summary.previous?.daysWithVisibleData ?? 0)
+                )
+                StepDailyTotalsDiagnostics(totals: summary.previousDailyTotals)
+                LabeledContent(
+                    "Change (unrounded)",
+                    value: summary.change.map { "\(Self.exact($0))%" } ?? "None"
+                )
+            }
+        }
+    }
+
+    private static func exact(_ value: Double) -> String {
+        value.formatted(.number.precision(.fractionLength(4)))
+    }
+}
+
+private struct StepDailyTotalsDiagnostics: View {
+    let totals: [DailyStepTotal]
+
+    var body: some View {
+        ForEach(totals) { daily in
+            VStack(alignment: .leading, spacing: 4) {
+                LabeledContent(
+                    daily.day.start.formatted(
+                        .dateTime.weekday(.abbreviated).day().month(.abbreviated)
+                    ),
+                    value: daily.steps.map {
+                        $0.formatted(.number.precision(.fractionLength(0)))
+                    } ?? "No visible data"
+                )
+                if !daily.sourceNames.isEmpty {
+                    Text(daily.sourceNames.joined(separator: ", "))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
         }

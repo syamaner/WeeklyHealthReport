@@ -63,6 +63,22 @@ struct HealthSummaryTile: Equatable, Identifiable {
     let title: String
     let primary: ReportDocument.Row
     let detail: ReportDocument.Row?
+    /// A trend line under the detail, copied verbatim from its row (steps only).
+    let trend: ReportDocument.Row?
+
+    init(
+        kind: Kind,
+        title: String,
+        primary: ReportDocument.Row,
+        detail: ReportDocument.Row?,
+        trend: ReportDocument.Row? = nil
+    ) {
+        self.kind = kind
+        self.title = title
+        self.primary = primary
+        self.detail = detail
+        self.trend = trend
+    }
 
     var id: Kind { kind }
 }
@@ -74,6 +90,7 @@ enum HealthSummaryTiles {
         let section: ReportDocument.SectionID
         let primaryRowID: String
         let detailRowID: String?
+        var trendRowID: String?
     }
 
     /// Row ids are pinned so a renamed row fails the tile tests rather than
@@ -84,7 +101,8 @@ enum HealthSummaryTiles {
             title: "Steps",
             section: .steps,
             primaryRowID: "steps-average",
-            detailRowID: "steps-coverage"
+            detailRowID: "steps-coverage",
+            trendRowID: "steps-trend"
         ),
         Pin(
             kind: .sleep,
@@ -127,11 +145,15 @@ enum HealthSummaryTiles {
                 let detail = pin.detailRowID.flatMap { id in
                     section.rows.first { $0.id == id }
                 }
+                let trend = pin.trendRowID.flatMap { id in
+                    section.rows.first { $0.id == id }
+                }
                 return HealthSummaryTile(
                     kind: pin.kind,
                     title: pin.title,
                     primary: shortFailure(primary),
-                    detail: detail.map(shortFailure)
+                    detail: detail.map(shortFailure),
+                    trend: trend.map(shortFailure)
                 )
             }
             // The section reports a state instead of values.
