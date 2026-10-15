@@ -1026,3 +1026,288 @@ private extension FoodConfirmationViewModel {
 private struct FixedFoodLogClock: LedgerClock {
     func now() -> Date { Date(timeIntervalSince1970: 1_791_967_337) } // 2026-10-14T08:42:17Z
 }
+
+/// Owner decision, 15 October 2026: Log on a new single food saves and closes Confirm through the
+/// exit Done used, then the destination shows "Logged · …" with Undo. Undo writes one Food Log
+/// remove; list import and Edit keep their saved state.
+extension QuickAddAppTests {
+    /// The exit each host passes as `leave`: Add food's finish, Favourites' return, or a pop.
+    private func hostLeave(_ finish: FoodEntryFinish?, _ model: FoodConfirmationViewModel,
+                           popped: @escaping () -> Void) -> () -> Void {
+        { if !FoodEntryFinish.complete(finish, saved: model.savedResult) { popped() } }
+    }
+
+    private func newEntry(_ root: FoodLedgerCompositionRoot, _ name: String = "Greek yoghurt",
+                          favourite: Bool = false) throws -> FoodConfirmationViewModel {
+        let model = root.model(for: try exactInput(name), prefillSourceQuantity: false, savesFavourite: favourite)
+        model.send(.setQuantity(100, .grams))
+        return model
+    }
+
+    private func makeCoordinator() -> AppNavigationCoordinator {
+        let name = "log-closes-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        addTeardownBlock { defaults.removePersistentDomain(forName: name) }
+        return AppNavigationCoordinator(defaults: defaults)
+    }
+
+    func testLogClosesConfirmToTheDoneDestinationOfEachHostAndShowsTheBanner() throws {
+        let root = try makeRoot()
+        let single = root.singleFoodConfirmation(try newEntry(root)) {}
+        XCTAssertNotNil(Mirror(reflecting: single).descendant("logged") as? (FoodLoggedNotice) -> Void,
+                        "single-food hosts pass the banner")
+        // Add food opened from the Food Log: back to the Food Log on the entry's day.
+        let coordinator = makeCoordinator()
+        coordinator.replacePath([.foodLog, .addFood])
+        root.loggedBanner.location = { AnyHashable(coordinator.path) }
+        let addFood = FoodEntryFinish { coordinator.finishFoodEntry(reportingDay: $0) }
+        let fromLog = try newEntry(root)
+        XCTAssertEqual(fromLog.logButtonTitle, "Log 57 kcal")
+        var popped = 0
+        XCTAssertTrue(FoodConfirmationView.logTapped(fromLog, leave: hostLeave(addFood, fromLog) { popped += 1 },
+                                                     logged: root.loggedBanner.show))
+        XCTAssertEqual(coordinator.path, [.foodLog])
+        XCTAssertEqual(coordinator.takeFoodLogFocusDay(), fromLog.savedResult?.logItemVersion.reportingDate.value)
+        XCTAssertEqual(root.loggedBanner.content?.message, "Logged · 57 kcal")
+        XCTAssertTrue(root.loggedBanner.content?.offersUndo == true)
+        root.loggedBanner.navigated(to: AnyHashable(coordinator.path))
+        XCTAssertNotNil(root.loggedBanner.content, "the closing navigation keeps the banner")
+        // Add food opened from Home: back Home.
+        coordinator.replacePath([.addFood])
+        let fromHome = try newEntry(root, "Oat milk")
+        XCTAssertTrue(FoodConfirmationView.logTapped(fromHome, leave: hostLeave(addFood, fromHome) { popped += 1 },
+                                                     logged: root.loggedBanner.show))
+        XCTAssertEqual(coordinator.path, [])
+        // Hosts outside Add food (Home's quick-add Confirm, the standalone routes): the host pops.
+        let standalone = try newEntry(root, "Skyr")
+        XCTAssertTrue(FoodConfirmationView.logTapped(standalone, leave: hostLeave(nil, standalone) { popped += 1 },
+                                                     logged: root.loggedBanner.show))
+        XCTAssertEqual(popped, 1)
+        // Favourites opened from Home: the create routes return to Favourites.
+        let favourites = FavouritesFlowView(root: root)
+        let created = try newEntry(root, "Kefir", favourite: true)
+        XCTAssertTrue(FoodConfirmationView.logTapped(created, leave: hostLeave(favourites.createFinish, created) { popped += 1 },
+                                                     logged: root.loggedBanner.show))
+        XCTAssertEqual(popped, 1, "Favourites' own return, not a pop")
+        XCTAssertEqual(root.loggedBanner.content?.message, "Logged and saved as favourite · 57 kcal")
+        XCTAssertEqual(root.loggedBanner.content?.detail, "Undo removes the entry. The favourite stays.")
+    }
+
+    func testUndoRemovesOnlyTheEntryAndTheFavouriteStays() async throws {
+        let root = try makeRoot()
+        let model = try newEntry(root, "Kefir", favourite: true)
+        XCTAssertTrue(FoodConfirmationView.logTapped(model, leave: {}, logged: root.loggedBanner.show))
+        let saved = try XCTUnwrap(model.savedResult)
+        let day = saved.logItemVersion.reportingDate.value
+        XCTAssertEqual(try root.foodLogService.day(reportingDate: day).entries.count, 1)
+        let favouritesBefore = try XCTUnwrap(root.quickAddItems())
+        await root.loggedBanner.undo()
+        await root.loggedBanner.undo()
+        let after = try root.foodLogService.day(reportingDate: day)
+        XCTAssertTrue(after.entries.isEmpty)
+        XCTAssertEqual(after.removed.map(\.logItemID), [saved.logItem.logItemID], "the entry moves to Removed")
+        // Append-only: the logged version and exactly one removed version, written by the Food
+        // Log remove path (its fixed reason is pinned by the reading service contract tests).
+        XCTAssertEqual(try root.foodLogService.historyEvents(saved.logItem.logItemID).map(\.kind), [.removed, .logged],
+                       "newest first")
+        XCTAssertEqual(root.loggedBanner.content, .result("Entry removed"))
+        XCTAssertEqual(root.loggedBanner.removals, 1)
+        XCTAssertEqual(try XCTUnwrap(root.quickAddItems()), favouritesBefore, "the favourite stays")
+    }
+
+    func testUndoIsUnavailableAfterTimeoutOrNavigation() async throws {
+        let root = try makeRoot()
+        let coordinator = makeCoordinator()
+        coordinator.replacePath([.foodLog])
+        root.loggedBanner.location = { AnyHashable(coordinator.path) }
+        let timedOut = try newEntry(root)
+        XCTAssertTrue(FoodConfirmationView.logTapped(timedOut, leave: {}, logged: root.loggedBanner.show))
+        root.loggedBanner.expire(generation: root.loggedBanner.currentGeneration)
+        XCTAssertNil(root.loggedBanner.content)
+        await root.loggedBanner.undo()
+        let navigatedAway = try newEntry(root, "Oat milk")
+        XCTAssertTrue(FoodConfirmationView.logTapped(navigatedAway, leave: {}, logged: root.loggedBanner.show))
+        coordinator.openAddFood(fromFoodLogDay: nil)
+        root.loggedBanner.navigated(to: AnyHashable(coordinator.path))
+        XCTAssertNil(root.loggedBanner.content)
+        await root.loggedBanner.undo()
+        let day = try XCTUnwrap(timedOut.savedResult).logItemVersion.reportingDate.value
+        XCTAssertEqual(try root.foodLogService.day(reportingDate: day).entries.count, 2, "nothing removed")
+    }
+
+    func testSaveFailureAndFavouriteFailureStayOnConfirm() throws {
+        let root = try makeRoot()
+        let state = try newEntry(root).state
+        let now = root.confirmationNow
+        struct Refused: Error {}
+        let failing = FoodConfirmationViewModel(state: state, now: { now },
+                                                calendar: root.confirmationDayCalendar) { _ in throw Refused() }
+        var left = 0
+        XCTAssertFalse(FoodConfirmationView.logTapped(failing, leave: { left += 1 }, logged: root.loggedBanner.show))
+        XCTAssertEqual(left, 0)
+        guard case .saveFailed = failing.state.phase else { return XCTFail("\(failing.state.phase)") }
+        XCTAssertNil(root.loggedBanner.content)
+        // The entry saves but its favourite does not: Confirm stays with Try again and Done.
+        let stored = try XCTUnwrap(try newEntry(root, "Skyr").savedResultAfterLog())
+        let favouriteFails = FoodConfirmationViewModel(state: state, now: { now },
+            calendar: root.confirmationDayCalendar, savesFavourite: true,
+            favouriteAction: { _ in throw Refused() }) { _ in stored }
+        XCTAssertFalse(FoodConfirmationView.logTapped(favouriteFails, leave: { left += 1 }, logged: root.loggedBanner.show))
+        XCTAssertEqual(favouriteFails.favouriteOutcome, .failed)
+        XCTAssertNotNil(favouriteFails.savedResult)
+        XCTAssertEqual(left, 0)
+        XCTAssertNil(root.loggedBanner.content)
+    }
+
+    func testListImportAndEditKeepTheirSavedState() throws {
+        let root = try makeRoot()
+        let saved = try XCTUnwrap(try newEntry(root).savedResultAfterLog())
+        let edit = try XCTUnwrap(try root.model(reopening: saved.logItem.logItemID))
+        edit.send(.setQuantity(120, .grams))
+        XCTAssertEqual(edit.logButtonTitle, "Save changes")
+        var left = 0
+        XCTAssertFalse(FoodConfirmationView.logTapped(edit, leave: { left += 1 }, logged: root.loggedBanner.show),
+                       "Save changes never closes, even with a handler")
+        XCTAssertNotNil(edit.savedResult)
+        XCTAssertEqual(left, 0)
+        XCTAssertNil(root.loggedBanner.content)
+        // List import and Edit build Confirm without the handler.
+        let list = ListConfirmationHost(confirmation: try newEntry(root, "Oat milk"), context: nil) {}
+        let listConfirm = try XCTUnwrap(Self.firstDescendant(of: list.body, ofType: FoodConfirmationView.self), "list import hosts Confirm")
+        XCTAssertNil(Mirror(reflecting: listConfirm).descendant("logged") as? (FoodLoggedNotice) -> Void, "list import keeps Next line")
+        let editConfirm = try XCTUnwrap(Self.firstDescendant(of: SavedEntryEditHost(model: edit) {}.body, ofType: FoodConfirmationView.self))
+        XCTAssertNil(Mirror(reflecting: editConfirm).descendant("logged") as? (FoodLoggedNotice) -> Void, "Edit keeps Done")
+    }
+
+    func testQuickAddSheetLogClosesAndTheBannerShowsItsAmount() async throws {
+        let root = try makeRoot()
+        let coordinator = makeCoordinator()
+        coordinator.replacePath([.foodLog, .addFood])
+        root.loggedBanner.location = { AnyHashable(coordinator.path) }
+        let sheet = root.quickAddSheetModel(try root.quickAddPreparation(.builtInWater))
+        var dismissed = 0
+        sheet.onLogged = QuickAddPresenter.completion(dismiss: { dismissed += 1 },
+            finish: FoodEntryFinish { coordinator.finishFoodEntry(reportingDay: $0) }, logged: {},
+            notice: { [weak sheet] in sheet?.loggedNotice }, show: root.loggedBanner.show)
+        sheet.log()
+        XCTAssertEqual(dismissed, 1)
+        XCTAssertEqual(coordinator.path, [.foodLog])
+        XCTAssertEqual(root.loggedBanner.content?.message, "Logged · 250 mL")
+        await root.loggedBanner.undo()
+        XCTAssertNil(try root.plainWaterTotal(for: root.confirmationNow, calendar: root.confirmationDayCalendar),
+                     "the removed water leaves the day")
+    }
+
+    func testBannerRendersAtStandardAndAccessibilitySizesInLightAndDark() throws {
+        let notice = FoodLoggedNotice(logItemID: try LogItemID("00000000-0000-0000-0000-000000000001"),
+            logItemVersionID: try LogItemVersionID("00000000-0000-0000-0000-000000000002"),
+            message: "Logged and saved as favourite · 260 kcal", detail: FoodLoggedText.favouriteStays)
+        let contents: [(String, FoodLoggedBannerModel.Content)] = [
+            ("logged", .logged(notice)), ("removed", .result(FoodLoggedText.removed))
+        ]
+        for (kind, content) in contents {
+            for (size, sizeName) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
+                for scheme in [ColorScheme.light, .dark] {
+                    render(ZStack(alignment: .bottom) {
+                        Color(.systemGroupedBackground).ignoresSafeArea()
+                        FoodLoggedBannerContent(content: content, undo: {}, dismiss: {})
+                    }
+                    .environment(\.dynamicTypeSize, size).environment(\.colorScheme, scheme),
+                    "Logged banner - \(kind) - \(sizeName) - \(scheme == .dark ? "dark" : "light")")
+                }
+            }
+        }
+    }
+
+    /// Review fix: a push outside the navigation path (the Food Log opening a saved entry through
+    /// `navigationDestination(item:)`, search results through `isPresented:`) dismisses the banner
+    /// shown on the screen underneath, so Undo is never offered over another screen.
+    func testOpeningASavedEntryDismissesTheBannerShownOnTheFoodLog() async throws {
+        try await assertNonPathPushDismissesTheBanner("item")
+    }
+
+    func testPushingSearchResultsDismissesTheBannerShownBelow() async throws {
+        try await assertNonPathPushDismissesTheBanner("isPresented")
+    }
+
+    private func assertNonPathPushDismissesTheBanner(_ kind: String) async throws {
+        let root = try makeRoot()
+        let banner = root.loggedBanner
+        do {
+            let pushes = BannerPushState()
+            let host = UIHostingController(rootView: NavigationStack {
+                BannerPushRoot(state: pushes, banner: banner, usesItem: kind == "item")
+            })
+            // A window in the app's scene, so navigation and window changes run as on device.
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            window.rootViewController = host
+            window.makeKeyAndVisible()
+            addTeardownBlock { window.isHidden = true }
+            Self.runUntil { banner.hasVisibleScreen }
+            XCTAssertTrue(banner.hasVisibleScreen, "\(kind): the screen reports entering the window")
+            let model = try newEntry(root, "Kefir \(kind)")
+            XCTAssertTrue(FoodConfirmationView.logTapped(model, leave: {}, logged: banner.show))
+            XCTAssertNotNil(banner.content, "shown on the registered screen")
+            XCTAssertTrue(banner.isAnchoredToScreen, "\(kind): anchored to the screen showing")
+            if kind == "item" { pushes.openedEntry = "saved entry" } else { pushes.showsResults = true }
+            Self.runUntil { banner.content == nil && pushes.pushedAppeared > 0 }
+            XCTAssertEqual(pushes.pushedAppeared, 1, "\(kind): the push happened")
+            XCTAssertNil(banner.content, "\(kind): leaving the screen dismisses the banner")
+            await banner.undo()
+            let day = try XCTUnwrap(model.savedResult).logItemVersion.reportingDate.value
+            let content = try root.foodLogService.day(reportingDate: day)
+            XCTAssertEqual(content.removed.count, 0, "\(kind): nothing removed")
+            XCTAssertEqual(content.entries.count, 1, kind)
+            window.isHidden = true
+        }
+    }
+
+    private static func runUntil(seconds: TimeInterval = 5, _ condition: () -> Bool) {
+        let deadline = Date().addingTimeInterval(seconds)
+        while !condition(), Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+    }
+
+    private static func firstDescendant<T>(of value: Any, ofType: T.Type, depth: Int = 0) -> T? {
+        if let match = value as? T { return match }
+        guard depth < 12 else { return nil }
+        for child in Mirror(reflecting: value).children {
+            if let match = firstDescendant(of: child.value, ofType: T.self, depth: depth + 1) { return match }
+        }
+        return nil
+    }
+}
+
+@MainActor
+private final class BannerPushState: ObservableObject {
+    @Published var openedEntry: String?
+    @Published var showsResults = false
+    var pushedAppeared = 0
+}
+
+/// A registered screen with the two kinds of push the Food Log and the search hosts use.
+private struct BannerPushRoot: View {
+    @ObservedObject var state: BannerPushState
+    let banner: FoodLoggedBannerModel
+
+    let usesItem: Bool
+
+    var body: some View {
+        Group {
+            if usesItem {
+                Text("Food Log").navigationDestination(item: $state.openedEntry) { Text($0).onAppear { state.pushedAppeared += 1 } }
+            } else {
+                Text("Search").navigationDestination(isPresented: $state.showsResults) { Text("Search results").onAppear { state.pushedAppeared += 1 } }
+            }
+        }
+            .foodLoggedBannerScreen(banner)
+    }
+}
+
+private extension FoodConfirmationViewModel {
+    func savedResultAfterLog() -> StoredFoodConfirmation? {
+        log()
+        return savedResult
+    }
+}

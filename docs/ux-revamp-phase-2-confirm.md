@@ -48,7 +48,7 @@ Source identity and nutrients are never changed by a decision; differences stay 
 | `editing`, no requirements | Ready |
 | `saving` | Log shows progress; inputs disabled |
 | `saveFailed(message)` | Inline failure above the bar with "Try again"; state retained |
-| `saved(logItemID)` | Saved confirmation and Done (route decides the destination) |
+| `saved(logItemID)` | Saved confirmation and Done (route decides the destination). **15 October 2026, owner decision:** a new single food closes Confirm on Log and the destination shows "Logged · …" with Undo; list import, Edit and a failed favourite keep this saved state (see phase 4, "Log closes Confirm with Undo") |
 | Reopened (`reopened != nil`) | Same screen titled for editing; When starts at the stored time; decisions not asked again |
 | Direct weight needs reconfirmation | "Keep this weight" inline action |
 

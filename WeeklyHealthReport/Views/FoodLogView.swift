@@ -62,6 +62,10 @@ struct FoodLogView: View {
             Task { await model.refreshAfterTimeChange() }
         }
         .refreshable { await model.load() }
+        // Undo on the banner after Log removes the entry this log may be showing.
+        .onReceive(root.loggedBanner.$removals.dropFirst()) { _ in Task { await model.load() } }
+        // Opening a saved entry (or anything else pushed here) dismisses the banner shown here.
+        .foodLoggedBannerScreen(root.loggedBanner)
         .navigationDestination(item: $openedEntry) { id in
             SavedFoodEntryView(model: root.savedEntryModel(id), favourites: root.favouriteSaveModel(),
                                calendar: model.calendar, now: { root.confirmationNow })

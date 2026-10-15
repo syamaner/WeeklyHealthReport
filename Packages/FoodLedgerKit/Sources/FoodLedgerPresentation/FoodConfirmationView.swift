@@ -335,9 +335,30 @@ public final class FoodConfirmationViewModel: ObservableObject {
             return savesAsFavourite ? "\(Self.logWithoutNutritionTitle) and save favourite" : Self.logWithoutNutritionTitle
         }
         if savesAsFavourite { return "Log and save favourite" }
-        guard let amount = Self.knownConsumedEnergy(state, quantityIsEstimate: state.quantity.directWeight?.basis == .estimated
-                                                        || usesOfferedVolumeEstimate) else { return "Log" }
+        guard let amount = logEnergy else { return "Log" }
         return "Log \(FoodDisplayNumber.energy(amount))"
+    }
+
+    /// The energy the Log button states for a new entry, or nil when it is not complete.
+    private var logEnergy: Double? {
+        Self.knownConsumedEnergy(state, quantityIsEstimate: state.quantity.directWeight?.basis == .estimated
+                                    || usesOfferedVolumeEstimate)
+    }
+
+    /// The figures captured at the Log press for the banner (owner decision, 15 October 2026).
+    private var logPress: (energy: Double?, withoutNutrition: Bool)?
+
+    /// The banner for the entry just logged, once Log may close Confirm: a new entry saved, and
+    /// any favourite requested with it saved too. Nil for Save changes, before a save, and when
+    /// the favourite failed, so Confirm stays with Try again and Done.
+    public var loggedNotice: FoodLoggedNotice? {
+        guard let saved = savedResult, let logPress, state.reopened == nil else { return nil }
+        let savedFavourite = favouriteOutcome == .saved
+        if savesFavourite && offersFavourite && !savedFavourite { return nil }
+        return FoodLoggedNotice(saved: saved,
+            message: FoodLoggedText.message(figure: logPress.energy.map { FoodDisplayNumber.energy($0) },
+                                             withoutNutrition: logPress.withoutNutrition, savedFavourite: savedFavourite),
+            detail: FoodLoggedText.detail(savedFavourite: savedFavourite))
     }
 
     public var occurredAtRange: ClosedRange<Date> {
@@ -366,6 +387,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// One Log press: the explicit acceptance of the displayed food, amount, time and source.
     public func log() {
         guard canLog else { return }
+        logPress = (unitBasisMismatch == nil ? logEnergy : nil, unitBasisMismatch != nil)
         send(.accept)
         save()
     }
@@ -441,6 +463,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
 public struct FoodConfirmationView: View {
     @ObservedObject private var model: FoodConfirmationViewModel
     private let leave: () -> Void
+    /// Set by hosts of a new single food: Log then leaves through `leave` (the exit Done uses)
+    /// and hands over the banner. Nil keeps the saved state with Done (list import, edit).
+    private let logged: ((FoodLoggedNotice) -> Void)?
     private let context: String?
     private let completionTitle: String
     private let showsCancelButton: Bool
@@ -472,9 +497,11 @@ public struct FoodConfirmationView: View {
 
     public init(
         model: FoodConfirmationViewModel, context: String? = nil,
-        completionTitle: String = "Done", showsCancelButton: Bool = true, leave: @escaping () -> Void
+        completionTitle: String = "Done", showsCancelButton: Bool = true,
+        logged: ((FoodLoggedNotice) -> Void)? = nil, leave: @escaping () -> Void
     ) {
         self.model = model
+        self.logged = logged
         self.showsCancelButton = showsCancelButton
         self.context = context
         self.completionTitle = completionTitle
@@ -492,6 +519,19 @@ public struct FoodConfirmationView: View {
         let method = weighingMethodTitle(usesPlate: usesPlate)
         guard usesPlate, let emptyPlateGrams else { return method }
         return "\(method) · plate \(FoodAmountFieldText.text(emptyPlateGrams, locale: locale)) g"
+    }
+
+    /// One Log press. With a `logged` handler, a successful new entry leaves at once through the
+    /// host's exit and then shows the banner; returns true when it closed. A failed save, Save
+    /// changes or a failed favourite stay on Confirm as before.
+    @discardableResult
+    public static func logTapped(_ model: FoodConfirmationViewModel, leave: () -> Void,
+                                 logged: ((FoodLoggedNotice) -> Void)?) -> Bool {
+        model.log()
+        guard let logged, let notice = model.loggedNotice else { return false }
+        leave()
+        logged(notice)
+        return true
     }
 
     /// The exits Confirm offers (#197): before a save, Cancel when the host shows one; after a
@@ -728,7 +768,7 @@ public struct FoodConfirmationView: View {
                     .accessibilityHint(FoodConfirmationViewModel.VolumeEstimateLogBarAction.accessibilityHint)
                 }
                 Button {
-                    model.log()
+                    Self.logTapped(model, leave: leave, logged: logged)
                 } label: {
                     Group {
                         if model.state.phase == .saving { ProgressView() } else { Text(model.logButtonTitle) }

@@ -155,6 +155,14 @@ public final class QuickAddSheetModel: ObservableObject, Identifiable {
         return "Log \(QuickAddText.amount(value, unit: unit))"
     }
 
+    /// The banner after Log (owner decision, 15 October 2026): "Logged · 250 mL", the figure the
+    /// sheet's Log button showed. Nil until the one successful Log.
+    public var loggedNotice: FoodLoggedNotice? {
+        guard phase == .saved, let saved = savedResult else { return nil }
+        let figure = state.quantity.value.flatMap { $0.isFinite && $0 > 0 ? QuickAddText.amount($0, unit: unit) : nil }
+        return FoodLoggedNotice(saved: saved, message: FoodLoggedText.message(figure: figure, withoutNutrition: false, savedFavourite: false))
+    }
+
     public var occurredAtRange: ClosedRange<Date> {
         let current = now()
         return FoodLogPolicy.windowStart(now: current, calendar: calendar)...current
