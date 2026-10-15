@@ -95,4 +95,4 @@ Checked against `main` at `def4b19` (phase 3 #207 as `34fae5d`, phase 4 #211 as 
 
 ### Log closes with Undo (owner decision, 15 October 2026)
 
-Quick add (the sheet and its full Confirm, from Home or Add food) and the "Log now and save favourite" routes follow phase 4's "Log closes Confirm with Undo": Log saves, the journey returns where Done went, and the banner offers Undo for 5 seconds. Undo removes only the log entry; a favourite saved with it stays, and the banner says so. The sheet's banner states the amount its Log button showed ("Logged · 250 mL").
+Quick add (the sheet and its full Confirm, from Home or Add food) and the "Log now and save favourite" routes follow phase 4's "Log closes Confirm with Undo": Log saves, the journey returns where Done went, and the banner offers Undo for 5 seconds (10 at accessibility text sizes). Undo removes only the log entry; a favourite saved with it stays, and the banner says so. The sheet's banner states the amount its Log button showed ("Logged · 250 mL").

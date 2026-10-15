@@ -1219,6 +1219,56 @@ extension QuickAddAppTests {
         }
     }
 
+    /// Review fix: a push outside the navigation path (the Food Log opening a saved entry through
+    /// `navigationDestination(item:)`, search results through `isPresented:`) dismisses the banner
+    /// shown on the screen underneath, so Undo is never offered over another screen.
+    func testOpeningASavedEntryDismissesTheBannerShownOnTheFoodLog() async throws {
+        try await assertNonPathPushDismissesTheBanner("item")
+    }
+
+    func testPushingSearchResultsDismissesTheBannerShownBelow() async throws {
+        try await assertNonPathPushDismissesTheBanner("isPresented")
+    }
+
+    private func assertNonPathPushDismissesTheBanner(_ kind: String) async throws {
+        let root = try makeRoot()
+        let banner = root.loggedBanner
+        do {
+            let pushes = BannerPushState()
+            let host = UIHostingController(rootView: NavigationStack {
+                BannerPushRoot(state: pushes, banner: banner, usesItem: kind == "item")
+            })
+            // A window in the app's scene, so navigation and window changes run as on device.
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            window.rootViewController = host
+            window.makeKeyAndVisible()
+            addTeardownBlock { window.isHidden = true }
+            Self.runUntil { banner.hasVisibleScreen }
+            XCTAssertTrue(banner.hasVisibleScreen, "\(kind): the screen reports entering the window")
+            let model = try newEntry(root, "Kefir \(kind)")
+            XCTAssertTrue(FoodConfirmationView.logTapped(model, leave: {}, logged: banner.show))
+            XCTAssertNotNil(banner.content, "shown on the registered screen")
+            XCTAssertTrue(banner.isAnchoredToScreen, "\(kind): anchored to the screen showing")
+            if kind == "item" { pushes.openedEntry = "saved entry" } else { pushes.showsResults = true }
+            Self.runUntil { banner.content == nil && pushes.pushedAppeared > 0 }
+            XCTAssertEqual(pushes.pushedAppeared, 1, "\(kind): the push happened")
+            XCTAssertNil(banner.content, "\(kind): leaving the screen dismisses the banner")
+            await banner.undo()
+            let day = try XCTUnwrap(model.savedResult).logItemVersion.reportingDate.value
+            let content = try root.foodLogService.day(reportingDate: day)
+            XCTAssertEqual(content.removed.count, 0, "\(kind): nothing removed")
+            XCTAssertEqual(content.entries.count, 1, kind)
+            window.isHidden = true
+        }
+    }
+
+    private static func runUntil(seconds: TimeInterval = 5, _ condition: () -> Bool) {
+        let deadline = Date().addingTimeInterval(seconds)
+        while !condition(), Date() < deadline { RunLoop.main.run(until: Date().addingTimeInterval(0.05)) }
+    }
+
     private static func firstDescendant<T>(of value: Any, ofType: T.Type, depth: Int = 0) -> T? {
         if let match = value as? T { return match }
         guard depth < 12 else { return nil }
@@ -1226,6 +1276,32 @@ extension QuickAddAppTests {
             if let match = firstDescendant(of: child.value, ofType: T.self, depth: depth + 1) { return match }
         }
         return nil
+    }
+}
+
+@MainActor
+private final class BannerPushState: ObservableObject {
+    @Published var openedEntry: String?
+    @Published var showsResults = false
+    var pushedAppeared = 0
+}
+
+/// A registered screen with the two kinds of push the Food Log and the search hosts use.
+private struct BannerPushRoot: View {
+    @ObservedObject var state: BannerPushState
+    let banner: FoodLoggedBannerModel
+
+    let usesItem: Bool
+
+    var body: some View {
+        Group {
+            if usesItem {
+                Text("Food Log").navigationDestination(item: $state.openedEntry) { Text($0).onAppear { state.pushedAppeared += 1 } }
+            } else {
+                Text("Search").navigationDestination(isPresented: $state.showsResults) { Text("Search results").onAppear { state.pushedAppeared += 1 } }
+            }
+        }
+            .foodLoggedBannerScreen(banner)
     }
 }
 

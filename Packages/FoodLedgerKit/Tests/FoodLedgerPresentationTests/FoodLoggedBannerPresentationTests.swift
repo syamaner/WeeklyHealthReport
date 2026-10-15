@@ -65,7 +65,7 @@ final class FoodLoggedBannerPresentationTests: XCTestCase {
     }
 
     func testTheDefaultTimerHidesTheBanner() async throws {
-        let model = FoodLoggedBannerModel(store: RecordingRemover(outcome: .applied), sleep: { _ in })
+        let model = FoodLoggedBannerModel(store: RecordingRemover(outcome: .applied), sleep: { _ in }, announce: { _ in })
         model.show(try Self.notice())
         for _ in 0..<50 where model.content != nil { await Task.yield() }
         XCTAssertNil(model.content)
@@ -79,7 +79,7 @@ final class FoodLoggedBannerPresentationTests: XCTestCase {
         model.show(try Self.notice())
         model.expire(generation: model.currentGeneration)
         XCTAssertNotNil(model.content, "kept while VoiceOver runs")
-        XCTAssertEqual(FoodLoggedBanner.announcement(try XCTUnwrap(model.content)), "Logged · 57 kcal. Undo available.")
+        XCTAssertEqual(FoodLoggedBannerModel.announcement(try XCTUnwrap(model.content)), "Logged · 57 kcal. Undo available.")
         model.dismiss()
         XCTAssertNil(model.content)
         await model.undo()
@@ -110,6 +110,86 @@ final class FoodLoggedBannerPresentationTests: XCTestCase {
         XCTAssertEqual(model.content?.message, "Logged")
     }
 
+    // MARK: Review fixes (PR #240)
+
+    /// A sheet closed over a registered screen: the banner belongs to that screen, and anything
+    /// pushed over it (a saved entry, a search result) dismisses it.
+    func testLeavingTheScreenStillShowingDismissesTheBanner() async throws {
+        let store = RecordingRemover(outcome: .applied)
+        let model = FoodLoggedBannerModel(store: store, sleep: { _ in await Self.never() }, announce: { _ in })
+        let home = UUID(), pushed = UUID()
+        model.screenAppeared(home)
+        model.show(try Self.notice())
+        model.screenAppeared(pushed)
+        XCTAssertNotNil(model.content, "a push appearing first is not yet leaving")
+        model.screenDisappeared(home)
+        XCTAssertNil(model.content)
+        await model.undo()
+        XCTAssertTrue(store.removes.isEmpty, "no Undo over another screen")
+    }
+
+    /// Confirm popping back: the destination appears after `show`, takes the banner, and opening
+    /// a saved entry from it (a push outside the navigation path) dismisses the banner.
+    func testTheDestinationThatAppearsAfterLogTakesTheBanner() throws {
+        let model = FoodLoggedBannerModel(store: RecordingRemover(outcome: .applied), sleep: { _ in await Self.never() },
+                                          announce: { _ in })
+        let foodLog = UUID(), search = UUID(), savedEntry = UUID()
+        model.screenAppeared(foodLog)
+        model.screenDisappeared(foodLog) // Add food pushed over the Food Log
+        model.screenAppeared(search)
+        model.screenDisappeared(search) // Confirm pushed over search results
+        model.show(try Self.notice())
+        model.screenAppeared(foodLog)
+        model.screenDisappeared(search) // torn down after the pop: not the banner's screen
+        XCTAssertNotNil(model.content)
+        model.screenAppeared(savedEntry)
+        model.screenDisappeared(foodLog)
+        XCTAssertNil(model.content, "opening a saved entry dismisses the banner")
+    }
+
+    func testOnlyLoggedAndTheOutcomeAreAnnouncedAfterTheDelay() async throws {
+        let sleeps = Recorder<Duration>()
+        let announced = Recorder<String>()
+        let model = FoodLoggedBannerModel(store: RecordingRemover(outcome: .applied),
+                                          sleep: { duration in await sleeps.append(duration) },
+                                          announce: { announced.values.append($0) })
+        model.keepsUntilDismissed = true
+        model.show(try Self.notice())
+        XCTAssertTrue(announced.values.isEmpty, "not before the delay")
+        for _ in 0..<50 { await Task.yield() }
+        XCTAssertEqual(announced.values, ["Logged · 57 kcal. Undo available."])
+        await model.undo()
+        for _ in 0..<50 { await Task.yield() }
+        XCTAssertEqual(announced.values, ["Logged · 57 kcal. Undo available.", "Entry removed."])
+        XCTAssertNil(FoodLoggedBannerModel.announcement(.removing(try Self.notice())), "Undo in progress is not announced")
+        XCTAssertEqual(sleeps.values.filter { $0 == FoodLoggedBannerModel.announcementDelay }.count, 2)
+        XCTAssertGreaterThan(FoodLoggedBannerModel.announcementDelay, .zero)
+    }
+
+    func testAccessibilityTextSizesKeepTheBannerForTenSeconds() async throws {
+        let sleeps = Recorder<Duration>()
+        let model = FoodLoggedBannerModel(store: RecordingRemover(outcome: .applied),
+                                          sleep: { duration in await sleeps.append(duration) }, announce: { _ in })
+        XCTAssertEqual(model.visibleDuration, .seconds(5))
+        model.usesAccessibilityTextSize = true
+        XCTAssertEqual(model.visibleDuration, .seconds(10))
+        model.show(try Self.notice())
+        for _ in 0..<50 { await Task.yield() }
+        XCTAssertTrue(sleeps.values.contains(.seconds(10)))
+        XCTAssertFalse(sleeps.values.contains(.seconds(5)))
+    }
+
+    func testVoiceOverSeesOneElementWithUndoAndDismissActions() throws {
+        let logged = FoodLoggedBannerModel.Content.logged(FoodLoggedNotice(
+            logItemID: try LogItemID("00000000-0000-0000-0000-000000000001"),
+            logItemVersionID: try LogItemVersionID("00000000-0000-0000-0000-000000000002"),
+            message: "Logged and saved as favourite · 57 kcal", detail: FoodLoggedText.favouriteStays))
+        XCTAssertEqual(FoodLoggedBannerContent.accessibilityLabel(logged),
+                       "Logged and saved as favourite · 57 kcal. Undo removes the entry. The favourite stays.")
+        XCTAssertEqual(FoodLoggedBannerContent.accessibilityActionNames(logged), ["Undo", "Dismiss"])
+        XCTAssertEqual(FoodLoggedBannerContent.accessibilityActionNames(.result(FoodLoggedText.removed)), ["Dismiss"])
+    }
+
     private static func notice(message: String = "Logged · 57 kcal") throws -> FoodLoggedNotice {
         FoodLoggedNotice(logItemID: try LogItemID("00000000-0000-0000-0000-000000000001"),
                          logItemVersionID: try LogItemVersionID("00000000-0000-0000-0000-000000000002"), message: message)
@@ -118,6 +198,12 @@ final class FoodLoggedBannerPresentationTests: XCTestCase {
     private static func never() async {
         try? await Task.sleep(for: .seconds(3600))
     }
+}
+
+@MainActor
+private final class Recorder<Value: Sendable>: Sendable {
+    var values: [Value] = []
+    func append(_ value: Value) { values.append(value) }
 }
 
 private final class RecordingRemover: FoodLogStore, @unchecked Sendable {

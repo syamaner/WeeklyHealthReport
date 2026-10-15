@@ -563,6 +563,7 @@ struct GenericFoodSearchFlowView: View {
                 }
             }
         }
+        .foodLoggedBannerScreen(root.loggedBanner)
     }
 }
 
@@ -672,6 +673,7 @@ struct OpenRouterFoodReviewFlowView: View {
         // The market is set in Settings. Re-read it whenever Web lookup appears, so a change made
         // there invalidates any open result (the view model cancels on a changed market).
         .onAppear { reviewModel.market = root.foodMarket.market }
+        .foodLoggedBannerScreen(root.loggedBanner)
     }
 }
 
@@ -865,6 +867,7 @@ struct BarcodeFoodFlowView: View {
                 }
             }
         }
+        .foodLoggedBannerScreen(root.loggedBanner)
     }
 
     @ViewBuilder
@@ -998,6 +1001,7 @@ struct FavouritesFlowView: View {
             if let flow = OpenRouterFoodReviewFlowView(root: root, initialQuery: "", finish: createFinish, savesFavourite: true) { flow }
             else { ContentUnavailableView("Web lookup unavailable", systemImage: "exclamationmark.triangle") }
         }
+        .foodLoggedBannerScreen(root.loggedBanner)
     }
 
     /// The finish the create routes carry: Add food's when opened from there, otherwise one that

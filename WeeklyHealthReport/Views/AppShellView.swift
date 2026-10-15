@@ -64,6 +64,7 @@ struct AppShellView: View {
                 dayRefreshed: { [screenshotController] day in screenshotController.todayRefreshedDay = day }
             )
             .navigationTitle("Today")
+            .foodLoggedBannerScreen(foodLedger?.loggedBanner)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { navigation.openSettings() } label: {
@@ -302,6 +303,55 @@ struct AppShellView: View {
                     calendar: foodLedger?.confirmationDayCalendar ?? .autoupdatingCurrent
                 ))
             }
+        }
+    }
+}
+
+extension View {
+    /// Registers a screen the banner after Log can appear on. Leaving it dismisses a banner shown
+    /// there, whatever covered it: a path push, `navigationDestination(item:)` or
+    /// `(isPresented:)`, so new pushes need no wiring. A sheet stays modal over the banner.
+    func foodLoggedBannerScreen(_ banner: FoodLoggedBannerModel?) -> some View {
+        modifier(FoodLoggedBannerScreen(banner: banner))
+    }
+}
+
+/// Reports the screen entering and leaving the window (review fix, PR #240). The navigation
+/// stack removes a covered screen's view from the window after any kind of push and puts it back
+/// on the pop, so this needs no help from the screen's own appear callbacks.
+private struct FoodLoggedBannerScreen: ViewModifier {
+    let banner: FoodLoggedBannerModel?
+    @State private var id = UUID()
+
+    func body(content: Content) -> some View {
+        content.background {
+            if let banner {
+                WindowPresence { [id] inWindow in
+                    if inWindow { banner.screenAppeared(id) } else { banner.screenDisappeared(id) }
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+        }
+    }
+}
+
+private struct WindowPresence: UIViewRepresentable {
+    let changed: @MainActor (Bool) -> Void
+
+    func makeUIView(context: Context) -> PresenceView {
+        let view = PresenceView()
+        view.changed = changed
+        return view
+    }
+
+    func updateUIView(_ view: PresenceView, context: Context) { view.changed = changed }
+
+    final class PresenceView: UIView {
+        var changed: (@MainActor (Bool) -> Void)?
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            changed?(window != nil)
         }
     }
 }

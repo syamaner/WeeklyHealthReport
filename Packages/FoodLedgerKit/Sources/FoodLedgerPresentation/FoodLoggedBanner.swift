@@ -57,8 +57,9 @@ public enum FoodLoggedText {
 }
 
 /// The one banner shown on the destination after Log closes Confirm. Undo is offered for the
-/// visible duration only, and never after the user has navigated away; with VoiceOver running the
-/// banner stays until it is dismissed or used. Undo writes one remove through `FoodLogStore`.
+/// visible duration only (5 s, or 10 s at accessibility text sizes), and never after the user has
+/// left the screen it was shown on; with VoiceOver running the banner stays until it is dismissed
+/// or used. Undo writes one remove through `FoodLogStore`.
 @MainActor
 public final class FoodLoggedBannerModel: ObservableObject {
     public enum Content: Equatable {
@@ -85,27 +86,49 @@ public final class FoodLoggedBannerModel: ObservableObject {
     }
 
     public static let visibleDuration: Duration = .seconds(5)
+    /// At accessibility Dynamic Type sizes the text takes longer to read.
+    public static let accessibilityVisibleDuration: Duration = .seconds(10)
+    /// The VoiceOver announcement waits for Confirm's pop to settle, so focus moving to the new
+    /// screen does not cut it off.
+    public static let announcementDelay: Duration = .milliseconds(700)
 
     @Published public private(set) var content: Content?
     /// Increases after each applied Undo, so a showing Food Log or Home reloads.
     @Published public private(set) var removals = 0
     /// Set from the environment while VoiceOver runs: the banner is kept until dismissed.
     public var keepsUntilDismissed = false
+    /// Set from the environment at accessibility text sizes: the banner stays 10 s.
+    public var usesAccessibilityTextSize = false
     /// Where the user is when the banner appears (the navigation path); set by the app shell.
     public var location: @MainActor () -> AnyHashable? = { nil }
     private var anchor: AnyHashable?
+    /// The registered screen the banner belongs to (the app reports screens entering and leaving the window).
+    private var anchorScreen: UUID?
+    /// True while Log's own navigation is still bringing the destination on screen.
+    private var awaitsScreen = false
+    private var visibleScreen: UUID?
     private var generation = 0
     private let store: any FoodLogStore
     private let sleep: @Sendable (Duration) async -> Void
+    private let announce: @MainActor (String) -> Void
 
     public init(store: any FoodLogStore,
-                sleep: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) }) {
-        self.store = store; self.sleep = sleep
+                sleep: @escaping @Sendable (Duration) async -> Void = { try? await Task.sleep(for: $0) },
+                announce: @escaping @MainActor (String) -> Void = { AccessibilityNotification.Announcement($0).post() }) {
+        self.store = store; self.sleep = sleep; self.announce = announce
     }
 
-    /// Called after Log has closed Confirm, so `location` is already the destination.
+    public var visibleDuration: Duration {
+        usesAccessibilityTextSize ? Self.accessibilityVisibleDuration : Self.visibleDuration
+    }
+
+    /// Called after Log has closed Confirm, so `location` is already the destination. The banner
+    /// belongs to the registered screen still showing (a sheet closed over it), or else to the
+    /// next one that appears (Confirm popping back to it).
     public func show(_ notice: FoodLoggedNotice) {
         anchor = location()
+        anchorScreen = visibleScreen
+        awaitsScreen = visibleScreen == nil
         present(.logged(notice))
     }
 
@@ -125,12 +148,30 @@ public final class FoodLoggedBannerModel: ObservableObject {
         generation += 1
         content = nil
         anchor = nil
+        anchorScreen = nil
+        awaitsScreen = false
     }
 
     /// The navigation path changed: a banner left behind is dismissed and Undo is gone.
     public func navigated(to location: AnyHashable) {
         guard content != nil, location != anchor else { return }
         dismiss()
+    }
+
+    /// A registered screen appeared. A banner still waiting for its destination takes it.
+    public func screenAppeared(_ screen: UUID) {
+        visibleScreen = screen
+        if awaitsScreen, content != nil {
+            anchorScreen = screen
+            awaitsScreen = false
+        }
+    }
+
+    /// A registered screen disappeared (anything pushed over it, or it closed): leaving the
+    /// banner's screen dismisses the banner, so Undo is never offered over another screen.
+    public func screenDisappeared(_ screen: UUID) {
+        if visibleScreen == screen { visibleScreen = nil }
+        if content != nil, anchorScreen == screen { dismiss() }
     }
 
     /// The visible duration ended for the banner of `generation`.
@@ -142,13 +183,36 @@ public final class FoodLoggedBannerModel: ObservableObject {
 
     public var currentGeneration: Int { generation }
 
+    /// Whether the banner belongs to a registered screen yet (false while it waits for one).
+    public var isAnchoredToScreen: Bool { anchorScreen != nil }
+    /// Whether a registered screen is in the window now.
+    public var hasVisibleScreen: Bool { visibleScreen != nil }
+
+    /// "Logged · 260 kcal. Undo available." Nil while Undo is in progress: only the logged
+    /// banner and Undo's outcome are announced.
+    public static func announcement(_ content: Content) -> String? {
+        if case .removing = content { return nil }
+        var parts = [content.message]
+        if let detail = content.detail { parts.append(detail) }
+        if content.offersUndo { parts.append("Undo available.") }
+        return parts.map { $0.hasSuffix(".") ? $0 : $0 + "." }.joined(separator: " ")
+    }
+
     private func present(_ next: Content) {
         generation += 1
         content = next
         let shown = generation
         let sleep = sleep
+        let duration = visibleDuration
+        if let text = Self.announcement(next) {
+            Task { [weak self] in
+                await sleep(Self.announcementDelay)
+                guard let self, self.generation == shown else { return }
+                self.announce(text)
+            }
+        }
         Task { [weak self] in
-            await sleep(Self.visibleDuration)
+            await sleep(duration)
             self?.expire(generation: shown)
         }
     }
@@ -160,6 +224,7 @@ public struct FoodLoggedBanner: View {
     @ObservedObject private var model: FoodLoggedBannerModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityVoiceOverEnabled) private var voiceOver
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     public init(model: FoodLoggedBannerModel) { self.model = model }
 
@@ -171,24 +236,18 @@ public struct FoodLoggedBanner: View {
             }
         }
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: model.content)
-        .onAppear { model.keepsUntilDismissed = voiceOver }
-        .onChange(of: voiceOver) { _, enabled in model.keepsUntilDismissed = enabled }
-        .onChange(of: model.content) { _, content in
-            guard let content else { return }
-            AccessibilityNotification.Announcement(Self.announcement(content)).post()
+        .onAppear {
+            model.keepsUntilDismissed = voiceOver
+            model.usesAccessibilityTextSize = dynamicTypeSize.isAccessibilitySize
         }
-    }
-
-    /// "Logged · 260 kcal. Undo available."
-    public static func announcement(_ content: FoodLoggedBannerModel.Content) -> String {
-        var parts = [content.message]
-        if let detail = content.detail { parts.append(detail) }
-        if content.offersUndo { parts.append("Undo available.") }
-        return parts.map { $0.hasSuffix(".") ? $0 : $0 + "." }.joined(separator: " ")
+        .onChange(of: voiceOver) { _, enabled in model.keepsUntilDismissed = enabled }
+        .onChange(of: dynamicTypeSize) { _, size in model.usesAccessibilityTextSize = size.isAccessibilitySize }
     }
 }
 
-/// The banner's visible content, separate from the model so it renders in tests.
+/// The banner's visible content, separate from the model so it renders in tests. For VoiceOver
+/// it is one element with an explicit label and explicit Undo and Dismiss actions, so Undo is
+/// never listed twice.
 public struct FoodLoggedBannerContent: View {
     private let content: FoodLoggedBannerModel.Content
     private let undo: () -> Void
@@ -199,6 +258,16 @@ public struct FoodLoggedBannerContent: View {
         self.content = content; self.undo = undo; self.dismiss = dismiss
     }
 
+    /// The VoiceOver label: the message and, when present, the favourite line.
+    public static func accessibilityLabel(_ content: FoodLoggedBannerModel.Content) -> String {
+        [content.message, content.detail].compactMap { $0 }.joined(separator: ". ")
+    }
+
+    /// The VoiceOver actions, in order: Undo while it is offered, then Dismiss.
+    public static func accessibilityActionNames(_ content: FoodLoggedBannerModel.Content) -> [String] {
+        (content.offersUndo ? [FoodLoggedText.undo] : []) + [FoodLoggedText.dismiss]
+    }
+
     public var body: some View {
         let layout = dynamicTypeSize.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
@@ -206,7 +275,6 @@ public struct FoodLoggedBannerContent: View {
         layout {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Image(systemName: content.offersUndo ? "checkmark.circle.fill" : "info.circle")
-                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(content.message).font(.subheadline.weight(.semibold))
                     if let detail = content.detail {
@@ -222,7 +290,6 @@ public struct FoodLoggedBannerContent: View {
                 }
                 .buttonStyle(.bordered)
                 .disabled(!content.offersUndo)
-                .accessibilityHint(FoodLoggedText.undoHint)
             }
         }
         .padding(.horizontal, 16)
@@ -232,11 +299,14 @@ public struct FoodLoggedBannerContent: View {
         .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(.separator))
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel([content.message, content.detail].compactMap { $0 }.joined(separator: ". "))
-        .accessibilityAction(named: FoodLoggedText.dismiss, dismiss)
+        // One element: the visible Undo button is not exposed separately, so VoiceOver lists
+        // Undo once, as an action.
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Self.accessibilityLabel(content))
+        .accessibilityHint(content.offersUndo ? FoodLoggedText.undoHint : "")
         .accessibilityActions {
             if content.offersUndo { Button(FoodLoggedText.undo, action: undo) }
+            Button(FoodLoggedText.dismiss, action: dismiss)
         }
         .accessibilityAction(.escape, dismiss)
     }
