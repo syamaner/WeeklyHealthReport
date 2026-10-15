@@ -155,7 +155,21 @@ struct FoodLogView: View {
 
     // MARK: Add food
 
+    @ViewBuilder
     private var addFoodSection: some View {
+        if model.canAddFoodForSelectedDay {
+            addFoodButtonSection
+        } else {
+            // Beyond the backdating window Add food would log for now, so it is not offered here;
+            // the day header's Return to today selects today.
+            Section {
+                Text(FoodLogText.addFoodBeyondWindow)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private var addFoodButtonSection: some View {
         Section {
             // A Button, not a NavigationLink: inside a Form a link ignores the button style.
             Button { navigation.openAddFood(fromFoodLogDay: model.addFoodDayKey) } label: {

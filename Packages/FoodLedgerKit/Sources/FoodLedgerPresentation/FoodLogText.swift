@@ -13,7 +13,9 @@ public enum FoodLogText {
     public static let pastDayFootnote = "New foods start on this day at the current time. You can change When before logging."
     /// A selected day older than the backdating window: When falls back to Now.
     public static let backdatingLimitNotice = "Entries can be logged up to \(FoodLogPolicy.backdatingDays) days back."
-    public static let beyondBackdatingFootnote = "\(backdatingLimitNotice) New foods are logged for now."
+    /// Shown in place of Add food on a Food Log day older than the backdating window (owner
+    /// decision, 14 October 2026); the day header's Return to today selects today.
+    public static let addFoodBeyondWindow = backdatingLimitNotice
 
     /// Add food from a past day: list import keeps Now (confirmation v5 section 10).
     public static let listImportNowNote = "List items are logged for now."
@@ -23,13 +25,13 @@ public enum FoodLogText {
         entryDay == nil ? nil : listImportNowNote
     }
 
-    /// The Add food footnote on the Food Log for the selected day, or nil for today.
+    /// The Add food footnote on the Food Log for the selected day, or nil for today and for a day
+    /// beyond the backdating window (Add food is replaced there by `addFoodBeyondWindow`).
     public static func addFoodFootnote(_ prefill: FoodEntryWhenPrefill, isToday: Bool) -> String? {
         guard !isToday else { return nil }
         switch prefill {
         case .day: return pastDayFootnote
-        case .beyondBackdatingWindow: return beyondBackdatingFootnote
-        case .now: return nil
+        case .beyondBackdatingWindow, .now: return nil
         }
     }
 

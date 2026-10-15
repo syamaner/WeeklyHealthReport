@@ -198,13 +198,88 @@ final class FoodLogPresentationTests: XCTestCase {
         XCTAssertEqual(model.addFoodDayKey, model.selectedKey)
         XCTAssertNotNil(model.addFoodWhen.occurredAt)
         XCTAssertEqual(model.addFoodFootnote, "New foods start on this day at the current time. You can change When before logging.")
+        XCTAssertTrue(model.canAddFoodForSelectedDay)
         for _ in 0..<7 { await model.previousDay() }
         XCTAssertEqual(model.addFoodWhen, .beyondBackdatingWindow)
-        XCTAssertEqual(model.addFoodFootnote, "Entries can be logged up to 7 days back. New foods are logged for now.")
+        XCTAssertFalse(model.canAddFoodForSelectedDay)
+        XCTAssertNil(model.addFoodFootnote, "no 'logged for now' footnote: Add food is not offered")
         XCTAssertEqual(FoodLogText.whenNotice(.beyondBackdatingWindow), "Entries can be logged up to 7 days back.")
         XCTAssertNil(FoodLogText.whenNotice(.now))
         XCTAssertEqual(FoodLogText.listImportNote(entryDay: "2026-10-10"), "List items are logged for now.")
         XCTAssertNil(FoodLogText.listImportNote(entryDay: nil))
+    }
+
+    /// Owner decision, 14 October 2026: day 7 back still offers Add food, prefilled on that day;
+    /// day 8 back replaces it with the window text, and Return to today selects today.
+    func testAddFoodIsReplacedBeyondTheBackdatingWindow() async throws {
+        let london = Self.zone("Europe/London")
+        let clock = Clock(Self.instant("2026-10-14T08:42:17Z")) // 09:42:17 BST
+        let world = try World(now: clock.now, calendar: london)
+        let model = FoodLogViewModel(store: world.store, now: { clock.now }, calendar: london)
+        XCTAssertTrue(model.canAddFoodForSelectedDay, "today")
+        XCTAssertNil(model.addFoodFootnote)
+
+        await model.showDay("2026-10-07")
+        XCTAssertTrue(model.canAddFoodForSelectedDay, "day 7 back")
+        XCTAssertEqual(model.addFoodDayKey, "2026-10-07")
+        XCTAssertEqual(model.addFoodWhen, .day(Self.instant("2026-10-07T08:42:17Z")))
+        XCTAssertEqual(model.addFoodFootnote, FoodLogText.pastDayFootnote)
+
+        await model.showDay("2026-10-06")
+        XCTAssertFalse(model.canAddFoodForSelectedDay, "day 8 back")
+        XCTAssertNil(model.addFoodFootnote)
+        XCTAssertEqual(FoodLogText.addFoodBeyondWindow, "Entries can be logged up to 7 days back.")
+        await model.returnToToday()
+        XCTAssertTrue(model.isToday)
+        XCTAssertEqual(model.selectedKey, "2026-10-14")
+        XCTAssertTrue(model.canAddFoodForSelectedDay)
+    }
+
+    /// The window follows the injected clock: a day that is 7 back at 23:59:59 is 8 back at local
+    /// midnight, and at exactly midnight day 7 back starts on the window's first instant.
+    func testAddFoodWindowBoundaryAtLocalMidnight() async throws {
+        let london = Self.zone("Europe/London")
+        let clock = Clock(Self.instant("2026-10-14T22:59:59Z")) // 23:59:59 BST on 14 October
+        let world = try World(now: clock.now, calendar: london)
+        let model = FoodLogViewModel(store: world.store, now: { clock.now }, calendar: london)
+        await model.showDay("2026-10-07")
+        XCTAssertTrue(model.canAddFoodForSelectedDay)
+        clock.now = Self.instant("2026-10-14T23:00:00Z") // 00:00:00 BST on 15 October
+        XCTAssertFalse(model.canAddFoodForSelectedDay, "now 8 days back")
+        XCTAssertNil(model.addFoodFootnote)
+        await model.showDay("2026-10-08")
+        XCTAssertTrue(model.canAddFoodForSelectedDay)
+        XCTAssertEqual(model.addFoodWhen, .day(Self.instant("2026-10-07T23:00:00Z")), "the window's first instant")
+    }
+
+    /// Across a clock change: New York leaves daylight saving on 1 November 2026, a 25-hour day.
+    /// At 00:30 EST on 8 November that day is 7 back and still offered; 31 October is not.
+    func testAddFoodWindowAcrossADaylightSavingChange() async throws {
+        let newYork = Self.zone("America/New_York")
+        let clock = Clock(Self.instant("2026-11-08T05:30:00Z")) // 00:30 EST
+        let world = try World(now: clock.now, calendar: newYork)
+        let model = FoodLogViewModel(store: world.store, now: { clock.now }, calendar: newYork)
+        await model.showDay("2026-11-01")
+        XCTAssertTrue(model.canAddFoodForSelectedDay)
+        XCTAssertEqual(model.addFoodWhen, .day(Self.instant("2026-11-01T04:30:00Z")), "00:30 EDT on the change day")
+        await model.showDay("2026-10-31")
+        XCTAssertFalse(model.canAddFoodForSelectedDay)
+        XCTAssertNil(model.addFoodFootnote)
+    }
+
+    private final class Clock: @unchecked Sendable {
+        var now: Date
+        init(_ now: Date) { self.now = now }
+    }
+
+    private static func zone(_ identifier: String) -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: identifier)!
+        return calendar
+    }
+
+    private static func instant(_ text: String) -> Date {
+        ISO8601DateFormatter().date(from: text)!
     }
 
     func testNewEntryKeepsLogTitle() throws {

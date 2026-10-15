@@ -33,17 +33,23 @@ final class FoodLedgerCompositionRoot {
     private let inventoryURL: URL
     /// One clock and one calendar for Confirm: the view model's When bounds and the
     /// authoritative save service use the same values (food_confirmation_v5).
-    private let confirmationClock: any LedgerClock = SystemLedgerClock()
-    private let confirmationCalendar: Calendar = .autoupdatingCurrent
+    private let confirmationClock: any LedgerClock
+    private let confirmationCalendar: Calendar
     private let draftURL: URL
     private var activeInventory: LocalInventoryViewModel?
     private var inventoryService: LocalInventoryService?
     private var activeReresolution: FoodReresolutionViewModel?
 
+    /// `confirmationClock` and `confirmationCalendar` are injectable so tests can fix the day
+    /// rules (the backdating window) instead of racing the live clock.
     init(
         fileManager: FileManager = .default,
-        userDefaults: UserDefaults = .standard
+        userDefaults: UserDefaults = .standard,
+        confirmationClock: any LedgerClock = SystemLedgerClock(),
+        confirmationCalendar: Calendar = .autoupdatingCurrent
     ) throws {
+        self.confirmationClock = confirmationClock
+        self.confirmationCalendar = confirmationCalendar
         let applicationSupport = try fileManager.url(
             for: .applicationSupportDirectory,
             in: .userDomainMask,
@@ -605,7 +611,7 @@ struct AddFoodFlowView: View {
             if let flow = FoodListImportFlowView(root: root) { flow }
             else { ContentUnavailableView("Food list unavailable", systemImage: "exclamationmark.triangle") }
         }
-        .navigationDestination(isPresented: $showsFavourites) { FavouritesFlowView(root: root) }
+        .navigationDestination(isPresented: $showsFavourites) { favouritesFlow }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 FoodConfirmationView(model: confirmationModel) {
@@ -616,6 +622,10 @@ struct AddFoodFlowView: View {
             }
         }
     }
+
+    /// Favourites opened from Add food carries Add food's finish, so a favourite created there
+    /// starts When on the Food Log day and Done finishes the Add food journey.
+    var favouritesFlow: FavouritesFlowView { FavouritesFlowView(root: root, finish: finish) }
 }
 
 struct OpenRouterFoodReviewFlowView: View {
@@ -946,17 +956,21 @@ struct BarcodeFoodFlowView: View {
 }
 
 /// Favourites (#198). Creating a favourite opens Food search, Barcode or Web lookup with "Save as
-/// favourite" preset; after Log the journey returns here.
+/// favourite" preset; after Log the journey returns here, or, when Favourites was opened from Add
+/// food, finishes the Add food journey with Add food's day like its other routes.
 struct FavouritesFlowView: View {
     private let root: FoodLedgerCompositionRoot
+    /// Add food's finish (with its Food Log day), or nil when opened from Home or Settings.
+    private let finish: FoodEntryFinish?
     @StateObject private var model: FavouritesViewModel
     @State private var showsSearch = false
     @State private var showsBarcode = false
     @State private var showsWebLookup = false
     @State private var showsLogged = false
 
-    init(root: FoodLedgerCompositionRoot) {
+    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil) {
         self.root = root
+        self.finish = finish
         _model = StateObject(wrappedValue: root.favouritesModel())
     }
 
@@ -966,15 +980,19 @@ struct FavouritesFlowView: View {
         .navigationDestination(isPresented: $showsLogged) { FavouriteFromLoggedFlowView(root: root) }
         .onChange(of: showsLogged) { _, shown in if !shown { model.reload() } }
         .navigationDestination(isPresented: $showsSearch) {
-            if let flow = GenericFoodSearchFlowView(root: root, finish: returnHere, savesFavourite: true) { flow }
+            if let flow = GenericFoodSearchFlowView(root: root, finish: createFinish, savesFavourite: true) { flow }
             else { ContentUnavailableView("Food search unavailable", systemImage: "exclamationmark.triangle") }
         }
-        .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root, finish: returnHere, savesFavourite: true) }
+        .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root, finish: createFinish, savesFavourite: true) }
         .navigationDestination(isPresented: $showsWebLookup) {
-            if let flow = OpenRouterFoodReviewFlowView(root: root, initialQuery: "", finish: returnHere, savesFavourite: true) { flow }
+            if let flow = OpenRouterFoodReviewFlowView(root: root, initialQuery: "", finish: createFinish, savesFavourite: true) { flow }
             else { ContentUnavailableView("Web lookup unavailable", systemImage: "exclamationmark.triangle") }
         }
     }
+
+    /// The finish the create routes carry: Add food's when opened from there, otherwise one that
+    /// returns here and logs for now.
+    var createFinish: FoodEntryFinish { finish ?? returnHere }
 
     /// After Log (and the favourite) the create journey returns to Favourites.
     private var returnHere: FoodEntryFinish {
