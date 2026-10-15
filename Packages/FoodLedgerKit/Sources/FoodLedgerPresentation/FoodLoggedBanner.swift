@@ -207,7 +207,8 @@ public final class FoodLoggedBannerModel: ObservableObject {
         if let text = Self.announcement(next) {
             Task { [weak self] in
                 await sleep(Self.announcementDelay)
-                guard let self, self.generation == shown else { return }
+                // Undo moves the same banner to .removing without a new generation.
+                guard let self, self.generation == shown, self.content == next else { return }
                 self.announce(text)
             }
         }

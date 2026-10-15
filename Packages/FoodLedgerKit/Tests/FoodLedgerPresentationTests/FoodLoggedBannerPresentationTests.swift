@@ -166,6 +166,28 @@ final class FoodLoggedBannerPresentationTests: XCTestCase {
         XCTAssertGreaterThan(FoodLoggedBannerModel.announcementDelay, .zero)
     }
 
+    func testUndoDuringTheAnnouncementDelayIsNotAnnouncedAsLogged() async throws {
+        let delay = Gate()
+        let removal = Gate()
+        let announced = Recorder<String>()
+        let announcementDelay = FoodLoggedBannerModel.announcementDelay
+        let model = FoodLoggedBannerModel(store: SuspendingRemover(gate: removal),
+                                          sleep: { duration in
+                                              if duration == announcementDelay { await delay.wait() } else { await Self.never() }
+                                          },
+                                          announce: { announced.values.append($0) })
+        model.show(try Self.notice())
+        let undo = Task { await model.undo() }
+        for _ in 0..<50 { await Task.yield() }
+        delay.release()
+        for _ in 0..<50 { await Task.yield() }
+        XCTAssertTrue(announced.values.isEmpty, "Undo is already running, so Undo available is not spoken")
+        removal.release()
+        await undo.value
+        for _ in 0..<50 { await Task.yield() }
+        XCTAssertEqual(announced.values, ["Entry removed."])
+    }
+
     func testAccessibilityTextSizesKeepTheBannerForTenSeconds() async throws {
         let sleeps = Recorder<Duration>()
         let model = FoodLoggedBannerModel(store: RecordingRemover(outcome: .applied),
@@ -215,6 +237,33 @@ private final class RecordingRemover: FoodLogStore, @unchecked Sendable {
     func remove(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome {
         removes.append((id, expected))
         return outcome
+    }
+    func restore(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome { .notSaved }
+}
+
+@MainActor
+private final class Gate {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+    func wait() async {
+        if isOpen { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+    func release() {
+        isOpen = true
+        waiters.forEach { $0.resume() }
+        waiters = []
+    }
+}
+
+private final class SuspendingRemover: FoodLogStore, @unchecked Sendable {
+    let gate: Gate
+    init(gate: Gate) { self.gate = gate }
+    func day(_ reportingDate: String) async throws -> FoodLogDayContent { throw FoodIntakeProjectionError.missingReference }
+    func savedEntry(_ id: LogItemID) async throws -> SavedFoodEntryDetail? { nil }
+    func remove(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome {
+        await gate.wait()
+        return .applied
     }
     func restore(_ id: LogItemID, expected: LogItemVersionID) async -> FoodLogChangeOutcome { .notSaved }
 }
