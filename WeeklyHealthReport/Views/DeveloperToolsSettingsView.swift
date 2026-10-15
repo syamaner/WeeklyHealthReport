@@ -7,6 +7,8 @@ struct DeveloperToolsSettingsView: View {
     var diagnostics: FoodSearchDiagnosticsLog?
     /// Whether this build has Google OAuth configuration (owner decision C moved the detail here).
     var driveExportConfigured: Bool?
+    /// The session-wide verified label and the selected day's raw local export record (#217).
+    var dailyExport: DailyDriveSessionController?
 
     var body: some View {
         Form {
@@ -20,6 +22,7 @@ struct DeveloperToolsSettingsView: View {
                     Text(DriveExportAvailability.developerDetail(isConfigured: driveExportConfigured))
                         .font(.caption)
                         .textSelection(.enabled)
+                    if let dailyExport { DailyExportRecordRows(session: dailyExport) }
                 }
             }
             #if DEBUG
@@ -55,5 +58,23 @@ private struct FoodSearchDiagnosticsSection: View {
                 }
             }
         } header: { Text("Search details") } footer: { Text("Kept in memory for this session only.") }
+    }
+}
+
+/// Raw fields of the selected day's local export record (#217). No file or
+/// account identifier is shown.
+private struct DailyExportRecordRows: View {
+    @ObservedObject var session: DailyDriveSessionController
+
+    var body: some View {
+        LabeledContent("Last verified (session)", value: session.lastVerifiedLabel)
+        if let lookup = session.lastExportOfSelectedDay {
+            ForEach(DailyExportLastExportFormatter.developerFields(lookup), id: \.label) { field in
+                LabeledContent(field.label, value: field.value)
+                    .textSelection(.enabled)
+            }
+        } else {
+            LabeledContent("Selected day record", value: "No account or folder")
+        }
     }
 }

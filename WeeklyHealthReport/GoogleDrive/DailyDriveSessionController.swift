@@ -182,6 +182,8 @@ struct DailyExportPreviewSummary: Equatable {
     let currentWindow: String
     let previousWindow: String
     let encodedByteCount: Int
+    /// Metric and workout counts of the reviewed envelope (#217); display only.
+    let included: DailyExportIncludedSummary
 }
 
 @MainActor
@@ -223,6 +225,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         lastExportOutcome = nil
         destinationCoordinator.clearFileReplacementCandidate(unlessReportDate: day?.reportDate ?? "")
         mirrorDestinationState()
+        refreshLastExportOfSelectedDay()
         switch presentationState {
         case .needsAttention(.configurationUnavailable):
             // Drive cannot be set up in this build; the day change does not alter that.
@@ -238,7 +241,12 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             status = "Report date changed. Choose Retry preparation to prepare a new snapshot before exporting."
         }
     }
+    /// Session-wide label kept for Developer tools; Export shows
+    /// `lastExportOfSelectedDay` instead (#217).
     @Published private(set) var lastVerifiedLabel = "No verified Drive upload in this session"
+    /// The selected day's verified export recorded on this iPhone, read from
+    /// the local registry only (#217). `nil` with no account or no active folder.
+    @Published private(set) var lastExportOfSelectedDay: DailyExportLastExportLookup?
     /// The typed outcome of the latest export attempt. Set only in
     /// `applyExportOutcome`; cleared on day change, saved-note invalidation,
     /// sign-out, revocation, an authorisation error, `prepareForPresentation()`
@@ -272,7 +280,8 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             savedNoteCount: preview.envelope.today.notes?.count ?? 0,
             currentWindow: "\(context.currentWindow.start) to \(context.currentWindow.end)",
             previousWindow: "\(context.previousWindow.start) to \(context.previousWindow.end)",
-            encodedByteCount: preview.bytes.count
+            encodedByteCount: preview.bytes.count,
+            included: DailyExportIncludedSummary.make(today: preview.envelope.today)
         )
     }
     var nutritionSourceLabel: String {
@@ -634,6 +643,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             outcome: outcome,
             exportedPreview: exportedPreview
         )
+        refreshLastExportOfSelectedDay()
         let result = try outcome.get()
         lastVerifiedLabel = result.verifiedLabel
         status = result.userFacingLabel
@@ -717,6 +727,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             self.mirrorDestinationState()
             self.lastVerifiedLabel = recovery.verifiedLabel
             self.identityRecoveryRequired = false
+            self.refreshLastExportOfSelectedDay()
             self.presentationState = .readyToExport
             self.status = recovery.userFacingLabel
         }
@@ -731,6 +742,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
             mirrorDestinationState()
             accountLabel = "Not connected"
             destinationLabel = "No active destination"
+            lastExportOfSelectedDay = nil
             preview = nil
             lastExportOutcome = nil
             presentationState = .needsGoogleConnection
@@ -758,6 +770,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 self.mirrorDestinationState()
                 self.accountLabel = "Not connected"
                 self.destinationLabel = "No active destination"
+                self.lastExportOfSelectedDay = nil
                 self.preview = nil
                 self.lastExportOutcome = nil
                 self.presentationState = .needsGoogleConnection
@@ -959,7 +972,14 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     private func restoreLastVerifiedLabel(for accountID: String) {
         do {
             let folderID = destinationCoordinator.activeDestination(for: accountID)?.folderID
-            let latest = try identityStore.load()?.identities
+            let registry = try identityStore.load()
+            lastExportOfSelectedDay = lastVerifiedExport(
+                for: selectedReportDate,
+                accountID: accountID,
+                folderID: folderID,
+                registry: { registry }
+            )
+            let latest = registry?.identities
                 .filter { $0.accountID == accountID && $0.folderID == folderID }
                 .compactMap(\.lastVerified)
                 .max { $0.verifiedAt < $1.verifiedAt }
@@ -972,7 +992,68 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         } catch {
             lastVerifiedLabel = "Stored identity is ambiguous; explicit recovery required"
             identityRecoveryRequired = true
+            lastExportOfSelectedDay = lastVerifiedExport(
+                for: selectedReportDate,
+                accountID: accountID,
+                folderID: destinationCoordinator.activeDestination(for: accountID)?.folderID,
+                registry: { throw error }
+            )
         }
+    }
+
+    /// The selected export day's report date: the chosen previous day, or today.
+    private var selectedReportDate: String? {
+        selectedReportDay?.reportDate ?? availableReportDays.first?.reportDate
+    }
+
+    /// The verified export of `reportDate` recorded on this iPhone for the
+    /// connected account and active folder (#217). A local Keychain read only:
+    /// no Drive, network or token request. `nil` with no account restored or no
+    /// active folder. Read, never written.
+    func lastVerifiedExport(for reportDate: String) -> DailyExportLastExportLookup? {
+        lastVerifiedExport(
+            for: reportDate,
+            accountID: account?.id,
+            folderID: activeDestination?.folderID,
+            registry: { try self.identityStore.load() }
+        )
+    }
+
+    private func refreshLastExportOfSelectedDay() {
+        guard let reportDate = selectedReportDate else {
+            lastExportOfSelectedDay = nil
+            return
+        }
+        lastExportOfSelectedDay = lastVerifiedExport(for: reportDate)
+    }
+
+    private func lastVerifiedExport(
+        for reportDate: String?,
+        accountID: String?,
+        folderID: String?,
+        registry load: () throws -> DailyDriveExportRegistry?
+    ) -> DailyExportLastExportLookup? {
+        guard let reportDate, let accountID, let folderID else { return nil }
+        let matches: [DailyDriveExportIdentity]
+        do {
+            matches = (try load()?.identities ?? []).filter {
+                $0.accountID == accountID && $0.folderID == folderID && $0.reportDate == reportDate
+            }
+        } catch {
+            return DailyExportLastExportLookup(reportDate: reportDate, state: .unknown, hasPendingOperation: false)
+        }
+        guard matches.count <= 1 else {
+            return DailyExportLastExportLookup(reportDate: reportDate, state: .unknown, hasPendingOperation: false)
+        }
+        let identity = matches.first
+        let state: DailyExportLastExport = identity?.lastVerified.map {
+            .verified(verifiedAt: $0.verifiedAt, dataAsOf: $0.dataAsOf)
+        } ?? .none
+        return DailyExportLastExportLookup(
+            reportDate: reportDate,
+            state: state,
+            hasPendingOperation: identity?.pending != nil
+        )
     }
 
     private func run(_ startingStatus: String, operation: () async throws -> Void) async {
