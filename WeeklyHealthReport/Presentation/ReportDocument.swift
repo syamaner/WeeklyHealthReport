@@ -115,7 +115,9 @@ struct ReportDocument: Equatable {
                 locale: locale
             ))
         }
-        sections = result
+        // Group order (docs/health-report-section-groups-v1.md): every output
+        // reads `sections`, so the screen, Copy all and Full Page share it.
+        sections = Self.ordered(sections: result)
     }
 
     var searchableText: String {

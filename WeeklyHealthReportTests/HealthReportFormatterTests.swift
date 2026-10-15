@@ -311,6 +311,104 @@ final class HealthReportFormatterTests: XCTestCase {
         18–24 Aug 2026
         Generated: 26/08/26 - 09:00
 
+        DAILY ACTIVITY
+
+        Steps
+        Average Daily Steps: 2,727
+        Data Coverage: 7 / 7 days
+        Weekly Total: 19,089
+
+        Activity
+        Active Energy: 1,974 kcal
+        Exercise: 89 min
+        Workouts: 1
+        Workout Time: 30m
+        Walking: 30m — 18/08/26 - 00:00
+
+        BODY
+
+        Weight
+        Latest Weight: 100.6 kg
+        Measured: 25/08/26 - 00:00
+        7-day Average: 100.8 kg
+        Weight Trend: -0.4 kg vs previous 7d
+
+        Body Composition
+        Body Fat: 26.5% latest
+        7-day Average: 26.7%
+        28-day Average: 26.7%
+        Body Fat Trend: ↓ 0.9 pp vs previous 28d
+        Waist Circumference: 101.4 cm
+        Waist Measured: 24/08/26 - 09:00
+        4-week Waist Trend: -1.7 cm vs ~4 weeks earlier
+
+        HEART AND SLEEP
+
+        Heart
+        Resting HR Average: 73 bpm
+        Resting HR Trend: +3.0 bpm vs previous 7d
+        HRV Average: 42 ms
+        HRV Trend: -5.0 ms vs previous 7d
+        Watch Data Coverage: 4 / 7 days
+
+        Blood Pressure
+        Latest reading: 123/78 mmHg
+        Recorded: 24/08/26 - 20:14
+        Morning average: 124.1/79.2 mmHg
+        Latest batch: 125.3/79.7 mmHg
+        Recorded: 24/08/26 - 08:11 · 3 readings
+        Coverage: 5/7 days · 15 readings
+        Evening average: 122.8/77.6 mmHg
+        Latest batch: 122.7/77.3 mmHg
+        Recorded: 24/08/26 - 20:14 · 3 readings
+        Coverage: 4/7 days · 12 readings
+        Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
+
+        Sleep
+        Average Sleep: 6h 48m
+
+        Cardiorespiratory
+        Latest VO₂ Max: 32.1 mL/kg/min
+        VO₂ Max Measured: 24/08/26 - 09:00
+        4-Week Average: 31.8 mL/kg/min (8 days)
+        3-Month Average: 30.9 mL/kg/min (24 days)
+        6-Month Average: 29.7 mL/kg/min (51 days)
+        Latest Blood Oxygen: 97%
+        Blood Oxygen Measured: 24/08/26 - 09:00
+        Period Typical: 97%
+        Daily Median Range: 96–98%
+        Blood Oxygen Coverage: 7 / 7 days
+        Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
+
+        Glucose
+        Daily Average: 5.8 mmol/L
+        Observed Range: 3.9–8.7 mmol/L
+        Data Coverage: 7 / 7 days
+
+        Medications Taken
+        No taken medication events are visible for this period.
+        """)
+        XCTAssertFalse(text.hasSuffix("\n"))
+
+        // #216: the only change from the ungrouped text is block order and the
+        // three heading lines. Dropping the headings and sorting the blocks gives
+        // exactly the blocks of the text as copied before grouping.
+        let headings = Set(["DAILY ACTIVITY", "BODY", "HEART AND SLEEP"])
+        let groupedBlocks = text.components(separatedBy: "\n\n").filter { !headings.contains($0) }
+        XCTAssertEqual(groupedBlocks.sorted(), Self.ungroupedCopyAllText.components(separatedBy: "\n\n").sorted())
+        XCTAssertEqual(
+            text.components(separatedBy: "\n\n").filter(headings.contains),
+            ["DAILY ACTIVITY", "BODY", "HEART AND SLEEP"]
+        )
+    }
+
+    /// The same fixture as copied before #216 (SectionID order, no group headings).
+    private static let ungroupedCopyAllText = """
+        Weekly Health Report
+        Last 7 Completed Days
+        18–24 Aug 2026
+        Generated: 26/08/26 - 09:00
+
         Steps
         Average Daily Steps: 2,727
         Data Coverage: 7 / 7 days
@@ -381,9 +479,7 @@ final class HealthReportFormatterTests: XCTestCase {
 
         Medications Taken
         No taken medication events are visible for this period.
-        """)
-        XCTAssertFalse(text.hasSuffix("\n"))
-    }
+        """
 
     func testClipboardMissingDataIsExplicitRatherThanZero() {
         let calendar = testCalendar()

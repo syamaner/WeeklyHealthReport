@@ -237,10 +237,13 @@ final class WeeklyReportScreenshotTests: XCTestCase {
     func testDocumentUsesCompleteDeterministicSectionOrdering() {
         let document = makeDocument(includesMedicationSection: true)
 
+        // Group order (#216); every section is present exactly once.
         XCTAssertEqual(
             document.sections.map(\.id),
-            ReportDocument.SectionID.allCases
+            [.steps, .activity, .weight, .bodyComposition, .heart, .bloodPressure, .sleep,
+             .cardiorespiratory, .glucose, .medications]
         )
+        XCTAssertEqual(Set(document.sections.map(\.id)), Set(ReportDocument.SectionID.allCases))
         XCTAssertEqual(document.title, "Weekly Health Report")
         XCTAssertEqual(document.selection, "Last 7 Completed Days")
     }
@@ -266,6 +269,13 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         steps|steps-coverage|Data Coverage|7 / 7 days|standard
         steps|steps-total|Weekly Total|49,000|standard
         footer|steps|
+        section|activity|Activity
+        activity|active-energy|Active Energy|1,974 kcal|standard
+        activity|exercise|Exercise|89 min|standard
+        activity|workouts|Workouts|1|standard
+        activity|workout-time|Workout Time|30m|standard
+        activity|workout-0|Walking|30m — 09/09/26 - 08:00|standard
+        footer|activity|
         section|weight|Weight
         weight|weight-latest|Latest Weight|100.6 kg|standard
         weight|weight-measured|Measured|09/09/26 - 08:00|standard
@@ -300,6 +310,9 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         bloodPressure|blood-pressure-evening-recorded|Recorded|09/09/26 - 08:00 · 1 reading|standard
         bloodPressure|blood-pressure-evening-coverage|Coverage|1/7 days · 1 readings|standard
         footer|bloodPressure|Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
+        section|sleep|Sleep
+        sleep|sleep-average|Average Sleep|6h 48m|standard
+        footer|sleep|
         section|cardiorespiratory|Cardiorespiratory
         cardiorespiratory|vo2-max-latest|Latest VO₂ Max|32.1 mL/kg/min|standard
         cardiorespiratory|vo2-max-measured|VO₂ Max Measured|09/09/26 - 08:00|standard
@@ -318,16 +331,6 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         glucose|glucose-range|Observed Range|3.9–8.7 mmol/L|standard
         glucose|glucose-coverage|Data Coverage|7 / 7 days|standard
         footer|glucose|
-        section|activity|Activity
-        activity|active-energy|Active Energy|1,974 kcal|standard
-        activity|exercise|Exercise|89 min|standard
-        activity|workouts|Workouts|1|standard
-        activity|workout-time|Workout Time|30m|standard
-        activity|workout-0|Walking|30m — 09/09/26 - 08:00|standard
-        footer|activity|
-        section|sleep|Sleep
-        sleep|sleep-average|Average Sleep|6h 48m|standard
-        footer|sleep|
         section|medications|Medications Taken
         medications|medication-0|SyntheticMed 20 mg|1 dose at 09/09/26 - 08:00; 1 taken event|standard
         footer|medications|
@@ -1571,6 +1574,7 @@ extension WeeklyReportScreenshotTests {
     }
 
     /// The Copy all renderer as it was before failures were reworded: every row value verbatim.
+    /// It keeps the #216 group headings so only the failure wording is compared.
     private static func legacyPlainText(
         _ document: ReportDocument,
         generatedAt: Date,
@@ -1580,13 +1584,16 @@ extension WeeklyReportScreenshotTests {
         let generated = HealthReportFormatter.dateAndTime(generatedAt, calendar: calendar, locale: locale)
         let preamble = [document.title, document.selection, document.period, "Generated: \(generated)"]
             .joined(separator: "\n")
-        let sectionText = document.sections.map { section in
-            var lines = [section.title]
-            lines += section.rows.map { row in
-                row.label.map { "\($0): \(row.value)" } ?? row.value
-            }
-            if let footer = section.footer { lines.append(footer) }
-            return lines.joined(separator: "\n")
+        let sectionText = document.groupedSections.flatMap { grouped in
+            (grouped.heading.map { [ReportDocument.copyAllGroupHeading($0)] } ?? [])
+                + grouped.sections.map { section in
+                    var lines = [section.title]
+                    lines += section.rows.map { row in
+                        row.label.map { "\($0): \(row.value)" } ?? row.value
+                    }
+                    if let footer = section.footer { lines.append(footer) }
+                    return lines.joined(separator: "\n")
+                }
         }
         return ([preamble] + sectionText).joined(separator: "\n\n")
     }
@@ -1597,8 +1604,17 @@ extension WeeklyReportScreenshotTests {
     3–9 Sep 2026
     Generated: 10/09/26 - 12:00
 
+    DAILY ACTIVITY
+
     Steps
     Could not read Apple Health.
+
+    Activity
+    Active Energy: Could not read Apple Health.
+    Exercise: No data
+    Workouts: No data
+
+    BODY
 
     Weight
     No weight data is visible, or Health access was not granted.
@@ -1606,6 +1622,8 @@ extension WeeklyReportScreenshotTests {
     Body Composition
     Could not read Apple Health.
     Waist Circumference: No data
+
+    HEART AND SLEEP
 
     Heart
     Resting HR Average: Could not read Apple Health.
@@ -1618,6 +1636,9 @@ extension WeeklyReportScreenshotTests {
     Could not read Apple Health.
     Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
 
+    Sleep
+    Average Sleep: No data
+
     Cardiorespiratory
     Latest VO₂ Max: No data
     Latest Blood Oxygen: No data
@@ -1627,14 +1648,6 @@ extension WeeklyReportScreenshotTests {
     Daily Average: Could not read Apple Health.
     Observed Range: Could not read Apple Health.
     Data Coverage: Could not read Apple Health.
-
-    Activity
-    Active Energy: Could not read Apple Health.
-    Exercise: No data
-    Workouts: No data
-
-    Sleep
-    Average Sleep: No data
 
     Medications Taken
     Could not read Apple Health.

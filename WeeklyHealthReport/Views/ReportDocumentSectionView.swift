@@ -21,6 +21,25 @@ struct ReportDocumentSectionView: View {
     }
 }
 
+/// A heading over a multi-section group (#216). It is a heading only: it holds
+/// no rows and collapses nothing; each section keeps its own disclosure.
+struct ReportGroupHeading: View {
+    let heading: String
+
+    var body: some View {
+        Section {
+            EmptyView()
+        } header: {
+            Text(heading)
+                .font(.title3.bold())
+                .foregroundStyle(.primary)
+                .textCase(nil)
+                .accessibilityAddTraits(.isHeader)
+                .padding(.top, 8)
+        }
+    }
+}
+
 /// The one disclosure style for every Health section. Expansion changes only
 /// the screen; copied text and Full Page always include every row.
 struct ReportSectionHeader: View {

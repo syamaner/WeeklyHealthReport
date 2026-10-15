@@ -84,33 +84,12 @@ struct HealthReportView: View {
                 .padding(.vertical, 4)
             }
 
-            ForEach(document.sections) { section in
-                let isExpanded = Binding(
-                    get: { presentationState.isExpanded(section.id) },
-                    set: { presentationState.setExpanded(section.id, $0) }
-                )
-                switch section.id {
-                case .bloodPressure:
-                    BloodPressureReportSection(
-                        section: section,
-                        isExpanded: isExpanded,
-                        showsMorningDetails:
-                            $presentationState.showsMorningBloodPressureDetails,
-                        showsEveningDetails:
-                            $presentationState.showsEveningBloodPressureDetails
-                    )
-                case .medications:
-                    if #available(iOS 26.0, *) {
-                        MedicationReportSection(
-                            section: section,
-                            isExpanded: isExpanded,
-                            requestAccess: {
-                                presentationState.showsMedicationAccessHelp = true
-                            }
-                        )
-                    }
-                default:
-                    ReportDocumentSectionView(section: section, isExpanded: isExpanded)
+            ForEach(document.groupedSections) { grouped in
+                if let heading = grouped.heading {
+                    ReportGroupHeading(heading: heading)
+                }
+                ForEach(grouped.sections) { section in
+                    reportSection(section)
                 }
             }
 
@@ -165,6 +144,39 @@ struct HealthReportView: View {
                 .disabled(!canCopyAll)
                 .accessibilityIdentifier("health.copyAll.toolbar")
             }
+        }
+    }
+
+    /// One section, in the disclosure style its kind needs. The section stays
+    /// the disclosure unit; group headings never collapse anything.
+    @ViewBuilder
+    private func reportSection(_ section: ReportDocument.Section) -> some View {
+        let isExpanded = Binding(
+            get: { presentationState.isExpanded(section.id) },
+            set: { presentationState.setExpanded(section.id, $0) }
+        )
+        switch section.id {
+        case .bloodPressure:
+            BloodPressureReportSection(
+                section: section,
+                isExpanded: isExpanded,
+                showsMorningDetails:
+                    $presentationState.showsMorningBloodPressureDetails,
+                showsEveningDetails:
+                    $presentationState.showsEveningBloodPressureDetails
+            )
+        case .medications:
+            if #available(iOS 26.0, *) {
+                MedicationReportSection(
+                    section: section,
+                    isExpanded: isExpanded,
+                    requestAccess: {
+                        presentationState.showsMedicationAccessHelp = true
+                    }
+                )
+            }
+        default:
+            ReportDocumentSectionView(section: section, isExpanded: isExpanded)
         }
     }
 

@@ -1498,3 +1498,13 @@ Pricing as in the previous section (checked 11 October 2026): USD 4/M base input
 Boundary: subagents `2026-10-12T01:40:03Z`, main session `2026-10-12T01:45:29Z`, both to `2026-10-12T02:50:10Z`. 305 requests (19 main session, 286 subagents); maximum input 352,757. Cache writes: 1,531,947 5-minute, 34,766 1-hour. Exact API-equivalent USD 19.5098954.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-216-2026-10-16: Claude Code Health section groups
+
+One `claude-opus-5-5` implementation subagent (branch `feat/216-health-section-groups`, contract `docs/health-report-section-groups-v1.md`). No phase boundary was captured when the work started, so no token count or API-equivalent is estimated.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Health section groups (#216), implementation subagent | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+Token totals are not evidence of productivity, quality or provider efficiency.
