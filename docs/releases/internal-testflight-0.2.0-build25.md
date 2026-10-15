@@ -1,18 +1,28 @@
-# Internal TestFlight 0.2.0 (25): preparation
+# Internal TestFlight 0.2.0 (25)
 
-Status: **prepared, not uploaded.** This record is updated with the upload receipt (source commit, CI run, archive and dSYM UUIDs, Apple readback) once the owner approves each external step.
+Status: **uploaded on 15 October 2026 and reported Ready to Test by the owner.** Internal testing only; What to Test is set separately with the owner's approval.
 
 Version 0.2.0 marks the UX revamp (#140, phases #194 to #200) and its follow-ups. Build 25 follows 0.1.1 (24), which is in TestFlight but has no record in this repository; its expiry (83 days left on 15 October 2026) puts its upload around 7 to 8 October, before the revamp merged.
 
+## Upload receipt
+
+| Item | Value |
+| --- | --- |
+| Source | `main` at `55bb9e02d39d90d1c37215f24c05d470a6990ec2` ([PR241](https://github.com/syamaner/WeeklyHealthReport/pull/241)); the archived tree `924536f3` is identical to that commit's tree |
+| Bundle and version | `com.otherweather.ReportWeeklyHealth`, 0.2.0 (25) |
+| Executable and dSYM UUID | `D0DB6772-01DD-3573-A337-F208CBE546D6` (arm64) |
+| Uploaded IPA SHA-256 | `619180a3fbdb5358c171bddf0ef9d5a3e53a3412f525dc6895b254f6c382976c` |
+| Delivery UUID | `2d406f15-3ae4-40b2-a8f3-af8f44951cd8` |
+
+The exported package is signed by Apple Distribution for the owner's team, passes `codesign --verify --deep --strict`, and its entitlements are HealthKit only with `get-task-allow` false and `beta-reports-active` true. `ITSAppUsesNonExemptEncryption` is false and the Google Drive OAuth URL scheme is present. HealthKit stays read-only.
+
 ## Upload method
 
-Headless, with an App Store Connect API team key (App Manager role) held only in `~/.appstoreconnect/private_keys/`. The key and its identifiers never enter the repository, logs or this record.
+Headless, with an App Store Connect API team key (App Manager role) kept only in `~/.appstoreconnect/private_keys/`; its contents never enter the repository, logs or this record. Each external step had the owner's explicit approval at the time.
 
-1. Archive protected `main` at the recorded source commit, Release configuration, bundle `com.otherweather.ReportWeeklyHealth`, `MARKETING_VERSION` 0.2.0 from the project and `CURRENT_PROJECT_VERSION=25` on the command line, with `-allowProvisioningUpdates` and the API key for automatic signing.
-2. Export and upload with `xcodebuild -exportArchive` (`method` `app-store-connect`, `destination` `upload`, `manageAppVersionAndBuildNumber` false, internal testing only).
-3. Once processing finishes, set What to Test for the existing Internal Testing group and read it back.
-
-Each of these steps needs the owner's explicit yes at the time. No external testers, public submission or questionnaire changes.
+1. `xcodebuild archive`, Release, `CURRENT_PROJECT_VERSION=25`, automatic signing with `-allowProvisioningUpdates` and the API key. A git-ignored `Config/Signing.local.xcconfig` sets only the distribution team; it must not set the development bundle identifier.
+2. `xcodebuild -exportArchive` with `method` `app-store-connect`, `testFlightInternalTestingOnly` true, `manageAppVersionAndBuildNumber` false and `uploadSymbols` true. With `destination` `upload`, Xcode's API key session failed ("Cannot verify client's JWT headers"), so the package was exported locally (`destination` `export`) and uploaded with `xcrun altool --upload-app` and the same key, which succeeded. Apple returned one transient 500 during the upload, which `altool` retried.
+3. What to Test is set for the existing Internal Testing group once the owner approves; no external testers, public submission or questionnaire changes.
 
 ## Older builds cannot open the food data after updating
 
@@ -45,7 +55,7 @@ Existing records keep their bytes in each migration; the new versions add record
 
 HealthKit access stays read-only. The only egress change is that Today's Full Page can be shared by the user, recorded in [privacy and egress](../privacy-and-egress.md) and the [privacy policy](../privacy-policy.txt) ([PR228](https://github.com/syamaner/WeeklyHealthReport/pull/228)).
 
-## What to Test (draft for owner approval)
+## What to Test (owner approved, 15 October 2026)
 
 ```text
 0.2.0 is the redesigned app. Please back up or export before installing: once this build opens your food log, builds 24 and earlier cannot open it.
