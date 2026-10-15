@@ -103,7 +103,8 @@ struct AppShellView: View {
                 // Home leaving the window (a push) must not affect registration.
                 FullPageSceneRegistry.shared.refresh()
             }
-            .onChange(of: navigation.path) {
+            .onChange(of: navigation.path) { _, path in
+                foodLedger?.loggedBanner.navigated(to: path)
                 navigation.recordDestination()
                 syncNotesPin()
                 // Cheap and idempotent: the screen that may be captured next is registered.
@@ -127,6 +128,9 @@ struct AppShellView: View {
                     availableRoutes: settings.availableRoutes
                 )
             }
+        }
+        .overlay(alignment: .bottom) {
+            if let foodLedger { FoodLoggedBannerHost(banner: foodLedger.loggedBanner, navigation: navigation, foodHome: foodHome) }
         }
     }
 
@@ -299,5 +303,20 @@ struct AppShellView: View {
                 ))
             }
         }
+    }
+}
+
+/// The banner after Log closes Confirm (owner decision, 15 October 2026), over whichever screen
+/// the journey returned to. It anchors to the navigation path at the moment it appears, and an
+/// applied Undo reloads Home's food card (the Food Log reloads itself).
+private struct FoodLoggedBannerHost: View {
+    let banner: FoodLoggedBannerModel
+    let navigation: AppNavigationCoordinator
+    let foodHome: FoodHomeModel
+
+    var body: some View {
+        FoodLoggedBanner(model: banner)
+            .onAppear { banner.location = { [weak navigation] in navigation.map { AnyHashable($0.path) } } }
+            .onReceive(banner.$removals.dropFirst()) { _ in foodHome.reload() }
     }
 }

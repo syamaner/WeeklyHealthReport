@@ -423,6 +423,16 @@ final class FoodLedgerCompositionRoot {
 
     var foodLogStore: any FoodLogStore { FoodLogStoreAdapter(service: foodLogService) }
 
+    /// The one banner shown after Log closes Confirm (owner decision, 15 October 2026). Its Undo
+    /// removes through the Food Log port, with the Food Log's fixed removal reason.
+    private(set) lazy var loggedBanner = FoodLoggedBannerModel(store: foodLogStore)
+
+    /// Confirm for a new single food: Log saves, leaves through `leave` (the exit Done uses) and
+    /// shows the banner on the destination. List import and Edit build Confirm without it.
+    func singleFoodConfirmation(_ model: FoodConfirmationViewModel, leave: @escaping () -> Void) -> FoodConfirmationView {
+        FoodConfirmationView(model: model, logged: { [banner = loggedBanner] in banner.show($0) }, leave: leave)
+    }
+
     func foodLogModel() -> FoodLogViewModel {
         let clock = confirmationClock
         return FoodLogViewModel(store: foodLogStore, now: { clock.now() }, calendar: confirmationCalendar)
@@ -546,7 +556,7 @@ struct GenericFoodSearchFlowView: View {
         .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root, finish: finish, savesFavourite: savesFavourite) }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
-                FoodConfirmationView(model: confirmationModel) {
+                root.singleFoodConfirmation(confirmationModel) {
                     if !FoodEntryFinish.complete(finish, saved: confirmationModel.savedResult) {
                         showsConfirmation = false
                     }
@@ -614,7 +624,7 @@ struct AddFoodFlowView: View {
         .navigationDestination(isPresented: $showsFavourites) { favouritesFlow }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
-                FoodConfirmationView(model: confirmationModel) {
+                root.singleFoodConfirmation(confirmationModel) {
                     if !FoodEntryFinish.complete(finish, saved: confirmationModel.savedResult) {
                         showsConfirmation = false; now = root.confirmationNow; recents = root.recentFoods()
                     }
@@ -652,7 +662,7 @@ struct OpenRouterFoodReviewFlowView: View {
         }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
-                FoodConfirmationView(model: confirmationModel) {
+                root.singleFoodConfirmation(confirmationModel) {
                     if !FoodEntryFinish.complete(finish, saved: confirmationModel.savedResult) {
                         showsConfirmation = false
                     }
@@ -848,7 +858,7 @@ struct BarcodeFoodFlowView: View {
         }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
-                FoodConfirmationView(model: confirmationModel) {
+                root.singleFoodConfirmation(confirmationModel) {
                     if !FoodEntryFinish.complete(finish, saved: confirmationModel.savedResult) {
                         showsConfirmation = false
                     }
@@ -1065,7 +1075,7 @@ struct QuickAddPresenter: ViewModifier {
             }
             .navigationDestination(isPresented: $showsConfirm) {
                 if let confirmModel {
-                    FoodConfirmationView(model: confirmModel) {
+                    root.singleFoodConfirmation(confirmModel) {
                         if !FoodEntryFinish.complete(finish, saved: confirmModel.savedResult) {
                             showsConfirm = false
                             if confirmModel.savedResult != nil { logged() }
@@ -1083,19 +1093,24 @@ struct QuickAddPresenter: ViewModifier {
         switch preparation.eligibility {
         case .sheet:
             let model = root.quickAddSheetModel(preparation, entryDay: finish?.entryDay)
-            model.onLogged = QuickAddPresenter.completion(dismiss: { sheetModel = nil }, finish: finish, logged: logged)
+            model.onLogged = QuickAddPresenter.completion(dismiss: { sheetModel = nil }, finish: finish, logged: logged,
+                                                          notice: { [weak model] in model?.loggedNotice },
+                                                          show: { [banner = root.loggedBanner] in banner.show($0) })
             sheetModel = model
         case .confirm: openConfirm(preparation.state, entryDay: finish?.entryDay)
         }
     }
 
     /// After the one successful Log: dismiss the sheet, then end the Add food journey through its
-    /// single post-save exit or, elsewhere, reload the host.
+    /// single post-save exit or, elsewhere, reload the host; then show the banner there.
     static func completion(dismiss: @escaping () -> Void, finish: FoodEntryFinish?,
-                           logged: @escaping () -> Void) -> (StoredFoodConfirmation) -> Void {
+                           logged: @escaping () -> Void,
+                           notice: @escaping () -> FoodLoggedNotice? = { nil },
+                           show: ((FoodLoggedNotice) -> Void)? = nil) -> (StoredFoodConfirmation) -> Void {
         { saved in
             dismiss()
             if !FoodEntryFinish.complete(finish, saved: saved) { logged() }
+            if let show, let notice = notice() { show(notice) }
         }
     }
 

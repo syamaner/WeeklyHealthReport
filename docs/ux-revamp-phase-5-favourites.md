@@ -92,3 +92,7 @@ Checked against `main` at `def4b19` (phase 3 #207 as `34fae5d`, phase 4 #211 as 
 
 - **A, no contract change.** "Save as favourite" is offered on the saved entry and on recent foods (a leading swipe, the context menu and a VoiceOver action on Add food, and the new **From what you've logged** list, first in Favourites' "Add a favourite" section). Each uses `saveFavourite(logItemVersionID:)` on the entry's current, non-removed version (Q2), shows "Already a favourite" when an active favourite pins it, and on failure "Favourite not saved" with Try again. Plain water is not offered (it has its own item). The search, barcode and web routes stay, under "Log now and save favourite", and Confirm keeps When visible.
 - **F, Q7 amendment.** Removing water (built in or stored) is confirmed in the editor; once every plain water chain is removed, "Add Water to quick add" appends an active version to the removed chain. Both stores are covered by `FavouritesFromLoggedContractTests`.
+
+### Log closes with Undo (owner decision, 15 October 2026)
+
+Quick add (the sheet and its full Confirm, from Home or Add food) and the "Log now and save favourite" routes follow phase 4's "Log closes Confirm with Undo": Log saves, the journey returns where Done went, and the banner offers Undo for 5 seconds. Undo removes only the log entry; a favourite saved with it stays, and the banner says so. The sheet's banner states the amount its Log button showed ("Logged · 250 mL").
