@@ -1,6 +1,6 @@
 # Health steps trend v1 (#215)
 
-Status: **draft for owner approval, 16 October 2026.** No production code until the owner answers the decisions in section 9. Policy identifier: `steps_trend_previous_equivalent_v1`. Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md), "Deferred wireframe items"); wireframe `designs/ux-revamp-v1/Health.dc.html` ("↑ 6% vs previous" on the steps tile).
+Status: **approved by the owner, 16 October 2026; every decision in section 9 takes its recommended option.** Policy identifier: `steps_trend_previous_equivalent_v1`. Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md), "Deferred wireframe items"); wireframe `designs/ux-revamp-v1/Health.dc.html` ("↑ 6% vs previous" on the steps tile).
 
 The Health report gains one descriptive row: how the selected period's average daily steps compares with the equivalent previous period, as a signed whole percentage. Nothing else about steps changes.
 

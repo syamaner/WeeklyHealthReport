@@ -1,6 +1,6 @@
 # Export included summary and last export of the day v1 (#217)
 
-Status: **draft for owner approval, 16 October 2026.** No production code until the owner answers the decisions in section 7. Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md), open question 5); wireframe `designs/ux-revamp-v1/Export.dc.html` ("14 metrics · 2 workouts", "Last export of this day: none.").
+Status: **approved by the owner, 16 October 2026; every decision in section 7 takes its recommended option.** Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md), open question 5); wireframe `designs/ux-revamp-v1/Export.dc.html` ("14 metrics · 2 workouts", "Last export of this day: none.").
 
 The Export screen's "Included" list gains a count of Health metrics with data and of workouts for the selected day, and one line saying when this day was last exported from this iPhone. The Daily JSON bytes, schema and Drive behaviour do not change, and no new state is stored.
 

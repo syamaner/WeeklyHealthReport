@@ -1,6 +1,6 @@
 # Health report section groups v1 (#216)
 
-Status: **draft for owner approval, 16 October 2026.** No production code until the owner answers the decisions in section 6. Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md)); wireframe `designs/ux-revamp-v1/Health.dc.html` (Activity, Body, Heart and sleep).
+Status: **approved by the owner, 16 October 2026; every decision in section 6 takes its recommended option.** Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md)); wireframe `designs/ux-revamp-v1/Health.dc.html` (Activity, Body, Heart and sleep).
 
 The Health report's sections are put under a few named groups and reordered. **No metric, value, period, row id, row label or section title changes.** The only text changes are the order of the section blocks and new group heading lines.
 

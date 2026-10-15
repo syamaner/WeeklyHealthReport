@@ -1,6 +1,6 @@
 # Health food and water section v1 (#214)
 
-Status: **draft for owner approval, 16 October 2026.** No production code until the owner answers the decisions in section 9. Policy identifier: `health_food_log_period_v1`. Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md)); wireframe `designs/ux-revamp-v1/Health.dc.html` ("Logged energy" tile, "Food and water" section).
+Status: **approved by the owner, 16 October 2026; every decision in section 9 takes its recommended option.** Policy identifier: `health_food_log_period_v1`. Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md)); wireframe `designs/ux-revamp-v1/Health.dc.html` ("Logged energy" tile, "Food and water" section).
 
 **Proposal:** yes, the Health report shows what was **logged in this app's food log** for the selected completed days: average logged energy per complete day and average plain water per day it was logged, with logged-day coverage. Both are food-log facts, labelled "logged", not measured intake. HealthKit dietary data stays export-only, as README already says.
 
