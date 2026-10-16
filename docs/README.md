@@ -38,6 +38,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 ## Nutrition evaluation
 
 - [Evaluation plan v1](nutrition-ai-evaluation-plan-v1.md), [metric contract v1](nutrition-ai-metric-contract-v1.md), [acceptance plan v1](nutrition-ai-acceptance-plan-v1.md), [inventory v1](nutrition-ai-evaluation-inventory-v1.md)
+- [Nutrition-label capture evaluation v1](nutrition-label-capture-evaluation-v1.md): pasted text, on-device OCR and multimodal LLM routes (plan only)
 
 ## Health report, workouts and export
 
