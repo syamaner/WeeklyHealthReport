@@ -1,0 +1,457 @@
+{
+  "overall": {
+    "cases": 179,
+    "failed": 0,
+    "false_declines": 0,
+    "extra_cells": 0,
+    "serving_size": {
+      "exact": 61,
+      "known": 61
+    },
+    "energy_check_informing_only": {
+      "not_checkable": 26,
+      "pass": 153
+    },
+    "metrics": {
+      "strict_cells": {
+        "numerator": 2115,
+        "denominator": 2115,
+        "rate": 1.0,
+        "bar": 0.95,
+        "verdict": "pass"
+      },
+      "binding": {
+        "numerator": 2191,
+        "denominator": 2191,
+        "rate": 1.0,
+        "bar": 0.98,
+        "verdict": "pass"
+      },
+      "unit_and_basis": {
+        "numerator": 2115,
+        "denominator": 2115,
+        "rate": 1.0,
+        "bar": 1.0,
+        "verdict": "pass"
+      },
+      "full_table": {
+        "numerator": 163,
+        "denominator": 163,
+        "rate": 1.0,
+        "bar": 0.75,
+        "verdict": "pass"
+      },
+      "serving_conversions": {
+        "numerator": 656,
+        "denominator": 656,
+        "rate": 1.0,
+        "bar": 0.98,
+        "verdict": "pass"
+      },
+      "servings_per_pack": {
+        "numerator": 61,
+        "denominator": 61,
+        "rate": 1.0,
+        "bar": 0.98,
+        "verdict": "pass"
+      },
+      "bounds": {
+        "numerator": 58,
+        "denominator": 58,
+        "rate": 1.0,
+        "bar": 1.0,
+        "verdict": "pass"
+      },
+      "correct_decline": {
+        "numerator": 16,
+        "denominator": 16,
+        "rate": 1.0,
+        "bar": 0.95,
+        "verdict": "pass"
+      },
+      "false_ready": {
+        "count": 0,
+        "denominator": 179,
+        "bar": "<= 0",
+        "verdict": "pass"
+      },
+      "automatic_persistence": {
+        "count": 0,
+        "verdict": "pass"
+      },
+      "arithmetic_mutation_detection": {
+        "numerator": 103,
+        "denominator": 115,
+        "rate": 0.8957,
+        "bar": 1.0,
+        "verdict": "fail",
+        "by_mutation": {
+          "tenfold_serving": {
+            "applicable": 90,
+            "detected": 87
+          },
+          "basis_transposition": {
+            "applicable": 16,
+            "detected": 14
+          },
+          "bound_replaced_by_exact": {
+            "applicable": 9,
+            "detected": 2
+          }
+        }
+      }
+    }
+  },
+  "by_corpus": {
+    "fda188": {
+      "cases": 76,
+      "failed": 0,
+      "false_declines": 0,
+      "extra_cells": 0,
+      "serving_size": {
+        "exact": 60,
+        "known": 60
+      },
+      "energy_check_informing_only": {
+        "not_checkable": 16,
+        "pass": 60
+      },
+      "metrics": {
+        "strict_cells": {
+          "numerator": 648,
+          "denominator": 648,
+          "rate": 1.0,
+          "bar": 0.95,
+          "verdict": "pass"
+        },
+        "binding": {
+          "numerator": 648,
+          "denominator": 648,
+          "rate": 1.0,
+          "bar": 0.98,
+          "verdict": "pass"
+        },
+        "unit_and_basis": {
+          "numerator": 648,
+          "denominator": 648,
+          "rate": 1.0,
+          "bar": 1.0,
+          "verdict": "pass"
+        },
+        "full_table": {
+          "numerator": 60,
+          "denominator": 60,
+          "rate": 1.0,
+          "bar": 0.75,
+          "verdict": "pass"
+        },
+        "serving_conversions": {
+          "numerator": 336,
+          "denominator": 336,
+          "rate": 1.0,
+          "bar": 0.98,
+          "verdict": "pass"
+        },
+        "servings_per_pack": {
+          "numerator": 60,
+          "denominator": 60,
+          "rate": 1.0,
+          "bar": 0.98,
+          "verdict": "pass"
+        },
+        "bounds": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "bar": 1.0,
+          "verdict": "no_denominator"
+        },
+        "correct_decline": {
+          "numerator": 16,
+          "denominator": 16,
+          "rate": 1.0,
+          "bar": 0.95,
+          "verdict": "pass"
+        },
+        "false_ready": {
+          "count": 0,
+          "denominator": 76,
+          "bar": "<= 0",
+          "verdict": "pass"
+        },
+        "automatic_persistence": {
+          "count": 0,
+          "verdict": "pass"
+        }
+      }
+    },
+    "muesli_typed": {
+      "cases": 1,
+      "failed": 0,
+      "false_declines": 0,
+      "extra_cells": 0,
+      "serving_size": {
+        "exact": 1,
+        "known": 1
+      },
+      "energy_check_informing_only": {
+        "pass": 1
+      },
+      "metrics": {
+        "strict_cells": {
+          "numerator": 18,
+          "denominator": 18,
+          "rate": 1.0,
+          "bar": 0.95,
+          "verdict": "pass"
+        },
+        "binding": {
+          "numerator": 18,
+          "denominator": 18,
+          "rate": 1.0,
+          "bar": 0.98,
+          "verdict": "pass"
+        },
+        "unit_and_basis": {
+          "numerator": 18,
+          "denominator": 18,
+          "rate": 1.0,
+          "bar": 1.0,
+          "verdict": "pass"
+        },
+        "full_table": {
+          "numerator": 1,
+          "denominator": 1,
+          "rate": 1.0,
+          "bar": 0.75,
+          "verdict": "pass"
+        },
+        "serving_conversions": {
+          "numerator": 9,
+          "denominator": 9,
+          "rate": 1.0,
+          "bar": 0.98,
+          "verdict": "pass"
+        },
+        "servings_per_pack": {
+          "numerator": 1,
+          "denominator": 1,
+          "rate": 1.0,
+          "bar": 0.98,
+          "verdict": "pass"
+        },
+        "bounds": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "bar": 1.0,
+          "verdict": "no_denominator"
+        },
+        "correct_decline": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "bar": 0.95,
+          "verdict": "no_denominator"
+        },
+        "false_ready": {
+          "count": 0,
+          "denominator": 1,
+          "bar": "<= 0",
+          "verdict": "pass"
+        },
+        "automatic_persistence": {
+          "count": 0,
+          "verdict": "pass"
+        }
+      }
+    },
+    "v1": {
+      "cases": 80,
+      "failed": 0,
+      "false_declines": 0,
+      "extra_cells": 0,
+      "serving_size": {
+        "exact": 0,
+        "known": 0
+      },
+      "energy_check_informing_only": {
+        "not_checkable": 7,
+        "pass": 73
+      },
+      "metrics": {
+        "strict_cells": {
+          "numerator": 1138,
+          "denominator": 1138,
+          "rate": 1.0,
+          "bar": 0.95,
+          "verdict": "pass"
+        },
+        "binding": {
+          "numerator": 1200,
+          "denominator": 1200,
+          "rate": 1.0,
+          "bar": 0.98,
+          "verdict": "pass"
+        },
+        "unit_and_basis": {
+          "numerator": 1138,
+          "denominator": 1138,
+          "rate": 1.0,
+          "bar": 1.0,
+          "verdict": "pass"
+        },
+        "full_table": {
+          "numerator": 80,
+          "denominator": 80,
+          "rate": 1.0,
+          "bar": 0.75,
+          "verdict": "pass"
+        },
+        "serving_conversions": {
+          "numerator": 195,
+          "denominator": 195,
+          "rate": 1.0,
+          "bar": 0.98,
+          "verdict": "pass"
+        },
+        "servings_per_pack": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "bar": 0.98,
+          "verdict": "no_denominator"
+        },
+        "bounds": {
+          "numerator": 47,
+          "denominator": 47,
+          "rate": 1.0,
+          "bar": 1.0,
+          "verdict": "pass"
+        },
+        "correct_decline": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "bar": 0.95,
+          "verdict": "no_denominator"
+        },
+        "false_ready": {
+          "count": 0,
+          "denominator": 80,
+          "bar": "<= 0",
+          "verdict": "pass"
+        },
+        "automatic_persistence": {
+          "count": 0,
+          "verdict": "pass"
+        }
+      }
+    },
+    "v2dev": {
+      "cases": 22,
+      "failed": 0,
+      "false_declines": 0,
+      "extra_cells": 0,
+      "serving_size": {
+        "exact": 0,
+        "known": 0
+      },
+      "energy_check_informing_only": {
+        "not_checkable": 3,
+        "pass": 19
+      },
+      "metrics": {
+        "strict_cells": {
+          "numerator": 311,
+          "denominator": 311,
+          "rate": 1.0,
+          "bar": 0.95,
+          "verdict": "pass"
+        },
+        "binding": {
+          "numerator": 325,
+          "denominator": 325,
+          "rate": 1.0,
+          "bar": 0.98,
+          "verdict": "pass"
+        },
+        "unit_and_basis": {
+          "numerator": 311,
+          "denominator": 311,
+          "rate": 1.0,
+          "bar": 1.0,
+          "verdict": "pass"
+        },
+        "full_table": {
+          "numerator": 22,
+          "denominator": 22,
+          "rate": 1.0,
+          "bar": 0.75,
+          "verdict": "pass"
+        },
+        "serving_conversions": {
+          "numerator": 116,
+          "denominator": 116,
+          "rate": 1.0,
+          "bar": 0.98,
+          "verdict": "pass"
+        },
+        "servings_per_pack": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "bar": 0.98,
+          "verdict": "no_denominator"
+        },
+        "bounds": {
+          "numerator": 11,
+          "denominator": 11,
+          "rate": 1.0,
+          "bar": 1.0,
+          "verdict": "pass"
+        },
+        "correct_decline": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "bar": 0.95,
+          "verdict": "no_denominator"
+        },
+        "false_ready": {
+          "count": 0,
+          "denominator": 22,
+          "bar": "<= 0",
+          "verdict": "pass"
+        },
+        "automatic_persistence": {
+          "count": 0,
+          "verdict": "pass"
+        }
+      }
+    }
+  },
+  "route": "A",
+  "split": "development",
+  "dataset_sha256": "3247b8292f07a7c106265a94a9067c470cbcbaad2b8461522a6a412f0a31eb17",
+  "parser_version": "nutrition-label-text-parser-v1",
+  "cases": 179,
+  "inspect": {
+    "location": "2026-10-16T17-54-53-00-00_label-capture-route-a-development_etgZ3nbvPb8gV5ZNPfhcKG.eval",
+    "inspect_metrics": {
+      "strict_cells": 1.0,
+      "binding": 1.0,
+      "unit_and_basis": 1.0,
+      "full_table": 1.0,
+      "serving_conversions": 1.0,
+      "servings_per_pack": 1.0,
+      "bounds": 1.0,
+      "correct_decline": 1.0,
+      "false_ready": 0.0,
+      "energy_check_pass": 1.0
+    }
+  },
+  "declines": {
+    "declined": 16
+  }
+}

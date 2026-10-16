@@ -1528,3 +1528,17 @@ One `claude-opus-5-5` implementation subagent (branch `feat/214-health-food-and-
 | Health food and water (#214), implementation subagent | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-17: Claude Code nutrition-label capture evaluation phase 1
+
+One `claude-opus-5-5` implementation subagent (branch `feat/255-label-eval-phase-1`, plan `docs/nutrition-label-capture-evaluation-v1.md`), transcript `subagents/agent-adb85f81110e00f4d.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. Covers the Inspect AI harness, the approved Open Food Facts Taiwan and FDA 188 downloads, muesli ingest, the Swift parser, the development dataset, the route A development run and the first-pass Taiwan ground truth, up to this ledger edit. No subagents were launched by this agent; the orchestrator's own usage is outside the row. This ledger edit, gates, commit and PR delivery are outside the row.
+
+Pricing as in the previous sections (checked 11 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label capture evaluation phase 1 (#255), implementation subagent | 24,279,351 (23,183,256) | 1,095,891 | 99,257 | 24,378,608 | $12.10 |
+
+Boundary: `2026-10-16T17:25:56Z` → `2026-10-16T18:29:51Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,095,891 5-minute, 0 1-hour. Exact API-equivalent USD 12.1020622.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

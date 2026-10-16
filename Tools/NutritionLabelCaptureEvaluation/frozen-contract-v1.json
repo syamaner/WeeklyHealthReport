@@ -1,0 +1,192 @@
+{
+  "schema_version": "label-capture-evaluation-contract-v1",
+  "contract_version": "label-capture-evaluation-v1",
+  "status": "development_phase_1",
+  "status_note": "Phase 1 (#255): thresholds, adequacy minima, tolerances, selection, split and sealing rules are pre-registered here. Artefact hashes pin the current development state; they are re-pinned, and the status set to frozen_for_untouched_run, only when every route is frozen before the single untouched run.",
+  "plan": "docs/nutrition-label-capture-evaluation-v1.md",
+  "plan_approved": "2026-10-17",
+  "framework": {
+    "name": "inspect_ai",
+    "version": "0.3.276",
+    "requirements": "Tools/NutritionLabelCaptureEvaluation/requirements.txt"
+  },
+  "candidate_schema": {
+    "path": "Tools/NutritionLabelCaptureEvaluation/candidate-schema-v1.json",
+    "schema_version": "label-capture-candidate-v1",
+    "required_status": "user_selection_only",
+    "required_ready_for_confirmation": false,
+    "required_automatic_save": false,
+    "required_cell_persistence_authorized": false,
+    "required_cell_requires_user_selection": true,
+    "basis_values": [
+      "per_100g",
+      "per_100ml",
+      "per_serving",
+      "reference_intake"
+    ],
+    "comparators": [
+      "=",
+      "<",
+      "<="
+    ],
+    "unknown_must_remain_explicit": true
+  },
+  "scoring": {
+    "match_key": "Canonical nutrient (or unrecognised plus normalised printed label), parent nutrient, semantic basis, and the normalised printed header only when a basis repeats; duplicate same-basis columns without distinct printed headers never earn credit by list order.",
+    "strict_cell": "decimal_text, comparator, canonical unit and basis equal, without rewriting numeric text.",
+    "binding": "every expected cell, including reference-intake cells: the candidate cell with the same key carries the same decimal_text.",
+    "unit_and_basis": "every expected product cell: the candidate cell with the same key has the same canonical unit and basis; printed unit text is retained.",
+    "full_table": "every usable table: no decline, every expected cell strict, no extra or ambiguous candidate cell, servings per pack and serving size equal.",
+    "serving_conversion": "every per-serving cell with a printed serving quantity: candidate quantity equal with whitespace removed; unknown or inferred values earn no credit.",
+    "false_ready": "the route would mark the table ready (would_mark_ready and the shared arithmetic policy does not fail) but it is not full-table exact, or a decline was required; any automatic persistence is a separate critical failure.",
+    "failed_output": "schema-invalid or missing candidates are failed, distinct from declined, and stay in every denominator.",
+    "zero_denominator": "reported as no_denominator, never as a pass."
+  },
+  "metrics": {
+    "numeric_cell_exact_minimum": 0.95,
+    "row_header_binding_minimum": 0.98,
+    "unit_and_basis_minimum": 1.0,
+    "full_table_exact_minimum": 0.75,
+    "serving_conversion_minimum": 0.98,
+    "servings_per_pack_minimum": 0.98,
+    "bound_preservation_minimum": 1.0,
+    "correct_decline_minimum": 0.95,
+    "false_ready_maximum": 0,
+    "arithmetic_detection_minimum": 1.0
+  },
+  "adequacy_minima_untouched": {
+    "usable_sealed_v2_tables": 30,
+    "sealed_v2_required_declines": 5,
+    "sealed_v2_bounded_cells": 10,
+    "sealed_v2_printed_serving_conversions": 20,
+    "untouched_synthetic_chinese_cases": 30,
+    "untouched_off_taiwan_photos": 40
+  },
+  "arithmetic": {
+    "energy_forms": {
+      "general": "4P + 4C + 9F",
+      "uk_fibre_variant": "4P + 4C + 9F + 2 fibre (UK and EU, either form may pass)",
+      "taiwan": "4P + 4(C - fibre) + 2 fibre + 9F (used first when fibre is printed)"
+    },
+    "tolerance": {
+      "uk": {
+        "absolute_kcal": 15,
+        "relative": 0.1
+      },
+      "taiwan": {
+        "absolute_kcal": 15,
+        "relative": 0.1
+      },
+      "us": {
+        "absolute_kcal": 20,
+        "relative": 0.2
+      }
+    },
+    "kj_per_kcal": 4.184,
+    "kj_kcal_relative_tolerance": 0.02,
+    "inputs_must_be_exact_printed_values_on_one_basis": true,
+    "failure_blocks_ready_never_rewrites": true,
+    "pass_never_authorises": true,
+    "mutations": [
+      "tenfold_serving",
+      "basis_transposition",
+      "bound_replaced_by_exact"
+    ]
+  },
+  "decline_rules": [
+    "no_table",
+    "no_basis_header",
+    "duplicate_basis",
+    "count_mismatch",
+    "values_without_row",
+    "value_without_unit",
+    "energy_without_unit",
+    "unrecognised_unit",
+    "unsupported_language",
+    "multiple_panels"
+  ],
+  "corpus": {
+    "off_taiwan": {
+      "query": "countries_tags:\"en:taiwan\"",
+      "endpoint": "https://search.openfoodfacts.org/search",
+      "image_key": "nutrition_zh",
+      "order": "ascending SHA-256 of the UTF-8 13-digit barcode",
+      "selected": 60,
+      "development": 20,
+      "untouched": 40,
+      "manifest": "Tools/NutritionLabelCaptureEvaluation/fixtures/off-taiwan-manifest-v1.json",
+      "manifest_sha256": "dd6e772e53afbf7a68a149c86298e01dad74f48dd81270e526d4747fb4f11163",
+      "licence": "CC BY-SA 3.0",
+      "sealing": "Untouched photos are hashed only, stored read-only in a separate sealed folder outside the repository, and opened once in the single frozen run for all routes together; no replacement, no rerun."
+    },
+    "fda188": {
+      "source": "https://data.fda.gov.tw/data/opendata/export/188/csv",
+      "source_record": "Tools/NutritionLabelCaptureEvaluation/fixtures/fda-188-source-v1.json",
+      "licence": "Open Government Data License, version 1.0 (Taiwan)",
+      "order": "ascending SHA-256 of 'fda188-v1:' + SHA-256(trace code | product name | package)",
+      "candidates_taken": 120,
+      "split": "first 8 hex digits of the order key: even is development, odd is untouched",
+      "untouched_rendered_only_after_generator_freeze": true
+    },
+    "muesli": {
+      "original_sha256": "b360d49e8934b4d275ea11640901ee1aeed767a12b56f9a7e4b1b1ba439d0d38",
+      "stripped_master_sha256": "4c4a2d790ebe85a3853fed7ae2f1c09e7448f3179866658f0994b519b7b9f220",
+      "set": "development"
+    },
+    "v2_sealed": {
+      "reference": "Tools/FoodOCREvaluation/frozen-contract-v2.json",
+      "set": "untouched",
+      "never_read_in_phase_1": true
+    }
+  },
+  "route_c": {
+    "enabled": false,
+    "models_in_run_order": [
+      "GPT-6 Luna (azure)",
+      "Grok 4.7 (xai/zdr)",
+      "GPT-6.1 Sol (azure)",
+      "Gemini 4 (ZDR endpoint on the day)",
+      "Claude Opus 4.7 (google-vertex/global)"
+    ],
+    "provider_block": {
+      "allow_fallbacks": false,
+      "require_parameters": true,
+      "data_collection": "deny",
+      "zdr": true
+    },
+    "max_output_tokens": 4096,
+    "timeout_seconds": 90,
+    "retries": 0,
+    "per_call_stop_usd": 0.05,
+    "total_stop_usd": 25,
+    "unknown_cost_calls_allowed": 3,
+    "sealed_run_reserved_calls": 200
+  },
+  "ground_truth": {
+    "development_off_taiwan": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json",
+    "development_off_taiwan_status": "first_pass_unverified",
+    "untouched_sha256": ""
+  },
+  "frozen_artefacts": {
+    "Tools/NutritionLabelCaptureEvaluation/candidate-schema-v1.json": "74333555741f73f2557fe74e11cfcb7b2693f5a261c49957a9e8e6e39404e531",
+    "Tools/NutritionLabelCaptureEvaluation/candidate.py": "2bb5259852deea0bd10402e290ff53403867466d2575212f61b445802b7e887b",
+    "Tools/NutritionLabelCaptureEvaluation/score.py": "6980cbae733e8d0e640e59ee3e2091311c6272a77e80cb8e3e2d820808e3989d",
+    "Tools/NutritionLabelCaptureEvaluation/arithmetic.py": "9193c5543ce4bc7558bafda5155dd97d9666d0756f6756d7a597233c6a364fcc",
+    "Tools/NutritionLabelCaptureEvaluation/budget.py": "c248130db52f60b8616f6948618ffaa4b962358dc1e1bc6f7d104016bf0df9b8",
+    "Tools/NutritionLabelCaptureEvaluation/cases.py": "8810d47df49a91fbadac0237b1be47ae184e142e6f6a187a4f7ca047d361851d",
+    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "e9411b193c46d052b2b1b178c15bcc2c9207a10312f15b0a5166d068146c11d2",
+    "Tools/NutritionLabelCaptureEvaluation/requirements.txt": "56dfa330c985616b9a3704fc5f5df526abb6e7136ece92a29bfa471db190acf4",
+    "Tools/NutritionLabelCaptureEvaluation/synthetic/render.py": "3a06ff62032a6d02d81ac8924d37f29b073f5aefbce96baf6d7909e7fa38a2aa",
+    "Tools/NutritionLabelCaptureEvaluation/build_cases.py": "cb44a2a2c8e3ff91d1ecde5cdfba713eb292f6a8b6c06515de7109cdaaaeb559",
+    "Tools/NutritionLabelCaptureEvaluation/synthetic/development-cases-v1.jsonl": "3247b8292f07a7c106265a94a9067c470cbcbaad2b8461522a6a412f0a31eb17",
+    "Tools/NutritionLabelCaptureEvaluation/fixtures/off-taiwan-manifest-v1.json": "dd6e772e53afbf7a68a149c86298e01dad74f48dd81270e526d4747fb4f11163",
+    "Tools/NutritionLabelCaptureEvaluation/fixtures/fda-188-source-v1.json": "f39b56aaef33cce0d0ab01555938a54cb4254521205eb5007e47b677632fd82b",
+    "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json": "2a9fb0bc143054475ba1efa5fb93f4a00eaa1661ee4ebaa425aad0d01f45f1ca",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/label-image-extraction-instruction-v1.txt": "4d661214eddc3da2e8e6754857c9802f02b62d53741e982f5f71de44de9dcd99",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/label-image-wire-schema-v1.json": "8d10352dcf69fa0f3da203835ce3aac95df573ba689ee29ffab34177e0432b71",
+    "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/LabelCaptureCandidate.swift": "65722296a95944d0c6d32505beb35f469c0906cd7782fed769aa0c6a5576c76f",
+    "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/LabelVocabulary.swift": "0792d7c351f58f967e21ba0c34cc551c245d9421dd9455a6b371035e8409260d",
+    "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/NutritionLabelTextParser.swift": "60d614b00c8e1fc5281dae4b12bb2cae292be748126048a6cdfcc2e343920aaa",
+    "Packages/FoodLedgerKit/Tools/NutritionLabelTextParse/main.swift": "64263db7a0bd6535cb8950ed88df7d0e93b28c1df6817aeaff2882ccee759a3e"
+  }
+}

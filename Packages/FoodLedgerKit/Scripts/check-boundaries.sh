@@ -18,6 +18,8 @@ check_imports() {
 }
 
 check_imports FoodLedgerDomain '^(Foundation)$'
+# Pure label-text parser under evaluation (#255): no app, platform or hashing dependency.
+check_imports NutritionLabelParsing '^(Foundation)$'
 check_imports FoodLedgerApplication '^(CryptoKit|Foundation|FoodLedgerDomain)$'
 check_imports FoodGenericSearch '^(CoreFoundation|CryptoKit|Darwin|Foundation|Network|PDFKit|Security|SwiftSoup|FoodLedgerApplication|FoodLedgerDomain)$'
 check_imports FoodInventoryImport '^(Foundation|PDFKit|FoodLedgerApplication|FoodLedgerDomain)$'

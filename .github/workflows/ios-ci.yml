@@ -211,6 +211,34 @@ jobs:
           python3 Tools/FoodOCREvaluation/validate_contract_v2.py \
             Tools/FoodOCREvaluation/frozen-contract-v2.json
 
+  label-capture-evaluation:
+    name: Nutrition-label capture evaluation contracts
+    runs-on: ubuntu-latest
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Offline: scorers, arithmetic checks, sealed-set guard and contract hashes.
+      # No model, provider or Vision call; the Inspect wiring test is skipped here.
+      - name: Verify label-capture contract and pure unit tests
+        run: |
+          python3 -m unittest discover -s Tools/NutritionLabelCaptureEvaluation/tests -v
+          python3 Tools/NutritionLabelCaptureEvaluation/validate_contract.py \
+            Tools/NutritionLabelCaptureEvaluation/frozen-contract-v1.json
+
+      # Installs the pinned Inspect AI into a local venv and runs the same tests,
+      # including the Inspect wiring test with a stub parser and the mockllm model.
+      - name: Verify Inspect wiring with the pinned framework
+        run: |
+          python3 -m venv "$RUNNER_TEMP/label-eval-venv"
+          "$RUNNER_TEMP/label-eval-venv/bin/pip" install --disable-pip-version-check -r Tools/NutritionLabelCaptureEvaluation/requirements.txt
+          "$RUNNER_TEMP/label-eval-venv/bin/python" -m unittest discover -s Tools/NutritionLabelCaptureEvaluation/tests -v
+
   drive-export-kit-build:
     name: DriveExportKit build
     runs-on: macos-26

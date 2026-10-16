@@ -12,3 +12,7 @@ Tools/SyntheticDriveExport/Config/OAuth.local.xcconfig
 
 # Local Swift and evaluation compiler output
 .build/
+
+# Nutrition-label capture evaluation: local Inspect venv and run logs
+Tools/NutritionLabelCaptureEvaluation/.venv/
+Tools/NutritionLabelCaptureEvaluation/runs/

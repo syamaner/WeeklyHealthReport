@@ -1,0 +1,51 @@
+{
+  "$comment": "label-image-wire-schema-v1 DRAFT (phase 1, not frozen, never sent). Designed with no union-bearing parameters (limit 16): absent values use the explicit string unknown instead of null. The harness maps it to label-capture-candidate-v1.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["declined", "decline_reasons", "language", "serving_size_text", "servings_per_pack_text", "headers", "rows"],
+  "properties": {
+    "declined": {"type": "boolean"},
+    "decline_reasons": {"type": "array", "items": {"type": "string"}},
+    "language": {"type": "string", "enum": ["en", "zh-Hant", "mixed", "unknown"]},
+    "serving_size_text": {"type": "string", "description": "Printed serving size line, or unknown"},
+    "servings_per_pack_text": {"type": "string", "description": "Printed servings per pack line, or unknown"},
+    "headers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["header_id", "printed_text", "basis"],
+        "properties": {
+          "header_id": {"type": "string"},
+          "printed_text": {"type": "string"},
+          "basis": {"type": "string", "enum": ["per_100g", "per_100ml", "per_serving", "reference_intake"]}
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["printed_label", "nutrient", "parent_nutrient", "values"],
+        "properties": {
+          "printed_label": {"type": "string"},
+          "nutrient": {"type": "string", "enum": ["energy_kj", "energy_kcal", "fat", "saturates", "trans_fat", "carbohydrate", "sugars", "added_sugars", "fibre", "protein", "salt", "sodium", "unrecognised"]},
+          "parent_nutrient": {"type": "string", "description": "Canonical nutrient of the parent row, or none"},
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["header_id", "printed_text"],
+              "properties": {
+                "header_id": {"type": "string"},
+                "printed_text": {"type": "string", "description": "Exactly as printed, including comparator and unit"}
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

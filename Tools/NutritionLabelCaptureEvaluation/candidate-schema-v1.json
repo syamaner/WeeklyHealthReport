@@ -1,0 +1,284 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "label-capture-candidate-v1",
+  "title": "Nutrition-label capture candidate v1",
+  "description": "Shared output of routes A, B and C (docs/nutrition-label-capture-evaluation-v1.md section 2.2), derived from the candidate_schema block of Tools/FoodOCREvaluation/frozen-contract-v2.json and extended for Taiwan labels. A candidate proposes cells for explicit user selection only; it never authorises persistence. `unknown` stays explicit.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "route",
+    "input_sha256",
+    "status",
+    "declined",
+    "decline_reasons",
+    "ready_for_confirmation",
+    "would_mark_ready",
+    "automatic_save",
+    "language",
+    "serving_size",
+    "servings_per_pack",
+    "headers",
+    "cells",
+    "warnings"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "label-capture-candidate-v1"
+    },
+    "route": {
+      "enum": [
+        "A",
+        "B",
+        "C"
+      ]
+    },
+    "input_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "status": {
+      "const": "user_selection_only"
+    },
+    "declined": {
+      "type": "boolean"
+    },
+    "decline_reasons": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "ready_for_confirmation": {
+      "const": false,
+      "description": "Always false in this evaluation's output."
+    },
+    "would_mark_ready": {
+      "type": "boolean",
+      "description": "What the route would have marked ready, recorded for scoring only; the shared arithmetic policy can still block it."
+    },
+    "automatic_save": {
+      "const": false
+    },
+    "language": {
+      "enum": [
+        "en",
+        "zh-Hant",
+        "mixed",
+        "unknown"
+      ]
+    },
+    "serving_size": {
+      "oneOf": [
+        {
+          "const": "unknown"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "printed_text"
+          ],
+          "properties": {
+            "printed_text": {
+              "type": "string"
+            },
+            "decimal_text": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "canonical_unit": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "servings_per_pack": {
+      "oneOf": [
+        {
+          "const": "unknown"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "printed_text",
+            "decimal_text",
+            "approximate"
+          ],
+          "properties": {
+            "printed_text": {
+              "type": "string"
+            },
+            "decimal_text": {
+              "type": "string"
+            },
+            "approximate": {
+              "type": "boolean"
+            }
+          }
+        }
+      ]
+    },
+    "headers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "header_id",
+          "printed_text",
+          "basis"
+        ],
+        "properties": {
+          "header_id": {
+            "type": "string"
+          },
+          "printed_text": {
+            "type": "string"
+          },
+          "basis": {
+            "$ref": "#/$defs/basis"
+          },
+          "serving_conversion": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
+    },
+    "cells": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/cell"
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "basis": {
+      "enum": [
+        "per_100g",
+        "per_100ml",
+        "per_serving",
+        "reference_intake"
+      ]
+    },
+    "cell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "row_id",
+        "parent_row_id",
+        "nutrient",
+        "printed_label",
+        "header_id",
+        "basis",
+        "printed_text",
+        "comparator",
+        "decimal_text",
+        "unit",
+        "canonical_unit",
+        "serving_conversion",
+        "persistence_authorized",
+        "requires_user_selection"
+      ],
+      "properties": {
+        "row_id": {
+          "type": "string"
+        },
+        "parent_row_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "nutrient": {
+          "enum": [
+            "energy_kj",
+            "energy_kcal",
+            "fat",
+            "saturates",
+            "trans_fat",
+            "carbohydrate",
+            "sugars",
+            "added_sugars",
+            "fibre",
+            "protein",
+            "salt",
+            "sodium",
+            "unrecognised"
+          ]
+        },
+        "printed_label": {
+          "type": "string"
+        },
+        "header_id": {
+          "type": "string"
+        },
+        "basis": {
+          "$ref": "#/$defs/basis"
+        },
+        "printed_text": {
+          "type": "string"
+        },
+        "comparator": {
+          "enum": [
+            "=",
+            "<",
+            "<="
+          ]
+        },
+        "decimal_text": {
+          "type": "string",
+          "pattern": "^[0-9]+([.,][0-9]+)?$"
+        },
+        "unit": {
+          "type": "string",
+          "description": "As printed."
+        },
+        "canonical_unit": {
+          "enum": [
+            "kJ",
+            "kcal",
+            "cal",
+            "g",
+            "mg",
+            "µg",
+            "ml",
+            "%"
+          ]
+        },
+        "serving_conversion": {
+          "type": "string",
+          "description": "Printed serving quantity for a per-serving cell, `unknown`, or `not_applicable` for other bases. Never inferred."
+        },
+        "persistence_authorized": {
+          "const": false
+        },
+        "requires_user_selection": {
+          "const": true
+        }
+      }
+    }
+  }
+}
