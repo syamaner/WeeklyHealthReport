@@ -17,10 +17,15 @@ struct FoodLogDayFacts: Equatable, Sendable {
 
     /// `yyyy-MM-dd` in the report's calendar and time zone.
     let reportingDate: String
-    /// Current entries on the date. Superseded and removed versions are not counted.
+    /// Current entries on the date, plain water included. Superseded and
+    /// removed versions are not counted.
     let entryCount: Int
-    /// Logged energy in kcal. Nil when the day has no current entries
-    /// (not logged; never zero).
+    /// Current entries that are not plain water. A day with only plain water is
+    /// not a logged food day (contract v1.1, owner decision 7).
+    let foodEntryCount: Int
+    /// Logged energy in kcal over the day's food entries (plain water entries
+    /// excluded). Nil when the day has no current food entry (not logged;
+    /// never zero).
     let energy: Total?
     /// Plain water in mL (plain water entries only, never water in foods). Nil
     /// when no plain water was logged (no data; never 0 mL).
@@ -35,7 +40,8 @@ struct FoodLogPeriodSummary: Equatable, Sendable {
 
     /// Contract section 2, energy column.
     enum EnergyDay: Equatable, Sendable {
-        /// No current entries. Not zero, and not in any average.
+        /// No current food entry (nothing, or plain water only). Not zero, and
+        /// not in the energy average or the incomplete count.
         case notLogged
         /// Every contribution counted; the day enters the average.
         case complete(kilocalories: Double)
@@ -65,6 +71,8 @@ struct FoodLogPeriodSummary: Equatable, Sendable {
     let days: [Day]
     /// Completed days in the period (today is never one).
     var reportingDayCount: Int { days.count }
+    /// Days with at least one current food entry. Plain water alone does not
+    /// make a logged day.
     let loggedDayCount: Int
     let completeEnergyDayCount: Int
     let incompleteEnergyDayCount: Int
@@ -144,7 +152,7 @@ struct FoodLogPeriodSummary: Equatable, Sendable {
     }
 
     private static func energyDay(_ facts: FoodLogDayFacts?) -> EnergyDay {
-        guard let facts, facts.entryCount > 0, let energy = facts.energy else { return .notLogged }
+        guard let facts, facts.foodEntryCount > 0, let energy = facts.energy else { return .notLogged }
         guard let known = energy.knownAmount, energy.incompleteContributions == 0 else { return .incomplete }
         return .complete(kilocalories: known)
     }

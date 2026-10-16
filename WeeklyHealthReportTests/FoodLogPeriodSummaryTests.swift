@@ -15,7 +15,7 @@ final class FoodLogPeriodSummaryTests: XCTestCase {
             FoodLogFixtures.day(dates[1], energy: 600, energyIncomplete: 1),
             FoodLogFixtures.day(dates[2], energy: nil, energyIncomplete: 2, water: 500),
             FoodLogFixtures.day(dates[3], energy: 0, water: 250, waterIncomplete: 1),
-            Facts(reportingDate: dates[4], entryCount: 0, energy: nil, plainWater: nil)
+            Facts(reportingDate: dates[4], entryCount: 0, foodEntryCount: 0, energy: nil, plainWater: nil)
         ], reportingDates: dates)
 
         XCTAssertEqual(summary.days.map(\.energy), [
@@ -197,6 +197,56 @@ final class FoodLogPeriodSummaryTests: XCTestCase {
         XCTAssertEqual(FoodLogPeriodSummary.reportingDate(for: instant, calendar: honolulu), "2026-08-31")
     }
 
+    // MARK: Plain water only (contract v1.1, decision 7)
+
+    func testWaterOnlyDayIsNotALoggedFoodDay() {
+        let dates = FoodLogFixtures.dates(count: 2)
+        let summary = FoodLogPeriodSummary.make(days: [
+            FoodLogFixtures.waterOnly(dates[0], water: 750),
+            // Even a water-only day whose water could not be scaled is not an
+            // incomplete energy day.
+            FoodLogFixtures.waterOnly(dates[1], water: 250, waterIncomplete: 1)
+        ], reportingDates: dates)
+        XCTAssertEqual(summary.days.map(\.energy), [.notLogged, .notLogged])
+        XCTAssertEqual(summary.days.map(\.water), [.complete(millilitres: 750), .incomplete])
+        XCTAssertEqual(summary.loggedDayCount, 0)
+        XCTAssertEqual(summary.incompleteEnergyDayCount, 0)
+        XCTAssertNil(summary.averageEnergyKilocalories)
+        XCTAssertEqual(summary.averagePlainWaterMillilitres, 750)
+    }
+
+    /// The owner's example: three food days and four water-only days.
+    func testMixOfWaterOnlyAndFoodDays() throws {
+        let dates = FoodLogFixtures.dates(count: 7)
+        let summary = FoodLogPeriodSummary.make(days: [
+            FoodLogFixtures.day(dates[0], energy: 1_800, water: 1_000),
+            FoodLogFixtures.day(dates[1], energy: 2_000),
+            FoodLogFixtures.day(dates[2], energy: 2_200),
+            FoodLogFixtures.waterOnly(dates[3], water: 1_500),
+            FoodLogFixtures.waterOnly(dates[4], water: 2_000),
+            FoodLogFixtures.waterOnly(dates[5], water: 500),
+            FoodLogFixtures.waterOnly(dates[6], water: 1_000)
+        ], reportingDates: dates)
+        XCTAssertEqual(summary.loggedDayCount, 3)
+        XCTAssertEqual(summary.completeEnergyDayCount, 3)
+        XCTAssertEqual(summary.incompleteEnergyDayCount, 0)
+        XCTAssertEqual(try XCTUnwrap(summary.averageEnergyKilocalories), 2_000, accuracy: 1e-9)
+        XCTAssertEqual(summary.completeWaterDayCount, 5)
+        XCTAssertEqual(try XCTUnwrap(summary.averagePlainWaterMillilitres), 1_200, accuracy: 1e-9)
+    }
+
+    func testPeriodWithOnlyPlainWater() {
+        let dates = FoodLogFixtures.dates(count: 7)
+        let summary = FoodLogPeriodSummary.make(days: [
+            FoodLogFixtures.waterOnly(dates[1], water: 1_000),
+            FoodLogFixtures.waterOnly(dates[4], water: 2_000)
+        ], reportingDates: dates)
+        XCTAssertEqual(summary.loggedDayCount, 0)
+        XCTAssertNil(summary.averageEnergyKilocalories)
+        XCTAssertEqual(summary.averagePlainWaterMillilitres, 1_500)
+        XCTAssertEqual(summary.completeWaterDayCount, 2)
+    }
+
     func testNormalWeekFixtureMatchesTheContractExample() throws {
         let summary = FoodLogFixtures.normalWeek(dates: FoodLogFixtures.dates(count: 7))
         XCTAssertEqual(summary.loggedDayCount, 6)
@@ -239,7 +289,8 @@ enum FoodLogFixtures {
     ) -> FoodLogDayFacts {
         FoodLogDayFacts(
             reportingDate: date,
-            entryCount: entries,
+            entryCount: entries + (water == nil ? 0 : 1),
+            foodEntryCount: entries,
             energy: FoodLogDayFacts.Total(
                 knownAmount: energy,
                 incompleteContributions: energyIncomplete,
@@ -252,6 +303,26 @@ enum FoodLogFixtures {
                     includesEstimates: waterEstimates
                 )
             }
+        )
+    }
+
+    /// A day with only plain water entries: no food entry, so no energy total.
+    static func waterOnly(
+        _ date: String,
+        water: Double,
+        waterIncomplete: Int = 0,
+        entries: Int = 2
+    ) -> FoodLogDayFacts {
+        FoodLogDayFacts(
+            reportingDate: date,
+            entryCount: entries,
+            foodEntryCount: 0,
+            energy: nil,
+            plainWater: FoodLogDayFacts.Total(
+                knownAmount: water,
+                incompleteContributions: waterIncomplete,
+                includesEstimates: false
+            )
         )
     }
 

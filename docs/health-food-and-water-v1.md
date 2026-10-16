@@ -1,6 +1,6 @@
 # Health food and water section v1 (#214)
 
-Status: **approved by the owner, 16 October 2026; every decision in section 9 takes its recommended option.** Policy identifier: `health_food_log_period_v1`. Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md)); wireframe `designs/ux-revamp-v1/Health.dc.html` ("Logged energy" tile, "Food and water" section).
+Version 1.1. Status: **approved by the owner, 16 October 2026; every decision in section 9 takes its recommended option. Amended by the owner, 16 October 2026 (v1.1): a day with only plain water is not a logged food day** (decision 7; the invariant review found that water-only days would otherwise raise "Days logged" and enter the energy average as 0 kcal days). Policy identifier: `health_food_log_period_v1`. Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md)); wireframe `designs/ux-revamp-v1/Health.dc.html` ("Logged energy" tile, "Food and water" section).
 
 **Proposal:** yes, the Health report shows what was **logged in this app's food log** for the selected completed days: average logged energy per complete day and average plain water per day it was logged, with logged-day coverage. Both are food-log facts, labelled "logged", not measured intake. HealthKit dietary data stays export-only, as README already says.
 
@@ -17,14 +17,14 @@ Status: **approved by the owner, 16 October 2026; every decision in section 9 ta
 - `totals`, which is nil when the day has no current entries. The energy total is `FoodIntakeTotal(key: .energyConsumed)` with `knownAmount`, `incompleteContributions` and `includesEstimates` (summary policy `food-intake-summary-v2`).
 - `plainWater`, which is nil when no plain water was logged. It is a known minimum when `incompleteContributions > 0` (`PlainWaterDayTotal`).
 
-Day classification:
+Day classification (v1.1). A **food entry** is a current entry that is not plain water; plain water entries are identified by the saved entry's `isPlainWater` (`PlainWaterReference.isPlainWater`). Energy for a day is the `energyConsumed` total over its food entries: plain water contributes exactly 0 kcal, and a plain water entry that cannot be scaled is not counted as an incomplete energy contribution.
 
 | Day | Rule |
 |---|---|
-| Not logged | No current entries (`totals == nil`). Not zero, and not in any average |
-| Logged, energy complete | `knownAmount != nil` and `incompleteContributions == 0` |
-| Logged, energy incomplete | Otherwise. The known subtotal is a minimum and is left out of the average (decision 3) |
-| Water day | `plainWater != nil` with `incompleteContributions == 0` |
+| Not logged | No current food entry: no entries (`totals == nil`), or plain water only (decision 7). Not zero, and not in "Days logged", the energy average or the incomplete count |
+| Logged, energy complete | At least one food entry, `knownAmount != nil` and `incompleteContributions == 0` |
+| Logged, energy incomplete | At least one food entry, otherwise. The known subtotal is a minimum and is left out of the average (decision 3) |
+| Water day | `plainWater != nil` with `incompleteContributions == 0`, whether or not the day has food entries (a water-only day counts towards the water average) |
 | Water incomplete | `plainWater` with `incompleteContributions > 0`. Left out of the average and counted |
 
 Superseded and removed versions never contribute. Competing current heads make that day a read failure, as on Home.
@@ -53,7 +53,7 @@ Logged in this app; not a measure of everything eaten or drunk.
 |---|---|
 | Loading | "Reading the food log…" |
 | No completed days | Same as Steps: "There are no completed days in this period yet." |
-| Nothing logged in the period | "No food logged in this period." Never 0 kcal |
+| Nothing logged in the period | "No food logged in this period." Never 0 kcal. When plain water was logged (water-only days, v1.1), the `Plain Water` row follows with its average |
 | Logged but no complete energy day | `Logged Energy: Insufficient history` plus the counts |
 | No plain water logged | `Plain Water: No data` |
 | Read failed | "Could not read the food log." The technical message appears only in Developer tools. This is distinct from the Apple Health wording |
@@ -100,3 +100,4 @@ Protein and other nutrients (#145), trends (#147), the HealthKit dietary energy 
 4. **Add the "Logged energy" summary tile?** Recommended: yes, pinned to the energy average and days-logged rows, not copied.
 5. **Show the section when nothing has ever been logged?** Recommended: yes, with "No food logged in this period.", so every surface has the same sections.
 6. **Include protein, as the wireframe shows?** Recommended: no; leave it to #145.
+7. **(v1.1, decided by the owner 16 October 2026) Is a day with only plain water a logged food day?** No. It counts towards the plain water average but is left out of "Days logged", the energy average and the incomplete count. For example, three food days and four water-only days give "Days Logged: 3 / 7 days" and an energy average over the three food days. A period with only plain water shows "No food logged in this period." followed by the `Plain Water` row.

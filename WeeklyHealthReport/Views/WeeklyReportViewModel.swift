@@ -334,10 +334,13 @@ final class WeeklyReportViewModel: ObservableObject {
 
     /// Re-reads only the food log for the current period, for example when the
     /// Health report appears after food was logged. Skipped while a full
-    /// refresh runs, because that refresh reads the food log itself.
+    /// refresh runs, because that refresh reads the food log itself. Runs in
+    /// its own unstructured task, like `refresh()`, so cancelling the caller's
+    /// `.task` can never publish a cancellation as "Could not read the food log."
     func refreshFoodLog() async {
         guard activeRefreshGeneration == nil else { return }
-        await loadFoodLog(for: period)
+        let refresh = Task { await loadFoodLog(for: period) }
+        await refresh.value
     }
 
     /// Food and water (docs/health-food-and-water-v1.md): one reporting date per

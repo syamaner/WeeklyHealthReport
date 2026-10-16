@@ -27,11 +27,16 @@ extension ReportDocument {
                 style: .secondary
             )]
         case .available(let summary) where summary.loggedDayCount == 0:
-            rows = [Row(
+            // Plain water alone is not logged food (v1.1), but its average still shows.
+            var stateRows = [Row(
                 "food-no-data",
                 value: "No food logged in this period.",
                 style: .secondary
             )]
+            if summary.completeWaterDayCount + summary.incompleteWaterDayCount > 0 {
+                stateRows.append(plainWaterRow(summary, locale: locale))
+            }
+            rows = stateRows
         case .available(let summary):
             rows = foodLogRows(summary, locale: locale)
         case .noDataOrAccess, .healthUnavailable:
@@ -160,13 +165,14 @@ enum FoodLogReportDiagnostics {
     private static func dayDetail(_ day: FoodLogPeriodSummary.Day) -> String {
         let facts = day.facts
         let entries = facts?.entryCount ?? 0
+        let food = facts?.foodEntryCount ?? 0
         let energy = facts?.energy.map { total in
             "energy \(total.knownAmount.map { "\(number($0)) kcal" } ?? "unknown"), \(total.incompleteContributions) incomplete, estimates \(yesNo(total.includesEstimates))"
         } ?? "energy none"
         let water = facts?.plainWater.map { total in
             "plain water \(total.knownAmount.map { "\(number($0)) mL" } ?? "unknown"), \(total.incompleteContributions) incomplete, estimates \(yesNo(total.includesEstimates))"
         } ?? "plain water none"
-        return "\(entries) \(entries == 1 ? "entry" : "entries"); \(energy); \(water); \(energyClass(day.energy)), \(waterClass(day.water))"
+        return "\(entries) \(entries == 1 ? "entry" : "entries") (\(food) food); \(energy); \(water); \(energyClass(day.energy)), \(waterClass(day.water))"
     }
 
     private static func energyClass(_ day: FoodLogPeriodSummary.EnergyDay) -> String {

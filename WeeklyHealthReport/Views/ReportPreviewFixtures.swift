@@ -188,6 +188,7 @@ enum ReportPreviewFixtures {
             return FoodLogDayFacts(
                 reportingDate: date,
                 entryCount: 4,
+                foodEntryCount: index < 4 ? 3 : 4,
                 energy: FoodLogDayFacts.Total(
                     knownAmount: 2_010,
                     incompleteContributions: index == 5 ? 1 : 0,

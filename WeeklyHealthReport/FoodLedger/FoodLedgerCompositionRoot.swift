@@ -464,32 +464,43 @@ final class FoodLedgerCompositionRoot {
 }
 
 /// Maps `FoodLogReadingService.day(reportingDate:)` to the Health report's plain day facts
-/// (docs/health-food-and-water-v1.md, section 6). Energy is the day's `energyConsumed` total under
-/// `food-intake-summary-v2`; plain water is `PlainWaterDayTotal` (plain water entries only, never
-/// water in foods). Competing current versions throw, so the section reports a read failure.
+/// (docs/health-food-and-water-v1.md, section 6). Plain water is `PlainWaterDayTotal` (plain water
+/// entries only, never water in foods). Energy is the day's `energyConsumed` total under
+/// `food-intake-summary-v2` over its food entries: plain water entries are identified by the saved
+/// entry's `isPlainWater` (the existing saved-entry read) and do not make a logged food day
+/// (contract v1.1). They contribute exactly 0 kcal, so the known energy is unchanged; a plain water
+/// entry that cannot be scaled is taken out of the incomplete count. Competing current versions
+/// throw, so the section reports a read failure.
 struct FoodLogPeriodReader: FoodLogPeriodReading {
     let service: FoodLogReadingService
 
     func dayFacts(for reportingDates: [String]) async throws -> [FoodLogDayFacts] {
-        try reportingDates.map { date in Self.facts(try service.day(reportingDate: date)) }
+        try reportingDates.map { date in
+            try Self.facts(try service.day(reportingDate: date)) { id in
+                try service.savedEntry(id)?.isPlainWater == true
+            }
+        }
     }
 
-    static func facts(_ content: FoodLogDayContent) -> FoodLogDayFacts {
+    static func facts(_ content: FoodLogDayContent, isPlainWater: (LogItemID) throws -> Bool) rethrows -> FoodLogDayFacts {
+        let water = try content.entries.filter { try isPlainWater($0.logItemID) }
+        let foodEntryCount = content.entries.count - water.count
         let energy = content.totals?.first { $0.key == .energyConsumed }
+        let unscaledWater = water.filter { $0.energyKcal == nil }.count
         return FoodLogDayFacts(
             reportingDate: content.reportingDate,
             entryCount: content.entries.count,
-            energy: content.totals == nil ? nil : total(energy) ?? FoodLogDayFacts.Total(
-                knownAmount: nil, incompleteContributions: max(content.entries.count, 1), includesEstimates: false),
-            plainWater: total(content.plainWater)
+            foodEntryCount: foodEntryCount,
+            energy: foodEntryCount == 0 ? nil : FoodLogDayFacts.Total(
+                knownAmount: energy?.knownAmount,
+                incompleteContributions: energy.map { max($0.incompleteContributions - unscaledWater, 0) } ?? foodEntryCount,
+                includesEstimates: energy?.includesEstimates ?? false
+            ),
+            plainWater: content.plainWater.map {
+                FoodLogDayFacts.Total(knownAmount: $0.knownAmount, incompleteContributions: $0.incompleteContributions,
+                                      includesEstimates: $0.includesEstimates)
+            }
         )
-    }
-
-    private static func total(_ total: FoodIntakeTotal?) -> FoodLogDayFacts.Total? {
-        total.map {
-            FoodLogDayFacts.Total(knownAmount: $0.knownAmount, incompleteContributions: $0.incompleteContributions,
-                                  includesEstimates: $0.includesEstimates)
-        }
     }
 }
 

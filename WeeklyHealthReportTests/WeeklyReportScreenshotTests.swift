@@ -1487,8 +1487,14 @@ extension WeeklyReportScreenshotTests {
         XCTAssertEqual(tiles.map(\.kind), HealthSummaryTile.Kind.allCases)
         for (tile, pin) in zip(tiles, HealthSummaryTiles.pins) {
             let section = try XCTUnwrap(document.sections.first { $0.id == pin.section })
-            // Byte for byte: label, value and style copied from the row.
-            XCTAssertEqual(tile.primary, section.rows.first { $0.id == pin.primaryRowID }, "\(pin.kind)")
+            // Byte for byte: label, value and style copied from the row, except a
+            // pinned tile label where the row label would repeat the title (#214).
+            let row = try XCTUnwrap(section.rows.first { $0.id == pin.primaryRowID }, "\(pin.kind)")
+            XCTAssertEqual(
+                tile.primary,
+                ReportDocument.Row(row.id, label: pin.primaryLabel ?? row.label, value: row.value, style: row.style),
+                "\(pin.kind)"
+            )
             if let detailID = pin.detailRowID {
                 XCTAssertNotNil(tile.detail, "\(pin.kind)")
                 XCTAssertEqual(tile.detail, section.rows.first { $0.id == detailID }, "\(pin.kind)")
