@@ -108,7 +108,7 @@ final class DailyExportIncludedSummaryTests: XCTestCase {
     func testLastExportUnknown() {
         XCTAssertEqual(
             DailyExportLastExportFormatter.line(.unknown, calendar: london),
-            "Last export of this day: unknown"
+            "Last export of this day from this iPhone: unknown"
         )
     }
 
@@ -119,7 +119,7 @@ final class DailyExportIncludedSummaryTests: XCTestCase {
                 .verified(verifiedAt: verifiedAt, dataAsOf: "2026-10-11T13:02:00+01:00"),
                 calendar: london
             ),
-            "Last export of this day: 11/10/26 - 13:05, data up to 13:02"
+            "Last export of this day from this iPhone: 11/10/26 - 13:05, data up to 13:02"
         )
     }
 
@@ -133,7 +133,30 @@ final class DailyExportIncludedSummaryTests: XCTestCase {
                 ),
                 calendar: london
             ),
-            "Last export of this day: 12/10/26 - 09:00, data up to 12/10/26 - 00:00"
+            "Last export of this day from this iPhone: 12/10/26 - 09:00, data up to 12/10/26 - 00:00"
+        )
+    }
+
+    func testUnreadableCutoffIsOmittedNotShownRaw() throws {
+        let verifiedAt = try XCTUnwrap(iso("2026-10-11T13:05:00+01:00"))
+        for token in [
+            "not-a-date",
+            "historical-v1|2026-10-12T00:00:00+01:00|2026-10-12T08:59:00+01:00",
+            "a|b"
+        ] {
+            XCTAssertNil(DailyExportLastExportFormatter.cutoffDate(token), token)
+            XCTAssertEqual(
+                DailyExportLastExportFormatter.line(.verified(verifiedAt: verifiedAt, dataAsOf: token), calendar: london),
+                "Last export of this day from this iPhone: 11/10/26 - 13:05",
+                token
+            )
+        }
+    }
+
+    func testHistoricalPrefixMatchesTheIdentityPolicy() {
+        XCTAssertEqual(
+            DailyExportLastExportFormatter.historicalOrderingVersion,
+            DailyHealthExportIdentityPolicy.historicalOrderingVersion
         )
     }
 

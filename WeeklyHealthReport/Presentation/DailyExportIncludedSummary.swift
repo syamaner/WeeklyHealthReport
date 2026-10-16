@@ -96,12 +96,16 @@ struct DailyExportLastExportLookup: Equatable {
 
 enum DailyExportLastExportFormatter {
     static let noneLine = "Last export of this day from this iPhone: none"
-    static let unknownLine = "Last export of this day: unknown"
+    static let unknownLine = "Last export of this day from this iPhone: unknown"
+    /// The historical ordering token's version prefix. Must equal
+    /// `DailyHealthExportIdentityPolicy.historicalOrderingVersion` (a test pins it);
+    /// Presentation does not depend on the Drive policy type.
+    static let historicalOrderingVersion = "historical-v2"
 
-    /// "Last export of this day: 11/10/26 - 13:05, data up to 13:02". The
-    /// cutoff is shown as a time alone when it falls after midnight on the
-    /// verification day, and in full otherwise (an earlier day's cutoff is its
-    /// next midnight).
+    /// "Last export of this day from this iPhone: 11/10/26 - 13:05, data up
+    /// to 13:02". The cutoff is shown as a time alone when it falls after
+    /// midnight on the verification day, and in full otherwise (an earlier
+    /// day's cutoff is its next midnight). An unreadable cutoff is omitted.
     static func line(
         _ value: DailyExportLastExport,
         calendar: Calendar = .autoupdatingCurrent
@@ -113,12 +117,15 @@ enum DailyExportLastExportFormatter {
             return unknownLine
         case .verified(let verifiedAt, let dataAsOf):
             let verified = HealthReportFormatter.dateAndTime(verifiedAt, calendar: calendar)
-            return "Last export of this day: \(verified), data up to \(cutoffText(dataAsOf, verifiedAt: verifiedAt, calendar: calendar))"
+            guard let cutoff = cutoffText(dataAsOf, verifiedAt: verifiedAt, calendar: calendar) else {
+                return "Last export of this day from this iPhone: \(verified)"
+            }
+            return "Last export of this day from this iPhone: \(verified), data up to \(cutoff)"
         }
     }
 
-    static func cutoffText(_ dataAsOf: String, verifiedAt: Date, calendar: Calendar) -> String {
-        guard let cutoff = cutoffDate(dataAsOf) else { return dataAsOf }
+    static func cutoffText(_ dataAsOf: String, verifiedAt: Date, calendar: Calendar) -> String? {
+        guard let cutoff = cutoffDate(dataAsOf) else { return nil }
         // A whole earlier day ends at the next midnight; "00:00" alone would
         // read as no data, so that cutoff is always shown in full.
         if calendar.isDate(cutoff, inSameDayAs: verifiedAt), cutoff > calendar.startOfDay(for: cutoff) {
@@ -163,13 +170,14 @@ enum DailyExportLastExportFormatter {
         ]
     }
 
-    /// The cutoff of an ISO 8601 token or of a "version|cutoff|encoded" token.
+    /// The cutoff of an ISO 8601 token or of a "historical-v2|cutoff|encoded"
+    /// token; `nil` for anything else, including another version prefix.
     static func cutoffDate(_ dataAsOf: String) -> Date? {
         let parts = dataAsOf.split(separator: "|", omittingEmptySubsequences: false).map(String.init)
         let timestamp: String
         switch parts.count {
         case 1: timestamp = dataAsOf
-        case 3: timestamp = parts[1]
+        case 3 where parts[0] == historicalOrderingVersion: timestamp = parts[1]
         default: return nil
         }
         let formatter = ISO8601DateFormatter()

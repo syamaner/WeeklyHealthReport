@@ -1850,10 +1850,24 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertEqual(session.lastExportOfSelectedDay?.state, .unknown)
         XCTAssertEqual(
             DailyExportLastExportFormatter.line(.unknown),
-            "Last export of this day: unknown"
+            "Last export of this day from this iPhone: unknown"
         )
         // Developer tools keeps the session label.
         XCTAssertEqual(session.lastVerifiedLabel, "Stored identity is ambiguous; explicit recovery required")
+    }
+
+    @MainActor
+    func testDuplicateRegistryEntriesForTheSameDayAreUnknown() async throws {
+        let (session, _, _) = try await restoredLastExportSession(identities: [
+            lastExportIdentity(reportDate: "2026-09-06", verifiedAt: Date(timeIntervalSince1970: 1)),
+            lastExportIdentity(reportDate: "2026-09-06", verifiedAt: Date(timeIntervalSince1970: 2))
+        ])
+
+        XCTAssertEqual(session.lastExportOfSelectedDay, DailyExportLastExportLookup(
+            reportDate: "2026-09-06",
+            state: .unknown,
+            hasPendingOperation: false
+        ))
     }
 
     @MainActor
