@@ -11,9 +11,10 @@ extension ReportDocument {
     enum GroupID: String, CaseIterable {
         case dailyActivity
         // Extension point for Food and water (#214, contract decision 5): its own
-        // standalone group straight after `dailyActivity`, never inside it, so
-        // logged food energy is never shown beside active energy. Add the case
-        // here, its row in `groups` and its section in `group(for:)`.
+        // standalone group with its own heading ("Food and water"), straight
+        // after `dailyActivity` and never inside it, so logged food energy is
+        // never shown beside active energy. Add the case here, its row in
+        // `groups` and its section in `group(for:)`.
         case body
         case heartAndSleep
         case fitnessAndBloodOxygen
@@ -23,7 +24,8 @@ extension ReportDocument {
 
     struct Group: Equatable, Identifiable {
         let id: GroupID
-        /// Screen and Full Page wording. Copy all writes it in capitals.
+        /// Screen and Full Page wording, sentence case like the display section
+        /// titles. Copy all writes it in capitals.
         let heading: String
         let sectionIDs: [SectionID]
     }
@@ -62,11 +64,10 @@ extension ReportDocument {
 
         var id: GroupID { group.id }
 
-        /// Only a group with more than one present section gets a heading; a
-        /// single section shows exactly as it did before grouping.
-        var heading: String? {
-            sections.count > 1 ? group.heading : nil
-        }
+        /// Every present group has a heading, including a single-section group
+        /// (contract v1.1), so a standalone section never reads as part of the
+        /// group above it.
+        var heading: String { group.heading }
     }
 
     /// `sections` in group order. A section missing from the table (none today)

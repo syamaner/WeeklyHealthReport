@@ -21,21 +21,24 @@ struct ReportDocumentSectionView: View {
     }
 }
 
-/// A heading over a multi-section group (#216). It is a heading only: it holds
-/// no rows and collapses nothing; each section keeps its own disclosure.
+/// A heading over a group of Health sections (#216, contract v1.1). It is a
+/// plain row rather than a section header, so list header styling (grey,
+/// small) cannot override it and it stays distinct from the section headers
+/// below it. It holds no rows and collapses nothing; each section keeps its
+/// own disclosure.
 struct ReportGroupHeading: View {
     let heading: String
 
     var body: some View {
         Section {
-            EmptyView()
-        } header: {
             Text(heading)
-                .font(.title3.bold())
-                .foregroundStyle(.primary)
-                .textCase(nil)
+                .font(.title2.bold())
+                .foregroundStyle(Color.primary)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityAddTraits(.isHeader)
-                .padding(.top, 8)
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 16, leading: 4, bottom: 0, trailing: 4))
         }
     }
 }

@@ -3,7 +3,7 @@ import Foundation
 extension ReportDocument {
     /// The Copy all text (README "What gets copied"). Labels, values and order are
     /// the document's own, with one capitalised heading line before each
-    /// multi-section group (`groupedSections`, #216); only a failed read is
+    /// group (`groupedSections`, #216, contract v1.1); only a failed read is
     /// reworded to "Could not read Apple Health." so no technical message reaches
     /// the clipboard. Developer tools keeps each read's message
     /// (`ReportPresentationSnapshot.readFailures`).
@@ -25,14 +25,13 @@ extension ReportDocument {
         ].joined(separator: "\n")
 
         let groupText = groupedSections.flatMap { grouped in
-            let heading = grouped.heading.map { [Self.copyAllGroupHeading($0)] } ?? []
-            return heading + grouped.sections.map(Self.copyAllBlock)
+            [Self.copyAllGroupHeading(grouped.heading)] + grouped.sections.map(Self.copyAllBlock)
         }
 
         return ([preamble] + groupText).joined(separator: "\n\n")
     }
 
-    /// A multi-section group's Copy all heading: capitals, as its own block
+    /// A group's Copy all heading: capitals, as its own block
     /// (contract decision 3), for example "DAILY ACTIVITY".
     static func copyAllGroupHeading(_ heading: String) -> String {
         heading.uppercased(with: Locale(identifier: "en_GB"))

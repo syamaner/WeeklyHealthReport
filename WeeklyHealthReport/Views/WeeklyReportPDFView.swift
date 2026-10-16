@@ -19,13 +19,11 @@ struct WeeklyReportPDFView: View {
                 .padding(.bottom, 24)
 
             ForEach(document.groupedSections) { grouped in
-                if let heading = grouped.heading {
-                    Text(heading)
-                        .font(.title.bold())
-                        .foregroundStyle(Color.black)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.bottom, 12)
-                }
+                Text(grouped.heading)
+                    .font(.title.bold())
+                    .foregroundStyle(Color.black)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.bottom, 12)
                 ForEach(grouped.sections) { section in
                     reportSection(section)
                 }

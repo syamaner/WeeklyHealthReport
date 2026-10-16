@@ -35,8 +35,8 @@ final class ReportDocumentGroupsTests: XCTestCase {
         // Decision 2: the group never reads "Activity", so it cannot collide with the section.
         XCTAssertFalse(ReportDocument.groups.contains { $0.heading == "Activity" })
         XCTAssertEqual(
-            ["Daily activity", "Body", "Heart and sleep"].map(ReportDocument.copyAllGroupHeading),
-            ["DAILY ACTIVITY", "BODY", "HEART AND SLEEP"]
+            ReportDocument.groups.map(\.heading).map(ReportDocument.copyAllGroupHeading),
+            ["DAILY ACTIVITY", "BODY", "HEART AND SLEEP", "FITNESS AND BLOOD OXYGEN", "GLUCOSE", "MEDICATIONS"]
         )
     }
 
@@ -65,12 +65,16 @@ final class ReportDocumentGroupsTests: XCTestCase {
         XCTAssertEqual(withoutMedications.map(\.id), Self.expectedOrder.filter { $0 != .medications })
     }
 
-    func testDocumentGroupsOnlyMultiSectionGroupsHaveHeadings() {
+    /// Contract v1.1: every present group has a heading, single-section groups included.
+    func testDocumentGroupsEveryGroupHasAHeading() {
         let document = Self.document(includesMedicationSection: true)
         XCTAssertEqual(document.sections.map(\.id), Self.expectedOrder)
         let grouped = document.groupedSections
         XCTAssertEqual(grouped.map(\.id), ReportDocument.GroupID.allCases)
-        XCTAssertEqual(grouped.map(\.heading), ["Daily activity", "Body", "Heart and sleep", nil, nil, nil])
+        XCTAssertEqual(grouped.map(\.heading), [
+            "Daily activity", "Body", "Heart and sleep", "Fitness and blood oxygen", "Glucose", "Medications"
+        ])
+        XCTAssertEqual(grouped.filter { $0.sections.count == 1 }.map(\.id), [.fitnessAndBloodOxygen, .glucose, .medications])
         XCTAssertEqual(grouped.flatMap(\.sections), document.sections)
     }
 
@@ -99,11 +103,13 @@ final class ReportDocumentGroupsTests: XCTestCase {
         let copied = document.plainText(generatedAt: Self.now, calendar: Self.calendar, locale: Self.locale)
         let blocks = copied.components(separatedBy: "\n\n").dropFirst()
         let expected = document.groupedSections.flatMap { grouped in
-            (grouped.heading.map { [ReportDocument.copyAllGroupHeading($0)] } ?? [])
-                + grouped.sections.map(\.title)
+            [ReportDocument.copyAllGroupHeading(grouped.heading)] + grouped.sections.map(\.title)
         }
         XCTAssertEqual(blocks.map { $0.components(separatedBy: "\n")[0] }, expected)
         XCTAssertEqual(expected.prefix(3), ["DAILY ACTIVITY", "Steps", "Activity"])
+        XCTAssertEqual(expected.suffix(6), [
+            "FITNESS AND BLOOD OXYGEN", "Cardiorespiratory", "GLUCOSE", "Glucose", "MEDICATIONS", "Medications Taken"
+        ])
     }
 
     func testRowIdsAndTextAreUnchangedByGrouping() {

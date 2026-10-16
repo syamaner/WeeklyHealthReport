@@ -85,9 +85,7 @@ struct HealthReportView: View {
             }
 
             ForEach(document.groupedSections) { grouped in
-                if let heading = grouped.heading {
-                    ReportGroupHeading(heading: heading)
-                }
+                ReportGroupHeading(heading: grouped.heading)
                 ForEach(grouped.sections) { section in
                     reportSection(section)
                 }

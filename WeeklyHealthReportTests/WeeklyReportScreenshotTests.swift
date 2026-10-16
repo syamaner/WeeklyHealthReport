@@ -1585,7 +1585,7 @@ extension WeeklyReportScreenshotTests {
         let preamble = [document.title, document.selection, document.period, "Generated: \(generated)"]
             .joined(separator: "\n")
         let sectionText = document.groupedSections.flatMap { grouped in
-            (grouped.heading.map { [ReportDocument.copyAllGroupHeading($0)] } ?? [])
+            [ReportDocument.copyAllGroupHeading(grouped.heading)]
                 + grouped.sections.map { section in
                     var lines = [section.title]
                     lines += section.rows.map { row in
@@ -1639,15 +1639,21 @@ extension WeeklyReportScreenshotTests {
     Sleep
     Average Sleep: No data
 
+    FITNESS AND BLOOD OXYGEN
+
     Cardiorespiratory
     Latest VO₂ Max: No data
     Latest Blood Oxygen: No data
     Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
 
+    GLUCOSE
+
     Glucose
     Daily Average: Could not read Apple Health.
     Observed Range: Could not read Apple Health.
     Data Coverage: Could not read Apple Health.
+
+    MEDICATIONS
 
     Medications Taken
     Could not read Apple Health.

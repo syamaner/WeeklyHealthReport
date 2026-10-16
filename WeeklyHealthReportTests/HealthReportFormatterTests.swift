@@ -367,6 +367,8 @@ final class HealthReportFormatterTests: XCTestCase {
         Sleep
         Average Sleep: 6h 48m
 
+        FITNESS AND BLOOD OXYGEN
+
         Cardiorespiratory
         Latest VO₂ Max: 32.1 mL/kg/min
         VO₂ Max Measured: 24/08/26 - 09:00
@@ -380,10 +382,14 @@ final class HealthReportFormatterTests: XCTestCase {
         Blood Oxygen Coverage: 7 / 7 days
         Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
 
+        GLUCOSE
+
         Glucose
         Daily Average: 5.8 mmol/L
         Observed Range: 3.9–8.7 mmol/L
         Data Coverage: 7 / 7 days
+
+        MEDICATIONS
 
         Medications Taken
         No taken medication events are visible for this period.
@@ -391,15 +397,15 @@ final class HealthReportFormatterTests: XCTestCase {
         XCTAssertFalse(text.hasSuffix("\n"))
 
         // #216: the only change from the ungrouped text is block order and the
-        // three heading lines. Dropping the headings and sorting the blocks gives
-        // exactly the blocks of the text as copied before grouping.
-        let headings = Set(["DAILY ACTIVITY", "BODY", "HEART AND SLEEP"])
+        // six heading lines (contract v1.1). Dropping the headings and sorting the
+        // blocks gives exactly the blocks of the text as copied before grouping.
+        let headingOrder = [
+            "DAILY ACTIVITY", "BODY", "HEART AND SLEEP", "FITNESS AND BLOOD OXYGEN", "GLUCOSE", "MEDICATIONS"
+        ]
+        let headings = Set(headingOrder)
         let groupedBlocks = text.components(separatedBy: "\n\n").filter { !headings.contains($0) }
         XCTAssertEqual(groupedBlocks.sorted(), Self.ungroupedCopyAllText.components(separatedBy: "\n\n").sorted())
-        XCTAssertEqual(
-            text.components(separatedBy: "\n\n").filter(headings.contains),
-            ["DAILY ACTIVITY", "BODY", "HEART AND SLEEP"]
-        )
+        XCTAssertEqual(text.components(separatedBy: "\n\n").filter(headings.contains), headingOrder)
     }
 
     /// The same fixture as copied before #216 (SectionID order, no group headings).

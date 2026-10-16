@@ -431,7 +431,7 @@ The copied report is plain text. Latest weight, waist, blood oxygen and blood pr
 
 A failed Apple Health read is copied as "Could not read Apple Health.", whether it is one metric row (for example `Daily Average: Could not read Apple Health.`) or a whole section such as Steps. The technical message is never copied; Developer tools lists it under "Health report read failures". No-data, unavailable and partial wording is copied unchanged.
 
-Sections are copied in the Health screen's group order ([section groups](docs/health-report-section-groups-v1.md)): Daily activity (Steps, Activity), Body (Weight, Body Composition), Heart and sleep (Heart, Blood Pressure, Sleep), then Cardiorespiratory, Glucose and Medications Taken. Each group with more than one section starts with its name in capitals on its own line; section titles, row labels and values are unchanged.
+Sections are copied in the Health screen's group order ([section groups](docs/health-report-section-groups-v1.md)): Daily activity (Steps, Activity), Body (Weight, Body Composition), Heart and sleep (Heart, Blood Pressure, Sleep), Fitness and blood oxygen (Cardiorespiratory), Glucose, and Medications (Medications Taken). Every group starts with its name in capitals on its own line; section titles, row labels and values are unchanged.
 
 <details>
 <summary>See a synthetic copied report</summary>
@@ -498,6 +498,8 @@ Period averages use completed days. Morning is before 14:00; evening is from 17:
 Sleep
 Average Sleep: 6h 48m
 
+FITNESS AND BLOOD OXYGEN
+
 Cardiorespiratory
 Latest VO₂ Max: 32.1 mL/kg/min
 VO₂ Max Measured: 24/08/26 - 09:00
@@ -511,10 +513,14 @@ Daily Median Range: 96–98%
 Blood Oxygen Coverage: 7 / 7 days
 Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
 
+GLUCOSE
+
 Glucose
 Daily Average: 5.8 mmol/L
 Observed Range: 3.9–8.7 mmol/L
 Data Coverage: 7 / 7 days
+
+MEDICATIONS
 
 Medications Taken
 No taken medication events are visible for this period.
