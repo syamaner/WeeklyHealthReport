@@ -240,7 +240,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         // Group order (#216); every section is present exactly once.
         XCTAssertEqual(
             document.sections.map(\.id),
-            [.steps, .activity, .weight, .bodyComposition, .heart, .bloodPressure, .sleep,
+            [.steps, .activity, .foodLog, .weight, .bodyComposition, .heart, .bloodPressure, .sleep,
              .cardiorespiratory, .glucose, .medications]
         )
         XCTAssertEqual(Set(document.sections.map(\.id)), Set(ReportDocument.SectionID.allCases))
@@ -277,6 +277,12 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         activity|workout-time|Workout Time|30m|standard
         activity|workout-0|Walking|30m — 09/09/26 - 08:00|standard
         footer|activity|
+        section|foodLog|Food and water
+        foodLog|food-days-logged|Days Logged|6 / 7 days|standard
+        foodLog|food-energy-average|Logged Energy|2,010 kcal per day (5 complete days)|standard
+        foodLog|food-energy-incomplete|Incomplete Energy Days|1|standard
+        foodLog|food-plain-water-average|Plain Water|1,750 mL per day (4 days)|standard
+        footer|foodLog|Logged in this app; not a measure of everything eaten or drunk.
         section|weight|Weight
         weight|weight-latest|Latest Weight|100.6 kg|standard
         weight|weight-measured|Measured|09/09/26 - 08:00|standard
@@ -358,6 +364,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
                     workouts: stateCase.metricState(),
                     sleep: stateCase.metricState(),
                     medications: stateCase.metricState(),
+                    foodLog: stateCase.metricState(),
                     includesMedicationSection: true
                 ),
                 calendar: testCalendar(),
@@ -933,6 +940,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         workouts: MetricState<WorkoutSummary> = .noDataOrAccess,
         sleep: MetricState<SleepSummary> = .noDataOrAccess,
         medications: MetricState<MedicationSummary> = .noDataOrAccess,
+        foodLog: MetricState<FoodLogPeriodSummary> = .noDataOrAccess,
         includesMedicationSection: Bool = false,
         showsMorningDetails: Bool = true,
         showsEveningDetails: Bool = false
@@ -967,6 +975,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
             workouts: workouts,
             sleep: sleep,
             medications: medications,
+            foodLog: foodLog,
             includesMedicationSection: includesMedicationSection,
             showsMorningBloodPressureDetails: showsMorningDetails,
             showsEveningBloodPressureDetails: showsEveningDetails
@@ -1113,6 +1122,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
             ])),
             sleep: .available(SleepSummary(nights: [], averageDuration: 6 * 3_600 + 48 * 60)),
             medications: .available(medication),
+            foodLog: .available(FoodLogFixtures.normalWeek(period: period, calendar: calendar)),
             includesMedicationSection: true,
             showsMorningBloodPressureDetails: true,
             showsEveningBloodPressureDetails: true
@@ -1241,6 +1251,22 @@ final class WeeklyReportScreenshotTests: XCTestCase {
             return stateCase.genericExpectation(id: "active-energy", label: "Active Energy")
         case .sleep:
             return stateCase.genericExpectation(id: "sleep-average", label: "Average Sleep")
+        case .foodLog:
+            // The food log is not Apple Health: its own sentences, no technical message.
+            switch stateCase {
+            case .idle, .loading:
+                return DocumentStateRowExpectation(
+                    id: "food-loading", label: nil, value: "Reading the food log…", style: .loading
+                )
+            case .noDataOrAccess, .healthUnavailable:
+                return DocumentStateRowExpectation(
+                    id: "food-no-data", label: nil, value: "No food logged in this period.", style: .secondary
+                )
+            case .failed:
+                return DocumentStateRowExpectation(
+                    id: "food-failed", label: nil, value: "Could not read the food log.", style: .failure
+                )
+            }
         }
     }
 
@@ -1248,7 +1274,7 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         for sectionID: ReportDocument.SectionID
     ) -> [DocumentStateRowTarget] {
         switch sectionID {
-        case .steps, .weight, .bloodPressure, .medications:
+        case .steps, .weight, .bloodPressure, .medications, .foodLog:
             []
         case .bodyComposition:
             [DocumentStateRowTarget(id: "waist", label: "Waist Circumference")]
@@ -1448,21 +1474,27 @@ extension WeeklyReportScreenshotTests {
         XCTAssertEqual(HealthSummaryTiles.pins.map(\.kind), HealthSummaryTile.Kind.allCases)
         XCTAssertEqual(HealthSummaryTiles.pins.map(\.primaryRowID), [
             "steps-average", "sleep-average", "resting-heart-rate-average",
-            "weight-average", "blood-pressure-morning-average"
+            "weight-average", "blood-pressure-morning-average", "food-energy-average"
         ])
         XCTAssertEqual(HealthSummaryTiles.pins.map(\.detailRowID), [
             "steps-coverage", nil, "resting-heart-rate-trend",
-            "weight-trend", "blood-pressure-morning-coverage"
+            "weight-trend", "blood-pressure-morning-coverage", "food-days-logged"
         ])
         XCTAssertEqual(HealthSummaryTiles.pins.map(\.trendRowID), [
-            "steps-trend", nil, nil, nil, nil
+            "steps-trend", nil, nil, nil, nil, nil
         ])
         let tiles = HealthSummaryTiles.make(from: document)
         XCTAssertEqual(tiles.map(\.kind), HealthSummaryTile.Kind.allCases)
         for (tile, pin) in zip(tiles, HealthSummaryTiles.pins) {
             let section = try XCTUnwrap(document.sections.first { $0.id == pin.section })
-            // Byte for byte: label, value and style copied from the row.
-            XCTAssertEqual(tile.primary, section.rows.first { $0.id == pin.primaryRowID }, "\(pin.kind)")
+            // Byte for byte: label, value and style copied from the row, except a
+            // pinned tile label where the row label would repeat the title (#214).
+            let row = try XCTUnwrap(section.rows.first { $0.id == pin.primaryRowID }, "\(pin.kind)")
+            XCTAssertEqual(
+                tile.primary,
+                ReportDocument.Row(row.id, label: pin.primaryLabel ?? row.label, value: row.value, style: row.style),
+                "\(pin.kind)"
+            )
             if let detailID = pin.detailRowID {
                 XCTAssertNotNil(tile.detail, "\(pin.kind)")
                 XCTAssertEqual(tile.detail, section.rows.first { $0.id == detailID }, "\(pin.kind)")
@@ -1712,6 +1744,12 @@ extension WeeklyReportScreenshotTests {
     Active Energy: Could not read Apple Health.
     Exercise: No data
     Workouts: No data
+
+    FOOD AND WATER
+
+    Food and water
+    No food logged in this period.
+    Logged in this app; not a measure of everything eaten or drunk.
 
     BODY
 

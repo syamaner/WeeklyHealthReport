@@ -231,6 +231,40 @@ enum HealthReportFormatter {
         "\(integer(value, locale: locale)) kcal"
     }
 
+    /// Food and water (#214): "2,010 kcal per day (5 complete days)", with the
+    /// Food Log's "includes estimates" wording when any averaged day has one.
+    static func loggedEnergyAverage(
+        _ kilocalories: Double,
+        completeDays: Int,
+        includesEstimates: Bool,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let days = "\(count(completeDays, locale: locale)) complete \(completeDays == 1 ? "day" : "days")"
+        let value = "\(integer(kilocalories, locale: locale)) kcal per day (\(days))"
+        return includesEstimates ? "\(value), includes estimates" : value
+    }
+
+    /// Food and water (#214): "1,750 mL per day (4 days)". Incomplete plain
+    /// water days are left out of the average and named after it.
+    static func plainWaterAverage(
+        _ millilitres: Double,
+        days: Int,
+        incompleteDays: Int,
+        includesEstimates: Bool,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        var value = "\(integer(millilitres, locale: locale)) mL per day (\(count(days, locale: locale)) \(days == 1 ? "day" : "days")"
+        if incompleteDays > 0 {
+            value += "; \(Self.incompleteDays(incompleteDays, locale: locale)) left out"
+        }
+        value += ")"
+        return includesEstimates ? "\(value), includes estimates" : value
+    }
+
+    static func incompleteDays(_ value: Int, locale: Locale = .autoupdatingCurrent) -> String {
+        "\(count(value, locale: locale)) incomplete \(value == 1 ? "day" : "days")"
+    }
+
     static func duration(_ interval: TimeInterval) -> String {
         let totalMinutes = Int((interval / 60).rounded())
         let hours = totalMinutes / 60

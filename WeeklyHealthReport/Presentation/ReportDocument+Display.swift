@@ -29,7 +29,8 @@ extension ReportDocument {
         .glucose: "Glucose",
         .activity: "Activity",
         .sleep: "Sleep",
-        .medications: "Medications taken"
+        .medications: "Medications taken",
+        .foodLog: "Food and water"
     ]
 
     /// Display labels by row id. Only rows with a fixed label are listed, so a
@@ -69,7 +70,11 @@ extension ReportDocument {
         "glucose-coverage": "Data coverage",
         "active-energy": "Active energy",
         "workout-time": "Workout time",
-        "sleep-average": "Average sleep"
+        "sleep-average": "Average sleep",
+        "food-days-logged": "Days logged",
+        "food-energy-average": "Logged energy",
+        "food-energy-incomplete": "Incomplete energy days",
+        "food-plain-water-average": "Plain water"
     ]
 
     /// The document as the Health screen, its tiles and Full Page show it.
@@ -92,7 +97,7 @@ extension ReportDocument {
 
     private static func displayRow(_ row: Row) -> Row {
         let label = row.label.map { displayRowLabels[row.id] ?? $0 }
-        let value = row.style == .failure ? readFailedMessage : row.value
+        let value = row.style == .failure ? failureValue(row) : row.value
         return Row(row.id, label: label, value: value, style: row.style)
     }
 
@@ -150,7 +155,8 @@ extension ReportPresentationSnapshot {
             ("Exercise", message(exercise)),
             ("Workouts", message(workouts)),
             ("Sleep", message(sleep)),
-            ("Medications", includesMedicationSection ? message(medications) : nil)
+            ("Medications", includesMedicationSection ? message(medications) : nil),
+            ("Food log", message(foodLog))
         ]
         return candidates.compactMap { metric, message in
             message.map { ReportReadFailure(metric: metric, message: $0) }

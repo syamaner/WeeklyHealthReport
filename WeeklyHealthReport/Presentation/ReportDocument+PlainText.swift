@@ -4,7 +4,8 @@ extension ReportDocument {
     /// The Copy all text (README "What gets copied"). Labels, values and order are
     /// the document's own, with one capitalised heading line before each
     /// group (`groupedSections`, #216, contract v1.1); only a failed read is
-    /// reworded to "Could not read Apple Health." so no technical message reaches
+    /// reworded to "Could not read Apple Health." (or, for the food log,
+    /// "Could not read the food log.") so no technical message reaches
     /// the clipboard. Developer tools keeps each read's message
     /// (`ReportPresentationSnapshot.readFailures`).
     func plainText(
@@ -40,7 +41,7 @@ extension ReportDocument {
     private static func copyAllBlock(_ section: Section) -> String {
         var lines = [section.title]
         lines += section.rows.map { row in
-            let value = row.style == .failure ? readFailedMessage : row.value
+            let value = row.style == .failure ? failureValue(row) : row.value
             if let label = row.label {
                 return "\(label): \(value)"
             }

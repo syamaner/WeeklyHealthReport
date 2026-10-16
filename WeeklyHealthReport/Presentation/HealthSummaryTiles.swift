@@ -23,6 +23,7 @@ extension ReportPresentationSnapshot {
             workouts: workouts,
             sleep: sleep,
             medications: medications,
+            foodLog: foodLog,
             includesMedicationSection: includesMedicationSection,
             showsMorningBloodPressureDetails: true,
             showsEveningBloodPressureDetails: true
@@ -57,6 +58,7 @@ struct HealthSummaryTile: Equatable, Identifiable {
         case restingHeartRate
         case weight
         case morningBloodPressure
+        case loggedEnergy
     }
 
     let kind: Kind
@@ -91,6 +93,9 @@ enum HealthSummaryTiles {
         let primaryRowID: String
         let detailRowID: String?
         var trendRowID: String?
+        /// A tile label for the primary row when the row's own label would only
+        /// repeat the tile title (Logged energy).
+        var primaryLabel: String?
     }
 
     /// Row ids are pinned so a renamed row fails the tile tests rather than
@@ -131,6 +136,15 @@ enum HealthSummaryTiles {
             section: .bloodPressure,
             primaryRowID: "blood-pressure-morning-average",
             detailRowID: "blood-pressure-morning-coverage"
+        ),
+        // Food and water (#214, decision 4): logged energy with days logged.
+        Pin(
+            kind: .loggedEnergy,
+            title: "Logged energy",
+            section: .foodLog,
+            primaryRowID: "food-energy-average",
+            detailRowID: "food-days-logged",
+            primaryLabel: "Average per day"
         )
     ]
 
@@ -148,10 +162,13 @@ enum HealthSummaryTiles {
                 let trend = pin.trendRowID.flatMap { id in
                     section.rows.first { $0.id == id }
                 }
+                let labelled = pin.primaryLabel.map {
+                    ReportDocument.Row(primary.id, label: $0, value: primary.value, style: primary.style)
+                } ?? primary
                 return HealthSummaryTile(
                     kind: pin.kind,
                     title: pin.title,
-                    primary: shortFailure(primary),
+                    primary: shortFailure(labelled),
                     detail: detail.map(shortFailure),
                     trend: trend.map(shortFailure)
                 )
@@ -161,7 +178,9 @@ enum HealthSummaryTiles {
             return HealthSummaryTile(
                 kind: pin.kind,
                 title: pin.title,
-                primary: pin.section == .steps ? stepsStateRow(stateRow) : shortFailure(stateRow),
+                primary: pin.section == .steps || pin.section == .foodLog
+                    ? stepsStateRow(stateRow)
+                    : shortFailure(stateRow),
                 detail: nil
             )
         }
@@ -180,8 +199,8 @@ enum HealthSummaryTiles {
         )
     }
 
-    /// Steps state rows are full sentences; the tile shows the shared short
-    /// term for the same state, keeping each state distinct.
+    /// Steps (and Food and water) state rows are full sentences; the tile shows
+    /// the shared short term for the same state, keeping each state distinct.
     private static func stepsStateRow(_ row: ReportDocument.Row) -> ReportDocument.Row {
         let value: String
         switch row.id {
@@ -190,6 +209,12 @@ enum HealthSummaryTiles {
         case "steps-unavailable": value = MetricRowVocabulary.unavailable
         case "steps-no-completed-days": value = MetricRowVocabulary.noCompletedDays
         case "steps-failed": value = MetricRowVocabulary.couldNotRead
+        // Food and water: the shared short terms for loading and no completed
+        // days. "No food logged in this period." stays as it is, distinct from
+        // "No data", and a failure uses "Could not read".
+        case "food-loading": value = MetricRowVocabulary.loading
+        case "food-no-completed-days": value = MetricRowVocabulary.noCompletedDays
+        case ReportDocument.foodLogFailedRowID: value = MetricRowVocabulary.couldNotRead
         default: return row
         }
         return ReportDocument.Row(row.id, label: row.label, value: value, style: row.style)

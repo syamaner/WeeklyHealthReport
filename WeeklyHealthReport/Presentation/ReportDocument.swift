@@ -12,6 +12,7 @@ struct ReportDocument: Equatable {
         case activity
         case sleep
         case medications
+        case foodLog
     }
 
     enum RowStyle: Equatable {
@@ -109,7 +110,8 @@ struct ReportDocument: Equatable {
                 calendar: calendar,
                 locale: locale
             ),
-            Self.sleepSection(snapshot.sleep)
+            Self.sleepSection(snapshot.sleep),
+            Self.foodLogSection(snapshot.foodLog, locale: locale)
         ]
 
         if snapshot.includesMedicationSection {

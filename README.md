@@ -27,6 +27,7 @@ examples; the repository does not contain exported or personal HealthKit values.
 | --- | --- |
 | Body | Latest weight and recording time, weight trend, body fat and trend, waist circumference and four-week trend |
 | Daily activity | Average daily steps, active energy, Apple Exercise Time, workout count, type, duration and start time |
+| Food and water | From this app's own food log, not Apple Health: days logged, average logged energy per complete day and average plain water per day it was logged |
 | Heart and sleep | Blood pressure, resting heart rate, HRV, sleep and days with Apple Watch data |
 | Fitness estimates | Latest VO₂ max with four-week, three-month and six-month averages, plus blood oxygen |
 | Glucose | A weekly average calculated from daily values, observed range and days with data |
@@ -429,9 +430,9 @@ These are calendar periods, not a rolling 168-hour window. Last 7 days still con
 
 The copied report is plain text. Latest weight, waist, blood oxygen and blood pressure are selected independently of the weekly period, so a measurement recorded today can appear alongside a report of completed days.
 
-A failed Apple Health read is copied as "Could not read Apple Health.", whether it is one metric row (for example `Daily Average: Could not read Apple Health.`) or a whole section such as Steps. The technical message is never copied; Developer tools lists it under "Health report read failures". No-data, unavailable and partial wording is copied unchanged.
+A failed Apple Health read is copied as "Could not read Apple Health.", whether it is one metric row (for example `Daily Average: Could not read Apple Health.`) or a whole section such as Steps. The technical message is never copied; Developer tools lists it under "Health report read failures". The Food and water section reads this app's food log, not Apple Health, so a failed read there is copied as "Could not read the food log." No-data, unavailable and partial wording is copied unchanged.
 
-Sections are copied in the Health screen's group order ([section groups](docs/health-report-section-groups-v1.md)): Daily activity (Steps, Activity), Body (Weight, Body Composition), Heart and sleep (Heart, Blood Pressure, Sleep), Fitness and blood oxygen (Cardiorespiratory), Glucose, and Medications (Medications Taken). Every group starts with its name in capitals on its own line; section titles, row labels and values are unchanged.
+Sections are copied in the Health screen's group order ([section groups](docs/health-report-section-groups-v1.md)): Daily activity (Steps, Activity), Food and water, Body (Weight, Body Composition), Heart and sleep (Heart, Blood Pressure, Sleep), Fitness and blood oxygen (Cardiorespiratory), Glucose, and Medications (Medications Taken). Every group starts with its name in capitals on its own line; section titles, row labels and values are unchanged.
 
 <details>
 <summary>See a synthetic copied report</summary>
@@ -456,6 +457,15 @@ Exercise: 89 min
 Workouts: 1
 Workout Time: 30m
 Walking: 30m — 18/08/26 - 00:00
+
+FOOD AND WATER
+
+Food and water
+Days Logged: 6 / 7 days
+Logged Energy: 2,010 kcal per day (5 complete days)
+Incomplete Energy Days: 1
+Plain Water: 1,750 mL per day (4 days)
+Logged in this app; not a measure of everything eaten or drunk.
 
 BODY
 
@@ -553,6 +563,7 @@ Three day rules stay separate. Health report summaries use completed days; the D
 - **Apple Exercise Time:** one HealthKit `cumulativeSum` statistic covers the exact report interval and is converted to minutes. Raw samples are not summed manually.
 - **Active energy:** one HealthKit `cumulativeSum` statistic covers the exact report interval and is converted to kcal. This is an activity measurement, not total energy expenditure.
 - **Workouts:** the app reads `HKWorkout` samples whose start date is inside the report interval. It shows the count, summed duration, activity type, duration and local start time in `dd/MM/yy - HH:mm` format. Functional Strength Training is shortened to `FST`. A workout crossing midnight belongs to the day on which it started. An empty result is shown as **No data** because HealthKit does not distinguish missing read access from an empty history.
+- **Food and water (logged in this app):** specified in [health-food-and-water-v1.md](docs/health-food-and-water-v1.md) (policy `health_food_log_period_v1`). Each completed day maps to one food-log reporting date, and entries count on the date stored when they were logged or backdated; today is excluded. A day with no current food entry is not logged, never zero; a day with only plain water is not a logged food day either (contract v1.1), but its water counts towards the plain water average. Logged energy is the mean of complete days' totals, each day weighted equally; a day with any unknown energy contribution is left out of the mean and counted as an incomplete energy day. Plain water counts plain water entries only (the Home and Food Log figure, never water in foods), averaged over the days it was logged; no plain water is **No data**, never 0 mL. Values are rounded only for display. Logged energy is never netted against active energy, and Apple Health dietary data is not read for this section. Developer Diagnostics lists each date's inputs under "Food log (Health report)".
 - **Sleep:** only `asleepUnspecified`, `asleepCore`, `asleepDeep` and `asleepREM` samples are included. `awake` and `inBed` are excluded. Included intervals from all sources are clipped and combined so overlaps count once. Each report date is a local noon-to-noon night bucket ending on that wake date. Only nights with visible asleep time enter the average.
 - **Medications on iOS 26 or later:** the person chooses individual medications through Apple's medication access sheet. The app queries active and archived authorised concepts, then includes only `HKMedicationDoseEvent` samples with a `taken` status and a start time inside the selected completed-day period. Events are grouped by HealthKit's [stable medication concept identifier](https://developer.apple.com/documentation/healthkit/hkmedicationconcept/identifier), independently of query or display order, so a changed strength appears as a separate row and concepts with the same display name remain separate. When refreshes overlap, only the newest relevant full-report or medication-only refresh may publish medication state. Each row reports the latest logged quantity and time plus the number of taken events. Diagnostics lists every event. Medications without a visible taken event are omitted from copied text. Missing events are never treated as a missed dose or non-adherence.
 - **Nutrition in Daily JSON Export:** the app supports all 39 current HealthKit dietary quantity types through one fixed catalogue. It uses source-filtered HealthKit `cumulativeSum` statistics and converts energy to kcal, water to mL and nutrients to the catalogue's g, mg or mcg unit at the query boundary. Source discovery builds a complete local snapshot and replaces the previous snapshot atomically only after every query succeeds; concurrent source-filtered reads therefore see either the previous or the next complete selection map, while failure or cancellation preserves the previous map. The current schema v3 retains the nutrition payload introduced in schema v2: today's partial total through the captured cutoff and exactly seven chronological completed-day states per nutrient. Current and previous averages are arithmetic means over visible sampled days and state both sampled and reporting days. A signed current-minus-previous trend is available only with 7/7 visible days in both windows; otherwise it is `insufficient_data`. Missing source-filtered statistics remain `no_data_or_access`, never zero. Nutrition is not added to the weekly screen, copied report or Diagnostics and has no target, score or interpretation.

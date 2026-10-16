@@ -172,10 +172,36 @@ enum ReportPreviewFixtures {
                 averageDuration: 6 * 3_600 + 48 * 60
             )),
             medications: metricState(state, available: medication),
+            foodLog: metricState(state, available: syntheticFoodLog(period: period)),
             includesMedicationSection: true,
             showsMorningBloodPressureDetails: true,
             showsEveningBloodPressureDetails: true
         )
+    }
+
+    /// Synthetic food log: six of seven days logged, one with an unknown energy
+    /// contribution, plain water on four days.
+    private static func syntheticFoodLog(period: ReportPeriod) -> FoodLogPeriodSummary {
+        let dates = FoodLogPeriodSummary.reportingDates(for: period, calendar: .autoupdatingCurrent)
+        let facts = dates.enumerated().compactMap { index, date -> FoodLogDayFacts? in
+            guard index != 3 else { return nil }
+            return FoodLogDayFacts(
+                reportingDate: date,
+                entryCount: 4,
+                foodEntryCount: index < 4 ? 3 : 4,
+                energy: FoodLogDayFacts.Total(
+                    knownAmount: 2_010,
+                    incompleteContributions: index == 5 ? 1 : 0,
+                    includesEstimates: false
+                ),
+                plainWater: index < 4 ? FoodLogDayFacts.Total(
+                    knownAmount: 1_750,
+                    incompleteContributions: 0,
+                    includesEstimates: false
+                ) : nil
+            )
+        }
+        return FoodLogPeriodSummary.make(days: facts, reportingDates: dates)
     }
 
     private static func metricState<Value: Equatable>(
