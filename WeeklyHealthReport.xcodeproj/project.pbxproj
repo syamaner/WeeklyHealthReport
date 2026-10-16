@@ -103,6 +103,8 @@
 		A00000000000000000000046 /* ReportPresentationSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004C /* ReportPresentationSnapshot.swift */; };
 		A00000000000000000000047 /* ReportDocument+PlainText.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004D /* ReportDocument+PlainText.swift */; };
 		A0000000000000000000D1F0 /* ReportDocument+Display.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000D1F0 /* ReportDocument+Display.swift */; };
+		A0000000000000000000216A /* ReportDocument+Groups.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000216A /* ReportDocument+Groups.swift */; };
+		A0000000000000000000216B /* ReportDocumentGroupsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000216B /* ReportDocumentGroupsTests.swift */; };
 		A00000000000000000000048 /* ReportDocumentSectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004E /* ReportDocumentSectionView.swift */; };
 		A00000000000000000000049 /* ReportPreviewFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0000000000000000000004F /* ReportPreviewFixtures.swift */; };
 		A0000000000000000000004A /* MetricRowPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000050 /* MetricRowPresentation.swift */; };
@@ -250,6 +252,8 @@
 		B0000000000000000000004C /* ReportPresentationSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPresentationSnapshot.swift; sourceTree = "<group>"; };
 		B0000000000000000000004D /* ReportDocument+PlainText.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReportDocument+PlainText.swift"; sourceTree = "<group>"; };
 		B0000000000000000000D1F0 /* ReportDocument+Display.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReportDocument+Display.swift"; sourceTree = "<group>"; };
+		B0000000000000000000216A /* ReportDocument+Groups.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ReportDocument+Groups.swift"; sourceTree = "<group>"; };
+		B0000000000000000000216B /* ReportDocumentGroupsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDocumentGroupsTests.swift; sourceTree = "<group>"; };
 		B0000000000000000000004E /* ReportDocumentSectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportDocumentSectionView.swift; sourceTree = "<group>"; };
 		B0000000000000000000004F /* ReportPreviewFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportPreviewFixtures.swift; sourceTree = "<group>"; };
 		B00000000000000000000050 /* MetricRowPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MetricRowPresentation.swift; sourceTree = "<group>"; };
@@ -427,6 +431,7 @@
 				F11700000000000000000003 /* WorkoutEnrichmentTests.swift */,
 				B00000000000000000000019 /* SleepSummaryTests.swift */,
 				B0000000000000000000001A /* HealthReportFormatterTests.swift */,
+				B0000000000000000000216B /* ReportDocumentGroupsTests.swift */,
 				B0000000000000000000001D /* WatchCoverageSummaryTests.swift */,
 				B00000000000000000000022 /* WaistMeasurementTests.swift */,
 				B00000000000000000000023 /* GlucoseSummaryTests.swift */,
@@ -524,6 +529,7 @@
 				B00000000000000000000042 /* ReportDocument.swift */,
 				B0000000000000000000004D /* ReportDocument+PlainText.swift */,
 				B0000000000000000000D1F0 /* ReportDocument+Display.swift */,
+				B0000000000000000000216A /* ReportDocument+Groups.swift */,
 			);
 			path = Presentation;
 			sourceTree = "<group>";
@@ -714,6 +720,7 @@
 				A0000000000000000000004A /* MetricRowPresentation.swift in Sources */,
 				A00000000000000000000047 /* ReportDocument+PlainText.swift in Sources */,
 				A0000000000000000000D1F0 /* ReportDocument+Display.swift in Sources */,
+				A0000000000000000000216A /* ReportDocument+Groups.swift in Sources */,
 				A00000000000000000000019 /* WatchCoverageSummary.swift in Sources */,
 				A0000000000000000000001C /* WaistMeasurement.swift in Sources */,
 				A0000000000000000000001D /* GlucoseSummary.swift in Sources */,
@@ -756,6 +763,7 @@
 				F11600000000000000000003 /* WorkoutEnrichmentTests.swift in Sources */,
 				A00000000000000000000016 /* SleepSummaryTests.swift in Sources */,
 				A00000000000000000000017 /* HealthReportFormatterTests.swift in Sources */,
+				A0000000000000000000216B /* ReportDocumentGroupsTests.swift in Sources */,
 				A0000000000000000000001A /* WatchCoverageSummaryTests.swift in Sources */,
 				A0000000000000000000001E /* WaistMeasurementTests.swift in Sources */,
 				A0000000000000000000001F /* GlucoseSummaryTests.swift in Sources */,

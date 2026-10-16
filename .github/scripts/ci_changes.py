@@ -42,6 +42,11 @@ CODE_READ_DOCS = {
     "docs/food-list-lexical-v5.md",
     # Cited by the shared lexical policy (food-lexical-terms-v9), its tests and CI.
     "docs/food-lexical-terms-v9.md",
+    # Cited by the Health follow-ups (#214 to #217), their tests and Developer tools.
+    "docs/health-report-section-groups-v1.md",
+    "docs/health-steps-trend-v1.md",
+    "docs/health-food-and-water-v1.md",
+    "docs/daily-export-included-summary-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this

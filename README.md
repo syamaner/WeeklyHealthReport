@@ -431,6 +431,8 @@ The copied report is plain text. Latest weight, waist, blood oxygen and blood pr
 
 A failed Apple Health read is copied as "Could not read Apple Health.", whether it is one metric row (for example `Daily Average: Could not read Apple Health.`) or a whole section such as Steps. The technical message is never copied; Developer tools lists it under "Health report read failures". No-data, unavailable and partial wording is copied unchanged.
 
+Sections are copied in the Health screen's group order ([section groups](docs/health-report-section-groups-v1.md)): Daily activity (Steps, Activity), Body (Weight, Body Composition), Heart and sleep (Heart, Blood Pressure, Sleep), Fitness and blood oxygen (Cardiorespiratory), Glucose, and Medications (Medications Taken). Every group starts with its name in capitals on its own line; section titles, row labels and values are unchanged.
+
 <details>
 <summary>See a synthetic copied report</summary>
 
@@ -440,10 +442,21 @@ Last 7 Completed Days
 18–24 Aug 2026
 Generated: 26/08/26 - 09:00
 
+DAILY ACTIVITY
+
 Steps
 Average Daily Steps: 2,727
 Data Coverage: 7 / 7 days
 Weekly Total: 19,089
+
+Activity
+Active Energy: 1,974 kcal
+Exercise: 89 min
+Workouts: 1
+Workout Time: 30m
+Walking: 30m — 18/08/26 - 00:00
+
+BODY
 
 Weight
 Latest Weight: 100.6 kg
@@ -459,6 +472,8 @@ Body Fat Trend: ↓ 0.9 pp vs previous 28d
 Waist Circumference: 101.4 cm
 Waist Measured: 24/08/26 - 09:00
 4-week Waist Trend: -1.7 cm vs ~4 weeks earlier
+
+HEART AND SLEEP
 
 Heart
 Resting HR Average: 73 bpm
@@ -480,6 +495,11 @@ Recorded: 24/08/26 - 20:14 · 3 readings
 Coverage: 4/7 days · 12 readings
 Period averages use completed days. Morning is before 14:00; evening is from 17:00. Mid-afternoon readings are excluded from both slot summaries.
 
+Sleep
+Average Sleep: 6h 48m
+
+FITNESS AND BLOOD OXYGEN
+
 Cardiorespiratory
 Latest VO₂ Max: 32.1 mL/kg/min
 VO₂ Max Measured: 24/08/26 - 09:00
@@ -493,20 +513,14 @@ Daily Median Range: 96–98%
 Blood Oxygen Coverage: 7 / 7 days
 Apple Watch blood-oxygen measurements are wellness estimates, not medical measurements.
 
+GLUCOSE
+
 Glucose
 Daily Average: 5.8 mmol/L
 Observed Range: 3.9–8.7 mmol/L
 Data Coverage: 7 / 7 days
 
-Activity
-Active Energy: 1,974 kcal
-Exercise: 89 min
-Workouts: 1
-Workout Time: 30m
-Walking: 30m — 18/08/26 - 00:00
-
-Sleep
-Average Sleep: 6h 48m
+MEDICATIONS
 
 Medications Taken
 No taken medication events are visible for this period.
