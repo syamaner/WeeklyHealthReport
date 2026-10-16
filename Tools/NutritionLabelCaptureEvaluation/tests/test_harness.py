@@ -97,8 +97,17 @@ class SealedSetTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder) / "cases.jsonl"
             text = "x"
-            path.write_text(json.dumps({"id": "a", "input": {"kind": "text", "text": text}, "truth": {},
-                                        "metadata": {"split": "untouched", "sha256": render.digest(text)}}) + "\n")
+            path.write_text(
+                json.dumps(
+                    {
+                        "id": "a",
+                        "input": {"kind": "text", "text": text},
+                        "truth": {},
+                        "metadata": {"split": "untouched", "sha256": render.digest(text)},
+                    }
+                )
+                + "\n"
+            )
             with self.assertRaises(cases.SealedSetError):
                 cases.load_development_text(path)
 
@@ -144,14 +153,28 @@ class RendererTests(unittest.TestCase):
     def test_column_variants_never_add_values(self):
         truth = muesli_truth()
         single = render.select_columns(truth, "single_column_serving")
+        assert single is not None
         self.assertEqual(len(single["cells"]), 9)
-        self.assertTrue({(c["nutrient"], c["decimal_text"]) for c in single["cells"]} <= {(c["nutrient"], c["decimal_text"]) for c in truth["cells"]})
+        self.assertTrue(
+            {(c["nutrient"], c["decimal_text"]) for c in single["cells"]} <= {(c["nutrient"], c["decimal_text"]) for c in truth["cells"]}
+        )
 
     def test_fda_row_needs_structured_values(self):
-        row = {"每一份量": "90公克", "本包裝含": "2份", "每份熱量": "198.9大卡", "每份蛋白質": "11公克", "每份脂肪": "14公克",
-               "每份飽和脂肪": "4.1公克", "每份反式脂肪": "0公克", "每份碳水化合物": "7.4公克", "每份糖": "4公克", "每份鈉": "603毫克"}
+        row = {
+            "每一份量": "90公克",
+            "本包裝含": "2份",
+            "每份熱量": "198.9大卡",
+            "每份蛋白質": "11公克",
+            "每份脂肪": "14公克",
+            "每份飽和脂肪": "4.1公克",
+            "每份反式脂肪": "0公克",
+            "每份碳水化合物": "7.4公克",
+            "每份糖": "4公克",
+            "每份鈉": "603毫克",
+        }
         truth, reason = render.fda_truth(row)
         self.assertIsNone(reason)
+        assert truth is not None
         self.assertEqual(truth["serving_size"]["canonical_unit"], "g")
         row["每份鈉"] = "603公克"
         self.assertIsNone(render.fda_truth(row)[0])
@@ -198,8 +221,17 @@ class DevelopmentDatasetTests(unittest.TestCase):
         loaded = {c["id"]: c for c in cases.load_development_text(HERE / "synthetic" / "development-cases-v1.jsonl")}
         truth = loaded["owner:muesli-6-grain:typed"]["truth"]
         values = {(c["nutrient"], c["basis"]): c["decimal_text"] for c in truth["cells"]}
-        expected = {"energy_kcal": "367.2", "protein": "11", "fat": "8.8", "saturates": "1.2", "trans_fat": "0",
-                    "carbohydrate": "67", "sugars": "9.1", "fibre": "12", "sodium": "8"}
+        expected = {
+            "energy_kcal": "367.2",
+            "protein": "11",
+            "fat": "8.8",
+            "saturates": "1.2",
+            "trans_fat": "0",
+            "carbohydrate": "67",
+            "sugars": "9.1",
+            "fibre": "12",
+            "sodium": "8",
+        }
         for basis in ("per_serving", "per_100g"):
             self.assertEqual({k: v for (k, b), v in values.items() if b == basis}, expected)
         self.assertEqual(truth["servings_per_pack"]["decimal_text"], "5")

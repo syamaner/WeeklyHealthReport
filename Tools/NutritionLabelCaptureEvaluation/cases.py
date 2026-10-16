@@ -53,18 +53,33 @@ def load_development_photos(manifest_path: Path, image_root: Path, truth_path: P
         path = image_root / "development" / f"{photo['order']:02d}-{photo['barcode13']}-nutrition_zh.{photo['revision']}.jpg"
         if sha256_file(path) != photo["sha256"]:
             raise ValueError(f"{case_id} bytes do not match the manifest")
-        cases.append({
-            "id": case_id,
-            "input": {"kind": "image", "path": str(path)},
-            "truth": truths.get(case_id),
-            "metadata": {"corpus": "off_taiwan", "split": "development", "sha256": photo["sha256"],
-                         "coverage_tags": ["zh_hant"], "licence": manifest["licence"], "attribution": photo["attribution"]},
-        })
+        cases.append(
+            {
+                "id": case_id,
+                "input": {"kind": "image", "path": str(path)},
+                "truth": truths.get(case_id),
+                "metadata": {
+                    "corpus": "off_taiwan",
+                    "split": "development",
+                    "sha256": photo["sha256"],
+                    "coverage_tags": ["zh_hant"],
+                    "licence": manifest["licence"],
+                    "attribution": photo["attribution"],
+                },
+            }
+        )
     return cases
 
 
-def load_untouched_photos(manifest_path: Path, image_root: Path, *, unseal: bool, manifest_sha256: str | None,
-                          truth_path: Path | None = None, contract_path: Path = CONTRACT) -> list[dict[str, Any]]:
+def load_untouched_photos(
+    manifest_path: Path,
+    image_root: Path,
+    *,
+    unseal: bool,
+    manifest_sha256: str | None,
+    truth_path: Path | None = None,
+    contract_path: Path = CONTRACT,
+) -> list[dict[str, Any]]:
     """The 40 untouched Taiwan photos, only after an explicit, hash-bound unseal."""
     if not unseal:
         raise SealedSetError("the untouched set is sealed; pass an explicit unseal flag")
@@ -84,11 +99,18 @@ def load_untouched_photos(manifest_path: Path, image_root: Path, *, unseal: bool
             continue
         case_id = f"off-taiwan:{photo['barcode13']}:nutrition_zh.{photo['revision']}"
         path = image_root / "sealed" / f"{photo['order']:02d}-{photo['barcode13']}-nutrition_zh.{photo['revision']}.jpg"
-        cases.append({
-            "id": case_id,
-            "input": {"kind": "image", "path": str(path)},
-            "truth": truths[case_id],
-            "metadata": {"corpus": "off_taiwan", "split": "untouched", "sha256": photo["sha256"],
-                         "licence": manifest["licence"], "attribution": photo["attribution"]},
-        })
+        cases.append(
+            {
+                "id": case_id,
+                "input": {"kind": "image", "path": str(path)},
+                "truth": truths[case_id],
+                "metadata": {
+                    "corpus": "off_taiwan",
+                    "split": "untouched",
+                    "sha256": photo["sha256"],
+                    "licence": manifest["licence"],
+                    "attribution": photo["attribution"],
+                },
+            }
+        )
     return cases

@@ -49,31 +49,28 @@ def jurisdiction_for(table: dict[str, Any]) -> str:
     return "taiwan" if table.get("language") in ("zh-Hant", "mixed") else "uk"
 
 
-def _exact(cells: list[dict[str, Any]], nutrient: str, unit: str, basis: str) -> dict[str, Any] | None | str:
-    """The single exact cell for a nutrient on a basis, None when absent, or 'bound'."""
+def exact_value(cells: list[dict[str, Any]], nutrient: str, unit: str, basis: str) -> Decimal | None:
+    """The value of the single exact printed cell for a nutrient on a basis.
+
+    None when the cell is absent, repeated, unparseable or a bound: such inputs make a
+    check `not_checkable`, never zero.
+    """
     matching = [c for c in cells if c.get("nutrient") == nutrient and c.get("basis") == basis and c.get("canonical_unit") == unit]
-    if len(matching) != 1:
+    if len(matching) != 1 or matching[0].get("comparator", "=") != "=":
         return None
-    cell = matching[0]
-    if cell.get("comparator", "=") != "=":
-        return "bound"
-    return cell if number(cell.get("decimal_text")) is not None else None
+    return number(matching[0].get("decimal_text"))
 
 
 def energy_check(table: dict[str, Any], basis: str) -> dict[str, Any]:
     cells = table.get("cells") or []
     jurisdiction = jurisdiction_for(table)
-    found = {name: _exact(cells, name, unit, basis) for name, unit in (
-        ("energy_kcal", "kcal"), ("protein", "g"), ("fat", "g"), ("carbohydrate", "g"), ("fibre", "g"))}
-    required = ("energy_kcal", "protein", "fat", "carbohydrate")
-    if any(not isinstance(found[name], dict) for name in required):
+    kcal = exact_value(cells, "energy_kcal", "kcal", basis)
+    p = exact_value(cells, "protein", "g", basis)
+    f = exact_value(cells, "fat", "g", basis)
+    c = exact_value(cells, "carbohydrate", "g", basis)
+    fibre = exact_value(cells, "fibre", "g", basis)
+    if kcal is None or p is None or f is None or c is None:
         return {"name": "energy", "basis": basis, "status": NOT_CHECKABLE}
-    kcal = number(found["energy_kcal"]["decimal_text"])
-    p = number(found["protein"]["decimal_text"])
-    f = number(found["fat"]["decimal_text"])
-    c = number(found["carbohydrate"]["decimal_text"])
-    fibre_cell = found["fibre"]
-    fibre = number(fibre_cell["decimal_text"]) if isinstance(fibre_cell, dict) else None
     forms: list[tuple[str, Decimal]] = []
     if jurisdiction == "taiwan" and fibre is not None:
         forms.append(("taiwan", 4 * p + 4 * (c - fibre) + 2 * fibre + 9 * f))
@@ -96,11 +93,10 @@ def energy_check(table: dict[str, Any], basis: str) -> dict[str, Any]:
 
 def kj_kcal_check(table: dict[str, Any], basis: str) -> dict[str, Any]:
     cells = table.get("cells") or []
-    kj = _exact(cells, "energy_kj", "kJ", basis)
-    kcal = _exact(cells, "energy_kcal", "kcal", basis)
-    if not isinstance(kj, dict) or not isinstance(kcal, dict):
+    kj_value = exact_value(cells, "energy_kj", "kJ", basis)
+    kcal_value = exact_value(cells, "energy_kcal", "kcal", basis)
+    if kj_value is None or kcal_value is None:
         return {"name": "kj_kcal_ratio", "basis": basis, "status": NOT_CHECKABLE}
-    kj_value, kcal_value = number(kj["decimal_text"]), number(kcal["decimal_text"])
     if kcal_value == 0:
         status = PASS if kj_value == 0 else FAIL
         return {"name": "kj_kcal_ratio", "basis": basis, "status": status}
@@ -132,8 +128,14 @@ def scaling_checks(table: dict[str, Any]) -> list[dict[str, Any]]:
     for serving in cells:
         if serving.get("basis") != "per_serving" or serving.get("canonical_unit") == "%":
             continue
-        partner = [c for c in cells if c.get("basis") == hundred_basis and c.get("nutrient") == serving.get("nutrient")
-                   and c.get("canonical_unit") == serving.get("canonical_unit") and c.get("parent_row_id") == serving.get("parent_row_id")]
+        partner = [
+            c
+            for c in cells
+            if c.get("basis") == hundred_basis
+            and c.get("nutrient") == serving.get("nutrient")
+            and c.get("canonical_unit") == serving.get("canonical_unit")
+            and c.get("parent_row_id") == serving.get("parent_row_id")
+        ]
         if len(partner) != 1:
             continue
         hundred = partner[0]
@@ -143,10 +145,21 @@ def scaling_checks(table: dict[str, Any]) -> list[dict[str, Any]]:
         if s is None or h is None:
             continue
         expected = h * grams / 100
-        slack = Decimal("0.5") * Decimal(10) ** -decimals(serving["decimal_text"]) + Decimal("0.5") * Decimal(10) ** -decimals(hundred["decimal_text"]) * grams / 100
+        slack = (
+            Decimal("0.5") * Decimal(10) ** -decimals(serving["decimal_text"])
+            + Decimal("0.5") * Decimal(10) ** -decimals(hundred["decimal_text"]) * grams / 100
+        )
         ok = abs(s - expected) <= slack + Decimal("1e-9")
-        results.append({"name": "serving_scaling", "nutrient": serving.get("nutrient"), "status": PASS if ok else FAIL,
-                        "per_serving": str(s), "expected": str(expected), "slack": str(slack)})
+        results.append(
+            {
+                "name": "serving_scaling",
+                "nutrient": serving.get("nutrient"),
+                "status": PASS if ok else FAIL,
+                "per_serving": str(s),
+                "expected": str(expected),
+                "slack": str(slack),
+            }
+        )
     return results or [{"name": "serving_scaling", "status": NOT_CHECKABLE}]
 
 
@@ -157,9 +170,9 @@ def subrow_checks(table: dict[str, Any], basis: str) -> list[dict[str, Any]]:
         pairs.append(("fibre", "carbohydrate"))
     results = []
     for child, parent in pairs:
-        a, b = _exact(cells, child, "g", basis), _exact(cells, parent, "g", basis)
-        if isinstance(a, dict) and isinstance(b, dict):
-            ok = number(a["decimal_text"]) <= number(b["decimal_text"])
+        a, b = exact_value(cells, child, "g", basis), exact_value(cells, parent, "g", basis)
+        if a is not None and b is not None:
+            ok = a <= b
             results.append({"name": "subrow_not_above_parent", "basis": basis, "child": child, "status": PASS if ok else FAIL})
     return results
 
@@ -170,7 +183,9 @@ def bound_consistency_checks(table: dict[str, Any]) -> list[dict[str, Any]]:
     results = []
     keys = {(c.get("nutrient"), c.get("parent_row_id"), c.get("canonical_unit")) for c in cells}
     for key in sorted(keys, key=str):
-        comparators = {c.get("comparator", "=") for c in cells if (c.get("nutrient"), c.get("parent_row_id"), c.get("canonical_unit")) == key}
+        comparators = {
+            c.get("comparator", "=") for c in cells if (c.get("nutrient"), c.get("parent_row_id"), c.get("canonical_unit")) == key
+        }
         if len(comparators) > 1:
             results.append({"name": "bound_consistency", "nutrient": key[0], "status": FAIL})
     return results

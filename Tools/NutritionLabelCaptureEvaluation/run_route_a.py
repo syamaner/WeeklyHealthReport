@@ -35,14 +35,16 @@ def run_parser(binary: Path, loaded: list[dict[str, Any]]) -> dict[str, dict[str
 
 def summarise(per_case: list[dict[str, Any]], thresholds: dict[str, float], loaded: list[dict[str, Any]]) -> dict[str, Any]:
     by_corpus: dict[str, list[dict[str, Any]]] = defaultdict(list)
-    for case, result in zip(loaded, per_case):
+    for case, result in zip(loaded, per_case, strict=True):
         by_corpus[case["metadata"]["corpus"]].append(result)
     truths = [c["truth"] for c in loaded if not c["truth"]["requires_decline"]]
     mutation = arithmetic.mutation_detection(truths)
     overall = scoring.aggregate(per_case, thresholds)
     detected, applicable = mutation["overall"]["detected"], mutation["overall"]["applicable"]
     overall["metrics"]["arithmetic_mutation_detection"] = {
-        "numerator": detected, "denominator": applicable, "rate": round(detected / applicable, 4) if applicable else None,
+        "numerator": detected,
+        "denominator": applicable,
+        "rate": round(detected / applicable, 4) if applicable else None,
         "bar": thresholds["arithmetic_detection_minimum"],
         "verdict": ("pass" if detected == applicable else "fail") if applicable else "no_denominator",
         "by_mutation": {k: v for k, v in mutation.items() if k != "overall"},
@@ -66,6 +68,7 @@ def main() -> int:
     loaded = case_loading.load_development_text(args.dataset)
     thresholds = scoring.load_thresholds()
     eval_log = None
+    per_case: list[dict[str, Any]] = []
     if args.direct:
         outputs = run_parser(args.parser_binary, loaded)
         per_case = [scoring.score_case(outputs[c["id"]]["candidate"], c["truth"]) for c in loaded]
@@ -77,33 +80,66 @@ def main() -> int:
 
         if not args.log_dir or HERE.parents[1] in args.log_dir.resolve().parents:
             raise SystemExit("--log-dir must be outside the repository")
-        logs = inspect_eval(label_capture_development_text(parser_binary=str(args.parser_binary), dataset=str(args.dataset)),
-                            model="mockllm/model", log_dir=str(args.log_dir), display="none", max_samples=8)
+        logs = inspect_eval(
+            label_capture_development_text(parser_binary=str(args.parser_binary), dataset=str(args.dataset)),
+            model="mockllm/model",
+            log_dir=str(args.log_dir),
+            display="none",
+            max_samples=8,
+        )
         log = logs[0]
         if log.status != "success":
             raise SystemExit(f"Inspect run status {log.status}: {log.error}")
         by_id = {sample.id: sample for sample in log.samples or []}
-        per_case = [by_id[c["id"]].scores["label_capture_scorer"].metadata for c in loaded]
+        per_case = []
+        for case in loaded:
+            scores = by_id[case["id"]].scores or {}
+            metadata = scores["label_capture_scorer"].metadata if "label_capture_scorer" in scores else None
+            if metadata is None:
+                raise SystemExit(f"{case['id']} has no label_capture_scorer result in the Inspect log")
+            per_case.append(metadata)
         parser_version = by_id[loaded[0]["id"]].metadata.get("parser_version")
-        eval_log = {"location": Path(log.location).name, "inspect_metrics": {
-            name: round(m.value, 4) for score in log.results.scores for name, m in score.metrics.items()}}
+        results = log.results.scores if log.results else []
+        eval_log = {
+            "location": Path(log.location).name,
+            "inspect_metrics": {name: round(float(m.value), 4) for score in results for name, m in score.metrics.items()},
+        }
     summary = summarise(per_case, thresholds, loaded)
-    summary.update({
-        "route": "A",
-        "split": "development",
-        "dataset_sha256": case_loading.sha256_file(args.dataset),
-        "parser_version": parser_version,
-        "cases": len(loaded),
-        "inspect": eval_log,
-        "declines": dict(Counter(r for res, c in zip(per_case, loaded) for r in ([] if not res["declined"] else ["declined"]))),
-    })
+    summary.update(
+        {
+            "route": "A",
+            "split": "development",
+            "dataset_sha256": case_loading.sha256_file(args.dataset),
+            "parser_version": parser_version,
+            "cases": len(loaded),
+            "inspect": eval_log,
+            "declines": dict(
+                Counter(r for res, c in zip(per_case, loaded, strict=True) for r in ([] if not res["declined"] else ["declined"]))
+            ),
+        }
+    )
     if args.show_failures:
         shown = 0
-        for case, result in zip(loaded, per_case):
+        for case, result in zip(loaded, per_case, strict=True):
             good = result["declines_correct"] if case["truth"]["requires_decline"] else result["tables_exact"]
             if not good and shown < args.show_failures:
                 shown += 1
-                print("FAIL", case["id"], {k: result[k] for k in ("declined", "cells_exact", "product_cells", "extra_cells", "conversions_exact", "conversions", "servings_per_pack_exact")})
+                print(
+                    "FAIL",
+                    case["id"],
+                    {
+                        k: result[k]
+                        for k in (
+                            "declined",
+                            "cells_exact",
+                            "product_cells",
+                            "extra_cells",
+                            "conversions_exact",
+                            "conversions",
+                            "servings_per_pack_exact",
+                        )
+                    },
+                )
     text = json.dumps(summary, indent=2, ensure_ascii=False)
     if args.summary:
         args.summary.write_text(text + "\n", encoding="utf-8")

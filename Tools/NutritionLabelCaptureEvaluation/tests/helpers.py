@@ -24,8 +24,23 @@ def candidate_from_truth(truth: dict[str, Any], *, ready: bool = True, route: st
     """A schema-valid candidate that reproduces the truth exactly."""
     cells = []
     for cell in truth["cells"]:
-        item = {k: cell[k] for k in ("row_id", "parent_row_id", "nutrient", "printed_label", "header_id", "basis", "printed_text",
-                                     "comparator", "decimal_text", "unit", "canonical_unit", "serving_conversion")}
+        item = {
+            k: cell[k]
+            for k in (
+                "row_id",
+                "parent_row_id",
+                "nutrient",
+                "printed_label",
+                "header_id",
+                "basis",
+                "printed_text",
+                "comparator",
+                "decimal_text",
+                "unit",
+                "canonical_unit",
+                "serving_conversion",
+            )
+        }
         item.update({"persistence_authorized": False, "requires_user_selection": True})
         cells.append(item)
     return {
@@ -49,8 +64,19 @@ def candidate_from_truth(truth: dict[str, Any], *, ready: bool = True, route: st
 
 def declined_candidate(reason: str = "no_table") -> dict[str, Any]:
     return {
-        "schema_version": "label-capture-candidate-v1", "route": "A", "input_sha256": HASH, "status": "user_selection_only",
-        "declined": True, "decline_reasons": [reason], "ready_for_confirmation": False, "would_mark_ready": False,
-        "automatic_save": False, "language": "unknown", "serving_size": "unknown", "servings_per_pack": "unknown",
-        "headers": [], "cells": [], "warnings": [],
+        "schema_version": "label-capture-candidate-v1",
+        "route": "A",
+        "input_sha256": HASH,
+        "status": "user_selection_only",
+        "declined": True,
+        "decline_reasons": [reason],
+        "ready_for_confirmation": False,
+        "would_mark_ready": False,
+        "automatic_save": False,
+        "language": "unknown",
+        "serving_size": "unknown",
+        "servings_per_pack": "unknown",
+        "headers": [],
+        "cells": [],
+        "warnings": [],
     }

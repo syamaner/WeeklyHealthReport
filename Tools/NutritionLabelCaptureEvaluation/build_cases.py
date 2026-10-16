@@ -46,8 +46,14 @@ def text_case(case_id: str, text: str, truth: dict[str, Any], metadata: dict[str
         "id": case_id,
         "input": {"kind": "text", "text": text},
         "truth": truth,
-        "metadata": {"split": "development", "synthetic": True, "generator_version": render.GENERATOR_VERSION,
-                     "seed": render.SEED, "sha256": truth["input_sha256"], **metadata},
+        "metadata": {
+            "split": "development",
+            "synthetic": True,
+            "generator_version": render.GENERATOR_VERSION,
+            "seed": render.SEED,
+            "sha256": truth["input_sha256"],
+            **metadata,
+        },
     }
 
 
@@ -56,16 +62,26 @@ def english_cases(panels: list[dict[str, Any]], corpus: str, exclusions: list[di
     for panel in panels:
         truth, reason = render.english_truth(panel["panel_id"], panel["ground_truth"])
         if truth is None:
-            exclusions.append({"source": panel["panel_id"], "reason": reason})
+            exclusions.append({"source": panel["panel_id"], "reason": reason or "unrecorded reason"})
             continue
         shape = render.choose(render.ENGLISH_SHAPES, panel["panel_id"])
         text = render.render_english(truth, shape)
         families = panel.get("families") or panel["ground_truth"].get("families") or []
         tags = sorted({"en_uk", "synthetic", f"shape_{shape}"} | set(families))
-        cases.append(text_case(f"{corpus}:{panel['panel_id']}:{shape}", text, truth, {
-            "corpus": corpus, "language": "en", "coverage_tags": tags, "licence": OFF_LICENCE,
-            "source_image_sha256": panel.get("image_sha256"),
-        }))
+        cases.append(
+            text_case(
+                f"{corpus}:{panel['panel_id']}:{shape}",
+                text,
+                truth,
+                {
+                    "corpus": corpus,
+                    "language": "en",
+                    "coverage_tags": tags,
+                    "licence": OFF_LICENCE,
+                    "source_image_sha256": panel.get("image_sha256"),
+                },
+            )
+        )
     return cases
 
 
@@ -78,7 +94,8 @@ def fda_cases(csv_path: Path, exclusions: list[dict[str, str]]) -> tuple[list[di
                 continue
             truth, reason = render.fda_truth(row)
             if truth is None:
-                reasons[reason] = reasons.get(reason, 0) + 1
+                key = reason or "unrecorded reason"
+                reasons[key] = reasons.get(key, 0) + 1
                 continue
             check = arithmetic.check_table(truth)
             if check["status"] == arithmetic.FAIL:
@@ -99,6 +116,8 @@ def fda_cases(csv_path: Path, exclusions: list[dict[str, str]]) -> tuple[list[di
         if variant is None:
             layout = "single_column_serving"
             variant = render.select_columns(truth, layout)
+        if variant is None:
+            raise ValueError(f"{truth['case_id']} has no renderable column")
         shape = render.choose(render.CHINESE_SHAPES, order_key, "shape")
         text, rendered = render.render_chinese(variant, shape)
         tags = {"zh_hant", "synthetic", "serving_line", "servings_per_pack", "sodium", "nested_rows", f"shape_{shape}"}
@@ -109,10 +128,20 @@ def fda_cases(csv_path: Path, exclusions: list[dict[str, str]]) -> tuple[list[di
         cases.append(text_case(f"{truth['case_id']}:{layout}:{shape}", text, rendered, {**base, "coverage_tags": sorted(tags)}))
         decline = render.choose(("none",) * 8 + ("simplified", "no_energy_unit"), order_key, "decline")
         if decline != "none":
-            text, rendered = render.render_chinese(variant, shape, simplified=decline == "simplified", strip_energy_unit=decline == "no_energy_unit")
-            rendered.update({"requires_decline": True, "decline_reason": "unsupported_language" if decline == "simplified" else "energy_without_unit"})
-            cases.append(text_case(f"{truth['case_id']}:{layout}:{shape}:{decline}", text, rendered,
-                                   {**base, "coverage_tags": sorted(tags | {"decline_expected"})}))
+            text, rendered = render.render_chinese(
+                variant, shape, simplified=decline == "simplified", strip_energy_unit=decline == "no_energy_unit"
+            )
+            rendered.update(
+                {"requires_decline": True, "decline_reason": "unsupported_language" if decline == "simplified" else "energy_without_unit"}
+            )
+            cases.append(
+                text_case(
+                    f"{truth['case_id']}:{layout}:{shape}:{decline}",
+                    text,
+                    rendered,
+                    {**base, "coverage_tags": sorted(tags | {"decline_expected"})},
+                )
+            )
     summary = {"eligible_rows": len(eligible), "candidates_taken": len(chosen), "split": split_counts, "ineligible_reasons": reasons}
     return cases, summary
 
@@ -139,11 +168,28 @@ def main() -> int:
         cases += english_cases(panels, "v2dev", exclusions)
         sources["v2_development_review_sha256"] = sha256_file(args.v2_development_review)
     muesli_text = args.muesli_text.read_text(encoding="utf-8")
-    cases.append(text_case("owner:muesli-6-grain:typed", muesli_text, render.muesli_truth(), {
-        "corpus": "muesli_typed", "language": "zh-Hant", "licence": "Owner's own label, typed by hand; values published in the plan",
-        "coverage_tags": ["zh_hant", "two_column_serving_and_100", "serving_line", "servings_per_pack", "nested_rows", "sodium", "column_offset"],
-        "synthetic": False,
-    }))
+    cases.append(
+        text_case(
+            "owner:muesli-6-grain:typed",
+            muesli_text,
+            render.muesli_truth(),
+            {
+                "corpus": "muesli_typed",
+                "language": "zh-Hant",
+                "licence": "Owner's own label, typed by hand; values published in the plan",
+                "coverage_tags": [
+                    "zh_hant",
+                    "two_column_serving_and_100",
+                    "serving_line",
+                    "servings_per_pack",
+                    "nested_rows",
+                    "sodium",
+                    "column_offset",
+                ],
+                "synthetic": False,
+            },
+        )
+    )
     fda, fda_summary = fda_cases(args.fda_csv, exclusions)
     cases += fda
     sources["fda188_csv_sha256"] = sha256_file(args.fda_csv)
@@ -155,7 +201,9 @@ def main() -> int:
         "seed": render.SEED,
         "dataset_sha256": sha256_file(args.out),
         "cases": len(cases),
-        "by_corpus": {name: sum(1 for c in cases if c["metadata"]["corpus"] == name) for name in sorted({c["metadata"]["corpus"] for c in cases})},
+        "by_corpus": {
+            name: sum(1 for c in cases if c["metadata"]["corpus"] == name) for name in sorted({c["metadata"]["corpus"] for c in cases})
+        },
         "required_declines": sum(1 for c in cases if c["truth"]["requires_decline"]),
         "sources": sources,
         "fda188": fda_summary,

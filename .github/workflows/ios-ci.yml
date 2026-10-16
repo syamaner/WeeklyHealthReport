@@ -231,13 +231,18 @@ jobs:
           python3 Tools/NutritionLabelCaptureEvaluation/validate_contract.py \
             Tools/NutritionLabelCaptureEvaluation/frozen-contract-v1.json
 
-      # Installs the pinned Inspect AI into a local venv and runs the same tests,
-      # including the Inspect wiring test with a stub parser and the mockllm model.
-      - name: Verify Inspect wiring with the pinned framework
+      # Installs the pinned Inspect AI, pyright and ruff into the harness venv, then runs
+      # ruff, pyright and the same tests, including the Inspect wiring test with a stub
+      # parser and the mockllm model.
+      - name: Verify Inspect wiring, ruff and pyright with pinned tools
+        working-directory: Tools/NutritionLabelCaptureEvaluation
         run: |
-          python3 -m venv "$RUNNER_TEMP/label-eval-venv"
-          "$RUNNER_TEMP/label-eval-venv/bin/pip" install --disable-pip-version-check -r Tools/NutritionLabelCaptureEvaluation/requirements.txt
-          "$RUNNER_TEMP/label-eval-venv/bin/python" -m unittest discover -s Tools/NutritionLabelCaptureEvaluation/tests -v
+          python3 -m venv .venv
+          .venv/bin/pip install --disable-pip-version-check -r requirements-dev.txt
+          .venv/bin/ruff check .
+          .venv/bin/ruff format --check .
+          .venv/bin/pyright
+          .venv/bin/python -m unittest discover -s tests -v
 
   drive-export-kit-build:
     name: DriveExportKit build

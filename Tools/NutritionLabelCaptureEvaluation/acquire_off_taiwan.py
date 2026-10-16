@@ -28,9 +28,10 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from datetime import datetime, timezone
+from collections.abc import Callable, Iterable
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable, Iterable
+from typing import Any
 
 SEARCH_URL = "https://search.openfoodfacts.org/search"
 QUERY = 'countries_tags:"en:taiwan"'
@@ -107,7 +108,9 @@ def fetch_json(url: str) -> dict[str, Any]:
         return json.loads(response.read().decode("utf-8"))
 
 
-def fetch_all_hits(fetch: Callable[[str], dict[str, Any]] = fetch_json, pause: float = 2.0) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+def fetch_all_hits(
+    fetch: Callable[[str], dict[str, Any]] = fetch_json, pause: float = 2.0
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     hits: list[dict[str, Any]] = []
     pages: list[dict[str, Any]] = []
     page = 1
@@ -149,7 +152,7 @@ def main() -> int:
 
     hits, pages = fetch_all_hits()
     chosen = select(hits)
-    eligible = len({candidate_from_hit(h)["barcode13"] for h in hits if candidate_from_hit(h)})
+    eligible = len({found["barcode13"] for h in hits if (found := candidate_from_hit(h)) is not None})
     if len(chosen) != SELECTED:
         print(f"only {len(chosen)} eligible products", file=sys.stderr)
         return 3
@@ -194,7 +197,7 @@ def main() -> int:
 
     manifest = {
         "schema_version": "off-taiwan-photo-manifest-v1",
-        "acquired_at": datetime.now(timezone.utc).replace(microsecond=0).isoformat(),
+        "acquired_at": datetime.now(UTC).replace(microsecond=0).isoformat(),
         "owner_approval": "Owner approved 60 Open Food Facts Taiwan nutrition_zh photos (about 28.9 MB) on 17 October 2026.",
         "selection_rule": {
             "query": QUERY,

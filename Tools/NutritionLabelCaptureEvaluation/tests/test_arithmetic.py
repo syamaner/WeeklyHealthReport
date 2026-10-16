@@ -31,23 +31,38 @@ class EnergyTests(unittest.TestCase):
         self.assertEqual(arithmetic.energy_check(table, "per_100g")["status"], arithmetic.PASS)
 
     def test_small_energy_uses_the_absolute_floor(self):
-        table = {"language": "en", "cells": [
-            {"nutrient": n, "basis": "per_100g", "canonical_unit": u, "comparator": "=", "decimal_text": v}
-            for n, u, v in (("energy_kcal", "kcal", "20"), ("protein", "g", "1"), ("fat", "g", "0"), ("carbohydrate", "g", "8"))]}
+        table = {
+            "language": "en",
+            "cells": [
+                {"nutrient": n, "basis": "per_100g", "canonical_unit": u, "comparator": "=", "decimal_text": v}
+                for n, u, v in (("energy_kcal", "kcal", "20"), ("protein", "g", "1"), ("fat", "g", "0"), ("carbohydrate", "g", "8"))
+            ],
+        }
         # computed 36, printed 20: 16 above the 15 kcal floor
         self.assertEqual(arithmetic.energy_check(table, "per_100g")["status"], arithmetic.FAIL)
 
     def test_us_tolerance_is_wider(self):
-        table = {"jurisdiction": "us", "cells": [
-            {"nutrient": n, "basis": "per_serving", "canonical_unit": u, "comparator": "=", "decimal_text": v}
-            for n, u, v in (("energy_kcal", "kcal", "100"), ("protein", "g", "5"), ("fat", "g", "0"), ("carbohydrate", "g", "24"))]}
+        table = {
+            "jurisdiction": "us",
+            "cells": [
+                {"nutrient": n, "basis": "per_serving", "canonical_unit": u, "comparator": "=", "decimal_text": v}
+                for n, u, v in (("energy_kcal", "kcal", "100"), ("protein", "g", "5"), ("fat", "g", "0"), ("carbohydrate", "g", "24"))
+            ],
+        }
         # computed 116: 16 above, within max(20, 20)
         self.assertEqual(arithmetic.energy_check(table, "per_serving")["status"], arithmetic.PASS)
 
     def test_uk_fibre_variant_may_pass(self):
-        cells = [{"nutrient": n, "basis": "per_100g", "canonical_unit": u, "comparator": "=", "decimal_text": v}
-                 for n, u, v in (("energy_kcal", "kcal", "200"), ("protein", "g", "10"), ("fat", "g", "0"),
-                                 ("carbohydrate", "g", "30"), ("fibre", "g", "20"))]
+        cells = [
+            {"nutrient": n, "basis": "per_100g", "canonical_unit": u, "comparator": "=", "decimal_text": v}
+            for n, u, v in (
+                ("energy_kcal", "kcal", "200"),
+                ("protein", "g", "10"),
+                ("fat", "g", "0"),
+                ("carbohydrate", "g", "30"),
+                ("fibre", "g", "20"),
+            )
+        ]
         # general 160 (40 short, allowed 20); with fibre 200
         self.assertEqual(arithmetic.energy_check({"language": "en", "cells": cells}, "per_100g")["status"], arithmetic.PASS)
 
@@ -61,8 +76,10 @@ class EnergyTests(unittest.TestCase):
 
 class OtherCheckTests(unittest.TestCase):
     def test_kj_kcal_ratio(self):
-        cells = [{"nutrient": "energy_kj", "basis": "per_100g", "canonical_unit": "kJ", "comparator": "=", "decimal_text": "1500"},
-                 {"nutrient": "energy_kcal", "basis": "per_100g", "canonical_unit": "kcal", "comparator": "=", "decimal_text": "355"}]
+        cells = [
+            {"nutrient": "energy_kj", "basis": "per_100g", "canonical_unit": "kJ", "comparator": "=", "decimal_text": "1500"},
+            {"nutrient": "energy_kcal", "basis": "per_100g", "canonical_unit": "kcal", "comparator": "=", "decimal_text": "355"},
+        ]
         self.assertEqual(arithmetic.kj_kcal_check({"cells": cells}, "per_100g")["status"], arithmetic.PASS)
         cells[1]["decimal_text"] = "300"
         self.assertEqual(arithmetic.kj_kcal_check({"cells": cells}, "per_100g")["status"], arithmetic.FAIL)
@@ -81,6 +98,7 @@ class OtherCheckTests(unittest.TestCase):
 
     def test_net_weight(self):
         from decimal import Decimal
+
         self.assertEqual(arithmetic.net_weight_check(muesli_truth(), Decimal("500"))["status"], arithmetic.PASS)
         self.assertEqual(arithmetic.net_weight_check(muesli_truth(), Decimal("900"))["status"], arithmetic.FAIL)
 
@@ -105,6 +123,7 @@ class MutationTests(unittest.TestCase):
         self.assertEqual(arithmetic.MUTATIONS, ("tenfold_serving", "basis_transposition", "bound_replaced_by_exact"))
         table = muesli_truth()
         tenfold = arithmetic.mutate(table, "tenfold_serving")
+        assert tenfold is not None
         self.assertEqual(arithmetic.check_table(tenfold)["status"], arithmetic.FAIL)
         # The muesli serving is 100 g, so a basis transposition is not applicable.
         self.assertIsNone(arithmetic.mutate(table, "basis_transposition"))
@@ -115,9 +134,12 @@ class MutationTests(unittest.TestCase):
         table["serving_size"]["decimal_text"] = "50"
         for cell in table["cells"]:
             if cell["basis"] == "per_serving":
-                cell["decimal_text"] = str(arithmetic.number(cell["decimal_text"]) / 2)
+                value = arithmetic.number(cell["decimal_text"])
+                assert value is not None
+                cell["decimal_text"] = str(value / 2)
         self.assertNotEqual(arithmetic.check_table(table)["status"], arithmetic.FAIL)
         mutated = arithmetic.mutate(table, "basis_transposition")
+        assert mutated is not None
         self.assertEqual(arithmetic.check_table(mutated)["status"], arithmetic.FAIL)
 
     def test_bound_replacement_detected_only_with_a_bounded_partner_column(self):
@@ -125,6 +147,7 @@ class MutationTests(unittest.TestCase):
         set_value(table, "trans_fat", "per_serving", "0.1", comparator="<")
         set_value(table, "trans_fat", "per_100g", "0.1", comparator="<")
         mutated = arithmetic.mutate(table, "bound_replaced_by_exact")
+        assert mutated is not None
         self.assertEqual(arithmetic.check_table(mutated)["status"], arithmetic.FAIL)
         outcome = arithmetic.mutation_detection([table])
         self.assertEqual(outcome["bound_replaced_by_exact"], {"applicable": 1, "detected": 1})

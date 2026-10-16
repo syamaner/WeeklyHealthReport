@@ -92,6 +92,17 @@ python3 Tools/NutritionLabelCaptureEvaluation/validate_contract.py Tools/Nutriti
 swift test --package-path Packages/FoodLedgerKit --filter NutritionLabelParsingTests
 ```
 
+Static checks use the pinned dev tools (`requirements-dev.txt`: pyright 1.1.414, ruff 0.16.10), with `pyrightconfig.json` and `ruff.toml` in this folder so local imports resolve. Run them from this folder:
+
+```sh
+.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/ruff check .
+.venv/bin/ruff format --check .
+.venv/bin/pyright
+```
+
+CI runs the offline tests and contract validation with the system Python, then ruff, pyright and the full tests (including the Inspect wiring test) in a venv with the pinned tools.
+
 The contract pins artefact hashes. After a deliberate development change, re-pin with
 `--pin` (refused once the contract is `frozen_for_untouched_run`).
 

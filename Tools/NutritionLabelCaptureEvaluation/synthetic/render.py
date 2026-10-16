@@ -29,13 +29,32 @@ CHINESE_SHAPES = ("fullwidth", "tab", "one_per_line", "spaced_units")
 
 KNOWN = {"energy_kj", "energy_kcal", "fat", "saturates", "trans_fat", "carbohydrate", "sugars", "fibre", "protein", "salt", "sodium"}
 ENGLISH_LABELS = {
-    "energy": "Energy", "fat": "Fat", "saturates": "saturates", "trans_fat": "trans fat",
-    "carbohydrate": "Carbohydrate", "sugars": "sugars", "fibre": "Fibre", "protein": "Protein",
-    "salt": "Salt", "sodium": "Sodium",
+    "energy": "Energy",
+    "fat": "Fat",
+    "saturates": "saturates",
+    "trans_fat": "trans fat",
+    "carbohydrate": "Carbohydrate",
+    "sugars": "sugars",
+    "fibre": "Fibre",
+    "protein": "Protein",
+    "salt": "Salt",
+    "sodium": "Sodium",
 }
 UNIT_PRINT = {"kj": "kJ", "kJ": "kJ", "kcal": "kcal", "cal": "cal", "g": "g", "mg": "mg", "µg": "µg", "%": "%"}
-CANONICAL = {"kJ": "kJ", "kcal": "kcal", "cal": "cal", "g": "g", "mg": "mg", "µg": "µg", "ml": "ml", "%": "%",
-             "大卡": "kcal", "公克": "g", "毫克": "mg", "毫升": "ml"}
+CANONICAL = {
+    "kJ": "kJ",
+    "kcal": "kcal",
+    "cal": "cal",
+    "g": "g",
+    "mg": "mg",
+    "µg": "µg",
+    "ml": "ml",
+    "%": "%",
+    "大卡": "kcal",
+    "公克": "g",
+    "毫克": "mg",
+    "毫升": "ml",
+}
 CHINESE_ROWS = [
     ("熱量", "energy_kcal", None, "大卡"),
     ("蛋白質", "protein", None, "公克"),
@@ -135,21 +154,25 @@ def english_truth(panel_id: str, ground_truth: dict[str, Any]) -> tuple[dict[str
         label = _english_label(row_stem)
         if parent_stem:
             label = f"of which {label}"
-        truth_cells.append({
-            "row_id": stem if stem in KNOWN else f"row_{row_stem}",
-            "parent_row_id": parent_stem,
-            "nutrient": stem if stem in KNOWN else "unrecognised",
-            "printed_label": label,
-            "header_id": cell["header_id"],
-            "basis": cell["basis"],
-            "printed_text": _value_text(cell),
-            "comparator": cell.get("comparator") or "=",
-            "decimal_text": cell["decimal_text"],
-            "unit": UNIT_PRINT.get(cell.get("unit") or "", cell.get("unit") or ""),
-            "canonical_unit": CANONICAL.get(UNIT_PRINT.get(cell.get("unit") or "", ""), cell.get("unit")),
-            # The rendered header prints one serving quantity per column; truth follows the rendered text.
-            "serving_conversion": (conversion_by_header.get(cell["header_id"]) or "unknown") if cell["basis"] == "per_serving" else "not_applicable",
-        })
+        truth_cells.append(
+            {
+                "row_id": stem if stem in KNOWN else f"row_{row_stem}",
+                "parent_row_id": parent_stem,
+                "nutrient": stem if stem in KNOWN else "unrecognised",
+                "printed_label": label,
+                "header_id": cell["header_id"],
+                "basis": cell["basis"],
+                "printed_text": _value_text(cell),
+                "comparator": cell.get("comparator") or "=",
+                "decimal_text": cell["decimal_text"],
+                "unit": UNIT_PRINT.get(cell.get("unit") or "", cell.get("unit") or ""),
+                "canonical_unit": CANONICAL.get(UNIT_PRINT.get(cell.get("unit") or "", ""), cell.get("unit")),
+                # The rendered header prints one serving quantity per column; truth follows the rendered text.
+                "serving_conversion": (conversion_by_header.get(cell["header_id"]) or "unknown")
+                if cell["basis"] == "per_serving"
+                else "not_applicable",
+            }
+        )
     for row in rows.values():
         unit_groups: dict[str, list[str]] = {}
         for cell in row["cells"]:
@@ -201,7 +224,14 @@ def render_english(truth: dict[str, Any], shape: str) -> str:
                 if cell["basis"] != "reference_intake" and unit not in order:
                     order.append(unit)
             for unit in order:
-                groups.append([_value_text(c) for h in amount for c in by_header.get(h["header_id"], []) if UNIT_PRINT.get(c.get("unit") or "", "") == unit])
+                groups.append(
+                    [
+                        _value_text(c)
+                        for h in amount
+                        for c in by_header.get(h["header_id"], [])
+                        if UNIT_PRINT.get(c.get("unit") or "", "") == unit
+                    ]
+                )
         else:
             groups.append([_value_text(c) for h in amount for c in by_header.get(h["header_id"], [])])
         percents = [_value_text(c) for h in reference for c in by_header.get(h["header_id"], [])]
@@ -213,7 +243,7 @@ def render_english(truth: dict[str, Any], shape: str) -> str:
         if shape == "wrapped" and " " in label and len(label) > 10:
             first, rest = label.split(" ", 1)
             if label.startswith("of which "):
-                first, rest = "of which", label[len("of which "):]
+                first, rest = "of which", label[len("of which ") :]
             lines.append(first)
             label = rest
         for index, group in enumerate(groups):
@@ -264,25 +294,39 @@ def fda_truth(row: dict[str, str]) -> tuple[dict[str, Any] | None, str | None]:
         header_id = f"header_{index}"
         conversion = f"{serving.group(1)}{serving.group(2)}" if basis == "per_serving" else None
         headers.append({"header_id": header_id, "printed_text": prefix, "basis": basis, "serving_conversion": conversion})
-        for name, value in zip(FDA_ROWS, values):
+        for name, value in zip(FDA_ROWS, values, strict=True):
             match = FDA_VALUE.match(value)
             if not match or match.group(2) != expected_units.get(name, "公克"):
                 return None, f"unstructured or wrongly united value for {name}"
             label, nutrient, parent, _ = next(r for r in CHINESE_ROWS if r[0] == name)
-            cells.append({
-                "row_id": nutrient, "parent_row_id": parent, "nutrient": nutrient, "printed_label": label,
-                "header_id": header_id, "basis": basis, "printed_text": value, "comparator": "=",
-                "decimal_text": match.group(1), "unit": match.group(2), "canonical_unit": CANONICAL[match.group(2)],
-                "serving_conversion": conversion if basis == "per_serving" else "not_applicable",
-            })
+            cells.append(
+                {
+                    "row_id": nutrient,
+                    "parent_row_id": parent,
+                    "nutrient": nutrient,
+                    "printed_label": label,
+                    "header_id": header_id,
+                    "basis": basis,
+                    "printed_text": value,
+                    "comparator": "=",
+                    "decimal_text": match.group(1),
+                    "unit": match.group(2),
+                    "canonical_unit": CANONICAL[match.group(2)],
+                    "serving_conversion": conversion if basis == "per_serving" else "not_applicable",
+                }
+            )
     return {
         "case_id": f"fda188:{fda_identity(row)[:16]}",
         "requires_decline": False,
         "decline_reason": None,
         "language": "zh-Hant",
         "headers": headers,
-        "serving_size": {"printed_text": f"每一份量{serving.group(1)}{serving.group(2)}", "decimal_text": serving.group(1),
-                         "unit": serving.group(2), "canonical_unit": CANONICAL[serving.group(2)]},
+        "serving_size": {
+            "printed_text": f"每一份量{serving.group(1)}{serving.group(2)}",
+            "decimal_text": serving.group(1),
+            "unit": serving.group(2),
+            "canonical_unit": CANONICAL[serving.group(2)],
+        },
         "servings_per_pack": {"printed_text": f"本包裝含{pack.group(1)}份", "decimal_text": pack.group(1), "approximate": False},
         "cells": cells,
     }, None
@@ -317,7 +361,9 @@ def _zh_value(cell: dict[str, Any], spaced: bool) -> str:
     return f"{comparator}{gap if comparator else ''}{cell['decimal_text']}{gap}{cell['unit']}"
 
 
-def render_chinese(truth: dict[str, Any], shape: str, *, simplified: bool = False, strip_energy_unit: bool = False) -> tuple[str, dict[str, Any]]:
+def render_chinese(
+    truth: dict[str, Any], shape: str, *, simplified: bool = False, strip_energy_unit: bool = False
+) -> tuple[str, dict[str, Any]]:
     """Render a Taiwan table; returns (text, truth with rendered printed_text)."""
     spaced = shape == "spaced_units"
     truth = dict(truth, cells=[dict(c) for c in truth["cells"]])
@@ -343,7 +389,11 @@ def render_chinese(truth: dict[str, Any], shape: str, *, simplified: bool = Fals
         lines.extend(h["printed_text"] for h in headers)
     else:
         separator = "\t" if shape == "tab" else ("　　" if shape == "fullwidth" else "  ")
-        lines.append(separator.join([""] + [h["printed_text"] for h in headers]) if shape == "tab" else "　　　　" + separator.join(h["printed_text"] for h in headers))
+        lines.append(
+            separator.join([""] + [h["printed_text"] for h in headers])
+            if shape == "tab"
+            else "　　　　" + separator.join(h["printed_text"] for h in headers)
+        )
     for label, cells in rows.items():
         ordered = [c for h in headers for c in cells if c["header_id"] == h["header_id"]]
         values = []
@@ -370,8 +420,14 @@ def render_chinese(truth: dict[str, Any], shape: str, *, simplified: bool = Fals
 
 
 MUESLI_TRUTH_VALUES = [
-    ("熱量", "367.2", "大卡"), ("蛋白質", "11", "公克"), ("脂肪", "8.8", "公克"), ("飽和脂肪", "1.2", "公克"),
-    ("反式脂肪", "0", "公克"), ("碳水化合物", "67", "公克"), ("糖", "9.1", "公克"), ("膳食纖維", "12", "公克"),
+    ("熱量", "367.2", "大卡"),
+    ("蛋白質", "11", "公克"),
+    ("脂肪", "8.8", "公克"),
+    ("飽和脂肪", "1.2", "公克"),
+    ("反式脂肪", "0", "公克"),
+    ("碳水化合物", "67", "公克"),
+    ("糖", "9.1", "公克"),
+    ("膳食纖維", "12", "公克"),
     ("鈉", "8", "毫克"),
 ]
 
@@ -386,12 +442,22 @@ def muesli_truth(input_sha256: str | None = None) -> dict[str, Any]:
     for header in headers:
         for label, value, unit in MUESLI_TRUTH_VALUES:
             _, nutrient, parent, _ = next(r for r in CHINESE_ROWS if r[0] == label)
-            cells.append({
-                "row_id": nutrient, "parent_row_id": parent, "nutrient": nutrient, "printed_label": label,
-                "header_id": header["header_id"], "basis": header["basis"], "printed_text": f"{value}{unit}",
-                "comparator": "=", "decimal_text": value, "unit": unit, "canonical_unit": CANONICAL[unit],
-                "serving_conversion": "100公克" if header["basis"] == "per_serving" else "not_applicable",
-            })
+            cells.append(
+                {
+                    "row_id": nutrient,
+                    "parent_row_id": parent,
+                    "nutrient": nutrient,
+                    "printed_label": label,
+                    "header_id": header["header_id"],
+                    "basis": header["basis"],
+                    "printed_text": f"{value}{unit}",
+                    "comparator": "=",
+                    "decimal_text": value,
+                    "unit": unit,
+                    "canonical_unit": CANONICAL[unit],
+                    "serving_conversion": "100公克" if header["basis"] == "per_serving" else "not_applicable",
+                }
+            )
     truth = {
         "case_id": "owner:muesli-6-grain",
         "requires_decline": False,

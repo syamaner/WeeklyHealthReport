@@ -97,7 +97,16 @@ def main() -> int:
     consent_path = consent_dir / f"{stripped[:16]}.json"
     if not consent_path.exists():
         consent_path.write_text(json.dumps(consent, indent=2) + "\n")
-    print(json.dumps({"original_sha256": original, "master_sha256": stripped, "remaining_tag_groups": sorted({line.split("]")[0] + "]" for line in listing.splitlines() if line.startswith("[")})}, indent=2))
+    print(
+        json.dumps(
+            {
+                "original_sha256": original,
+                "master_sha256": stripped,
+                "remaining_tag_groups": sorted({line.split("]")[0] + "]" for line in listing.splitlines() if line.startswith("[")}),
+            },
+            indent=2,
+        )
+    )
     return 0
 
 

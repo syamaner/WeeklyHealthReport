@@ -32,7 +32,7 @@ class ScoreCaseTests(unittest.TestCase):
         # Bind the right-hand column one row lower: protein gets the energy value (section 3.4).
         per100 = [c for c in candidate["cells"] if c["basis"] == "per_100g"]
         values = [c["decimal_text"] for c in per100]
-        for item, value in zip(per100[1:], values[:-1]):
+        for item, value in zip(per100[1:], values[:-1], strict=True):
             item["decimal_text"] = value
         result = score.score_case(candidate, truth)
         self.assertEqual(result["tables_exact"], 0)

@@ -1,0 +1,4 @@
+# Static checks for the harness; each pinned at least two weeks before 17 October 2026.
+-r requirements.txt
+pyright==1.1.414  # released 10 September 2026
+ruff==0.16.10  # released 1 October 2026

@@ -437,7 +437,7 @@
   "parser_version": "nutrition-label-text-parser-v1",
   "cases": 179,
   "inspect": {
-    "location": "2026-10-16T17-54-53-00-00_label-capture-route-a-development_etgZ3nbvPb8gV5ZNPfhcKG.eval",
+    "location": "2026-10-16T19-13-12-00-00_label-capture-route-a-development_ZzvQNKXdtdGATfTiQyibpi.eval",
     "inspect_metrics": {
       "strict_cells": 1.0,
       "binding": 1.0,

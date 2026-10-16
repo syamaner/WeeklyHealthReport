@@ -42,10 +42,15 @@ class InspectWiringTests(unittest.TestCase):
             stub = Path(folder) / "stub-parser"
             stub.write_text(STUB.format(python=sys.executable))
             os.chmod(stub, stub.stat().st_mode | stat.S_IXUSR)
-            logs = inspect_eval(label_capture_development_text(parser_binary=str(stub), dataset=str(dataset)),
-                                model="mockllm/model", log_dir=str(Path(folder) / "logs"), display="none")
+            logs = inspect_eval(
+                label_capture_development_text(parser_binary=str(stub), dataset=str(dataset)),
+                model="mockllm/model",
+                log_dir=str(Path(folder) / "logs"),
+                display="none",
+            )
         log = logs[0]
         self.assertEqual(log.status, "success")
+        assert log.results is not None
         metrics = {name: m.value for score in log.results.scores for name, m in score.metrics.items()}
         self.assertEqual(metrics["correct_decline"], 1.0)
         self.assertEqual(metrics["full_table"], 0.0)

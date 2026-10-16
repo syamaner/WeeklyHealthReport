@@ -16,7 +16,11 @@ from typing import Any
 
 SCHEMA_PATH = Path(__file__).resolve().parent / "candidate-schema-v1.json"
 TYPES = {
-    "object": dict, "array": list, "string": str, "boolean": bool, "null": type(None),
+    "object": dict,
+    "array": list,
+    "string": str,
+    "boolean": bool,
+    "null": type(None),
 }
 
 

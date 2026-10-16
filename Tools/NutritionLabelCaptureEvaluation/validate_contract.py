@@ -74,8 +74,11 @@ def validate(contract: dict[str, Any], root: Path = REPO) -> list[str]:
     if contract.get("metrics") != EXPECTED_METRICS:
         errors.append("metrics differ from the plan's pre-registered bars")
     tolerance = contract.get("arithmetic", {}).get("tolerance", {})
-    if tolerance != {"uk": {"absolute_kcal": 15, "relative": 0.10}, "taiwan": {"absolute_kcal": 15, "relative": 0.10},
-                     "us": {"absolute_kcal": 20, "relative": 0.20}}:
+    if tolerance != {
+        "uk": {"absolute_kcal": 15, "relative": 0.10},
+        "taiwan": {"absolute_kcal": 15, "relative": 0.10},
+        "us": {"absolute_kcal": 20, "relative": 0.20},
+    }:
         errors.append("arithmetic tolerances differ from decision 10")
     if contract.get("arithmetic", {}).get("kj_kcal_relative_tolerance") != 0.02:
         errors.append("kJ / kcal tolerance must be 2%")

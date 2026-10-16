@@ -22,8 +22,18 @@ from candidate import validate_candidate
 
 HERE = Path(__file__).resolve().parent
 NUTRIENTS = {
-    "energy_kj", "energy_kcal", "fat", "saturates", "trans_fat", "carbohydrate", "sugars",
-    "added_sugars", "fibre", "protein", "salt", "sodium",
+    "energy_kj",
+    "energy_kcal",
+    "fat",
+    "saturates",
+    "trans_fat",
+    "carbohydrate",
+    "sugars",
+    "added_sugars",
+    "fibre",
+    "protein",
+    "salt",
+    "sodium",
 }
 NOT_A_CONVERSION = {None, "", "unknown", "not_applicable"}
 
@@ -124,41 +134,51 @@ def effective_ready(candidate: dict[str, Any]) -> tuple[bool, dict[str, Any]]:
 def score_case(candidate: dict[str, Any] | None, truth: dict[str, Any]) -> dict[str, Any]:
     """Score one route output against one truth record; returns counts and flags."""
     errors = validate_candidate(candidate) if candidate is not None else ["no candidate"]
-    failed = bool(errors)
-    if failed:
-        candidate = {"declined": False, "cells": [], "headers": [], "serving_size": "unknown", "servings_per_pack": "unknown"}
+    failed = bool(errors) or candidate is None
+    # A failed output is scored as an empty, undeclined table so it stays in every denominator.
+    output: dict[str, Any] = (
+        {"declined": False, "cells": [], "headers": [], "serving_size": "unknown", "servings_per_pack": "unknown"}
+        if failed or candidate is None
+        else candidate
+    )
     result: dict[str, Any] = {name: 0 for spec in METRICS.values() for name in spec[:2]}
-    result.update({
-        "cases": 1,
-        "failed": int(failed),
-        "failure_reasons": errors,
-        "declined": int(bool(candidate.get("declined"))),
-        "false_declines": 0,
-        "extra_cells": 0,
-        "automatic_persistence": int(
-            not failed and (candidate.get("automatic_save") is not False or candidate.get("ready_for_confirmation") is not False
-                            or any(c.get("persistence_authorized") is not False for c in candidate.get("cells") or []))
-        ),
-        "serving_size_exact": 0,
-        "serving_size_known": 0,
-    })
-    ready, check = effective_ready(candidate) if not failed else (False, {"status": arithmetic.NOT_CHECKABLE, "warnings": []})
+    result.update(
+        {
+            "cases": 1,
+            "failed": int(failed),
+            "failure_reasons": errors,
+            "declined": int(bool(output.get("declined"))),
+            "false_declines": 0,
+            "extra_cells": 0,
+            "automatic_persistence": int(
+                not failed
+                and (
+                    output.get("automatic_save") is not False
+                    or output.get("ready_for_confirmation") is not False
+                    or any(c.get("persistence_authorized") is not False for c in output.get("cells") or [])
+                )
+            ),
+            "serving_size_exact": 0,
+            "serving_size_known": 0,
+        }
+    )
+    ready, check = effective_ready(output) if not failed else (False, {"status": arithmetic.NOT_CHECKABLE, "warnings": []})
     result["would_mark_ready_after_arithmetic"] = int(ready)
-    result["energy_check"] = arithmetic.energy_status(candidate) if not failed else arithmetic.NOT_CHECKABLE
+    result["energy_check"] = arithmetic.energy_status(output) if not failed else arithmetic.NOT_CHECKABLE
     result["arithmetic_status"] = check["status"]
     result["arithmetic_warnings"] = check.get("warnings", [])
 
     if truth.get("requires_decline"):
         result["declines_required"] = 1
-        result["declines_correct"] = int(bool(candidate.get("declined")))
+        result["declines_correct"] = int(bool(output.get("declined")))
         result["false_ready"] = int(ready)
         result["full_table_exact"] = 0
         return result
 
     result["usable_tables"] = 1
-    result["false_declines"] = int(bool(candidate.get("declined")))
+    result["false_declines"] = int(bool(output.get("declined")))
     expected, truth_ambiguous = keyed_cells(truth)
-    found, found_ambiguous = keyed_cells(candidate) if not candidate.get("declined") else ({}, set())
+    found, found_ambiguous = keyed_cells(output) if not output.get("declined") else ({}, set())
     all_exact = not truth_ambiguous
     for key, cell in expected.items():
         candidate_cell = None if key in found_ambiguous else found.get(key)
@@ -171,13 +191,17 @@ def score_case(candidate: dict[str, Any] | None, truth: dict[str, Any]) -> dict[
     result["extra_cells"] = len(extra)
     if _known(truth.get("servings_per_pack")):
         result["servings_per_pack"] = 1
-        result["servings_per_pack_exact"] = int(servings_equal(truth.get("servings_per_pack"), candidate.get("servings_per_pack")))
-    if _known(truth.get("serving_size")) and _known(truth.get("serving_size")).get("decimal_text"):
+        result["servings_per_pack_exact"] = int(servings_equal(truth.get("servings_per_pack"), output.get("servings_per_pack")))
+    truth_size = _known(truth.get("serving_size"))
+    if truth_size is not None and truth_size.get("decimal_text"):
         result["serving_size_known"] = 1
-        result["serving_size_exact"] = int(serving_size_equal(truth.get("serving_size"), candidate.get("serving_size")))
+        result["serving_size_exact"] = int(serving_size_equal(truth.get("serving_size"), output.get("serving_size")))
     table_exact = (
-        not candidate.get("declined") and all_exact and not extra and not found_ambiguous
-        and servings_equal(truth.get("servings_per_pack"), candidate.get("servings_per_pack"))
+        not output.get("declined")
+        and all_exact
+        and not extra
+        and not found_ambiguous
+        and servings_equal(truth.get("servings_per_pack"), output.get("servings_per_pack"))
         and (not result["serving_size_known"] or result["serving_size_exact"])
     )
     result["tables_exact"] = int(table_exact)
@@ -191,7 +215,7 @@ def keyed_key(cell: dict[str, Any], table: dict[str, Any]) -> tuple:
     headers = _header_texts(table)
     basis_counts = Counter(h.get("basis") for h in table.get("headers") or [])
     basis = cell.get("basis")
-    header = headers.get(cell.get("header_id"), "") if basis_counts.get(basis, 0) > 1 else ""
+    header = headers.get(str(cell.get("header_id")), "") if basis_counts.get(basis, 0) > 1 else ""
     return (nutrient_key(cell), parent_key(cell, by_row), basis, header)
 
 
@@ -203,7 +227,9 @@ def _count_expected(result: dict[str, Any], cell: dict[str, Any], found: dict[st
     if product:
         result["product_cells"] += 1
         result["cells_exact"] += int(exact)
-        result["cells_unit_basis"] += int(bool(found) and found.get("canonical_unit") == cell.get("canonical_unit") and found.get("basis") == cell.get("basis"))
+        result["cells_unit_basis"] += int(
+            bool(found) and found.get("canonical_unit") == cell.get("canonical_unit") and found.get("basis") == cell.get("basis")
+        )
         if cell.get("comparator") in ("<", "<="):
             result["bounded_cells"] += 1
             result["bounds_exact"] += int(exact)
@@ -237,9 +263,17 @@ def aggregate(results: list[dict[str, Any]], thresholds: dict[str, float]) -> di
             metrics[name] = {"numerator": 0, "denominator": 0, "rate": None, "bar": bar, "verdict": "no_denominator"}
             continue
         rate = num / den
-        metrics[name] = {"numerator": num, "denominator": den, "rate": round(rate, 4), "bar": bar,
-                         "verdict": "pass" if bar is not None and rate >= bar else "fail"}
-    metrics["automatic_persistence"] = {"count": totals["automatic_persistence"], "verdict": "pass" if totals["automatic_persistence"] == 0 else "critical_fail"}
+        metrics[name] = {
+            "numerator": num,
+            "denominator": den,
+            "rate": round(rate, 4),
+            "bar": bar,
+            "verdict": "pass" if bar is not None and rate >= bar else "fail",
+        }
+    metrics["automatic_persistence"] = {
+        "count": totals["automatic_persistence"],
+        "verdict": "pass" if totals["automatic_persistence"] == 0 else "critical_fail",
+    }
     energy = Counter(r.get("energy_check") for r in results)
     return {
         "cases": totals["cases"],
