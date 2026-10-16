@@ -23,6 +23,7 @@ extension ReportPresentationSnapshot {
             workouts: workouts,
             sleep: sleep,
             medications: medications,
+            foodLog: foodLog,
             includesMedicationSection: includesMedicationSection,
             showsMorningBloodPressureDetails: true,
             showsEveningBloodPressureDetails: true
@@ -57,6 +58,7 @@ struct HealthSummaryTile: Equatable, Identifiable {
         case restingHeartRate
         case weight
         case morningBloodPressure
+        case loggedEnergy
     }
 
     let kind: Kind
@@ -131,6 +133,14 @@ enum HealthSummaryTiles {
             section: .bloodPressure,
             primaryRowID: "blood-pressure-morning-average",
             detailRowID: "blood-pressure-morning-coverage"
+        ),
+        // Food and water (#214, decision 4): logged energy with days logged.
+        Pin(
+            kind: .loggedEnergy,
+            title: "Logged energy",
+            section: .foodLog,
+            primaryRowID: "food-energy-average",
+            detailRowID: "food-days-logged"
         )
     ]
 

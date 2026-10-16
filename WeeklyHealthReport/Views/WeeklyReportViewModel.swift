@@ -1,5 +1,14 @@
 import Foundation
 
+/// The Health report's food-log port (docs/health-food-and-water-v1.md, section 6),
+/// owned by its consumer. The composition root's adapter reads one reporting date
+/// at a time through the existing Food Log read side; no store or FoodLedgerKit
+/// type crosses it. A thrown error is a read failure (for example competing
+/// current versions on a date).
+protocol FoodLogPeriodReading: Sendable {
+    func dayFacts(for reportingDates: [String]) async throws -> [FoodLogDayFacts]
+}
+
 @MainActor
 final class WeeklyReportViewModel: ObservableObject {
     typealias WeightState = MetricState<WeightTrendSummary>
@@ -80,10 +89,15 @@ final class WeeklyReportViewModel: ObservableObject {
     @Published private(set) var period: ReportPeriod
     @Published private var reportStates = ReportStates(commonState: .idle)
     @Published private(set) var lastRefreshed: Date?
+    /// Food and water (#214). Kept apart from the HealthKit states: a food-log
+    /// failure never changes them, and Apple Health being unavailable never
+    /// hides the food log.
+    @Published private(set) var foodLogState: MetricState<FoodLogPeriodSummary> = .idle
 
     var state: StepsState { reportStates.steps }
     var isRefreshing: Bool {
         activeRefreshGeneration != nil || activeMedicationRefreshGeneration != nil
+            || activeFoodLogGeneration != nil
     }
     var weightState: WeightState { reportStates.weight }
     var bodyFatState: BodyFatState { reportStates.bodyFat }
@@ -104,6 +118,9 @@ final class WeeklyReportViewModel: ObservableObject {
     var medicationState: MetricState<MedicationSummary> { reportStates.medications }
 
     private let healthData: HealthDataProviding
+    /// Nil when the food log could not be opened; the section then reports a
+    /// read failure.
+    private let foodLog: (any FoodLogPeriodReading)?
     /// When set, read authorisation goes through this shared requester so the
     /// report and Home never ask at the same time (#199). Same read set.
     private let readAuthorization: HealthReadAuthorizationRequesting?
@@ -113,14 +130,20 @@ final class WeeklyReportViewModel: ObservableObject {
     @Published private var activeRefreshGeneration: Int?
     private var medicationRefreshGeneration = 0
     @Published private var activeMedicationRefreshGeneration: Int?
+    private var foodLogGeneration = 0
+    @Published private var activeFoodLogGeneration: Int?
+
+    static let foodLogUnavailableMessage = "The food log could not be opened."
 
     init(
         healthData: HealthDataProviding = HealthKitClient(),
         readAuthorization: HealthReadAuthorizationRequesting? = nil,
+        foodLog: (any FoodLogPeriodReading)? = nil,
         calendar: Calendar = .autoupdatingCurrent,
         now: @escaping () -> Date = Date.init
     ) {
         self.healthData = healthData
+        self.foodLog = foodLog
         self.readAuthorization = readAuthorization
         self.calendar = calendar
         self.now = now
@@ -157,6 +180,7 @@ final class WeeklyReportViewModel: ObservableObject {
             workouts: states.workouts,
             sleep: states.sleep,
             medications: states.medications,
+            foodLog: foodLogState,
             includesMedicationSection: includesMedicationSection,
             showsMorningBloodPressureDetails: showsMorningBloodPressureDetails,
             showsEveningBloodPressureDetails: showsEveningBloodPressureDetails
@@ -170,6 +194,7 @@ final class WeeklyReportViewModel: ObservableObject {
     ) -> ReportPresentationSnapshot? {
         guard activeRefreshGeneration == nil,
               activeMedicationRefreshGeneration == nil,
+              activeFoodLogGeneration == nil,
               period.selection == selection else {
             return nil
         }
@@ -250,6 +275,12 @@ final class WeeklyReportViewModel: ObservableObject {
         let refreshDate = now()
         period = ReportPeriod.make(selection: selection, now: refreshDate, calendar: calendar)
         setLoading()
+        foodLogState = .loading
+
+        // The food log is local and independent of Apple Health, so it is read
+        // first, under this refresh's generation, whatever HealthKit reports.
+        await loadFoodLog(for: period)
+        guard generation == refreshGeneration else { return }
 
         guard healthData.isHealthDataAvailable else {
             setHealthUnavailable()
@@ -299,6 +330,44 @@ final class WeeklyReportViewModel: ObservableObject {
         )
         guard generation == refreshGeneration else { return }
         lastRefreshed = refreshDate
+    }
+
+    /// Re-reads only the food log for the current period, for example when the
+    /// Health report appears after food was logged. Skipped while a full
+    /// refresh runs, because that refresh reads the food log itself.
+    func refreshFoodLog() async {
+        guard activeRefreshGeneration == nil else { return }
+        await loadFoodLog(for: period)
+    }
+
+    /// Food and water (docs/health-food-and-water-v1.md): one reporting date per
+    /// completed day; today is never one. A newer read or period supersedes this one.
+    private func loadFoodLog(for queriedPeriod: ReportPeriod) async {
+        foodLogGeneration += 1
+        let generation = foodLogGeneration
+        activeFoodLogGeneration = generation
+        defer {
+            if activeFoodLogGeneration == generation {
+                activeFoodLogGeneration = nil
+            }
+        }
+        let reportingDates = FoodLogPeriodSummary.reportingDates(for: queriedPeriod, calendar: calendar)
+        guard !reportingDates.isEmpty else {
+            foodLogState = .available(.make(days: [], reportingDates: []))
+            return
+        }
+        guard let foodLog else {
+            foodLogState = .failed(Self.foodLogUnavailableMessage)
+            return
+        }
+        do {
+            let facts = try await foodLog.dayFacts(for: reportingDates)
+            guard generation == foodLogGeneration, queriedPeriod == period else { return }
+            foodLogState = .available(.make(days: facts, reportingDates: reportingDates))
+        } catch {
+            guard generation == foodLogGeneration, queriedPeriod == period else { return }
+            foodLogState = .failed(error.localizedDescription)
+        }
     }
 
     private func loadContextMetrics(asOf date: Date, generation: Int) async {

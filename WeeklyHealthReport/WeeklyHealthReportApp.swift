@@ -31,7 +31,8 @@ struct WeeklyHealthReportApp: App {
         _viewModel = StateObject(
             wrappedValue: WeeklyReportViewModel(
                 healthData: healthClient,
-                readAuthorization: readAuthorization
+                readAuthorization: readAuthorization,
+                foodLog: foodLedger?.foodLogPeriodReader
             )
         )
         // Home uses the food ledger's injected clock and calendar, so the food

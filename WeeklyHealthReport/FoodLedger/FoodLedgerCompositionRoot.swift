@@ -423,6 +423,10 @@ final class FoodLedgerCompositionRoot {
 
     var foodLogStore: any FoodLogStore { FoodLogStoreAdapter(service: foodLogService) }
 
+    /// The Health report's Food and water reader (#214): the same Food Log read side, one
+    /// reporting date at a time. No new store query and no range API.
+    var foodLogPeriodReader: any FoodLogPeriodReading { FoodLogPeriodReader(service: foodLogService) }
+
     /// The one banner shown after Log closes Confirm (owner decision, 15 October 2026). Its Undo
     /// removes through the Food Log port, with the Food Log's fixed removal reason.
     private(set) lazy var loggedBanner = FoodLoggedBannerModel(store: foodLogStore)
@@ -456,6 +460,36 @@ final class FoodLedgerCompositionRoot {
         let created = try ActorID(UUID().uuidString.lowercased())
         userDefaults.set(created.rawValue, forKey: key)
         return created
+    }
+}
+
+/// Maps `FoodLogReadingService.day(reportingDate:)` to the Health report's plain day facts
+/// (docs/health-food-and-water-v1.md, section 6). Energy is the day's `energyConsumed` total under
+/// `food-intake-summary-v2`; plain water is `PlainWaterDayTotal` (plain water entries only, never
+/// water in foods). Competing current versions throw, so the section reports a read failure.
+struct FoodLogPeriodReader: FoodLogPeriodReading {
+    let service: FoodLogReadingService
+
+    func dayFacts(for reportingDates: [String]) async throws -> [FoodLogDayFacts] {
+        try reportingDates.map { date in Self.facts(try service.day(reportingDate: date)) }
+    }
+
+    static func facts(_ content: FoodLogDayContent) -> FoodLogDayFacts {
+        let energy = content.totals?.first { $0.key == .energyConsumed }
+        return FoodLogDayFacts(
+            reportingDate: content.reportingDate,
+            entryCount: content.entries.count,
+            energy: content.totals == nil ? nil : total(energy) ?? FoodLogDayFacts.Total(
+                knownAmount: nil, incompleteContributions: max(content.entries.count, 1), includesEstimates: false),
+            plainWater: total(content.plainWater)
+        )
+    }
+
+    private static func total(_ total: FoodIntakeTotal?) -> FoodLogDayFacts.Total? {
+        total.map {
+            FoodLogDayFacts.Total(knownAmount: $0.knownAmount, incompleteContributions: $0.incompleteContributions,
+                                  includesEstimates: $0.includesEstimates)
+        }
     }
 }
 

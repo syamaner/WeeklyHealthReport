@@ -18,6 +18,8 @@ struct ReportPresentationSnapshot: Equatable {
     let workouts: MetricState<WorkoutSummary>
     let sleep: MetricState<SleepSummary>
     let medications: MetricState<MedicationSummary>
+    /// Food and water (#214): the local food log, never Apple Health.
+    let foodLog: MetricState<FoodLogPeriodSummary>
     let includesMedicationSection: Bool
     let showsMorningBloodPressureDetails: Bool
     let showsEveningBloodPressureDetails: Bool

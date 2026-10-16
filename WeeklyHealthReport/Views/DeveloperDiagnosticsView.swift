@@ -39,6 +39,7 @@ struct DeveloperDiagnosticsView: View {
             )
             SleepDiagnosticsSection(state: viewModel.sleepState)
             MedicationDiagnosticsSection(state: viewModel.medicationState)
+            FoodLogReportDiagnosticsSection(state: viewModel.foodLogState)
         }
         .navigationTitle("Diagnostics")
         .navigationBarTitleDisplayMode(.inline)
@@ -46,7 +47,8 @@ struct DeveloperDiagnosticsView: View {
 }
 
 /// The technical message behind each Health report row that reads "Could not
-/// read Apple Health." on screen. Shown only when a read failed.
+/// read Apple Health." (or "Could not read the food log.") on screen. Shown only
+/// when a read failed.
 struct ReportReadFailuresDiagnosticsSection: View {
     let failures: [ReportReadFailure]
 
@@ -63,6 +65,27 @@ struct ReportReadFailuresDiagnosticsSection: View {
                             .textSelection(.enabled)
                     }
                 }
+            }
+        }
+    }
+}
+
+/// Food and water inputs (#214): each reporting date's entry count, unrounded
+/// energy and plain water with their flags, and the day's classification.
+struct FoodLogReportDiagnosticsSection: View {
+    let state: MetricState<FoodLogPeriodSummary>
+
+    var body: some View {
+        Section("Food log (Health report)") {
+            ForEach(Array(FoodLogReportDiagnostics.lines(state).enumerated()), id: \.offset) { _, line in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(line.title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(line.detail)
+                        .textSelection(.enabled)
+                }
+                .accessibilityElement(children: .combine)
             }
         }
     }

@@ -134,6 +134,8 @@ struct HealthReportView: View {
             }
         }
         .listSectionSpacing(.compact)
+        // Food logged since the last refresh shows when the report appears.
+        .task { await viewModel.refreshFoodLog() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button(action: copyAll) {

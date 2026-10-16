@@ -292,7 +292,8 @@ final class HealthReportFormatterTests: XCTestCase {
             workouts: WorkoutSummary(workouts: [
                 WorkoutRecord(id: UUID(), startDate: period.interval.start, duration: 1800, activityName: "Walking")
             ]),
-            medications: nil
+            medications: nil,
+            foodLog: .available(FoodLogFixtures.normalWeek(period: period, calendar: calendar))
         )
 
         let text = ReportDocument(
@@ -325,6 +326,15 @@ final class HealthReportFormatterTests: XCTestCase {
         Workouts: 1
         Workout Time: 30m
         Walking: 30m — 18/08/26 - 00:00
+
+        FOOD AND WATER
+
+        Food and water
+        Days Logged: 6 / 7 days
+        Logged Energy: 2,010 kcal per day (5 complete days)
+        Incomplete Energy Days: 1
+        Plain Water: 1,750 mL per day (4 days)
+        Logged in this app; not a measure of everything eaten or drunk.
 
         BODY
 
@@ -398,13 +408,17 @@ final class HealthReportFormatterTests: XCTestCase {
         XCTAssertFalse(text.hasSuffix("\n"))
 
         // #216: the only change from the ungrouped text is block order and the
-        // six heading lines (contract v1.1). Dropping the headings and sorting the
-        // blocks gives exactly the blocks of the text as copied before grouping.
+        // heading lines (contract v1.1). #214 adds only the Food and water block
+        // and its heading. Dropping those and sorting the blocks gives exactly the
+        // blocks of the text as copied before grouping.
         let headingOrder = [
-            "DAILY ACTIVITY", "BODY", "HEART AND SLEEP", "FITNESS AND BLOOD OXYGEN", "GLUCOSE", "MEDICATIONS"
+            "DAILY ACTIVITY", "FOOD AND WATER", "BODY", "HEART AND SLEEP", "FITNESS AND BLOOD OXYGEN", "GLUCOSE",
+            "MEDICATIONS"
         ]
         let headings = Set(headingOrder)
-        let groupedBlocks = text.components(separatedBy: "\n\n").filter { !headings.contains($0) }
+        let groupedBlocks = text.components(separatedBy: "\n\n").filter {
+            !headings.contains($0) && !$0.hasPrefix("Food and water\n")
+        }
         XCTAssertEqual(groupedBlocks.sorted(), Self.ungroupedCopyAllText.components(separatedBy: "\n\n").sorted())
         XCTAssertEqual(text.components(separatedBy: "\n\n").filter(headings.contains), headingOrder)
     }
@@ -591,6 +605,7 @@ final class HealthReportFormatterTests: XCTestCase {
         workouts: WorkoutSummary? = nil,
         medications: MedicationSummary? = nil,
         glucoseState: MetricState<GlucoseSummary>? = nil,
+        foodLog: MetricState<FoodLogPeriodSummary> = .noDataOrAccess,
         includesMedicationSection: Bool = true
     ) -> ReportPresentationSnapshot {
         ReportPresentationSnapshot(
@@ -611,6 +626,7 @@ final class HealthReportFormatterTests: XCTestCase {
             workouts: workouts.map(MetricState.available) ?? .noDataOrAccess,
             sleep: sleep.map(MetricState.available) ?? .noDataOrAccess,
             medications: medications.map(MetricState.available) ?? .noDataOrAccess,
+            foodLog: foodLog,
             includesMedicationSection: includesMedicationSection,
             showsMorningBloodPressureDetails: true,
             showsEveningBloodPressureDetails: true

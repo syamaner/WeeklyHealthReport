@@ -8,6 +8,7 @@ final class ReportDocumentGroupsTests: XCTestCase {
 
     private static let expectedOrder: [SectionID] = [
         .steps, .activity,
+        .foodLog,
         .weight, .bodyComposition,
         .heart, .bloodPressure, .sleep,
         .cardiorespiratory,
@@ -30,29 +31,41 @@ final class ReportDocumentGroupsTests: XCTestCase {
     func testGroupTableOrderAndHeadings() {
         XCTAssertEqual(ReportDocument.groups.flatMap(\.sectionIDs), Self.expectedOrder)
         XCTAssertEqual(ReportDocument.groups.map(\.heading), [
-            "Daily activity", "Body", "Heart and sleep", "Fitness and blood oxygen", "Glucose", "Medications"
+            "Daily activity", "Food and water", "Body", "Heart and sleep", "Fitness and blood oxygen", "Glucose",
+            "Medications"
         ])
         // Decision 2: the group never reads "Activity", so it cannot collide with the section.
         XCTAssertFalse(ReportDocument.groups.contains { $0.heading == "Activity" })
         XCTAssertEqual(
             ReportDocument.groups.map(\.heading).map(ReportDocument.copyAllGroupHeading),
-            ["DAILY ACTIVITY", "BODY", "HEART AND SLEEP", "FITNESS AND BLOOD OXYGEN", "GLUCOSE", "MEDICATIONS"]
+            ["DAILY ACTIVITY", "FOOD AND WATER", "BODY", "HEART AND SLEEP", "FITNESS AND BLOOD OXYGEN", "GLUCOSE",
+             "MEDICATIONS"]
         )
     }
 
     /// Decision 5: Food and water (#214) goes straight after Daily activity in its
-    /// own group. Until #214 lands there is no such section and Body follows
-    /// Daily activity directly, with no placeholder group.
+    /// own standalone group, never inside it.
     func testFoodAndWaterSlotFollowsDailyActivity() {
-        XCTAssertEqual(ReportDocument.GroupID.allCases.prefix(2), [.dailyActivity, .body])
-        XCTAssertFalse(SectionID.allCases.map(\.rawValue).contains { $0.lowercased().contains("food") })
+        XCTAssertEqual(ReportDocument.GroupID.allCases.prefix(3), [.dailyActivity, .foodAndWater, .body])
+        XCTAssertEqual(ReportDocument.groups[0].sectionIDs, [.steps, .activity])
+        XCTAssertEqual(ReportDocument.groups[1].id, .foodAndWater)
+        XCTAssertEqual(ReportDocument.groups[1].heading, "Food and water")
+        XCTAssertEqual(ReportDocument.groups[1].sectionIDs, [.foodLog])
+        XCTAssertEqual(ReportDocument.group(for: .foodLog), .foodAndWater)
+
+        let copied = Self.document(includesMedicationSection: true)
+            .plainText(generatedAt: Self.now, calendar: Self.calendar, locale: Self.locale)
+        let firstLines = copied.components(separatedBy: "\n\n").dropFirst().map { $0.components(separatedBy: "\n")[0] }
+        XCTAssertEqual(Array(firstLines.prefix(6)), [
+            "DAILY ACTIVITY", "Steps", "Activity", "FOOD AND WATER", "Food and water", "BODY"
+        ])
     }
 
     func testOrderedIsTheGroupOrderFromAnyInputOrder() {
         let shuffledInputs: [[SectionID]] = [
             SectionID.allCases,
             SectionID.allCases.reversed(),
-            [.medications, .glucose, .sleep, .steps, .weight, .activity, .heart,
+            [.medications, .glucose, .sleep, .steps, .weight, .activity, .foodLog, .heart,
              .bloodPressure, .bodyComposition, .cardiorespiratory]
         ]
         for input in shuffledInputs {
@@ -72,9 +85,13 @@ final class ReportDocumentGroupsTests: XCTestCase {
         let grouped = document.groupedSections
         XCTAssertEqual(grouped.map(\.id), ReportDocument.GroupID.allCases)
         XCTAssertEqual(grouped.map(\.heading), [
-            "Daily activity", "Body", "Heart and sleep", "Fitness and blood oxygen", "Glucose", "Medications"
+            "Daily activity", "Food and water", "Body", "Heart and sleep", "Fitness and blood oxygen", "Glucose",
+            "Medications"
         ])
-        XCTAssertEqual(grouped.filter { $0.sections.count == 1 }.map(\.id), [.fitnessAndBloodOxygen, .glucose, .medications])
+        XCTAssertEqual(
+            grouped.filter { $0.sections.count == 1 }.map(\.id),
+            [.foodAndWater, .fitnessAndBloodOxygen, .glucose, .medications]
+        )
         XCTAssertEqual(grouped.flatMap(\.sections), document.sections)
     }
 
@@ -162,6 +179,7 @@ final class ReportDocumentGroupsTests: XCTestCase {
             workouts: .noDataOrAccess,
             sleep: .noDataOrAccess,
             medications: .noDataOrAccess,
+            foodLog: .available(FoodLogFixtures.normalWeek(period: period, calendar: calendar)),
             includesMedicationSection: includesMedicationSection,
             showsMorningBloodPressureDetails: true,
             showsEveningBloodPressureDetails: true

@@ -10,11 +10,10 @@ import Foundation
 extension ReportDocument {
     enum GroupID: String, CaseIterable {
         case dailyActivity
-        // Extension point for Food and water (#214, contract decision 5): its own
-        // standalone group with its own heading ("Food and water"), straight
-        // after `dailyActivity` and never inside it, so logged food energy is
-        // never shown beside active energy. Add the case here, its row in
-        // `groups` and its section in `group(for:)`.
+        /// Food and water (#214, groups contract decision 5): its own standalone
+        /// group straight after `dailyActivity` and never inside it, so logged
+        /// food energy is never shown beside active energy.
+        case foodAndWater
         case body
         case heartAndSleep
         case fitnessAndBloodOxygen
@@ -33,6 +32,7 @@ extension ReportDocument {
     /// The group order and each group's section order.
     static let groups: [Group] = [
         Group(id: .dailyActivity, heading: "Daily activity", sectionIDs: [.steps, .activity]),
+        Group(id: .foodAndWater, heading: "Food and water", sectionIDs: [.foodLog]),
         Group(id: .body, heading: "Body", sectionIDs: [.weight, .bodyComposition]),
         Group(id: .heartAndSleep, heading: "Heart and sleep", sectionIDs: [.heart, .bloodPressure, .sleep]),
         Group(
@@ -49,6 +49,7 @@ extension ReportDocument {
     static func group(for section: SectionID) -> GroupID {
         switch section {
         case .steps, .activity: .dailyActivity
+        case .foodLog: .foodAndWater
         case .weight, .bodyComposition: .body
         case .heart, .bloodPressure, .sleep: .heartAndSleep
         case .cardiorespiratory: .fitnessAndBloodOxygen
