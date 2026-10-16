@@ -74,3 +74,15 @@ Export: export without Google Drive set up.
 
 Report anything that shows zero where you expect "no data", any wording that is unclear, and anything that looks wrong at large text sizes or in dark mode.
 ```
+
+## Build 26 for external testers
+
+Build 25 was exported with `testFlightInternalTestingOnly`, so it cannot reach external groups. On 16 October 2026, with the owner's approval, 0.2.0 (26) was archived from `main` at `c4e14784f8c8be1dffb002cb197b74d2ded35f76`, whose only change from build 25's source is this record. It was exported without the internal-only flag and uploaded the same way.
+
+| Item | Value |
+| --- | --- |
+| Executable and dSYM UUID | `D0DB6772-01DD-3573-A337-F208CBE546D6` (same binary as build 25) |
+| Uploaded IPA SHA-256 | `722c0de9c8bc6a3fabbdf01ef6e6eb63964f1791a452c86e510b6d8cd95be793` |
+| Delivery UUID | `e595ec17-cdc0-4630-a897-37a7e961be03` |
+
+The same What to Test text was set and read back. The build was added to Internal Testing and External Testers. The Beta App Review description and notes were updated, with the owner's approval, to cover food logging and the two optional online features (Open Food Facts and OpenRouter web lookup with the user's own key), then submitted. Beta App Review approved it and both groups show **In Beta Testing**.
