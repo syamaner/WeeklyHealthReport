@@ -1481,7 +1481,7 @@ extension WeeklyReportScreenshotTests {
             "weight-trend", "blood-pressure-morning-coverage", "food-days-logged"
         ])
         XCTAssertEqual(HealthSummaryTiles.pins.map(\.trendRowID), [
-            "steps-trend", nil, nil, nil, nil
+            "steps-trend", nil, nil, nil, nil, nil
         ])
         let tiles = HealthSummaryTiles.make(from: document)
         XCTAssertEqual(tiles.map(\.kind), HealthSummaryTile.Kind.allCases)
