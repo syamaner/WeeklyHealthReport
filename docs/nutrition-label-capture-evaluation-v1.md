@@ -1,6 +1,6 @@
 # Nutrition-label capture evaluation v1
 
-Status: **evaluation plan only.** Scope approved by the owner on 17 October 2026. This document authorises no product code, no production capture route, no automatic saving and no API call. Route C below adds egress for the evaluation only; any product use of route C needs its own versioned contract, an update to [`privacy-and-egress.md`](privacy-and-egress.md), an update to [`privacy-policy.txt`](privacy-policy.txt) and separate owner approval.
+Status: **evaluation plan, approved by the owner, 17 October 2026.** All twelve decisions in section 12 were accepted as recommended, with decision 4 amended to five route C models. Later the same day the owner confirmed there will be **no new owner photos**: the corpus is limited to material the project already has (section 3), which makes decisions 6, 7 and 8 largely moot and narrows what any result can promote (section 3.5). A tracking issue for the implementation phases is still to be opened. This document authorises no product code, no production capture route, no automatic saving and no API call. Route C below adds egress for the evaluation only; any product use of route C needs its own versioned contract, an update to [`privacy-and-egress.md`](privacy-and-egress.md), an update to [`privacy-policy.txt`](privacy-policy.txt) and separate owner approval.
 
 Related: #93 (printed-panel capture, blocked), #99 (cloud OCR challengers), #91 (handwritten lists, separate problem, not combined here), #86 (epic). Background evidence lives in [`Tools/FoodOCREvaluation/`](../Tools/FoodOCREvaluation/README.md).
 
@@ -16,7 +16,7 @@ Three things have never been tried: a multimodal LLM, Chinese (Taiwan 營養標�
 |---|---|---|---|
 | **A. Pasted text** | Text the user pastes (copied from a web page, a PDF or a message) | Deterministic parser only | None |
 | **B. On-device OCR** | Photo or screenshot | Apple Vision, recognition languages `zh-Hant` and `en` (exact locale identifiers as advertised by the Vision revision on the run day, recorded in the run manifest), then a geometry-to-lines serialiser, then the **same parser as A** | None |
-| **C. Multimodal LLM** | Photo or screenshot | OpenRouter chat request with the image, a structured output schema and the existing ZDR routing | **New: the image leaves the device.** Evaluation only, owner's own label photos and public corpus images only |
+| **C. Multimodal LLM** | Photo or screenshot | OpenRouter chat request with the image, a structured output schema and the existing ZDR routing | **New: the image leaves the device.** Evaluation only: the owner's own muesli label photo and public Open Food Facts corpus images only |
 
 ### 2.1 Parser scope (routes A and B)
 
@@ -44,36 +44,41 @@ All three routes emit `label-capture-candidate-v1`, derived from the `candidate_
 
 ### 3.1 Families
 
-| Family | Source | Routes | Approximate size |
-|---|---|---|---|
-| Owner photos, Taiwan | Labels the owner owns, photographed by the owner | B, C | About 18 |
-| Owner photos, UK | As above | B, C | About 12 |
-| Screenshots | Public product web pages (Taiwan and UK retailers or manufacturers), screenshotted by the owner | B, C | 8 to 12 |
-| Pasted text | Text copied from the same or other public pages, saved with source URL and capture date | A | 10 to 20 |
-| Oracle text | The verified ground-truth transcript of every photo and screenshot | A (diagnostic) | One per image |
-| Public UK v2 sealed | The 40 sealed v2 untouched Open Food Facts images | B, C (A via oracle text) | 40 |
+There are no new owner photos and no new screenshots. The corpus uses only material the project already has.
 
-Where possible a screenshot and a pasted text come from the **same page**, so A and B / C can be paired on identical content. The oracle-text run isolates parser quality from OCR quality: route B's loss compared with A-on-oracle is the OCR and serialiser contribution.
+| Family | Source | Routes | Images or cases | Set |
+|---|---|---|---|---|
+| Muesli photo | The owner's single Taiwan label photo (section 3.4) | B, C | 1 | Development |
+| v1 gate images | The 40 UK Open Food Facts panels from the #88 / #93 v1 gate; exposed by that run | B, C | 40 | Development |
+| v2 tuning images | The 60 tuning identities of the frozen v2 public selection; exposed by the v2 tuning-only Vision run | B, C | 60 | Development |
+| v2 sealed images | The 40 untouched identities of the frozen v2 public selection; never passed to any recogniser | B, C | 40 | **Untouched, opened once at the end** |
+| Pasted text, English (synthetic) | Rendered from the reviewed ground truth of the same 140 public panels | A | One or more per usable panel | Same set as its source panel |
+| Pasted text, Traditional Chinese (synthetic) | The muesli label typed out in Traditional Chinese, plus generated variants of the Taiwan table layout | A | 1 typed plus a generated set | Typed muesli is development; generated set split below |
 
-Required coverage tags (recorded at intake, before any run): `zh_hant`, `en_uk`, `en_us`, `two_column_serving_and_100`, `single_column`, `reference_intake_column`, `per_100ml`, `bound`, `salt`, `sodium`, `serving_line`, `servings_per_pack`, `nested_rows`, `column_offset`, `glossy`, `curved_or_crumpled`, `angled`, `small_font`, `screenshot`, `decline_expected`.
+Optional extra development material, not counted in the budget: the 60 v1 tuning panels (with committed v1 ground truth) and the 40-panel v2 development review. Both are already exposed and can never be untouched evidence.
 
-### 3.2 Split
+**Pasted text is synthetic.** Every pasted case is generated by a frozen, deterministic renderer from verified ground truth, in several paste shapes seen on real pages (tab-separated, space-aligned, one value per line, label and value on separate lines, wrapped long labels). Each case is labelled `synthetic: true` with its generator version and seed. Route A on these cases measures the parser against clean text in known shapes; it does **not** measure real-world copy-and-paste variability, which remains unmeasured. Because the renderer reads ground truth only, route A on English pasted text also serves as the oracle-text diagnostic: route B's loss compared with route A on the same panel is the OCR and serialiser contribution.
 
-- **Development:** the first fixture (already exposed in this planning task) plus a deterministic third of the remaining owner images and screenshots, and a third of pasted texts. Parser rules, serialiser, instruction text and schema may be tuned only on these.
-- **Untouched:** the rest. Assignment uses the existing pattern: sort by SHA-256 of `"label-capture-v1:" + input_sha256`, take the first third for development. Assignment is frozen in `corpus-manifest-v1.json` before ground truth is reviewed and before any route runs on the untouched set.
-- **Adequacy minima for a valid untouched result** (pre-registered; a shortfall makes the gate invalid, never a pass): at least 12 Taiwan photo tables, 8 UK photo tables, 6 screenshots, 8 pasted texts, 3 expected declines, 5 bounded cells, 10 printed serving conversions and every coverage tag present at least once across development and untouched.
-- **Sealed v2 images:** opened only under the existing rules in `v2-pregate-plan.md` and `frozen-contract-v2.json`: identities and hashes already frozen, all three routes frozen by hash first, one single run, no replacement, no rerun, results reported even if bad. Because the v2 review recorded only 8 of 16 required families, this run cannot be called a v2 acceptance gate for #93; it is reported as a separate, versioned public-UK result (decision 5).
+**Synthetic Traditional Chinese set.** The muesli label, typed out by hand from the verified table, is the one real-layout Chinese text case. A frozen generator then produces Taiwan tables from a closed template covering the coverage tags below (two-column 每份 / 每100公克, single column, 每日參考值百分比 column, 每100毫升, bounds, missing rows, 本包裝含…份 with decimals such as 2.5), with values drawn from a seeded range and energy computed with the Taiwan formula so the arithmetic check is exercisable. Generator code, template and seed are frozen before any untouched generated case is produced; at least 40 development and 40 untouched generated cases, split by hash.
 
-### 3.3 Privacy of personal photos
+Coverage tags (recorded from ground truth before any run): `zh_hant`, `en_uk`, `two_column_serving_and_100`, `single_column`, `reference_intake_column`, `per_100ml`, `bound`, `salt`, `sodium`, `serving_line`, `servings_per_pack`, `nested_rows`, `column_offset`, `glossy`, `curved_or_crumpled`, `small_font`, `decline_expected`, `synthetic`. US English and screenshots are no longer covered (section 3.5).
 
-The repository is public. Personal photos are handled as follows.
+### 3.2 Split and adequacy
 
-1. **Originals stay outside the repository**, in a private local folder that is not inside any git checkout and not inside a synced cloud folder (recommended: `~/WHR-label-eval-private/`, with `inbox/`, `masters/`, `consent/` and `runs/`). The harness refuses any personal input path inside the repository and refuses to write image bytes into it. `.gitignore` gains defensive entries for `*.heic`, `*.jpg`, `*.jpeg` and `*.png` under the new tool folder, with an explicit allow-list for consented crops.
-2. **Metadata stripping:** ingest copies each original from `inbox/` to `masters/` with `exiftool -all= -tagsFromFile @ -Orientation` (no pixel re-encoding; orientation kept so the image is not silently rotated). Ingest then verifies with `exiftool -G -a` that no GPS, maker note, serial number, owner name or date-time tags remain, and fails closed otherwise. HEIC inputs are converted once to JPEG at maximum quality before stripping and the conversion is recorded. The stripped master is the scored identity; its SHA-256 is the `input_sha256`. The original's hash is kept only in the private folder.
-3. **What is committed:** SHA-256 hashes, coverage tags, ground truth JSON, the consent ledger (hash, flags and date, no file names or paths), run reports and aggregate metrics. **No image bytes by default.** A nutrition-panel crop is committed only when its consent flag is set and the owner has checked the crop shows nothing but the panel (no hands, faces, receipts, addresses, screens, home interiors or other packaging). Screenshots are checked for browser chrome showing account names, tabs or notifications, and cropped to the page content.
-4. **Per-image consent:** `consent/consent-ledger.json` in the private folder holds, per master hash, four independent flags, all `false` by default: `local_routes` (A and B), `send_to_openrouter` (C), `commit_ground_truth`, `commit_crop`; plus the date and a free-text note. The owner sets them by editing the file or answering a prompt from `ingest.py`; the harness reads them before every action and refuses any route C request for a hash without `send_to_openrouter: true`. The owner's scope approval covers route C for own photos in principle; the per-image flag is what prevents an accidental send of a photo with personal background. A redacted copy (hash and flags only) is committed.
-5. **The first fixture** is referenced only by hash in this task:
-   `b360d49e8934b4d275ea11640901ee1aeed767a12b56f9a7e4b1b1ba439d0d38` (SHA-256 of the uploaded file as received, 1512 by 2016 JPEG; it showed no location metadata in a local Spotlight query). It has not been copied into the repository. At ingest it will be stripped and receive a new master hash, which becomes its scored identity. It shows a distributor's public business address and telephone number printed on the label, which is not personal data but is a reason to commit a panel-only crop rather than the whole label.
+- **Development:** the muesli photo, the 40 v1 gate images, the 60 v2 tuning images, their synthetic pasted texts, the typed muesli text and the development half of the generated Chinese set. Parser rules, serialiser, instruction text and schema may be tuned only on these.
+- **Untouched:** the 40 v2 sealed images, their synthetic pasted texts, and the untouched half of the generated Chinese set. Assignments are already frozen for the public images and are frozen by hash for generated cases before generation.
+- **Sealed v2 images** are opened only under the existing rules in `v2-pregate-plan.md` and `frozen-contract-v2.json`: identities and hashes already frozen, every route frozen by hash first, one single run for all routes together, no replacement, no rerun, results reported even if bad. Because the v2 review recorded only 8 of 16 required families, this cannot be called a v2 acceptance gate for #93; it is reported under this evaluation's own versioned contract.
+- **Adequacy minima for a valid untouched result,** pre-registered and checked from ground truth only (no route output) before the run: at least 30 usable sealed tables, 5 required declines, 10 bounded cells and 20 printed serving conversions (the v2 contract's minima), plus at least 30 untouched synthetic Chinese cases. A shortfall makes the result invalid, reported as a diagnostic and never as a pass.
+
+### 3.3 Privacy of the one personal photo
+
+The repository is public. These rules now apply to the muesli photo only; public Open Food Facts images keep their existing licence and attribution handling.
+
+1. **The original stays outside the repository**, in a private local folder that is not inside any git checkout and not inside a synced cloud folder (`~/WHR-label-eval-private/`, with `masters/`, `consent/` and `runs/`). The harness refuses any personal input path inside the repository and refuses to write personal image bytes into it.
+2. **Metadata stripping:** ingest copies the original to `masters/` with `exiftool -all= -tagsFromFile @ -Orientation` (no pixel re-encoding; orientation kept), verifies with `exiftool -G -a` that no GPS, maker note, serial number, owner name or date-time tags remain, and fails closed otherwise. The stripped master's SHA-256 is its scored `input_sha256`.
+3. **What is committed:** the hash, coverage tags, ground truth JSON and a redacted consent record. **No image bytes.** A panel-only crop is not committed in this round.
+4. **Consent:** a private consent record holds four flags for the master hash, all `false` by default: `local_routes`, `send_to_openrouter`, `commit_ground_truth`, `commit_crop`. The route C runner refuses to send the photo unless `send_to_openrouter` is `true`. The owner sets the flags after looking at the stripped master.
+5. **Reference by hash only in this task:** `b360d49e8934b4d275ea11640901ee1aeed767a12b56f9a7e4b1b1ba439d0d38` (SHA-256 of the uploaded file as received, 1512 by 2016 JPEG; a local Spotlight query showed no location metadata). It has not been copied into the repository. It shows a distributor's public business address and telephone number printed on the label, which is not personal data but is a further reason not to commit the whole image.
 
 ### 3.4 First fixture: Taiwan "6-Grain Muesli 500g"
 
@@ -95,13 +100,36 @@ Serving size: 每一份量100公克 (100 g). Servings per pack: 本包裝含5份
 
 Why it matters: the right-hand column is printed about one row lower than the left, so a nearest-line binder pairs 熱量 with nothing or with the wrong value, and every row below shifts. Because the two columns hold identical values, a shifted binding is detectable (protein would become 367.2), which makes this a clean binding stress case. It is a **development** case, never untouched evidence.
 
+### 3.5 Limits of this corpus
+
+These limits are part of the result and must be repeated in every report.
+
+- **Traditional Chinese photo coverage is a single real photo.** Any route B or route C result on Chinese labels is anecdotal. It cannot promote any route for Chinese label photos.
+- **Promotion can apply only to UK English labels** (routes B and C, on Open Food Facts style photos), **plus pasted Chinese text** (route A) if its untouched synthetic cases pass every bar. Even then, real pasted Taiwan text from web pages is unmeasured, and a product phase must spot check real pasted examples before any user sees the route.
+- **All pasted text is synthetic.** It shows the parser handles known shapes, not that real copied text arrives in those shapes.
+- **US English and screenshots are not covered.** No result here speaks for US labels or web screenshots.
+- **The public images are crowd-sourced Open Food Facts uploads,** not physical-camera captures by this app on the owner's device.
+
+**Future, separate decision (not part of this plan):** add public Taiwan label images, for example Open Food Facts products with `countries_tags` containing `en:taiwan`, under the Open Food Facts licence and attribution rules, with their own hash-pinned selection, two-pass ground truth and untouched split. That would be the only way within public material to make a Chinese photo result more than anecdotal. Nothing is downloaded for it now.
+
 ## 4. Ground truth: two-pass human check
 
-1. **Pass 1, transcription.** A human enters every visible nutrition cell from the image (or, for owner photos, from the physical pack) into the review editor: row, parent, header, basis, printed text, comparator, decimal text, unit, serving size line and servings per pack. Drafts may come only from a source independent of the routes under test (for example a blank Taiwan or UK row template). **No output from route A, B or C, and no other model, may prefill an untouched case.** Development cases may use drafts, recorded as such.
-2. **Pass 2, verification.** A second, separate check at least 24 hours later, by a different person where available, otherwise by the owner against the **physical package** for owner photos and against the image at full zoom for public images and screenshots. Every cell is ticked or corrected; the reviewer also records whether the image is legible enough to require a decline.
-3. **Disagreements** are resolved against the physical pack or the image, never by majority with a model, and logged with both readings.
-4. **Binding to identity:** each record carries the master `input_sha256`, reviewer identity, pass dates and editor version, so a changed image cannot inherit an annotation.
-5. **Freeze:** the ground truth fixture hash is recorded in the contract before any untouched run. The existing `review_server.py` editor is extended (in the implementation phase) for Chinese labels, serving size and servings per pack rather than replaced.
+Existing reviewed ground truth is reused wherever it exists; nothing is re-transcribed for its own sake.
+
+| Set | Existing ground truth | Pass 2 needed |
+|---|---|---|
+| v1 gate images (40) | Committed `Tools/FoodOCREvaluation/fixtures/ground-truth-v1.json` (SHA-256 `c9475cbd…afcc0`), image-bound and visually verified | No; development only. Extended only for fields v1 did not record (servings per pack), marked as a single-pass extension |
+| v2 tuning images (60) | The saved image-first v2 public reviews (100 hash-bound reviews, 25 September 2026, in an ignored local workspace) | No; development only. Single-pass, recorded as such |
+| v2 sealed images (40) | The same saved v2 reviews | **Yes**, before the run (below) |
+| Muesli photo | Owner's hand check (section 3.4) | **Yes**, against the physical pack |
+| Synthetic pasted text | Generated from the ground truth above, so it inherits that truth exactly | No; the renderer is tested instead |
+
+1. **Locate and freeze.** Phase 1 locates the v2 review workspace, verifies every annotation's image hash against the frozen v2 selection, and freezes a committed fixture with its SHA-256. Public-image transcriptions may be committed; image bytes are not. If the reviews for any sealed identity cannot be found or fail their hash check, those identities get a fresh pass 1 before the run, and the shortfall is recorded.
+2. **Pass 2 for the sealed 40.** A second human check of each sealed image's ground truth against the image at full zoom, at least 24 hours after any edit, ticking or correcting every cell and recording whether a decline is required. Reviewing ground truth does not expose any route's output, so it does not consume the untouched set. The reviewer sees images and their reviews only; **no output from route A, B or C, and no other model, may prefill or alter an untouched case.**
+3. **Pass 2 for the muesli label** is done by the owner against the physical package, if still available; otherwise against the image at full zoom, recorded as such.
+4. **Disagreements** are resolved against the image or pack, never by majority with a model, and logged with both readings.
+5. **Binding to identity:** each record carries `input_sha256`, reviewer identity, pass dates and editor version, so a changed image cannot inherit an annotation.
+6. **Freeze:** the ground truth fixture hash is recorded in the contract before the sealed run. The existing `review_server.py` editor is extended for serving size and servings per pack rather than replaced.
 
 ## 5. Metrics and pass bars
 
@@ -171,6 +199,13 @@ Image-input support, ZDR endpoint eligibility and prices must be confirmed from 
 2. **GPT-6 Luna on `azure`.** The app's default for discovery, source choice and applicability, the cheapest qualified route in prior runs, and already behind ZDR and no-collection routing. It gives a low-cost baseline: if a cheap model already meets the bars, the expensive ones are not needed.
 3. **Claude Opus 4.7 on `google-vertex/global`.** Strong document and CJK reading is the main reason to include it, and a third provider family reduces the chance that all candidates share a failure mode. Its earlier HTTP 400 came from schema v5's nullable enum and union count; the new schema is designed within its documented limit of 16 unions, and it must pass two fictional qualification cases before any real image is sent.
 
+Added by the owner when approving decision 4:
+
+4. **GPT-6.1 Sol (`openai/gpt-6.1-sol`) on `azure`.** Already an adapter route in `OpenRouterFoodProvider` with low reasoning; it shows whether a stronger model from the same family as Luna changes binding quality on images at a higher price.
+5. **Gemini 4 through OpenRouter.** The latest Gemini, on whichever endpoint OpenRouter lists as ZDR-eligible on the day (slug and endpoint recorded in the contract). This goes through OpenRouter's routing block like every other model; it is **not** the retired direct Gemini egress, which stays retired.
+
+All five face the same on-the-day gate: image input advertised, ZDR endpoint, `data_collection: "deny"`, no fallbacks, and response model and provider matching the request. A model that fails the gate is reported as not run, not as a quality result.
+
 Reserve, not proposed for the first run: Qwen 3.5 on `deepinfra/fp8`, as a Chinese-strong open-weight comparison, only if its endpoint advertises image input and ZDR on the day.
 
 ### 8.3 Cost and latency measures
@@ -179,7 +214,18 @@ Per photo and per model: response-reported `usage.cost`, input and output tokens
 
 Pre-registered stops (decision 9): stop a model's run if any single call reports more than **$0.05**; stop the whole evaluation at **$10** of reported cost or at the first unknown-cost call beyond three. These are run stops, not prepaid caps; the owner should also set a key limit at OpenRouter.
 
-A rough envelope for planning, to be replaced by measured values: about 100 images (owner photos, screenshots and the 40 public images) × 3 models, plus 10 development images × 3 models × 3 repeats for a stability probe, is about 390 calls; at an assumed $0.005 to $0.02 per photo that is roughly $2 to $8.
+A rough envelope for planning, to be replaced by measured values. Route C images: 1 muesli + 100 development (40 v1 gate and 60 v2 tuning) + 40 sealed = **141 images**.
+
+| Run | Calls (5 models) | At $0.005 per call | At $0.02 per call |
+|---|---:|---:|---:|
+| One development pass (101 images) | 505 | $2.53 | $10.10 |
+| Sealed run (40 images, once) | 200 | $1.00 | $4.00 |
+| **Both, one pass each** | **705** | **$3.53** | **$14.10** |
+| Plus stability probe (10 development images × 3 repeats) | 855 | $4.28 | $17.10 |
+
+Qualification calls (two fictional cases per model, 10 calls) and any repeat development passes after tuning come on top.
+
+**Budget finding: the approved $10 total stop does not reliably cover five models over this corpus.** A single pass over all 141 images fits under $10 only if the average reported cost stays below about **$0.0142 per call** (705 calls), or about **$0.0117** with the stability probe (855 calls); every tuning iteration that reruns the 101 development images costs another 505 calls. At $0.02 per call a single development pass alone ($10.10) would reach the stop before the sealed run. The three added or premium models (Sol, Opus and Gemini 4) are the likeliest to sit at or above the top of that range, and a large-model call with an image, the instruction and a full table output could approach or exceed the **$0.05 per-call** stop, which would halt that model's run. These are assumptions, not quoted prices; no price was fetched for this plan. The caps are **not** changed here. Before the run, prices are recorded from the catalogue and, if the projected total exceeds $10, the owner chooses one of: raise the total stop, drop the stability probe, run development passes on a fixed subset (for example the muesli photo plus 20 development images) instead of all 101, or run the premium models on a subset first. Whatever is chosen, the sealed run's 200 calls are reserved out of the total before any development call, so the stop can never be reached with the untouched set unrun. Until then, the run order is Luna, Grok, Sol, Gemini 4, Opus, so that if the stop is reached, the cheaper arms are complete and only the most expensive arms are cut short; a cut-short arm is reported with its unattempted cases, never as a full result.
 
 ## 9. Frozen inputs and harness layout
 
@@ -198,9 +244,9 @@ Tools/NutritionLabelCaptureEvaluation/
   validate_contract.py
   candidate-schema-v1.json         # shared output for A, B and C
   corpus-manifest-v1.json          # input hashes, tags, split, no paths or file names
-  consent-ledger-redacted-v1.json  # hash and four flags only
-  fixtures/ground-truth-v1.json
-  fixtures/crops/                  # consented panel crops only
+  consent-redacted-v1.json         # muesli photo: hash and four flags only
+  fixtures/ground-truth-v1.json    # frozen from v1, v2 reviews and the muesli check
+  synthetic/                       # pasted-text renderer, Taiwan generator, seeds
   parser/                          # pure Swift module used by A and B (decision 2)
   vision_v3.swift                  # Vision adapter: zh-Hant + en, raw observations
   serialise_lines.py               # geometry to ordered lines, pure
@@ -208,7 +254,7 @@ Tools/NutritionLabelCaptureEvaluation/
     label-image-extraction-instruction-v1.txt
     label-image-wire-schema-v1.json
     run_openrouter.py              # journal, receipts, stops, consent check
-  ingest.py                        # strip, hash, consent stub; private folder only
+  ingest.py                        # muesli photo: strip, hash, consent stub; private folder only
   run_route_a.py
   run_route_b.py
   score.py                         # reuses v2 matching semantics
@@ -217,7 +263,7 @@ Tools/NutritionLabelCaptureEvaluation/
   results/                         # committed reports and aggregate metrics
 ```
 
-Pure scoring helpers from `Tools/FoodOCREvaluation/` may be imported read-only; nothing there is edited. Run outputs go to the private folder's `runs/` (owner images) or an ignored `runs/` (public and pasted inputs). CI gains contract validation and pure unit tests only; no CI job calls Vision on personal images or any provider.
+Pure scoring helpers from `Tools/FoodOCREvaluation/` may be imported read-only; nothing there is edited. Run outputs go to the private folder's `runs/` (the muesli photo) or an ignored `runs/` (public and pasted inputs). Public images are read from the existing hash-checked local workspaces and are never committed. CI gains contract validation and pure unit tests only; no CI job calls Vision on personal images or any provider.
 
 ## 10. Promotion and decline
 
@@ -225,7 +271,8 @@ A route may be **proposed for product** (a separate phase, with its own architec
 
 - every bar in section 5 passes and the adequacy minima are met;
 - zero false-ready tables and zero automatic persistence;
-- for B: the result was produced with the frozen on-device configuration, and a physical-device spot check by the owner on at least five owner labels agrees (simulator and Mac runs prove software behaviour only);
+- the promotion is limited to what the corpus covers (section 3.5): UK English label photos for B and C, and pasted UK English or Taiwan text for A; no route is promoted for Chinese label photos on this evidence;
+- for B: the result was produced with the frozen on-device configuration, and a physical-device spot check by the owner on a sample of development images agrees (simulator and Mac runs prove software behaviour only);
 - for C: median cost per photo at most $0.02 and p90 latency at most 20 seconds (decision 9), zero response model or provider mismatches, ZDR and no-collection routing honoured on every call, and **then** a versioned product contract, a `privacy-and-egress.md` row, a `privacy-policy.txt` update (the current policy states that photos are not attached to OpenRouter requests) and separate owner approval.
 
 Even a promoted route only **proposes**: every cell goes to the shared Confirm screen beside the original image or pasted text, requires explicit user selection, and the user's Log action is the only save. Model output, citations, confidence and the arithmetic check never authorise nutrition.
@@ -234,26 +281,26 @@ A route stays **declined** when any bar fails, any false-ready table occurs, the
 
 ## 11. Owner-only steps
 
-1. **Create the private folder** outside any repository and outside synced cloud storage, with `inbox/`, `masters/`, `consent/` and `runs/`.
-2. **Take the photos** (about 30, Taiwan and UK labels you own). Lay the pack flat in daylight, fill the frame with the nutrition panel and the product name, avoid glare and shadows, and keep people, hands, receipts, letters, screens and room details out of shot. For about a third, also take a deliberately harder shot (angled, curved or glossy) of the same label and say so in the note. Keep the packs until pass 2 is done.
-3. **Hand them over:** in Photos on the Mac, select the pictures, choose File, Export, Export as JPEG at maximum quality with location information unticked, and save them into `inbox/`. (From the iPhone, AirDrop with Options, Location turned off, also works.) Do not attach them to chat, email or an issue.
-4. **Screenshots and pasted texts:** capture public product pages only, crop away browser chrome, and save each pasted text as a `.txt` with the page URL and date on the first line.
-5. **Run ingest** (once implemented) and set the four consent flags per image. Set `send_to_openrouter` only after looking at the stripped master.
-6. **Ground truth:** do pass 1 or pass 2 (or both, at least 24 hours apart) against the physical packs.
-7. **Approve the spend and the run:** confirm the models, budget and that your key has a limit, then approve the single untouched run, and separately approve opening the sealed v2 images.
-8. **Device spot check** for any route B candidate for promotion.
-9. **Decide** on the results; promotion and any product egress remain your decisions alone.
+No new photos, screenshots or pasted texts are needed.
+
+1. **Move the muesli photo** into a private folder outside any repository and outside synced cloud storage (`~/WHR-label-eval-private/`), then run ingest (once implemented) and set its four consent flags after looking at the stripped master. Set `send_to_openrouter` only if you are content for that image to go to the route C models.
+2. **Pass 2 for the muesli label** against the physical pack, if you still have it.
+3. **Pass 2 for the 40 sealed ground-truth records** (section 4), against the images at full zoom, before the sealed run.
+4. **Check the typed muesli text and the synthetic Chinese generator template** for wording that looks like a real Taiwan label.
+5. **Approve the spend and the runs:** confirm the five models and the prices recorded on the day, resolve the budget finding (section 8.3), confirm your OpenRouter key has a limit, then approve the single sealed run, which opens the 40 sealed v2 images.
+6. **Device spot check** for any route B candidate for promotion.
+7. **Decide** on the results and on the separate future question of adding public Taiwan images (section 3.5); promotion and any product egress remain your decisions alone.
 
 ## 12. Decisions for the owner
 
 1. **Harness location.** Build in a new sibling `Tools/NutritionLabelCaptureEvaluation/` and leave `Tools/FoodOCREvaluation/` frozen? *Recommendation: yes.*
 2. **Parser language.** Write the shared A / B parser as a pure Swift module so the evaluated code is the code that would ship, with Python only for orchestration and scoring? *Recommendation: yes.*
 3. **Candidate schema.** Define a new `label-capture-candidate-v1` (and a route C wire schema with at most 16 unions) rather than adapting schema v5, leaving v11 and v5 untouched? *Recommendation: yes.*
-4. **Route C models.** Test Grok 4.7 (`xai/zdr`), GPT-6 Luna (`azure`) and Claude Opus 4.7 (`google-vertex/global`), each only if the catalogue on the day shows image input and ZDR, with Opus first passing two fictional qualification cases? *Recommendation: yes, with Qwen 3.5 held in reserve.*
-5. **Sealed v2 images.** Open the 40 sealed v2 images once, for all three routes together, only after every route is frozen, and report them as a separate public-UK result rather than a v2 acceptance gate (the v2 review met only 8 of 16 families)? *Recommendation: yes, as the final step after the owner-photo gate.*
-6. **Owner corpus split.** Use a deterministic hash-ordered one-third development and two-thirds untouched split, with the muesli label fixed in development and the adequacy minima in section 3.2? *Recommendation: yes; take a few extra photos so the minima survive declines.*
-7. **Private storage and consent.** Keep originals in `~/WHR-label-eval-private/` (not synced), strip metadata at ingest, commit only hashes, ground truth and a redacted consent ledger, and require a per-image `send_to_openrouter` flag? *Recommendation: yes; commit no crops in the first round.*
-8. **Ground-truth pass 2.** Accept the owner as pass 2 reviewer, checking against the physical pack at least 24 hours after pass 1, when no second person is available? *Recommendation: yes, and record it as single-reviewer evidence.*
+4. **Route C models.** Test Grok 4.7 (`xai/zdr`), GPT-6 Luna (`azure`) and Claude Opus 4.7 (`google-vertex/global`), each only if the catalogue on the day shows image input and ZDR, with Opus first passing two fictional qualification cases? *Recommendation: yes, with Qwen 3.5 held in reserve.* **Owner answer (amended):** five models: Grok 4.7, GPT-6 Luna, Claude Opus 4.7, GPT-6.1 Sol (`openai/gpt-6.1-sol`) and Gemini 4, all through OpenRouter; Qwen 3.5 in reserve. Each passes the same on-the-day gate (image input, ZDR, no fallbacks). Gemini uses OpenRouter routing, not the retired direct Gemini egress. See the budget finding in section 8.3.
+5. **Sealed v2 images.** Open the 40 sealed v2 images once, for all three routes together, only after every route is frozen, and report them as a separate public-UK result rather than a v2 acceptance gate (the v2 review met only 8 of 16 families)? *Recommendation: yes, as the final step.* With no owner photos, the sealed 40 are now **the** untouched image set for this evaluation.
+6. **Owner corpus split.** *Superseded (no owner photos).* The muesli photo is fixed in development; the public split is the existing frozen v2 one (section 3.2). Only the generated Chinese set is split by hash.
+7. **Private storage and consent.** *Narrowed to the muesli photo:* private folder, metadata stripping, hash-only reference and the per-image consent flags apply to that single image (section 3.3).
+8. **Ground-truth pass 2.** *Largely superseded:* existing reviewed ground truth is reused (section 4). The owner still does pass 2 on the muesli label against the physical pack and on the 40 sealed records, recorded as single-reviewer evidence.
 9. **Budget and product ceilings.** Set run stops at $0.05 per call and $10 in total, and product ceilings for route C at median $0.02 per photo and p90 20 seconds? *Recommendation: yes.*
 10. **Arithmetic tolerance.** Adopt the larger of 15 kcal and 10% (UK and Taiwan), 20 kcal and 20% (US), and kJ / kcal within 4.184 ± 2%, with a failure blocking ready but never changing a value? *Recommendation: yes.*
 11. **Independent promotion.** Allow route A to proceed to its own product contract if it passes, without waiting for B or C? *Recommendation: yes; it has no egress and the lowest risk.*
