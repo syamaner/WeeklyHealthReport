@@ -1740,6 +1740,225 @@ final class DailyHealthExportTests: XCTestCase {
         XCTAssertEqual(identityStore.loadCount, 1)
     }
 
+    // MARK: - Included summary and last export of the day (#217)
+
+    @MainActor
+    func testPreviewSummaryCountsComeFromThePreparedEnvelope() async throws {
+        let (session, _) = await makePreviewLifecycleSession()
+        let preview = try XCTUnwrap(session.preview)
+        let summary = try XCTUnwrap(session.previewSummary)
+
+        XCTAssertEqual(summary.included, DailyExportIncludedSummary.make(today: preview.envelope.today))
+        XCTAssertEqual(
+            summary.included.metricsApplicable,
+            DailyExportIncludedSummary.metricAvailabilities(preview.envelope.today)
+                .filter { $0 != .unsupported }.count
+        )
+        XCTAssertFalse(summary.included.line.contains("0 workouts"))
+        XCTAssertTrue(summary.included.line.hasSuffix("no workouts visible"))
+        XCTAssertEqual(session.exactJSONConstructionCount, 0)
+
+        session.selectReportDay(session.availableReportDays.last)
+        XCTAssertNil(session.previewSummary)
+    }
+
+    @MainActor
+    func testLastExportOfSelectedDayShowsOnlyTheVerifiedRecordForThisDestination() async throws {
+        let verifiedAt = Date(timeIntervalSince1970: 1_788_000_000)
+        let today = "2026-09-06"
+        let (session, drive, oauth) = try await restoredLastExportSession(identities: [
+            lastExportIdentity(reportDate: today, verifiedAt: verifiedAt),
+            lastExportIdentity(reportDate: "2026-09-05", verifiedAt: verifiedAt.addingTimeInterval(60)),
+            lastExportIdentity(folderID: "other-folder", reportDate: today, verifiedAt: verifiedAt.addingTimeInterval(120)),
+            lastExportIdentity(accountID: "other-account", reportDate: today, verifiedAt: verifiedAt.addingTimeInterval(180))
+        ])
+
+        XCTAssertEqual(session.lastExportOfSelectedDay, DailyExportLastExportLookup(
+            reportDate: today,
+            state: .verified(verifiedAt: verifiedAt, dataAsOf: "2026-09-06T08:00:00+01:00"),
+            hasPendingOperation: false
+        ))
+
+        // Lookups are local reads: no Drive, network or token request.
+        let before = await drive.snapshot()
+        let tokenCount = oauth.accessTokenCount
+        XCTAssertEqual(session.lastVerifiedExport(for: "2026-09-05")?.state, .verified(
+            verifiedAt: verifiedAt.addingTimeInterval(60),
+            dataAsOf: "2026-09-06T08:00:00+01:00"
+        ))
+        XCTAssertEqual(session.lastVerifiedExport(for: "2026-09-04")?.state, DailyExportLastExport.none)
+        session.selectReportDay(session.availableReportDays.first { $0.reportDate == "2026-09-04" })
+        XCTAssertEqual(session.lastExportOfSelectedDay?.reportDate, "2026-09-04")
+        XCTAssertEqual(session.lastExportOfSelectedDay?.state, DailyExportLastExport.none)
+        let after = await drive.snapshot()
+        XCTAssertEqual(after.accountCount, before.accountCount)
+        XCTAssertEqual(after.folderReadCount, before.folderReadCount)
+        XCTAssertEqual(after.uploadCount, before.uploadCount)
+        XCTAssertEqual(oauth.accessTokenCount, tokenCount)
+    }
+
+    @MainActor
+    func testLastExportOfSelectedDayOtherFolderOrAccountIsNone() async throws {
+        let (session, _, _) = try await restoredLastExportSession(identities: [
+            lastExportIdentity(folderID: "other-folder", reportDate: "2026-09-06", verifiedAt: Date(timeIntervalSince1970: 1)),
+            lastExportIdentity(accountID: "other-account", reportDate: "2026-09-06", verifiedAt: Date(timeIntervalSince1970: 2))
+        ])
+
+        XCTAssertEqual(session.lastExportOfSelectedDay?.state, DailyExportLastExport.none)
+        XCTAssertEqual(
+            DailyExportLastExportFormatter.line(try XCTUnwrap(session.lastExportOfSelectedDay).state),
+            "Last export of this day from this iPhone: none"
+        )
+    }
+
+    @MainActor
+    func testPendingOnlyOperationIsNeverShownAsAnExport() async throws {
+        let pending = PendingDailyDriveOperation(
+            operationID: "invented-operation",
+            dataAsOf: "2026-09-06T08:00:00+01:00",
+            payloadSHA256: "invented-hash",
+            kind: .create,
+            phase: .uncertain
+        )
+        let (session, _, _) = try await restoredLastExportSession(identities: [
+            lastExportIdentity(reportDate: "2026-09-06", verifiedAt: nil, pending: pending)
+        ])
+
+        XCTAssertEqual(session.lastExportOfSelectedDay, DailyExportLastExportLookup(
+            reportDate: "2026-09-06",
+            state: .none,
+            hasPendingOperation: true
+        ))
+    }
+
+    @MainActor
+    func testUnreadableRegistryShowsUnknownLastExport() async throws {
+        let store = MemoryDailySessionStore()
+        try store.save(
+            try JSONEncoder().encode(partitions(containing: lastExportBinding)),
+            account: "google.drive.daily-export-destinations.v1"
+        )
+        let identityStore = ControllerMemoryDailyIdentityStore(loadFailure: ProbeError.queryFailed)
+        let (session, _) = await makePreviewLifecycleSession(
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            secureStore: store,
+            identityStore: identityStore,
+            oauthSession: FakeDriveOAuthSession()
+        )
+        _ = try await session.restoreGoogleSession()
+
+        XCTAssertEqual(session.lastExportOfSelectedDay?.state, .unknown)
+        XCTAssertEqual(
+            DailyExportLastExportFormatter.line(.unknown),
+            "Last export of this day from this iPhone: unknown"
+        )
+        // Developer tools keeps the session label.
+        XCTAssertEqual(session.lastVerifiedLabel, "Stored identity is ambiguous; explicit recovery required")
+    }
+
+    @MainActor
+    func testDuplicateRegistryEntriesForTheSameDayAreUnknown() async throws {
+        let (session, _, _) = try await restoredLastExportSession(identities: [
+            lastExportIdentity(reportDate: "2026-09-06", verifiedAt: Date(timeIntervalSince1970: 1)),
+            lastExportIdentity(reportDate: "2026-09-06", verifiedAt: Date(timeIntervalSince1970: 2))
+        ])
+
+        XCTAssertEqual(session.lastExportOfSelectedDay, DailyExportLastExportLookup(
+            reportDate: "2026-09-06",
+            state: .unknown,
+            hasPendingOperation: false
+        ))
+    }
+
+    @MainActor
+    func testNoAccountOrNoFolderHidesTheLastExportLine() async throws {
+        let identityStore = ControllerMemoryDailyIdentityStore(registry: DailyDriveExportRegistry(
+            installationID: "invented-installation",
+            identities: [lastExportIdentity(reportDate: "2026-09-06", verifiedAt: Date(timeIntervalSince1970: 1))]
+        ))
+        let (session, _) = await makePreviewLifecycleSession(
+            drive: PreparationDriveTransportFixture(createOutcomes: []),
+            identityStore: identityStore,
+            oauthSession: FakeDriveOAuthSession()
+        )
+        XCTAssertNil(session.lastExportOfSelectedDay)
+        XCTAssertNil(session.lastVerifiedExport(for: "2026-09-06"))
+
+        // Account restored but no folder bound.
+        _ = try await session.restoreGoogleSession()
+        XCTAssertNil(session.lastExportOfSelectedDay)
+    }
+
+    @MainActor
+    func testSignOutClearsTheLastExportLine() async throws {
+        let (session, _, _) = try await restoredLastExportSession(identities: [
+            lastExportIdentity(reportDate: "2026-09-06", verifiedAt: Date(timeIntervalSince1970: 1))
+        ])
+        XCTAssertNotNil(session.lastExportOfSelectedDay)
+
+        session.signOut()
+
+        XCTAssertNil(session.lastExportOfSelectedDay)
+    }
+
+    private var lastExportBinding: DailyDestinationBinding {
+        DailyDestinationBinding(
+            accountID: "invented-account",
+            folderID: "folder-a",
+            folderName: "Invented",
+            origin: .picker
+        )
+    }
+
+    @MainActor
+    private func restoredLastExportSession(
+        identities: [DailyDriveExportIdentity]
+    ) async throws -> (DailyDriveSessionController, PreparationDriveTransportFixture, FakeDriveOAuthSession) {
+        let store = MemoryDailySessionStore()
+        try store.save(
+            try JSONEncoder().encode(partitions(containing: lastExportBinding)),
+            account: "google.drive.daily-export-destinations.v1"
+        )
+        let identityStore = ControllerMemoryDailyIdentityStore(registry: DailyDriveExportRegistry(
+            installationID: "invented-installation",
+            identities: identities
+        ))
+        let drive = PreparationDriveTransportFixture(createOutcomes: [])
+        let oauth = FakeDriveOAuthSession()
+        let (session, _) = await makePreviewLifecycleSession(
+            drive: drive,
+            secureStore: store,
+            identityStore: identityStore,
+            oauthSession: oauth
+        )
+        _ = try await session.restoreGoogleSession()
+        return (session, drive, oauth)
+    }
+
+    private func lastExportIdentity(
+        accountID: String = "invented-account",
+        folderID: String = "folder-a",
+        reportDate: String,
+        verifiedAt: Date?,
+        pending: PendingDailyDriveOperation? = nil
+    ) -> DailyDriveExportIdentity {
+        DailyDriveExportIdentity(
+            accountID: accountID,
+            folderID: folderID,
+            reportDate: reportDate,
+            fileID: "invented-file-\(accountID)-\(folderID)-\(reportDate)",
+            installationID: "invented-installation",
+            lastVerified: verifiedAt.map {
+                VerifiedDailyDriveSnapshot(
+                    dataAsOf: "2026-09-06T08:00:00+01:00",
+                    payloadSHA256: "invented-hash",
+                    verifiedAt: $0
+                )
+            },
+            pending: pending
+        )
+    }
+
     @MainActor
     func testSessionKeepsAmbiguousIdentityRestorationFailClosedWithInjectedStore() async throws {
         let identityStore = ControllerMemoryDailyIdentityStore(loadFailure: ProbeError.queryFailed)
@@ -2192,6 +2411,7 @@ final class DailyHealthExportTests: XCTestCase {
     private func makePreviewLifecycleSession(
         drive: any DailyDriveSessionTransporting = DailyDriveAPI(),
         secureStore: any DailyDriveSecurePersisting = MemoryDailySessionStore(),
+        identityStore: any DailyDriveExportIdentityPersisting = ControllerMemoryDailyIdentityStore(),
         oauthSession: (any DriveOAuthSessionProviding)? = nil
     ) async -> (
         session: DailyDriveSessionController,
@@ -2215,7 +2435,7 @@ final class DailyHealthExportTests: XCTestCase {
                 calendar: calendar,
                 now: { cutoff }
             ),
-            identityStore: ControllerMemoryDailyIdentityStore(),
+            identityStore: identityStore,
             nutritionSourceSelection: FixedNutritionSourceSelection(
                 bundleIdentifier: fixtureNutritionSource.bundleIdentifier
             ),

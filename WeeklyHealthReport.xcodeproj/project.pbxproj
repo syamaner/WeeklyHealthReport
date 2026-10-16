@@ -128,6 +128,7 @@
 		A00000000000000000000073 /* privacy-policy.txt in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000073 /* privacy-policy.txt */; };
 		F20000000000000000000002 /* HealthSummaryTiles.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000001 /* HealthSummaryTiles.swift */; };
 		F20000000000000000000004 /* DailyExportPhase.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000003 /* DailyExportPhase.swift */; };
+		F21700000000000000000002 /* DailyExportIncludedSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21700000000000000000001 /* DailyExportIncludedSummary.swift */; };
 		F60000000000000000000004 /* TodaySoFarHealthPresentation.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000003 /* TodaySoFarHealthPresentation.swift */; };
 		F20000000000000000000006 /* HealthSummaryTileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000005 /* HealthSummaryTileView.swift */; };
 		F20000000000000000000008 /* DriveDestinationSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000007 /* DriveDestinationSettingsView.swift */; };
@@ -135,6 +136,7 @@
 		F6000000000000000000000C /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6000000000000000000000B /* HomeView.swift */; };
 		F60000000000000000000006 /* TodaySoFarHealthModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000005 /* TodaySoFarHealthModel.swift */; };
 		F2000000000000000000000A /* DailyExportPhaseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F20000000000000000000009 /* DailyExportPhaseTests.swift */; };
+		F21700000000000000000004 /* DailyExportIncludedSummaryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F21700000000000000000003 /* DailyExportIncludedSummaryTests.swift */; };
 		F60000000000000000000014 /* HomeCardsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000013 /* HomeCardsTests.swift */; };
 		F6000000000000000000000A /* TodaySoFarHealthModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000009 /* TodaySoFarHealthModelTests.swift */; };
 		F60000000000000000000008 /* TodaySoFarHealthTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F60000000000000000000007 /* TodaySoFarHealthTests.swift */; };
@@ -266,6 +268,7 @@
 		B00000000000000000000073 /* privacy-policy.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = "../docs/privacy-policy.txt"; sourceTree = "<group>"; };
 		F20000000000000000000001 /* HealthSummaryTiles.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSummaryTiles.swift; sourceTree = "<group>"; };
 		F20000000000000000000003 /* DailyExportPhase.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyExportPhase.swift; sourceTree = "<group>"; };
+		F21700000000000000000001 /* DailyExportIncludedSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyExportIncludedSummary.swift; sourceTree = "<group>"; };
 		F60000000000000000000003 /* TodaySoFarHealthPresentation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthPresentation.swift; sourceTree = "<group>"; };
 		F20000000000000000000005 /* HealthSummaryTileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthSummaryTileView.swift; sourceTree = "<group>"; };
 		F20000000000000000000007 /* DriveDestinationSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DriveDestinationSettingsView.swift; sourceTree = "<group>"; };
@@ -273,6 +276,7 @@
 		F6000000000000000000000B /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		F60000000000000000000005 /* TodaySoFarHealthModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthModel.swift; sourceTree = "<group>"; };
 		F20000000000000000000009 /* DailyExportPhaseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyExportPhaseTests.swift; sourceTree = "<group>"; };
+		F21700000000000000000003 /* DailyExportIncludedSummaryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyExportIncludedSummaryTests.swift; sourceTree = "<group>"; };
 		F60000000000000000000013 /* HomeCardsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeCardsTests.swift; sourceTree = "<group>"; };
 		F60000000000000000000009 /* TodaySoFarHealthModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthModelTests.swift; sourceTree = "<group>"; };
 		F60000000000000000000007 /* TodaySoFarHealthTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TodaySoFarHealthTests.swift; sourceTree = "<group>"; };
@@ -447,6 +451,7 @@
 				F19400000000000000000017 /* AppNavigationTests.swift */,
 				F19700000000000000000006 /* FoodLogAppTests.swift */,
 				F20000000000000000000009 /* DailyExportPhaseTests.swift */,
+				F21700000000000000000003 /* DailyExportIncludedSummaryTests.swift */,
 				F60000000000000000000013 /* HomeCardsTests.swift */,
 				F60000000000000000000009 /* TodaySoFarHealthModelTests.swift */,
 				F60000000000000000000007 /* TodaySoFarHealthTests.swift */,
@@ -523,6 +528,7 @@
 				B0000000000000000000004B /* MetricState.swift */,
 				B0000000000000000000004C /* ReportPresentationSnapshot.swift */,
 				F20000000000000000000003 /* DailyExportPhase.swift */,
+				F21700000000000000000001 /* DailyExportIncludedSummary.swift */,
 				F60000000000000000000003 /* TodaySoFarHealthPresentation.swift */,
 				F20000000000000000000001 /* HealthSummaryTiles.swift */,
 				B00000000000000000000050 /* MetricRowPresentation.swift */,
@@ -715,6 +721,7 @@
 				A00000000000000000000045 /* MetricState.swift in Sources */,
 				A00000000000000000000046 /* ReportPresentationSnapshot.swift in Sources */,
 				F20000000000000000000004 /* DailyExportPhase.swift in Sources */,
+				F21700000000000000000002 /* DailyExportIncludedSummary.swift in Sources */,
 				F60000000000000000000004 /* TodaySoFarHealthPresentation.swift in Sources */,
 				F20000000000000000000002 /* HealthSummaryTiles.swift in Sources */,
 				A0000000000000000000004A /* MetricRowPresentation.swift in Sources */,
@@ -780,6 +787,7 @@
 				F19400000000000000000018 /* AppNavigationTests.swift in Sources */,
 				F19700000000000000000007 /* FoodLogAppTests.swift in Sources */,
 				F2000000000000000000000A /* DailyExportPhaseTests.swift in Sources */,
+				F21700000000000000000004 /* DailyExportIncludedSummaryTests.swift in Sources */,
 				F60000000000000000000014 /* HomeCardsTests.swift in Sources */,
 				F6000000000000000000000A /* TodaySoFarHealthModelTests.swift in Sources */,
 				F60000000000000000000008 /* TodaySoFarHealthTests.swift in Sources */,

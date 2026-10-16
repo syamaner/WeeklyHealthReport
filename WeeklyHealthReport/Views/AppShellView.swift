@@ -251,7 +251,7 @@ struct AppShellView: View {
             MedicationAccessHelpView()
         case .developerTools:
             DeveloperToolsSettingsView(toggle: settings.developerTools, diagnostics: foodLedger?.searchDiagnostics,
-                                       driveExportConfigured: dailyExport.isConfigured)
+                                       driveExportConfigured: dailyExport.isConfigured, dailyExport: dailyExport)
         case .addFood:
             if let foodLedger {
                 AddFoodFlowView(root: foodLedger, finish: FoodEntryFinish(entryDay: navigation.addFoodEntryDay) { day in

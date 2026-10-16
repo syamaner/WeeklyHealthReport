@@ -216,8 +216,6 @@ struct DailyExportView: View {
             Text(session.status)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            LabeledContent("Last verified", value: session.lastVerifiedLabel)
-                .font(.caption)
         } header: {
             Text("Status")
         } footer: {
@@ -248,6 +246,8 @@ struct DailyExportView: View {
                     todayReportDate: todayID?.reportDate,
                     locale: .autoupdatingCurrent
                 ))
+                Text(summary.included.line)
+                    .accessibilityIdentifier("export.includedCounts")
                 LabeledContent("Nutrition", value: summary.nutritionSource)
             } else {
                 LabeledContent("Health data", value: "Not prepared")
@@ -282,6 +282,11 @@ struct DailyExportView: View {
                 }
             }
             .disabled(session.busy || session.preview == nil)
+            if let lastExport = session.lastExportOfSelectedDay {
+                Text(DailyExportLastExportFormatter.line(lastExport.state))
+                    .font(.caption)
+                    .accessibilityIdentifier("export.lastExportOfDay")
+            }
             Text("Food-log entries are not exported yet.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
