@@ -32,6 +32,81 @@ final class WeeklyReportViewModelTests: XCTestCase {
         assertSnapshotMatchesPublishedStates(viewModel)
     }
 
+    func testStepsTrendReadsThePrecedingEquivalentPeriod() async throws {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let current = ReportPeriod.make(selection: .lastSevenCompletedDays, now: refreshDate, calendar: calendar)
+        let currentStart = current.interval.start
+        let provider = FakeHealthDataProvider(stepsResponse: { period in
+            let steps: Double = period.interval.start == currentStart ? 10_600 : 10_000
+            return period.completedDays.map { DailyStepTotal(day: $0, steps: steps, sourceNames: []) }
+        })
+        let viewModel = makeViewModel(provider: provider, calendar: calendar, dates: [refreshDate])
+
+        await viewModel.refresh()
+
+        guard case .loaded(let summary, .calculated(let trend)) = viewModel.state else {
+            return XCTFail("Expected a calculated trend, got \(viewModel.state)")
+        }
+        let previous = try XCTUnwrap(current.precedingEquivalent(calendar: calendar))
+        XCTAssertEqual(summary.averageDailySteps, 10_600)
+        XCTAssertEqual(trend.previousDailyTotals.map(\.day), previous.completedDays)
+        XCTAssertEqual(try XCTUnwrap(trend.change), 6, accuracy: 1e-9)
+        assertSnapshotMatchesPublishedStates(viewModel)
+    }
+
+    func testFailedPreviousStepsReadKeepsCurrentRows() async throws {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let current = ReportPeriod.make(selection: .lastSevenCompletedDays, now: refreshDate, calendar: calendar)
+        let currentStart = current.interval.start
+        let provider = FakeHealthDataProvider(stepsResponse: { period in
+            guard period.interval.start == currentStart else { throw FixtureError.stepsFailure }
+            return period.completedDays.map { DailyStepTotal(day: $0, steps: 5_000, sourceNames: []) }
+        })
+        let viewModel = makeViewModel(provider: provider, calendar: calendar, dates: [refreshDate])
+
+        await viewModel.refresh()
+
+        guard case .loaded(let summary, .previousFailed(let message)) = viewModel.state else {
+            return XCTFail("Expected loaded steps with a failed previous read, got \(viewModel.state)")
+        }
+        XCTAssertEqual(summary.averageDailySteps, 5_000)
+        XCTAssertEqual(message, "Synthetic steps query failure")
+    }
+
+    func testStepsTrendSkipsThePreviousReadBelowThreeCompletedDays() async {
+        let calendar = testCalendar()
+        // Wednesday 2 Sep 2026: This week has two completed days.
+        let refreshDate = date(2026, 9, 2, hour: 12, calendar: calendar)
+        let current = ReportPeriod.make(selection: .currentWeek, now: refreshDate, calendar: calendar)
+        XCTAssertEqual(current.completedDays.count, 2)
+        let currentStart = current.interval.start
+        let provider = FakeHealthDataProvider(stepsResponse: { period in
+            guard period.interval.start == currentStart else { throw FixtureError.stepsFailure }
+            return period.completedDays.map { DailyStepTotal(day: $0, steps: 5_000, sourceNames: []) }
+        })
+        let viewModel = makeViewModel(provider: provider, calendar: calendar, dates: [refreshDate])
+        viewModel.selection = .currentWeek
+
+        await viewModel.refresh()
+
+        guard case .loaded(_, .notRead) = viewModel.state else {
+            return XCTFail("Expected no previous read, got \(viewModel.state)")
+        }
+    }
+
+    func testFailedCurrentStepsReadFailsTheSection() async {
+        let calendar = testCalendar()
+        let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)
+        let provider = FakeHealthDataProvider(stepsResponse: { _ in throw FixtureError.stepsFailure })
+        let viewModel = makeViewModel(provider: provider, calendar: calendar, dates: [refreshDate])
+
+        await viewModel.refresh()
+
+        XCTAssertEqual(viewModel.state, .failed("Synthetic steps query failure"))
+    }
+
     func testRefreshPublishesLoadingForEveryMetricWhileQueryIsInFlight() async {
         let calendar = testCalendar()
         let refreshDate = date(2026, 9, 1, hour: 12, calendar: calendar)

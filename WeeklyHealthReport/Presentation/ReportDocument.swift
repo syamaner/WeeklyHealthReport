@@ -69,7 +69,11 @@ struct ReportDocument: Equatable {
             )
 
         var result = [
-            Self.stepsSection(snapshot.steps, locale: locale),
+            Self.stepsSection(
+                snapshot.steps,
+                comparisonDayCount: snapshot.period.completedDays.count,
+                locale: locale
+            ),
             Self.weightSection(snapshot.weight, calendar: calendar, locale: locale),
             Self.bodyCompositionSection(
                 bodyFat: snapshot.bodyFat,
@@ -130,13 +134,14 @@ struct ReportDocument: Equatable {
 
     private static func stepsSection(
         _ state: StepsState,
+        comparisonDayCount: Int,
         locale: Locale
     ) -> Section {
         let rows: [Row]
         switch state {
         case .idle, .loading:
             rows = [Row("steps-loading", value: "Reading Apple Health…", style: .loading)]
-        case .loaded(let summary):
+        case .loaded(let summary, let trend):
             rows = [
                 Row(
                     "steps-average",
@@ -147,6 +152,19 @@ struct ReportDocument: Equatable {
                     "steps-coverage",
                     label: "Data Coverage",
                     value: HealthReportFormatter.stepCoverage(summary)
+                ),
+                Row.optional(
+                    id: "steps-trend",
+                    label: "Steps Trend",
+                    value: trend.change,
+                    missing: .insufficientHistory,
+                    format: {
+                        HealthReportFormatter.signedPercent(
+                            $0,
+                            comparison: "previous \(comparisonDayCount)d",
+                            locale: locale
+                        )
+                    }
                 ),
                 Row(
                     "steps-total",

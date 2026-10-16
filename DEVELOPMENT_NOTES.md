@@ -1508,3 +1508,13 @@ One `claude-opus-5-5` implementation subagent (branch `feat/216-health-section-g
 | Health section groups (#216), implementation subagent | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-215-2026-10-16: Claude Code steps trend versus the previous period
+
+One `claude-opus-5-5` implementation subagent in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. No usage boundary was captured when the phase started, so this row makes no token or cost estimate. The orchestrator may replace it with a measured row from the transcript.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Steps trend vs previous period (#215), implementation subagent | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Not calculated |
+
+Token totals are not evidence of productivity, quality or provider efficiency.

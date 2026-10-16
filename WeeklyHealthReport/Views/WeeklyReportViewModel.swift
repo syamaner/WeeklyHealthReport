@@ -393,7 +393,32 @@ final class WeeklyReportViewModel: ObservableObject {
         do {
             let values = try await healthData.fetchDailySteps(for: period)
             guard generation == refreshGeneration else { return }
-            reportStates.steps = StepSummary.aggregate(values).map(StepsState.loaded) ?? .noDataOrAccess
+            if let summary = StepSummary.aggregate(values) {
+                // The trend's previous read is separate, so its failure leaves
+                // the current rows unchanged (docs/health-steps-trend-v1.md 6).
+                let trend: StepTrendRead
+                if StepTrendPolicy.requiredSampledDays(
+                    completedDayCount: period.completedDays.count
+                ) == nil {
+                    // Below three completed days no trend is possible; skip the read.
+                    trend = .notRead
+                } else {
+                    do {
+                        let previousValues = try await healthData.fetchDailySteps(for: previousPeriod)
+                        trend = StepTrendSummary.calculate(
+                            current: values,
+                            previous: previousValues,
+                            completedDayCount: period.completedDays.count
+                        ).map(StepTrendRead.calculated) ?? .notRead
+                    } catch {
+                        trend = .previousFailed(error.localizedDescription)
+                    }
+                }
+                guard generation == refreshGeneration else { return }
+                reportStates.steps = .loaded(summary, trend: trend)
+            } else {
+                reportStates.steps = .noDataOrAccess
+            }
         } catch {
             guard generation == refreshGeneration else { return }
             reportStates.steps = .failed(error.localizedDescription)

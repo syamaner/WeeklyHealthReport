@@ -202,6 +202,19 @@ enum HealthReportFormatter {
         return "\(sign)\(magnitude) \(unit) vs \(comparison)"
     }
 
+    /// A signed whole percentage, rounded half away from zero only here. A value
+    /// that rounds to 0 reads "0%", never "-0%" (docs/health-steps-trend-v1.md 5).
+    static func signedPercent(
+        _ value: Double,
+        comparison: String,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let rounded = value.rounded(.toNearestOrAwayFromZero)
+        let magnitude = integer(abs(rounded), locale: locale)
+        let sign = rounded < 0 ? "-" : rounded > 0 ? "+" : ""
+        return "\(sign)\(magnitude)% vs \(comparison)"
+    }
+
     static func heartRate(_ value: Double, locale: Locale = .autoupdatingCurrent) -> String {
         "\(integer(value, locale: locale)) bpm"
     }
