@@ -38,6 +38,7 @@ from __future__ import annotations
 import http.client
 import json
 import random
+import re
 import socket
 import ssl
 import threading
@@ -48,6 +49,7 @@ import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from decimal import Decimal
 from email.utils import parsedate_to_datetime
 from typing import Any
 
@@ -222,9 +224,71 @@ OPENER = urllib.request.build_opener(RefuseRedirects)
 class DeadlineExceeded(Exception):
     """The attempt's whole-call deadline passed before the full response body arrived."""
 
+    def __init__(self, partial: bytes = b"") -> None:
+        super().__init__("whole-call deadline reached")
+        self.partial = partial
+
 
 MINIMUM_ATTEMPT_SECONDS = 0.1
 READ_CHUNK_BYTES = 65536
+CUT_MARKER = "_deadline_cut"  # set on the body of an attempt the whole-call deadline cut
+CUT_BEFORE_SEND = "before_send"  # DNS or connect: the request never reached the provider
+CUT_AFTER_SEND = "after_send"  # the request was sent; a generation may exist and may be charged
+CUT_UNRECONCILED_KIND = "cut_unreconciled_per_call_ceiling"
+GENERATION_ID = re.compile(rb'"id"\s*:\s*"(gen-[A-Za-z0-9_-]+)"')
+
+Resolver = Callable[[str, int], list[Any]]
+
+
+def _getaddrinfo(host: str, port: int) -> list[Any]:
+    return socket.getaddrinfo(host, port, type=socket.SOCK_STREAM)
+
+
+def resolve_within(host: str, port: int, timeout: float, resolver: Resolver = _getaddrinfo) -> tuple[Any, ...] | None:
+    """Resolve `host` in a daemon thread and give up after `timeout` seconds; None on timeout or failure.
+
+    `getaddrinfo` has no portable timeout, so the lookup runs in a thread that is abandoned
+    (not killed) when the deadline passes; the attempt then ends as a cut before send.
+    """
+    found: list[Any] = []
+
+    def run() -> None:
+        try:
+            found.extend(resolver(host, port))
+        except OSError:
+            pass
+
+    worker = threading.Thread(target=run, daemon=True)
+    worker.start()
+    worker.join(max(timeout, 0.0))
+    if worker.is_alive() or not found:
+        return None
+    return found[0][4]  # the first address's sockaddr
+
+
+class _ResolvedHTTPConnection(http.client.HTTPConnection):
+    """Connects to an address resolved in advance (so DNS sits inside the deadline); Host stays the name."""
+
+    def __init__(self, host: str, port: int, address: tuple[Any, ...], timeout: float) -> None:
+        super().__init__(host, port, timeout=timeout)
+        self._address = address
+
+    def connect(self) -> None:
+        self.sock = socket.create_connection((self._address[0], self.port), self.timeout)
+
+
+class _ResolvedHTTPSConnection(http.client.HTTPSConnection):
+    """As above for TLS: the certificate is still verified against the host name (SNI and hostname check)."""
+
+    def __init__(self, host: str, port: int, address: tuple[Any, ...], timeout: float) -> None:
+        super().__init__(host, port, timeout=timeout, context=ssl.create_default_context())
+        self._address = address
+        self._tls = ssl.create_default_context()
+
+    def connect(self) -> None:
+        raw = socket.create_connection((self._address[0], self.port), self.timeout)
+        self.sock = raw  # visible to the watchdog during the TLS handshake
+        self.sock = self._tls.wrap_socket(raw, server_hostname=self.host)
 
 
 def _abort(connection: http.client.HTTPConnection) -> None:
@@ -242,50 +306,116 @@ def read_until(read_chunk: Callable[[int], bytes], deadline: float, clock: Calla
     """Read a body chunk by chunk, stopping with `DeadlineExceeded` once `deadline` has passed.
 
     `read_chunk` returns whatever bytes are available (at most the size asked) and `b""` at the end.
+    The bytes read before the cut travel on the exception, so a generation id can still be found.
     """
     parts: list[bytes] = []
     while True:
         if clock() >= deadline:
-            raise DeadlineExceeded
-        chunk = read_chunk(READ_CHUNK_BYTES)
+            raise DeadlineExceeded(b"".join(parts))
+        try:
+            chunk = read_chunk(READ_CHUNK_BYTES)
+        except (OSError, http.client.HTTPException) as error:
+            if clock() >= deadline:
+                raise DeadlineExceeded(b"".join(parts)) from error
+            raise
         if not chunk:
             return b"".join(parts)
         parts.append(chunk)
 
 
-def http_post(key: str, title: str, url: str = ENDPOINT_URL) -> PostFn:
+def cut_body(stage: str, partial: bytes = b"") -> dict[str, Any]:
+    """The body recorded for a cut attempt: the stage, plus a generation id if the partial body held one."""
+    body: dict[str, Any] = {CUT_MARKER: stage}
+    match = GENERATION_ID.search(partial)
+    if match:
+        body["id"] = match.group(1).decode("ascii")
+    return body
+
+
+def cut_stage(body: Any) -> str | None:
+    return body.get(CUT_MARKER) if isinstance(body, dict) else None
+
+
+def charge_for_cut(body: Any, cost: Decimal | None, per_call_usd: Decimal) -> tuple[Decimal | None, str | None]:
+    """Spend after a deadline cut (owner decision, 18 October 2026).
+
+    A cut after the request was sent may still have produced a charged generation. If its id
+    was returned, the caller has already looked it up (`cost`); when that found nothing, or no
+    id was returned, the attempt is charged conservatively at the per-call stop and marked
+    CUT_UNRECONCILED_KIND. A cut before the request was sent (DNS or connect) cannot have a
+    generation and is left to the ordinary no-generation handling. Returns (cost, kind override).
+    """
+    if cut_stage(body) != CUT_AFTER_SEND or cost is not None:
+        return cost, None
+    return per_call_usd, CUT_UNRECONCILED_KIND
+
+
+def http_post(key: str, title: str, url: str = ENDPOINT_URL, resolver: Resolver = _getaddrinfo) -> PostFn:
     """The real POST to OpenRouter; the key goes in the Authorization header only.
 
-    Whole-call deadline (phase 4): `timeout` bounds the **whole attempt**, from connecting to
-    the last body byte, not each socket read. A watchdog timer shuts the socket down at the
-    deadline (so a stalled connect, a server that never sends headers, or a body trickled one
-    byte at a time all end there), and the body is read in chunks with a deadline check
-    between chunks. `call_with_retry` passes the time left of its 180 s budget as `timeout`,
-    so no call, retries included, can outlast that budget by more than the watchdog's reaction
-    time. A cut attempt returns status 0 (transport error or timeout), which the retry policy
-    treats like any other timeout. The development arms of phase 3 ran without this deadline.
-    Redirects are never followed (`http.client` does not follow them), so the key never
-    reaches another host; a 3xx is returned as a final, non-retryable status.
+    Whole-call deadline (phase 4): `timeout` bounds the **whole attempt**, not each socket read.
+
+    - DNS: resolved in a thread with the attempt's deadline (`resolve_within`); a lookup still
+      running at the deadline is abandoned and the attempt ends.
+    - Connect (TCP and TLS): `connect()` is called explicitly with the time left as its socket
+      timeout, and the watchdog can shut the socket during the handshake. Once it returns the
+      deadline is checked, and the socket timeout is reset to the time left before sending.
+    - Send and receive: a watchdog timer shuts the socket down at the deadline, so a server that
+      never sends headers or trickles the body ends there, and the body is read in chunks with
+      a deadline check between chunks.
+
+    `call_with_retry` passes the time left of its 180 s budget as `timeout`, so no call, retries
+    included, can outlast that budget by more than the watchdog's reaction time. A cut attempt
+    returns status 0 with a `cut_body` (stage, and any generation id seen), which the retry
+    policy treats like any other timeout and `charge_for_cut` prices. The development arms of
+    phase 3 ran without this deadline. Redirects are never followed (`http.client` does not
+    follow them), so the key never reaches another host; a 3xx is a final, non-retryable status.
     """
     parts = urllib.parse.urlsplit(url)
     if parts.scheme not in ("https", "http") or not parts.hostname:
         raise ValueError(f"unsupported URL {url!r}")
     host: str = parts.hostname
+    port = parts.port or (443 if parts.scheme == "https" else 80)
     path = parts.path + (f"?{parts.query}" if parts.query else "")
 
     def post(body: dict[str, Any], timeout: float) -> tuple[int, dict[str, Any] | None, dict[str, str], float]:
         started = time.monotonic()
         budget = max(timeout, MINIMUM_ATTEMPT_SECONDS)
         deadline = started + budget
+
+        def left() -> float:
+            return deadline - time.monotonic()
+
+        def cut(stage: str, partial: bytes = b"") -> tuple[int, dict[str, Any] | None, dict[str, str], float]:
+            return 0, cut_body(stage, partial), {}, time.monotonic() - started
+
+        def failed() -> tuple[int, dict[str, Any] | None, dict[str, str], float]:
+            return 0, None, {}, time.monotonic() - started
+
+        address = resolve_within(host, port, budget, resolver)
+        if address is None:
+            return cut(CUT_BEFORE_SEND) if left() <= 0 else failed()
+        if left() <= 0:
+            return cut(CUT_BEFORE_SEND)
         connection: http.client.HTTPConnection
         if parts.scheme == "https":
-            connection = http.client.HTTPSConnection(host, parts.port, timeout=budget, context=ssl.create_default_context())
+            connection = _ResolvedHTTPSConnection(host, port, address, left())
         else:
-            connection = http.client.HTTPConnection(host, parts.port, timeout=budget)
-        watchdog = threading.Timer(budget, _abort, args=(connection,))
+            connection = _ResolvedHTTPConnection(host, port, address, left())
+        watchdog = threading.Timer(max(left(), 0.0), _abort, args=(connection,))
         watchdog.daemon = True
         watchdog.start()
+        sent = False
         try:
+            try:
+                connection.connect()
+            except OSError:
+                return cut(CUT_BEFORE_SEND) if left() <= 0 else failed()
+            remaining = left()
+            if remaining <= 0 or connection.sock is None:
+                return cut(CUT_BEFORE_SEND)
+            connection.sock.settimeout(remaining)
+            sent = True
             connection.request(
                 "POST",
                 path or "/",
@@ -296,13 +426,17 @@ def http_post(key: str, title: str, url: str = ENDPOINT_URL) -> PostFn:
             status = response.status
             headers = dict(response.getheaders())
             payload = read_until(response.read1, deadline)
-        except (DeadlineExceeded, http.client.HTTPException, OSError, ValueError):
-            return 0, None, {}, time.monotonic() - started
+        except DeadlineExceeded as exceeded:
+            return cut(CUT_AFTER_SEND, exceeded.partial)
+        except (http.client.HTTPException, OSError, ValueError):
+            if left() <= 0:
+                return cut(CUT_AFTER_SEND if sent else CUT_BEFORE_SEND)
+            return failed()
         finally:
             watchdog.cancel()
             connection.close()
-        if time.monotonic() > deadline:  # the watchdog fired while the last chunk was in flight
-            return 0, None, {}, time.monotonic() - started
+        if left() < 0:  # the watchdog fired while the last chunk was in flight
+            return cut(CUT_AFTER_SEND, payload)
         try:
             parsed = json.loads(payload)
         except (json.JSONDecodeError, UnicodeDecodeError):

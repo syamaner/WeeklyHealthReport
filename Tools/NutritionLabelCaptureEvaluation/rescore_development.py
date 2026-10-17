@@ -11,10 +11,19 @@ the run. The summary written to `results/` holds aggregate counts and case ids o
 a model answer.
 
     .venv/bin/python rescore_development.py --runs ~/WHR-label-eval-private/runs \
-        --out results/amendments-rescore-v1.json
+        --out results/gate-v2-rescore-v1.json --t1-log results/t1-uk-truth-changes-v1.json
 
-`results/decline-gate-rescore-v1.json` was written by this script at commit f313578c,
-before the owner amendments of 18 October 2026; `results/amendments-rescore-v1.json` after.
+Each committed result is tied to the commit that wrote it, because the gate, scorer and
+mapping it uses change between commits:
+
+- `results/decline-gate-rescore-v1.json`: gate v1, before the owner amendments, written at
+  commit f313578c (check out that commit to reproduce it);
+- `results/amendments-rescore-v1.json`: gate v1 with amendments S1, M1 to M3 and T1, written
+  at commit ac584932;
+- `results/gate-v2-rescore-v1.json`: gate v2 with the amendments and the review fixes, written
+  by this version.
+
+This version refuses to overwrite the two earlier files.
 """
 
 from __future__ import annotations
@@ -45,12 +54,14 @@ SUMMARY_FIELDS = (
 )
 
 
-def _candidates(log_path: Path) -> dict[str, dict[str, Any] | None]:
+def _candidates(log_path: Path, allowed_ids: set[str]) -> dict[str, dict[str, Any] | None]:
     from inspect_ai.log import read_eval_log
 
     log = read_eval_log(str(log_path))
     found: dict[str, dict[str, Any] | None] = {}
     for sample in log.samples or []:
+        if str(sample.id) not in allowed_ids:
+            raise SystemExit(f"{log_path.name} holds sample {sample.id}, which is not a development case; refusing")
         candidate = None
         if sample.output and sample.output.completion:
             try:
@@ -74,12 +85,15 @@ def current_truth(truth: dict[str, Any], metadata: dict[str, Any]) -> dict[str, 
 
 
 def load_arm(log_path: Path, cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    outputs = _candidates(log_path)
+    # The split is checked before any log is read, and every sample in the log must be one of
+    # these development cases, so nothing outside the development set is ever loaded.
+    for case in cases:
+        if case["metadata"].get("split") != "development":
+            raise SystemExit(f"{case['id']} is not a development case; refusing")
+    outputs = _candidates(log_path, {str(case["id"]) for case in cases})
     rows = []
     for case in cases:
         metadata = case["metadata"]
-        if metadata.get("split") != "development":
-            raise SystemExit(f"{case['id']} is not a development case; refusing")
         rows.append(
             {
                 "id": case["id"],
@@ -113,12 +127,15 @@ def rescore(rows: list[dict[str, Any]], thresholds: dict[str, float]) -> dict[st
     before: dict[str, list[dict[str, Any]]] = defaultdict(list)
     after: dict[str, list[dict[str, Any]]] = defaultdict(list)
     changes: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    false_ready: dict[str, dict[str, list[str]]] = defaultdict(lambda: {"required_decline": [], "usable_wrong": []})
     for row in rows:
         gated, report = decline_gate.apply_gate(row["candidate"], row["label_format"])
         old = scoring.score_case(row["candidate"], row["truth"])
         new = scoring.score_case(gated, row["truth"])
         before[row["stratum"]].append(old)
         after[row["stratum"]].append(new)
+        if new["false_ready"]:
+            false_ready[row["stratum"]]["required_decline" if row["truth"].get("requires_decline") else "usable_wrong"].append(row["id"])
         if report["declines"] or (report["blocks"] and gated is not row["candidate"]):
             changes[row["stratum"]].append(
                 {
@@ -136,6 +153,7 @@ def rescore(rows: list[dict[str, Any]], thresholds: dict[str, float]) -> dict[st
             "before": _summary(before[stratum], thresholds),
             "after": _summary(after[stratum], thresholds),
             "gate_changes": changes[stratum],
+            "false_ready_after_gate": false_ready[stratum],
         }
         for stratum in strata
     }
@@ -150,6 +168,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--t1-log", type=Path, help="write every UK truth record amendment T1 changes (case ids, row ids, parents)")
     args = parser.parse_args(argv)
+    if args.out.name in ("decline-gate-rescore-v1.json", "amendments-rescore-v1.json"):
+        raise SystemExit(f"{args.out.name} was written by an earlier commit; write this version's re-score to a new file")
     thresholds = scoring.load_thresholds()
     arms: dict[str, Any] = {}
 
@@ -197,6 +217,7 @@ def main(argv: list[str] | None = None) -> int:
 
     result = {
         "gate_version": decline_gate.GATE_VERSION,
+        "amendments": "S1, M1, M2, M3, T1 (contract amendments_2026_10_18), with the PR #259 review fixes",
         "split": "development",
         "note": "Offline re-score of saved development outputs; no API call. Counts and case ids only.",
         "arms": arms,

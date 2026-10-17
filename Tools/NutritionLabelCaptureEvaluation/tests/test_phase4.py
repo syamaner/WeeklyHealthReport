@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import copy
 import http.server
+import importlib.util
 import json
 import threading
 import time
@@ -151,6 +152,27 @@ class G1UnsupportedScript(unittest.TestCase):
         self.assertFalse(any(gate.is_simplified_only(c) for c in traditional + shared))
         self.assertFalse(any(gate.is_simplified_only(c) for c in "Energy 100g ・ー"))
 
+    def test_v2_shared_variant_code_points_are_not_simplified(self) -> None:
+        for char in "内温黄户着奥吴吕没别强兑虚册":
+            self.assertTrue(gate._encodes(char, "gb2312") and not gate._encodes(char, "cp950"), char)
+            self.assertFalse(gate.is_simplified_only(char), char)
+
+    def test_v2_a_traditional_table_with_shared_variants_is_not_declined(self) -> None:
+        candidate = tw_candidate()
+        candidate["cells"][0]["printed_label"] = "熱量(常温)"
+        candidate["serving_size"]["printed_text"] = "每一份量100公克(内容物)"
+        candidate["headers"][0]["printed_text"] = "每份 黄豆"
+        self.assertNotIn("unsupported_script", gate.evaluate(candidate, TW)["declines"])
+
+    def test_v2_true_simplified_text_is_still_declined(self) -> None:
+        candidate = tw_candidate()
+        candidate["cells"][0]["printed_label"] = "能量(内含)"
+        candidate["cells"][2]["printed_label"] = "蛋白质"
+        candidate["headers"][0]["printed_text"] = "营养成分表 每份"
+        report = gate.evaluate(candidate, TW)
+        self.assertIn("unsupported_script", report["declines"])
+        self.assertTrue(any(d.startswith("simplified_only_characters") and "质" in d and "内" not in d for d in report["details"]))
+
     def test_simplified_label_is_declined(self) -> None:
         candidate = tw_candidate()
         candidate["cells"][0]["printed_label"] = "能量"
@@ -177,13 +199,13 @@ class G1UnsupportedScript(unittest.TestCase):
 
 class G2NotAFoodPanel(unittest.TestCase):
     def test_supplement_markers_decline(self) -> None:
-        for text in ("Supplement Facts", "Food supplement", "per softgel", "每錠"):
+        for text in ("Supplement Facts", "Food supplement", "per softgel", "per caplet", "營養補充"):
             candidate = uk_candidate()
             candidate["headers"][1]["printed_text"] = text
             self.assertIn("not_a_food_nutrition_panel", gate.evaluate(candidate, UK)["declines"], text)
 
     def test_coffee_capsules_and_scottish_tablet_are_food(self) -> None:
-        for text in ("per capsule", "per 30g tablet", "每顆膠囊"):
+        for text in ("per capsule", "per 30g tablet", "每顆膠囊", "每錠", "口含錠 每份"):  # v2: 錠 alone is not a marker
             candidate = uk_candidate()
             candidate["headers"][1]["printed_text"] = text
             self.assertNotIn("not_a_food_nutrition_panel", gate.evaluate(candidate, UK)["declines"], text)
@@ -213,9 +235,18 @@ class G3RequiredRows(unittest.TestCase):
 
 
 class G4ColumnCount(unittest.TestCase):
-    def test_a_required_row_missing_one_amount_column_declines(self) -> None:
+    def test_a_required_row_missing_from_the_per_100_column_declines(self) -> None:
         report = gate.evaluate(without(tw_candidate(), "sodium", "header_2"), TW)
         self.assertEqual(report["declines"], ["column_count_mismatch"])
+        report = gate.evaluate(without(uk_candidate(), "salt", "h100"), UK)
+        self.assertEqual(report["declines"], ["column_count_mismatch"])
+
+    def test_v2_a_partial_per_portion_column_is_never_declined(self) -> None:
+        # 1169/2011 Article 33: a per-portion column may list only some rows.
+        candidate = uk_candidate()
+        candidate["cells"] = [c for c in candidate["cells"] if c["basis"] != "per_serving" or c["nutrient"] in ("energy_kj", "energy_kcal")]
+        self.assertEqual(gate.evaluate(candidate, UK)["declines"], [])
+        self.assertEqual(gate.evaluate(without(tw_candidate(), "sodium", "header_1"), TW)["declines"], [])
 
     def test_a_missing_reference_intake_cell_is_not_a_mismatch(self) -> None:
         candidate = uk_candidate()
@@ -342,7 +373,7 @@ class WholeCallDeadline(unittest.TestCase):
             started = time.monotonic()
             status, body, _, seconds = openrouter_client.http_post("test-key", "test", url)({"x": 1}, 1.0)
             elapsed = time.monotonic() - started
-        self.assertEqual((status, body), (0, None))
+        self.assertEqual((status, openrouter_client.cut_stage(body)), (0, openrouter_client.CUT_AFTER_SEND))
         self.assertLess(elapsed, 1.6)
         self.assertGreaterEqual(seconds, 0.9)
 
@@ -564,6 +595,160 @@ class AmendmentT1Convention(unittest.TestCase):
         transcribed = {**truth, "reference_intake_transcribed": True}
         self.assertEqual(scoring.score_case(candidate, transcribed)["tables_exact"], 0)
         self.assertEqual(scoring.score_case(candidate, uk_truth())["tables_exact"], 0)  # Taiwan-style truths are unchanged
+
+
+class ReviewFixes(unittest.TestCase):
+    """Invariant review of PR #259: M3 unit match, connect and DNS deadline, spend after a cut."""
+
+    def test_m3_header_mass_never_reads_a_count_as_grams(self) -> None:
+        import route_c_mapping
+
+        for header_text, expected in (("Per 2 grilled sausages (90g)", "90g"), ("1 glass (250ml)", "250ml"), ("Per 2 sausages", "unknown")):
+            headers = [{"header_id": "hs", "printed_text": header_text, "basis": "per_serving"}]
+            wire = uk_wire([wire_row("fat", "Fat", [("hs", "4.5g")])], headers)
+            candidate = route_c_mapping.map_wire(wire, "0" * 64)
+            self.assertEqual(candidate["cells"][0]["serving_conversion"], expected, header_text)
+
+    def test_serving_line_never_reads_a_count_as_grams(self) -> None:
+        import route_c_mapping
+
+        for text, expected in (
+            ("2 grilled sausages (90g)", ("90", "g")),
+            ("1 glass (250ml)", ("250", "ml")),
+            ("每一份量100公克", ("100", "g")),
+        ):
+            serving = route_c_mapping._serving_size(text)
+            assert isinstance(serving, dict)
+            self.assertEqual((serving["decimal_text"], serving["canonical_unit"]), expected, text)
+        unread = route_c_mapping._serving_size("2 grilled sausages")
+        assert isinstance(unread, dict)
+        self.assertIsNone(unread["decimal_text"])
+
+    def test_a_dns_lookup_that_stalls_is_cut_at_the_deadline(self) -> None:
+        def stalled(host: str, port: int) -> list[Any]:
+            time.sleep(5)
+            return []
+
+        started = time.monotonic()
+        status, body, _, _ = openrouter_client.http_post("test-key", "test", "http://example.invalid/x", resolver=stalled)({"x": 1}, 1.0)
+        self.assertLess(time.monotonic() - started, 1.6)
+        self.assertEqual(status, 0)
+        self.assertEqual(openrouter_client.cut_stage(body), openrouter_client.CUT_BEFORE_SEND)
+
+    def test_a_stalled_connect_handshake_is_cut_at_the_deadline(self) -> None:
+        import socket
+
+        listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        listener.bind(("127.0.0.1", 0))
+        listener.listen(1)
+        held: list[socket.socket] = []
+
+        def accept() -> None:
+            try:
+                conn, _ = listener.accept()
+                held.append(conn)  # accepts TCP but never answers the TLS handshake
+            except OSError:
+                return
+
+        threading.Thread(target=accept, daemon=True).start()
+        try:
+            url = f"https://127.0.0.1:{listener.getsockname()[1]}/x"
+            started = time.monotonic()
+            status, body, _, _ = openrouter_client.http_post("test-key", "test", url)({"x": 1}, 1.0)
+            elapsed = time.monotonic() - started
+        finally:
+            for conn in held:
+                conn.close()
+            listener.close()
+        self.assertEqual(status, 0)
+        self.assertLess(elapsed, 1.6)
+        self.assertEqual(openrouter_client.cut_stage(body), openrouter_client.CUT_BEFORE_SEND)
+
+    def test_a_trickled_body_cut_after_send_keeps_the_generation_id(self) -> None:
+        body = openrouter_client.cut_body(openrouter_client.CUT_AFTER_SEND, b'{"id": "gen-abc_123", "choi')
+        self.assertEqual(body["id"], "gen-abc_123")
+        self.assertEqual(openrouter_client.cut_stage(body), openrouter_client.CUT_AFTER_SEND)
+        with LocalServer("trickle") as url:
+            status, cut, _, _ = openrouter_client.http_post("test-key", "test", url)({"x": 1}, 1.0)
+        self.assertEqual((status, openrouter_client.cut_stage(cut)), (0, openrouter_client.CUT_AFTER_SEND))
+
+    def test_spend_after_a_cut(self) -> None:
+        from decimal import Decimal
+
+        ceiling = Decimal("0.20")
+        after = openrouter_client.cut_body(openrouter_client.CUT_AFTER_SEND)
+        before = openrouter_client.cut_body(openrouter_client.CUT_BEFORE_SEND)
+        self.assertEqual(openrouter_client.charge_for_cut(after, None, ceiling), (ceiling, openrouter_client.CUT_UNRECONCILED_KIND))
+        self.assertEqual(openrouter_client.charge_for_cut(after, Decimal("0.013"), ceiling), (Decimal("0.013"), None))
+        self.assertEqual(openrouter_client.charge_for_cut(before, None, ceiling), (None, None))
+        self.assertEqual(openrouter_client.charge_for_cut({"id": "gen-1"}, None, ceiling), (None, None))
+
+
+@unittest.skipUnless(importlib.util.find_spec("inspect_ai"), "inspect_ai is not installed (see requirements.txt)")
+class CutAttemptLedger(unittest.TestCase):
+    def run_solver(self, first: dict[str, Any], lookup: Any) -> list[dict[str, Any]]:
+        import tempfile
+        from pathlib import Path
+
+        from inspect_ai import Task
+        from inspect_ai import eval as inspect_eval
+        from inspect_ai.dataset import Sample
+
+        import inspect_task
+        from budget import LedgerBudget
+        from openrouter_route import RouteCModel
+
+        target = RouteCModel(label="luna", model="openai/gpt-6-luna", endpoint="openai", provider_name="OpenAI")
+        answer = {
+            "declined": True,
+            "decline_reasons": ["no_table"],
+            "language": "unknown",
+            "serving_size_text": "unknown",
+            "servings_per_pack_text": "unknown",
+            "headers": [],
+            "rows": [],
+        }
+        ok = {
+            "id": "gen-2",
+            "model": "openai/gpt-6-luna",
+            "provider": "OpenAI",
+            "usage": {"cost": 0.01},
+            "choices": [{"finish_reason": "stop", "message": {"content": json.dumps(answer)}}],
+        }
+        replies = [(0, first), (200, ok)]
+        sent: list[dict[str, Any]] = []
+
+        def post(body: dict[str, Any], timeout: float) -> tuple[int, dict[str, Any], dict[str, str], float]:
+            sent.append(body)
+            status, payload = replies[len(sent) - 1]
+            return status, payload, {}, 0.1
+
+        with tempfile.TemporaryDirectory() as folder:
+            image = Path(folder) / "a.png"
+            image.write_bytes(b"\x89PNG\r\n\x1a\n")
+            metadata = {"image_path": str(image), "corpus": "off_taiwan", "sha256": "a" * 64}
+            sample = Sample(id="case-1", input="image", target=json.dumps({"requires_decline": True}), metadata=metadata)
+            budget = LedgerBudget(Path(folder) / "ledger.json")
+            task = Task(
+                dataset=[sample],
+                solver=inspect_task.route_c_openrouter(budget, enabled=True, target=target, post=post, lookup=lookup, sleep=lambda _: None),
+                scorer=inspect_task.label_capture_scorer(),
+            )
+            inspect_eval(task, model="mockllm/model", log_dir=folder, display="none")
+            ledger = json.loads((Path(folder) / "ledger.json").read_text())
+            self.per_call = ledger["limits"]["per_call_usd"]
+        return ledger["entries"]
+
+    def test_an_unreconciled_cut_is_charged_at_the_per_call_stop(self) -> None:
+        entries = self.run_solver(openrouter_client.cut_body(openrouter_client.CUT_AFTER_SEND), lambda _: ("not_found", None))
+        self.assertEqual((entries[0]["cost_usd"], entries[0]["kind"]), (self.per_call, openrouter_client.CUT_UNRECONCILED_KIND))
+        self.assertEqual(entries[1]["cost_usd"], "0.01")
+
+    def test_a_cut_with_a_generation_id_is_reconciled_by_lookup(self) -> None:
+        cut = openrouter_client.cut_body(openrouter_client.CUT_AFTER_SEND, b'{"id":"gen-cut-1"')
+        entries = self.run_solver(cut, lambda generation: ("found", 0.004) if generation == "gen-cut-1" else ("not_found", None))
+        self.assertEqual((entries[0]["cost_usd"], entries[0].get("generation_id")), ("0.004", "gen-cut-1"))
+        self.assertNotEqual(entries[0].get("kind"), openrouter_client.CUT_UNRECONCILED_KIND)
 
 
 if __name__ == "__main__":

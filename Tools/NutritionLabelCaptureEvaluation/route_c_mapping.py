@@ -33,7 +33,8 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from draft_untouched_truth import SERVING, SERVINGS, UNITS, parse_value
+from draft_untouched_truth import SERVINGS, UNITS, parse_value
+from score import PRINTED_MASS
 
 SCHEMA_VERSION = "label-capture-candidate-v1"
 SERVINGS_EN = re.compile(r"(about|approx\.?|approximately)?\s*(\d+(?:\.\d+)?)\s*servings?", re.IGNORECASE)
@@ -44,7 +45,8 @@ LANGUAGES = {"en", "zh-Hant", "mixed"}
 def _serving_size(text: str) -> dict[str, Any] | str:
     if not text or text.strip().lower() == "unknown":
         return "unknown"
-    match = SERVING.search(text)
+    # A unit must not run on into a word: "2 grilled sausages (90g)" is 90g, never 2g.
+    match = PRINTED_MASS.search(text)
     if not match:
         return {"printed_text": text, "decimal_text": None, "unit": None, "canonical_unit": None}
     unit = match.group(2)
@@ -133,7 +135,7 @@ def map_wire(wire: dict[str, Any], input_sha256: str) -> dict[str, Any]:
         if header["basis"] == "per_serving" and quantity is None:
             # Amendment M3 (owner, 18 October 2026): a per-serving header that prints a mass or
             # volume ("per 30g serving") carries its own serving quantity; nothing is inferred.
-            printed = SERVING.search(str(header["printed_text"] or ""))
+            printed = PRINTED_MASS.search(str(header["printed_text"] or ""))
             if printed:
                 quantity = f"{printed.group(1)}{printed.group(2)}"
                 warnings.append(f"serving_quantity_from_header: {header['header_id']}")

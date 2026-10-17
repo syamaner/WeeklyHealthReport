@@ -271,6 +271,9 @@ def route_c_openrouter(
                 found, value = finder(generation)  # reconcile a retried attempt that did produce a generation
                 if found == "found" and value is not None:
                     cost = Decimal(str(value))
+            # A deadline cut after the request was sent is charged at the per-call stop unless reconciled.
+            cost, cut_kind = openrouter_client.charge_for_cut(attempt.body, cost, guard.per_call_usd)
+            kind = cut_kind or kind
             attempt_costs.append(None if cost is None else str(cost))
             guard.record_call(
                 label,

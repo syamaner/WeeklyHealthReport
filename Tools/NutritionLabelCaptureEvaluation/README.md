@@ -221,19 +221,24 @@ when either lookup fails:
 Results: [`results/route-c-development-v1.md`](results/route-c-development-v1.md).
 
 **Phase 4 (no API call).** `decline_gate.py` is the frozen, route-independent decline gate
-(`label-capture-decline-gate-v1`); `decline_gate_solver` in `inspect_task.py` runs it after every
+(`label-capture-decline-gate-v2`; v1 is recorded in the contract); `decline_gate_solver` in `inspect_task.py` runs it after every
 route's extraction. It can only decline or block ready, never change a value. The saved development
 outputs of routes A, B and C are re-scored offline with it, and the UK stratum is diagnosed offline,
 with no provider call:
 
 ```sh
-.venv/bin/python rescore_development.py --runs ~/WHR-label-eval-private/runs --out results/decline-gate-rescore-v1.json
+.venv/bin/python rescore_development.py --runs ~/WHR-label-eval-private/runs --out results/gate-v2-rescore-v1.json --t1-log results/t1-uk-truth-changes-v1.json
 .venv/bin/python uk_diagnosis.py --runs ~/WHR-label-eval-private/runs --out results/uk-diagnosis-v1.json
 ```
 
 The owner amendments of 18 October 2026 (S1 scorer, M1 to M3 route C mapping, T1 UK truth
 convention; contract `amendments_2026_10_18`) are re-scored the same way, with route C re-mapped from
-its saved answers (`--out results/amendments-rescore-v1.json --t1-log results/t1-uk-truth-changes-v1.json`).
+its saved answers. Each result file is tied to the commit that wrote it, so a file is reproduced
+only at that commit: `results/decline-gate-rescore-v1.json` (gate v1, pre-amendment) at `f313578c`,
+`results/amendments-rescore-v1.json` (gate v1 with the amendments) at `ac584932`; the current
+version writes `--out results/gate-v2-rescore-v1.json --t1-log results/t1-uk-truth-changes-v1.json`
+and refuses to overwrite the two earlier files. `results/uk-diagnosis-v1.json` is the pre-amendment
+diagnosis written at `5c3d1548`; rerunning `uk_diagnosis.py` now scores with the amended scorer.
 
 `openrouter_client.http_post` enforces a whole-call deadline (a watchdog closes the socket when the
 time left of the 180 s budget runs out). Results, gate rules and the UK diagnosis:

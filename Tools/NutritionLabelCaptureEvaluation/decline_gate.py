@@ -1,4 +1,7 @@
-"""Deterministic decline gate `label-capture-decline-gate-v1` (phase 4, #255). Pure; no I/O.
+"""Deterministic decline gate `label-capture-decline-gate-v2` (phase 4, #255). Pure; no I/O.
+
+Version 2 (owner decisions on the review questions, 18 October 2026) changes G1, G2 and G4;
+version 1 is the gate the first phase 4 re-score used (contract `decline_gate.v1`).
 
 The gate runs on every candidate from every route (A, B and C) after extraction and
 before scoring. It only reads the candidate and the label format the case declares
@@ -23,16 +26,21 @@ G1 `unsupported_script` (decline). Plan section 6 limits v1 to `en` and `zh-Hant
    Big5 Traditional Chinese set used in Taiwan); both codecs ship with Python, so the
    distinction needs no hand-made list. The CJK middle dot (U+30FB) and the prolonged
    sound mark (U+30FC) sit in the Katakana block but are punctuation in Chinese text too,
-   so they are not counted as kana.
+   so they are not counted as kana. v2: a short list of shared variant code points
+   (SHARED_VARIANTS) is not counted as Simplified. Each is in GB 2312 but not CP950 only
+   because Big5 encodes a sibling glyph of the same character (內 for 内, 溫 for 温, 黃 for
+   黄, ...); the form differs by a written component, not by simplification, and Traditional
+   text from Hong Kong fonts, OCR and Unicode-unified typesetting commonly uses it.
 G2 `not_a_food_nutrition_panel` (decline). Food supplements are exempt from the
    nutrition declaration of retained Regulation (EU) No 1169/2011 (Article 29(1)(a)) and
    are labelled per daily dose under the Food Supplements (England) Regulations 2003;
    Taiwan's capsule and tablet foods follow a separate labelling rule
    (膠囊錠狀食品營養標示應遵行事項). A panel that names itself a supplement or gives a
-   softgel, caplet or 錠 (tablet) dose is not the label format the case declares.
-   `capsule` and 膠囊 are deliberately not markers, because coffee capsules are ordinary
-   food, and neither is English `tablet`, because Scottish tablet is a confection. Such a
-   supplement still fails G3, because it declares no energy or macronutrient rows.
+   softgel or caplet dose is not the label format the case declares. `capsule` and 膠囊
+   are deliberately not markers, because coffee capsules are ordinary food, and neither is
+   English `tablet`, because Scottish tablet is a confection. v2: 錠 is no longer a
+   standalone marker, because 口含錠 (mints and lozenges) are food. Such a supplement still
+   fails G3, because it declares no energy or macronutrient rows.
 G3 `required_row_missing` (decline). Each declared format has a mandatory set of rows:
    UK, Annex XV and Article 30(1) of 1169/2011 (energy in kJ and kcal, fat, saturates,
    carbohydrate, sugars, protein, salt); Taiwan, 包裝食品營養標示應遵行事項 (熱量, 蛋白質,
@@ -41,8 +49,11 @@ G3 `required_row_missing` (decline). Each declared format has a mandatory set of
    plan section 6 declines a table whose values cannot be bound to its rows.
 G4 `column_count_mismatch` (decline). Plan section 6 declines a table whose column
    values cannot be bound one to one to the row labels. Here: a mandatory row that has an
-   amount in one amount column but not in another amount column. Reference-intake
-   columns are left out, because Taiwan labels print `*` where no reference value exists.
+   amount in one per 100 g or per 100 ml column but not in another such column. v2: only
+   those columns are checked, because a per-portion column may legitimately list only some
+   rows (1169/2011 Article 33); a partial per-serving column is never declined.
+   Reference-intake columns are left out, because Taiwan labels print `*` where no
+   reference value exists.
 G5 `required_basis_missing` (block ready, UK only). Article 32(2) of 1169/2011 requires
    per 100 g or per 100 ml. No Taiwan column rule is encoded: the plan's own coverage
    (section 3.1) treats single-column Taiwan tables as usable, and the gate does not
@@ -64,7 +75,7 @@ from typing import Any
 
 from candidate import validate_candidate
 
-GATE_VERSION = "label-capture-decline-gate-v1"
+GATE_VERSION = "label-capture-decline-gate-v2"
 TAIWAN = "taiwan_nutrition_labelling"
 UK = "uk_nutrition_declaration"
 FORMATS = (TAIWAN, UK)
@@ -90,9 +101,14 @@ UNSUPPORTED_RANGES = (
     (0xFFA0, 0xFFDC),
 )
 HAN_RANGES = ((0x3400, 0x4DBF), (0x4E00, 0x9FFF), (0xF900, 0xFAFF))
+# v2: shared variant code points (in GB 2312, not in CP950, Big5 sibling in brackets) that
+# Traditional Chinese text commonly uses: 内 (內), 温 (溫), 黄 (黃), 户 (戶), 着 (著), 奥 (奧),
+# 吴 (吳), 吕 (呂), 没 (沒), 别 (別), 强 (強), 兑 (兌), 虚 (虛), 册 (冊). Each differs from its
+# Big5 sibling by a written component only, not by simplification.
+SHARED_VARIANTS = frozenset("内温黄户着奥吴吕没别强兑虚册")
 
 SUPPLEMENT_MARKERS = re.compile(
-    r"food\s+supplement|dietary\s+supplement|supplement\s+facts|\bsoft\s?gels?\b|\bcaplets?\b|錠|营养补充|營養補充",
+    r"food\s+supplement|dietary\s+supplement|supplement\s+facts|\bsoft\s?gels?\b|\bcaplets?\b|营养补充|營養補充",
     re.IGNORECASE,
 )
 
@@ -106,7 +122,9 @@ def _encodes(char: str, codec: str) -> bool:
 
 
 def is_simplified_only(char: str) -> bool:
-    """A Han character in GB 2312 but not in CP950 (Big5): a Simplified-only form."""
+    """A Han character in GB 2312 but not in CP950 (Big5), and not a shared variant: a Simplified-only form."""
+    if char in SHARED_VARIANTS:
+        return False
     code = ord(char)
     if not any(low <= code <= high for low, high in HAN_RANGES):
         return False
@@ -168,7 +186,7 @@ def evaluate(candidate: dict[str, Any], label_format: str) -> dict[str, Any]:
         declines.append("not_a_food_nutrition_panel")
         details.append("supplement_markers: " + ", ".join(markers))
 
-    amount_headers = [h.get("header_id") for h in headers if h.get("basis") != "reference_intake"]
+    per_100_headers = [h.get("header_id") for h in headers if h.get("basis") in ("per_100g", "per_100ml")]
     amount_cells = [c for c in cells if c.get("basis") != "reference_intake"]
     by_nutrient: dict[str, set[Any]] = {}
     for cell in amount_cells:
@@ -178,7 +196,7 @@ def evaluate(candidate: dict[str, Any], label_format: str) -> dict[str, Any]:
     if missing:
         declines.append("required_row_missing")
         details.append("required_rows_without_amount: " + ", ".join(missing))
-    short = [row for row in required if row in by_nutrient and any(h not in by_nutrient[row] for h in amount_headers)]
+    short = [row for row in required if row in by_nutrient and any(h not in by_nutrient[row] for h in per_100_headers)]
     if short:
         declines.append("column_count_mismatch")
         details.append("required_rows_missing_a_column: " + ", ".join(short))

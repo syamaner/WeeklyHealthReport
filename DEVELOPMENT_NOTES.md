@@ -1669,3 +1669,24 @@ Same subagent, transcript and pricing as WHR-255-2026-10-18a. Runs from the orch
 Boundary: `2026-10-17T17:20:15Z` → this edit. Cache writes: 76,371 5-minute, 0 1-hour. Exact API-equivalent USD 4.529897.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-18c: Claude Code label capture evaluation phase 4, invariant review fixes
+
+Same subagent, transcript and pricing as WHR-255-2026-10-18b. Runs from the orchestrator's message relaying the invariant review of PR #259 (`2026-10-17T18:04:33Z` in the transcript, UTC) to this ledger edit. It covers:
+
+- the M3 unit match;
+- decline gate v2;
+- the bounded DNS and connect, and the spend rule after a cut, with their tests;
+- the re-score hygiene;
+- the offline gate v2 re-score;
+- the documents and the contract.
+
+The previous row's gates, commit, push and Swift wait fall between the two rows and are unmeasured. No subagents and no OpenRouter call. The output counter is as the transcript records it.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 4 invariant review fixes (#255) | 21,217,037 (20,698,369) | 518,578 | 566 | 21,217,603 | $6.74 |
+
+Boundary: `2026-10-17T18:04:33Z` → this edit. Cache writes: 518,578 5-minute, 0 1-hour. Exact API-equivalent USD 6.7442438.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
