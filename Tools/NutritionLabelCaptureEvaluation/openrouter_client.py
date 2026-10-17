@@ -11,12 +11,12 @@ Shared by the route C solver and the untouched truth drafting, so both follow on
   is final too.
 - **Backoff:** exponential with full jitter (base 2 s, cap 60 s); a `Retry-After` header is
   respected in both forms (delta-seconds and HTTP-date) as the minimum wait.
-- **Bounds:** at most 5 attempts; 180 s caps when each retry may start (no attempt or
-  backoff wait begins once it would be passed), and each attempt's socket timeout is the
-  time left. A single attempt is not bounded as a whole: urllib's timeout applies per socket
-  read, so one slow attempt can run past 180 s (Grok 4.7 took 263 s on 17 October 2026) until
-  the whole-call deadline lands, before the untouched run. A call that exhausts its retries
-  returns its last cause.
+- **Bounds:** at most 5 attempts and a total deadline of 180 s per call. Each attempt gets the
+  time left as a **whole-attempt** deadline (phase 4): `http_post` aborts the connection when it
+  passes, however slowly the body arrives. Before phase 4 the time left was only a per-read
+  socket timeout, so one slow attempt could run past 180 s (263 s in the phase 3 development
+  arms, which ran without the whole-call deadline). A call that exhausts its retries returns
+  its last cause.
 - **Ledger:** the caller's `on_attempt` hook sees every attempt, so each one is recorded
   with its reported cost, or as unknown.
 
@@ -35,10 +35,15 @@ the Authorization header of the real `post`, never into a result, log or ledger.
 
 from __future__ import annotations
 
+import http.client
 import json
 import random
+import socket
+import ssl
+import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -214,30 +219,93 @@ class RefuseRedirects(urllib.request.HTTPRedirectHandler):
 OPENER = urllib.request.build_opener(RefuseRedirects)
 
 
-def http_post(key: str, title: str) -> PostFn:
-    """The real POST to OpenRouter; the key goes in the Authorization header only."""
+class DeadlineExceeded(Exception):
+    """The attempt's whole-call deadline passed before the full response body arrived."""
+
+
+MINIMUM_ATTEMPT_SECONDS = 0.1
+READ_CHUNK_BYTES = 65536
+
+
+def _abort(connection: http.client.HTTPConnection) -> None:
+    """Watchdog action: shut the socket down so a blocked connect, send or read returns at once."""
+    sock = connection.sock
+    if sock is not None:
+        try:
+            sock.shutdown(socket.SHUT_RDWR)
+        except OSError:
+            pass
+    connection.close()
+
+
+def read_until(read_chunk: Callable[[int], bytes], deadline: float, clock: Callable[[], float] = time.monotonic) -> bytes:
+    """Read a body chunk by chunk, stopping with `DeadlineExceeded` once `deadline` has passed.
+
+    `read_chunk` returns whatever bytes are available (at most the size asked) and `b""` at the end.
+    """
+    parts: list[bytes] = []
+    while True:
+        if clock() >= deadline:
+            raise DeadlineExceeded
+        chunk = read_chunk(READ_CHUNK_BYTES)
+        if not chunk:
+            return b"".join(parts)
+        parts.append(chunk)
+
+
+def http_post(key: str, title: str, url: str = ENDPOINT_URL) -> PostFn:
+    """The real POST to OpenRouter; the key goes in the Authorization header only.
+
+    Whole-call deadline (phase 4): `timeout` bounds the **whole attempt**, from connecting to
+    the last body byte, not each socket read. A watchdog timer shuts the socket down at the
+    deadline (so a stalled connect, a server that never sends headers, or a body trickled one
+    byte at a time all end there), and the body is read in chunks with a deadline check
+    between chunks. `call_with_retry` passes the time left of its 180 s budget as `timeout`,
+    so no call, retries included, can outlast that budget by more than the watchdog's reaction
+    time. A cut attempt returns status 0 (transport error or timeout), which the retry policy
+    treats like any other timeout. The development arms of phase 3 ran without this deadline.
+    Redirects are never followed (`http.client` does not follow them), so the key never
+    reaches another host; a 3xx is returned as a final, non-retryable status.
+    """
+    parts = urllib.parse.urlsplit(url)
+    if parts.scheme not in ("https", "http") or not parts.hostname:
+        raise ValueError(f"unsupported URL {url!r}")
+    host: str = parts.hostname
+    path = parts.path + (f"?{parts.query}" if parts.query else "")
 
     def post(body: dict[str, Any], timeout: float) -> tuple[int, dict[str, Any] | None, dict[str, str], float]:
-        request = urllib.request.Request(
-            ENDPOINT_URL,
-            data=json.dumps(body).encode("utf-8"),
-            headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", "X-Title": title},
-            method="POST",
-        )
         started = time.monotonic()
-        headers: dict[str, str] = {}
+        budget = max(timeout, MINIMUM_ATTEMPT_SECONDS)
+        deadline = started + budget
+        connection: http.client.HTTPConnection
+        if parts.scheme == "https":
+            connection = http.client.HTTPSConnection(host, parts.port, timeout=budget, context=ssl.create_default_context())
+        else:
+            connection = http.client.HTTPConnection(host, parts.port, timeout=budget)
+        watchdog = threading.Timer(budget, _abort, args=(connection,))
+        watchdog.daemon = True
+        watchdog.start()
         try:
-            with OPENER.open(request, timeout=max(timeout, 1.0)) as response:
-                status, payload = response.status, response.read()
-                headers = dict(response.headers.items())
-        except urllib.error.HTTPError as error:
-            status, payload = error.code, error.read()
-            headers = dict(error.headers.items()) if error.headers else {}
-        except (urllib.error.URLError, TimeoutError, ConnectionError, OSError):
+            connection.request(
+                "POST",
+                path or "/",
+                body=json.dumps(body).encode("utf-8"),
+                headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json", "X-Title": title},
+            )
+            response = connection.getresponse()
+            status = response.status
+            headers = dict(response.getheaders())
+            payload = read_until(response.read1, deadline)
+        except (DeadlineExceeded, http.client.HTTPException, OSError, ValueError):
+            return 0, None, {}, time.monotonic() - started
+        finally:
+            watchdog.cancel()
+            connection.close()
+        if time.monotonic() > deadline:  # the watchdog fired while the last chunk was in flight
             return 0, None, {}, time.monotonic() - started
         try:
             parsed = json.loads(payload)
-        except json.JSONDecodeError:
+        except (json.JSONDecodeError, UnicodeDecodeError):
             parsed = None
         return status, parsed if isinstance(parsed, dict) else None, headers, time.monotonic() - started
 

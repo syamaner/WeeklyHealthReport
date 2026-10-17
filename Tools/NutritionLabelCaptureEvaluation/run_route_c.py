@@ -184,6 +184,7 @@ def qualification_cases(folder: Path) -> list[dict[str, Any]]:
                 "metadata": {
                     "corpus": "qualification",
                     "stratum": "qualification",
+                    "label_format": "taiwan_nutrition_labelling" if "zh-hant" in name else "uk_nutrition_declaration",
                     "split": "development",
                     "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
                     "fictional": True,
