@@ -1,0 +1,14 @@
+target-version = "py311"
+line-length = 140
+extend-exclude = [".venv", "runs"]
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+
+[lint.isort]
+known-first-party = ["arithmetic", "budget", "candidate", "cases", "score", "synthetic", "inspect_task", "acquire_off_taiwan", "validate_contract"]
+# tests/helpers.py puts the harness folder on sys.path, so it must be imported first.
+section-order = ["future", "standard-library", "third-party", "test-path", "first-party", "local-folder"]
+
+[lint.isort.sections]
+test-path = ["helpers"]

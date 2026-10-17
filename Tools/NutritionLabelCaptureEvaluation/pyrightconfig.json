@@ -1,0 +1,10 @@
+{
+  "include": ["."],
+  "exclude": [".venv", "**/__pycache__", "runs"],
+  "extraPaths": [".", "tests"],
+  "venvPath": ".",
+  "venv": ".venv",
+  "pythonVersion": "3.11",
+  "typeCheckingMode": "standard",
+  "reportMissingModuleSource": "none"
+}

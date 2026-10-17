@@ -1,0 +1,266 @@
+{
+  "schema_version": "label-capture-evaluation-contract-v1",
+  "contract_version": "label-capture-evaluation-v1",
+  "status": "development_phase_1",
+  "status_note": "Phase 1 (#255): thresholds, adequacy minima, tolerances, selection, split and sealing rules are pre-registered here. Artefact hashes pin the current development state; they are re-pinned, and the status set to frozen_for_untouched_run, only when every route is frozen before the single untouched run.",
+  "plan": "docs/nutrition-label-capture-evaluation-v1.md",
+  "plan_approved": "2026-10-17",
+  "framework": {
+    "name": "inspect_ai",
+    "version": "0.3.276",
+    "requirements": "Tools/NutritionLabelCaptureEvaluation/requirements.txt"
+  },
+  "candidate_schema": {
+    "path": "Tools/NutritionLabelCaptureEvaluation/candidate-schema-v1.json",
+    "schema_version": "label-capture-candidate-v1",
+    "required_status": "user_selection_only",
+    "required_ready_for_confirmation": false,
+    "required_automatic_save": false,
+    "required_cell_persistence_authorized": false,
+    "required_cell_requires_user_selection": true,
+    "basis_values": [
+      "per_100g",
+      "per_100ml",
+      "per_serving",
+      "reference_intake"
+    ],
+    "comparators": [
+      "=",
+      "<",
+      "<="
+    ],
+    "unknown_must_remain_explicit": true
+  },
+  "scoring": {
+    "match_key": "Canonical nutrient (or unrecognised plus normalised printed label), parent nutrient, semantic basis, and the normalised printed header only when a basis repeats; duplicate same-basis columns without distinct printed headers never earn credit by list order.",
+    "strict_cell": "decimal_text, comparator, printed unit text, canonical unit and basis all equal, without rewriting numeric or unit text.",
+    "binding": "every expected cell, including reference-intake cells: the candidate cell with the same key carries the same decimal_text.",
+    "unit_and_basis": "every expected product cell: the candidate cell with the same key has the same printed unit text, canonical unit and basis.",
+    "full_table": "every usable table: no decline, every expected cell strict, no extra or ambiguous candidate cell, servings per pack and serving size equal.",
+    "serving_conversion": "every per-serving cell with a printed serving quantity: candidate quantity equal with whitespace removed; unknown or inferred values earn no credit.",
+    "false_ready": "the route would mark the table ready (would_mark_ready and the shared arithmetic policy does not fail) but it is not full-table exact, or a decline was required; any automatic persistence is a separate critical failure.",
+    "failed_output": "schema-invalid or missing candidates are failed, distinct from declined, and stay in every denominator.",
+    "zero_denominator": "reported as no_denominator, never as a pass."
+  },
+  "metrics": {
+    "numeric_cell_exact_minimum": 0.95,
+    "row_header_binding_minimum": 0.98,
+    "unit_and_basis_minimum": 1.0,
+    "full_table_exact_minimum": 0.75,
+    "serving_conversion_minimum": 0.98,
+    "servings_per_pack_minimum": 0.98,
+    "bound_preservation_minimum": 1.0,
+    "correct_decline_minimum": 0.95,
+    "false_ready_maximum": 0,
+    "arithmetic_detection_minimum": 1.0
+  },
+  "adequacy_minima_untouched": {
+    "usable_sealed_v2_tables": 30,
+    "sealed_v2_required_declines": 5,
+    "sealed_v2_bounded_cells": 10,
+    "sealed_v2_printed_serving_conversions": 20,
+    "untouched_synthetic_chinese_cases": 30,
+    "untouched_off_taiwan_photos": 40
+  },
+  "arithmetic": {
+    "energy_forms": {
+      "general": "4P + 4C + 9F (UK and US; Taiwan only when no fibre row is printed)",
+      "uk_fibre_variant": "4P + 4C + 9F + 2 fibre (UK and EU, either UK form may pass)",
+      "taiwan": "4P + 4(C - fibre) + 2 fibre + 9F, the only form when a Taiwan label prints a fibre row (decision Q1, 17 October 2026); a bounded or unreadable fibre value makes it not checkable"
+    },
+    "tolerance": {
+      "uk": {
+        "absolute_kcal": 15,
+        "relative": 0.1
+      },
+      "taiwan": {
+        "absolute_kcal": 15,
+        "relative": 0.1
+      },
+      "us": {
+        "absolute_kcal": 20,
+        "relative": 0.2
+      }
+    },
+    "kj_per_kcal": 4.184,
+    "kj_kcal_relative_tolerance": 0.02,
+    "inputs_must_be_exact_printed_values_on_one_basis": true,
+    "failure_blocks_ready_never_rewrites": true,
+    "pass_never_authorises": true,
+    "mutations": [
+      "tenfold_serving",
+      "basis_transposition",
+      "bound_replaced_by_exact"
+    ]
+  },
+  "decline_rules": [
+    "no_table",
+    "no_basis_header",
+    "duplicate_basis",
+    "count_mismatch",
+    "values_without_row",
+    "value_without_unit",
+    "energy_without_unit",
+    "unrecognised_unit",
+    "unsupported_language",
+    "multiple_panels"
+  ],
+  "corpus": {
+    "off_taiwan": {
+      "query": "countries_tags:\"en:taiwan\"",
+      "endpoint": "https://search.openfoodfacts.org/search",
+      "image_key": "nutrition_zh",
+      "order": "ascending SHA-256 of the UTF-8 13-digit barcode",
+      "selected": 60,
+      "development": 20,
+      "untouched": 40,
+      "manifest": "Tools/NutritionLabelCaptureEvaluation/fixtures/off-taiwan-manifest-v1.json",
+      "manifest_sha256": "9414c76d8c55ece094bd4a2e4691323329980b27cbd245ebd3754ef40340ea8d",
+      "licence": "CC BY-SA 3.0",
+      "sealing": "Untouched photos are hashed only, stored read-only in a separate sealed folder outside the repository, and opened once in the single frozen run for all routes together; no replacement, no rerun.",
+      "development_replacements": [
+        {
+          "replaces_order": 4,
+          "order": 61,
+          "reason": "English-only label, not a 營養標示 panel"
+        },
+        {
+          "replaces_order": 17,
+          "order": 62,
+          "reason": "English-only label, not a 營養標示 panel"
+        }
+      ],
+      "refill_rule": {
+        "owner_decision": "B, 17 October 2026",
+        "approved_orders": "61 to 87 (up to 27 photos, about 13 MB, CC BY-SA 3.0)",
+        "download": "only when an exclusion needs a refill, with the reason logged in the manifest",
+        "order": "development replacements take the next barcodes in hash order first (61 and 62, used), untouched refills follow from order 63",
+        "untouched_exclusions": "decided from the untouched truth drafting (decision A) before any route sees an untouched image; an excluded untouched photo is refilled from the next unused order, never replaced after any route output is seen",
+        "batch_stop_bytes": 5000000
+      },
+      "minimum_counts": {
+        "development_photos": "20 after replacements (orders 1 to 20 less 4 and 17, plus 61 and 62)",
+        "untouched_photos": "40 usable-or-decline photos after any refills from orders 63 to 87; if the refill pool runs out before 40 remain, the Taiwan stratum is invalid and reported as a diagnostic, never a pass"
+      }
+    },
+    "fda188": {
+      "source": "https://data.fda.gov.tw/data/opendata/export/188/csv",
+      "source_record": "Tools/NutritionLabelCaptureEvaluation/fixtures/fda-188-source-v1.json",
+      "licence": "Open Government Data License, version 1.0 (Taiwan)",
+      "order": "ascending SHA-256 of 'fda188-v1:' + SHA-256(trace code | product name | package)",
+      "candidates_taken": 120,
+      "split": "first 8 hex digits of the order key: even is development, odd is untouched",
+      "untouched_rendered_only_after_generator_freeze": true
+    },
+    "muesli": {
+      "original_sha256": "b360d49e8934b4d275ea11640901ee1aeed767a12b56f9a7e4b1b1ba439d0d38",
+      "stripped_master_sha256": "4c4a2d790ebe85a3853fed7ae2f1c09e7448f3179866658f0994b519b7b9f220",
+      "set": "development"
+    },
+    "v2_sealed": {
+      "reference": "Tools/FoodOCREvaluation/frozen-contract-v2.json",
+      "set": "untouched",
+      "never_read_in_phase_1": true
+    }
+  },
+  "route_c": {
+    "enabled": false,
+    "models_in_run_order": [
+      "GPT-6 Luna (azure)",
+      "Grok 4.7 (xai/zdr)",
+      "GPT-6.1 Sol (azure)",
+      "Gemini 4 (ZDR endpoint on the day)",
+      "Claude Opus 4.7 (google-vertex/global)"
+    ],
+    "provider_block": {
+      "only": [
+        "<endpoint>"
+      ],
+      "order": [
+        "<endpoint>"
+      ],
+      "allow_fallbacks": false,
+      "require_parameters": true,
+      "data_collection": "deny",
+      "zdr": true
+    },
+    "max_output_tokens": 4096,
+    "timeout_seconds": 90,
+    "retries": 0,
+    "per_call_stop_usd": 0.05,
+    "total_stop_usd": 25,
+    "unknown_cost_calls_allowed": 3,
+    "sealed_run_reserved_calls": 200,
+    "response_checks": "response model and provider must match the request and finish_reason must be stop; otherwise the case is failed",
+    "cost_source": "usage.cost on the raw OpenRouter response; Inspect's ModelUsage.total_cost is computed from Inspect's own price table, so it is not used; a missing cost is unknown",
+    "reserve_models": [],
+    "reserve_note": "Qwen 3.5 was removed from the route C reserve because it drafts untouched truth (decision A).",
+    "never_sees_untouched_truth_or_drafts": true,
+    "sealed_reservation": "RunBudget holds back 200 calls at the $0.05 ceiling ($10) from development calls"
+  },
+  "ground_truth": {
+    "development_off_taiwan": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json",
+    "development_off_taiwan_status": "first_pass_unverified",
+    "untouched_sha256": "",
+    "development_off_taiwan_drafting": "Pass 1 of the 20 Taiwan development truths was drafted by Claude (the assistant); Claude Opus route C results on development data carry that caveat."
+  },
+  "frozen_artefacts": {
+    "Tools/NutritionLabelCaptureEvaluation/candidate-schema-v1.json": "74333555741f73f2557fe74e11cfcb7b2693f5a261c49957a9e8e6e39404e531",
+    "Tools/NutritionLabelCaptureEvaluation/candidate.py": "05f67900b4b38bd820d71a04351b5a26553a976d74051a5964210a24e20109c1",
+    "Tools/NutritionLabelCaptureEvaluation/score.py": "0ad028b55239da71b9725d507ac6b283492b3175852a756ce2ddf145e26d2f7d",
+    "Tools/NutritionLabelCaptureEvaluation/arithmetic.py": "c87b18206d310791ad2c3d0ff5087ca3eff248fe0296d393f960e1cbcf183af0",
+    "Tools/NutritionLabelCaptureEvaluation/budget.py": "04c9ec610aca1e1f72b7097908ac5abe932ff85e64b841eb02db8b3e2f6b4421",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py": "28dae841c9ac323d6e9445e75fb21ec7c45351a91e46f65c3d546f018dba54d5",
+    "Tools/NutritionLabelCaptureEvaluation/requirements-dev.lock": "ecdedef956a76eeed2983139f2b82f89bf0ebbecd54b5de4bc8e964e4c32674a",
+    "Tools/NutritionLabelCaptureEvaluation/cases.py": "2289ee03a0485b829e11f4e8f2f34f83a0c243cb79af7e8383d49538da42dc15",
+    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "a625e4836fde3f74a0168bf2954941d7ea28374df0e85c7662054a05325cf0c7",
+    "Tools/NutritionLabelCaptureEvaluation/requirements.txt": "56dfa330c985616b9a3704fc5f5df526abb6e7136ece92a29bfa471db190acf4",
+    "Tools/NutritionLabelCaptureEvaluation/synthetic/render.py": "6c8fcb7d30f7829f1f493859bc63ae6828c4af67dff77aa1aded7919c0996ae1",
+    "Tools/NutritionLabelCaptureEvaluation/build_cases.py": "7450a7343fe3a09199207b8167ee83f2dd29224418ce6708d35210275683fbaa",
+    "Tools/NutritionLabelCaptureEvaluation/synthetic/development-cases-v1.jsonl": "894a406d6e1a720b0712517beb59da3387171d7c3e6cedd46b2b7a7813175da8",
+    "Tools/NutritionLabelCaptureEvaluation/fixtures/off-taiwan-manifest-v1.json": "9414c76d8c55ece094bd4a2e4691323329980b27cbd245ebd3754ef40340ea8d",
+    "Tools/NutritionLabelCaptureEvaluation/fixtures/fda-188-source-v1.json": "f39b56aaef33cce0d0ab01555938a54cb4254521205eb5007e47b677632fd82b",
+    "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json": "ba3d75f03c19214d368ed508e0cebf14e640c99c929b7c4ff6c9f1f49d31029d",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/label-image-extraction-instruction-v1.txt": "4d661214eddc3da2e8e6754857c9802f02b62d53741e982f5f71de44de9dcd99",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/label-image-wire-schema-v1.json": "8d10352dcf69fa0f3da203835ce3aac95df573ba689ee29ffab34177e0432b71",
+    "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/LabelCaptureCandidate.swift": "65722296a95944d0c6d32505beb35f469c0906cd7782fed769aa0c6a5576c76f",
+    "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/LabelVocabulary.swift": "0792d7c351f58f967e21ba0c34cc551c245d9421dd9455a6b371035e8409260d",
+    "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/NutritionLabelTextParser.swift": "2e2f180b92831f54a9fc88c17bee60a0993be339625717b593dad7c6ee88341c",
+    "Packages/FoodLedgerKit/Tools/NutritionLabelTextParse/main.swift": "64263db7a0bd6535cb8950ed88df7d0e93b28c1df6817aeaff2882ccee759a3e"
+  },
+  "untouched_truth_drafting": {
+    "owner_decision": "A, 17 October 2026",
+    "applies_to": [
+      "off_taiwan untouched (40)",
+      "v2 sealed UK images (40)"
+    ],
+    "pass_1": "drafted by a non-Claude model that is not a route C model under test: Qwen 3.5 VL through OpenRouter, slug and endpoint recorded on the run day",
+    "pass_2": "the owner verifies every value against the image and corrects it",
+    "evidence_label": "model-drafted, owner-verified (weaker than independent human transcription)",
+    "egress": "public corpus images only, sent to OpenRouter with the route C provider block (one endpoint, ZDR, data collection denied, no fallbacks); runs in a later phase under the spend stops",
+    "route_c_never_sees_untouched_truth_or_drafts": true,
+    "status": "defined, not run"
+  },
+  "deviations": [
+    {
+      "item": "v2 sealed ground truth",
+      "plan": "section 4 step 1: locate and freeze the 100 hash-bound v2 public reviews",
+      "status": "the reviews were not found under the main checkout; the 40 sealed v2 images need a fresh pass 1 by the decision A method (model-drafted, owner-verified) before the sealed run"
+    },
+    {
+      "item": "Taiwan refill",
+      "plan": "section 3.5: exclude and refill in hash order",
+      "status": "orders 4 and 17 (English-only) replaced by orders 61 and 62 on 17 October 2026; untouched refills pending the decision A drafting"
+    },
+    {
+      "item": "Synthetic Chinese generator",
+      "plan": "section 3.1: a closed template with seeded values",
+      "status": "Taiwan FDA dataset 188 rows are used in place of most generated tables (owner-approved addition); a small closed template adds the tags FDA 188 lacks (bounds, 每日參考值百分比, 每100毫升, 本包裝含2.5份)"
+    },
+    {
+      "item": "Route C wire mapping",
+      "plan": "section 2.2: route C emits label-capture-candidate-v1",
+      "status": "the wire schema is a draft and its mapping to the candidate is not implemented; route C stays disabled"
+    }
+  ]
+}

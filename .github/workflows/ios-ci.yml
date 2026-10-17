@@ -211,6 +211,39 @@ jobs:
           python3 Tools/FoodOCREvaluation/validate_contract_v2.py \
             Tools/FoodOCREvaluation/frozen-contract-v2.json
 
+  label-capture-evaluation:
+    name: Nutrition-label capture evaluation contracts
+    runs-on: ubuntu-latest
+    needs: changes
+    # Fail closed: only an explicit documentation-only decision skips this job.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # Offline: scorers, arithmetic checks, sealed-set guard and contract hashes.
+      # No model, provider or Vision call; the Inspect wiring test is skipped here.
+      - name: Verify label-capture contract and pure unit tests
+        run: |
+          python3 -m unittest discover -s Tools/NutritionLabelCaptureEvaluation/tests -v
+          python3 Tools/NutritionLabelCaptureEvaluation/validate_contract.py \
+            Tools/NutritionLabelCaptureEvaluation/frozen-contract-v1.json
+
+      # Installs the hash-locked Inspect AI, pyright and ruff from PyPI into the harness
+      # venv (network, but no model or provider call), then runs ruff, pyright and the
+      # same tests, including the Inspect wiring test with a stub parser and mockllm.
+      - name: Verify Inspect wiring, ruff and pyright with hash-locked tools
+        working-directory: Tools/NutritionLabelCaptureEvaluation
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install --disable-pip-version-check --require-hashes -r requirements-dev.lock
+          .venv/bin/ruff check .
+          .venv/bin/ruff format --check .
+          .venv/bin/pyright
+          .venv/bin/python -m unittest discover -s tests -v
+
   drive-export-kit-build:
     name: DriveExportKit build
     runs-on: macos-26

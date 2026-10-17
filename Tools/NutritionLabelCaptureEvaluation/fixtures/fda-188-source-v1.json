@@ -1,0 +1,26 @@
+{
+  "schema_version": "fda-188-source-record-v1",
+  "dataset": "Taiwan FDA open dataset 188 (食品追溯追蹤系統消費者查詢資料集)",
+  "source_url": "https://data.fda.gov.tw/data/opendata/export/188/csv",
+  "downloaded_at": "2026-10-16T17:33:56Z",
+  "owner_approval": "Owner approved the CSV zip (about 2.5 MB) on 17 October 2026.",
+  "archive": {
+    "served_filename": "188_2.csv.zip",
+    "bytes": 2496893,
+    "sha256": "cfbdcf5f21ef8d3d679775e9e75a34c1044f8ee2b5c74735ffa6693719bc472f"
+  },
+  "extracted": {
+    "filename": "188_2.csv",
+    "bytes": 28496245,
+    "sha256": "26f3f6ffa74c2112e178c8f25329a5cee7600886d40de09f49c4ae823b07bb67",
+    "rows": 50769,
+    "rows_with_per_serving_energy": 10771
+  },
+  "storage": "Kept outside the repository (private evaluation folder); only this record and rendered synthetic development cases are committed.",
+  "licence": "Open Government Data License, version 1.0 (Taiwan)",
+  "licence_url": "https://data.gov.tw/license",
+  "attribution": "Contains data from Taiwan Food and Drug Administration, Ministry of Health and Welfare, open dataset 188, used under the Open Government Data License, version 1.0.",
+  "caveat": "Values are supplied by manufacturers and are not guaranteed by the FDA. A row is used only if every 營養標示 field is structured and the row passes the internal-consistency checks in arithmetic.py; cases rendered from it are labelled synthetic.",
+  "fields_used": ["產品追溯系統串接碼", "產品名稱", "包裝規格", "每一份量", "本包裝含", "每份…", "每100公克…", "每100毫升…"],
+  "fields_absent": "The dataset has no dietary fibre column, so the Taiwan fibre energy form is not exercised by these cases."
+}

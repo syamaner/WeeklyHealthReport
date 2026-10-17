@@ -10,6 +10,8 @@ let package = Package(
     ],
     products: [
         .executable(name: "FoodProposalProbe", targets: ["FoodProposalProbe"]),
+        .executable(name: "NutritionLabelTextParse", targets: ["NutritionLabelTextParse"]),
+        .library(name: "NutritionLabelParsing", targets: ["NutritionLabelParsing"]),
         .library(name: "FoodLedgerDomain", targets: ["FoodLedgerDomain"]),
         .library(name: "FoodLedgerApplication", targets: ["FoodLedgerApplication"]),
         .library(name: "FoodLedgerPresentation", targets: ["FoodLedgerPresentation"]),
@@ -26,7 +28,10 @@ let package = Package(
     ],
     targets: [
         .executableTarget(name: "FoodProposalProbe", dependencies: ["FoodGenericSearch", "FoodLedgerApplication", "FoodLedgerDomain"], path: "Tools/FoodProposalProbe"),
+        .executableTarget(name: "NutritionLabelTextParse", dependencies: ["NutritionLabelParsing"], path: "Tools/NutritionLabelTextParse"),
         .target(name: "FoodLedgerDomain"),
+        // Pure label-text parser under evaluation (#255); Foundation only, no app dependency.
+        .target(name: "NutritionLabelParsing"),
         .target(
             name: "FoodLedgerApplication",
             dependencies: ["FoodLedgerDomain"]
@@ -60,6 +65,10 @@ let package = Package(
         .target(
             name: "FoodLedgerTestSupport",
             dependencies: ["FoodLedgerDomain", "FoodLedgerApplication"]
+        ),
+        .testTarget(
+            name: "NutritionLabelParsingTests",
+            dependencies: ["NutritionLabelParsing"]
         ),
         .testTarget(
             name: "FoodLedgerDomainTests",

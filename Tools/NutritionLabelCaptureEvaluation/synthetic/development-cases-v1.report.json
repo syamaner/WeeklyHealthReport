@@ -1,0 +1,246 @@
+{
+  "generator_version": "label-pasted-text-renderer-v1",
+  "seed": "nutrition-label-capture-v1",
+  "dataset_sha256": "894a406d6e1a720b0712517beb59da3387171d7c3e6cedd46b2b7a7813175da8",
+  "cases": 207,
+  "by_corpus": {
+    "fda188": 76,
+    "muesli_typed": 1,
+    "v1": 80,
+    "v2dev": 22,
+    "zh_template": 28
+  },
+  "required_declines": 16,
+  "sources": {
+    "v1_ground_truth_sha256": "c9475cbd7273494a051e18d7f281bf11881affe304be3fe307424031cebafcc0",
+    "v2_development_review_sha256": "bfa9fd06fc4bd7375e173226d7605aa6cf43b38a3da3540dbba71af6ec37cef6",
+    "fda188_csv_sha256": "26f3f6ffa74c2112e178c8f25329a5cee7600886d40de09f49c4ae823b07bb67"
+  },
+  "fda188": {
+    "eligible_rows": 9129,
+    "candidates_taken": 120,
+    "split": {
+      "development": 60,
+      "untouched": 60
+    },
+    "ineligible_reasons": {
+      "fails the internal-consistency check": 1629,
+      "unstructured or wrongly united value for 熱量": 9,
+      "serving size or servings per pack not structured": 3,
+      "unstructured or wrongly united value for 鈉": 1
+    }
+  },
+  "zh_template": {
+    "variants": [
+      "bound",
+      "reference_intake_column",
+      "per_100ml",
+      "single_column",
+      "servings_2_5"
+    ],
+    "candidates_per_variant": 12,
+    "split": {
+      "development": 28,
+      "untouched": 32
+    }
+  },
+  "chinese_coverage": {
+    "chinese_cases": 105,
+    "covered": [
+      "bound",
+      "decline_expected",
+      "nested_rows",
+      "per_100ml",
+      "reference_intake_column",
+      "serving_line",
+      "servings_per_pack",
+      "single_column",
+      "sodium",
+      "synthetic",
+      "two_column_serving_and_100",
+      "zh_hant"
+    ],
+    "not_covered": [
+      "column_offset",
+      "curved_or_crumpled",
+      "en_uk",
+      "glossy",
+      "salt",
+      "small_font"
+    ],
+    "not_applicable_to_pasted_text": [
+      "column_offset",
+      "curved_or_crumpled",
+      "glossy",
+      "small_font"
+    ],
+    "counts": {
+      "zh_hant": 105,
+      "two_column_serving_and_100": 44,
+      "single_column": 61,
+      "reference_intake_column": 7,
+      "per_100ml": 8,
+      "bound": 3,
+      "sodium": 105,
+      "serving_line": 105,
+      "servings_per_pack": 105,
+      "nested_rows": 105,
+      "decline_expected": 16,
+      "synthetic": 104
+    }
+  },
+  "english_exclusions": [
+    {
+      "source": "off:5000242111620:nutrition_en.17",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5060337222143:nutrition_en.45",
+      "reason": "two same-basis columns whose printed headers were not recorded"
+    },
+    {
+      "source": "off:5055476150907:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5034210110056:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5000169662212:nutrition_en.6",
+      "reason": "a ground-truth header mixes bases"
+    },
+    {
+      "source": "off:5010482431884:nutrition_en.33",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5000129346190:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5060238480727:nutrition_en.16",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5000129305760:nutrition_en.10",
+      "reason": "two same-basis columns whose printed headers were not recorded"
+    },
+    {
+      "source": "off:5060292125145:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5050028274704:nutrition_en.6",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5060660088683:nutrition_en.25",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5017174910399:nutrition_en.12",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5011673143807:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5050028255321:nutrition_en.5",
+      "reason": "a row has a blank cell in an amount column"
+    },
+    {
+      "source": "off:5016311000047:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5000208052097:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5060029720599:nutrition_en.8",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5063334025519:nutrition_en.5",
+      "reason": "a row has a blank cell in an amount column"
+    },
+    {
+      "source": "off:5010525160283:nutrition_en.4",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5060131761954:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5060201623175:nutrition_en.8",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5000382112303:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5000453123795:nutrition_en.7",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5056555202760:nutrition_en.7",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5015696447201:nutrition_en.9",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5057172978809:nutrition_en.10",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5060026822371:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5010102243446:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5010102243842:nutrition_fr.18",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5000205045986:nutrition_en.7",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5056169112905:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5010292978418:nutrition_en.5",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5000157071620:nutrition_en.7",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5000157078773:nutrition_en.45",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5060380692207:nutrition_en.3",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5052909355021:nutrition_en.9",
+      "reason": "panel requires a decline in the image ground truth"
+    },
+    {
+      "source": "off:5063089832110:nutrition_en.11",
+      "reason": "panel requires a decline in the image ground truth"
+    }
+  ]
+}
