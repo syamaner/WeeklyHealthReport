@@ -1,0 +1,369 @@
+{
+ "amendment": "T1 (owner, 18 October 2026)",
+ "scope": "UK v2 development review truth as loaded by cases.load_uk_development_review; the frozen review is unchanged",
+ "records": 39,
+ "records_changed": 23,
+ "changes": [
+  {
+   "case_id": "off:5060131761954:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "energy_kcal",
+   "row_id": [
+    "energy_ri",
+    "energy_kcal"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5060131761954:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "fat",
+   "row_id": [
+    "fat_ri",
+    "fat"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5060131761954:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "saturates",
+   "row_id": [
+    "saturates_ri",
+    "saturates"
+   ],
+   "parent_row_id": [
+    null,
+    "fat"
+   ]
+  },
+  {
+   "case_id": "off:5060131761954:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "carbohydrate",
+   "row_id": [
+    "carbohydrate_ri",
+    "carbohydrate"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5060131761954:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "sugars",
+   "row_id": [
+    "sugars_ri",
+    "sugars"
+   ],
+   "parent_row_id": [
+    null,
+    "carbohydrate"
+   ]
+  },
+  {
+   "case_id": "off:5060131761954:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "protein",
+   "row_id": [
+    "protein_ri",
+    "protein"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5060131761954:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "salt",
+   "row_id": [
+    "salt_ri",
+    "salt"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5000187132315:nutrition_en.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5057172728022:nutrition_en.15",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5060276371216:nutrition_en.9",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5060665750608:nutrition_en.7",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5060323902912:nutrition_en.18",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5057172706181:nutrition_fr.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5060413823295:nutrition_en.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5012389900142:nutrition_en.3",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5057172859696:nutrition_en.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5051622956027:nutrition_es.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5053990185917:nutrition_en.9",
+   "header_id": "header_3",
+   "nutrient": "energy_kcal",
+   "row_id": [
+    "energy_ri",
+    "energy_kcal"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5053990185917:nutrition_en.9",
+   "header_id": "header_3",
+   "nutrient": "fat",
+   "row_id": [
+    "fat_ri",
+    "fat"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5053990185917:nutrition_en.9",
+   "header_id": "header_3",
+   "nutrient": "saturates",
+   "row_id": [
+    "saturates_ri",
+    "saturates"
+   ],
+   "parent_row_id": [
+    null,
+    "fat"
+   ]
+  },
+  {
+   "case_id": "off:5053990185917:nutrition_en.9",
+   "header_id": "header_3",
+   "nutrient": "carbohydrate",
+   "row_id": [
+    "carbohydrate_ri",
+    "carbohydrate"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5053990185917:nutrition_en.9",
+   "header_id": "header_3",
+   "nutrient": "sugars",
+   "row_id": [
+    "sugars_ri",
+    "sugars"
+   ],
+   "parent_row_id": [
+    null,
+    "carbohydrate"
+   ]
+  },
+  {
+   "case_id": "off:5053990185917:nutrition_en.9",
+   "header_id": "header_3",
+   "nutrient": "protein",
+   "row_id": [
+    "protein_ri",
+    "protein"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5053990185917:nutrition_en.9",
+   "header_id": "header_3",
+   "nutrient": "salt",
+   "row_id": [
+    "salt_ri",
+    "salt"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5053990185917:nutrition_en.9",
+   "reference_intake_transcribed": true
+  },
+  {
+   "case_id": "off:5029396002509:nutrition_en.11",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5057624572234:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "energy_kcal",
+   "row_id": [
+    "energy_ri",
+    "energy_kcal"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5057624572234:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "fat",
+   "row_id": [
+    "fat_ri",
+    "fat"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5057624572234:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "saturates",
+   "row_id": [
+    "saturates_ri",
+    "saturates"
+   ],
+   "parent_row_id": [
+    null,
+    "fat"
+   ]
+  },
+  {
+   "case_id": "off:5057624572234:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "carbohydrate",
+   "row_id": [
+    "carbohydrate_ri",
+    "carbohydrate"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5057624572234:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "sugars",
+   "row_id": [
+    "sugars_ri",
+    "sugars"
+   ],
+   "parent_row_id": [
+    null,
+    "carbohydrate"
+   ]
+  },
+  {
+   "case_id": "off:5057624572234:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "protein",
+   "row_id": [
+    "protein_ri",
+    "protein"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5057624572234:nutrition_en.5",
+   "header_id": "header_3",
+   "nutrient": "salt",
+   "row_id": [
+    "salt_ri",
+    "salt"
+   ],
+   "parent_row_id": [
+    null,
+    null
+   ]
+  },
+  {
+   "case_id": "off:5057624572234:nutrition_en.5",
+   "reference_intake_transcribed": true
+  },
+  {
+   "case_id": "off:5010482793302:nutrition_en.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5031396074394:nutrition_en.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5065004177016:nutrition_en.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5060011955695:nutrition_en.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5014234085769:nutrition_en.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5060292125237:nutrition_en.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5010251767503:nutrition_en.7",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5010251686477:nutrition_en.5",
+   "reference_intake_transcribed": false
+  },
+  {
+   "case_id": "off:5000232893314:nutrition_en.10",
+   "reference_intake_transcribed": false
+  }
+ ]
+}

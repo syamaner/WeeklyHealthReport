@@ -11,6 +11,16 @@ table. It never converts, infers or fills a value:
 - a parent is kept only when it names another row of the same table (a self-parent or a
   parent absent from the table is no parent).
 
+Owner amendments of 18 October 2026 (contract `amendments_2026_10_18`), none of which
+infers a value:
+
+- M1: an absolute value in a reference-intake column ("8400kJ") is left out as unread,
+  like `*`, instead of failing the whole candidate;
+- M2: an energy value that prints no unit takes the one energy unit printed in its row
+  label ("Energy kJ" with "704"); `printed_text` stays literal;
+- M3: a per-serving column without a serving line takes the mass or volume its own
+  header prints ("per 30g serving") as its serving quantity.
+
 `would_mark_ready` (what route C would offer as ready; the shared arithmetic policy can
 still block it) is true only when the model did not decline, the language is English or
 Traditional Chinese, at least one amount cell was read, no amount value was left out,
@@ -58,6 +68,31 @@ def _servings_per_pack(text: str) -> dict[str, Any] | str:
     return "unknown"
 
 
+ENERGY_LABEL_UNIT = re.compile(r"(?<![A-Za-z])(kJ|kcal)(?![A-Za-z])", re.IGNORECASE)
+BARE_NUMBER = re.compile(r"\s*\d+(?:[.,]\d+)?\s*")
+
+
+def _unit_from_row_label(row: dict[str, Any], printed: str) -> dict[str, str] | None:
+    """Amendment M2 (owner, 18 October 2026): the energy unit printed in the row label.
+
+    Only for an energy row whose label prints exactly one energy unit ("Energy kJ") and whose
+    value prints none ("704"). The unit text is taken as printed in the label; `printed_text`
+    stays the literal value. The label's unit must agree with the row's nutrient, so a
+    contradicting unit is never attached.
+    """
+    nutrient = row.get("nutrient")
+    if nutrient not in ("energy_kj", "energy_kcal") or not BARE_NUMBER.fullmatch(printed or ""):
+        return None
+    found = ENERGY_LABEL_UNIT.findall(str(row.get("printed_label") or ""))
+    if len({unit.lower() for unit in found}) != 1:
+        return None
+    unit = found[0]
+    parsed = parse_value(f"{printed.strip()}{unit}")
+    if parsed is None or parsed["canonical_unit"] != ("kJ" if nutrient == "energy_kj" else "kcal"):
+        return None
+    return parsed
+
+
 def declined_candidate(
     input_sha256: str, reasons: list[str], language: str = "unknown", warnings: list[str] | None = None
 ) -> dict[str, Any]:
@@ -94,11 +129,19 @@ def map_wire(wire: dict[str, Any], input_sha256: str) -> dict[str, Any]:
         if header["header_id"] in headers:
             warnings.append(f"duplicate_header_id: {header['header_id']}")
             continue
+        quantity = serving_quantity
+        if header["basis"] == "per_serving" and quantity is None:
+            # Amendment M3 (owner, 18 October 2026): a per-serving header that prints a mass or
+            # volume ("per 30g serving") carries its own serving quantity; nothing is inferred.
+            printed = SERVING.search(str(header["printed_text"] or ""))
+            if printed:
+                quantity = f"{printed.group(1)}{printed.group(2)}"
+                warnings.append(f"serving_quantity_from_header: {header['header_id']}")
         headers[header["header_id"]] = {
             "header_id": header["header_id"],
             "printed_text": header["printed_text"],
             "basis": header["basis"],
-            "serving_conversion": serving_quantity if header["basis"] == "per_serving" else None,
+            "serving_conversion": quantity if header["basis"] == "per_serving" else None,
         }
     rows = wire.get("rows") or []
     row_ids: list[str] = []
@@ -121,6 +164,15 @@ def map_wire(wire: dict[str, Any], input_sha256: str) -> dict[str, Any]:
                 left_out_amounts += 1
                 continue
             parsed = None if printed.strip().lower() == "unknown" else parse_value(printed)
+            if parsed is None and header["basis"] != "reference_intake":
+                parsed = _unit_from_row_label(row, printed)
+                if parsed is not None:
+                    warnings.append(f"unit_from_row_label: {row_id} {header['header_id']}")
+            if parsed is not None and header["basis"] == "reference_intake" and parsed["canonical_unit"] != "%":
+                # Amendment M1 (owner, 18 October 2026): an absolute reference value ("8400kJ" in an
+                # "RI for an average adult" column) is not a %RI cell; it is left out as unread.
+                warnings.append(f"value_not_read: {row_id} {header['header_id']} {printed!r} (absolute reference value)")
+                continue
             if parsed is None:
                 warnings.append(f"value_not_read: {row_id} {header['header_id']} {printed!r}")
                 if header["basis"] != "reference_intake":
@@ -136,7 +188,9 @@ def map_wire(wire: dict[str, Any], input_sha256: str) -> dict[str, Any]:
                     "basis": header["basis"],
                     "printed_text": printed,
                     **parsed,
-                    "serving_conversion": (serving_quantity or "unknown") if header["basis"] == "per_serving" else "not_applicable",
+                    "serving_conversion": (header["serving_conversion"] or "unknown")
+                    if header["basis"] == "per_serving"
+                    else "not_applicable",
                     "persistence_authorized": False,
                     "requires_user_selection": True,
                 }
@@ -145,7 +199,7 @@ def map_wire(wire: dict[str, Any], input_sha256: str) -> dict[str, Any]:
     duplicates = len(pairs) != len(set(pairs))
     if duplicates:
         warnings.append("duplicate_cells")
-    serving_missing = any(h["basis"] == "per_serving" for h in headers.values()) and serving_quantity is None
+    serving_missing = any(h["basis"] == "per_serving" and not h["serving_conversion"] for h in headers.values())
     if serving_missing:
         warnings.append("per_serving_without_printed_serving_quantity")
     amount_cells = [c for c in cells if c["basis"] != "reference_intake"]

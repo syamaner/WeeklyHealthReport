@@ -392,5 +392,179 @@ class WholeCallDeadline(unittest.TestCase):
         self.assertFalse(openrouter_client.classify(307, None)[0])
 
 
+# --- Owner amendments of 18 October 2026 ---------------------------------------------------
+
+
+def uk_wire(rows: list[dict[str, Any]], headers: list[dict[str, Any]], serving: str = "unknown") -> dict[str, Any]:
+    return {
+        "language": "en",
+        "declined": False,
+        "decline_reasons": [],
+        "serving_size_text": serving,
+        "servings_per_pack_text": "unknown",
+        "headers": headers,
+        "rows": rows,
+    }
+
+
+def wire_row(nutrient: str, label: str, values: list[tuple[str, str]], parent: str = "none") -> dict[str, Any]:
+    return {
+        "nutrient": nutrient,
+        "printed_label": label,
+        "parent_nutrient": parent,
+        "values": [{"header_id": h, "printed_text": v} for h, v in values],
+    }
+
+
+class AmendmentS1ServingConversions(unittest.TestCase):
+    def test_printed_mass_reads_decimal_and_canonical_unit(self) -> None:
+        import score as scoring
+
+        self.assertEqual(scoring.printed_mass("50g pack"), ("50", "g"))
+        self.assertEqual(scoring.printed_mass("approx. 88g"), ("88", "g"))
+        self.assertEqual(scoring.printed_mass("320毫升"), ("320", "ml"))
+        self.assertEqual(scoring.printed_mass("Per Serving 330ml"), ("330", "ml"))
+        for text in ("2 sausages", "1 cracker", "1/6 pack", "30mg", "unknown", None):
+            self.assertIsNone(scoring.printed_mass(text), text)
+
+    def test_header_wording_no_longer_matters_and_count_only_portions_leave_the_denominator(self) -> None:
+        import score as scoring
+
+        truth = uk_truth()
+        for cell in truth["cells"]:
+            if cell["basis"] == "per_serving":
+                cell["serving_conversion"] = "30g serving"
+        result = scoring.score_case(uk_candidate(), truth)
+        self.assertEqual((result["conversions_exact"], result["conversions"]), (8, 8))
+        for cell in truth["cells"]:
+            if cell["basis"] == "per_serving":
+                cell["serving_conversion"] = "2 sausages"
+        result = scoring.score_case(uk_candidate(), truth)
+        self.assertEqual(result["conversions"], 0)
+
+    def test_a_different_mass_still_fails(self) -> None:
+        import score as scoring
+
+        candidate = uk_candidate()
+        for cell in candidate["cells"]:
+            if cell["basis"] == "per_serving":
+                cell["serving_conversion"] = "40g"
+        result = scoring.score_case(candidate, uk_truth())
+        self.assertEqual((result["conversions_exact"], result["conversions"]), (0, 8))
+
+
+class AmendmentsM1M2M3Mapping(unittest.TestCase):
+    def test_m1_absolute_reference_values_are_left_out_not_failed(self) -> None:
+        import route_c_mapping
+
+        headers = [
+            {"header_id": "h100", "printed_text": "Per 100g", "basis": "per_100g"},
+            {"header_id": "hri", "printed_text": "RI for an average adult", "basis": "reference_intake"},
+        ]
+        wire = uk_wire([wire_row("fat", "Fat", [("h100", "9.0g"), ("hri", "70g")])], headers)
+        candidate = route_c_mapping.map_wire(wire, "0" * 64)
+        self.assertEqual(validate_candidate(candidate), [])
+        self.assertEqual([c["header_id"] for c in candidate["cells"]], ["h100"])
+        self.assertTrue(any("absolute reference value" in w for w in candidate["warnings"]))
+        self.assertTrue(candidate["would_mark_ready"])  # a left-out reference value never counts as a missing amount
+
+    def test_m2_energy_unit_from_the_row_label_keeps_printed_text(self) -> None:
+        import route_c_mapping
+
+        headers = [{"header_id": "h100", "printed_text": "Per 100g", "basis": "per_100g"}]
+        rows = [wire_row("energy_kj", "Energy kJ", [("h100", "704")]), wire_row("energy_kcal", "Energy kcal", [("h100", "168")])]
+        candidate = route_c_mapping.map_wire(uk_wire(rows, headers), "0" * 64)
+        cells = {c["nutrient"]: c for c in candidate["cells"]}
+        self.assertEqual(
+            (cells["energy_kj"]["printed_text"], cells["energy_kj"]["unit"], cells["energy_kj"]["decimal_text"]), ("704", "kJ", "704")
+        )
+        self.assertEqual(cells["energy_kcal"]["canonical_unit"], "kcal")
+
+    def test_m2_never_attaches_an_ambiguous_or_contradicting_unit(self) -> None:
+        import route_c_mapping
+
+        headers = [{"header_id": "h100", "printed_text": "Per 100g", "basis": "per_100g"}]
+        for row in (
+            wire_row("energy_kj", "Energy kJ/kcal", [("h100", "704")]),
+            wire_row("energy_kj", "Energy kcal", [("h100", "704")]),
+            wire_row("fat", "Fat g", [("h100", "9")]),
+            wire_row("energy_kj", "Energy kJ", [("h100", "704 approx")]),
+        ):
+            candidate = route_c_mapping.map_wire(uk_wire([row], headers), "0" * 64)
+            self.assertEqual(candidate["cells"], [], row["printed_label"])
+            self.assertFalse(candidate["would_mark_ready"])
+
+    def test_m3_per_serving_header_mass_is_the_serving_quantity(self) -> None:
+        import route_c_mapping
+
+        headers = [
+            {"header_id": "h100", "printed_text": "Per 100g", "basis": "per_100g"},
+            {"header_id": "hs", "printed_text": "PER PACK (50g)*", "basis": "per_serving"},
+        ]
+        wire = uk_wire([wire_row("fat", "Fat", [("h100", "9.0g"), ("hs", "4.5g")])], headers)
+        candidate = route_c_mapping.map_wire(wire, "0" * 64)
+        serving = [c for c in candidate["cells"] if c["basis"] == "per_serving"][0]
+        self.assertEqual(serving["serving_conversion"], "50g")
+        self.assertEqual(candidate["serving_size"], "unknown")  # the serving line is never invented
+        headers[1]["printed_text"] = "Per 2 sausages"
+        candidate = route_c_mapping.map_wire(wire, "0" * 64)
+        self.assertEqual([c for c in candidate["cells"] if c["basis"] == "per_serving"][0]["serving_conversion"], "unknown")
+        self.assertFalse(candidate["would_mark_ready"])
+
+    def test_m3_a_printed_serving_line_still_wins(self) -> None:
+        import route_c_mapping
+
+        headers = [{"header_id": "hs", "printed_text": "per 40g", "basis": "per_serving"}]
+        wire = uk_wire([wire_row("fat", "Fat", [("hs", "4.5g")])], headers, serving="Serving size 30g")
+        candidate = route_c_mapping.map_wire(wire, "0" * 64)
+        self.assertEqual(candidate["cells"][0]["serving_conversion"], "30g")
+
+
+class AmendmentT1Convention(unittest.TestCase):
+    def uk_truth_with_ri(self) -> dict[str, Any]:
+        truth = uk_truth()
+        truth["case_id"] = "uk-1"
+        truth["requires_decline"] = False
+        truth["headers"].append({"header_id": "hri", "printed_text": "", "basis": "reference_intake", "serving_conversion": None})
+        truth["cells"].append({**uk_cell("saturates_ri", "saturates", "hri", "reference_intake", "16%", "16", "%"), "parent_row_id": None})
+        return truth
+
+    def test_reference_intake_cells_join_their_amount_row_and_parent(self) -> None:
+        import cases
+
+        truth = self.uk_truth_with_ri()
+        before = copy.deepcopy(truth)
+        changed, log = cases.apply_uk_truth_convention_t1(truth)
+        self.assertEqual(truth, before)  # pure
+        ri = [c for c in changed["cells"] if c["basis"] == "reference_intake"][0]
+        self.assertEqual((ri["row_id"], ri["parent_row_id"]), ("saturates", "fat"))
+        self.assertTrue(changed["reference_intake_transcribed"])
+        self.assertEqual(log[0]["row_id"], ["saturates_ri", "saturates"])
+        self.assertEqual(cases.apply_uk_truth_convention_t1(changed)[1], [])  # idempotent
+        self.assertEqual([c["decimal_text"] for c in changed["cells"]], [c["decimal_text"] for c in before["cells"]])
+
+    def test_untranscribed_reference_intake_columns_are_not_extras(self) -> None:
+        import cases
+        import score as scoring
+
+        truth = cases.apply_uk_truth_convention_t1({**uk_truth(), "case_id": "uk-2", "requires_decline": False})[0]
+        self.assertIs(truth["reference_intake_transcribed"], False)
+        candidate = uk_candidate()
+        candidate["headers"].append({"header_id": "hri", "printed_text": "%RI", "basis": "reference_intake", "serving_conversion": None})
+        candidate["cells"].append(
+            {
+                **uk_cell("fat", "fat", "hri", "reference_intake", "13%", "13", "%"),
+                "serving_conversion": "not_applicable",
+                "persistence_authorized": False,
+                "requires_user_selection": True,
+            }
+        )
+        self.assertEqual(validate_candidate(candidate), [])
+        self.assertEqual(scoring.score_case(candidate, truth)["tables_exact"], 1)
+        transcribed = {**truth, "reference_intake_transcribed": True}
+        self.assertEqual(scoring.score_case(candidate, transcribed)["tables_exact"], 0)
+        self.assertEqual(scoring.score_case(candidate, uk_truth())["tables_exact"], 0)  # Taiwan-style truths are unchanged
+
+
 if __name__ == "__main__":
     unittest.main()

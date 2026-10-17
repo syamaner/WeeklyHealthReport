@@ -1657,3 +1657,15 @@ Pricing as in the previous sections (checked 11 October 2026): USD 4/M base inpu
 Boundary: `2026-10-17T15:48:42Z` (captured at the phase start) → this edit (`phase_usage.py --format claude --since …`). Cache writes: 572,410 5-minute, 0 1-hour. Exact API-equivalent USD 7.1576784.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-18b: Claude Code label capture evaluation phase 4, owner amendments
+
+Same subagent, transcript and pricing as WHR-255-2026-10-18a. Runs from the orchestrator's message relaying the owner decisions (`2026-10-17T17:20:15Z` in the transcript, which records time in UTC) to this ledger edit. It covers the rebase onto `main` after #258, the baseline extension, amendments S1, M1, M2, M3 and T1 with their tests and contract record, the offline re-score, the round-3 review data (outside the repository) and the documents. The previous row's commit, push, PR and Swift gate wait fall between the two rows and are unmeasured. No subagents. No OpenRouter call.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 4 owner amendments (#255) | 20,157,129 (20,080,650) | 76,371 | 6,574 | 20,163,703 | $4.53 |
+
+Boundary: `2026-10-17T17:20:15Z` → this edit. Cache writes: 76,371 5-minute, 0 1-hour. Exact API-equivalent USD 4.529897.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

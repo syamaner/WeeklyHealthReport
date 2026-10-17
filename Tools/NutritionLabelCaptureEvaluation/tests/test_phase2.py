@@ -263,11 +263,13 @@ class UkReviewTests(unittest.TestCase):
 
     def test_conversion_keeps_printed_units_and_bounds(self):
         truth = cases.uk_truth_from_review(self.panel)
-        cells = {c["row_id"]: c for c in truth["cells"]}
+        cells = {c["row_id"]: c for c in truth["cells"] if c["basis"] != "reference_intake"}
+        reference = {c["row_id"]: c for c in truth["cells"] if c["basis"] == "reference_intake"}
         self.assertEqual((cells["energy_kj"]["unit"], cells["energy_kj"]["canonical_unit"]), ("kJ", "kJ"))
         self.assertEqual(cells["salt"]["comparator"], "<")
         self.assertEqual(cells["fat"]["serving_conversion"], "14g")
-        self.assertEqual((cells["fat_ri"]["nutrient"], cells["fat_ri"]["basis"]), ("fat", "reference_intake"))
+        # Amendment T1: the fat_ri reference-intake cell now shares the fat row and its parent.
+        self.assertEqual((reference["fat"]["nutrient"], reference["fat"]["parent_row_id"]), ("fat", cells["fat"]["parent_row_id"]))
         self.assertEqual((cells["vitamin_e"]["nutrient"], cells["vitamin_e"]["printed_label"]), ("unrecognised", "vitamin e"))
         self.assertEqual(truth["servings_per_pack"], "not_recorded")
         self.assertEqual(truth["jurisdiction"], "uk")

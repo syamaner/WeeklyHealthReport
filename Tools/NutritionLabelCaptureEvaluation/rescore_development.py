@@ -2,13 +2,19 @@
 
 Offline: no model, provider or Vision call. It reads the saved Inspect logs outside the
 repository (route A pasted text, route B photos, the ten route C arms), takes each
-candidate exactly as the route produced it, applies `decline_gate.apply_gate` with the
-label format the case declares, and scores both versions with the same `score.score_case`.
-Only development cases are read; any other split stops the run. The summary written to
-`results/` holds aggregate counts and case ids only, never a model answer.
+candidate as the route produced it, applies `decline_gate.apply_gate` with the label
+format the case declares, and scores both versions with the same `score.score_case`.
+Everything uses the code at the current commit: route C candidates are re-mapped from the
+saved wire answer with the current mapping, and saved UK photo truths are brought to the
+current convention (amendment T1). Only development cases are read; any other split stops
+the run. The summary written to `results/` holds aggregate counts and case ids only, never
+a model answer.
 
     .venv/bin/python rescore_development.py --runs ~/WHR-label-eval-private/runs \
-        --out results/decline-gate-rescore-v1.json
+        --out results/amendments-rescore-v1.json
+
+`results/decline-gate-rescore-v1.json` was written by this script at commit f313578c,
+before the owner amendments of 18 October 2026; `results/amendments-rescore-v1.json` after.
 """
 
 from __future__ import annotations
@@ -19,7 +25,9 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
+import cases as case_loading
 import decline_gate
+import route_c_mapping
 import score as scoring
 
 HERE = Path(__file__).resolve().parent
@@ -49,8 +57,20 @@ def _candidates(log_path: Path) -> dict[str, dict[str, Any] | None]:
                 candidate = json.loads(sample.output.completion)
             except json.JSONDecodeError:
                 candidate = None
+        answer = (sample.metadata or {}).get("route_c_answer")
+        if candidate is not None and answer:
+            # Route C is re-mapped from the saved wire answer with the current mapping
+            # (amendments M1 to M3); the answer was schema-valid when it was first mapped.
+            candidate = route_c_mapping.map_wire(json.loads(answer), str(candidate.get("input_sha256")))
         found[str(sample.id)] = candidate
     return found
+
+
+def current_truth(truth: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
+    """The saved truth under the current convention: amendment T1 for the UK photo stratum."""
+    if metadata.get("corpus") == "uk_v2_development_review":
+        return case_loading.apply_uk_truth_convention_t1(truth)[0]
+    return truth
 
 
 def load_arm(log_path: Path, cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -65,7 +85,7 @@ def load_arm(log_path: Path, cases: list[dict[str, Any]]) -> list[dict[str, Any]
                 "id": case["id"],
                 "stratum": metadata.get("stratum") or metadata.get("corpus"),
                 "label_format": decline_gate.format_for_case(metadata),
-                "truth": case["truth"],
+                "truth": current_truth(case["truth"], metadata),
                 "candidate": outputs.get(case["id"]),
             }
         )
@@ -128,6 +148,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--route-b-run-dir", default="route-b-dev/phase3")
     parser.add_argument("--route-c-dir", default="route-c-dev")
     parser.add_argument("--out", type=Path, required=True)
+    parser.add_argument("--t1-log", type=Path, help="write every UK truth record amendment T1 changes (case ids, row ids, parents)")
     args = parser.parse_args(argv)
     thresholds = scoring.load_thresholds()
     arms: dict[str, Any] = {}
@@ -149,6 +170,30 @@ def main(argv: list[str] | None = None) -> int:
         log = folder / arm / summary["inspect_log"]
         cases = json.loads((folder / arm / "development-cases.json").read_text(encoding="utf-8"))
         arms[f"C:{arm}"] = {"log": log.name, "strata": rescore(load_arm(log, cases), thresholds)}
+
+    if args.t1_log is not None:
+        folder = args.runs / args.route_c_dir
+        uk = [
+            c
+            for c in json.loads((folder / ROUTE_C_ARMS[0] / "development-cases.json").read_text(encoding="utf-8"))
+            if c["metadata"].get("corpus") == "uk_v2_development_review"
+        ]
+        changes = [change for case in uk for change in case_loading.apply_uk_truth_convention_t1(case["truth"])[1]]
+        args.t1_log.write_text(
+            json.dumps(
+                {
+                    "amendment": "T1 (owner, 18 October 2026)",
+                    "scope": "UK v2 development review truth as loaded by cases.load_uk_development_review; the frozen review is unchanged",
+                    "records": len(uk),
+                    "records_changed": len({c["case_id"] for c in changes}),
+                    "changes": changes,
+                },
+                ensure_ascii=False,
+                indent=1,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
 
     result = {
         "gate_version": decline_gate.GATE_VERSION,

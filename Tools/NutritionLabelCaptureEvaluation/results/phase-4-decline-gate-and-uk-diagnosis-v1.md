@@ -142,7 +142,75 @@ Even with S1, M1 and M2, no arm reaches 95% strict cells on UK development (best
 
 `openrouter_client.http_post` now bounds the **whole attempt** by the time left of the call's 180 s budget. A watchdog timer shuts the socket down at the deadline, so a stalled connect, a server that never sends headers or a body trickled byte by byte all end there, and the body is read in chunks with a deadline check between chunks. A cut attempt returns status 0 (transport error or timeout), so the retry policy is unchanged: `Retry-After` honoured, at most 5 attempts, 180 s overall. Redirects are still never followed. Tests (local 127.0.0.1 server, no provider): a body trickled at one byte per 0.1 s is cut at a 1 s deadline; a server that sleeps before its headers is cut at 1 s; the retry loop with the real post stays inside a 2 s overall deadline; a 307 is returned, not followed. **All ten phase 3 development arms ran without this deadline** (per-read socket timeouts only; Grok's slowest call took 263 s).
 
-## 5. Not done in this phase
+## 5. Owner amendments applied (18 October 2026)
+
+The owner approved S1, M1, M2, M3 and T1 exactly as proposed in section 3, recorded as pre-registered before the untouched run (contract block `amendments_2026_10_18`, sources re-pinned).
+
+- **S1:** the scorer now compares a serving conversion's printed mass or volume (decimal and canonical unit), and count-only portions leave the denominator.
+- **M1, M2, M3:** these are in `route_c_mapping.py`.
+  - M2 adds one guard to the proposal: the label's unit must agree with the row's nutrient, so a contradicting unit is never attached.
+- **T1:** this is in `cases.apply_uk_truth_convention_t1`, applied when the UK development review is loaded.
+  - Reference-intake cells now share their amount row and its parent.
+  - `reference_intake_transcribed` tells the scorer not to count reference-intake reads as extras where the truth did not transcribe the column.
+  - T1 changed 23 of the 39 UK records (43 changes, each logged in [`t1-uk-truth-changes-v1.json`](t1-uk-truth-changes-v1.json)). The frozen v2 review is untouched.
+  - T1 is not applied to route A's synthetic `v2dev` cases, whose rendered truth is part of the pinned dataset.
+
+All saved development outputs were re-scored offline (no API call), with route C re-mapped from its saved wire answers: [`amendments-rescore-v1.json`](amendments-rescore-v1.json). In the tables below:
+
+- **Before** is the gated, pre-amendment state (`decline-gate-rescore-v1.json`, commit `f313578c`).
+- **After** is the gated state with the amendments.
+- The gate is applied in both.
+
+### UK (39 images)
+
+| Arm | Strict cells | Full table | Serving conv. | Correct decline | False-ready | False declines | Would mark ready |
+|---|---|---|---|---|---|---|---|
+| Route B | 8/311 → 8/311 | 1/22 → 1/22 | 0/116 → 0/70 | 17/17 → 17/17 | 0 → 0 | 21 → 21 | 0 → 0 |
+| Luna, off | 209/311 → 301/311 | 14/22 → 19/22 | 0/116 → 70/70 | 10/17 → 8/17 | 2 → **6** | 4 → 1 | 8 → 17 |
+| Luna, on | 192/311 → 264/311 | 10/22 → 14/22 | 9/116 → 69/70 | 11/17 → 9/17 | 3 → **8** | 6 → 4 | 8 → 17 |
+| Luna Pro, off | 211/311 → 285/311 | 13/22 → 17/22 | 18/116 → 70/70 | 8/17 → 6/17 | 3 → **7** | 5 → 3 | 10 → 18 |
+| Luna Pro, on | 167/311 → 259/311 | 10/22 → 16/22 | 0/116 → 70/70 | 9/17 → 8/17 | 2 → **5** | 8 → 5 | 8 → 17 |
+| Grok, on | 166/311 → 258/311 | 10/22 → 15/22 | 9/116 → 70/70 | 10/17 → 9/17 | 2 → **6** | 8 → 5 | 8 → 15 |
+| Gemini 4, on | 209/311 → 283/311 | 13/22 → 18/22 | 26/116 → 70/70 | 9/17 → 7/17 | 5 → **6** | 5 → 2 | 15 → 17 |
+| Sol, on | 184/311 → 238/311 | 10/22 → 14/22 | 9/116 → 70/70 | 12/17 → 10/17 | 3 → **6** | 7 → 6 | 8 → 16 |
+| Sol Pro, on | 185/311 → 239/311 | 11/22 → 16/22 | 9/116 → 70/70 | 12/17 → 10/17 | 2 → **4** | 7 → 6 | 8 → 15 |
+| Opus 5.5, on | 150/311 → 222/311 | 9/22 → 13/22 | 8/116 → 62/70 | 9/17 → 8/17 | 2 → **6** | 9 → 7 | 8 → 14 |
+| Fable 5.1, on | 190/311 → 282/311 | 12/22 → 17/22 | 17/116 → 70/70 | 9/17 → 7/17 | 4 → **7** | 5 → 2 | 13 → 17 |
+
+The UK strict-cell figures before the amendments are lower than the ungated figures in section 3.1, because the gate's G3 declined tables whose energy cells the mapping could not read.
+
+### Taiwan, muesli and route A
+
+- **Taiwan (20 photos), muesli and route A Taiwan cases:** every number is unchanged.
+  - The Taiwan conversions already printed a mass, so S1 gives the same counts.
+  - M1 to M3 and T1 do not touch these tables.
+- **Route A UK:** strict cells and full tables are unchanged.
+  - `v1` conversions go from 195/195 to 150/150 and `v2dev` from 116/116 to 70/70, because count-only portions leave the denominator.
+
+### What the amendments change
+
+- **Reading is now close to the bar on UK.**
+  - Luna off reaches 301/311 strict cells (96.8%, above the 95% bar) and 19/22 full tables (86%).
+  - Every arm except Opus 5.5 reaches 69 or 70 of 70 serving conversions.
+- **Safety gets worse on UK.**
+  - False-ready rises in every route C arm (UK total 28 → 61). Correct declines fall by one or two per arm.
+  - The cause: with energy now readable (M2) and serving quantities now known (M3), tables that the gate's G3 had declined, or that the mapping held back from ready, are now complete and offered as ready.
+  - Of the 61 UK false-ready tables after the amendments, 51 are on images the truth declines for image quality: `off:5060201623175`, `off:5057172978809`, `off:5060026822371` and `off:5052909355021` in all 10 arms, and `off:5015696447201` in 9. A candidate cannot show the quality problem behind these declines.
+  - The other 10 are usable tables with a wrong value or binding, led by `off:5053990185917` in 7 arms.
+  - Before the amendments, the energy-unit failure (M2) had been declining some of these image-quality cases by accident.
+- **No route C arm meets the zero false-ready bar** on either stratum after the amendments. Route C false-ready over both strata rises from 49 to 82; Taiwan stays at 21.
+
+## 6. Round-3 owner review (data only; no truth edited)
+
+Review data for the possible truth errors in section 3.3 was prepared outside the repository, from development images on disk only: two entries, each with a resized image (1600 px, JPEG quality 80), the question, the current truth and what each arm read.
+
+- `off-taiwan:4710228034096:nutrition_zh.7` (order 3): is the per-100 ml sodium legible?
+- `off:5010482793302:nutrition_en.5`: are per-slice saturates 0.1 g and sugars 1.7 g printed?
+- **Skipped:** `v1:off:5010525167350` and `v1:off:5060457050039:nutrition_nl.5`, because the v1 panel images are not on disk. Nothing was downloaded.
+
+The truth stays as it is until the owner answers.
+
+## 7. Not done in this phase
 
 - No API call, no rerun of any arm, no untouched or sealed run. The untouched Taiwan run waits for the owner.
-- No truth, scorer or mapping change from the UK diagnosis; the amendments above are proposals.
+- No truth value was edited. T1 changes only the convention (row ids, parents and the transcription flag) of the UK development truth at load time.

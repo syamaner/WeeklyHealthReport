@@ -64,6 +64,16 @@ def compact(text: Any) -> str:
     return re.sub(r"\s+", "", unicodedata.normalize("NFC", str(text or "")))
 
 
+PRINTED_MASS = re.compile(r"(\d+(?:\.\d+)?)\s*(g|ml|mL|公克|毫升|克)(?![A-Za-z])")
+MASS_UNITS = {"g": "g", "公克": "g", "克": "g", "ml": "ml", "mL": "ml", "毫升": "ml"}
+
+
+def printed_mass(text: Any) -> tuple[str, str] | None:
+    """(decimal text, canonical unit) of the first printed mass or volume, or None (amendment S1)."""
+    match = PRINTED_MASS.search(unicodedata.normalize("NFC", str(text or "")))
+    return (match.group(1), MASS_UNITS[match.group(2)]) if match else None
+
+
 def nutrient_key(cell: dict[str, Any]) -> str:
     nutrient = cell.get("nutrient")
     if nutrient in NUTRIENTS:
@@ -191,7 +201,13 @@ def score_case(candidate: dict[str, Any] | None, truth: dict[str, Any]) -> dict[
     for cell in truth.get("cells") or []:
         if keyed_key(cell, truth) in truth_ambiguous:
             _count_expected(result, cell, None)
+    blocking_ambiguous = set(found_ambiguous)
     extra = [key for key in list(found) + list(found_ambiguous) if key not in expected]
+    if truth.get("reference_intake_transcribed") is False:
+        # Amendment T1 (owner, 18 October 2026): the truth did not transcribe the printed
+        # reference-intake columns, so reference-intake cells read by a route are not extras.
+        extra = [key for key in extra if key[2] != "reference_intake"]
+        blocking_ambiguous = {key for key in blocking_ambiguous if key in expected or key[2] != "reference_intake"}
     result["extra_cells"] = len(extra)
     if _known(truth.get("servings_per_pack")):
         result["servings_per_pack"] = 1
@@ -204,7 +220,7 @@ def score_case(candidate: dict[str, Any] | None, truth: dict[str, Any]) -> dict[
         not output.get("declined")
         and all_exact
         and not extra
-        and not found_ambiguous
+        and not blocking_ambiguous
         and (
             truth.get("servings_per_pack") == NOT_RECORDED
             or servings_equal(truth.get("servings_per_pack"), output.get("servings_per_pack"))
@@ -244,10 +260,13 @@ def _count_expected(result: dict[str, Any], cell: dict[str, Any], found: dict[st
             result["bounded_cells"] += 1
             result["bounds_exact"] += int(exact)
     conversion = cell.get("serving_conversion")
-    if cell.get("basis") == "per_serving" and conversion not in NOT_A_CONVERSION:
+    truth_mass = printed_mass(conversion)
+    # Amendment S1 (owner, 18 October 2026): a conversion is the printed mass or volume, compared
+    # on decimal text and canonical unit; a count-only portion with none printed is not one.
+    if cell.get("basis") == "per_serving" and conversion not in NOT_A_CONVERSION and truth_mass is not None:
         result["conversions"] += 1
         found_conversion = found.get("serving_conversion") if found else None
-        result["conversions_exact"] += int(compact(found_conversion) == compact(conversion))
+        result["conversions_exact"] += int(printed_mass(found_conversion) == truth_mass)
     return exact
 
 

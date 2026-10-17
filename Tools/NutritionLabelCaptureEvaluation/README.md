@@ -231,6 +231,10 @@ with no provider call:
 .venv/bin/python uk_diagnosis.py --runs ~/WHR-label-eval-private/runs --out results/uk-diagnosis-v1.json
 ```
 
+The owner amendments of 18 October 2026 (S1 scorer, M1 to M3 route C mapping, T1 UK truth
+convention; contract `amendments_2026_10_18`) are re-scored the same way, with route C re-mapped from
+its saved answers (`--out results/amendments-rescore-v1.json --t1-log results/t1-uk-truth-changes-v1.json`).
+
 `openrouter_client.http_post` enforces a whole-call deadline (a watchdog closes the socket when the
 time left of the 180 s budget runs out). Results, gate rules and the UK diagnosis:
 [`results/phase-4-decline-gate-and-uk-diagnosis-v1.md`](results/phase-4-decline-gate-and-uk-diagnosis-v1.md).

@@ -2,7 +2,7 @@
   "schema_version": "label-capture-evaluation-contract-v1",
   "contract_version": "label-capture-evaluation-v1",
   "status": "development_phase_4",
-  "status_note": "Phase 3 (#255): the owner verified the untouched Taiwan drafts (round 1), refills were drafted for round 2, the muesli photo has every consent flag, and route C is enabled for DEVELOPMENT photos only (the muesli photo, the Taiwan development photos and the UK development review images). Thresholds, adequacy minima, tolerances, selection, split and sealing rules are unchanged. Artefact hashes pin the current development state; they are re-pinned, and the status set to frozen_for_untouched_run, only when every route is frozen before the single untouched run. Phase 4 (#255, 18 October 2026): the deterministic decline gate `label-capture-decline-gate-v1` (decline_gate block) runs on every route's candidate after extraction and is frozen for the untouched run; saved development outputs of routes A, B and C were re-scored offline with it (no API call); the whole-call deadline closes route_c.deadline_gap. The untouched and sealed sets have still not been run.",
+  "status_note": "Phase 3 (#255): the owner verified the untouched Taiwan drafts (round 1), refills were drafted for round 2, the muesli photo has every consent flag, and route C is enabled for DEVELOPMENT photos only (the muesli photo, the Taiwan development photos and the UK development review images). Thresholds, adequacy minima, tolerances, selection, split and sealing rules are unchanged. Artefact hashes pin the current development state; they are re-pinned, and the status set to frozen_for_untouched_run, only when every route is frozen before the single untouched run. Phase 4 (#255, 18 October 2026): the deterministic decline gate `label-capture-decline-gate-v1` (decline_gate block) runs on every route's candidate after extraction and is frozen for the untouched run; saved development outputs of routes A, B and C were re-scored offline with it (no API call); the whole-call deadline closes route_c.deadline_gap. The untouched and sealed sets have still not been run. Owner amendments S1, M1, M2, M3 and T1 (18 October 2026) are applied and recorded in amendments_2026_10_18; development outputs were re-scored offline.",
   "plan": "docs/nutrition-label-capture-evaluation-v1.md",
   "plan_approved": "2026-10-17",
   "framework": {
@@ -605,12 +605,12 @@
   "frozen_artefacts": {
     "Tools/NutritionLabelCaptureEvaluation/candidate-schema-v1.json": "74333555741f73f2557fe74e11cfcb7b2693f5a261c49957a9e8e6e39404e531",
     "Tools/NutritionLabelCaptureEvaluation/candidate.py": "05f67900b4b38bd820d71a04351b5a26553a976d74051a5964210a24e20109c1",
-    "Tools/NutritionLabelCaptureEvaluation/score.py": "dd3acb65669dcbfef35132a56de07382e504c4866d779d7576a6782618f9dbd6",
+    "Tools/NutritionLabelCaptureEvaluation/score.py": "d2c44654bffc693467f09d74cb4896f0044aa76404b0dc2af29b7a62a2dcf938",
     "Tools/NutritionLabelCaptureEvaluation/arithmetic.py": "ffaf734c50d732c57da705bcb09787fe46c8e4fae2649353a3594d03a39f9d1c",
     "Tools/NutritionLabelCaptureEvaluation/budget.py": "a053fbf7b576f7daa3376a0ac7be77e4f3b26c9dbbf19e5a46f7bcb73494babb",
     "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py": "18d21a1fe43a46cf10b72ca492da5faccb40c8026b7884836fa20cf8ef1afdf7",
     "Tools/NutritionLabelCaptureEvaluation/requirements-dev.lock": "ecdedef956a76eeed2983139f2b82f89bf0ebbecd54b5de4bc8e964e4c32674a",
-    "Tools/NutritionLabelCaptureEvaluation/cases.py": "ce133f7b8ac09e1cd304b78532b1bb2d55a60d0fa52cec744c374f52a1cb6fe1",
+    "Tools/NutritionLabelCaptureEvaluation/cases.py": "aed4d908ed026d50699849b28e6aaf3e883c60185f4fe59eb7c2665c4b850890",
     "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "604d749af64c03460439381933bfc3bd767f46e65f44afeb5c59168b8a23baea",
     "Tools/NutritionLabelCaptureEvaluation/requirements.txt": "56dfa330c985616b9a3704fc5f5df526abb6e7136ece92a29bfa471db190acf4",
     "Tools/NutritionLabelCaptureEvaluation/synthetic/render.py": "6c8fcb7d30f7829f1f493859bc63ae6828c4af67dff77aa1aded7919c0996ae1",
@@ -634,7 +634,7 @@
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.1.txt": "83667e61d22f76c6ebb33f525e49676f7ab1f6c1e985ac8a777b5411a0ef6d3a",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.2.txt": "6e224a542f47894c21e87e43c7413b489d5a7b352b340c5eda718cbefc80ff34",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-wire-schema-v1.json": "75af5c236184284c239a5170a0ab6efb2e8637c9f508cf02fe4c0b220fba0c2d",
-    "Tools/NutritionLabelCaptureEvaluation/route_c_mapping.py": "0abcdd23ab0b4fce55ac83e0570b50d2284c8e294f3163e849b6415a10ffa6a0",
+    "Tools/NutritionLabelCaptureEvaluation/route_c_mapping.py": "fce5697735b41e31b1180ff8382c1ab7773efd6343cf87d9c133d4e04342fb49",
     "Tools/NutritionLabelCaptureEvaluation/openrouter_client.py": "6ace79cfa3a3ffab55a16f8263a78ed8ea3ef6335340d4796e15be4ada76ce47",
     "Tools/NutritionLabelCaptureEvaluation/qualification/render_qualification.swift": "0820650b78c72abaf480b079d2f4454612e1151d86fcfba84327f2c770fc3e91",
     "Tools/NutritionLabelCaptureEvaluation/decline_gate.py": "2fba4202363deeb75711108916388a0dfbd1485ea0943e16b14188214c17177a"
@@ -844,5 +844,34 @@
     "overfitting_guard": "Development data motivated the gate (phase 3: false-ready and missed declines on development images). The rules were written from the regulations and plan section 6 and then run once over the saved development outputs; no rule, marker or threshold was added or tuned to fit a development case. Image-quality declines (blur, small print, a cropped edge with every row still read) cannot be seen from a candidate and are not attempted.",
     "development_rescore": "Tools/NutritionLabelCaptureEvaluation/results/decline-gate-rescore-v1.json (offline, no API call)",
     "language_note": "Python, not Swift: route C's mapping and the scorer are Python, CI's label-capture job runs on Linux without the Swift CLI, and the GB 2312 / Big5 codecs ship with Python. No product path consumes route C yet; a product phase would port the frozen rules into NutritionLabelParsing behind the same test vectors (tests/test_phase4.py)."
+  },
+  "amendments_2026_10_18": {
+    "decision": "owner decision, 18 October 2026, recorded as pre-registered before the untouched run: apply S1, M1, M2, M3 and T1 exactly as proposed in results/phase-4-decline-gate-and-uk-diagnosis-v1.md section 3",
+    "motivation": "the offline UK diagnosis of the development outputs (phase 4); each amendment changes a scoring or truth convention or a mapping rule, never a value, and none infers a value",
+    "S1": {
+      "component": "score.py",
+      "rule": "a serving conversion is the printed mass or volume: (decimal text, canonical unit g or ml) of the first mass or volume printed in the truth's conversion, compared with the same of the candidate's; a truth conversion with no printed mass or volume (a count-only portion such as 2 sausages or 1 cracker) is not a conversion and leaves the denominator",
+      "replaces": "literal comparison of the conversion text with whitespace removed"
+    },
+    "M1": {
+      "component": "route_c_mapping.py",
+      "rule": "an absolute value in a reference-intake column (8400kJ, 70g in an RI for an average adult column) is left out as unread with a warning, like *, instead of becoming a reference-intake cell that fails the whole candidate; it never counts as a missing amount"
+    },
+    "M2": {
+      "component": "route_c_mapping.py",
+      "rule": "an energy value that prints no unit (704) takes the energy unit printed in its row label (Energy kJ) when the label prints exactly one energy unit, the value is a bare number, the column is not reference intake and the unit agrees with the row's nutrient; printed_text stays literal and a warning is recorded",
+      "guard_note": "the nutrient agreement check is a safety guard added in implementation: it can only leave a value unread, never attach a contradicting unit"
+    },
+    "M3": {
+      "component": "route_c_mapping.py",
+      "rule": "a per-serving column with no printed serving line takes the mass or volume printed in its own header (per 30g serving, PER PACK (50g)) as its serving quantity, with a warning; a printed serving line still wins; the candidate's serving_size is never filled from a header"
+    },
+    "T1": {
+      "component": "cases.py (apply_uk_truth_convention_t1, applied by load_uk_development_review) and score.py",
+      "rule": "UK development truth convention only: a reference-intake cell shares the row id and parent of its amount row; reference_intake_transcribed records whether the truth transcribed any printed reference-intake column, and when it is false the scorer does not count reference-intake cells a route reads as extras (or ambiguous duplicates) for full-table",
+      "applied": "mechanically to the 39 UK development truth records at load time; the frozen v2 review in Tools/FoodOCREvaluation is unchanged; every change is logged in results/t1-uk-truth-changes-v1.json (23 records, 43 changes)",
+      "not_applied_to": "the route A v2dev synthetic pasted-text cases, whose rendered truth is part of the pinned development dataset; Taiwan truths carry no reference_intake_transcribed field and score as before"
+    },
+    "rescore": "results/amendments-rescore-v1.json (offline, no API call; route C re-mapped from the saved wire answers; before = results/decline-gate-rescore-v1.json at commit f313578c)"
   }
 }
