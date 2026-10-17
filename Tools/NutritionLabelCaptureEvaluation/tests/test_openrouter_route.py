@@ -1,5 +1,6 @@
 """Route C routing and response checks; no model or provider call."""
 
+import json
 import unittest
 from decimal import Decimal
 
@@ -41,6 +42,19 @@ class ProviderBlockTests(unittest.TestCase):
         self.assertEqual(openrouter_route.route_c_request_body(on, "d", "i", {})["reasoning"], {"enabled": True})
         with self.assertRaises(ValueError):
             openrouter_route.route_c_request_body(RouteCModel("x", "m", "e", "p", reasoning="low"), "d", "i", {})
+
+    def test_comments_are_stripped_at_every_depth_and_nothing_else_changes(self):
+        schema = {
+            "$comment": "top",
+            "type": "object",
+            "properties": {"rows": {"type": "array", "items": {"$comment": "nested", "type": "object", "required": ["a"]}}},
+            "anyOf": [{"$comment": "in a list", "required": ["rows"]}],
+        }
+        sent = openrouter_route.route_c_request_body(TARGET, "d", "i", schema)["response_format"]["json_schema"]["schema"]
+        self.assertNotIn("$comment", json.dumps(sent))
+        self.assertEqual(sent["properties"]["rows"]["items"], {"type": "object", "required": ["a"]})
+        self.assertEqual(sent["anyOf"], [{"required": ["rows"]}])
+        self.assertIn("$comment", schema)  # the caller's schema is not modified
 
 
 class ResponseTests(unittest.TestCase):

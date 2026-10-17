@@ -1631,3 +1631,15 @@ Same subagent, transcript and pricing as WHR-255-2026-10-17g. Runs from the seco
 Boundary: `2026-10-17T15:21:11Z` → this edit. Cache writes: 711,820 5-minute, 0 1-hour. Exact API-equivalent USD 5.7559288.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-17i: Claude Code label capture evaluation phase 3, invariant review fixes
+
+Same subagent, transcript and pricing as WHR-255-2026-10-17h. Runs from the third phase 3 commit (`2026-10-17T15:46:37Z`) to this ledger edit: the PR body update, the hand-back, and the invariant-review fixes for PR #258 (credit lookup failures refuse the gate, deadline wording, plan and contract corrections, ledger relabel and close hardening, the dropped OpenAI SDK pin, README run order, new tests) and the gates. No subagents. No OpenRouter call was made in this window.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 3 invariant review fixes (#255) | 27,824,596 (24,920,623) | 2,903,895 | 2,788 | 27,827,384 | $19.56 |
+
+Boundary: `2026-10-17T15:46:37Z` → this edit. Cache writes: 2,903,895 5-minute, 0 1-hour. Exact API-equivalent USD 19.5596716.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

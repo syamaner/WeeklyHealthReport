@@ -163,6 +163,66 @@ class InspectWiringTests(unittest.TestCase):
         self.assertEqual((ledger["open_calls"], ledger["unknown_cost_calls"]), (0, 0))
         self.assertEqual((call["attempts"], call["retries"], call["cost_usd"]), (2, 1, "0.01"))
 
+    def _run_route_c_once(self, reply: dict) -> tuple[int, dict, dict]:
+        """Run the route C solver on one sample against a scripted OpenRouter reply; return (posts, ledger, metadata)."""
+        from inspect_ai import Task
+        from inspect_ai import eval as inspect_eval
+        from inspect_ai.dataset import Sample
+
+        import inspect_task
+        from budget import LedgerBudget
+        from openrouter_route import RouteCModel
+
+        target = RouteCModel(label="luna", model="openai/gpt-6-luna", endpoint="openai", provider_name="OpenAI")
+        sent: list[dict] = []
+
+        def post(body, timeout):  # noqa: ANN001, ANN202
+            sent.append(body)
+            return 200, reply, {}, 0.1
+
+        with tempfile.TemporaryDirectory() as folder:
+            image = Path(folder) / "a.png"
+            image.write_bytes(b"\x89PNG\r\n\x1a\n")
+            metadata = {"image_path": str(image), "corpus": "off_taiwan", "sha256": "a" * 64}
+            sample = Sample(id="c", input="image", target=json.dumps({"requires_decline": True}), metadata=metadata)
+            budget = LedgerBudget(Path(folder) / "ledger.json")
+            task = Task(
+                dataset=[sample],
+                solver=inspect_task.route_c_openrouter(budget, enabled=True, target=target, post=post, sleep=lambda _: None),
+                scorer=inspect_task.label_capture_scorer(),
+            )
+            log = inspect_eval(task, model="mockllm/model", log_dir=folder, display="none")[0]
+            ledger = json.loads((Path(folder) / "ledger.json").read_text())
+            sample_metadata = dict((log.samples or [])[0].metadata)
+        return len(sent), ledger, sample_metadata
+
+    def test_route_c_schema_invalid_200_is_a_failed_case_after_one_attempt(self):
+        reply = {
+            "id": "gen-1",
+            "model": "openai/gpt-6-luna",
+            "provider": "OpenAI",
+            "usage": {"cost": 0.001},
+            "choices": [{"finish_reason": "stop", "message": {"content": json.dumps({"declined": False, "columns": []})}}],
+        }
+        posts, ledger, metadata = self._run_route_c_once(reply)
+        self.assertEqual(posts, 1)
+        self.assertEqual(metadata["route_c"]["retries"], 0)
+        self.assertTrue(metadata["route_c_failed"][0].startswith("schema-invalid output"))
+        self.assertEqual([e["cost_usd"] for e in ledger["entries"]], ["0.001"])
+
+    def test_route_c_truncated_answer_is_not_retried(self):
+        reply = {
+            "id": "gen-2",
+            "model": "openai/gpt-6-luna",
+            "provider": "OpenAI",
+            "usage": {"cost": 0.002},
+            "choices": [{"finish_reason": "length", "message": {"content": '{"declined": fal'}}],
+        }
+        posts, ledger, metadata = self._run_route_c_once(reply)
+        self.assertEqual(posts, 1)
+        self.assertEqual(metadata["route_c_failed"], ["finish_reason 'length'"])
+        self.assertEqual(ledger["unknown_cost_calls"], 0)
+
     def test_route_b_task_runs_stub_vision_serialiser_and_parser(self):
         from inspect_ai import eval as inspect_eval
 

@@ -362,6 +362,19 @@ class RouteCRunnerTests(unittest.TestCase):
         self.assertFalse(run_route_c.credit_gate({"available": 20.0}, Decimal("8.3"), reserve_usd=Decimal("40"))[0])
         self.assertFalse(run_route_c.credit_gate({"available": None}, Decimal("0.1"))[0])  # unknown credit refuses
 
+    def test_credit_lookup_failure_makes_available_unknown_so_the_gate_refuses(self):
+        key = {"limit": 75, "limit_remaining": 58.4, "usage": 16.6}
+        credits = {"total_credits": 190, "total_usage": 119.3}
+        self.assertAlmostEqual(run_route_c.credit_from(key, credits)["available"], 58.4)
+        failed = run_route_c.credit_from(key, {"error": "URLError"})  # /credits errors
+        self.assertIsNone(failed["available"])
+        self.assertFalse(run_route_c.credit_gate(failed, Decimal("0.1"))[0])
+        self.assertIsNone(run_route_c.credit_from({"error": "HTTPError"}, credits)["available"])  # /key errors
+        self.assertIsNone(run_route_c.credit_from(key, {"total_credits": "190", "total_usage": 119.3})["available"])
+        self.assertIsNone(run_route_c.credit_from({**key, "limit_remaining": None}, credits)["available"])
+        unlimited = run_route_c.credit_from({"limit": None, "limit_remaining": None}, credits)  # explicit null limit
+        self.assertAlmostEqual(unlimited["available"], 70.7)
+
     def test_pinned_targets_come_from_the_contract(self):
         contract = json.loads((HERE / "frozen-contract-v1.json").read_text())
         luna = run_route_c.pinned_target(contract, "luna", "off")
@@ -515,6 +528,38 @@ class LedgerRetryAndLimitTests(unittest.TestCase):
             self.assertEqual(ledger.unknown_cost_calls, 0)
             self.assertEqual(ledger.amendments[0]["relabelled_entries"], [0, 2])
             self.assertEqual(ledger.reported_spend_usd, Decimal("0.01"))
+
+    def test_relabel_refuses_bad_indices_and_unlooked_generations_and_recounts(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "ledger.json"
+            LedgerBudget(path).before_call("m")
+            LedgerBudget(path).record_call("m", None, purpose="p", case_id="q", at="t", generation_id="gen-9")
+            LedgerBudget(path).before_call("m")
+            LedgerBudget(path).record_call("m", None, purpose="p", case_id="q", at="t")
+            bad_indices: list[list[int]] = [[-1], [2], [True]]  # True is a bool, not an index
+            for bad in bad_indices:
+                with self.assertRaises(BudgetStop):
+                    LedgerBudget.relabel_entries(path, bad, REJECTED_ERROR_KIND, at="t", reason="r", evidence=[])
+            with self.assertRaises(BudgetStop):  # a generation id needs a lookup result in the evidence
+                LedgerBudget.relabel_entries(path, [0], REJECTED_ERROR_KIND, at="t", reason="r", evidence=[])
+            LedgerBudget.relabel_entries(
+                path, [0, 1], REJECTED_ERROR_KIND, at="t", reason="r", evidence=[{"entry": 0, "generation_lookup": "not_found"}]
+            )
+            raw = json.loads(path.read_text())
+            self.assertEqual(raw["unknown_cost_calls"], 0)  # the stored counter is recomputed on write
+            self.assertEqual(raw["unknown_cost_calls"], LedgerBudget(path).unknown_cost_calls)
+
+    def test_close_open_call_accepts_only_known_kinds_and_records_an_amendment(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "ledger.json"
+            LedgerBudget(path).before_call("luna")
+            with self.assertRaises(BudgetStop):
+                LedgerBudget(path).close_open_call("luna", None, purpose="p", case_id="c", at="t", kind="anything")
+            LedgerBudget(path).close_open_call(
+                "luna", Decimal("0.05"), purpose="p", case_id="c", at="t", kind="unreconciled_in_flight_ceiling_charge"
+            )
+            ledger = LedgerBudget(path)
+            self.assertEqual(ledger.amendments[-1]["kind"], "unreconciled_in_flight_ceiling_charge")
 
     def test_limits_change_only_through_a_recorded_amendment(self):
         with tempfile.TemporaryDirectory() as folder:

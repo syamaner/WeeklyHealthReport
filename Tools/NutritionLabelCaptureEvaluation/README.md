@@ -7,7 +7,7 @@ pasted text (A), on-device Vision (B) and a multimodal model through OpenRouter 
 Nothing here ships product behaviour, saves food or treats any output as nutrition truth.
 `Tools/FoodOCREvaluation/` stays frozen; its files are read, never edited.
 
-Phase 1 had no AI or OpenRouter call and no Vision run. Phase 2 adds route B (Vision on development images only), the phase 1 review safeguards and the untouched truth drafting (decision A). Phase 3 records the owner's verification of the untouched Taiwan drafts (round 1), downloads and drafts the refills (round 2), gives the muesli photo every consent flag, and runs route C on **development photos only** (five models, reasoning off and on, under the owner's evaluation-only routing decisions of 17 October 2026).
+Phase 1 had no AI or OpenRouter call and no Vision run. Phase 2 adds route B (Vision on development images only), the phase 1 review safeguards and the untouched truth drafting (decision A). Phase 3 records the owner's verification of the untouched Taiwan drafts (round 1), downloads and drafts the refills (round 2), gives the muesli photo every consent flag, and runs route C on **development photos only** (eight models in ten arms, reasoning off and on where the endpoint allows, under the owner's evaluation-only routing decisions of 17 October 2026).
 
 ## Framework: Inspect AI
 
@@ -198,10 +198,15 @@ and `--write-truth <file> --verified-on <date>` writes the owner-verified truth 
 the sheet (only fully checked cases become records). `--bilingual-orders 34` drafts the listed
 orders with `openrouter/truth-drafting-instruction-v1.2.txt` (contract `bilingual_instruction`).
 
-Route C on development photos, one pinned model at a time in the run order Luna, Grok, Sol,
-Gemini 4, Opus, each with reasoning off and on (fictional qualification labels are rendered first
-with `xcrun swift qualification/render_qualification.swift <folder outside the repository>`). The
-runner reports the key's remaining credit (free `GET /api/v1/key`) before the first call:
+Route C on development photos, one pinned model and reasoning setting at a time: eight models in
+ten arms. The order run on 17 October 2026, cheapest first, was Luna (off, on), Luna Pro (off, on),
+Grok 4.7 (on), Gemini 4 Argon (on), GPT-6.1 Sol (on), GPT-6.1 Sol Pro (on), Claude Opus 5.5 (on) and
+Claude Fable 5.1 (on); reasoning off is not available on the last six (reasoning mandatory).
+Fictional qualification labels are rendered first with
+`xcrun swift qualification/render_qualification.swift <folder outside the repository>`. Before the
+first call the runner reads the key's remaining limit and the account balance (both free) and
+refuses an arm whose projected cost plus a margin (and any `--reserve-usd`) is not covered, or
+when either lookup fails:
 
 ```sh
 .venv/bin/python run_route_c.py --label luna --reasoning off --env-file <dotenv with OPENROUTER_API_KEY> \

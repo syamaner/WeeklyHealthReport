@@ -128,15 +128,32 @@ def key_credit(key: str) -> dict[str, Any]:
     was $0.76, and OpenRouter answered HTTP 402. `available` is the smaller of the two. The key
     itself is never returned.
     """
-    key_data = _get(KEY_URL, key)
-    credits = _get(CREDITS_URL, key)
+    return credit_from(_get(KEY_URL, key), _get(CREDITS_URL, key))
+
+
+def _number(value: Any) -> bool:
+    return isinstance(value, int | float) and not isinstance(value, bool)
+
+
+def credit_from(key_data: dict[str, Any], credits: dict[str, Any]) -> dict[str, Any]:
+    """Pure: the credit summary from the two lookups. `available` is None (so the gate refuses) when
+    either lookup errored or returned a non-numeric value; a key with an explicit null limit has no
+    key-side cap, so only the account balance applies."""
     result: dict[str, Any] = {k: key_data.get(k) for k in ("limit", "limit_remaining", "usage", "is_free_tier")}
     total, used = credits.get("total_credits"), credits.get("total_usage")
-    result["account_remaining"] = (
-        float(Decimal(str(total)) - Decimal(str(used))) if isinstance(total, int | float) and isinstance(used, int | float) else None
-    )
-    known = [v for v in (result["limit_remaining"], result["account_remaining"]) if isinstance(v, int | float)]
-    result["available"] = min(known) if known else None
+    account_ok = "error" not in credits and _number(total) and _number(used)
+    account = float(Decimal(str(total)) - Decimal(str(used))) if account_ok else None
+    result["account_remaining"] = account
+    if "error" in key_data or "error" in credits:
+        result["lookup_error"] = key_data.get("error") or credits.get("error")
+    unlimited_key = "error" not in key_data and "limit" in key_data and key_data.get("limit") is None
+    key_ok = "error" not in key_data and (unlimited_key or (_number(key_data.get("limit")) and _number(key_data.get("limit_remaining"))))
+    if account is None or not key_ok:
+        result["available"] = None
+    elif unlimited_key:
+        result["available"] = account
+    else:
+        result["available"] = min(float(key_data["limit_remaining"]), account)
     return result
 
 

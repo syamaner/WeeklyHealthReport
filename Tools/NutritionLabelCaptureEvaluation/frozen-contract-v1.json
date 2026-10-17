@@ -9,7 +9,7 @@
     "name": "inspect_ai",
     "version": "0.3.276",
     "requirements": "Tools/NutritionLabelCaptureEvaluation/requirements.txt",
-    "route_c_dependency": "openai==3.24.0 (released 2 October 2026), required by Inspect's openrouter/... provider; hash-locked in requirements-dev.lock"
+    "route_c_dependency": "none: route C posts to OpenRouter through openrouter_client (urllib), and Inspect runs on mockllm/model, so the OpenAI SDK pin added earlier in phase 3 was dropped and requirements-dev.lock is unchanged from main"
   },
   "candidate_schema": {
     "path": "Tools/NutritionLabelCaptureEvaluation/candidate-schema-v1.json",
@@ -179,7 +179,7 @@
       "GPT-6.1 Sol (openai), on",
       "GPT-6.1 Sol Pro (openai), on",
       "Claude Opus 5.5 (anthropic), on",
-      "Claude Fable 5.1 (anthropic), on: held for the owner because the projection crosses the $20 development allowance"
+      "Claude Fable 5.1 (anthropic), on: run under the owner's $65 total / $25 development decision (credit gate passed)"
     ],
     "provider_block": {
       "only": [
@@ -210,7 +210,7 @@
       "location": "outside the repository (~/WHR-label-eval-private/spend-ledger-v1.json); one ledger for route C and the untouched truth drafting",
       "holds": "the $65 total, the $0.20 per-call stop, the three unknown-cost allowance (retryable errors with no generation excluded) and the 200-call sealed reservation, shared across runs, models, processes and the drafting",
       "refuses_changed_limits": true,
-      "unrecorded_calls": "a call started but not recorded stays open: it is charged at the $0.05 ceiling and, if sealed, counts against the 200-call sealed cap",
+      "unrecorded_calls": "a call started but not recorded stays open: it is charged at the current per-call stop ($0.20 since the owner's decisions of 17 October 2026) and, if sealed, counts against the 200-call sealed cap. The hold's in-flight Luna call was closed explicitly at the $0.05 stop in force when it was sent (kind unreconciled_in_flight_ceiling_charge).",
       "locking": "an exclusive fcntl.flock on a sibling lock file around every reload, check, append and save, so separate processes share one true total",
       "entry_fields": {
         "at": "UTC time supplied by the caller",
@@ -241,7 +241,7 @@
     "enabled_scope": "DEVELOPMENT photos only (phase 3, 17 October 2026): the muesli photo (send_to_openrouter consent), the Taiwan development photos and the UK development review images. The untouched and sealed photos, untouched truth and drafts are never read by route C.",
     "qualification": "Before any real image, each model gets two fictional labels rendered by qualification/render_qualification.swift (one Taiwan, one UK); a model that does not return an accepted, schema-valid, non-declined answer for both is sent no real image.",
     "reasoning_note": "Two development runs per model: reasoning off sends reasoning {enabled: false}; reasoning on sends reasoning {enabled: true} with no effort set, the model's default effort.",
-    "timeouts": "180 s total deadline per call including retries; no streaming",
+    "timeouts": "180 s caps when each retry may start; a single attempt is not bounded as a whole until the whole-call deadline lands (deadline_gap); no streaming",
     "models": {
       "luna": {
         "name": "GPT-6 Luna",
@@ -526,7 +526,7 @@
       "retryable": "transport or network error, timeout, HTTP 408, 429, 500, 502, 503, 504, 529, and error bodies whose code is one of those or whose message says the provider is overloaded",
       "never_retried": "content outcomes (schema failure, finish_reason other than stop, model or provider mismatch) and any other HTTP status; those are scored failures",
       "backoff": "exponential with full jitter, base 2 s, cap 60 s; Retry-After (delta-seconds or HTTP-date) is the minimum wait",
-      "bounds": "at most 5 attempts and 180 s in total per call, each attempt's socket timeout being the time left; an exhausted call is a failure with its cause",
+      "bounds": "at most 5 attempts; 180 s caps when each retry may start (no attempt starts, and no backoff wait begins, once 180 s would be passed), and each attempt's socket timeout is the time left. A single attempt is not bounded as a whole: urllib's timeout applies per socket read, so one slow attempt can run past 180 s until the whole-call deadline lands. An exhausted call is a failure with its cause.",
       "ledger": "every attempt is a ledger entry with its reported cost or as unknown (retryable errors with no generation as retryable_error_unknown_cost)",
       "inspect_retry": "Inspect 0.3.276's openrouter provider parses Retry-After but its backoff ignores it, and its OpenAI SDK client keeps the SDK's two internal retries; attempts in either loop never reach the ledger and the loops compound. Route C therefore posts to OpenRouter directly through this client (Inspect runs the dataset, scorer and logs on mockllm/model, and generate is never called), so there is one retry loop."
     },
@@ -541,7 +541,7 @@
     "schema_comment_finding": "Anthropic rejected the wire schema with 'property $comment is not supported' (HTTP 400, 17 October 2026); openrouter_route.route_c_request_body strips $comment (documentation only) for every model. Luna and the first Grok attempts were sent with it; the schema's constraints are unchanged.",
     "deadline_gap": {
       "finding": "openrouter_client's 180 s deadline bounds when retries may start, but urllib's timeout applies to each socket read, so one slow attempt can run past it: Grok 4.7 with reasoning on took up to 263 s (p50 48.6 s, p90 133.9 s) on 17 October 2026.",
-      "decision": "recorded now; a whole-call deadline (a watchdog or a streaming read with an overall timer) is implemented before the sealed run, not during development, so every development arm runs on the same client",
+      "decision": "deferred by the orchestrator so the development arms stay comparable (all ran on the same client); the owner approved, on 17 October 2026, a plan in which the whole-call deadline lands before the untouched run",
       "status": "open; required before the sealed run"
     },
     "product_ceiling_check": "the product ceilings (median $0.02 per photo, p90 20 s) are unchanged; on development Grok 4.7 with reasoning on is far above the latency ceiling (p90 133.9 s) and above the cost ceiling (median $0.032), so it cannot be promoted as configured, whatever its accuracy",
@@ -574,7 +574,8 @@
       ],
       "results": "Tools/NutritionLabelCaptureEvaluation/results/route-c-development-v1.md"
     },
-    "status": "development runs complete (17 October 2026); the sealed run waits for the owner's choice of models, the whole-call deadline and the frozen contract"
+    "status": "development runs complete (17 October 2026); the sealed run waits for the owner's choice of models, the whole-call deadline and the frozen contract",
+    "per_call_stop_scope": "the $0.20 per-call stop is checked per attempt: each attempt's reported cost is recorded and compared with the stop. A call with retries could in principle sum above $0.20 across attempts; in the development runs one call retried once (Opus 5.5, after HTTP 502 with no generation), so no summed cost exceeded the stop."
   },
   "ground_truth": {
     "development_off_taiwan": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json",
@@ -603,12 +604,12 @@
     "Tools/NutritionLabelCaptureEvaluation/candidate.py": "05f67900b4b38bd820d71a04351b5a26553a976d74051a5964210a24e20109c1",
     "Tools/NutritionLabelCaptureEvaluation/score.py": "dd3acb65669dcbfef35132a56de07382e504c4866d779d7576a6782618f9dbd6",
     "Tools/NutritionLabelCaptureEvaluation/arithmetic.py": "ffaf734c50d732c57da705bcb09787fe46c8e4fae2649353a3594d03a39f9d1c",
-    "Tools/NutritionLabelCaptureEvaluation/budget.py": "c551d400acf668e55e84d209adaaa722fe3cee4344368c1c71022fe17505bd8d",
+    "Tools/NutritionLabelCaptureEvaluation/budget.py": "a053fbf7b576f7daa3376a0ac7be77e4f3b26c9dbbf19e5a46f7bcb73494babb",
     "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py": "18d21a1fe43a46cf10b72ca492da5faccb40c8026b7884836fa20cf8ef1afdf7",
-    "Tools/NutritionLabelCaptureEvaluation/requirements-dev.lock": "db250645854ebc9f1b6e97f5685d45727f09e106efbebe0d42ce652140017cac",
+    "Tools/NutritionLabelCaptureEvaluation/requirements-dev.lock": "ecdedef956a76eeed2983139f2b82f89bf0ebbecd54b5de4bc8e964e4c32674a",
     "Tools/NutritionLabelCaptureEvaluation/cases.py": "ce133f7b8ac09e1cd304b78532b1bb2d55a60d0fa52cec744c374f52a1cb6fe1",
     "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "a3c9224443214f47cb37f9e935b012b9bdf4d387b6d5c854999c615c82ba11d5",
-    "Tools/NutritionLabelCaptureEvaluation/requirements.txt": "e16421a862c52e544b6938e94fec9650b5197b7cb43e5330ae23bfebbb4cb635",
+    "Tools/NutritionLabelCaptureEvaluation/requirements.txt": "56dfa330c985616b9a3704fc5f5df526abb6e7136ece92a29bfa471db190acf4",
     "Tools/NutritionLabelCaptureEvaluation/synthetic/render.py": "6c8fcb7d30f7829f1f493859bc63ae6828c4af67dff77aa1aded7919c0996ae1",
     "Tools/NutritionLabelCaptureEvaluation/build_cases.py": "4fcaf2685f24d4a359ff7d7d76ea36464dfd000a3582bbca375b613031e38b15",
     "Tools/NutritionLabelCaptureEvaluation/synthetic/development-cases-v1.jsonl": "894a406d6e1a720b0712517beb59da3387171d7c3e6cedd46b2b7a7813175da8",
@@ -624,14 +625,14 @@
     "Tools/NutritionLabelCaptureEvaluation/vision_v3.swift": "942064b84d069358d4878624802b994ecbca5aa43583c6ca418236cad2656e02",
     "Tools/NutritionLabelCaptureEvaluation/serialise_lines.py": "81c279137e4c1b6ad0a3b08cd43733c625aa9b1edb64e1a395aec91ef1ff7ec2",
     "Tools/NutritionLabelCaptureEvaluation/run_route_b.py": "e2da453fe273017590c5e78c330f1ab0f17416dfe3657b06c12d2927b679f90a",
-    "Tools/NutritionLabelCaptureEvaluation/run_route_c.py": "d27d5defe75f6e1746c88c55ee0cc052e10afee0ef4e6923d77f0262d40ae4a4",
+    "Tools/NutritionLabelCaptureEvaluation/run_route_c.py": "3b92d42e805f535ed5c476767a08df0539f5de6a0c94f645e14d285461ac1bba",
     "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py": "4804ce6505137af1b92aed32ea97bf998bea074097a773bce8174c0e2d2b6ba1",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.txt": "721569af7b34ac5108456e7930f35b7883ab4fa049aed79a3893bf7af4c154aa",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.1.txt": "83667e61d22f76c6ebb33f525e49676f7ab1f6c1e985ac8a777b5411a0ef6d3a",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.2.txt": "6e224a542f47894c21e87e43c7413b489d5a7b352b340c5eda718cbefc80ff34",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-wire-schema-v1.json": "75af5c236184284c239a5170a0ab6efb2e8637c9f508cf02fe4c0b220fba0c2d",
     "Tools/NutritionLabelCaptureEvaluation/route_c_mapping.py": "0abcdd23ab0b4fce55ac83e0570b50d2284c8e294f3163e849b6415a10ffa6a0",
-    "Tools/NutritionLabelCaptureEvaluation/openrouter_client.py": "19799b6d2e6866e5546af6ecc9e30cd23a2f2205419bf36ddacbf98232e60b87",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter_client.py": "95002deab9eab055f15202bf47cb26dff47e0c637c1a1a69ff8edcaa40c42ed4",
     "Tools/NutritionLabelCaptureEvaluation/qualification/render_qualification.swift": "0820650b78c72abaf480b079d2f4454612e1151d86fcfba84327f2c770fc3e91"
   },
   "untouched_truth_drafting": {
@@ -655,7 +656,7 @@
       "catalogue_check_2026_10_17": "image input advertised (input modalities text, image, video); listed in OpenRouter's ZDR endpoint list as 'DeepInfra | qwen/qwen3.5-397b-a17b-20260216'; supports structured_outputs and response_format; prompt $0.45 and completion $3.00 per million tokens",
       "note": "Qwen 3.5 has no separate VL model on OpenRouter: the 3.5 models are natively multimodal. The 397B A17B flagship on deepinfra/fp8 matches the plan's former reserve (Qwen 3.5 on deepinfra/fp8)."
     },
-    "request": "openrouter/truth-drafting-instruction-v1.txt and openrouter/truth-drafting-wire-schema-v1.json (strict json_schema); provider block only and order [deepinfra/fp8], allow_fallbacks false, require_parameters true, data_collection deny, zdr true; max_tokens 4096, temperature 0, reasoning disabled, no tools, no retries, no streaming, 90 s timeout",
+    "request": "openrouter/truth-drafting-instruction-v1.txt and openrouter/truth-drafting-wire-schema-v1.json (strict json_schema); provider block only and order [deepinfra/fp8], allow_fallbacks false, require_parameters true, data_collection deny, zdr true; max_tokens 4096, temperature 0, reasoning disabled, no tools, no retries, no streaming, 90 s timeout. Retry policy by round: round 1 (orders 21 to 60) ran with no retries and a 90 s socket timeout; round 2 (order 34 and the refills 63 to 77) also ran before the shared client existed, with the same no-retry, 90 s client. From phase 3's owner decisions on, any further drafting goes through openrouter_client (bounded retries honouring Retry-After), and each attempt is a ledger entry.",
     "runner": "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py",
     "storage": "drafts, raw response bodies, journal and the owner's review sheet are kept outside the repository (~/WHR-label-eval-private/drafts/untouched-taiwan-v1/); no draft value is committed; no route reads that folder",
     "output_schema": "label-capture-truth-draft-v1 per image: cells in the label-capture-candidate-v1 cell shape, plus uncertain_cells and a table proposal (usable, requires_decline or exclude_and_refill) for the owner to confirm",

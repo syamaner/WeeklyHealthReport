@@ -11,8 +11,12 @@ Shared by the route C solver and the untouched truth drafting, so both follow on
   is final too.
 - **Backoff:** exponential with full jitter (base 2 s, cap 60 s); a `Retry-After` header is
   respected in both forms (delta-seconds and HTTP-date) as the minimum wait.
-- **Bounds:** at most 5 attempts and a total deadline of 180 s per call; each attempt's
-  socket timeout is the time left. A call that exhausts its retries returns its last cause.
+- **Bounds:** at most 5 attempts; 180 s caps when each retry may start (no attempt or
+  backoff wait begins once it would be passed), and each attempt's socket timeout is the
+  time left. A single attempt is not bounded as a whole: urllib's timeout applies per socket
+  read, so one slow attempt can run past 180 s (Grok 4.7 took 263 s on 17 October 2026) until
+  the whole-call deadline lands, before the untouched run. A call that exhausts its retries
+  returns its last cause.
 - **Ledger:** the caller's `on_attempt` hook sees every attempt, so each one is recorded
   with its reported cost, or as unknown.
 

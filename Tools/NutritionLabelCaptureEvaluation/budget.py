@@ -2,26 +2,30 @@
 
 Inspect's native `cost_limit` is per sample and priced from a model-cost table;
 the plan's stops use the cost OpenRouter reports per response and span the whole
-evaluation, so this small guard enforces them around each call:
+evaluation, so this small guard enforces them around each attempt:
 
-- stop a model's run if any single call reports more than the per-call stop ($0.05 in
-  the plan; $0.20 for route C from the owner's decisions of 17 October 2026);
-- stop the whole evaluation at the total stop ($25 in the plan; $60 from 17 October 2026);
-- stop at the first unknown-cost call beyond three (retryable errors with no generation,
-  `retryable_error_unknown_cost`, are recorded but do not count);
+- stop a model's run if any single attempt reports more than the per-call stop ($0.05 in
+  the plan; $0.20 for route C from the owner's decisions of 17 October 2026). The stop is
+  checked per attempt, not on the sum of a retried call's attempts;
+- stop the whole evaluation at the total stop ($25 in the plan; $65 from the owner's
+  decisions of 17 October 2026, after an intermediate $60);
+- stop at the first unknown-cost call beyond three (errors that returned no generation,
+  `retryable_error_unknown_cost` and `rejected_no_generation_unknown_cost`, are recorded
+  but do not count; an HTTP 200 answer without a cost does);
 - reserve the sealed run's 200 calls (now at $0.20 each, $40) out of the total before any
   development call, so the stop can never be reached with the untouched set unrun.
 
 The ledger's limits change only through `LedgerBudget.amend_limits`, which records the
 change in `limits_history`; a ledger whose limits differ from the caller's is refused.
+Relabelling, pausing and closing an interrupted call are recorded in `amendments`.
 
 Unknown costs are counted and reported as unknown, never as zero. Calls in flight are
-counted at the per-call ceiling until their cost is recorded, so concurrent requests
-cannot overrun a stop.
+counted at the current per-call stop until their cost is recorded, so concurrent
+requests cannot overrun a stop.
 
 `LedgerBudget` persists the same state in one JSON ledger outside the repository, so the
-$25 total and the 200-call sealed reservation hold across separate Inspect runs, models
-and the untouched truth drafting. The ledger records each call's purpose, model, case id
+total and the 200-call sealed reservation hold across separate Inspect runs, models and
+the untouched truth drafting. The ledger records each attempt's purpose, model, case id
 and reported cost; it never holds a key, a header, a prompt or a response.
 """
 
@@ -254,24 +258,33 @@ class LedgerBudget:
     def relabel_entries(path: Path, indices: list[int], kind: str, *, at: str, reason: str, evidence: list[dict[str, Any]]) -> None:
         """Relabel existing unknown-cost entries by an explicit, recorded owner decision (kept in `amendments`).
 
-        Only entries with no reported cost may be relabelled, and only to a kind that is
-        excluded from the unknown-cost stop; the cost itself is never changed here.
+        Only entries with no reported cost may be relabelled, only to a kind that is excluded
+        from the unknown-cost stop, and only by valid indices. An entry that carries a
+        `generation_id` is refused unless the evidence records a generation lookup for it
+        (`{"entry": index, "generation_lookup": ...}`), since a generation may have been charged.
+        The cost itself is never changed here, and the derived counters are recomputed on write.
         """
         if kind not in NOT_COUNTED_UNKNOWN_KINDS:
             raise BudgetStop(f"refusing to relabel to {kind!r}")
+        looked_up = {item.get("entry") for item in evidence if item.get("generation_lookup")}
         ledger = LedgerBudget.__new__(LedgerBudget)
         ledger.path, ledger.lock_path = path, path.with_name(path.name + ".lock")
         with ledger._locked():
             data = json.loads(path.read_text(encoding="utf-8"))
             entries = data["entries"]
             for index in indices:
+                if not isinstance(index, int) or isinstance(index, bool) or not 0 <= index < len(entries):
+                    raise BudgetStop(f"entry index {index!r} is out of range; refusing to relabel")
                 if entries[index].get("cost_usd") is not None:
                     raise BudgetStop(f"entry {index} has a reported cost; refusing to relabel")
+                if entries[index].get("generation_id") and index not in looked_up:
+                    raise BudgetStop(f"entry {index} carries a generation id but no lookup result in the evidence; refusing to relabel")
             for index in indices:
                 entries[index]["kind"] = kind
             amendments = list(data.get("amendments", []))
             amendments.append({"at": at, "reason": reason, "relabelled_entries": indices, "kind": kind, "evidence": evidence})
             data["amendments"] = amendments
+            _recount(data)
             temporary = path.with_name(path.name + ".tmp")
             temporary.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             os.replace(temporary, path)
@@ -309,8 +322,15 @@ class LedgerBudget:
             temporary.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             os.replace(temporary, path)
 
+    CLOSE_KINDS = frozenset({"unreconciled_in_flight_ceiling_charge", "reconciled_by_generation_lookup"})
+
     def close_open_call(self, model: str, cost_usd: Decimal | None, *, purpose: str, case_id: str, at: str, kind: str) -> None:
-        """Close one call left open by an interrupted run, with the charge decided on reconciliation."""
+        """Close one call left open by an interrupted run, with the charge decided on reconciliation.
+
+        `kind` is one of CLOSE_KINDS, and the closure is also recorded in `amendments`.
+        """
+        if kind not in self.CLOSE_KINDS:
+            raise BudgetStop(f"refusing to close an open call as {kind!r}")
         with self._locked():
             self._load()
             if self.open_calls < 1:
@@ -326,6 +346,15 @@ class LedgerBudget:
                     "sealed": False,
                     "cost_usd": None if cost_usd is None else str(cost_usd),
                     "kind": kind,
+                }
+            )
+            self.amendments.append(
+                {
+                    "at": at,
+                    "reason": "closed an open call",
+                    "model": model,
+                    "kind": kind,
+                    "cost_usd": None if cost_usd is None else str(cost_usd),
                 }
             )
             self._save()
@@ -395,3 +424,13 @@ class LedgerBudget:
             self._save()
         if stop is not None:
             raise stop
+
+
+def _recount(data: dict[str, Any]) -> None:
+    """Recompute a raw ledger's derived counters from its entries (after a relabel)."""
+    entries = data.get("entries", [])
+    data["reported_spend_usd"] = str(sum((Decimal(e["cost_usd"]) for e in entries if e.get("cost_usd") is not None), Decimal("0")))
+    data["unknown_cost_calls"] = sum(1 for e in entries if e.get("cost_usd") is None and e.get("kind") not in NOT_COUNTED_UNKNOWN_KINDS)
+    sealed = sum(1 for e in entries if e.get("sealed")) + int(data.get("open_sealed_calls", 0))
+    data["sealed_calls_made"] = sealed
+    data["sealed_reservation_remaining_calls"] = max(int((data.get("limits") or {}).get("sealed_reserved_calls", 200)) - sealed, 0)
