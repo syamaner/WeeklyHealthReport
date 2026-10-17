@@ -1,8 +1,8 @@
 {
   "schema_version": "label-capture-evaluation-contract-v1",
   "contract_version": "label-capture-evaluation-v1",
-  "status": "development_phase_3",
-  "status_note": "Phase 3 (#255): the owner verified the untouched Taiwan drafts (round 1), refills were drafted for round 2, the muesli photo has every consent flag, and route C is enabled for DEVELOPMENT photos only (the muesli photo, the Taiwan development photos and the UK development review images). Thresholds, adequacy minima, tolerances, selection, split and sealing rules are unchanged. Artefact hashes pin the current development state; they are re-pinned, and the status set to frozen_for_untouched_run, only when every route is frozen before the single untouched run.",
+  "status": "development_phase_4",
+  "status_note": "Phase 3 (#255): the owner verified the untouched Taiwan drafts (round 1), refills were drafted for round 2, the muesli photo has every consent flag, and route C is enabled for DEVELOPMENT photos only (the muesli photo, the Taiwan development photos and the UK development review images). Thresholds, adequacy minima, tolerances, selection, split and sealing rules are unchanged. Artefact hashes pin the current development state; they are re-pinned, and the status set to frozen_for_untouched_run, only when every route is frozen before the single untouched run. Phase 4 (#255, 18 October 2026): the deterministic decline gate `label-capture-decline-gate-v1` (decline_gate block) runs on every route's candidate after extraction and is frozen for the untouched run; saved development outputs of routes A, B and C were re-scored offline with it (no API call); the whole-call deadline closes route_c.deadline_gap. The untouched and sealed sets have still not been run. Owner amendments S1, M1, M2, M3 and T1 (18 October 2026) are applied and recorded in amendments_2026_10_18; development outputs were re-scored offline. After the PR #259 invariant review: decline gate v2 (G1 shared variants, G2 without standalone 錠, G4 per 100 g or ml only), the M3 unit match, a bounded DNS and connect, and the spend rule after a deadline cut; re-scored as results/gate-v2-rescore-v1.json.",
   "plan": "docs/nutrition-label-capture-evaluation-v1.md",
   "plan_approved": "2026-10-17",
   "framework": {
@@ -241,7 +241,7 @@
     "enabled_scope": "DEVELOPMENT photos only (phase 3, 17 October 2026): the muesli photo (send_to_openrouter consent), the Taiwan development photos and the UK development review images. The untouched and sealed photos, untouched truth and drafts are never read by route C.",
     "qualification": "Before any real image, each model gets two fictional labels rendered by qualification/render_qualification.swift (one Taiwan, one UK); a model that does not return an accepted, schema-valid, non-declined answer for both is sent no real image.",
     "reasoning_note": "Two development runs per model: reasoning off sends reasoning {enabled: false}; reasoning on sends reasoning {enabled: true} with no effort set, the model's default effort.",
-    "timeouts": "180 s caps when each retry may start; a single attempt is not bounded as a whole until the whole-call deadline lands (deadline_gap); no streaming",
+    "timeouts": "180 s total deadline per call including retries, enforced per attempt as a whole-call deadline since phase 4; no streaming",
     "models": {
       "luna": {
         "name": "GPT-6 Luna",
@@ -542,7 +542,11 @@
     "deadline_gap": {
       "finding": "openrouter_client's 180 s deadline bounds when retries may start, but urllib's timeout applies to each socket read, so one slow attempt can run past it: Grok 4.7 with reasoning on took up to 263 s (p50 48.6 s, p90 133.9 s) on 17 October 2026.",
       "decision": "deferred by the orchestrator so the development arms stay comparable (all ran on the same client); the owner approved, on 17 October 2026, a plan in which the whole-call deadline lands before the untouched run",
-      "status": "open; required before the sealed run"
+      "status": "closed in phase 4 (18 October 2026); connect and DNS bounded after the PR #259 review",
+      "implementation": "openrouter_client.http_post bounds the whole attempt by the time left of the 180 s call budget. DNS: resolve_within runs getaddrinfo in a daemon thread joined with the deadline (getaddrinfo has no portable timeout; a stalled lookup is abandoned, not killed). Connect: connect() is called explicitly to the pre-resolved address with the time left as its socket timeout, and the watchdog can shut the socket during the TLS handshake (certificate still verified against the host name); after it returns the deadline is checked and the socket timeout reset to the time left before sending. Send and receive: a watchdog timer shuts the socket at the deadline, and the body is read in chunks with a deadline check. A cut attempt is status 0 with a cut body (stage before_send or after_send, and any generation id seen in the partial body), retried under the unchanged policy (Retry-After, at most 5 attempts, 180 s overall). Redirects are not followed.",
+      "tests": "tests/test_phase4.py WholeCallDeadline and ReviewFixes: a trickled body, a server that never sends headers, a DNS lookup that stalls and a TLS handshake that stalls are each cut at a 1 s deadline; the retry loop with the real post stays inside a 2 s overall deadline; redirects are refused",
+      "development_arms": "all ten phase 3 development arms ran without the whole-call deadline (per-read socket timeout only)",
+      "spend_after_cut": "owner decision, 18 October 2026: a cut after the request was sent may still be charged. If a generation id was returned (from the partial body) it is looked up; if the lookup finds no cost, or no id was returned, the attempt is charged at the per-call stop and recorded as cut_unreconciled_per_call_ceiling (route C solver and drafting client alike). A cut before the request was sent (DNS or connect) cannot have a generation and keeps the ordinary no-generation handling. Tests: tests/test_phase4.py ReviewFixes and CutAttemptLedger"
     },
     "product_ceiling_check": "the product ceilings (median $0.02 per photo, p90 20 s) are unchanged; on development Grok 4.7 with reasoning on is far above the latency ceiling (p90 133.9 s) and above the cost ceiling (median $0.032), so it cannot be promoted as configured, whatever its accuracy",
     "credit_gate": "run_route_c.py reads the key's remaining limit (GET /api/v1/key) and the account balance (GET /api/v1/credits), both free, and refuses to start an arm when the smaller is below the arm's projected cost plus a margin (the larger of 25% and $1) plus any reserve (--reserve-usd, $40 for Fable by owner decision). Added after the account balance ran out on 17 October 2026 ($0.76 left while the key had $58), when OpenRouter answered HTTP 402 to most Sol and Sol Pro calls and to Opus 5.5's qualification.",
@@ -602,13 +606,13 @@
   "frozen_artefacts": {
     "Tools/NutritionLabelCaptureEvaluation/candidate-schema-v1.json": "74333555741f73f2557fe74e11cfcb7b2693f5a261c49957a9e8e6e39404e531",
     "Tools/NutritionLabelCaptureEvaluation/candidate.py": "05f67900b4b38bd820d71a04351b5a26553a976d74051a5964210a24e20109c1",
-    "Tools/NutritionLabelCaptureEvaluation/score.py": "dd3acb65669dcbfef35132a56de07382e504c4866d779d7576a6782618f9dbd6",
+    "Tools/NutritionLabelCaptureEvaluation/score.py": "d2c44654bffc693467f09d74cb4896f0044aa76404b0dc2af29b7a62a2dcf938",
     "Tools/NutritionLabelCaptureEvaluation/arithmetic.py": "ffaf734c50d732c57da705bcb09787fe46c8e4fae2649353a3594d03a39f9d1c",
     "Tools/NutritionLabelCaptureEvaluation/budget.py": "a053fbf7b576f7daa3376a0ac7be77e4f3b26c9dbbf19e5a46f7bcb73494babb",
     "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py": "18d21a1fe43a46cf10b72ca492da5faccb40c8026b7884836fa20cf8ef1afdf7",
     "Tools/NutritionLabelCaptureEvaluation/requirements-dev.lock": "ecdedef956a76eeed2983139f2b82f89bf0ebbecd54b5de4bc8e964e4c32674a",
-    "Tools/NutritionLabelCaptureEvaluation/cases.py": "ce133f7b8ac09e1cd304b78532b1bb2d55a60d0fa52cec744c374f52a1cb6fe1",
-    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "a3c9224443214f47cb37f9e935b012b9bdf4d387b6d5c854999c615c82ba11d5",
+    "Tools/NutritionLabelCaptureEvaluation/cases.py": "aed4d908ed026d50699849b28e6aaf3e883c60185f4fe59eb7c2665c4b850890",
+    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "1e2bf3ed0c012d771fa57cdc29c528ba4871b6fc5587f55b334be78dc4bfd8c9",
     "Tools/NutritionLabelCaptureEvaluation/requirements.txt": "56dfa330c985616b9a3704fc5f5df526abb6e7136ece92a29bfa471db190acf4",
     "Tools/NutritionLabelCaptureEvaluation/synthetic/render.py": "6c8fcb7d30f7829f1f493859bc63ae6828c4af67dff77aa1aded7919c0996ae1",
     "Tools/NutritionLabelCaptureEvaluation/build_cases.py": "4fcaf2685f24d4a359ff7d7d76ea36464dfd000a3582bbca375b613031e38b15",
@@ -625,15 +629,16 @@
     "Tools/NutritionLabelCaptureEvaluation/vision_v3.swift": "942064b84d069358d4878624802b994ecbca5aa43583c6ca418236cad2656e02",
     "Tools/NutritionLabelCaptureEvaluation/serialise_lines.py": "81c279137e4c1b6ad0a3b08cd43733c625aa9b1edb64e1a395aec91ef1ff7ec2",
     "Tools/NutritionLabelCaptureEvaluation/run_route_b.py": "e2da453fe273017590c5e78c330f1ab0f17416dfe3657b06c12d2927b679f90a",
-    "Tools/NutritionLabelCaptureEvaluation/run_route_c.py": "3b92d42e805f535ed5c476767a08df0539f5de6a0c94f645e14d285461ac1bba",
-    "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py": "4804ce6505137af1b92aed32ea97bf998bea074097a773bce8174c0e2d2b6ba1",
+    "Tools/NutritionLabelCaptureEvaluation/run_route_c.py": "fa5e6c0e37be8cbd59889af6f0e84f015fe2e312dd2f06844788f59093a82963",
+    "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py": "b9cc4f6d6c35a53e62e301a0ffa9cc9ef772f4cbb7803478d09d2c5387c72e36",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.txt": "721569af7b34ac5108456e7930f35b7883ab4fa049aed79a3893bf7af4c154aa",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.1.txt": "83667e61d22f76c6ebb33f525e49676f7ab1f6c1e985ac8a777b5411a0ef6d3a",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.2.txt": "6e224a542f47894c21e87e43c7413b489d5a7b352b340c5eda718cbefc80ff34",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-wire-schema-v1.json": "75af5c236184284c239a5170a0ab6efb2e8637c9f508cf02fe4c0b220fba0c2d",
-    "Tools/NutritionLabelCaptureEvaluation/route_c_mapping.py": "0abcdd23ab0b4fce55ac83e0570b50d2284c8e294f3163e849b6415a10ffa6a0",
-    "Tools/NutritionLabelCaptureEvaluation/openrouter_client.py": "95002deab9eab055f15202bf47cb26dff47e0c637c1a1a69ff8edcaa40c42ed4",
-    "Tools/NutritionLabelCaptureEvaluation/qualification/render_qualification.swift": "0820650b78c72abaf480b079d2f4454612e1151d86fcfba84327f2c770fc3e91"
+    "Tools/NutritionLabelCaptureEvaluation/route_c_mapping.py": "ff73ea3cac3a98b027383b2033cb49aa1500ccca27723d439cb1a565d44a6466",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter_client.py": "a7af4c1ed4692446d7ff6435fbd97293b614e18dabe198d4159c8d4e299cf714",
+    "Tools/NutritionLabelCaptureEvaluation/qualification/render_qualification.swift": "0820650b78c72abaf480b079d2f4454612e1151d86fcfba84327f2c770fc3e91",
+    "Tools/NutritionLabelCaptureEvaluation/decline_gate.py": "4c1a3f4429a635c269e5c1b7148f096f5d0d224101068f4d187efde04be8392d"
   },
   "untouched_truth_drafting": {
     "owner_decision": "A, 17 October 2026",
@@ -780,5 +785,158 @@
     "current": "nutrition-label-text-parser-v2",
     "v1": "phase 1 (route A development result at that version)",
     "v2": "phase 2: Hangul decline extended to jamo extended A and B and halfwidth Hangul; a value-only line after a row whose label line carried values blocks ready (values_after_complete_row), except an energy continuation; route A development results are unchanged against v1 (same metrics, 173 of 191 usable tables ready after arithmetic)"
+  },
+  "decline_gate": {
+    "version": "label-capture-decline-gate-v2",
+    "source": "Tools/NutritionLabelCaptureEvaluation/decline_gate.py",
+    "status": "frozen for the untouched run on 18 October 2026 (v2, owner decisions on the PR #259 review questions); any change needs a new gate version and is reported as such",
+    "scope": "every candidate from every route (A, B and C), after extraction and before scoring, through the Inspect solver decline_gate_solver; development and untouched tasks alike",
+    "inputs": "the candidate and the label format the case declares (from its corpus or stratum, or an explicit label_format for the fictional qualification labels); never the image, the truth or another route's output",
+    "may": "decline (declined true, gate reasons appended, every cell withheld as unknown, plan section 6) or block ready (would_mark_ready false, warning appended)",
+    "must_not": "change, fill, convert or reorder any value, header or serving line; a passing candidate is returned unchanged; failed (schema-invalid) and already declined candidates pass through untouched",
+    "formats": {
+      "taiwan_nutrition_labelling": "Taiwan 包裝食品營養標示應遵行事項: corpora off_taiwan, owner, muesli_typed, fda188, zh_template",
+      "uk_nutrition_declaration": "retained Regulation (EU) No 1169/2011: corpora uk_v2_development_review, v1, v2dev"
+    },
+    "rules": [
+      {
+        "id": "G1",
+        "reason_code": "unsupported_script",
+        "action": "decline",
+        "rule": "any printed label, header, value or serving text holds kana, Hangul or a Simplified-only Han character (in GB 2312 but not in CP950 / Big5); U+30FB and U+30FC are punctuation, not kana; v2: the shared variant code points 内 温 黄 户 着 奥 吴 吕 没 别 强 兑 虚 册 are not counted as Simplified",
+        "why": "plan section 6 limits v1 to en and zh-Hant; GB 2312 and Big5 are the national Simplified and Traditional character sets, so the distinction needs no hand-made list",
+        "v2_reason": "owner decision, 18 October 2026: each listed code point is in GB 2312 but not in CP950 only because Big5 encodes a sibling glyph of the same character (內 溫 黃 戶 著 奧 吳 呂 沒 別 強 兌 虛 冊); it differs by a written component, not by simplification, and Traditional text from Hong Kong fonts, OCR and Unicode-unified typesetting commonly uses it. Tests: a Traditional table containing them is not declined; true Simplified text (营 养 质) still is"
+      },
+      {
+        "id": "G2",
+        "reason_code": "not_a_food_nutrition_panel",
+        "action": "decline",
+        "rule": "a header, row label or serving line names a food supplement (food supplement, dietary supplement, supplement facts, 營養補充 or 营养补充) or a softgel or caplet dose",
+        "why": "food supplements are exempt from the 1169/2011 nutrition declaration (Article 29(1)(a)) and labelled per daily dose under the Food Supplements (England) Regulations 2003; Taiwan capsule and tablet foods have their own labelling rule. capsule, 膠囊 and English tablet are not markers (coffee capsules, Scottish tablet)",
+        "v2_reason": "owner decision, 18 October 2026: 錠 is no longer a standalone marker, because 口含錠 (mints and lozenges) are food; the explicit supplement markers stay"
+      },
+      {
+        "id": "G3",
+        "reason_code": "required_row_missing",
+        "action": "decline",
+        "rule": "a mandatory row of the declared format has no readable amount in any amount column. UK: energy kJ and kcal, fat, saturates, carbohydrate, sugars, protein, salt. Taiwan: 熱量, 蛋白質, 脂肪, 飽和脂肪, 反式脂肪, 碳水化合物, 糖, 鈉",
+        "why": "1169/2011 Article 30(1) and Annex XV; Taiwan 包裝食品營養標示應遵行事項. A mandatory row with no amount means a cut-off, obscured or non-conforming table; plan section 6 declines tables whose values cannot be bound to their rows"
+      },
+      {
+        "id": "G4",
+        "reason_code": "column_count_mismatch",
+        "action": "decline",
+        "rule": "a mandatory row has an amount in one per 100 g or per 100 ml column but not in another such column (per-serving and reference-intake columns excluded)",
+        "why": "plan section 6 declines a count mismatch between a column's values and the row labels; reference-intake cells are excluded because Taiwan labels print * where no reference value exists",
+        "v2_reason": "owner decision, 18 October 2026: a per-portion column may legitimately list only some rows (1169/2011 Article 33), so a partial per-portion column is never declined"
+      },
+      {
+        "id": "G5",
+        "reason_code": "required_basis_missing",
+        "action": "block_ready",
+        "rule": "UK only: no per 100 g or per 100 ml column",
+        "why": "1169/2011 Article 32(2). No Taiwan column rule: the plan's coverage (section 3.1) treats single-column Taiwan tables as usable"
+      },
+      {
+        "id": "G6",
+        "reason_code": "required_serving_declaration_missing",
+        "action": "block_ready",
+        "rule": "Taiwan only: no printed serving size (每一份量) or servings per pack (本包裝含…份)",
+        "why": "both lines are mandatory in the Taiwan format"
+      }
+    ],
+    "overfitting_guard": "Development data motivated the gate (phase 3: false-ready and missed declines on development images). The rules were written from the regulations and plan section 6 and then run once over the saved development outputs; no rule, marker or threshold was added or tuned to fit a development case. Image-quality declines (blur, small print, a cropped edge with every row still read) cannot be seen from a candidate and are not attempted.",
+    "development_rescore": "results/gate-v2-rescore-v1.json (offline, no API call, gate v2 with amendments S1, M1 to M3, T1 and the PR #259 review fixes)",
+    "language_note": "Python, not Swift: route C's mapping and the scorer are Python, CI's label-capture job runs on Linux without the Swift CLI, and the GB 2312 / Big5 codecs ship with Python. No product path consumes route C yet; a product phase would port the frozen rules into NutritionLabelParsing behind the same test vectors (tests/test_phase4.py).",
+    "v1": {
+      "version": "label-capture-decline-gate-v1",
+      "source": "Tools/NutritionLabelCaptureEvaluation/decline_gate.py",
+      "status": "superseded on 18 October 2026 by v2; v1 is the gate results/decline-gate-rescore-v1.json (commit f313578c) and results/amendments-rescore-v1.json (commit ac584932) used",
+      "scope": "every candidate from every route (A, B and C), after extraction and before scoring, through the Inspect solver decline_gate_solver; development and untouched tasks alike",
+      "inputs": "the candidate and the label format the case declares (from its corpus or stratum, or an explicit label_format for the fictional qualification labels); never the image, the truth or another route's output",
+      "may": "decline (declined true, gate reasons appended, every cell withheld as unknown, plan section 6) or block ready (would_mark_ready false, warning appended)",
+      "must_not": "change, fill, convert or reorder any value, header or serving line; a passing candidate is returned unchanged; failed (schema-invalid) and already declined candidates pass through untouched",
+      "formats": {
+        "taiwan_nutrition_labelling": "Taiwan 包裝食品營養標示應遵行事項: corpora off_taiwan, owner, muesli_typed, fda188, zh_template",
+        "uk_nutrition_declaration": "retained Regulation (EU) No 1169/2011: corpora uk_v2_development_review, v1, v2dev"
+      },
+      "rules": [
+        {
+          "id": "G1",
+          "reason_code": "unsupported_script",
+          "action": "decline",
+          "rule": "any printed label, header, value or serving text holds kana, Hangul or a Simplified-only Han character (in GB 2312 but not in CP950 / Big5); U+30FB and U+30FC are punctuation, not kana",
+          "why": "plan section 6 limits v1 to en and zh-Hant; GB 2312 and Big5 are the national Simplified and Traditional character sets, so the distinction needs no hand-made list"
+        },
+        {
+          "id": "G2",
+          "reason_code": "not_a_food_nutrition_panel",
+          "action": "decline",
+          "rule": "a header, row label or serving line names a food supplement (food supplement, dietary supplement, supplement facts) or a softgel, caplet or 錠 dose",
+          "why": "food supplements are exempt from the 1169/2011 nutrition declaration (Article 29(1)(a)) and labelled per daily dose under the Food Supplements (England) Regulations 2003; Taiwan capsule and tablet foods have their own labelling rule. capsule, 膠囊 and English tablet are not markers (coffee capsules, Scottish tablet)"
+        },
+        {
+          "id": "G3",
+          "reason_code": "required_row_missing",
+          "action": "decline",
+          "rule": "a mandatory row of the declared format has no readable amount in any amount column. UK: energy kJ and kcal, fat, saturates, carbohydrate, sugars, protein, salt. Taiwan: 熱量, 蛋白質, 脂肪, 飽和脂肪, 反式脂肪, 碳水化合物, 糖, 鈉",
+          "why": "1169/2011 Article 30(1) and Annex XV; Taiwan 包裝食品營養標示應遵行事項. A mandatory row with no amount means a cut-off, obscured or non-conforming table; plan section 6 declines tables whose values cannot be bound to their rows"
+        },
+        {
+          "id": "G4",
+          "reason_code": "column_count_mismatch",
+          "action": "decline",
+          "rule": "a mandatory row has an amount in one amount column but not in another (reference-intake columns excluded)",
+          "why": "plan section 6 declines a count mismatch between a column's values and the row labels; reference-intake cells are excluded because Taiwan labels print * where no reference value exists"
+        },
+        {
+          "id": "G5",
+          "reason_code": "required_basis_missing",
+          "action": "block_ready",
+          "rule": "UK only: no per 100 g or per 100 ml column",
+          "why": "1169/2011 Article 32(2). No Taiwan column rule: the plan's coverage (section 3.1) treats single-column Taiwan tables as usable"
+        },
+        {
+          "id": "G6",
+          "reason_code": "required_serving_declaration_missing",
+          "action": "block_ready",
+          "rule": "Taiwan only: no printed serving size (每一份量) or servings per pack (本包裝含…份)",
+          "why": "both lines are mandatory in the Taiwan format"
+        }
+      ],
+      "overfitting_guard": "Development data motivated the gate (phase 3: false-ready and missed declines on development images). The rules were written from the regulations and plan section 6 and then run once over the saved development outputs; no rule, marker or threshold was added or tuned to fit a development case. Image-quality declines (blur, small print, a cropped edge with every row still read) cannot be seen from a candidate and are not attempted.",
+      "development_rescore": "Tools/NutritionLabelCaptureEvaluation/results/decline-gate-rescore-v1.json (offline, no API call)",
+      "language_note": "Python, not Swift: route C's mapping and the scorer are Python, CI's label-capture job runs on Linux without the Swift CLI, and the GB 2312 / Big5 codecs ship with Python. No product path consumes route C yet; a product phase would port the frozen rules into NutritionLabelParsing behind the same test vectors (tests/test_phase4.py)."
+    }
+  },
+  "amendments_2026_10_18": {
+    "decision": "owner decision, 18 October 2026, recorded as pre-registered before the untouched run: apply S1, M1, M2, M3 and T1 exactly as proposed in results/phase-4-decline-gate-and-uk-diagnosis-v1.md section 3",
+    "motivation": "the offline UK diagnosis of the development outputs (phase 4); each amendment changes a scoring or truth convention or a mapping rule, never a value, and none infers a value",
+    "S1": {
+      "component": "score.py",
+      "rule": "a serving conversion is the printed mass or volume: (decimal text, canonical unit g or ml) of the first mass or volume printed in the truth's conversion, compared with the same of the candidate's; a truth conversion with no printed mass or volume (a count-only portion such as 2 sausages or 1 cracker) is not a conversion and leaves the denominator",
+      "replaces": "literal comparison of the conversion text with whitespace removed"
+    },
+    "M1": {
+      "component": "route_c_mapping.py",
+      "rule": "an absolute value in a reference-intake column (8400kJ, 70g in an RI for an average adult column) is left out as unread with a warning, like *, instead of becoming a reference-intake cell that fails the whole candidate; it never counts as a missing amount"
+    },
+    "M2": {
+      "component": "route_c_mapping.py",
+      "rule": "an energy value that prints no unit (704) takes the energy unit printed in its row label (Energy kJ) when the label prints exactly one energy unit, the value is a bare number, the column is not reference intake and the unit agrees with the row's nutrient; printed_text stays literal and a warning is recorded",
+      "guard_note": "the nutrient agreement check is a safety guard added in implementation: it can only leave a value unread, never attach a contradicting unit"
+    },
+    "M3": {
+      "component": "route_c_mapping.py",
+      "rule": "a per-serving column with no printed serving line takes the mass or volume printed in its own header (per 30g serving, PER PACK (50g)) as its serving quantity, with a warning; a printed serving line still wins; the candidate's serving_size is never filled from a header",
+      "review_fix": "PR #259 review, 18 October 2026: the serving mass is read with S1's PRINTED_MASS pattern (a unit may not run on into a word), so '2 grilled sausages (90g)' gives 90g and '1 glass (250ml)' gives 250ml, never 2g or 1g; the serving-line parser (_serving_size) uses the same pattern. No development number changed"
+    },
+    "T1": {
+      "component": "cases.py (apply_uk_truth_convention_t1, applied by load_uk_development_review) and score.py",
+      "rule": "UK development truth convention only: a reference-intake cell shares the row id and parent of its amount row; reference_intake_transcribed records whether the truth transcribed any printed reference-intake column, and when it is false the scorer does not count reference-intake cells a route reads as extras (or ambiguous duplicates) for full-table",
+      "applied": "mechanically to the 39 UK development truth records at load time; the frozen v2 review in Tools/FoodOCREvaluation is unchanged; every change is logged in results/t1-uk-truth-changes-v1.json (23 records, 43 changes)",
+      "not_applied_to": "the route A v2dev synthetic pasted-text cases, whose rendered truth is part of the pinned development dataset; Taiwan truths carry no reference_intake_transcribed field and score as before"
+    },
+    "rescore": "results/amendments-rescore-v1.json (offline, no API call; route C re-mapped from the saved wire answers; before = results/decline-gate-rescore-v1.json at commit f313578c)"
   }
 }

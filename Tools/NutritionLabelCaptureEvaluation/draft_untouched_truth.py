@@ -993,6 +993,8 @@ def main() -> int:
                     found, value = openrouter_client.generation_cost(key, generation)
                     if found == "found" and value is not None:
                         cost = Decimal(str(value))
+                cost, cut_kind = openrouter_client.charge_for_cut(attempt.body, cost, budget.per_call_usd)
+                kind = cut_kind or kind
                 append(
                     journal,
                     {

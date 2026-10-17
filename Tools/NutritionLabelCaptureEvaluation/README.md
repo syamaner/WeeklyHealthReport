@@ -67,6 +67,8 @@ Where Inspect does not enforce a plan rule natively, a small wrapper does:
 | `run_route_b.py` | Route B on development photos through Inspect, per stratum; writes `results/` summaries |
 | `draft_untouched_truth.py`, `openrouter/truth-drafting-*` | Decision A drafting of untouched truth (Qwen 3.5), journal, receipts, ledger, owner review sheet |
 | `score.py` | Pure scoring with the frozen v2 matching rules; called by the Inspect scorer |
+| `decline_gate.py` | Phase 4 decline gate: route-independent, declines or blocks ready, never changes a value |
+| `rescore_development.py`, `uk_diagnosis.py` | Offline re-score of saved development outputs with the gate, and the UK diagnosis (no API call) |
 | `arithmetic.py` | Section 7 checks (general, UK fibre and Taiwan fibre energy forms; kJ / kcal; serving scaling; sub-rows) and the three frozen mutations |
 | `candidate.py`, `candidate-schema-v1.json` | Shared candidate schema and an offline validator |
 | `budget.py` | Route C spend stops |
@@ -217,6 +219,30 @@ when either lookup fails:
 ```
 
 Results: [`results/route-c-development-v1.md`](results/route-c-development-v1.md).
+
+**Phase 4 (no API call).** `decline_gate.py` is the frozen, route-independent decline gate
+(`label-capture-decline-gate-v2`; v1 is recorded in the contract); `decline_gate_solver` in `inspect_task.py` runs it after every
+route's extraction. It can only decline or block ready, never change a value. The saved development
+outputs of routes A, B and C are re-scored offline with it, and the UK stratum is diagnosed offline,
+with no provider call:
+
+```sh
+.venv/bin/python rescore_development.py --runs ~/WHR-label-eval-private/runs --out results/gate-v2-rescore-v1.json --t1-log results/t1-uk-truth-changes-v1.json
+.venv/bin/python uk_diagnosis.py --runs ~/WHR-label-eval-private/runs --out results/uk-diagnosis-v1.json
+```
+
+The owner amendments of 18 October 2026 (S1 scorer, M1 to M3 route C mapping, T1 UK truth
+convention; contract `amendments_2026_10_18`) are re-scored the same way, with route C re-mapped from
+its saved answers. Each result file is tied to the commit that wrote it, so a file is reproduced
+only at that commit: `results/decline-gate-rescore-v1.json` (gate v1, pre-amendment) at `f313578c`,
+`results/amendments-rescore-v1.json` (gate v1 with the amendments) at `ac584932`; the current
+version writes `--out results/gate-v2-rescore-v1.json --t1-log results/t1-uk-truth-changes-v1.json`
+and refuses to overwrite the two earlier files. `results/uk-diagnosis-v1.json` is the pre-amendment
+diagnosis written at `5c3d1548`; rerunning `uk_diagnosis.py` now scores with the amended scorer.
+
+`openrouter_client.http_post` enforces a whole-call deadline (a watchdog closes the socket when the
+time left of the 180 s budget runs out). Results, gate rules and the UK diagnosis:
+[`results/phase-4-decline-gate-and-uk-diagnosis-v1.md`](results/phase-4-decline-gate-and-uk-diagnosis-v1.md).
 
 **UK images.** The v1 panel images are no longer on disk and the v2 public selection (60 tuning,
 40 sealed) was never acquired, so the UK route B stratum is the 40 exposed v2 development review

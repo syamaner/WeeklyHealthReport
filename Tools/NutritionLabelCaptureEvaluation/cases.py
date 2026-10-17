@@ -8,6 +8,7 @@ returns image paths only; it never reads, decodes or displays image bytes.
 
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 from pathlib import Path
@@ -176,7 +177,7 @@ def uk_truth_from_review(panel: dict[str, Any]) -> dict[str, Any]:
             }
         )
     serving = next((c["serving_conversion"] for c in cells if c["basis"] == "per_serving" and c["serving_conversion"]), None)
-    return {
+    record = {
         "case_id": panel["panel_id"],
         "input_sha256": panel["image_sha256"],
         "requires_decline": bool(truth.get("requires_decline")),
@@ -191,6 +192,51 @@ def uk_truth_from_review(panel: dict[str, Any]) -> dict[str, Any]:
         "servings_per_pack": "not_recorded",
         "cells": cells,
     }
+    return apply_uk_truth_convention_t1(record)[0]
+
+
+def apply_uk_truth_convention_t1(truth: dict[str, Any]) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Amendment T1 (owner, 18 October 2026): the UK development truth convention. Pure and idempotent.
+
+    - A reference-intake cell shares the row and the parent of its amount row (the amount
+      cells of the same nutrient), so saturates %RI sits under fat like the saturates amount.
+    - `reference_intake_transcribed` records whether the truth transcribed any printed
+      reference-intake column; when it did not, the scorer does not count reference-intake
+      cells a route reads as extras for full-table.
+
+    Mechanical: no value, unit, basis or header changes. Returns (record, changed cells).
+    """
+    record = copy.deepcopy(truth)
+    cells = record.get("cells") or []
+    amount_rows: dict[str, set[tuple[str, Any]]] = {}
+    for cell in cells:
+        if cell.get("basis") != "reference_intake":
+            amount_rows.setdefault(str(cell.get("nutrient")), set()).add((cell["row_id"], cell.get("parent_row_id")))
+    changes = []
+    for cell in cells:
+        if cell.get("basis") != "reference_intake":
+            continue
+        rows = amount_rows.get(str(cell.get("nutrient"))) or set()
+        if len(rows) != 1:
+            continue
+        ((row_id, parent),) = rows
+        if (cell["row_id"], cell.get("parent_row_id")) != (row_id, parent):
+            changes.append(
+                {
+                    "case_id": record.get("case_id"),
+                    "header_id": cell.get("header_id"),
+                    "nutrient": cell.get("nutrient"),
+                    "row_id": [cell["row_id"], row_id],
+                    "parent_row_id": [cell.get("parent_row_id"), parent],
+                }
+            )
+            cell["row_id"], cell["parent_row_id"] = row_id, parent
+    transcribed = any(h.get("basis") == "reference_intake" for h in record.get("headers") or [])
+    if not record.get("requires_decline") and record.get("reference_intake_transcribed") != transcribed:
+        changes.append({"case_id": record.get("case_id"), "reference_intake_transcribed": transcribed})
+    if not record.get("requires_decline"):
+        record["reference_intake_transcribed"] = transcribed
+    return record, changes
 
 
 def load_uk_development_review(workspace: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:

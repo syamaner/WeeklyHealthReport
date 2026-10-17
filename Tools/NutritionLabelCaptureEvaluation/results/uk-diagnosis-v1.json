@@ -1,0 +1,950 @@
+{
+ "stratum": "uk_en",
+ "split": "development",
+ "note": "Offline diagnosis; no API call. Counterfactuals are proposed amendments, not applied. Counts and case ids only.",
+ "serving_regex": "(\\d+(?:\\.\\d+)?)\\s*(公克|毫升|克|g|ml|mL)",
+ "arms": {
+  "luna-off": {
+   "product_cells": {
+    "exact": 253,
+    "failed_ri_absolute_amount": 36,
+    "model_declined_usable_table": 10,
+    "unit_in_row_label_value_unread": 12
+   },
+   "serving_conversions": {
+    "candidate_unknown_mass_printed": 52,
+    "cell_not_matched": 11,
+    "count_only_portion_no_mass_printed": 46,
+    "exact_as_scored": 7
+   },
+   "non_exact_tables": {
+    "declined": 1,
+    "exact": 14,
+    "failed": 2,
+    "product_cell_miss": 3,
+    "ri_cells_keyed_differently": 2,
+    "ri_column_read_but_not_in_truth": 1,
+    "serving_conversion": 5
+   },
+   "counterfactual_s1_conversions": {
+    "numerator": 7,
+    "denominator": 70
+   },
+   "counterfactual_m1_m2_strict_cells": {
+    "numerator": 283,
+    "denominator": 311
+   },
+   "counterfactual_m1_m2_full_table": {
+    "numerator": 16,
+    "denominator": 22
+   },
+   "examples": {
+    "conversions:candidate_unknown_mass_printed": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9",
+     "off:5065004177016:nutrition_en.5"
+    ],
+    "cells:unit_in_row_label_value_unread": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5060011955695:nutrition_en.5"
+    ],
+    "conversions:count_only_portion_no_mass_printed": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172706181:nutrition_fr.5",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:product_cell_miss": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5060011955695:nutrition_en.5"
+    ],
+    "tables:serving_conversion": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9"
+    ],
+    "cells:model_declined_usable_table": [
+     "off:5060323902912:nutrition_en.18"
+    ],
+    "tables:declined": [
+     "off:5060323902912:nutrition_en.18"
+    ],
+    "cells:failed_ri_absolute_amount": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:failed": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:ri_column_read_but_not_in_truth": [
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:ri_cells_keyed_differently": [
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "conversions:cell_not_matched": [
+     "off:5060011955695:nutrition_en.5",
+     "off:5010251767503:nutrition_en.7"
+    ]
+   }
+  },
+  "luna-on": {
+   "product_cells": {
+    "exact": 238,
+    "failed_ri_absolute_amount": 36,
+    "missing_cell": 4,
+    "model_declined_usable_table": 24,
+    "unit_in_row_label_value_unread": 8,
+    "value_misread": 1
+   },
+   "serving_conversions": {
+    "candidate_unknown_mass_printed": 52,
+    "cell_not_matched": 9,
+    "count_only_portion_no_mass_printed": 46,
+    "exact_as_scored": 9
+   },
+   "non_exact_tables": {
+    "declined": 3,
+    "exact": 10,
+    "extra_or_duplicate_amount_cells": 1,
+    "failed": 2,
+    "product_cell_miss": 5,
+    "ri_cells_keyed_differently": 2,
+    "ri_column_read_but_not_in_truth": 1,
+    "serving_conversion": 5
+   },
+   "counterfactual_s1_conversions": {
+    "numerator": 9,
+    "denominator": 70
+   },
+   "counterfactual_m1_m2_strict_cells": {
+    "numerator": 262,
+    "denominator": 311
+   },
+   "counterfactual_m1_m2_full_table": {
+    "numerator": 11,
+    "denominator": 22
+   },
+   "examples": {
+    "conversions:candidate_unknown_mass_printed": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9",
+     "off:5065004177016:nutrition_en.5"
+    ],
+    "cells:unit_in_row_label_value_unread": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "conversions:count_only_portion_no_mass_printed": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172706181:nutrition_fr.5",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:product_cell_miss": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5060323902912:nutrition_en.18",
+     "off:5060413823295:nutrition_en.5"
+    ],
+    "tables:serving_conversion": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9"
+    ],
+    "cells:model_declined_usable_table": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5029396002509:nutrition_en.11",
+     "off:5010251686477:nutrition_en.5"
+    ],
+    "tables:declined": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5029396002509:nutrition_en.11",
+     "off:5010251686477:nutrition_en.5"
+    ],
+    "cells:missing_cell": [
+     "off:5060323902912:nutrition_en.18",
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "tables:extra_or_duplicate_amount_cells": [
+     "off:5060323902912:nutrition_en.18"
+    ],
+    "cells:failed_ri_absolute_amount": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:failed": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "cells:value_misread": [
+     "off:5060413823295:nutrition_en.5"
+    ],
+    "tables:ri_column_read_but_not_in_truth": [
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:ri_cells_keyed_differently": [
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "conversions:cell_not_matched": [
+     "off:5010251767503:nutrition_en.7"
+    ]
+   }
+  },
+  "luna_pro-off": {
+   "product_cells": {
+    "exact": 241,
+    "failed_ri_absolute_amount": 36,
+    "model_declined_usable_table": 26,
+    "unit_in_row_label_value_unread": 8
+   },
+   "serving_conversions": {
+    "candidate_unknown_mass_printed": 43,
+    "cell_not_matched": 9,
+    "count_only_portion_no_mass_printed": 46,
+    "exact_as_scored": 18
+   },
+   "non_exact_tables": {
+    "declined": 3,
+    "exact": 13,
+    "failed": 2,
+    "product_cell_miss": 2,
+    "ri_cells_keyed_differently": 2,
+    "ri_column_read_but_not_in_truth": 1,
+    "serving_conversion": 4
+   },
+   "counterfactual_s1_conversions": {
+    "numerator": 18,
+    "denominator": 70
+   },
+   "counterfactual_m1_m2_strict_cells": {
+    "numerator": 267,
+    "denominator": 311
+   },
+   "counterfactual_m1_m2_full_table": {
+    "numerator": 14,
+    "denominator": 22
+   },
+   "examples": {
+    "conversions:candidate_unknown_mass_printed": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9",
+     "off:5014234085769:nutrition_en.5"
+    ],
+    "cells:unit_in_row_label_value_unread": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "conversions:count_only_portion_no_mass_printed": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172706181:nutrition_fr.5",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:product_cell_miss": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:serving_conversion": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9"
+    ],
+    "cells:model_declined_usable_table": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18",
+     "off:5029396002509:nutrition_en.11"
+    ],
+    "tables:declined": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18",
+     "off:5029396002509:nutrition_en.11"
+    ],
+    "cells:failed_ri_absolute_amount": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:failed": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:ri_column_read_but_not_in_truth": [
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:ri_cells_keyed_differently": [
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "conversions:cell_not_matched": [
+     "off:5010251767503:nutrition_en.7"
+    ]
+   }
+  },
+  "luna_pro-on": {
+   "product_cells": {
+    "exact": 227,
+    "failed_ri_absolute_amount": 36,
+    "missing_cell": 2,
+    "model_declined_usable_table": 34,
+    "unit_in_row_label_value_unread": 12
+   },
+   "serving_conversions": {
+    "candidate_unknown_mass_printed": 43,
+    "cell_not_matched": 11,
+    "count_only_portion_no_mass_printed": 46,
+    "exact_as_scored": 7,
+    "same_mass_header_wording_differs": 9
+   },
+   "non_exact_tables": {
+    "declined": 4,
+    "exact": 10,
+    "failed": 2,
+    "product_cell_miss": 4,
+    "ri_cells_keyed_differently": 2,
+    "ri_column_read_but_not_in_truth": 1,
+    "serving_conversion": 6
+   },
+   "counterfactual_s1_conversions": {
+    "numerator": 16,
+    "denominator": 70
+   },
+   "counterfactual_m1_m2_strict_cells": {
+    "numerator": 257,
+    "denominator": 311
+   },
+   "counterfactual_m1_m2_full_table": {
+    "numerator": 12,
+    "denominator": 22
+   },
+   "examples": {
+    "conversions:candidate_unknown_mass_printed": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9",
+     "off:5065004177016:nutrition_en.5"
+    ],
+    "cells:unit_in_row_label_value_unread": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5060011955695:nutrition_en.5"
+    ],
+    "conversions:count_only_portion_no_mass_printed": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172706181:nutrition_fr.5",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:product_cell_miss": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "tables:serving_conversion": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9"
+    ],
+    "cells:model_declined_usable_table": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18",
+     "off:5029396002509:nutrition_en.11"
+    ],
+    "tables:declined": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18",
+     "off:5029396002509:nutrition_en.11"
+    ],
+    "cells:failed_ri_absolute_amount": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:failed": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:ri_column_read_but_not_in_truth": [
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:ri_cells_keyed_differently": [
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "cells:missing_cell": [
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "conversions:cell_not_matched": [
+     "off:5060011955695:nutrition_en.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "conversions:same_mass_header_wording_differs": [
+     "off:5000232893314:nutrition_en.10"
+    ]
+   }
+  },
+  "grok-on": {
+   "product_cells": {
+    "exact": 225,
+    "failed_ri_absolute_amount": 36,
+    "missing_cell": 2,
+    "model_declined_usable_table": 35,
+    "unit_in_row_label_value_unread": 12,
+    "value_misread": 1
+   },
+   "serving_conversions": {
+    "candidate_unknown_mass_printed": 34,
+    "cell_not_matched": 11,
+    "count_only_portion_no_mass_printed": 46,
+    "exact_as_scored": 16,
+    "same_mass_header_wording_differs": 9
+   },
+   "non_exact_tables": {
+    "declined": 4,
+    "exact": 10,
+    "failed": 2,
+    "product_cell_miss": 4,
+    "ri_cells_keyed_differently": 2,
+    "ri_column_read_but_not_in_truth": 1,
+    "serving_conversion": 6
+   },
+   "counterfactual_s1_conversions": {
+    "numerator": 25,
+    "denominator": 70
+   },
+   "counterfactual_m1_m2_strict_cells": {
+    "numerator": 255,
+    "denominator": 311
+   },
+   "counterfactual_m1_m2_full_table": {
+    "numerator": 12,
+    "denominator": 22
+   },
+   "examples": {
+    "conversions:candidate_unknown_mass_printed": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9",
+     "off:5060292125237:nutrition_en.5"
+    ],
+    "cells:unit_in_row_label_value_unread": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5060011955695:nutrition_en.5"
+    ],
+    "conversions:count_only_portion_no_mass_printed": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172706181:nutrition_fr.5",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:product_cell_miss": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "tables:serving_conversion": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9"
+    ],
+    "cells:model_declined_usable_table": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18",
+     "off:5060413823295:nutrition_en.5"
+    ],
+    "tables:declined": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18",
+     "off:5060413823295:nutrition_en.5"
+    ],
+    "cells:failed_ri_absolute_amount": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:failed": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:ri_column_read_but_not_in_truth": [
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:ri_cells_keyed_differently": [
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "cells:missing_cell": [
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "cells:value_misread": [
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "conversions:cell_not_matched": [
+     "off:5060011955695:nutrition_en.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "conversions:same_mass_header_wording_differs": [
+     "off:5014234085769:nutrition_en.5"
+    ]
+   }
+  },
+  "gemini-on": {
+   "product_cells": {
+    "exact": 269,
+    "failed_ri_absolute_amount": 18,
+    "missing_cell": 2,
+    "model_declined_usable_table": 10,
+    "unit_in_row_label_value_unread": 12
+   },
+   "serving_conversions": {
+    "cell_not_matched": 2,
+    "count_only_portion_no_mass_printed": 46,
+    "exact_as_scored": 33,
+    "same_mass_header_wording_differs": 35
+   },
+   "non_exact_tables": {
+    "declined": 1,
+    "exact": 13,
+    "failed": 1,
+    "product_cell_miss": 4,
+    "ri_cells_keyed_differently": 2,
+    "ri_column_read_but_not_in_truth": 2,
+    "serving_conversion": 6
+   },
+   "counterfactual_s1_conversions": {
+    "numerator": 68,
+    "denominator": 70
+   },
+   "counterfactual_m1_m2_strict_cells": {
+    "numerator": 281,
+    "denominator": 311
+   },
+   "counterfactual_m1_m2_full_table": {
+    "numerator": 15,
+    "denominator": 22
+   },
+   "examples": {
+    "conversions:same_mass_header_wording_differs": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5014234085769:nutrition_en.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "cells:unit_in_row_label_value_unread": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5060011955695:nutrition_en.5"
+    ],
+    "conversions:count_only_portion_no_mass_printed": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172706181:nutrition_fr.5",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:product_cell_miss": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "tables:serving_conversion": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "cells:model_declined_usable_table": [
+     "off:5060323902912:nutrition_en.18"
+    ],
+    "tables:declined": [
+     "off:5060323902912:nutrition_en.18"
+    ],
+    "cells:failed_ri_absolute_amount": [
+     "off:5057172706181:nutrition_fr.5"
+    ],
+    "tables:failed": [
+     "off:5057172706181:nutrition_fr.5"
+    ],
+    "tables:ri_column_read_but_not_in_truth": [
+     "off:5057172859696:nutrition_en.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:ri_cells_keyed_differently": [
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "cells:missing_cell": [
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "conversions:cell_not_matched": [
+     "off:5060011955695:nutrition_en.5"
+    ]
+   }
+  },
+  "sol-on": {
+   "product_cells": {
+    "comparator_differs": 1,
+    "exact": 214,
+    "failed_ri_absolute_amount": 36,
+    "missing_cell": 2,
+    "model_declined_usable_table": 54,
+    "unit_in_row_label_value_unread": 4
+   },
+   "serving_conversions": {
+    "candidate_unknown_mass_printed": 52,
+    "cell_not_matched": 9,
+    "count_only_portion_no_mass_printed": 46,
+    "exact_as_scored": 9
+   },
+   "non_exact_tables": {
+    "declined": 5,
+    "exact": 10,
+    "failed": 2,
+    "product_cell_miss": 3,
+    "ri_cells_keyed_differently": 2,
+    "serving_conversion": 4
+   },
+   "counterfactual_s1_conversions": {
+    "numerator": 9,
+    "denominator": 70
+   },
+   "counterfactual_m1_m2_strict_cells": {
+    "numerator": 236,
+    "denominator": 311
+   },
+   "counterfactual_m1_m2_full_table": {
+    "numerator": 11,
+    "denominator": 22
+   },
+   "examples": {
+    "conversions:candidate_unknown_mass_printed": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9",
+     "off:5065004177016:nutrition_en.5"
+    ],
+    "cells:unit_in_row_label_value_unread": [
+     "off:5057172728022:nutrition_en.15"
+    ],
+    "conversions:count_only_portion_no_mass_printed": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172706181:nutrition_fr.5",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:product_cell_miss": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5010482793302:nutrition_en.5",
+     "off:5031396074394:nutrition_en.5"
+    ],
+    "tables:serving_conversion": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "cells:model_declined_usable_table": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:declined": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "cells:failed_ri_absolute_amount": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:failed": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:ri_cells_keyed_differently": [
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "cells:missing_cell": [
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "cells:comparator_differs": [
+     "off:5031396074394:nutrition_en.5"
+    ],
+    "conversions:cell_not_matched": [
+     "off:5010251767503:nutrition_en.7"
+    ]
+   }
+  },
+  "sol_pro-on": {
+   "product_cells": {
+    "exact": 215,
+    "failed_ri_absolute_amount": 36,
+    "missing_cell": 2,
+    "model_declined_usable_table": 54,
+    "unit_in_row_label_value_unread": 4
+   },
+   "serving_conversions": {
+    "candidate_unknown_mass_printed": 52,
+    "cell_not_matched": 9,
+    "count_only_portion_no_mass_printed": 46,
+    "exact_as_scored": 9
+   },
+   "non_exact_tables": {
+    "declined": 5,
+    "exact": 11,
+    "failed": 2,
+    "product_cell_miss": 2,
+    "ri_cells_keyed_differently": 2,
+    "serving_conversion": 4
+   },
+   "counterfactual_s1_conversions": {
+    "numerator": 9,
+    "denominator": 70
+   },
+   "counterfactual_m1_m2_strict_cells": {
+    "numerator": 237,
+    "denominator": 311
+   },
+   "counterfactual_m1_m2_full_table": {
+    "numerator": 12,
+    "denominator": 22
+   },
+   "examples": {
+    "conversions:candidate_unknown_mass_printed": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9",
+     "off:5065004177016:nutrition_en.5"
+    ],
+    "cells:unit_in_row_label_value_unread": [
+     "off:5057172728022:nutrition_en.15"
+    ],
+    "conversions:count_only_portion_no_mass_printed": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172706181:nutrition_fr.5",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:product_cell_miss": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "tables:serving_conversion": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "cells:model_declined_usable_table": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:declined": [
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "cells:failed_ri_absolute_amount": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:failed": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:ri_cells_keyed_differently": [
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "cells:missing_cell": [
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "conversions:cell_not_matched": [
+     "off:5010251767503:nutrition_en.7"
+    ]
+   }
+  },
+  "opus-on": {
+   "product_cells": {
+    "exact": 194,
+    "failed_ri_absolute_amount": 36,
+    "missing_cell": 2,
+    "model_declined_usable_table": 71,
+    "unit_in_row_label_value_unread": 8
+   },
+   "serving_conversions": {
+    "candidate_unknown_mass_printed": 18,
+    "cell_not_matched": 19,
+    "count_only_portion_no_mass_printed": 46,
+    "exact_as_scored": 15,
+    "same_mass_header_wording_differs": 18
+   },
+   "non_exact_tables": {
+    "declined": 6,
+    "exact": 9,
+    "failed": 2,
+    "product_cell_miss": 3,
+    "ri_cells_keyed_differently": 2,
+    "serving_conversion": 5
+   },
+   "counterfactual_s1_conversions": {
+    "numerator": 33,
+    "denominator": 70
+   },
+   "counterfactual_m1_m2_strict_cells": {
+    "numerator": 220,
+    "denominator": 311
+   },
+   "counterfactual_m1_m2_full_table": {
+    "numerator": 11,
+    "denominator": 22
+   },
+   "examples": {
+    "cells:model_declined_usable_table": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18"
+    ],
+    "conversions:cell_not_matched": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5060011955695:nutrition_en.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:declined": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5060665750608:nutrition_en.7",
+     "off:5060323902912:nutrition_en.18"
+    ],
+    "cells:unit_in_row_label_value_unread": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5060011955695:nutrition_en.5"
+    ],
+    "conversions:count_only_portion_no_mass_printed": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172706181:nutrition_fr.5",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:product_cell_miss": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5010482793302:nutrition_en.5",
+     "off:5060011955695:nutrition_en.5"
+    ],
+    "tables:serving_conversion": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "cells:failed_ri_absolute_amount": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:failed": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "conversions:candidate_unknown_mass_printed": [
+     "off:5053990185917:nutrition_en.9",
+     "off:5065004177016:nutrition_en.5"
+    ],
+    "tables:ri_cells_keyed_differently": [
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "cells:missing_cell": [
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "conversions:same_mass_header_wording_differs": [
+     "off:5014234085769:nutrition_en.5",
+     "off:5000232893314:nutrition_en.10"
+    ]
+   }
+  },
+  "fable-on": {
+   "product_cells": {
+    "exact": 250,
+    "failed_ri_absolute_amount": 36,
+    "missing_cell": 4,
+    "model_declined_usable_table": 9,
+    "unit_in_row_label_value_unread": 12
+   },
+   "serving_conversions": {
+    "candidate_unknown_mass_printed": 9,
+    "cell_not_matched": 11,
+    "count_only_portion_no_mass_printed": 46,
+    "exact_as_scored": 24,
+    "same_mass_header_wording_differs": 26
+   },
+   "non_exact_tables": {
+    "declined": 1,
+    "exact": 12,
+    "extra_or_duplicate_amount_cells": 1,
+    "failed": 2,
+    "product_cell_miss": 5,
+    "ri_cells_keyed_differently": 2,
+    "ri_column_read_but_not_in_truth": 1,
+    "serving_conversion": 6
+   },
+   "counterfactual_s1_conversions": {
+    "numerator": 50,
+    "denominator": 70
+   },
+   "counterfactual_m1_m2_strict_cells": {
+    "numerator": 280,
+    "denominator": 311
+   },
+   "counterfactual_m1_m2_full_table": {
+    "numerator": 14,
+    "denominator": 22
+   },
+   "examples": {
+    "conversions:same_mass_header_wording_differs": [
+     "off:5000187132315:nutrition_en.5",
+     "off:5014234085769:nutrition_en.5",
+     "off:5000232893314:nutrition_en.10"
+    ],
+    "cells:unit_in_row_label_value_unread": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5060011955695:nutrition_en.5"
+    ],
+    "conversions:count_only_portion_no_mass_printed": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172706181:nutrition_fr.5",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:product_cell_miss": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5060323902912:nutrition_en.18",
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "tables:serving_conversion": [
+     "off:5057172728022:nutrition_en.15",
+     "off:5057172859696:nutrition_en.5",
+     "off:5053990185917:nutrition_en.9"
+    ],
+    "cells:missing_cell": [
+     "off:5060323902912:nutrition_en.18",
+     "off:5010482793302:nutrition_en.5"
+    ],
+    "tables:extra_or_duplicate_amount_cells": [
+     "off:5060323902912:nutrition_en.18"
+    ],
+    "cells:failed_ri_absolute_amount": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "tables:failed": [
+     "off:5057172706181:nutrition_fr.5",
+     "off:5010251767503:nutrition_en.7"
+    ],
+    "cells:model_declined_usable_table": [
+     "off:5060413823295:nutrition_en.5"
+    ],
+    "tables:declined": [
+     "off:5060413823295:nutrition_en.5"
+    ],
+    "tables:ri_column_read_but_not_in_truth": [
+     "off:5057172859696:nutrition_en.5"
+    ],
+    "conversions:candidate_unknown_mass_printed": [
+     "off:5053990185917:nutrition_en.9"
+    ],
+    "tables:ri_cells_keyed_differently": [
+     "off:5053990185917:nutrition_en.9",
+     "off:5057624572234:nutrition_en.5"
+    ],
+    "conversions:cell_not_matched": [
+     "off:5060011955695:nutrition_en.5",
+     "off:5010251767503:nutrition_en.7"
+    ]
+   }
+  }
+ }
+}

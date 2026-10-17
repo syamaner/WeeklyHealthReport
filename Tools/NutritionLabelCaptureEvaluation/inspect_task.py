@@ -36,6 +36,7 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import cases as case_loading  # noqa: E402
+import decline_gate  # noqa: E402
 import openrouter_client  # noqa: E402
 import openrouter_route  # noqa: E402
 import route_c_mapping  # noqa: E402
@@ -270,6 +271,9 @@ def route_c_openrouter(
                 found, value = finder(generation)  # reconcile a retried attempt that did produce a generation
                 if found == "found" and value is not None:
                     cost = Decimal(str(value))
+            # A deadline cut after the request was sent is charged at the per-call stop unless reconciled.
+            cost, cut_kind = openrouter_client.charge_for_cut(attempt.body, cost, guard.per_call_usd)
+            kind = cut_kind or kind
             attempt_costs.append(None if cost is None else str(cost))
             guard.record_call(
                 label,
@@ -354,6 +358,34 @@ def route_c_openrouter(
 def _data_uri(path: Path) -> str:
     mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(path.suffix.lower(), "image/jpeg")
     return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode("ascii")
+
+
+@solver
+def decline_gate_solver() -> Solver:
+    """The route-independent decline gate (`decline_gate.py`), run after every route's extraction.
+
+    It reads the candidate and the label format the case declares, and may only decline or
+    block ready; it never changes a value. The ungated candidate is kept in the private log
+    when the gate changed it, so before and after stay comparable.
+    """
+
+    async def solve(state: TaskState, generate: Generate) -> TaskState:
+        completion = state.output.completion if state.output else ""
+        if not completion:
+            return state
+        try:
+            candidate = json.loads(completion)
+        except json.JSONDecodeError:
+            return state
+        label_format = decline_gate.format_for_case(state.metadata)
+        gated, report = decline_gate.apply_gate(candidate, label_format)
+        state.metadata["decline_gate"] = report
+        if gated is not candidate:
+            state.metadata["pre_gate_candidate"] = candidate
+            state.output = ModelOutput.from_content(model=state.output.model, content=json.dumps(gated, ensure_ascii=False))
+        return state
+
+    return solve
 
 
 # --- Scorer and metrics ------------------------------------------------------------
@@ -495,7 +527,7 @@ def label_capture_development_text(parser_binary: str, dataset: str = str(DEVELO
     samples = [to_sample(case) for case in case_loading.load_development_text(Path(dataset))]
     return Task(
         dataset=MemoryDataset(samples, name="development-text-v1"),
-        solver=route_a_parser(parser_binary),
+        solver=[route_a_parser(parser_binary), decline_gate_solver()],
         scorer=label_capture_scorer(),
         epochs=epochs,
         name="label_capture_route_a_development",
@@ -511,7 +543,7 @@ def label_capture_development_photos(cases_file: str, vision_binary: str, parser
             raise case_loading.SealedSetError(f"{case['id']} is not a development case")
     return Task(
         dataset=MemoryDataset([to_sample(c) for c in loaded], name="development-photos-v1"),
-        solver=route_b_vision(vision_binary, parser_binary),
+        solver=[route_b_vision(vision_binary, parser_binary), decline_gate_solver()],
         scorer=label_capture_scorer(),
         name="label_capture_route_b_development",
     )
@@ -538,7 +570,7 @@ def label_capture_route_c_development(
     budget = LedgerBudget(Path(ledger), limits=contract_limits(contract))
     return Task(
         dataset=MemoryDataset([to_sample(c) for c in loaded], name="development-photos-route-c-v1"),
-        solver=route_c_openrouter(budget, enabled=enabled, target=target),
+        solver=[route_c_openrouter(budget, enabled=enabled, target=target), decline_gate_solver()],
         scorer=label_capture_scorer(),
         name="label_capture_route_c_development",
     )
@@ -567,7 +599,7 @@ def label_capture_untouched_photos(
         chosen = route_b_vision()
     return Task(
         dataset=MemoryDataset([to_sample(c) for c in loaded], name="untouched-photos-v1"),
-        solver=chosen,
+        solver=[chosen, decline_gate_solver()],
         scorer=label_capture_scorer(),
         name=f"label_capture_route_{route.lower()}_untouched",
     )

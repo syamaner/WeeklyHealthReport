@@ -66,6 +66,7 @@ PINNED = [
     "Tools/NutritionLabelCaptureEvaluation/route_c_mapping.py",
     "Tools/NutritionLabelCaptureEvaluation/openrouter_client.py",
     "Tools/NutritionLabelCaptureEvaluation/qualification/render_qualification.swift",
+    "Tools/NutritionLabelCaptureEvaluation/decline_gate.py",
 ]
 ROUTE_C_LABELS = ("luna", "grok", "sol", "gemini", "opus", "luna_pro", "sol_pro", "fable")
 
