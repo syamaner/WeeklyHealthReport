@@ -2,36 +2,36 @@
   "overall": {
     "cases": 59,
     "failed": 0,
-    "false_declines": 28,
-    "extra_cells": 6,
+    "false_declines": 29,
+    "extra_cells": 2,
     "serving_size": {
       "exact": 7,
       "known": 15
     },
     "energy_check_informing_only": {
-      "fail": 2,
-      "not_checkable": 50,
+      "fail": 1,
+      "not_checkable": 51,
       "pass": 7
     },
     "metrics": {
       "strict_cells": {
-        "numerator": 93,
+        "numerator": 92,
         "denominator": 525,
-        "rate": 0.1771,
+        "rate": 0.1752,
         "bar": 0.95,
         "verdict": "fail"
       },
       "binding": {
-        "numerator": 104,
+        "numerator": 103,
         "denominator": 563,
-        "rate": 0.1847,
+        "rate": 0.1829,
         "bar": 0.98,
         "verdict": "fail"
       },
       "unit_and_basis": {
-        "numerator": 107,
+        "numerator": 102,
         "denominator": 525,
-        "rate": 0.2038,
+        "rate": 0.1943,
         "bar": 1.0,
         "verdict": "fail"
       },
@@ -71,7 +71,7 @@
         "verdict": "pass"
       },
       "false_ready": {
-        "count": 2,
+        "count": 1,
         "denominator": 59,
         "bar": "<= 0",
         "verdict": "fail"
@@ -155,7 +155,7 @@
           "verdict": "pass"
         },
         "false_ready": {
-          "count": 2,
+          "count": 1,
           "denominator": 20,
           "bar": "<= 0",
           "verdict": "fail"
@@ -182,36 +182,35 @@
     "uk_en": {
       "cases": 39,
       "failed": 0,
-      "false_declines": 20,
-      "extra_cells": 4,
+      "false_declines": 21,
+      "extra_cells": 0,
       "serving_size": {
         "exact": 0,
         "known": 0
       },
       "energy_check_informing_only": {
-        "fail": 1,
-        "not_checkable": 37,
+        "not_checkable": 38,
         "pass": 1
       },
       "metrics": {
         "strict_cells": {
-          "numerator": 9,
+          "numerator": 8,
           "denominator": 311,
-          "rate": 0.0289,
+          "rate": 0.0257,
           "bar": 0.95,
           "verdict": "fail"
         },
         "binding": {
-          "numerator": 9,
+          "numerator": 8,
           "denominator": 325,
-          "rate": 0.0277,
+          "rate": 0.0246,
           "bar": 0.98,
           "verdict": "fail"
         },
         "unit_and_basis": {
-          "numerator": 13,
+          "numerator": 8,
           "denominator": 311,
-          "rate": 0.0418,
+          "rate": 0.0257,
           "bar": 1.0,
           "verdict": "fail"
         },
@@ -275,13 +274,13 @@
         "unrecognised_unit": 3,
         "unsupported_language": 2,
         "value_without_unit": 6,
-        "values_without_row": 4
+        "values_without_row": 5
       }
     }
   },
   "route": "B",
   "split": "development",
-  "inspect_log": "2026-10-17T01-35-26-00-00_label-capture-route-b-development_5xGSrs6NVnPdGEqvsnfV3w.eval",
+  "inspect_log": "2026-10-17T01-58-16-00-00_label-capture-route-b-development_RB9FYaXiR2xt7V2zcDMyvY.eval",
   "vision": {
     "adapter_version": "label-capture-vision-v3",
     "request_revision": 3,
@@ -571,7 +570,7 @@
       "all_cells": 14,
       "extra_cells": 0,
       "table_exact": 0,
-      "false_ready": 1,
+      "false_ready": 0,
       "serialiser": {
         "headers": 2,
         "labels": 8,
@@ -1109,13 +1108,15 @@
       "id": "off:5060413823295:nutrition_en.5",
       "stratum": "uk_en",
       "requires_decline": false,
-      "declined": false,
-      "decline_reasons": [],
-      "cells_exact": 1,
+      "declined": true,
+      "decline_reasons": [
+        "values_without_row"
+      ],
+      "cells_exact": 0,
       "product_cells": 9,
-      "cells_bound": 1,
+      "cells_bound": 0,
       "all_cells": 9,
-      "extra_cells": 4,
+      "extra_cells": 0,
       "table_exact": 0,
       "false_ready": 0,
       "serialiser": {

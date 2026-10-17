@@ -93,11 +93,12 @@ muesli master live under `~/WHR-label-eval-private/` (outside any checkout).
   English-only development orders 4 and 17 (427,244 bytes). Untouched refills follow from 63.
 - **Ground truth:** the 22 development records (20 plus 2 replacements, 2 excluded) are a
   Claude-drafted first pass awaiting the owner's second pass, so Claude Opus route C results
-  on development data carry that caveat. Untouched truth (decision A) will be drafted by
-  Qwen 3.5 VL, which is not a route C model, then verified value by value by the owner, and
-  recorded as model-drafted, owner-verified. That drafting is defined, not run. Route C never
-  sees untouched truth or drafts. The Taiwan drafting ran on 17 October 2026 (see the record above);
-  the drafts stay outside the repository until the owner has verified them.
+  on development data carry that caveat. Untouched truth (decision A) for the 40 untouched
+  Taiwan photos was drafted on 17 October 2026 by Qwen 3.5 (`qwen/qwen3.5-397b-a17b` on
+  `deepinfra/fp8`; OpenRouter lists no separate Qwen 3.5 VL), which is not a route C model.
+  The owner now verifies it value by value, and it is then recorded as model-drafted,
+  owner-verified. The drafts stay outside the repository until then. Route C never sees
+  untouched truth or drafts.
 - **Sealing:** the 40 untouched photos were hashed on download and written read-only
   to a separate `sealed/` folder. They were opened once, for the decision A drafting only
   (their unsealing for truth purposes); no route has recognised them.

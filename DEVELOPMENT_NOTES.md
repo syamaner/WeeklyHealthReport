@@ -1569,3 +1569,15 @@ Pricing as in the previous sections (checked 11 October 2026): USD 4/M base inpu
 Boundary: `2026-10-17T00:43:54Z` → `2026-10-17T01:40:15Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 343,009 5-minute, 0 1-hour. Exact API-equivalent USD 11.6242312.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-17d: Claude Code label capture evaluation phase 2, review fixes
+
+Same `claude-opus-5-5` implementation subagent and transcript as WHR-255-2026-10-17c, at the same pricing (checked 11 October 2026). Runs from that row's end and so includes its ledger edit, the first commit, the push and the draft PR, then the invariant-review fixes (structural route B declines, parser attachment rule, required spend ledger with file locking, drafting mapper and runner hardening, offline draft regeneration, route B rerun) and the gates, up to this ledger edit. This ledger edit, the commit and the push are outside the row. No subagents. No OpenRouter call was made in this window.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 2 delivery and review fixes (#255) | 32,298,994 (31,783,527) | 515,323 | 1,767 | 32,300,761 | $8.97 |
+
+Boundary: `2026-10-17T01:40:15Z` → `2026-10-17T02:04:12Z`. Cache writes: 515,323 5-minute, 0 1-hour. Exact API-equivalent USD 8.9692364.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

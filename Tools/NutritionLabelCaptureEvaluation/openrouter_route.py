@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -63,7 +64,20 @@ def reported_cost(raw: dict[str, Any] | None) -> Decimal | None:
 # `-thinking`, `-v2`, `.1`, a `:free` or `:nitro` routing variant, another vendor) is
 # a mismatch, so a family member can never pass for the model that was requested.
 # Widening the set is a contract change.
+# The suffix must also be a real calendar date (a month-day form is checked in a leap year).
+SLUG_DATE_FORMATS = ("-%Y%m%d", "-%Y-%m-%d", "-%m-%d", "-%m%d")
 SLUG_SUFFIX = re.compile(r"^-(?:\d{8}|\d{4}-\d{2}-\d{2}|\d{2}-\d{2}|\d{4})$")
+
+
+def _is_calendar_date(suffix: str) -> bool:
+    for form in SLUG_DATE_FORMATS:
+        text, pattern = (suffix, form) if "%Y" in form else ("-2000" + suffix, "-%Y" + form)
+        try:
+            datetime.strptime(text, pattern)
+        except ValueError:
+            continue
+        return True  # SLUG_SUFFIX has already fixed the digit counts
+    return False
 
 
 def model_slug_matches(requested: str, returned: Any) -> bool:
@@ -71,7 +85,24 @@ def model_slug_matches(requested: str, returned: Any) -> bool:
         return False
     if returned == requested:
         return True
-    return returned.startswith(requested) and bool(SLUG_SUFFIX.match(returned[len(requested) :]))
+    suffix = returned[len(requested) :]
+    return returned.startswith(requested) and bool(SLUG_SUFFIX.match(suffix)) and _is_calendar_date(suffix)
+
+
+def logged_request_credentials(request: Any) -> list[str]:
+    """Header names in a logged model request that could carry a credential.
+
+    Inspect 0.3.276's OpenAI-compatible providers (including `openrouter/...`) log the
+    request dict in `ModelEvent.call.request`, and that dict includes `extra_headers`
+    (request id, session id and any `GenerateConfig.extra_headers`). The API key travels
+    in the SDK client's own Authorization header, which is not in that dict; this check
+    makes sure nothing puts a credential into the logged headers either.
+    """
+    headers = request.get("extra_headers") if isinstance(request, dict) else None
+    if not isinstance(headers, dict):
+        return []
+    risky = ("authorization", "api-key", "x-api-key", "cookie", "proxy-authorization")
+    return sorted(name for name in headers if str(name).lower() in risky or "token" in str(name).lower() or "key" in str(name).lower())
 
 
 def _normalise_provider(name: Any) -> str:

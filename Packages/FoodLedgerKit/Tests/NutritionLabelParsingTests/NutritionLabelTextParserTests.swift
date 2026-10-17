@@ -258,6 +258,32 @@ func declinesInsteadOfGuessing(text: String, reason: String) {
     #expect(candidate.warnings.contains("unrecognised_row: Calcium"))
 }
 
+@Test func valueOnlyLineAfterACompleteRowBlocksReady() {
+    // A % cell whose own row label was not captured lands after a complete row: the counts
+    // still match, so only the attachment rule stops a silent misbinding.
+    let candidate = parse("\tPer 100g\t%RI\nFat\t3g\n4%\nProtein\t2g\t4%")
+    #expect(!candidate.declined)
+    #expect(!candidate.wouldMarkReady)
+    #expect(candidate.warnings.contains("values_after_complete_row: Fat"))
+}
+
+@Test func valueOnlyLineAfterACompleteRowWithMismatchedCountDeclines() {
+    let candidate = parse("\tPer 100g\nFat\t3g\n2g\nProtein\t2g")
+    #expect(candidate.declined)
+    #expect(candidate.declineReasons == ["count_mismatch"])
+}
+
+@Test func provablySafeValueOnlyLinesStillAttach() {
+    let stacked = parse("\tPer 100g\nEnergy\t1500kJ\n355kcal\nFat\t3g")
+    #expect(stacked.wouldMarkReady)
+    #expect(stacked.cells.contains { $0.nutrient == "energy_kcal" && $0.decimalText == "355" })
+    let separate = parse("\tPer 100g\nFat\n3g\nProtein\t2g")
+    #expect(separate.wouldMarkReady)
+    #expect(separate.warnings.isEmpty)
+    let repeatedUnit = parse("\tPer 100g\nEnergy\t1500kJ\n1500kJ")
+    #expect(!repeatedUnit.wouldMarkReady)
+}
+
 @Test func partialRowWithoutValuesIsNeverReady() {
     let candidate = parse("\tPer 100g\nEnergy\t1500kJ\nFibre\nProtein\t3g")
     #expect(!candidate.declined)

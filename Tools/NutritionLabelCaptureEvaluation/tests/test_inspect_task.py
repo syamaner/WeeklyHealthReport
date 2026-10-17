@@ -73,15 +73,57 @@ class InspectWiringTests(unittest.TestCase):
         from inspect_ai import eval as inspect_eval
         from inspect_ai.dataset import Sample
 
+        from budget import LedgerBudget
         from inspect_task import label_capture_scorer, route_c_openrouter
 
         sample = Sample(id="x", input="image:" + "0" * 64, target="{}", metadata={"image_path": "/nonexistent.jpg", "corpus": "off_taiwan"})
-        task = Task(dataset=[sample], solver=route_c_openrouter(), scorer=label_capture_scorer())
         with tempfile.TemporaryDirectory() as folder:
+            budget = LedgerBudget(Path(folder) / "ledger.json")
+            task = Task(dataset=[sample], solver=route_c_openrouter(budget), scorer=label_capture_scorer())
             log = inspect_eval(task, model="mockllm/model", log_dir=folder, display="none")[0]
-        self.assertEqual(log.status, "error")
-        self.assertIn("route C is disabled", str(log.error))
-        self.assertFalse(log.stats.model_usage)
+            self.assertEqual(log.status, "error")
+            self.assertIn("route C is disabled", str(log.error))
+            self.assertFalse(log.stats.model_usage)
+            self.assertEqual(json.loads((Path(folder) / "ledger.json").read_text())["entries"], [])
+
+    def test_route_c_refuses_without_the_persistent_ledger(self):
+        from budget import RunBudget
+        from inspect_task import route_c_openrouter
+
+        with self.assertRaises(TypeError):
+            route_c_openrouter(RunBudget())  # type: ignore[arg-type]
+        with self.assertRaises(TypeError):
+            route_c_openrouter(None)  # type: ignore[arg-type]
+
+    def test_route_c_records_purpose_and_sample_id(self):
+        from inspect_ai import Task
+        from inspect_ai import eval as inspect_eval
+        from inspect_ai.dataset import Sample
+
+        import inspect_task
+        from budget import LedgerBudget
+        from openrouter_route import RouteCModel
+
+        target = RouteCModel(label="luna", model="mockllm/model", endpoint="azure", provider_name="Azure")
+        raw = {"model": "mockllm/model", "provider": "Azure", "usage": {"cost": 0.01}, "choices": [{"finish_reason": "stop"}]}
+        original = inspect_task._last_raw_response
+        inspect_task._last_raw_response = lambda: raw
+        try:
+            with tempfile.TemporaryDirectory() as folder:
+                image = Path(folder) / "a.png"
+                image.write_bytes(b"\x89PNG\r\n\x1a\n")
+                sample = Sample(id="case-1", input="image", target="{}", metadata={"image_path": str(image), "corpus": "off_taiwan"})
+                budget = LedgerBudget(Path(folder) / "ledger.json")
+                task = Task(
+                    dataset=[sample],
+                    solver=inspect_task.route_c_openrouter(budget, enabled=True, target=target),
+                    scorer=inspect_task.label_capture_scorer(),
+                )
+                inspect_eval(task, model="mockllm/model", log_dir=folder, display="none")
+                entries = json.loads((Path(folder) / "ledger.json").read_text())["entries"]
+        finally:
+            inspect_task._last_raw_response = original
+        self.assertEqual([(e["purpose"], e["case_id"], e["cost_usd"]) for e in entries], [("route_c_development", "case-1", "0.01")])
 
     def test_route_b_task_runs_stub_vision_serialiser_and_parser(self):
         from inspect_ai import eval as inspect_eval

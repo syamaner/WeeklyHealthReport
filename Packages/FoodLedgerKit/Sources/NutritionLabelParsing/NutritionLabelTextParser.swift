@@ -154,6 +154,9 @@ struct RowDraft {
     var label: String
     var indented: Bool
     var values: [PrintedValue]
+    /// A value-only line was attached after this row already had values, in a shape that
+    /// is not provably the same printed cell (see `consumeRow`). Blocks ready.
+    var attachedAfterValues = false
 }
 
 struct ParseState {
@@ -275,8 +278,28 @@ struct ParseState {
                 declineReasons.append("values_without_row")
                 return
             }
-            rows[rows.count - 1].values += values
+            // A value-only line attaches silently only where that is provably the same row:
+            // (a) the row has no values yet (the label-then-value paste shape), or
+            // (b) an energy row taking only energy units it does not already carry (kJ and
+            //     kcal printed on two lines); counts are still checked per unit.
+            // Any other value-only line after a row with values (for example a value whose
+            // own row label was not captured) is attached but blocks ready, and the count
+            // check then normally declines the table.
+            var last = rows[rows.count - 1]
+            if !last.values.isEmpty, !Self.isStackedEnergy(row: last, adding: values) {
+                last.attachedAfterValues = true
+            }
+            last.values += values
+            rows[rows.count - 1] = last
         }
+    }
+
+    static func isStackedEnergy(row: RowDraft, adding values: [PrintedValue]) -> Bool {
+        guard RowClassifier.classify(row.label)?.row == .energy else { return false }
+        let energyUnits = LabelVocabulary.allowedUnits(for: .energy)
+        let existing = Set(row.values.compactMap { $0.unit.flatMap(LabelVocabulary.canonicalUnit) })
+        let added = values.map { $0.unit.flatMap(LabelVocabulary.canonicalUnit) }
+        return added.allSatisfy { unit in unit.map { energyUnits.contains($0) && !existing.contains($0) } ?? false }
     }
 
     /// Text between the first opening and the last closing parenthesis, so nested
@@ -348,6 +371,9 @@ struct ParseState {
             if row.values.isEmpty {
                 warnings.append("row_without_values: \(row.label)")
                 continue
+            }
+            if row.attachedAfterValues {
+                warnings.append("values_after_complete_row: \(row.label)")
             }
             let hint = RowClassifier.unitHint(row.label)
             var amounts: [PrintedValue] = []

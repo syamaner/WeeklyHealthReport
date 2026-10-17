@@ -157,7 +157,7 @@ def map_draft(wire: dict[str, Any], photo: dict[str, Any], *, model: str, endpoi
                 reasons.append("header_uncertain")
             if parsed is None:
                 reasons.append("value_not_a_printed_amount")
-            basis = header["basis"] if header else "per_serving"
+            basis = header["basis"] if header else "unknown"
             cell = {
                 "row_id": row_id,
                 "parent_row_id": parent,
@@ -166,10 +166,10 @@ def map_draft(wire: dict[str, Any], photo: dict[str, Any], *, model: str, endpoi
                 "header_id": value["header_id"],
                 "basis": basis,
                 "printed_text": value["printed_text"],
-                "comparator": parsed["comparator"] if parsed else "=",
-                "decimal_text": parsed["decimal_text"] if parsed else "0",
-                "unit": parsed["unit"] if parsed else "",
-                "canonical_unit": parsed["canonical_unit"] if parsed else "g",
+                "comparator": parsed["comparator"] if parsed else None,
+                "decimal_text": parsed["decimal_text"] if parsed else None,
+                "unit": parsed["unit"] if parsed else None,
+                "canonical_unit": parsed["canonical_unit"] if parsed else None,
                 "serving_conversion": (serving_quantity or "unknown") if basis == "per_serving" else "not_applicable",
                 "persistence_authorized": False,
                 "requires_user_selection": True,
@@ -267,8 +267,40 @@ def request_body(target: RouteCModel, image_bytes: bytes, instruction: str, wire
 # --- Review sheet ------------------------------------------------------------------------
 
 
-def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str, Path]) -> None:
-    """A local HTML page (image beside its draft) and a CSV with one row per cell to tick."""
+REVIEW_KEY = ("case_id", "row_id", "header", "basis", "printed_label")
+OWNER_FIELDS = ("owner_verified", "owner_correction")
+
+
+def merge_owner_entries(rows: list[dict[str, Any]], existing: list[dict[str, str]]) -> tuple[list[dict[str, Any]], int]:
+    """Carry every non-empty owner entry from an earlier review.csv into the new rows.
+
+    Entries are matched on case, row, column header, basis and printed label. An entry
+    whose row no longer exists is appended unchanged, so no owner input is ever dropped.
+    Returns the merged rows and the number of owner entries carried over.
+    """
+    by_key = {tuple(str(row.get(k, "")) for k in REVIEW_KEY): row for row in rows}
+    carried = 0
+    for old in existing:
+        if not any(str(old.get(field) or "").strip() for field in OWNER_FIELDS):
+            continue
+        carried += 1
+        target = by_key.get(tuple(str(old.get(k, "")) for k in REVIEW_KEY))
+        if target is None:
+            rows.append({**{k: "" for k in rows[0]}, **old} if rows else dict(old))
+        else:
+            for field in OWNER_FIELDS:
+                if str(old.get(field) or "").strip():
+                    target[field] = old[field]
+    return rows, carried
+
+
+def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str, Path]) -> int:
+    """A local HTML page (image beside its draft) and a CSV with one row per cell to tick.
+
+    An existing review.csv is never overwritten blindly: it is copied aside first and
+    every non-empty owner entry is merged into the new sheet. Returns the number of owner
+    entries carried over.
+    """
     rows = []
     sections = []
     for draft in sorted(drafts, key=lambda d: d["order"]):
@@ -370,18 +402,41 @@ def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str
         + "</body></html>"
     )
     (out / "review.html").write_text(page, encoding="utf-8")
-    with (out / "review.csv").open("w", encoding="utf-8", newline="") as handle:
+    sheet = out / "review.csv"
+    carried = 0
+    if sheet.exists():
+        previous = sheet.read_text(encoding="utf-8")
+        backup = out / f"review.csv.before-{hashlib.sha256(previous.encode('utf-8')).hexdigest()[:12]}"
+        if not backup.exists():
+            backup.write_text(previous, encoding="utf-8")
+        rows, carried = merge_owner_entries(rows, list(csv.DictReader(previous.splitlines())))
+    with sheet.open("w", encoding="utf-8", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=list(rows[0]) if rows else ["case_id"])
         writer.writeheader()
         writer.writerows(rows)
+    return carried
 
 
 # --- Runner ------------------------------------------------------------------------------
 
 
 def inside_git(path: Path) -> bool:
-    probe = subprocess.run(["git", "-C", str(path), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    """Whether a path, or its nearest existing ancestor if it does not exist yet, is in a checkout."""
+    probe_path = path.expanduser().resolve()
+    while not probe_path.exists():
+        probe_path = probe_path.parent
+    probe = subprocess.run(["git", "-C", str(probe_path), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
     return probe.returncode == 0
+
+
+class RefuseRedirects(urllib.request.HTTPRedirectHandler):
+    """Never follow a redirect: urllib would resend the Authorization header to the new host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, ANN201
+        raise urllib.error.HTTPError(req.full_url, code, f"redirect refused ({code})", headers, fp)
+
+
+OPENER = urllib.request.build_opener(RefuseRedirects)
 
 
 def key_from_env_file(path: Path) -> str | None:
@@ -431,7 +486,7 @@ def post(body: dict[str, Any], key: str) -> tuple[int, dict[str, Any] | None, fl
     )
     started = time.monotonic()
     try:
-        with urllib.request.urlopen(request, timeout=90) as response:
+        with OPENER.open(request, timeout=90) as response:
             status, payload = response.status, response.read()
     except urllib.error.HTTPError as error:
         status, payload = error.code, error.read()
@@ -451,9 +506,9 @@ def main() -> int:
     parser.add_argument("--ledger", type=Path, required=True, help="persistent spend ledger outside any checkout")
     parser.add_argument("--unseal-for-drafting", action="store_true")
     parser.add_argument("--manifest-sha256", required=True)
-    parser.add_argument("--model", required=True)
-    parser.add_argument("--endpoint", required=True)
-    parser.add_argument("--provider-name", required=True)
+    parser.add_argument("--model", help="must equal the contract's drafting model if given")
+    parser.add_argument("--endpoint", help="must equal the contract's drafting endpoint if given")
+    parser.add_argument("--provider-name", help="must equal the contract's drafting provider if given")
     parser.add_argument("--orders", help="comma-separated untouched orders to draft (default: all not yet drafted)")
     parser.add_argument("--sheet-only", action="store_true", help="rebuild the review sheet from saved drafts; no call")
     parser.add_argument("--env-file", type=Path, help="dotenv file to take OPENROUTER_API_KEY from (only that variable, into this process)")
@@ -467,11 +522,19 @@ def main() -> int:
         raise SystemExit("the manifest hash does not match the contract")
     if contract["untouched_truth_drafting"].get("owner_decision") != "A, 17 October 2026":
         raise SystemExit("drafting is not defined by the contract")
+    pinned = contract["untouched_truth_drafting"]["model"]
+    for name, given, expected_value in (
+        ("--model", args.model, pinned["slug"]),
+        ("--endpoint", args.endpoint, pinned["endpoint"]),
+        ("--provider-name", args.provider_name, pinned["provider_name"]),
+    ):
+        if given is not None and given != expected_value:
+            raise SystemExit(f"{name} {given!r} differs from the contract's {expected_value!r}")
+    for path in (args.out, args.ledger, args.image_root):
+        if inside_git(path):
+            raise SystemExit(f"refusing a path inside a git checkout: {path}")
     args.out.mkdir(parents=True, exist_ok=True)
     args.ledger.parent.mkdir(parents=True, exist_ok=True)
-    for path in (args.out, args.ledger.parent, args.image_root):
-        if inside_git(path.expanduser().resolve()):
-            raise SystemExit(f"refusing a path inside a git checkout: {path}")
 
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     photos = [p for p in manifest["photos"] + manifest.get("refills", []) if p["split"] == "untouched" and not p.get("excluded")]
@@ -497,7 +560,9 @@ def main() -> int:
         open_request = journal_open_request(journal)
         if open_request:
             raise SystemExit(f"a request for {open_request} has no receipt; reconcile the journal before another call")
-        target = RouteCModel(label="qwen-drafting", model=args.model, endpoint=args.endpoint, provider_name=args.provider_name)
+        target = RouteCModel(
+            label="qwen-drafting", model=pinned["slug"], endpoint=pinned["endpoint"], provider_name=pinned["provider_name"]
+        )
         limits = {
             "per_call_usd": contract["route_c"]["per_call_stop_usd"],
             "total_usd": contract["route_c"]["total_stop_usd"],
@@ -550,11 +615,19 @@ def main() -> int:
                     "cost_usd": None if cost is None else str(cost),
                     "seconds": round(seconds, 2),
                     "problems": problems,
+                    "returned_model": response.get("model") if isinstance(response, dict) else None,
                 },
             )
             try:
                 # A missing cost is unknown, never zero, whatever the HTTP status.
-                budget.record_call(target.label, cost, purpose=PURPOSE, case_id=case_id, at=now())
+                budget.record_call(
+                    target.label,
+                    cost,
+                    purpose=PURPOSE,
+                    case_id=case_id,
+                    at=now(),
+                    returned_model=response.get("model") if isinstance(response, dict) else None,
+                )
             except BudgetStop as stop:
                 print(f"stopped after {case_id}: {stop}")
                 break
@@ -590,11 +663,11 @@ def main() -> int:
             )
             path.write_text(json.dumps(draft, ensure_ascii=False, indent=1), encoding="utf-8")
     drafts = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(drafts_dir.glob("*.json"))]
-    if drafts:
-        write_review_sheet(args.out, drafts, images)
+    carried = write_review_sheet(args.out, drafts, images) if drafts else 0
     failed = sorted(p.stem for p in raw_dir.glob("*.json") if not (drafts_dir / p.name).exists())
     summary = {
         "requests": len(list(raw_dir.glob("*.json"))),
+        "owner_entries_carried_over": carried,
         "failed_orders": failed,
         "drafted": len(drafts),
         "cells": sum(len(d["cells"]) for d in drafts),

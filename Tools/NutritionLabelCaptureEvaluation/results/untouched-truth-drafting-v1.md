@@ -33,3 +33,7 @@ Reported `usage.cost`, recorded in the persistent spend ledger shared with route
 ## Owner verification
 
 Open `~/WHR-label-eval-private/drafts/untouched-taiwan-v1/review.html`: each photo sits beside its drafted table, with uncertain rows highlighted; clicking the photo opens it full size. Record each check in `review.csv` (one row per cell, serving line and table decision): `owner_verified` yes, or the corrected printed text in `owner_correction`. The verified records become `model-drafted, owner-verified` truth, are frozen by hash in the contract, and only then can the untouched run be planned.
+
+## Regeneration after review (17 October 2026)
+
+The invariant review of PR #257 found that a value the mapper could not parse (such as `*` or `unknown`) was stored with invented defaults (decimal text `0`, unit `g`, and basis `per_serving` for an unknown header). The 39 drafts were re-mapped offline from the saved raw responses, with no new call (the ledger still holds 40 calls and $0.14616675). Such cells now carry a null comparator, decimal text and units, and an unknown basis; none of the 12 unparsed cells carries a value. The review sheet was regenerated. `review.csv` had no owner entries yet, so nothing needed merging; any later regeneration copies the old sheet aside and merges every non-empty owner entry.

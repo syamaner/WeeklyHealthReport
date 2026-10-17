@@ -3,12 +3,21 @@
 No Vision run, no image, no model or provider call: synthetic recogniser output only.
 """
 
+import csv
+import http.server
 import importlib.util
 import json
+import multiprocessing
+import subprocess
+import sys
 import tempfile
+import threading
 import unittest
+import urllib.error
+import urllib.request
 from decimal import Decimal
 from pathlib import Path
+from unittest import mock
 
 from helpers import HERE
 
@@ -19,6 +28,7 @@ import draft_untouched_truth as drafting
 import openrouter_route
 import serialise_lines
 from budget import BudgetStop, LedgerBudget, RunBudget
+from candidate import validate_candidate
 from openrouter_route import RouteCModel
 
 
@@ -121,6 +131,68 @@ class SerialiserTests(unittest.TestCase):
         self.assertIn("Per 100g\tPer 2 Sausages", text)
         self.assertIn("Fat\t7.8g\t6.7g", text)
         self.assertFalse(any("Reference" in row for row in text))
+
+
+PARSER_CLI = HERE.parents[1] / "Packages" / "FoodLedgerKit" / ".build" / "out" / "Products" / "Debug" / "NutritionLabelTextParse"
+
+
+def reference_intake_table(drop_percent_row=None):
+    """每份 and 每日參考值百分比 columns; optionally the % cell of one row is not recognised."""
+    rows = [
+        ("熱量", "120大卡", "6%"),
+        ("蛋白質", "3公克", "5%"),
+        ("脂肪", "2公克", "3%"),
+        ("碳水化合物", "20公克", "7%"),
+        ("鈉", "50毫克", "3%"),
+    ]
+    lines = [line(token("每份", 0.40, 0.20)), line(token("每日參考值百分比", 0.65, 0.20))]
+    for index, (label, amount, percent) in enumerate(rows):
+        y = 0.28 + index * 0.06
+        lines.append(line(token(label, 0.05, y)))
+        lines.append(line(token(amount, 0.40, y)))
+        if label != drop_percent_row:
+            lines.append(line(token(percent, 0.70, y)))
+    return {"lines": lines}
+
+
+@unittest.skipUnless(
+    PARSER_CLI.exists() and importlib.util.find_spec("inspect_ai"), "needs the built NutritionLabelTextParse and inspect_ai"
+)
+class RouteBEndToEndTests(unittest.TestCase):
+    """Serialiser, then the real parser CLI, then route B's structural checks."""
+
+    def run_route_b(self, recognised):
+        from inspect_task import route_b_structural_checks
+
+        serialised = serialise_lines.serialise(recognised)
+        payload = json.dumps([{"id": "x", "text": serialised["text"], "route": "B", "input_sha256": "c" * 64}])
+        output = subprocess.run([str(PARSER_CLI)], input=payload.encode(), capture_output=True, check=True).stdout
+        parsed = json.loads(output)[0]["candidate"]
+        return parsed, route_b_structural_checks(parsed, serialised["report"])
+
+    def test_missed_row_label_declines(self):
+        _, candidate = self.run_route_b(muesli_like(right_offset_rows=0, drop_label="糖"))
+        self.assertTrue(candidate["declined"])
+        self.assertFalse(candidate["would_mark_ready"])
+        self.assertEqual(candidate["cells"], [])
+        self.assertEqual(validate_candidate(candidate), [])
+
+    def test_missed_reference_intake_cell_is_never_ready(self):
+        _, ready = self.run_route_b(reference_intake_table())
+        self.assertTrue(ready["would_mark_ready"], ready["warnings"])
+        parsed, candidate = self.run_route_b(reference_intake_table(drop_percent_row="碳水化合物"))
+        self.assertFalse(candidate["declined"])
+        self.assertFalse(candidate["would_mark_ready"])
+        self.assertIn("rows_without_reference_intake_cell: carbohydrate", candidate["warnings"])
+        self.assertEqual(validate_candidate(candidate), [])
+
+    def test_missed_percent_label_that_lands_on_a_complete_row_never_marks_ready(self):
+        # The % cell of 脂肪 is recognised but its label is not, and the value sits a row
+        # lower: whatever binding results, the table must not be ready.
+        recognised = reference_intake_table()
+        recognised["lines"] = [entry for entry in recognised["lines"] if entry["text"] != "脂肪"]
+        _, candidate = self.run_route_b(recognised)
+        self.assertFalse(candidate["would_mark_ready"])
 
 
 class UkReviewTests(unittest.TestCase):
@@ -261,6 +333,10 @@ class SafeguardTests(unittest.TestCase):
             "openai/gpt-6",
             "azure/gpt-6-luna",
             "openai/gpt-6-luna-202610",
+            "openai/gpt-6-luna-20261341",
+            "openai/gpt-6-luna-2026-02-30",
+            "openai/gpt-6-luna-0230",
+            "openai/gpt-6-luna-13-01",
             None,
         ]
         for slug in accepted:
@@ -268,6 +344,12 @@ class SafeguardTests(unittest.TestCase):
             self.assertEqual(openrouter_route.route_mismatches(self.raw(model=slug), self.target), [], slug)
         for slug in rejected:
             self.assertFalse(openrouter_route.model_slug_matches("openai/gpt-6-luna", slug), slug)
+
+    def test_logged_request_must_not_carry_credential_headers(self):
+        self.assertEqual(openrouter_route.logged_request_credentials({"extra_headers": {"x-irid": "1", "x-session-id": "s"}}), [])
+        self.assertEqual(openrouter_route.logged_request_credentials({"extra_headers": {"Authorization": "Bearer x"}}), ["Authorization"])
+        self.assertEqual(openrouter_route.logged_request_credentials({"extra_headers": {"X-Api-Key": "k"}}), ["X-Api-Key"])
+        self.assertEqual(openrouter_route.logged_request_credentials(None), [])
 
     def test_uk_fibre_variant_is_not_applied_to_us_labels(self):
         cells = [
@@ -306,6 +388,13 @@ class SafeguardTests(unittest.TestCase):
             self.assertEqual(acquire_off_taiwan.refill([*base, "--max-bytes", "0"]), 2)
 
 
+def _ledger_worker(path: str, name: str, calls: int) -> None:
+    budget = LedgerBudget(Path(path))
+    for index in range(calls):
+        budget.before_call(name)
+        budget.record_call(name, Decimal("0.01"), purpose="test", case_id=f"{name}-{index}", at="t")
+
+
 class LedgerTests(unittest.TestCase):
     def test_spend_and_reservation_persist_across_runs(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -342,6 +431,51 @@ class LedgerTests(unittest.TestCase):
             later = LedgerBudget(path)
             self.assertEqual(later.spent_usd, Decimal("0.05"))
             self.assertEqual(json.loads(path.read_text())["open_calls"], 1)
+
+    def test_two_instances_interleave_on_one_ledger(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "ledger.json"
+            # $0.09 of headroom above the $10 reservation: only one $0.05 call may be open at once.
+            limits = {"total_usd": "10.09"}
+            first, second = LedgerBudget(path, limits=limits), LedgerBudget(path, limits=limits)
+            first.before_call("luna")
+            with self.assertRaises(BudgetStop):
+                second.before_call("grok")  # sees the first instance's open call
+            first.record_call("luna", Decimal("0.01"), purpose="development", case_id="a", at="t1")
+            second.before_call("grok")
+            second.record_call("grok", Decimal("0.02"), purpose="development", case_id="b", at="t2")
+            data = json.loads(path.read_text())
+            self.assertEqual([e["case_id"] for e in data["entries"]], ["a", "b"])
+            self.assertEqual((data["open_calls"], data["reported_spend_usd"]), (0, "0.03"))
+
+    def test_separate_processes_lose_no_update(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "ledger.json"
+            LedgerBudget(path)
+            context = multiprocessing.get_context("spawn")
+            workers = [context.Process(target=_ledger_worker, args=(str(path), name, 20)) for name in ("p1", "p2", "p3")]
+            for worker in workers:
+                worker.start()
+            for worker in workers:
+                worker.join(60)
+                self.assertEqual(worker.exitcode, 0)
+            data = json.loads(path.read_text())
+            self.assertEqual(len(data["entries"]), 60)
+            self.assertEqual(data["open_calls"], 0)
+            self.assertEqual(Decimal(data["reported_spend_usd"]), Decimal("0.60"))
+
+    def test_an_open_sealed_call_counts_against_the_sealed_cap(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "ledger.json"
+            limits = {"sealed_reserved_calls": 2}
+            crashed = LedgerBudget(path, sealed_run=True, limits=limits)
+            crashed.before_call("luna")  # never recorded
+            later = LedgerBudget(path, sealed_run=True, limits=limits)
+            later.before_call("luna")
+            later.record_call("luna", Decimal("0.01"), purpose="sealed", case_id="x", at="t")
+            self.assertEqual(later.sealed_calls_made, 2)
+            with self.assertRaises(BudgetStop):
+                later.before_call("luna")
 
     def test_changed_limits_are_refused(self):
         with tempfile.TemporaryDirectory() as folder:
@@ -426,6 +560,85 @@ class DraftingTests(unittest.TestCase):
         self.assertIsNone(drafting.parse_value("*"))
         self.assertIsNone(drafting.parse_value("unknown"))
         self.assertIsNone(drafting.parse_value("5 IU"))
+
+    def test_unparsed_cells_carry_no_invented_value(self):
+        draft = drafting.map_draft(self.wire, self.photo, model="m", endpoint="e", drafted_on="d")
+        unparsed = [c for c in draft["cells"] if not c["parsed"]]
+        self.assertTrue(unparsed)
+        for cell in unparsed:
+            self.assertNotEqual(cell["decimal_text"], "0")
+            self.assertEqual((cell["decimal_text"], cell["comparator"], cell["unit"], cell["canonical_unit"]), (None, None, None, None))
+        wire = json.loads(json.dumps(self.wire))
+        wire["rows"][0]["values"][0]["header_id"] = "missing"
+        cell = next(
+            c for c in drafting.map_draft(wire, self.photo, model="m", endpoint="e", drafted_on="d")["cells"] if c["header_id"] == "missing"
+        )
+        self.assertEqual(cell["basis"], "unknown")
+
+    def test_owner_entries_survive_a_regenerated_sheet(self):
+        draft = drafting.map_draft(self.wire, self.photo, model="m", endpoint="e", drafted_on="d")
+        with tempfile.TemporaryDirectory() as folder:
+            out = Path(folder)
+            images = {draft["case_id"]: out / "21.jpg"}
+            self.assertEqual(drafting.write_review_sheet(out, [draft], images), 0)
+            rows = list(csv.DictReader((out / "review.csv").read_text().splitlines()))
+            rows[0]["owner_correction"] = "121大卡"
+            rows[1]["owner_verified"] = "yes"
+            orphan = {**rows[0], "row_id": "gone", "owner_correction": "keep me"}
+            with (out / "review.csv").open("w", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+                writer.writeheader()
+                writer.writerows([*rows, orphan])
+            self.assertEqual(drafting.write_review_sheet(out, [draft], images), 3)
+            merged = list(csv.DictReader((out / "review.csv").read_text().splitlines()))
+            self.assertEqual(merged[0]["owner_correction"], "121大卡")
+            self.assertEqual(merged[1]["owner_verified"], "yes")
+            self.assertIn("keep me", [r["owner_correction"] for r in merged])
+            self.assertTrue(list(out.glob("review.csv.before-*")))
+
+    def test_redirects_are_refused_so_the_key_is_never_forwarded(self):
+        seen = []
+
+        class Handler(http.server.BaseHTTPRequestHandler):
+            def do_POST(self):  # noqa: N802
+                seen.append((self.path, self.headers.get("Authorization")))
+                self.send_response(307 if self.path == "/start" else 200)
+                self.send_header("Location", "/elsewhere")
+                self.send_header("Content-Length", "2")
+                self.end_headers()
+                self.wfile.write(b"{}")
+
+            def log_message(self, format, *args):  # noqa: A002
+                pass
+
+        server = http.server.HTTPServer(("127.0.0.1", 0), Handler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            url = f"http://127.0.0.1:{server.server_port}/start"
+            request = urllib.request.Request(url, data=b"{}", headers={"Authorization": "Bearer test"}, method="POST")
+            with self.assertRaises(urllib.error.HTTPError) as caught:
+                drafting.OPENER.open(request, timeout=10)
+            self.assertEqual(caught.exception.code, 307)
+        finally:
+            server.shutdown()
+            server.server_close()
+        self.assertEqual([path for path, _ in seen], ["/start"])
+
+    def test_cli_model_must_match_the_contract(self):
+        contract = json.loads((HERE / "frozen-contract-v1.json").read_text())
+        digest = contract["corpus"]["off_taiwan"]["manifest_sha256"]
+        with tempfile.TemporaryDirectory() as folder:
+            argv = ["draft", "--image-root", folder, "--out", folder + "/o", "--ledger", folder + "/l.json", "--unseal-for-drafting"]
+            argv += ["--manifest-sha256", digest, "--model", "qwen/qwen3.5-27b", "--sheet-only"]
+            with mock.patch.object(sys, "argv", argv), self.assertRaisesRegex(SystemExit, "differs from the contract"):
+                drafting.main()
+            self.assertFalse((Path(folder) / "o").exists())
+
+    def test_git_check_runs_before_any_folder_is_created(self):
+        missing = HERE / "not-yet-created" / "child"
+        self.assertTrue(drafting.inside_git(missing))
+        self.assertFalse(missing.parent.exists())
 
     def test_non_label_images_are_proposed_for_exclusion(self):
         wire = {**self.wire, "table_found": "other_language_nutrition_table", "headers": [], "rows": []}

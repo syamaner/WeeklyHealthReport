@@ -200,14 +200,16 @@
     "reserve_note": "Qwen 3.5 was removed from the route C reserve because it drafts untouched truth (decision A).",
     "never_sees_untouched_truth_or_drafts": true,
     "sealed_reservation": "RunBudget holds back 200 calls at the $0.05 ceiling ($10) from development calls",
-    "model_slug_rule": "A response model is accepted only when it equals the requested slug, or the requested slug followed by '-' and one date in the closed set YYYYMMDD, YYYY-MM-DD, MM-DD or MMDD (openrouter_route.model_slug_matches). Other sizes, -mini, -thinking, -vN, '.1', :free or :nitro routing variants and other vendors are mismatches. Widening the set is a contract change.",
+    "model_slug_rule": "A response model is accepted only when it equals the requested slug, or the requested slug followed by '-' and one real calendar date in the closed forms YYYYMMDD, YYYY-MM-DD, MM-DD or MMDD (month-day forms checked in a leap year) (openrouter_route.model_slug_matches). Other sizes, -mini, -thinking, -vN, '.1', :free or :nitro routing variants and other vendors are mismatches. Widening the set is a contract change.",
     "spend_ledger": {
-      "implementation": "budget.LedgerBudget",
+      "implementation": "budget.LedgerBudget (required by route_c_openrouter; no in-memory default)",
       "location": "outside the repository (~/WHR-label-eval-private/spend-ledger-v1.json); one ledger for route C and the untouched truth drafting",
       "holds": "the $25 total, the $0.05 per-call stop, the three unknown-cost allowance and the 200-call sealed reservation, shared across separate Inspect runs, models and processes; each entry records purpose, model, case id and reported cost only (no key, header, prompt or response)",
       "refuses_changed_limits": true,
-      "unrecorded_calls": "a call started but never recorded is charged at the $0.05 ceiling by every later run"
-    }
+      "unrecorded_calls": "a call started but not recorded stays open: it is charged at the $0.05 ceiling and, if sealed, counts against the 200-call sealed cap",
+      "locking": "an exclusive fcntl.flock on a sibling lock file around every reload, check, append and save, so separate processes share one true total"
+    },
+    "logged_request_check": "Inspect 0.3.276 logs the OpenAI-compatible request dict (including extra_headers, which hold only the request and session ids) in ModelEvent.call.request; the API key is in the SDK client's Authorization header, not in that dict. route_c_openrouter stops the run if any credential-like header appears in the logged request (openrouter_route.logged_request_credentials)."
   },
   "ground_truth": {
     "development_off_taiwan": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json",
@@ -221,11 +223,11 @@
     "Tools/NutritionLabelCaptureEvaluation/candidate.py": "05f67900b4b38bd820d71a04351b5a26553a976d74051a5964210a24e20109c1",
     "Tools/NutritionLabelCaptureEvaluation/score.py": "b7a662924e95e8ebb6b2b47e8355cd524e507d47c345027670d51dcf954ecdd3",
     "Tools/NutritionLabelCaptureEvaluation/arithmetic.py": "ffaf734c50d732c57da705bcb09787fe46c8e4fae2649353a3594d03a39f9d1c",
-    "Tools/NutritionLabelCaptureEvaluation/budget.py": "ef6d612a257269b981d27ae0312fff5197f1d4ed75de75c7bd6ecc907ad40318",
-    "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py": "f0a60757645d6cde56dc8f4277ffe34fb679d3141b9817ff0313984068de4eea",
+    "Tools/NutritionLabelCaptureEvaluation/budget.py": "2ad7fa74ca171f4437993ed8d0465501d9788e45f4bdc429fee0ed04ac85e89f",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py": "9f9c56c5e7ca0f16a35d4b89fd7b3304e092fbe4b002aa46447638c780ec110a",
     "Tools/NutritionLabelCaptureEvaluation/requirements-dev.lock": "ecdedef956a76eeed2983139f2b82f89bf0ebbecd54b5de4bc8e964e4c32674a",
     "Tools/NutritionLabelCaptureEvaluation/cases.py": "e5b5151857a5057469631d6e45944a1625d4258e65600528fd0fe84b94732f6a",
-    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "cbb112d6f3370079590ee249ab0422fa98210676bf9626976ccae954d40d1933",
+    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "fb64219fdfdcf6bcab0b053a0f0fe3868a9afb3d212254704a089ae9c547a5a9",
     "Tools/NutritionLabelCaptureEvaluation/requirements.txt": "56dfa330c985616b9a3704fc5f5df526abb6e7136ece92a29bfa471db190acf4",
     "Tools/NutritionLabelCaptureEvaluation/synthetic/render.py": "6c8fcb7d30f7829f1f493859bc63ae6828c4af67dff77aa1aded7919c0996ae1",
     "Tools/NutritionLabelCaptureEvaluation/build_cases.py": "4fcaf2685f24d4a359ff7d7d76ea36464dfd000a3582bbca375b613031e38b15",
@@ -237,12 +239,12 @@
     "Tools/NutritionLabelCaptureEvaluation/openrouter/label-image-wire-schema-v1.json": "8d10352dcf69fa0f3da203835ce3aac95df573ba689ee29ffab34177e0432b71",
     "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/LabelCaptureCandidate.swift": "65722296a95944d0c6d32505beb35f469c0906cd7782fed769aa0c6a5576c76f",
     "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/LabelVocabulary.swift": "0792d7c351f58f967e21ba0c34cc551c245d9421dd9455a6b371035e8409260d",
-    "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/NutritionLabelTextParser.swift": "791d8f498090b1d6af716c509959dfc93e8896cc246ae0bf0354c9c88a32a80f",
+    "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/NutritionLabelTextParser.swift": "969b5ca7b88eb6152ec940fd71861a8db6105ec1c775a0fde4f323cafb7bfc7a",
     "Packages/FoodLedgerKit/Tools/NutritionLabelTextParse/main.swift": "a6bae0d111ead94f147a3550eeb2ad83140c08fae3dea7518536c7c271f2ad3a",
     "Tools/NutritionLabelCaptureEvaluation/vision_v3.swift": "942064b84d069358d4878624802b994ecbca5aa43583c6ca418236cad2656e02",
     "Tools/NutritionLabelCaptureEvaluation/serialise_lines.py": "81c279137e4c1b6ad0a3b08cd43733c625aa9b1edb64e1a395aec91ef1ff7ec2",
     "Tools/NutritionLabelCaptureEvaluation/run_route_b.py": "e2da453fe273017590c5e78c330f1ab0f17416dfe3657b06c12d2927b679f90a",
-    "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py": "e6ccad0d0810cc5096032ac596b898eb35dc0fac417c8ce2d7464675b24c3d1d",
+    "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py": "021d6762478f4305024528a6184502bc57b7c355029bd9a6f8079db1171c01cb",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.txt": "721569af7b34ac5108456e7930f35b7883ab4fa049aed79a3893bf7af4c154aa",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-wire-schema-v1.json": "75af5c236184284c239a5170a0ab6efb2e8637c9f508cf02fe4c0b220fba0c2d"
   },
@@ -292,7 +294,9 @@
       "unknown_cost_calls": 0,
       "all_responses_model_and_provider_matched": true,
       "owner_verification": "pending; review sheet outside the repository"
-    }
+    },
+    "runner_pins": "draft_untouched_truth.py reads the model slug, endpoint and provider from this block and refuses CLI values that differ; it refuses HTTP redirects so the Authorization header is never forwarded; it checks every path against git before creating any folder; the journal and ledger record the returned model slug per call",
+    "drafts_regenerated": "2026-10-17: the 39 drafts were re-mapped offline from the saved raw responses (no new call) so an unparsed value carries null comparator, decimal text and units and an unknown basis instead of invented defaults; review.csv had no owner entries to carry over"
   },
   "deviations": [
     {
@@ -345,7 +349,7 @@
     "serialiser": "Tools/NutritionLabelCaptureEvaluation/serialise_lines.py",
     "serialiser_version": "label-capture-serialiser-v1",
     "parser": "NutritionLabelParsing through NutritionLabelTextParse with route B and the image SHA-256 as input_sha256",
-    "binding": "by column header and order within a column: each column is bound at its printed position; a whole-column offset is taken only when it binds every value of that column one-to-one, anchored to the rows a complete neighbouring column binds, or for a column with no complete neighbour the smallest such offset; unbound values are emitted on their own line so the parser declines with a count mismatch; no recognised character is rewritten",
+    "binding": "by column header and order within a column: each column is bound at its printed position; a whole-column offset is taken only when it binds every value of that column one-to-one, anchored to the rows a complete neighbouring column binds, or for a column with no complete neighbour the smallest such offset; no recognised character is rewritten. Unbound values are structural declines: the route B solver declines any table whose serialiser report has unbound_values > 0 (values_without_row), whatever the parser made of the text, and the parser itself blocks ready (values_after_complete_row) when a value-only line follows a row that already has values, except for the provably safe pasted shapes (a row with no values yet, or an energy row taking only energy units it does not carry). When a reference-intake column exists, a route B table with any amount row lacking a reference-intake cell is never marked ready (rows_without_reference_intake_cell).",
     "development_runs_only": true,
     "never_runs_on_sealed_folder": true
   }
