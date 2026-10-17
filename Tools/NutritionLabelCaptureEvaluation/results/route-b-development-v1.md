@@ -4,10 +4,10 @@ Run on 17 October 2026 through Inspect AI (`mockllm/model` as the nominal model;
 
 - **Recogniser:** `vision_v3.swift` (`label-capture-vision-v3`), `VNRecognizeTextRequest` revision 3, accurate, recognition languages `zh-Hant` and `en-US`, language correction on (inherited from the frozen v1 adapter), macOS 27.0.1 (26A434). `en-GB` was requested but is not advertised by this Vision revision, so it is not used; `en-US` is recorded, not represented as British-English support.
 - **Serialiser:** `serialise_lines.py` (`label-capture-serialiser-v1`): binding by column header and order within a column, header-row skew correction, two-line headers joined, footnote headers dropped, unbound values emitted so the parser declines.
-- **Parser:** the shared `NutritionLabelParsing` (`nutrition-label-text-parser-v1`) through `NutritionLabelTextParse` with route `B`; a value-only line after a row that already has values now blocks ready, except for the provably safe pasted shapes (a row with no values yet, an energy row taking a new energy unit).
+- **Parser:** the shared `NutritionLabelParsing` (`nutrition-label-text-parser-v2`) through `NutritionLabelTextParse` with route `B`; a value-only line after a row that already has values now blocks ready, except for the provably safe pasted shapes (a row with no values yet, an energy row taking a new energy unit).
 - **Structural guards (route B solver):** a table with any value the serialiser could not bind is declined (`values_without_row`); when a reference-intake column exists, a table with an amount row lacking a reference-intake cell is never marked ready.
 
-Rerun on 17 October 2026 after the invariant review of PR #257; the numbers below supersede the first phase 2 run (which had 2 Taiwan false-ready tables, 9 UK strict cells and 20 UK false declines).
+Rerun on 17 October 2026 after the invariant reviews of PR #257 (the second rerun, at parser v2, changed no number); the numbers below supersede the first phase 2 run (which had 2 Taiwan false-ready tables, 9 UK strict cells and 20 UK false declines).
 
 Machine-readable summary, per-case outcome flags and serialiser counts: [`route-b-development-v1.json`](route-b-development-v1.json). The Inspect log (recognised lines and serialised text) is outside the repository.
 
@@ -39,6 +39,7 @@ Taiwan truth is the Claude-drafted first pass (`first_pass_unverified`), awaitin
 | Correct decline | ≥ 95% | 5 / 5 **pass** | 17 / 17 **pass** |
 | False-ready | 0 | **1** of 20 **fail** | 0 of 39 pass |
 | Automatic persistence | 0 | 0 pass | 0 pass |
+| Would mark ready after arithmetic (reported, not gated) | n/a | 3 of 20 (2 exact, 1 false-ready) | 0 of 39 |
 | Arithmetic mutation detection (on truth) | 100% | 20 / 21 **fail** | 10 / 13 **fail** |
 
 Muesli: not run (no consent), so the plan's binding stress case on the real photo is unmeasured; a synthetic one-row-offset fixture in `tests/test_phase2.py` binds correctly.

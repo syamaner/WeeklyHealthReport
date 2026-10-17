@@ -675,5 +675,129 @@ class DraftingTests(unittest.TestCase):
             self.assertEqual(len(rows), 1 + 4 + 3)  # header, four cells, serving size, servings per pack, decision
 
 
+class ReReviewTests(unittest.TestCase):
+    """Second invariant review of PR #257."""
+
+    def test_fourth_unknown_cost_call_is_refused_before_it_is_made(self):
+        budget = RunBudget()
+        for _ in range(3):
+            budget.before_call("grok")
+            budget.record("grok", None)
+        with self.assertRaises(BudgetStop):
+            budget.before_call("grok")
+        with tempfile.TemporaryDirectory() as folder:
+            ledger = LedgerBudget(Path(folder) / "ledger.json")
+            for index in range(3):
+                ledger.before_call("grok")
+                ledger.record_call("grok", None, purpose="t", case_id=str(index), at="t")
+            with self.assertRaises(BudgetStop):
+                ledger.before_call("grok")
+            self.assertEqual(json.loads((Path(folder) / "ledger.json").read_text())["open_calls"], 0)
+
+    def test_changed_draft_text_keeps_the_owner_entry_as_an_orphan(self):
+        wire = json.loads(json.dumps(DraftingTests.wire))
+        draft = drafting.map_draft(wire, DraftingTests.photo, model="m", endpoint="e", drafted_on="d")
+        with tempfile.TemporaryDirectory() as folder:
+            out = Path(folder)
+            images = {draft["case_id"]: out / "21.jpg"}
+            drafting.write_review_sheet(out, [draft], images)
+            rows = list(csv.DictReader((out / "review.csv").read_text().splitlines()))
+            rows[0]["owner_correction"] = "125大卡"
+            with (out / "review.csv").open("w", newline="") as handle:
+                writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+                writer.writeheader()
+                writer.writerows(rows)
+            wire["rows"][0]["values"][0]["printed_text"] = "121大卡"  # the draft changed
+            changed = drafting.map_draft(wire, DraftingTests.photo, model="m", endpoint="e", drafted_on="d")
+            self.assertEqual(drafting.write_review_sheet(out, [changed], images), 1)
+            merged = list(csv.DictReader((out / "review.csv").read_text().splitlines()))
+            current = next(r for r in merged if r["draft_printed_text"] == "121大卡")
+            self.assertEqual(current["owner_correction"], "")
+            orphan = next(r for r in merged if r["owner_correction"] == "125大卡")
+            self.assertEqual(orphan["draft_printed_text"], "120大卡")
+            self.assertTrue(orphan["merge_note"])
+
+    def test_unknown_basis_has_unknown_serving_conversion(self):
+        wire = json.loads(json.dumps(DraftingTests.wire))
+        wire["rows"][0]["values"][0]["header_id"] = "missing"
+        cells = drafting.map_draft(wire, DraftingTests.photo, model="m", endpoint="e", drafted_on="d")["cells"]
+        cell = next(c for c in cells if c["header_id"] == "missing")
+        self.assertEqual((cell["basis"], cell["serving_conversion"]), ("unknown", "unknown"))
+
+    def test_in_repository_out_creates_no_folder(self):
+        contract = json.loads((HERE / "frozen-contract-v1.json").read_text())
+        digest = contract["corpus"]["off_taiwan"]["manifest_sha256"]
+        target = HERE / "drafts-must-not-exist"
+        with tempfile.TemporaryDirectory() as folder:
+            argv = ["draft", "--image-root", folder, "--out", str(target), "--ledger", folder + "/l.json", "--unseal-for-drafting"]
+            argv += ["--manifest-sha256", digest, "--sheet-only"]
+            with mock.patch.object(sys, "argv", argv), self.assertRaisesRegex(SystemExit, "inside a git checkout"):
+                drafting.main()
+        self.assertFalse(target.exists())
+
+    def test_aggregate_reports_the_ready_count(self):
+        import score
+
+        results = [{"cases": 1, "would_mark_ready_after_arithmetic": 1}, {"cases": 1, "would_mark_ready_after_arithmetic": 0}]
+        self.assertEqual(score.aggregate(results, score.load_thresholds())["would_mark_ready_after_arithmetic"], 1)
+
+    def test_route_c_runner_keeps_logs_outside_and_images_out_of_logs(self):
+        import run_route_c
+
+        target = RouteCModel(label="luna", model="openai/gpt-6-luna", endpoint="azure", provider_name="Azure")
+        with tempfile.TemporaryDirectory() as folder:
+            kwargs = run_route_c.eval_kwargs(target, Path(folder))
+        self.assertIs(kwargs["log_images"], False)
+        self.assertEqual(kwargs["model"], "openrouter/openai/gpt-6-luna")
+        self.assertEqual(kwargs["model_args"], openrouter_route.model_args(target))
+        self.assertNotIn("extra_headers", kwargs)
+        with self.assertRaises(SystemExit):
+            run_route_c.eval_kwargs(target, HERE / "logs")
+        argv = [
+            "--cases-file",
+            "x",
+            "--ledger",
+            "y",
+            "--log-dir",
+            "/tmp/z",
+            "--label",
+            "l",
+            "--model",
+            "m",
+            "--endpoint",
+            "e",
+            "--provider-name",
+            "p",
+        ]
+        with self.assertRaisesRegex(SystemExit, "disabled"):
+            run_route_c.main(argv)
+
+    @unittest.skipUnless(importlib.util.find_spec("inspect_ai"), "inspect_ai is not installed (see requirements.txt)")
+    def test_route_c_refuses_credential_like_extra_headers_before_the_call(self):
+        from inspect_ai import Task
+        from inspect_ai import eval as inspect_eval
+        from inspect_ai.dataset import Sample
+        from inspect_ai.model import GenerateConfig
+
+        import inspect_task
+
+        target = RouteCModel(label="luna", model="mockllm/model", endpoint="azure", provider_name="Azure")
+        with tempfile.TemporaryDirectory() as folder:
+            image = Path(folder) / "a.png"
+            image.write_bytes(b"\x89PNG\r\n\x1a\n")
+            sample = Sample(id="c", input="image", target="{}", metadata={"image_path": str(image), "corpus": "off_taiwan"})
+            budget = LedgerBudget(Path(folder) / "ledger.json")
+            task = Task(
+                dataset=[sample],
+                solver=inspect_task.route_c_openrouter(budget, enabled=True, target=target),
+                scorer=inspect_task.label_capture_scorer(),
+                config=GenerateConfig(extra_headers={"Authorization": "Bearer test"}),
+            )
+            log = inspect_eval(task, model="mockllm/model", log_dir=folder, display="none")[0]
+            self.assertEqual(log.status, "error")
+            self.assertIn("credential-like extra_headers", str(log.error))
+            self.assertEqual(json.loads((Path(folder) / "ledger.json").read_text())["open_calls"], 0)
+
+
 if __name__ == "__main__":
     unittest.main()

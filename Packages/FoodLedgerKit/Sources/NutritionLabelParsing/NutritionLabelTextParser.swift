@@ -9,7 +9,7 @@ import Foundation
 /// per-serving value to per 100 g. It has no network, clock, randomness or hashing
 /// dependency: the caller supplies the input hash.
 public struct NutritionLabelTextParser: Sendable {
-    public static let version = "nutrition-label-text-parser-v1"
+    public static let version = "nutrition-label-text-parser-v2"
 
     public init() {}
 
@@ -154,8 +154,10 @@ struct RowDraft {
     var label: String
     var indented: Bool
     var values: [PrintedValue]
-    /// A value-only line was attached after this row already had values, in a shape that
-    /// is not provably the same printed cell (see `consumeRow`). Blocks ready.
+    /// The label line itself carried values (the inline shape `Fat 3g 4g`).
+    var labelLineHadValues: Bool
+    /// A value-only line was attached after this row's own label line had carried values,
+    /// in a shape that is not provably the same printed row (see `consumeRow`). Blocks ready.
     var attachedAfterValues = false
 }
 
@@ -269,24 +271,30 @@ struct ParseState {
                RowClassifier.classify(cleanedLabel) == nil || RowClassifier.classify(last.label + " " + cleanedLabel) != nil {
                 last.label += " " + cleanedLabel
                 last.values = values
+                last.labelLineHadValues = !values.isEmpty
                 rows[rows.count - 1] = last
             } else {
-                rows.append(RowDraft(label: cleanedLabel, indented: indented, values: values))
+                rows.append(RowDraft(label: cleanedLabel, indented: indented, values: values, labelLineHadValues: !values.isEmpty))
             }
         } else if !values.isEmpty {
             guard !rows.isEmpty else {
                 declineReasons.append("values_without_row")
                 return
             }
-            // A value-only line attaches silently only where that is provably the same row:
-            // (a) the row has no values yet (the label-then-value paste shape), or
+            // A value-only line attaches silently where that is provably the same row:
+            // (a) the row's label stood alone on its line (the one-value-per-line and
+            //     label-then-values paste shapes): its values all arrive as value-only lines,
+            //     and the per-unit count check against the column headers still declines
+            //     any overflow; or
             // (b) an energy row taking only energy units it does not already carry (kJ and
-            //     kcal printed on two lines); counts are still checked per unit.
-            // Any other value-only line after a row with values (for example a value whose
-            // own row label was not captured) is attached but blocks ready, and the count
-            // check then normally declines the table.
+            //     kcal printed on two lines); counts are again checked per unit.
+            // A value-only line after a label line that already carried values (for example
+            // a value whose own row label was not captured) is attached but blocks ready, and
+            // the count check then normally declines the table. Route B adds a stricter,
+            // structural guard: its solver declines any table with a value the serialiser
+            // could not bind, so (a) never rescues an unbound photo value.
             var last = rows[rows.count - 1]
-            if !last.values.isEmpty, !Self.isStackedEnergy(row: last, adding: values) {
+            if last.labelLineHadValues, !Self.isStackedEnergy(row: last, adding: values) {
                 last.attachedAfterValues = true
             }
             last.values += values
@@ -294,12 +302,21 @@ struct ParseState {
         }
     }
 
+    /// An energy row continued on the next line: every added value is an energy unit the
+    /// row does not carry yet, or the energy row's first `%` (its reference-intake cell,
+    /// printed after the second energy unit), and at least one energy unit is added.
     static func isStackedEnergy(row: RowDraft, adding values: [PrintedValue]) -> Bool {
         guard RowClassifier.classify(row.label)?.row == .energy else { return false }
         let energyUnits = LabelVocabulary.allowedUnits(for: .energy)
         let existing = Set(row.values.compactMap { $0.unit.flatMap(LabelVocabulary.canonicalUnit) })
         let added = values.map { $0.unit.flatMap(LabelVocabulary.canonicalUnit) }
-        return added.allSatisfy { unit in unit.map { energyUnits.contains($0) && !existing.contains($0) } ?? false }
+        let addsEnergy = added.contains { unit in unit.map { energyUnits.contains($0) && !existing.contains($0) } ?? false }
+        let allowed = added.allSatisfy { unit in
+            guard let unit else { return false }
+            if unit == "%" { return !existing.contains("%") }
+            return energyUnits.contains(unit) && !existing.contains(unit)
+        }
+        return addsEnergy && allowed
     }
 
     /// Text between the first opening and the last closing parenthesis, so nested

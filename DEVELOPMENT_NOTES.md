@@ -1581,3 +1581,15 @@ Same `claude-opus-5-5` implementation subagent and transcript as WHR-255-2026-10
 Boundary: `2026-10-17T01:40:15Z` → `2026-10-17T02:04:12Z`. Cache writes: 515,323 5-minute, 0 1-hour. Exact API-equivalent USD 8.9692364.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-17e: Claude Code label capture evaluation phase 2, second review fixes
+
+Same `claude-opus-5-5` implementation subagent and transcript as the previous rows, at the same pricing (checked 11 October 2026). Runs from the WHR-255-2026-10-17d end, so it includes that row's ledger edit, commit, push and PR edit, then the second invariant-review fixes (parser v2 attachment rule and ready count, route C runner and header checks, review-sheet merge key, unknown-cost refusal, route A and B reruns, offline sheet regeneration) and the gates, up to this ledger edit. This ledger edit, the commit and the push are outside the row. No subagents and no OpenRouter call.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 2 second review fixes (#255) | 27,001,743 (26,440,999) | 560,640 | 2,665 | 27,004,408 | $8.15 |
+
+Boundary: `2026-10-17T02:04:12Z` → `2026-10-17T02:24:33Z`. Cache writes: 560,640 5-minute, 0 1-hour. Exact API-equivalent USD 8.1451158.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

@@ -115,6 +115,10 @@ python3 Tools/NutritionLabelCaptureEvaluation/validate_contract.py Tools/Nutriti
 swift test --package-path Packages/FoodLedgerKit --filter NutritionLabelParsingTests
 ```
 
+The route B end-to-end tests in `tests/test_phase2.py` (serialiser, then the parser CLI) are **local only**: they need the built
+`NutritionLabelTextParse` (`swift build --package-path Packages/FoodLedgerKit --product NutritionLabelTextParse`) and skip
+without it. CI's label-capture job runs on Linux and does not build the Swift CLI, so they do not run there.
+
 Static checks use the pinned dev tools (`requirements-dev.txt`: pyright 1.1.414, ruff 0.16.10), with `pyrightconfig.json` and `ruff.toml` in this folder so local imports resolve. Run them from this folder:
 
 ```sh

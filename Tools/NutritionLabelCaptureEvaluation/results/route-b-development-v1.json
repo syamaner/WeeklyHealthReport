@@ -8,6 +8,7 @@
       "exact": 7,
       "known": 15
     },
+    "would_mark_ready_after_arithmetic": 3,
     "energy_check_informing_only": {
       "fail": 1,
       "not_checkable": 51,
@@ -92,6 +93,7 @@
         "exact": 7,
         "known": 15
       },
+      "would_mark_ready_after_arithmetic": 3,
       "energy_check_informing_only": {
         "fail": 1,
         "not_checkable": 13,
@@ -188,6 +190,7 @@
         "exact": 0,
         "known": 0
       },
+      "would_mark_ready_after_arithmetic": 0,
       "energy_check_informing_only": {
         "not_checkable": 38,
         "pass": 1
@@ -280,7 +283,7 @@
   },
   "route": "B",
   "split": "development",
-  "inspect_log": "2026-10-17T01-58-16-00-00_label-capture-route-b-development_RB9FYaXiR2xt7V2zcDMyvY.eval",
+  "inspect_log": "2026-10-17T02-19-06-00-00_label-capture-route-b-development_DPMk4wCUZLHenroe7hQbLT.eval",
   "vision": {
     "adapter_version": "label-capture-vision-v3",
     "request_revision": 3,
@@ -292,7 +295,7 @@
     "operating_system": "Version 27.0.1 (Build 26A434)"
   },
   "serialiser_version": "label-capture-serialiser-v1",
-  "parser_version": "nutrition-label-text-parser-v1",
+  "parser_version": "nutrition-label-text-parser-v2",
   "cases": 59,
   "notes": {
     "taiwan_excluded": [

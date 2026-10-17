@@ -57,6 +57,7 @@ PINNED = [
     "Tools/NutritionLabelCaptureEvaluation/vision_v3.swift",
     "Tools/NutritionLabelCaptureEvaluation/serialise_lines.py",
     "Tools/NutritionLabelCaptureEvaluation/run_route_b.py",
+    "Tools/NutritionLabelCaptureEvaluation/run_route_c.py",
     "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.txt",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-wire-schema-v1.json",

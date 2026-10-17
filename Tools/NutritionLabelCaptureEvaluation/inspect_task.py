@@ -26,7 +26,7 @@ from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.event import ModelEvent
 from inspect_ai.log import transcript
-from inspect_ai.model import ChatMessageUser, ContentImage, ContentText, ModelOutput, ResponseSchema
+from inspect_ai.model import ChatMessageUser, ContentImage, ContentText, ModelOutput, ResponseSchema, get_model
 from inspect_ai.scorer import CORRECT, INCORRECT, Metric, SampleScore, Score, Target, metric, scorer
 from inspect_ai.solver import Generate, Solver, TaskState, solver
 from inspect_ai.util import JSONSchema
@@ -234,6 +234,10 @@ def route_c_openrouter(budget: LedgerBudget, enabled: bool = False, target: Rout
         state.messages = [
             ChatMessageUser(content=[ContentText(text=instruction), ContentImage(image=_data_uri(Path(state.metadata["image_path"])))])
         ]
+        # Pre-call: nothing credential-like may ride in extra_headers, which Inspect logs.
+        configured = openrouter_route.logged_request_credentials({"extra_headers": _configured_extra_headers()})
+        if configured:
+            raise RuntimeError(f"credential-like extra_headers configured for route C: {configured}")
         guard.before_call(target.label)
         wire = json.loads(ROUTE_C_WIRE_SCHEMA.read_text(encoding="utf-8"))
         # One request, no tool loop, no retries, 4096 output tokens, 90 s timeout, strict schema.
@@ -271,6 +275,13 @@ def route_c_openrouter(budget: LedgerBudget, enabled: bool = False, target: Rout
 def _data_uri(path: Path) -> str:
     mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(path.suffix.lower(), "image/jpeg")
     return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode("ascii")
+
+
+def _configured_extra_headers() -> dict[str, Any]:
+    """extra_headers from the model's and the run's GenerateConfig (Inspect logs them with each request)."""
+    from inspect_ai.model._generate_config import active_generate_config
+
+    return {**(get_model().config.extra_headers or {}), **(active_generate_config().extra_headers or {})}
 
 
 def _last_logged_request() -> dict[str, Any] | None:
@@ -447,6 +458,24 @@ def label_capture_development_photos(cases_file: str, vision_binary: str, parser
         solver=route_b_vision(vision_binary, parser_binary),
         scorer=label_capture_scorer(),
         name="label_capture_route_b_development",
+    )
+
+
+@task
+def label_capture_route_c_development(
+    cases_file: str, ledger: str, model: str, endpoint: str, provider_name: str, label: str, enabled: bool = False
+) -> Task:
+    """Route C on development photos; run only through `run_route_c.py` (log directory and image logging rules)."""
+    loaded = json.loads(Path(cases_file).read_text(encoding="utf-8"))
+    for case in loaded:
+        if case["metadata"].get("split") != "development":
+            raise case_loading.SealedSetError(f"{case['id']} is not a development case")
+    target = RouteCModel(label=label, model=model, endpoint=endpoint, provider_name=provider_name)
+    return Task(
+        dataset=MemoryDataset([to_sample(c) for c in loaded], name="development-photos-route-c-v1"),
+        solver=route_c_openrouter(LedgerBudget(Path(ledger)), enabled=enabled, target=target),
+        scorer=label_capture_scorer(),
+        name="label_capture_route_c_development",
     )
 
 

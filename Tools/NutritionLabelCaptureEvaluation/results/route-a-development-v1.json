@@ -8,6 +8,7 @@
       "exact": 89,
       "known": 89
     },
+    "would_mark_ready_after_arithmetic": 173,
     "energy_check_informing_only": {
       "not_checkable": 26,
       "pass": 181
@@ -112,6 +113,7 @@
         "exact": 60,
         "known": 60
       },
+      "would_mark_ready_after_arithmetic": 60,
       "energy_check_informing_only": {
         "not_checkable": 16,
         "pass": 60
@@ -194,6 +196,7 @@
         "exact": 1,
         "known": 1
       },
+      "would_mark_ready_after_arithmetic": 1,
       "energy_check_informing_only": {
         "pass": 1
       },
@@ -275,6 +278,7 @@
         "exact": 0,
         "known": 0
       },
+      "would_mark_ready_after_arithmetic": 68,
       "energy_check_informing_only": {
         "not_checkable": 7,
         "pass": 73
@@ -357,6 +361,7 @@
         "exact": 0,
         "known": 0
       },
+      "would_mark_ready_after_arithmetic": 16,
       "energy_check_informing_only": {
         "not_checkable": 3,
         "pass": 19
@@ -439,6 +444,7 @@
         "exact": 28,
         "known": 28
       },
+      "would_mark_ready_after_arithmetic": 28,
       "energy_check_informing_only": {
         "pass": 28
       },
@@ -515,10 +521,10 @@
   "route": "A",
   "split": "development",
   "dataset_sha256": "894a406d6e1a720b0712517beb59da3387171d7c3e6cedd46b2b7a7813175da8",
-  "parser_version": "nutrition-label-text-parser-v1",
+  "parser_version": "nutrition-label-text-parser-v2",
   "cases": 207,
   "inspect": {
-    "location": "2026-10-17T00-23-02-00-00_label-capture-route-a-development_8ycVGDGuvywt5pkHGDHJ2v.eval",
+    "location": "2026-10-17T02-18-35-00-00_label-capture-route-a-development_Jo8gqPG99UxQMTEhALQM68.eval",
     "inspect_metrics": {
       "strict_cells": 1.0,
       "binding": 1.0,

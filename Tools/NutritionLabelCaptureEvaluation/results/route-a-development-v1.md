@@ -1,8 +1,12 @@
 # Route A on development pasted text (phase 1)
 
 Run on 17 October 2026 through Inspect AI 0.3.276 (`label_capture_route_a_development`,
-nominal model `mockllm/model`, no model or provider call). Parser
-`nutrition-label-text-parser-v1` (Swift target `NutritionLabelParsing`). Dataset
+nominal model `mockllm/model`, no model or provider call). Rerun in phase 2 with parser
+`nutrition-label-text-parser-v2` (Swift target `NutritionLabelParsing`): every metric below is
+unchanged against v1, and the number of tables the route would mark ready after the
+arithmetic policy is 173 of 191 usable tables under both versions (an intermediate phase 2
+build had dropped it to 146, mostly one-value-per-line pastes, which a zero false-ready
+count did not show; the count is now reported in the summary). Dataset
 `synthetic/development-cases-v1.jsonl`, SHA-256
 `894a406d6e1a720b0712517beb59da3387171d7c3e6cedd46b2b7a7813175da8`. Full numbers are in
 [`route-a-development-v1.json`](route-a-development-v1.json); the `.eval` log is kept
@@ -55,6 +59,7 @@ Untouched generated cases are rendered only after the generators are frozen.
 | Printed bounds preserved | 70 / 70 | 100% | pass |
 | Correct decline | 16 / 16 | at least 95% | pass |
 | False-ready (silent false-save) | 0 of 207 | 0 | pass |
+| Would mark ready after arithmetic (reported, not gated) | 173 of 207 cases (191 usable) | n/a | n/a |
 | Automatic persistence | 0 | 0 | pass |
 | Arithmetic mutation detection | 133 / 145 (91.7%) | 100% | **fail** |
 

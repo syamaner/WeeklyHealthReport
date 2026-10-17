@@ -284,6 +284,33 @@ func declinesInsteadOfGuessing(text: String, reason: String) {
     #expect(!repeatedUnit.wouldMarkReady)
 }
 
+@Test func multiColumnOneValuePerLineIsReady() {
+    let candidate = parse("Typical values\nPer 100g\nPer serving\nEnergy\n455kJ\n865kJ\n108kcal\n206kcal\nFat\n3.4g\n6.4g\nProtein\n2g\n3.8g")
+    #expect(!candidate.declined)
+    #expect(candidate.wouldMarkReady)
+    #expect(candidate.warnings.isEmpty)
+    #expect(candidate.cells.count == 8)
+    #expect(candidate.cells.first { $0.nutrient == "fat" && $0.basis == .perServing }?.decimalText == "6.4")
+}
+
+@Test func multiColumnLabelThenValuesLineIsReady() {
+    let candidate = parse("\tPer 100g\tPer serving\nFat\n3.4g\t6.4g\nProtein\n2g\t3.8g")
+    #expect(candidate.wouldMarkReady)
+    #expect(candidate.cells.count == 4)
+}
+
+@Test func bareLabelOverflowStillDeclines() {
+    let candidate = parse("\tPer 100g\nFat\n3g\n4g\nProtein\t2g")
+    #expect(candidate.declined)
+    #expect(candidate.declineReasons == ["count_mismatch"])
+}
+
+@Test func energyContinuationWithItsReferenceIntakeIsReady() {
+    let candidate = parse("\tPer 100g\t%RI\nEnergy\t1500kJ\n\t355kcal\t18%\nFat\t3g\t4%")
+    #expect(candidate.wouldMarkReady)
+    #expect(candidate.cells.contains { $0.nutrient == "energy_kcal" && $0.basis == .referenceIntake && $0.decimalText == "18" })
+}
+
 @Test func partialRowWithoutValuesIsNeverReady() {
     let candidate = parse("\tPer 100g\nEnergy\t1500kJ\nFibre\nProtein\t3g")
     #expect(!candidate.declined)

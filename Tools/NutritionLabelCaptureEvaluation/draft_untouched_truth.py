@@ -170,7 +170,9 @@ def map_draft(wire: dict[str, Any], photo: dict[str, Any], *, model: str, endpoi
                 "decimal_text": parsed["decimal_text"] if parsed else None,
                 "unit": parsed["unit"] if parsed else None,
                 "canonical_unit": parsed["canonical_unit"] if parsed else None,
-                "serving_conversion": (serving_quantity or "unknown") if basis == "per_serving" else "not_applicable",
+                "serving_conversion": (serving_quantity or "unknown")
+                if basis == "per_serving"
+                else ("unknown" if basis == "unknown" else "not_applicable"),
                 "persistence_authorized": False,
                 "requires_user_selection": True,
             }
@@ -267,7 +269,9 @@ def request_body(target: RouteCModel, image_bytes: bytes, instruction: str, wire
 # --- Review sheet ------------------------------------------------------------------------
 
 
-REVIEW_KEY = ("case_id", "row_id", "header", "basis", "printed_label")
+# An owner entry is carried over only onto the same case, row, column and the same draft
+# text it was made against; if the draft text changed, the old entry is kept as an orphan.
+REVIEW_KEY = ("case_id", "row_id", "header_id", "header", "basis", "printed_label", "draft_printed_text")
 OWNER_FIELDS = ("owner_verified", "owner_correction")
 
 
@@ -286,7 +290,9 @@ def merge_owner_entries(rows: list[dict[str, Any]], existing: list[dict[str, str
         carried += 1
         target = by_key.get(tuple(str(old.get(k, "")) for k in REVIEW_KEY))
         if target is None:
-            rows.append({**{k: "" for k in rows[0]}, **old} if rows else dict(old))
+            orphan = {**{k: "" for k in rows[0]}, **old} if rows else dict(old)
+            orphan["merge_note"] = "kept from an earlier sheet: its draft row or draft text changed; re-check against the new draft"
+            rows.append(orphan)
         else:
             for field in OWNER_FIELDS:
                 if str(old.get(field) or "").strip():
@@ -323,6 +329,7 @@ def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str
                     "case_id": draft["case_id"],
                     "image": str(image),
                     "row_id": cell["row_id"],
+                    "header_id": cell["header_id"],
                     "printed_label": cell["printed_label"],
                     "nutrient": cell["nutrient"],
                     "parent_row_id": cell["parent_row_id"] or "",
@@ -332,6 +339,7 @@ def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str
                     "uncertain": "yes" if mark else "",
                     "owner_verified": "",
                     "owner_correction": "",
+                    "merge_note": "",
                 }
             )
         for field in ("serving_size", "servings_per_pack"):
@@ -342,6 +350,7 @@ def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str
                     "case_id": draft["case_id"],
                     "image": str(image),
                     "row_id": field,
+                    "header_id": "",
                     "printed_label": "",
                     "nutrient": "",
                     "parent_row_id": "",
@@ -351,6 +360,7 @@ def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str
                     "uncertain": "yes" if (field, "") in flagged else "",
                     "owner_verified": "",
                     "owner_correction": "",
+                    "merge_note": "",
                 }
             )
         rows.append(
@@ -359,6 +369,7 @@ def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str
                 "case_id": draft["case_id"],
                 "image": str(image),
                 "row_id": "table_decision",
+                "header_id": "",
                 "printed_label": "",
                 "nutrient": "",
                 "parent_row_id": "",
@@ -368,6 +379,7 @@ def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str
                 "uncertain": "",
                 "owner_verified": "",
                 "owner_correction": "",
+                "merge_note": "",
             }
         )
         serving = draft["serving_size"] if isinstance(draft["serving_size"], str) else draft["serving_size"]["printed_text"]

@@ -68,7 +68,7 @@ class RunBudget:
             raise BudgetStop(f"{model} was stopped by the per-call limit")
         if self.sealed_run and self.sealed_calls_made + self.in_flight >= self.sealed_reserved_calls:
             raise BudgetStop("the sealed run has used its reserved calls")
-        if self.unknown_cost_calls > self.unknown_cost_calls_allowed:
+        if self.unknown_cost_calls >= self.unknown_cost_calls_allowed:  # at most three: the fourth is never made
             raise BudgetStop("more than three unknown-cost calls")
         if self.spent_usd + (self.in_flight + 1) * self.per_call_usd > self._limit():
             raise BudgetStop("total stop reached (the sealed-run reservation is held back)")
@@ -199,7 +199,7 @@ class LedgerBudget:
                 raise BudgetStop(f"{model} was stopped by the per-call limit")
             if self.sealed_run and self.sealed_calls_made >= self.sealed_reserved_calls:
                 raise BudgetStop("the sealed run has used its reserved calls")
-            if self.unknown_cost_calls > self.unknown_cost_calls_allowed:
+            if self.unknown_cost_calls >= self.unknown_cost_calls_allowed:  # at most three: the fourth is never made
                 raise BudgetStop("more than three unknown-cost calls")
             if self.spent_usd + self.per_call_usd > self._limit():
                 raise BudgetStop("total stop reached (the sealed-run reservation is held back)")

@@ -291,6 +291,10 @@ def aggregate(results: list[dict[str, Any]], thresholds: dict[str, float]) -> di
         "false_declines": totals["false_declines"],
         "extra_cells": totals["extra_cells"],
         "serving_size": {"exact": totals["serving_size_exact"], "known": totals["serving_size_known"]},
+        # Tables the route would mark ready after the shared arithmetic policy (any case).
+        # Reported so that a parser change which silently stops marking correct tables ready
+        # is visible, not hidden behind a false-ready count of zero.
+        "would_mark_ready_after_arithmetic": totals["would_mark_ready_after_arithmetic"],
         "energy_check_informing_only": dict(sorted(energy.items())),
         "metrics": metrics,
     }
