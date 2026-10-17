@@ -13,10 +13,35 @@
        "denominator": 648,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 648,
+       "denominator": 648,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 648,
+       "denominator": 648,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 60,
        "denominator": 60,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 336,
+       "denominator": 336,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 60,
+       "denominator": 60,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 16,
@@ -37,10 +62,35 @@
        "denominator": 648,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 648,
+       "denominator": 648,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 648,
+       "denominator": 648,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 60,
        "denominator": 60,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 336,
+       "denominator": 336,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 60,
+       "denominator": 60,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 16,
@@ -64,10 +114,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -88,10 +163,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -115,9 +215,34 @@
        "denominator": 1138,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 1200,
+       "denominator": 1200,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 1138,
+       "denominator": 1138,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 80,
        "denominator": 80,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 195,
+       "denominator": 195,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 47,
+       "denominator": 47,
        "verdict": "pass"
       },
       "correct_decline": {
@@ -139,9 +264,34 @@
        "denominator": 1138,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 1192,
+       "denominator": 1200,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 1130,
+       "denominator": 1138,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 79,
        "denominator": 80,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 195,
+       "denominator": 195,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 47,
+       "denominator": 47,
        "verdict": "pass"
       },
       "correct_decline": {
@@ -187,9 +337,34 @@
        "denominator": 311,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 325,
+       "denominator": 325,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 311,
+       "denominator": 311,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 22,
        "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 116,
+       "denominator": 116,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 11,
+       "denominator": 11,
        "verdict": "pass"
       },
       "correct_decline": {
@@ -211,9 +386,34 @@
        "denominator": 311,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 325,
+       "denominator": 325,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 311,
+       "denominator": 311,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 22,
        "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 116,
+       "denominator": 116,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 11,
+       "denominator": 11,
        "verdict": "pass"
       },
       "correct_decline": {
@@ -238,9 +438,34 @@
        "denominator": 352,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 394,
+       "denominator": 394,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 352,
+       "denominator": 352,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 28,
        "denominator": 28,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 176,
+       "denominator": 176,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 28,
+       "denominator": 28,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 12,
+       "denominator": 12,
        "verdict": "pass"
       },
       "correct_decline": {
@@ -262,9 +487,34 @@
        "denominator": 352,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 394,
+       "denominator": 394,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 352,
+       "denominator": 352,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 28,
        "denominator": 28,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 176,
+       "denominator": 176,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 28,
+       "denominator": 28,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 12,
+       "denominator": 12,
        "verdict": "pass"
       },
       "correct_decline": {
@@ -294,10 +544,35 @@
        "denominator": 18,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 0,
+       "denominator": 18,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 0,
+       "denominator": 18,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 0,
        "denominator": 1,
        "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 0,
+       "denominator": 9,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 1,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -318,10 +593,35 @@
        "denominator": 18,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 0,
+       "denominator": 18,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 0,
+       "denominator": 18,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 0,
        "denominator": 1,
        "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 0,
+       "denominator": 9,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 1,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -345,10 +645,35 @@
        "denominator": 214,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 95,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 94,
+       "denominator": 214,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 3,
        "denominator": 15,
        "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 55,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 7,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 5,
@@ -369,10 +694,35 @@
        "denominator": 214,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 88,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 80,
+       "denominator": 214,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 3,
        "denominator": 15,
        "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 48,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 6,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 5,
@@ -407,9 +757,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 8,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 8,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 0,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -431,9 +806,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 8,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 8,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 0,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -463,10 +863,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -487,10 +912,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -514,10 +964,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 229,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 11,
        "denominator": 15,
        "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 3,
@@ -538,10 +1013,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 229,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 11,
        "denominator": 15,
        "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 5,
@@ -586,9 +1086,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 262,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 253,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 14,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 7,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 9,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -610,9 +1135,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 218,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 209,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 14,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 0,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 8,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -724,10 +1274,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -748,10 +1323,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -775,10 +1375,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 229,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 208,
+       "denominator": 214,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 12,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 120,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 2,
@@ -799,10 +1424,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 229,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 208,
+       "denominator": 214,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 12,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 120,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 4,
@@ -847,9 +1497,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 247,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 239,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 10,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 8,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -871,9 +1546,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 201,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 193,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 10,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 7,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -984,10 +1684,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -1008,10 +1733,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -1035,10 +1785,35 @@
        "denominator": 214,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 223,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 208,
+       "denominator": 214,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 10,
        "denominator": 15,
        "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 120,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 4,
@@ -1059,10 +1834,35 @@
        "denominator": 214,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 223,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 208,
+       "denominator": 214,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 10,
        "denominator": 15,
        "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 120,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 4,
@@ -1086,9 +1886,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 249,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 241,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 13,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 18,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 8,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -1110,9 +1935,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 219,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 211,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 13,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 18,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 7,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -1214,10 +2064,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -1238,10 +2113,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -1265,10 +2165,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 233,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 13,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 2,
@@ -1289,10 +2214,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 233,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 13,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 4,
@@ -1337,9 +2287,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 236,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 227,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 10,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 7,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 8,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -1361,9 +2336,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 176,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 167,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 10,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 0,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 7,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -1454,10 +2454,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -1478,10 +2503,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -1505,10 +2555,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 14,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 3,
@@ -1529,10 +2604,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 14,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 5,
@@ -1577,9 +2677,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 234,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 226,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 10,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 16,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 8,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -1601,9 +2726,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 175,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 166,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 10,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 7,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -1724,10 +2874,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -1748,10 +2923,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -1775,10 +2975,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 238,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 15,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 3,
@@ -1799,10 +3024,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 238,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 15,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 4,
@@ -1837,9 +3087,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 279,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 269,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 13,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 33,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 9,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -1861,9 +3136,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 219,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 209,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 13,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 26,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 8,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -1994,10 +3294,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -2018,10 +3343,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -2045,10 +3395,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 14,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 3,
@@ -2069,10 +3444,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 14,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 4,
@@ -2107,9 +3507,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 225,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 215,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 10,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 7,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -2131,9 +3556,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 195,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 185,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 10,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 7,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -2225,10 +3675,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -2249,10 +3724,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -2276,10 +3776,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 14,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 3,
@@ -2300,10 +3825,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 14,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 4,
@@ -2338,9 +3888,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 225,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 215,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 11,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 7,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -2362,9 +3937,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 195,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 185,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 11,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 7,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -2455,10 +4055,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -2479,10 +4104,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -2506,10 +4156,35 @@
        "denominator": 214,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 226,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 202,
+       "denominator": 214,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 13,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 114,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 3,
@@ -2530,10 +4205,35 @@
        "denominator": 214,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 208,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 190,
+       "denominator": 214,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 13,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 107,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 13,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 5,
@@ -2598,9 +4298,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 204,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 194,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 9,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 15,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 7,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -2622,9 +4347,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 160,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 150,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 9,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 8,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 7,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -2735,10 +4485,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -2759,10 +4534,35 @@
        "denominator": 18,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
       "full_table": {
        "numerator": 1,
        "denominator": 1,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 0,
@@ -2786,10 +4586,35 @@
        "denominator": 214,
        "verdict": "pass"
       },
+      "binding": {
+       "numerator": 236,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 212,
+       "denominator": 214,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 13,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 122,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 3,
@@ -2810,10 +4635,35 @@
        "denominator": 214,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 222,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 198,
+       "denominator": 214,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 13,
        "denominator": 15,
        "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 115,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 14,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
       },
       "correct_decline": {
        "numerator": 5,
@@ -2868,9 +4718,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 260,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 250,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 12,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 24,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 9,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {
@@ -2892,9 +4767,34 @@
        "denominator": 311,
        "verdict": "fail"
       },
+      "binding": {
+       "numerator": 200,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 190,
+       "denominator": 311,
+       "verdict": "fail"
+      },
       "full_table": {
        "numerator": 12,
        "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 17,
+       "denominator": 116,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 8,
+       "denominator": 11,
        "verdict": "fail"
       },
       "correct_decline": {

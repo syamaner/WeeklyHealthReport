@@ -24,7 +24,17 @@ import score as scoring
 
 HERE = Path(__file__).resolve().parent
 ROUTE_C_ARMS = ("luna-off", "luna-on", "luna_pro-off", "luna_pro-on", "grok-on", "gemini-on", "sol-on", "sol_pro-on", "opus-on", "fable-on")
-SUMMARY_FIELDS = ("strict_cells", "full_table", "correct_decline", "false_ready")
+SUMMARY_FIELDS = (
+    "strict_cells",
+    "binding",
+    "unit_and_basis",
+    "full_table",
+    "serving_conversions",
+    "servings_per_pack",
+    "bounds",
+    "correct_decline",
+    "false_ready",
+)
 
 
 def _candidates(log_path: Path) -> dict[str, dict[str, Any] | None]:
