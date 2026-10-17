@@ -553,19 +553,16 @@
         "luna_pro off",
         "luna_pro on",
         "grok on (full rerun)",
-        "gemini on"
-      ],
-      "invalid_credit_402": [
-        "sol on (33 of 60 calls failed with HTTP 402)",
-        "sol_pro on (54 of 60 calls failed with HTTP 402)"
-      ],
-      "not_run": [
-        "opus on (qualification failed with HTTP 402)",
-        "fable on (not started)"
+        "gemini on",
+        "sol on (full rerun after the top-up)",
+        "sol_pro on (full rerun after the top-up)",
+        "opus on",
+        "fable on (credit gate passed: $54.10 available against $50.625 needed including the $40 reserve)"
       ],
       "superseded": [
+        "luna on azure (ZDR), partial (43 of 60, held run)",
         "grok on, partial (41 of 60, paused for the latest-model check)",
-        "luna on azure (ZDR), partial (43 of 60, held run)"
+        "sol on and sol_pro on runs invalidated by HTTP 402 (account credit exhausted), and opus on's 402-failed qualification"
       ],
       "not_available": [
         "grok off",
@@ -574,8 +571,10 @@
         "gemini off",
         "opus off",
         "fable off (reasoning mandatory)"
-      ]
-    }
+      ],
+      "results": "Tools/NutritionLabelCaptureEvaluation/results/route-c-development-v1.md"
+    },
+    "status": "development runs complete (17 October 2026); the sealed run waits for the owner's choice of models, the whole-call deadline and the frozen contract"
   },
   "ground_truth": {
     "development_off_taiwan": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json",

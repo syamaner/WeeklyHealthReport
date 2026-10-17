@@ -1619,3 +1619,15 @@ Same `claude-opus-5-5` implementation subagent and transcript as WHR-255-2026-10
 Boundary: `2026-10-17T14:06:32Z` → this edit (`phase_usage.py --format claude --since …`). Cache writes: 2,765,185 5-minute, 0 1-hour. Exact API-equivalent USD 30.6000116.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-17h: Claude Code label capture evaluation phase 3, final route C arms
+
+Same subagent, transcript and pricing as WHR-255-2026-10-17g. Runs from the second phase 3 commit (`2026-10-17T15:21:11Z`) to this ledger edit: the PR body update, the reruns of Sol and Sol Pro after the account top-up, the Opus 5.5 and Fable 5.1 arms, the final results document and contract status. The previous row's ledger edit, gates and commit fall between the two rows and are unmeasured. No subagents. The OpenRouter spend in this window (USD 10.64 reported `usage.cost`) is a separate actual charge, not part of this comparison.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 3 final route C arms (#255) | 11,033,356 (10,321,504) | 711,820 | 6,620 | 11,039,976 | $5.76 |
+
+Boundary: `2026-10-17T15:21:11Z` → this edit. Cache writes: 711,820 5-minute, 0 1-hour. Exact API-equivalent USD 5.7559288.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

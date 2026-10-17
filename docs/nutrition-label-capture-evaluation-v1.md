@@ -307,7 +307,7 @@ On the owner's direction the harness is built on **Inspect AI** (`inspect_ai`, p
 
 **Muesli photo.** On 17 October 2026 the owner granted every route, including OpenRouter; all four consent flags are true in the private and the redacted record. Route A on the typed text is exact; route B declines the photo (`unsupported_language`); route C has not run on it.
 
-**Route C, development only.** Route C is implemented and enabled for the muesli photo, the Taiwan development photos and the UK development review images, never the untouched or sealed photos. A first run (ZDR endpoints, reasoning off, 4096 tokens, $0.05 per call) was **held by the owner** after Luna had sent 43 of 60 development photos; that partial run is discarded and never scored. The Taiwan development truths were drafted by Claude, so Claude Opus results on that stratum carry that caveat. Results: `Tools/NutritionLabelCaptureEvaluation/results/route-c-development-v1.md`.
+**Route C, development only.** Route C is implemented and enabled for the muesli photo, the Taiwan development photos and the UK development review images, never the untouched or sealed photos. A first run (ZDR endpoints, reasoning off, 4096 tokens, $0.05 per call) was **held by the owner** after Luna had sent 43 of 60 development photos; that partial run is discarded and never scored. The Taiwan development truths were drafted by Claude, so Claude Opus results on that stratum carry that caveat. Results (all ten arms complete): `Tools/NutritionLabelCaptureEvaluation/results/route-c-development-v1.md`.
 
 **Deviations, owner decisions of 17 October 2026 (route C, evaluation only; product routing is unchanged).** Recorded in `frozen-contract-v1.json` under `route_c.owner_decisions_2026_10_17`:
 
