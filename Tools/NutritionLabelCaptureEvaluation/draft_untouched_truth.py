@@ -1,0 +1,610 @@
+#!/usr/bin/env python3
+"""Untouched ground-truth drafting (owner decision A; contract block `untouched_truth_drafting`).
+
+Pass 1 for the 40 untouched Open Food Facts Taiwan photos is drafted by Qwen 3.5 through
+OpenRouter, a model that is not a route C model under test; the owner then verifies every
+value against the image (pass 2). The result is model-drafted, owner-verified evidence.
+
+Rules this script enforces:
+
+- Inputs are only the untouched Taiwan photos named by the hash-bound manifest, read from
+  the read-only `sealed/` folder after an explicit `--unseal-for-drafting` with the
+  manifest SHA-256. This opening is the set's unsealing for truth purposes only; routes
+  A, B and C still never run on these images before the frozen single run. (The 40
+  sealed UK v2 images were never acquired; that stratum is deferred by the owner.)
+- One request per image with the route C provider block: one endpoint in `only` and
+  `order`, no fallbacks, parameters required, data collection denied, ZDR. Strict JSON
+  schema output, no tools, no retries, no streaming, 4096 output tokens, 90 s timeout.
+- The response model must match the requested slug under `openrouter_route`'s slug rule,
+  the provider must match the endpoint, and `finish_reason` must be `stop`; otherwise the
+  image is recorded as failed and is not drafted.
+- Spend: `usage.cost` from each response goes into the persistent ledger
+  (`budget.LedgerBudget`) shared with route C: $0.05 per call, $25 in total, the 200-call
+  sealed reservation held back. Insufficient credit (HTTP 402) stops the run.
+- A journal records each request before it is sent and a receipt after; a request with no
+  receipt stops the next run until reconciled.
+- The key comes only from the `OPENROUTER_API_KEY` environment variable, or that one
+  variable read from `--env-file` into this process's memory. It is placed in
+  the request header and nowhere else: never printed, logged or written. Saved raw
+  responses are response bodies only; no request headers are stored anywhere.
+- Drafts, raw responses, the journal and the owner's review sheet live outside the
+  repository; route C never reads them.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import csv
+import hashlib
+import html
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))
+
+import openrouter_route  # noqa: E402
+from budget import BudgetStop, LedgerBudget  # noqa: E402
+from candidate import _collect, schema  # noqa: E402
+from openrouter_route import RouteCModel  # noqa: E402
+
+CONTRACT = HERE / "frozen-contract-v1.json"
+MANIFEST = HERE / "fixtures" / "off-taiwan-manifest-v1.json"
+INSTRUCTION = HERE / "openrouter" / "truth-drafting-instruction-v1.txt"
+WIRE_SCHEMA = HERE / "openrouter" / "truth-drafting-wire-schema-v1.json"
+ENDPOINT_URL = "https://openrouter.ai/api/v1/chat/completions"
+DRAFT_SCHEMA = "label-capture-truth-draft-v1"
+PURPOSE = "untouched_truth_drafting"
+
+UNITS = {
+    "大卡": "kcal",
+    "千卡": "kcal",
+    "公克": "g",
+    "克": "g",
+    "毫克": "mg",
+    "微克": "µg",
+    "毫升": "ml",
+    "kcal": "kcal",
+    "kj": "kJ",
+    "g": "g",
+    "mg": "mg",
+    "mcg": "µg",
+    "µg": "µg",
+    "μg": "µg",
+    "ml": "ml",
+    "%": "%",
+}
+# A bilingual label may echo the unit in brackets (`0.5 公克(g)`); the echo is kept in
+# printed_text and the printed Chinese unit is the cell's unit.
+VALUE = re.compile(
+    r"^\s*(<=|≤|＜|<|少於|less than)?\s*(\d+(?:[.,]\d+)?)\s*(大卡|千卡|公克|毫克|微克|毫升|克|kcal|kJ|kj|KJ|mcg|µg|μg|mg|ml|mL|g|%)"
+    r"\s*(?:[(（]\s*(?:kcal|kJ|g|mg|mcg|µg|ml)\s*[)）])?\s*$"
+)
+SERVING = re.compile(r"(\d+(?:\.\d+)?)\s*(公克|毫升|克|g|ml|mL)")
+SERVINGS = re.compile(r"(約)?\s*(\d+(?:\.\d+)?)\s*份")
+
+
+# --- Pure mapping ------------------------------------------------------------------------
+
+
+def parse_value(printed: str) -> dict[str, str] | None:
+    """Comparator, decimal text, printed unit and canonical unit; None if not a printed amount."""
+    match = VALUE.match(printed or "")
+    if not match:
+        return None
+    raw_comparator, number, unit = match.groups()
+    comparator = "=" if raw_comparator is None else ("<=" if raw_comparator in ("<=", "≤") else "<")
+    canonical = UNITS.get(unit) or UNITS.get(unit.lower())
+    if canonical is None:
+        return None
+    return {"comparator": comparator, "decimal_text": number, "unit": unit, "canonical_unit": canonical}
+
+
+def map_draft(wire: dict[str, Any], photo: dict[str, Any], *, model: str, endpoint: str, drafted_on: str) -> dict[str, Any]:
+    """Map the drafting wire output to one `label-capture-truth-draft-v1` record.
+
+    Cells use the `label-capture-candidate-v1` cell shape. Every cell the model marked
+    uncertain, and every printed value that does not parse as a printed amount, is listed
+    in `uncertain_cells` for the owner. Nothing here fills a value the model left unknown.
+    """
+    case_id = f"off-taiwan:{photo['barcode13']}:nutrition_zh.{photo['revision']}"
+    found = wire.get("table_found")
+    serving_text = str(wire.get("serving_size_text") or "unknown")
+    serving_match = SERVING.search(serving_text) if serving_text != "unknown" else None
+    serving_quantity = f"{serving_match.group(1)}{serving_match.group(2)}" if serving_match else None
+    pack_text = str(wire.get("servings_per_pack_text") or "unknown")
+    pack_match = SERVINGS.search(pack_text) if pack_text != "unknown" else None
+    headers = {}
+    for header in wire.get("headers") or []:
+        headers[header["header_id"]] = {
+            "header_id": header["header_id"],
+            "printed_text": header["printed_text"],
+            "basis": header["basis"],
+            "serving_conversion": serving_quantity if header["basis"] == "per_serving" else None,
+            "uncertain": bool(header.get("uncertain")),
+        }
+    cells, uncertain = [], []
+    seen_rows: dict[str, int] = {}
+    for index, row in enumerate(wire.get("rows") or [], start=1):
+        nutrient = row["nutrient"]
+        row_id = nutrient if nutrient != "unrecognised" else f"row_{index}"
+        seen_rows[row_id] = seen_rows.get(row_id, 0) + 1
+        if seen_rows[row_id] > 1:
+            row_id = f"{row_id}_{seen_rows[row_id]}"
+        parent = row.get("parent_nutrient")
+        parent = None if parent in (None, "", "none", "unknown") else parent
+        for value in row.get("values") or []:
+            header = headers.get(value["header_id"])
+            parsed = parse_value(value["printed_text"])
+            reasons = []
+            if value.get("uncertain"):
+                reasons.append("model_marked_uncertain")
+            if row.get("label_uncertain"):
+                reasons.append("label_uncertain")
+            if header is None:
+                reasons.append("unknown_header")
+            elif header["uncertain"]:
+                reasons.append("header_uncertain")
+            if parsed is None:
+                reasons.append("value_not_a_printed_amount")
+            basis = header["basis"] if header else "per_serving"
+            cell = {
+                "row_id": row_id,
+                "parent_row_id": parent,
+                "nutrient": nutrient,
+                "printed_label": row["printed_label"],
+                "header_id": value["header_id"],
+                "basis": basis,
+                "printed_text": value["printed_text"],
+                "comparator": parsed["comparator"] if parsed else "=",
+                "decimal_text": parsed["decimal_text"] if parsed else "0",
+                "unit": parsed["unit"] if parsed else "",
+                "canonical_unit": parsed["canonical_unit"] if parsed else "g",
+                "serving_conversion": (serving_quantity or "unknown") if basis == "per_serving" else "not_applicable",
+                "persistence_authorized": False,
+                "requires_user_selection": True,
+            }
+            cell_errors = [] if parsed is None else _collect(cell, schema()["$defs"]["cell"], "cell")
+            if cell_errors:
+                reasons.append("schema: " + "; ".join(cell_errors))
+            if reasons:
+                uncertain.append(
+                    {
+                        "row_id": row_id,
+                        "printed_label": row["printed_label"],
+                        "header_id": value["header_id"],
+                        "printed_text": value["printed_text"],
+                        "reasons": reasons,
+                    }
+                )
+            cells.append({**cell, "parsed": parsed is not None})
+    proposal = {
+        "taiwan_nutrition_label": "usable",
+        "illegible": "requires_decline",
+        "multiple_panels": "requires_decline",
+        "other_language_nutrition_table": "exclude_and_refill",
+        "no_nutrition_table": "exclude_and_refill",
+    }.get(str(found), "owner_decides")
+    if wire.get("serving_size_uncertain"):
+        uncertain.append(
+            {
+                "row_id": "serving_size",
+                "printed_label": "",
+                "header_id": "",
+                "printed_text": serving_text,
+                "reasons": ["model_marked_uncertain"],
+            }
+        )
+    if wire.get("servings_per_pack_uncertain"):
+        uncertain.append(
+            {
+                "row_id": "servings_per_pack",
+                "printed_label": "",
+                "header_id": "",
+                "printed_text": pack_text,
+                "reasons": ["model_marked_uncertain"],
+            }
+        )
+    return {
+        "schema_version": DRAFT_SCHEMA,
+        "case_id": case_id,
+        "order": photo["order"],
+        "input_sha256": photo["sha256"],
+        "status": "draft_owner_verification_pending",
+        "evidence_label": "model-drafted, owner verification pending",
+        "drafted_by": {"model": model, "endpoint": endpoint, "drafted_on": drafted_on, "pass": 1},
+        "table_found": found,
+        "proposal": proposal,
+        "notes": wire.get("notes"),
+        "language": wire.get("language"),
+        "headers": list(headers.values()),
+        "serving_size": "unknown"
+        if serving_text == "unknown"
+        else {
+            "printed_text": serving_text,
+            "decimal_text": serving_match.group(1) if serving_match else None,
+            "unit": serving_match.group(2) if serving_match else None,
+            "canonical_unit": UNITS.get(serving_match.group(2)) if serving_match else None,
+        },
+        "servings_per_pack": "unknown"
+        if pack_text == "unknown" or not pack_match
+        else {"printed_text": pack_text, "decimal_text": pack_match.group(2), "approximate": pack_match.group(1) is not None},
+        "cells": cells,
+        "uncertain_cells": uncertain,
+    }
+
+
+def request_body(target: RouteCModel, image_bytes: bytes, instruction: str, wire_schema: dict[str, Any]) -> dict[str, Any]:
+    data_uri = "data:image/jpeg;base64," + base64.b64encode(image_bytes).decode("ascii")
+    return {
+        "model": target.model,
+        "messages": [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": instruction}, {"type": "image_url", "image_url": {"url": data_uri}}],
+            }
+        ],
+        "response_format": {"type": "json_schema", "json_schema": {"name": "truth_drafting_v1", "strict": True, "schema": wire_schema}},
+        "provider": openrouter_route.provider_block(target.endpoint),
+        "max_tokens": 4096,
+        "temperature": 0,
+        "stream": False,
+        "reasoning": {"enabled": False},
+        "usage": {"include": True},
+    }
+
+
+# --- Review sheet ------------------------------------------------------------------------
+
+
+def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str, Path]) -> None:
+    """A local HTML page (image beside its draft) and a CSV with one row per cell to tick."""
+    rows = []
+    sections = []
+    for draft in sorted(drafts, key=lambda d: d["order"]):
+        image = images[draft["case_id"]]
+        flagged = {(u["row_id"], u["header_id"]) for u in draft["uncertain_cells"]}
+        headers = {h["header_id"]: h for h in draft["headers"]}
+        cell_rows = []
+        for cell in draft["cells"]:
+            mark = (cell["row_id"], cell["header_id"]) in flagged
+            header = headers.get(cell["header_id"], {})
+            cell_rows.append(
+                f"<tr class='{'flag' if mark else ''}'><td>{html.escape(cell['printed_label'])}</td>"
+                f"<td>{html.escape(cell['nutrient'])}</td><td>{html.escape(str(cell['parent_row_id'] or ''))}</td>"
+                f"<td>{html.escape(str(header.get('printed_text', '')))} ({html.escape(cell['basis'])})</td>"
+                f"<td><b>{html.escape(cell['printed_text'])}</b></td><td>{'uncertain' if mark else ''}</td></tr>"
+            )
+            rows.append(
+                {
+                    "order": draft["order"],
+                    "case_id": draft["case_id"],
+                    "image": str(image),
+                    "row_id": cell["row_id"],
+                    "printed_label": cell["printed_label"],
+                    "nutrient": cell["nutrient"],
+                    "parent_row_id": cell["parent_row_id"] or "",
+                    "header": header.get("printed_text", ""),
+                    "basis": cell["basis"],
+                    "draft_printed_text": cell["printed_text"],
+                    "uncertain": "yes" if mark else "",
+                    "owner_verified": "",
+                    "owner_correction": "",
+                }
+            )
+        for field in ("serving_size", "servings_per_pack"):
+            value = draft[field]
+            rows.append(
+                {
+                    "order": draft["order"],
+                    "case_id": draft["case_id"],
+                    "image": str(image),
+                    "row_id": field,
+                    "printed_label": "",
+                    "nutrient": "",
+                    "parent_row_id": "",
+                    "header": "",
+                    "basis": "",
+                    "draft_printed_text": value if isinstance(value, str) else value["printed_text"],
+                    "uncertain": "yes" if (field, "") in flagged else "",
+                    "owner_verified": "",
+                    "owner_correction": "",
+                }
+            )
+        rows.append(
+            {
+                "order": draft["order"],
+                "case_id": draft["case_id"],
+                "image": str(image),
+                "row_id": "table_decision",
+                "printed_label": "",
+                "nutrient": "",
+                "parent_row_id": "",
+                "header": "",
+                "basis": "",
+                "draft_printed_text": f"{draft['table_found']} -> {draft['proposal']}",
+                "uncertain": "",
+                "owner_verified": "",
+                "owner_correction": "",
+            }
+        )
+        serving = draft["serving_size"] if isinstance(draft["serving_size"], str) else draft["serving_size"]["printed_text"]
+        pack = draft["servings_per_pack"] if isinstance(draft["servings_per_pack"], str) else draft["servings_per_pack"]["printed_text"]
+        sections.append(
+            f"<section id='o{draft['order']}'><h2>{draft['order']:02d} · {html.escape(draft['case_id'])}</h2>"
+            f"<div class='pair'><a href='{image.as_uri()}'>"
+            f"<img src='{image.as_uri()}' alt='Nutrition label photo {draft['order']}'></a><div>"
+            f"<p>Table: <b>{html.escape(str(draft['table_found']))}</b>, proposal <b>{html.escape(draft['proposal'])}</b>. "
+            f"Uncertain cells: {len(draft['uncertain_cells'])}.</p>"
+            f"<p>Serving size: {html.escape(serving)}<br>Servings per pack: {html.escape(pack)}</p>"
+            f"<p>Notes: {html.escape(str(draft['notes']))}</p>"
+            "<table><tr><th>Printed label</th><th>Nutrient</th><th>Parent</th><th>Column</th><th>Draft value</th><th></th></tr>"
+            + "".join(cell_rows)
+            + "</table></div></div></section>"
+        )
+    page = (
+        "<!doctype html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width, initial-scale=1'>"
+        "<title>Untouched truth drafts</title><style>"
+        ":root{--bg:#fff;--fg:#111;--flag:#fff3c4;--line:#ccc}"
+        "@media (prefers-color-scheme: dark){:root{--bg:#111;--fg:#eee;--flag:#4a3d00;--line:#444}}"
+        "body{background:var(--bg);color:var(--fg);font:15px/1.4 -apple-system,system-ui,sans-serif;margin:16px}"
+        ".pair{display:flex;gap:16px;flex-wrap:wrap}img{max-width:min(560px,100%);border:1px solid var(--line)}"
+        "table{border-collapse:collapse}td,th{border:1px solid var(--line);padding:3px 6px;text-align:left}tr.flag{background:var(--flag)}"
+        "section{border-top:2px solid var(--line);padding-top:8px;margin-top:16px}"
+        "</style></head><body><h1>Untouched Taiwan truth drafts: owner verification</h1>"
+        "<p>Pass 1 drafted by a model (not a route under test). Check every value against the photo at full zoom (click the image), "
+        "record corrections in <code>review.csv</code> (owner_verified yes, or owner_correction), "
+        "and confirm or change each table decision. "
+        "Highlighted rows were marked uncertain. These drafts are not ground truth until you have verified them.</p>"
+        + "".join(sections)
+        + "</body></html>"
+    )
+    (out / "review.html").write_text(page, encoding="utf-8")
+    with (out / "review.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0]) if rows else ["case_id"])
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+# --- Runner ------------------------------------------------------------------------------
+
+
+def inside_git(path: Path) -> bool:
+    probe = subprocess.run(["git", "-C", str(path), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    return probe.returncode == 0
+
+
+def key_from_env_file(path: Path) -> str | None:
+    """`OPENROUTER_API_KEY` from a dotenv file, held in memory only; nothing is echoed."""
+    for raw in path.expanduser().read_text(encoding="utf-8").splitlines():
+        line = raw.strip()
+        if line.startswith("export "):
+            line = line[len("export ") :].strip()
+        name, sep, value = line.partition("=")
+        if sep and name.strip() == "OPENROUTER_API_KEY":
+            value = value.strip()
+            if len(value) >= 2 and value[0] == value[-1] and value[0] in "'\"":
+                value = value[1:-1]
+            return value or None
+    return None
+
+
+def now() -> str:
+    return datetime.now(UTC).isoformat(timespec="seconds")
+
+
+def journal_open_request(journal: Path) -> str | None:
+    """The case id of a request with no receipt, if any."""
+    pending: dict[str, int] = {}
+    if journal.exists():
+        for line in journal.read_text(encoding="utf-8").splitlines():
+            event = json.loads(line)
+            pending[event["case_id"]] = pending.get(event["case_id"], 0) + (1 if event["event"] == "request" else -1)
+    return next((case for case, count in pending.items() if count > 0), None)
+
+
+def append(journal: Path, event: dict[str, Any]) -> None:
+    with journal.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, ensure_ascii=False) + "\n")
+
+
+def post(body: dict[str, Any], key: str) -> tuple[int, dict[str, Any] | None, float]:
+    request = urllib.request.Request(
+        ENDPOINT_URL,
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {key}",
+            "Content-Type": "application/json",
+            "X-Title": "WeeklyHealthReport label evaluation drafting",
+        },
+        method="POST",
+    )
+    started = time.monotonic()
+    try:
+        with urllib.request.urlopen(request, timeout=90) as response:
+            status, payload = response.status, response.read()
+    except urllib.error.HTTPError as error:
+        status, payload = error.code, error.read()
+    except (urllib.error.URLError, TimeoutError) as error:
+        return 0, {"error": {"message": type(error).__name__}}, time.monotonic() - started
+    try:
+        parsed = json.loads(payload)
+    except json.JSONDecodeError:
+        parsed = None
+    return status, parsed, time.monotonic() - started
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--image-root", type=Path, required=True, help="the Taiwan photo folder (with sealed/) outside any checkout")
+    parser.add_argument("--out", type=Path, required=True, help="draft folder outside any checkout")
+    parser.add_argument("--ledger", type=Path, required=True, help="persistent spend ledger outside any checkout")
+    parser.add_argument("--unseal-for-drafting", action="store_true")
+    parser.add_argument("--manifest-sha256", required=True)
+    parser.add_argument("--model", required=True)
+    parser.add_argument("--endpoint", required=True)
+    parser.add_argument("--provider-name", required=True)
+    parser.add_argument("--orders", help="comma-separated untouched orders to draft (default: all not yet drafted)")
+    parser.add_argument("--sheet-only", action="store_true", help="rebuild the review sheet from saved drafts; no call")
+    parser.add_argument("--env-file", type=Path, help="dotenv file to take OPENROUTER_API_KEY from (only that variable, into this process)")
+    args = parser.parse_args()
+
+    contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
+    expected = contract["corpus"]["off_taiwan"]["manifest_sha256"]
+    if not args.unseal_for_drafting:
+        raise SystemExit("the untouched set is sealed; drafting needs --unseal-for-drafting")
+    if args.manifest_sha256 != expected or hashlib.sha256(MANIFEST.read_bytes()).hexdigest() != expected:
+        raise SystemExit("the manifest hash does not match the contract")
+    if contract["untouched_truth_drafting"].get("owner_decision") != "A, 17 October 2026":
+        raise SystemExit("drafting is not defined by the contract")
+    args.out.mkdir(parents=True, exist_ok=True)
+    args.ledger.parent.mkdir(parents=True, exist_ok=True)
+    for path in (args.out, args.ledger.parent, args.image_root):
+        if inside_git(path.expanduser().resolve()):
+            raise SystemExit(f"refusing a path inside a git checkout: {path}")
+
+    manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    photos = [p for p in manifest["photos"] + manifest.get("refills", []) if p["split"] == "untouched" and not p.get("excluded")]
+    if args.orders:
+        wanted = {int(o) for o in args.orders.split(",")}
+        photos = [p for p in photos if p["order"] in wanted]
+    images = {
+        f"off-taiwan:{p['barcode13']}:nutrition_zh.{p['revision']}": args.image_root
+        / "sealed"
+        / f"{p['order']:02d}-{p['barcode13']}-nutrition_zh.{p['revision']}.jpg"
+        for p in manifest["photos"] + manifest.get("refills", [])
+        if p["split"] == "untouched"
+    }
+    drafts_dir, raw_dir = args.out / "drafts", args.out / "raw"
+    drafts_dir.mkdir(exist_ok=True)
+    raw_dir.mkdir(exist_ok=True)
+    journal = args.out / "journal.jsonl"
+
+    if not args.sheet_only:
+        key = os.environ.get("OPENROUTER_API_KEY") or (key_from_env_file(args.env_file) if args.env_file else None)
+        if not key:
+            raise SystemExit("OPENROUTER_API_KEY is not set in the environment")
+        open_request = journal_open_request(journal)
+        if open_request:
+            raise SystemExit(f"a request for {open_request} has no receipt; reconcile the journal before another call")
+        target = RouteCModel(label="qwen-drafting", model=args.model, endpoint=args.endpoint, provider_name=args.provider_name)
+        limits = {
+            "per_call_usd": contract["route_c"]["per_call_stop_usd"],
+            "total_usd": contract["route_c"]["total_stop_usd"],
+            "unknown_cost_calls_allowed": contract["route_c"]["unknown_cost_calls_allowed"],
+            "sealed_reserved_calls": contract["route_c"]["sealed_run_reserved_calls"],
+        }
+        budget = LedgerBudget(args.ledger, limits=limits)
+        instruction = INSTRUCTION.read_text(encoding="utf-8")
+        wire_schema = json.loads(WIRE_SCHEMA.read_text(encoding="utf-8"))
+        for photo in sorted(photos, key=lambda p: p["order"]):
+            case_id = f"off-taiwan:{photo['barcode13']}:nutrition_zh.{photo['revision']}"
+            draft_path = drafts_dir / f"{photo['order']:02d}.json"
+            if draft_path.exists():
+                continue
+            image = images[case_id]
+            data = image.read_bytes()
+            if hashlib.sha256(data).hexdigest() != photo["sha256"]:
+                raise SystemExit(f"{case_id} bytes do not match the manifest")
+            try:
+                budget.before_call(target.label)
+            except BudgetStop as stop:
+                print(f"stopped before {case_id}: {stop}")
+                break
+            append(
+                journal,
+                {
+                    "event": "request",
+                    "case_id": case_id,
+                    "order": photo["order"],
+                    "at": now(),
+                    "model": target.model,
+                    "endpoint": target.endpoint,
+                },
+            )
+            status, response, seconds = post(request_body(target, data, instruction, wire_schema), key)
+            (raw_dir / f"{photo['order']:02d}.json").write_text(
+                json.dumps({"http_status": status, "seconds": round(seconds, 2), "body": response}, ensure_ascii=False, indent=1),
+                encoding="utf-8",
+            )
+            cost = openrouter_route.reported_cost(response)
+            problems = openrouter_route.route_mismatches(response, target) if status == 200 else [f"HTTP {status}"]
+            append(
+                journal,
+                {
+                    "event": "receipt",
+                    "case_id": case_id,
+                    "order": photo["order"],
+                    "at": now(),
+                    "http_status": status,
+                    "cost_usd": None if cost is None else str(cost),
+                    "seconds": round(seconds, 2),
+                    "problems": problems,
+                },
+            )
+            try:
+                # A missing cost is unknown, never zero, whatever the HTTP status.
+                budget.record_call(target.label, cost, purpose=PURPOSE, case_id=case_id, at=now())
+            except BudgetStop as stop:
+                print(f"stopped after {case_id}: {stop}")
+                break
+            if status in (401, 402, 403, 429):
+                message = (response or {}).get("error", {}).get("message", "") if isinstance(response, dict) else ""
+                print(f"stopping: HTTP {status} {message[:200]}")
+                break
+            if problems:
+                print(f"{case_id}: failed ({'; '.join(problems)})")
+                continue
+            assert isinstance(response, dict)
+            try:
+                wire = json.loads(response["choices"][0]["message"]["content"])
+            except (KeyError, IndexError, TypeError, json.JSONDecodeError):
+                print(f"{case_id}: failed (content is not schema JSON)")
+                continue
+            draft = map_draft(wire, photo, model=str(response.get("model")), endpoint=target.endpoint, drafted_on=now()[:10])
+            draft_path.write_text(json.dumps(draft, ensure_ascii=False, indent=1), encoding="utf-8")
+            print(f"{case_id}: drafted, {len(draft['cells'])} cells, {len(draft['uncertain_cells'])} uncertain, cost {cost}")
+        print(f"ledger reported spend so far: {json.loads(args.ledger.read_text())['reported_spend_usd']}")
+
+    if args.sheet_only:
+        # Re-map saved drafts from their raw response bodies (no call), so a mapping fix
+        # applies without another request; the drafting date and model are kept.
+        by_order = {p["order"]: p for p in manifest["photos"] + manifest.get("refills", [])}
+        for path in sorted(drafts_dir.glob("*.json")):
+            old = json.loads(path.read_text(encoding="utf-8"))
+            body = json.loads((raw_dir / path.name).read_text(encoding="utf-8"))["body"]
+            wire = json.loads(body["choices"][0]["message"]["content"])
+            drafted = old["drafted_by"]
+            draft = map_draft(
+                wire, by_order[old["order"]], model=drafted["model"], endpoint=drafted["endpoint"], drafted_on=drafted["drafted_on"]
+            )
+            path.write_text(json.dumps(draft, ensure_ascii=False, indent=1), encoding="utf-8")
+    drafts = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(drafts_dir.glob("*.json"))]
+    if drafts:
+        write_review_sheet(args.out, drafts, images)
+    failed = sorted(p.stem for p in raw_dir.glob("*.json") if not (drafts_dir / p.name).exists())
+    summary = {
+        "requests": len(list(raw_dir.glob("*.json"))),
+        "failed_orders": failed,
+        "drafted": len(drafts),
+        "cells": sum(len(d["cells"]) for d in drafts),
+        "uncertain_cells": sum(len(d["uncertain_cells"]) for d in drafts),
+        "proposals": {k: sum(d["proposal"] == k for d in drafts) for k in sorted({d["proposal"] for d in drafts})},
+    }
+    (args.out / "summary.json").write_text(json.dumps(summary, indent=1), encoding="utf-8")
+    print(json.dumps(summary))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

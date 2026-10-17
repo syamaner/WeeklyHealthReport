@@ -175,6 +175,8 @@ PLAN_TAGS = [
     "synthetic",
 ]
 PHOTO_ONLY_TAGS = {"column_offset", "glossy", "curved_or_crumpled", "small_font"}
+# A Taiwan 營養標示 table prints sodium (鈉), never salt, and is never UK English.
+NOT_APPLICABLE_TO_CHINESE = {"en_uk", "salt"}
 
 
 def template_cases() -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -219,8 +221,9 @@ def coverage(cases: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "chinese_cases": len(chinese),
         "covered": sorted(tag for tag in PLAN_TAGS if tag in present),
-        "not_covered": sorted(tag for tag in PLAN_TAGS if tag not in present),
+        "not_covered": sorted(tag for tag in PLAN_TAGS if tag not in present and tag not in PHOTO_ONLY_TAGS | NOT_APPLICABLE_TO_CHINESE),
         "not_applicable_to_pasted_text": sorted(PHOTO_ONLY_TAGS),
+        "not_applicable_to_chinese_cases": sorted(NOT_APPLICABLE_TO_CHINESE),
         "counts": {tag: sum(tag in c["metadata"]["coverage_tags"] for c in chinese) for tag in PLAN_TAGS if tag in present},
     }
 

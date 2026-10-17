@@ -259,10 +259,10 @@ class ContractTests(unittest.TestCase):
         contract["metrics"]["false_ready_maximum"] = 1
         self.assertIn("metrics differ from the plan's pre-registered bars", validate_contract.validate(contract))
 
-    def test_route_c_disabled_in_phase_1(self):
+    def test_route_c_disabled_in_phases_1_and_2(self):
         contract = json.loads((HERE / "frozen-contract-v1.json").read_text())
         contract["route_c"]["enabled"] = True
-        self.assertIn("route C must stay disabled in phase 1", validate_contract.validate(contract))
+        self.assertIn("route C must stay disabled in phases 1 and 2", validate_contract.validate(contract))
 
 
 class DevelopmentDatasetTests(unittest.TestCase):

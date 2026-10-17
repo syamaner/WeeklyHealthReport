@@ -158,6 +158,10 @@ def download(url: str) -> bytes:
         return response.read()
 
 
+# frozen-contract-v1.json corpus.off_taiwan.refill_rule.batch_stop_bytes
+REFILL_BATCH_STOP_BYTES = 5_000_000
+
+
 def refill(argv: list[str]) -> int:
     """Download pre-registered refills into the existing folder and log them in the manifest."""
     parser = argparse.ArgumentParser(description="refill excluded photos in pre-registered hash order")
@@ -167,6 +171,9 @@ def refill(argv: list[str]) -> int:
     parser.add_argument("--reason", required=True, help="logged exclusion reason for the replaced photos")
     parser.add_argument("--max-bytes", type=int, required=True, help="hard stop for this refill batch")
     args = parser.parse_args(argv)
+    if not 0 < args.max_bytes <= REFILL_BATCH_STOP_BYTES:
+        print(f"--max-bytes must be between 1 and the contract's {REFILL_BATCH_STOP_BYTES} byte batch stop", file=sys.stderr)
+        return 2
 
     out = args.out.expanduser().resolve()
     probe = subprocess.run(["git", "-C", str(out), "rev-parse", "--show-toplevel"], capture_output=True, text=True)

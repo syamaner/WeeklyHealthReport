@@ -1,0 +1,56 @@
+{
+  "$comment": "truth-drafting-wire-schema-v1: untouched ground-truth drafting (owner decision A). Not a route C schema and never scored. No union-bearing parameters: absent values use the explicit strings unknown and none. draft_untouched_truth.py maps it to label-capture-truth-draft-v1 records whose cells use the label-capture-candidate-v1 cell shape.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["table_found", "language", "serving_size_text", "serving_size_uncertain", "servings_per_pack_text", "servings_per_pack_uncertain", "headers", "rows", "notes"],
+  "properties": {
+    "table_found": {"type": "string", "enum": ["taiwan_nutrition_label", "other_language_nutrition_table", "no_nutrition_table", "multiple_panels", "illegible"]},
+    "language": {"type": "string", "enum": ["zh-Hant", "en", "mixed", "other", "unknown"]},
+    "serving_size_text": {"type": "string"},
+    "serving_size_uncertain": {"type": "boolean"},
+    "servings_per_pack_text": {"type": "string"},
+    "servings_per_pack_uncertain": {"type": "boolean"},
+    "headers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["header_id", "printed_text", "basis", "uncertain"],
+        "properties": {
+          "header_id": {"type": "string"},
+          "printed_text": {"type": "string"},
+          "basis": {"type": "string", "enum": ["per_100g", "per_100ml", "per_serving", "reference_intake"]},
+          "uncertain": {"type": "boolean"}
+        }
+      }
+    },
+    "rows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["printed_label", "nutrient", "parent_nutrient", "label_uncertain", "values"],
+        "properties": {
+          "printed_label": {"type": "string"},
+          "nutrient": {"type": "string", "enum": ["energy_kj", "energy_kcal", "fat", "saturates", "trans_fat", "carbohydrate", "sugars", "added_sugars", "fibre", "protein", "salt", "sodium", "unrecognised"]},
+          "parent_nutrient": {"type": "string", "description": "Canonical nutrient of the parent row, or none"},
+          "label_uncertain": {"type": "boolean"},
+          "values": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["header_id", "printed_text", "uncertain"],
+              "properties": {
+                "header_id": {"type": "string"},
+                "printed_text": {"type": "string", "description": "Exactly as printed, with comparator and unit, or unknown"},
+                "uncertain": {"type": "boolean"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "notes": {"type": "string"}
+  }
+}

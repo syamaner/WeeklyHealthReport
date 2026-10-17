@@ -1,5 +1,6 @@
 """Inspect wiring with no model or provider call: a stub parser stands in for the Swift CLI."""
 
+import hashlib
 import importlib.util
 import json
 import os
@@ -23,6 +24,17 @@ for case in cases:
         "language": "unknown", "serving_size": "unknown", "servings_per_pack": "unknown",
         "headers": [], "cells": [], "warnings": []}}}})
 json.dump(out, sys.stdout)
+"""
+
+
+VISION_STUB = """#!{python}
+import json, sys
+jobs = json.load(sys.stdin)
+json.dump({{"adapter_version": "stub", "request_revision": 3, "recognition_languages": ["zh-Hant", "en-US"],
+    "uses_language_correction": True, "operating_system": "stub",
+    "results": [{{"id": j["id"], "image_sha256": "{digest}", "pixel_width": 1, "pixel_height": 1,
+        "lines": [], "error": None}} for j in jobs]}},
+    sys.stdout)
 """
 
 
@@ -71,10 +83,42 @@ class InspectWiringTests(unittest.TestCase):
         self.assertIn("route C is disabled", str(log.error))
         self.assertFalse(log.stats.model_usage)
 
-    def test_route_b_is_not_implemented_in_phase_1(self):
-        from inspect_task import route_b_vision
+    def test_route_b_task_runs_stub_vision_serialiser_and_parser(self):
+        from inspect_ai import eval as inspect_eval
 
-        self.assertTrue(callable(route_b_vision()))
+        from inspect_task import label_capture_development_photos
+
+        loaded = [json.loads(line) for line in (HERE / "synthetic" / "development-cases-v1.jsonl").read_text().splitlines()]
+        decline = next(c for c in loaded if c["truth"]["requires_decline"])
+        with tempfile.TemporaryDirectory() as folder:
+            image = Path(folder) / "development" / "a.jpg"
+            image.parent.mkdir()
+            image.write_bytes(b"not an image")
+            digest = hashlib.sha256(image.read_bytes()).hexdigest()
+            case = {
+                "id": "photo",
+                "input": {"kind": "image", "path": str(image)},
+                "truth": decline["truth"],
+                "metadata": {"corpus": "off_taiwan", "stratum": "taiwan_zh_hant", "split": "development", "sha256": digest},
+            }
+            cases_file = Path(folder) / "cases.json"
+            cases_file.write_text(json.dumps([case]))
+            vision = Path(folder) / "stub-vision"
+            vision.write_text(VISION_STUB.format(python=sys.executable, digest=digest))
+            parser = Path(folder) / "stub-parser"
+            parser.write_text(STUB.format(python=sys.executable))
+            for stub in (vision, parser):
+                os.chmod(stub, stub.stat().st_mode | stat.S_IXUSR)
+            log = inspect_eval(
+                label_capture_development_photos(cases_file=str(cases_file), vision_binary=str(vision), parser_binary=str(parser)),
+                model="mockllm/model",
+                log_dir=str(Path(folder) / "logs"),
+                display="none",
+            )[0]
+            self.assertEqual(log.status, "success")
+            assert log.samples is not None
+            self.assertEqual(log.samples[0].metadata["serialiser_version"], "label-capture-serialiser-v1")
+            self.assertFalse(log.stats.model_usage)
 
 
 if __name__ == "__main__":

@@ -54,6 +54,12 @@ PINNED = [
     "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/LabelVocabulary.swift",
     "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/NutritionLabelTextParser.swift",
     "Packages/FoodLedgerKit/Tools/NutritionLabelTextParse/main.swift",
+    "Tools/NutritionLabelCaptureEvaluation/vision_v3.swift",
+    "Tools/NutritionLabelCaptureEvaluation/serialise_lines.py",
+    "Tools/NutritionLabelCaptureEvaluation/run_route_b.py",
+    "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.txt",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-wire-schema-v1.json",
 ]
 
 
@@ -91,8 +97,13 @@ def validate(contract: dict[str, Any], root: Path = REPO) -> list[str]:
         errors.append("route C spend stops differ from decision 9")
     if route_c.get("retries") != 0 or route_c.get("max_output_tokens") != 4096 or route_c.get("timeout_seconds") != 90:
         errors.append("route C call limits differ from the plan")
-    if contract.get("status") == "development_phase_1" and route_c.get("enabled") is not False:
-        errors.append("route C must stay disabled in phase 1")
+    if contract.get("status") in ("development_phase_1", "development_phase_2") and route_c.get("enabled") is not False:
+        errors.append("route C must stay disabled in phases 1 and 2")
+    if "model_slug_rule" not in route_c or "spend_ledger" not in route_c:
+        errors.append("route C must record the model slug rule and the persistent spend ledger")
+    route_b = contract.get("route_b", {})
+    if route_b and (route_b.get("development_runs_only") is not True or route_b.get("never_runs_on_sealed_folder") is not True):
+        errors.append("route B may run on development images only before the frozen run")
     provider = route_c.get("provider_block", {})
     if provider != openrouter_route.provider_block("<endpoint>"):
         errors.append("route C provider block must pin one endpoint, deny collection, require ZDR and forbid fallbacks")
@@ -107,9 +118,10 @@ def validate(contract: dict[str, Any], root: Path = REPO) -> list[str]:
     refill = contract.get("corpus", {}).get("off_taiwan", {}).get("refill_rule", {})
     if refill.get("batch_stop_bytes") != 5_000_000 or "61 to 87" not in refill.get("approved_orders", ""):
         errors.append("Taiwan refill rule must match owner decision B")
-    wire = root / "Tools/NutritionLabelCaptureEvaluation/openrouter/label-image-wire-schema-v1.json"
-    if wire.exists() and count_unions(json.loads(wire.read_text())) > 16:
-        errors.append("route C wire schema exceeds 16 union-bearing parameters")
+    for name in ("label-image-wire-schema-v1.json", "truth-drafting-wire-schema-v1.json"):
+        wire = root / "Tools/NutritionLabelCaptureEvaluation/openrouter" / name
+        if wire.exists() and count_unions(json.loads(wire.read_text())) > 16:
+            errors.append(f"{name} exceeds 16 union-bearing parameters")
     taiwan = contract.get("corpus", {}).get("off_taiwan", {})
     if (taiwan.get("selected"), taiwan.get("development"), taiwan.get("untouched")) != (60, 20, 40):
         errors.append("Taiwan photo split must be 60 = 20 development + 40 untouched")

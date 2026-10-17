@@ -30,15 +30,26 @@ public struct NutritionLabelTextParser: Sendable {
         return state.finish(route: route, inputSHA256: inputSHA256, language: language)
     }
 
-    /// Japanese kana, Korean Hangul (syllables, jamo and compatibility jamo) or a
-    /// Simplified-only character means the label is outside `en` and `zh-Hant`.
+    /// Japanese kana, Korean Hangul or a Simplified-only character means the label is
+    /// outside `en` and `zh-Hant`.
     static func hasUnsupportedScript(_ text: String) -> Bool {
         text.unicodeScalars.contains { scalar in
-            (0x3040...0x30FF).contains(scalar.value) || (0xAC00...0xD7AF).contains(scalar.value)
-                || (0x1100...0x11FF).contains(scalar.value) || (0x3130...0x318F).contains(scalar.value)
+            unsupportedScalarRanges.contains { $0.contains(scalar.value) }
         }
             || text.contains { LabelVocabulary.unsupportedScriptMarkers.contains($0) }
     }
+
+    /// Kana, then every Hangul block: syllables, jamo, compatibility jamo, jamo
+    /// extended A and B, and halfwidth Hangul.
+    static let unsupportedScalarRanges: [ClosedRange<UInt32>] = [
+        0x3040...0x30FF,
+        0xAC00...0xD7AF,
+        0x1100...0x11FF,
+        0x3130...0x318F,
+        0xA960...0xA97F,
+        0xD7B0...0xD7FF,
+        0xFFA0...0xFFDC,
+    ]
 
     static func language(of text: String) -> LabelLanguage {
         let hasHan = text.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) }

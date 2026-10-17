@@ -1,8 +1,8 @@
 {
   "schema_version": "label-capture-evaluation-contract-v1",
   "contract_version": "label-capture-evaluation-v1",
-  "status": "development_phase_1",
-  "status_note": "Phase 1 (#255): thresholds, adequacy minima, tolerances, selection, split and sealing rules are pre-registered here. Artefact hashes pin the current development state; they are re-pinned, and the status set to frozen_for_untouched_run, only when every route is frozen before the single untouched run.",
+  "status": "development_phase_2",
+  "status_note": "Phase 2 (#255): route B (on-device Vision, serialiser, shared parser) is implemented and run on development images only; the phase 1 safeguards are complete; untouched truth drafting (decision A) has run for the 40 untouched Taiwan photos. Thresholds, adequacy minima, tolerances, selection, split and sealing rules are unchanged. Artefact hashes pin the current development state; they are re-pinned, and the status set to frozen_for_untouched_run, only when every route is frozen before the single untouched run.",
   "plan": "docs/nutrition-label-capture-evaluation-v1.md",
   "plan_approved": "2026-10-17",
   "framework": {
@@ -136,7 +136,8 @@
         "download": "only when an exclusion needs a refill, with the reason logged in the manifest",
         "order": "development replacements take the next barcodes in hash order first (61 and 62, used), untouched refills follow from order 63",
         "untouched_exclusions": "decided from the untouched truth drafting (decision A) before any route sees an untouched image; an excluded untouched photo is refilled from the next unused order, never replaced after any route output is seen",
-        "batch_stop_bytes": 5000000
+        "batch_stop_bytes": 5000000,
+        "untouched_exclusions_pending": "12 exclusions proposed by the drafting (10 other-language tables, 2 without a nutrition table) and order 23 undrafted; the owner confirms each before any refill from order 63 is downloaded"
       },
       "minimum_counts": {
         "development_photos": "20 after replacements (orders 1 to 20 less 4 and 17, plus 61 and 62)",
@@ -160,7 +161,9 @@
     "v2_sealed": {
       "reference": "Tools/FoodOCREvaluation/frozen-contract-v2.json",
       "set": "untouched",
-      "never_read_in_phase_1": true
+      "status": "deferred_never_acquired",
+      "never_read_in_phase_1": true,
+      "note": "The frozen v2 public selection (60 tuning and 40 sealed identities) was never acquired: frozen-selection-v2.json and its candidate inventory exist nowhere on this machine, and v2-pregate-plan.md records that no v2 acceptance corpus was built. UK untouched set deferred by the owner on 17 Oct 2026; acquire a fresh sealed UK set only if Taiwan results justify it. Until then no promotion decision for UK label photos."
     }
   },
   "route_c": {
@@ -191,32 +194,41 @@
     "total_stop_usd": 25,
     "unknown_cost_calls_allowed": 3,
     "sealed_run_reserved_calls": 200,
-    "response_checks": "response model and provider must match the request and finish_reason must be stop; otherwise the case is failed",
+    "response_checks": "response model must match the request under model_slug_rule, provider must match the pinned endpoint, and finish_reason must be present and stop; a missing choice or finish_reason is a problem; otherwise the case is failed",
     "cost_source": "usage.cost on the raw OpenRouter response; Inspect's ModelUsage.total_cost is computed from Inspect's own price table, so it is not used; a missing cost is unknown",
     "reserve_models": [],
     "reserve_note": "Qwen 3.5 was removed from the route C reserve because it drafts untouched truth (decision A).",
     "never_sees_untouched_truth_or_drafts": true,
-    "sealed_reservation": "RunBudget holds back 200 calls at the $0.05 ceiling ($10) from development calls"
+    "sealed_reservation": "RunBudget holds back 200 calls at the $0.05 ceiling ($10) from development calls",
+    "model_slug_rule": "A response model is accepted only when it equals the requested slug, or the requested slug followed by '-' and one date in the closed set YYYYMMDD, YYYY-MM-DD, MM-DD or MMDD (openrouter_route.model_slug_matches). Other sizes, -mini, -thinking, -vN, '.1', :free or :nitro routing variants and other vendors are mismatches. Widening the set is a contract change.",
+    "spend_ledger": {
+      "implementation": "budget.LedgerBudget",
+      "location": "outside the repository (~/WHR-label-eval-private/spend-ledger-v1.json); one ledger for route C and the untouched truth drafting",
+      "holds": "the $25 total, the $0.05 per-call stop, the three unknown-cost allowance and the 200-call sealed reservation, shared across separate Inspect runs, models and processes; each entry records purpose, model, case id and reported cost only (no key, header, prompt or response)",
+      "refuses_changed_limits": true,
+      "unrecorded_calls": "a call started but never recorded is charged at the $0.05 ceiling by every later run"
+    }
   },
   "ground_truth": {
     "development_off_taiwan": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json",
     "development_off_taiwan_status": "first_pass_unverified",
     "untouched_sha256": "",
-    "development_off_taiwan_drafting": "Pass 1 of the 20 Taiwan development truths was drafted by Claude (the assistant); Claude Opus route C results on development data carry that caveat."
+    "development_off_taiwan_drafting": "Pass 1 of the 20 Taiwan development truths was drafted by Claude (the assistant); Claude Opus route C results on development data carry that caveat.",
+    "untouched_taiwan_status": "model_drafted_owner_verification_pending"
   },
   "frozen_artefacts": {
     "Tools/NutritionLabelCaptureEvaluation/candidate-schema-v1.json": "74333555741f73f2557fe74e11cfcb7b2693f5a261c49957a9e8e6e39404e531",
     "Tools/NutritionLabelCaptureEvaluation/candidate.py": "05f67900b4b38bd820d71a04351b5a26553a976d74051a5964210a24e20109c1",
-    "Tools/NutritionLabelCaptureEvaluation/score.py": "0ad028b55239da71b9725d507ac6b283492b3175852a756ce2ddf145e26d2f7d",
-    "Tools/NutritionLabelCaptureEvaluation/arithmetic.py": "c87b18206d310791ad2c3d0ff5087ca3eff248fe0296d393f960e1cbcf183af0",
-    "Tools/NutritionLabelCaptureEvaluation/budget.py": "04c9ec610aca1e1f72b7097908ac5abe932ff85e64b841eb02db8b3e2f6b4421",
-    "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py": "28dae841c9ac323d6e9445e75fb21ec7c45351a91e46f65c3d546f018dba54d5",
+    "Tools/NutritionLabelCaptureEvaluation/score.py": "b7a662924e95e8ebb6b2b47e8355cd524e507d47c345027670d51dcf954ecdd3",
+    "Tools/NutritionLabelCaptureEvaluation/arithmetic.py": "ffaf734c50d732c57da705bcb09787fe46c8e4fae2649353a3594d03a39f9d1c",
+    "Tools/NutritionLabelCaptureEvaluation/budget.py": "ef6d612a257269b981d27ae0312fff5197f1d4ed75de75c7bd6ecc907ad40318",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py": "f0a60757645d6cde56dc8f4277ffe34fb679d3141b9817ff0313984068de4eea",
     "Tools/NutritionLabelCaptureEvaluation/requirements-dev.lock": "ecdedef956a76eeed2983139f2b82f89bf0ebbecd54b5de4bc8e964e4c32674a",
-    "Tools/NutritionLabelCaptureEvaluation/cases.py": "2289ee03a0485b829e11f4e8f2f34f83a0c243cb79af7e8383d49538da42dc15",
-    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "a625e4836fde3f74a0168bf2954941d7ea28374df0e85c7662054a05325cf0c7",
+    "Tools/NutritionLabelCaptureEvaluation/cases.py": "e5b5151857a5057469631d6e45944a1625d4258e65600528fd0fe84b94732f6a",
+    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "cbb112d6f3370079590ee249ab0422fa98210676bf9626976ccae954d40d1933",
     "Tools/NutritionLabelCaptureEvaluation/requirements.txt": "56dfa330c985616b9a3704fc5f5df526abb6e7136ece92a29bfa471db190acf4",
     "Tools/NutritionLabelCaptureEvaluation/synthetic/render.py": "6c8fcb7d30f7829f1f493859bc63ae6828c4af67dff77aa1aded7919c0996ae1",
-    "Tools/NutritionLabelCaptureEvaluation/build_cases.py": "7450a7343fe3a09199207b8167ee83f2dd29224418ce6708d35210275683fbaa",
+    "Tools/NutritionLabelCaptureEvaluation/build_cases.py": "4fcaf2685f24d4a359ff7d7d76ea36464dfd000a3582bbca375b613031e38b15",
     "Tools/NutritionLabelCaptureEvaluation/synthetic/development-cases-v1.jsonl": "894a406d6e1a720b0712517beb59da3387171d7c3e6cedd46b2b7a7813175da8",
     "Tools/NutritionLabelCaptureEvaluation/fixtures/off-taiwan-manifest-v1.json": "9414c76d8c55ece094bd4a2e4691323329980b27cbd245ebd3754ef40340ea8d",
     "Tools/NutritionLabelCaptureEvaluation/fixtures/fda-188-source-v1.json": "f39b56aaef33cce0d0ab01555938a54cb4254521205eb5007e47b677632fd82b",
@@ -225,21 +237,62 @@
     "Tools/NutritionLabelCaptureEvaluation/openrouter/label-image-wire-schema-v1.json": "8d10352dcf69fa0f3da203835ce3aac95df573ba689ee29ffab34177e0432b71",
     "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/LabelCaptureCandidate.swift": "65722296a95944d0c6d32505beb35f469c0906cd7782fed769aa0c6a5576c76f",
     "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/LabelVocabulary.swift": "0792d7c351f58f967e21ba0c34cc551c245d9421dd9455a6b371035e8409260d",
-    "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/NutritionLabelTextParser.swift": "2e2f180b92831f54a9fc88c17bee60a0993be339625717b593dad7c6ee88341c",
-    "Packages/FoodLedgerKit/Tools/NutritionLabelTextParse/main.swift": "64263db7a0bd6535cb8950ed88df7d0e93b28c1df6817aeaff2882ccee759a3e"
+    "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/NutritionLabelTextParser.swift": "791d8f498090b1d6af716c509959dfc93e8896cc246ae0bf0354c9c88a32a80f",
+    "Packages/FoodLedgerKit/Tools/NutritionLabelTextParse/main.swift": "a6bae0d111ead94f147a3550eeb2ad83140c08fae3dea7518536c7c271f2ad3a",
+    "Tools/NutritionLabelCaptureEvaluation/vision_v3.swift": "942064b84d069358d4878624802b994ecbca5aa43583c6ca418236cad2656e02",
+    "Tools/NutritionLabelCaptureEvaluation/serialise_lines.py": "81c279137e4c1b6ad0a3b08cd43733c625aa9b1edb64e1a395aec91ef1ff7ec2",
+    "Tools/NutritionLabelCaptureEvaluation/run_route_b.py": "e2da453fe273017590c5e78c330f1ab0f17416dfe3657b06c12d2927b679f90a",
+    "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py": "e6ccad0d0810cc5096032ac596b898eb35dc0fac417c8ce2d7464675b24c3d1d",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.txt": "721569af7b34ac5108456e7930f35b7883ab4fa049aed79a3893bf7af4c154aa",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-wire-schema-v1.json": "75af5c236184284c239a5170a0ab6efb2e8637c9f508cf02fe4c0b220fba0c2d"
   },
   "untouched_truth_drafting": {
     "owner_decision": "A, 17 October 2026",
     "applies_to": [
       "off_taiwan untouched (40)",
-      "v2 sealed UK images (40)"
+      "v2 sealed UK images (40): deferred, never acquired"
     ],
     "pass_1": "drafted by a non-Claude model that is not a route C model under test: Qwen 3.5 VL through OpenRouter, slug and endpoint recorded on the run day",
     "pass_2": "the owner verifies every value against the image and corrects it",
     "evidence_label": "model-drafted, owner-verified (weaker than independent human transcription)",
     "egress": "public corpus images only, sent to OpenRouter with the route C provider block (one endpoint, ZDR, data collection denied, no fallbacks); runs in a later phase under the spend stops",
     "route_c_never_sees_untouched_truth_or_drafts": true,
-    "status": "defined, not run"
+    "status": "run for the 40 untouched Taiwan photos on 2026-10-17; v2 sealed UK images deferred",
+    "unsealing": "Opening the 40 untouched Taiwan photos for this drafting is their unsealing for truth purposes only (2026-10-17). Routes A, B and C still have not run on them and may not until the single frozen untouched run; the photos stay in the read-only sealed folder.",
+    "model": {
+      "slug": "qwen/qwen3.5-397b-a17b",
+      "returned_slug": "qwen/qwen3.5-397b-a17b",
+      "endpoint": "deepinfra/fp8",
+      "provider_name": "DeepInfra",
+      "catalogue_check_2026_10_17": "image input advertised (input modalities text, image, video); listed in OpenRouter's ZDR endpoint list as 'DeepInfra | qwen/qwen3.5-397b-a17b-20260216'; supports structured_outputs and response_format; prompt $0.45 and completion $3.00 per million tokens",
+      "note": "Qwen 3.5 has no separate VL model on OpenRouter: the 3.5 models are natively multimodal. The 397B A17B flagship on deepinfra/fp8 matches the plan's former reserve (Qwen 3.5 on deepinfra/fp8)."
+    },
+    "request": "openrouter/truth-drafting-instruction-v1.txt and openrouter/truth-drafting-wire-schema-v1.json (strict json_schema); provider block only and order [deepinfra/fp8], allow_fallbacks false, require_parameters true, data_collection deny, zdr true; max_tokens 4096, temperature 0, reasoning disabled, no tools, no retries, no streaming, 90 s timeout",
+    "runner": "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py",
+    "storage": "drafts, raw response bodies, journal and the owner's review sheet are kept outside the repository (~/WHR-label-eval-private/drafts/untouched-taiwan-v1/); no draft value is committed; no route reads that folder",
+    "output_schema": "label-capture-truth-draft-v1 per image: cells in the label-capture-candidate-v1 cell shape, plus uncertain_cells and a table proposal (usable, requires_decline or exclude_and_refill) for the owner to confirm",
+    "result": {
+      "record": "Tools/NutritionLabelCaptureEvaluation/results/untouched-truth-drafting-v1.md",
+      "requested": 40,
+      "drafted": 39,
+      "failed": [
+        {
+          "order": 23,
+          "reason": "finish_reason length at the 4096-token ceiling; not retried"
+        }
+      ],
+      "proposed_usable": 27,
+      "proposed_exclusions": 12,
+      "proposed_required_declines": 0,
+      "cells": 446,
+      "uncertain_cells": 13,
+      "uncertain_serving_lines": 17,
+      "reported_spend_usd": "0.14616675",
+      "largest_call_usd": "0.0129927",
+      "unknown_cost_calls": 0,
+      "all_responses_model_and_provider_matched": true,
+      "owner_verification": "pending; review sheet outside the repository"
+    }
   },
   "deviations": [
     {
@@ -261,6 +314,39 @@
       "item": "Route C wire mapping",
       "plan": "section 2.2: route C emits label-capture-candidate-v1",
       "status": "the wire schema is a draft and its mapping to the candidate is not implemented; route C stays disabled"
+    },
+    {
+      "item": "UK development and untouched images",
+      "plan": "section 3.1: 40 v1 gate images, 60 v2 tuning images (development) and 40 v2 sealed images (untouched)",
+      "status": "The v1 panel images are no longer on disk (only their committed ground truth and raw Vision outputs remain) and the v2 public selection was never acquired, so neither the 60 v2 tuning nor the 40 v2 sealed images exist. Route B's UK development stratum uses the 40 exposed v2 public development review images that are on disk (Tools/FoodOCREvaluation/review_workspace/v2_public_development, frozen review), less one owner exclusion. No UK image was downloaded. For now the UK untouched stratum does not exist. UK untouched set deferred by the owner on 17 Oct 2026; acquire a fresh sealed UK set only if Taiwan results justify it. Until then no promotion decision for UK label photos."
+    },
+    {
+      "item": "UK development truth for route B",
+      "plan": "section 4: reuse existing reviewed ground truth",
+      "status": "The frozen v2 development review records no servings-per-pack or serving-size line; those fields are not_recorded and unknown in the converted truth and are left out of their denominators (score.NOT_RECORDED). Headers are rebuilt from the cells' header ids and bases."
+    },
+    {
+      "item": "Muesli photo on route B",
+      "plan": "section 3.1: the muesli photo is a route B development case",
+      "status": "Not run: its consent record has local_routes false. Route B runs it only once the owner sets local_routes true after looking at the stripped master."
     }
-  ]
+  ],
+  "route_b": {
+    "adapter": "Tools/NutritionLabelCaptureEvaluation/vision_v3.swift",
+    "adapter_version": "label-capture-vision-v3",
+    "request": "VNRecognizeTextRequest revision 3, recognition level accurate",
+    "recognition_languages": [
+      "zh-Hant",
+      "en-US"
+    ],
+    "recognition_languages_note": "Requested zh-Hant, en-GB and en-US; revision 3 on macOS 27.0.1 (26A434) advertises zh-Hant and en-US but not en-GB, so en-GB is not requested (plan section 2: the identifiers advertised on the run day). en-US is recorded, not represented as British-English support.",
+    "uses_language_correction": true,
+    "language_correction_source": "inherited unchanged from Tools/FoodOCREvaluation/frozen-contract-v1.json (language_correction true)",
+    "serialiser": "Tools/NutritionLabelCaptureEvaluation/serialise_lines.py",
+    "serialiser_version": "label-capture-serialiser-v1",
+    "parser": "NutritionLabelParsing through NutritionLabelTextParse with route B and the image SHA-256 as input_sha256",
+    "binding": "by column header and order within a column: each column is bound at its printed position; a whole-column offset is taken only when it binds every value of that column one-to-one, anchored to the rows a complete neighbouring column binds, or for a column with no complete neighbour the smallest such offset; unbound values are emitted on their own line so the parser declines with a count mismatch; no recognised character is rewritten",
+    "development_runs_only": true,
+    "never_runs_on_sealed_folder": true
+  }
 }

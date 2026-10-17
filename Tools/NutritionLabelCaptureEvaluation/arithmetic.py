@@ -84,7 +84,9 @@ def energy_check(table: dict[str, Any], basis: str) -> dict[str, Any]:
             forms.append(("general", 4 * p + 4 * c + 9 * f))
     else:
         forms.append(("general", 4 * p + 4 * c + 9 * f))
-        if fibre is not None:
+        # The fibre variant is a UK and EU form (carbohydrate excludes fibre there); US
+        # labels use the general form only.
+        if fibre is not None and jurisdiction == "uk":
             forms.append(("uk_fibre", 4 * p + 4 * c + 9 * f + 2 * fibre))
     tolerance = TOLERANCES[jurisdiction]
     allowed = max(tolerance["absolute_kcal"], tolerance["relative"] * kcal)

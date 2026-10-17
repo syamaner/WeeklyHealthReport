@@ -1,6 +1,6 @@
 # Nutrition-label capture evaluation v1
 
-Status: **evaluation plan, approved by the owner, 17 October 2026.** All twelve decisions in section 12 were accepted as recommended, with decision 4 amended to five route C models. Later the same day the owner confirmed there will be **no new owner photos**: the corpus is limited to material the project already has (section 3), which makes decisions 6, 7 and 8 largely moot and narrows what any result can promote (section 3.5). The implementation phases are tracked in #255. Also on 17 October 2026 the owner approved two public Chinese additions (section 3.5): 60 Open Food Facts Taiwan label photos and Taiwan FDA open dataset 188 for synthetic pasted text. This document authorises no product code, no production capture route, no automatic saving and no API call. Route C below adds egress for the evaluation only; any product use of route C needs its own versioned contract, an update to [`privacy-and-egress.md`](privacy-and-egress.md), an update to [`privacy-policy.txt`](privacy-policy.txt) and separate owner approval. Version 1.1 (17 October 2026) records the evaluation framework, Inspect AI, in section 9.3, and the owner decisions on untouched ground truth and refills, with the deviations, in section 9.4.
+Status: **evaluation plan, approved by the owner, 17 October 2026.** All twelve decisions in section 12 were accepted as recommended, with decision 4 amended to five route C models. Later the same day the owner confirmed there will be **no new owner photos**: the corpus is limited to material the project already has (section 3), which makes decisions 6, 7 and 8 largely moot and narrows what any result can promote (section 3.5). The implementation phases are tracked in #255. Also on 17 October 2026 the owner approved two public Chinese additions (section 3.5): 60 Open Food Facts Taiwan label photos and Taiwan FDA open dataset 188 for synthetic pasted text. This document authorises no product code, no production capture route, no automatic saving and no API call. Route C below adds egress for the evaluation only; any product use of route C needs its own versioned contract, an update to [`privacy-and-egress.md`](privacy-and-egress.md), an update to [`privacy-policy.txt`](privacy-policy.txt) and separate owner approval. Version 1.1 (17 October 2026) records the evaluation framework, Inspect AI, in section 9.3, and the owner decisions on untouched ground truth and refills, with the deviations, in section 9.4. Version 1.2 (17 October 2026, phase 2) records route B, the safeguards, the untouched truth drafting and the UK shortfall and deferral in section 9.5.
 
 Related: #93 (printed-panel capture, blocked), #99 (cloud OCR challengers), #91 (handwritten lists, separate problem, not combined here), #86 (epic). Background evidence lives in [`Tools/FoodOCREvaluation/`](../Tools/FoodOCREvaluation/README.md).
 
@@ -176,13 +176,13 @@ These checks **inform but never authorise.** A pass never upgrades a candidate, 
 
 `kcal ≈ 4P + 4C + 9F`
 
-where P, C and F are protein, carbohydrate and fat in grams. For UK and EU labels, where carbohydrate excludes fibre and fibre is printed, the variant `4P + 4C + 9F + 2·fibre` is also evaluated, and the check passes if either form is within tolerance.
+where P, C and F are protein, carbohydrate and fat in grams. For UK and EU labels, where carbohydrate excludes fibre and fibre is printed, the variant `4P + 4C + 9F + 2·fibre` is also evaluated, and the check passes if either form is within tolerance. US labels use the general form only.
 
 **Taiwan,** where carbohydrate includes dietary fibre and fibre counts at 2 kcal/g:
 
 `kcal ≈ 4P + 4(C − fibre) + 2·fibre + 9F`
 
-The muesli label gives exactly: 4 × 11 + 4 × (67 − 12) + 2 × 12 + 9 × 8.8 = 44 + 220 + 24 + 79.2 = **367.2**, the printed value. The general formula would give 391.2 (24 kcal, 6.5% high), which is why the language-specific form is used first.
+The muesli label gives exactly: 4 × 11 + 4 × (67 − 12) + 2 × 12 + 9 × 8.8 = 44 + 220 + 24 + 79.2 = **367.2**, the printed value. The general formula would give 391.2 (24 kcal, 6.5% high), which is why the Taiwan form is the only form used when a fibre row is printed; the general form applies to a Taiwan label only when no fibre row is printed (decision Q1, section 9.4).
 
 **Tolerance (pre-registered, decision 10):** pass when the absolute difference is at most the larger of 15 kcal and 10% of the printed energy for UK and Taiwan; for US labels, where rounding rules round energy to 5 or 10 kcal and grams to whole numbers, the larger of 20 kcal and 20%. When both kJ and kcal are printed, `kJ / kcal` must lie within 4.184 ± 2%.
 
@@ -286,6 +286,16 @@ On the owner's direction the harness is built on **Inspect AI** (`inspect_ai`, p
 - Refill status: orders 4 and 17 are replaced by 61 and 62; untouched refills wait for the decision A drafting.
 - Taiwan FDA dataset 188 rows are used in place of most of the closed-template generator (section 3.1); a small seeded template adds the tags FDA 188 lacks (bounds, 每日參考值百分比, 每100毫升, 本包裝含2.5份). Both are labelled synthetic.
 - With a printed fibre row, the Taiwan energy check uses only the Taiwan form; the general form is used only when no fibre row is printed (section 7 is narrowed accordingly).
+
+### 9.5 Phase 2 note (v1.2, 17 October 2026)
+
+**UK images: shortfall and deferral.** The v1 gate panel images are no longer on disk (only their committed ground truth and raw Vision outputs remain), and the frozen v2 public selection behind the 60 tuning and 40 sealed identities in sections 3.1 and 3.2 was never acquired: no `frozen-selection-v2.json` or candidate inventory exists, and `v2-pregate-plan.md` records that no v2 acceptance corpus was built. Route B's UK development stratum therefore uses the 40 exposed v2 public development review images that are on disk, with their frozen review, and no UK image was downloaded. For now the UK untouched stratum does not exist. **UK untouched set deferred by the owner on 17 Oct 2026; acquire a fresh sealed UK set only if Taiwan results justify it. Until then no promotion decision for UK label photos.** Section 10's UK promotion path is suspended accordingly.
+
+**Route B** is implemented: `vision_v3.swift` (Vision revision 3, accurate, `zh-Hant` and `en-US`, language correction as in the frozen v1 adapter; `en-GB` is not advertised on macOS 27.0.1, so it is not requested), `serialise_lines.py` (geometry to lines, binding by column header and order within a column) and the shared parser through `NutritionLabelTextParse` with route `B`. It ran on development images only; results are in `Tools/NutritionLabelCaptureEvaluation/results/route-b-development-v1.md`. The muesli photo was not run because its consent record has `local_routes` false.
+
+**Safeguards** from the phase 1 review are in place: a missing `finish_reason` fails a route C response; the UK fibre form applies to UK labels only; refill batches are capped at the 5,000,000-byte stop; a model slug rule accepts only the requested slug or its dated snapshot (section 8.1 response check); and one persistent spend ledger outside the repository holds the $25 total and the 200-call sealed reservation across runs, models and the drafting.
+
+**Decision A drafting** ran for the 40 untouched Taiwan photos with Qwen 3.5 (`qwen/qwen3.5-397b-a17b` on `deepinfra/fp8`, ZDR, image input, routed with the route C provider block). This opening is the set's unsealing for truth purposes only; routes A, B and C have still not run on these photos. Drafts are stored outside the repository, are not ground truth until the owner verifies each value against its image, and no route reads them.
 
 ## 10. Promotion and decline
 

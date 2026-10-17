@@ -1,0 +1,1929 @@
+{
+  "overall": {
+    "cases": 59,
+    "failed": 0,
+    "false_declines": 28,
+    "extra_cells": 6,
+    "serving_size": {
+      "exact": 7,
+      "known": 15
+    },
+    "energy_check_informing_only": {
+      "fail": 2,
+      "not_checkable": 50,
+      "pass": 7
+    },
+    "metrics": {
+      "strict_cells": {
+        "numerator": 93,
+        "denominator": 525,
+        "rate": 0.1771,
+        "bar": 0.95,
+        "verdict": "fail"
+      },
+      "binding": {
+        "numerator": 104,
+        "denominator": 563,
+        "rate": 0.1847,
+        "bar": 0.98,
+        "verdict": "fail"
+      },
+      "unit_and_basis": {
+        "numerator": 107,
+        "denominator": 525,
+        "rate": 0.2038,
+        "bar": 1.0,
+        "verdict": "fail"
+      },
+      "full_table": {
+        "numerator": 4,
+        "denominator": 37,
+        "rate": 0.1081,
+        "bar": 0.75,
+        "verdict": "fail"
+      },
+      "serving_conversions": {
+        "numerator": 55,
+        "denominator": 239,
+        "rate": 0.2301,
+        "bar": 0.98,
+        "verdict": "fail"
+      },
+      "servings_per_pack": {
+        "numerator": 7,
+        "denominator": 15,
+        "rate": 0.4667,
+        "bar": 0.98,
+        "verdict": "fail"
+      },
+      "bounds": {
+        "numerator": 0,
+        "denominator": 11,
+        "rate": 0.0,
+        "bar": 1.0,
+        "verdict": "fail"
+      },
+      "correct_decline": {
+        "numerator": 22,
+        "denominator": 22,
+        "rate": 1.0,
+        "bar": 0.95,
+        "verdict": "pass"
+      },
+      "false_ready": {
+        "count": 2,
+        "denominator": 59,
+        "bar": "<= 0",
+        "verdict": "fail"
+      },
+      "automatic_persistence": {
+        "count": 0,
+        "verdict": "pass"
+      }
+    }
+  },
+  "by_stratum": {
+    "taiwan_zh_hant": {
+      "cases": 20,
+      "failed": 0,
+      "false_declines": 8,
+      "extra_cells": 2,
+      "serving_size": {
+        "exact": 7,
+        "known": 15
+      },
+      "energy_check_informing_only": {
+        "fail": 1,
+        "not_checkable": 13,
+        "pass": 6
+      },
+      "metrics": {
+        "strict_cells": {
+          "numerator": 84,
+          "denominator": 214,
+          "rate": 0.3925,
+          "bar": 0.95,
+          "verdict": "fail"
+        },
+        "binding": {
+          "numerator": 95,
+          "denominator": 238,
+          "rate": 0.3992,
+          "bar": 0.98,
+          "verdict": "fail"
+        },
+        "unit_and_basis": {
+          "numerator": 94,
+          "denominator": 214,
+          "rate": 0.4393,
+          "bar": 1.0,
+          "verdict": "fail"
+        },
+        "full_table": {
+          "numerator": 3,
+          "denominator": 15,
+          "rate": 0.2,
+          "bar": 0.75,
+          "verdict": "fail"
+        },
+        "serving_conversions": {
+          "numerator": 55,
+          "denominator": 123,
+          "rate": 0.4472,
+          "bar": 0.98,
+          "verdict": "fail"
+        },
+        "servings_per_pack": {
+          "numerator": 7,
+          "denominator": 15,
+          "rate": 0.4667,
+          "bar": 0.98,
+          "verdict": "fail"
+        },
+        "bounds": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "bar": 1.0,
+          "verdict": "no_denominator"
+        },
+        "correct_decline": {
+          "numerator": 5,
+          "denominator": 5,
+          "rate": 1.0,
+          "bar": 0.95,
+          "verdict": "pass"
+        },
+        "false_ready": {
+          "count": 2,
+          "denominator": 20,
+          "bar": "<= 0",
+          "verdict": "fail"
+        },
+        "automatic_persistence": {
+          "count": 0,
+          "verdict": "pass"
+        },
+        "arithmetic_mutation_detection": {
+          "numerator": 20,
+          "denominator": 21,
+          "verdict": "fail"
+        }
+      },
+      "decline_reasons": {
+        "count_mismatch": 5,
+        "multiple_panels": 1,
+        "no_basis_header": 1,
+        "unsupported_language": 3,
+        "value_without_unit": 2,
+        "values_without_row": 1
+      }
+    },
+    "uk_en": {
+      "cases": 39,
+      "failed": 0,
+      "false_declines": 20,
+      "extra_cells": 4,
+      "serving_size": {
+        "exact": 0,
+        "known": 0
+      },
+      "energy_check_informing_only": {
+        "fail": 1,
+        "not_checkable": 37,
+        "pass": 1
+      },
+      "metrics": {
+        "strict_cells": {
+          "numerator": 9,
+          "denominator": 311,
+          "rate": 0.0289,
+          "bar": 0.95,
+          "verdict": "fail"
+        },
+        "binding": {
+          "numerator": 9,
+          "denominator": 325,
+          "rate": 0.0277,
+          "bar": 0.98,
+          "verdict": "fail"
+        },
+        "unit_and_basis": {
+          "numerator": 13,
+          "denominator": 311,
+          "rate": 0.0418,
+          "bar": 1.0,
+          "verdict": "fail"
+        },
+        "full_table": {
+          "numerator": 1,
+          "denominator": 22,
+          "rate": 0.0455,
+          "bar": 0.75,
+          "verdict": "fail"
+        },
+        "serving_conversions": {
+          "numerator": 0,
+          "denominator": 116,
+          "rate": 0.0,
+          "bar": 0.98,
+          "verdict": "fail"
+        },
+        "servings_per_pack": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "bar": 0.98,
+          "verdict": "no_denominator"
+        },
+        "bounds": {
+          "numerator": 0,
+          "denominator": 11,
+          "rate": 0.0,
+          "bar": 1.0,
+          "verdict": "fail"
+        },
+        "correct_decline": {
+          "numerator": 17,
+          "denominator": 17,
+          "rate": 1.0,
+          "bar": 0.95,
+          "verdict": "pass"
+        },
+        "false_ready": {
+          "count": 0,
+          "denominator": 39,
+          "bar": "<= 0",
+          "verdict": "pass"
+        },
+        "automatic_persistence": {
+          "count": 0,
+          "verdict": "pass"
+        },
+        "arithmetic_mutation_detection": {
+          "numerator": 10,
+          "denominator": 13,
+          "verdict": "fail"
+        }
+      },
+      "decline_reasons": {
+        "count_mismatch": 12,
+        "duplicate_basis": 1,
+        "energy_without_unit": 1,
+        "multiple_panels": 3,
+        "no_basis_header": 5,
+        "unrecognised_unit": 3,
+        "unsupported_language": 2,
+        "value_without_unit": 6,
+        "values_without_row": 4
+      }
+    }
+  },
+  "route": "B",
+  "split": "development",
+  "inspect_log": "2026-10-17T01-35-26-00-00_label-capture-route-b-development_5xGSrs6NVnPdGEqvsnfV3w.eval",
+  "vision": {
+    "adapter_version": "label-capture-vision-v3",
+    "request_revision": 3,
+    "recognition_languages": [
+      "zh-Hant",
+      "en-US"
+    ],
+    "uses_language_correction": true,
+    "operating_system": "Version 27.0.1 (Build 26A434)"
+  },
+  "serialiser_version": "label-capture-serialiser-v1",
+  "parser_version": "nutrition-label-text-parser-v1",
+  "cases": 59,
+  "notes": {
+    "taiwan_excluded": [
+      {
+        "order": 4,
+        "barcode13": "7394376619779",
+        "reason": "English-only label, not a 營養標示 panel (first-pass review 17 October 2026)"
+      },
+      {
+        "order": 17,
+        "barcode13": "9413000044508",
+        "reason": "English-only label, not a 營養標示 panel (first-pass review 17 October 2026)"
+      }
+    ],
+    "uk_excluded": [
+      {
+        "id": "off:5000382112303:nutrition_en.5",
+        "reason": "excluded by the owner in the v2 development review"
+      }
+    ],
+    "muesli": "not run: the owner photo has no local_routes consent"
+  },
+  "per_case": [
+    {
+      "id": "off-taiwan:4710018149108:nutrition_zh.8",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "unsupported_language"
+      ],
+      "cells_exact": 0,
+      "product_cells": 8,
+      "cells_bound": 0,
+      "all_cells": 14,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 8,
+        "columns": 1,
+        "values": 14,
+        "unbound_values": 8,
+        "column_shift_in_rows": [
+          -0.03
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off-taiwan:0000080177425:nutrition_zh.24",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": false,
+      "decline_reasons": [],
+      "cells_exact": 8,
+      "product_cells": 8,
+      "cells_bound": 14,
+      "all_cells": 14,
+      "extra_cells": 0,
+      "table_exact": 1,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 14,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          -0.13,
+          -0.23
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off-taiwan:4710228034096:nutrition_zh.7",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 7,
+        "columns": 2,
+        "values": 15,
+        "unbound_values": 3,
+        "column_shift_in_rows": [
+          0.31,
+          0.14
+        ],
+        "skew": -0.04
+      }
+    },
+    {
+      "id": "off-taiwan:4713072173096:nutrition_zh.13",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": false,
+      "decline_reasons": [],
+      "cells_exact": 16,
+      "product_cells": 16,
+      "cells_bound": 16,
+      "all_cells": 16,
+      "extra_cells": 0,
+      "table_exact": 1,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 16,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          0.05,
+          0.03
+        ],
+        "skew": -0.0003
+      }
+    },
+    {
+      "id": "off-taiwan:4711507304374:nutrition_zh.8",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 16,
+      "cells_bound": 0,
+      "all_cells": 16,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 7,
+        "columns": 2,
+        "values": 16,
+        "unbound_values": 2,
+        "column_shift_in_rows": [
+          0.09,
+          -0.05
+        ],
+        "skew": 0.0138
+      }
+    },
+    {
+      "id": "off-taiwan:6948716289811:nutrition_zh.17",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "values_without_row"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 0,
+        "columns": 1,
+        "values": 5,
+        "unbound_values": 5,
+        "column_shift_in_rows": [
+          0.0
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off-taiwan:4022679134738:nutrition_zh.11",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "no_basis_header"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 1,
+        "columns": 1,
+        "values": 32,
+        "unbound_values": 31,
+        "column_shift_in_rows": [
+          0.0
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off-taiwan:6922054148481:nutrition_zh.9",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "unsupported_language"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 6,
+        "columns": 1,
+        "values": 10,
+        "unbound_values": 5,
+        "column_shift_in_rows": [
+          -0.08
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off-taiwan:4713011031036:nutrition_zh.8",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": false,
+      "decline_reasons": [],
+      "cells_exact": 14,
+      "product_cells": 16,
+      "cells_bound": 14,
+      "all_cells": 16,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 16,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          -0.04,
+          -0.11
+        ],
+        "skew": 0.027
+      }
+    },
+    {
+      "id": "off-taiwan:4710018175107:nutrition_zh.10",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": false,
+      "decline_reasons": [],
+      "cells_exact": 8,
+      "product_cells": 8,
+      "cells_bound": 13,
+      "all_cells": 14,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 1,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 13,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          0.04,
+          -0.04
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off-taiwan:0848570012982:nutrition_zh.5",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 8,
+      "cells_bound": 0,
+      "all_cells": 14,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 8,
+        "columns": 1,
+        "values": 15,
+        "unbound_values": 8,
+        "column_shift_in_rows": [
+          0.1
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off-taiwan:4710090070222:nutrition_zh.17",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": false,
+      "decline_reasons": [],
+      "cells_exact": 7,
+      "product_cells": 16,
+      "cells_bound": 7,
+      "all_cells": 16,
+      "extra_cells": 2,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 16,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          0.27,
+          0.25
+        ],
+        "skew": -0.0215
+      }
+    },
+    {
+      "id": "off-taiwan:4901104850231:nutrition_zh.8",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 16,
+      "cells_bound": 0,
+      "all_cells": 16,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 11,
+        "unbound_values": 1,
+        "column_shift_in_rows": [
+          0.33,
+          0.27
+        ],
+        "skew": -0.0005
+      }
+    },
+    {
+      "id": "off-taiwan:4710866002600:nutrition_zh.9",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "value_without_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 16,
+      "cells_bound": 0,
+      "all_cells": 16,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 7,
+        "columns": 2,
+        "values": 16,
+        "unbound_values": 2,
+        "column_shift_in_rows": [
+          0.15,
+          0.12
+        ],
+        "skew": -0.0274
+      }
+    },
+    {
+      "id": "off-taiwan:1490274741355:nutrition_zh.11",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": false,
+      "decline_reasons": [],
+      "cells_exact": 15,
+      "product_cells": 16,
+      "cells_bound": 15,
+      "all_cells": 16,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 1,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 16,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          -0.01,
+          0.09
+        ],
+        "skew": -0.0078
+      }
+    },
+    {
+      "id": "off-taiwan:2030428734117:nutrition_zh.5",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": false,
+      "decline_reasons": [],
+      "cells_exact": 16,
+      "product_cells": 16,
+      "cells_bound": 16,
+      "all_cells": 16,
+      "extra_cells": 0,
+      "table_exact": 1,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 16,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          -0.01,
+          -0.02
+        ],
+        "skew": 0.0116
+      }
+    },
+    {
+      "id": "off-taiwan:8850425001319:nutrition_zh.8",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "multiple_panels"
+      ],
+      "cells_exact": 0,
+      "product_cells": 16,
+      "cells_bound": 0,
+      "all_cells": 16,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 16,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          -0.04,
+          -0.04
+        ],
+        "skew": 0.0122
+      }
+    },
+    {
+      "id": "off-taiwan:4710088435767:nutrition_zh.6",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "unsupported_language"
+      ],
+      "cells_exact": 0,
+      "product_cells": 22,
+      "cells_bound": 0,
+      "all_cells": 22,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 11,
+        "columns": 2,
+        "values": 21,
+        "unbound_values": 2,
+        "column_shift_in_rows": [
+          0.04,
+          0.03
+        ],
+        "skew": -0.0307
+      }
+    },
+    {
+      "id": "off-taiwan:0022000035011:nutrition_zh.6",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "value_without_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 9,
+        "columns": 1,
+        "values": 4,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          -0.02
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off-taiwan:4711518003037:nutrition_zh.10",
+      "stratum": "taiwan_zh_hant",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 16,
+      "cells_bound": 0,
+      "all_cells": 16,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 7,
+        "columns": 2,
+        "values": 16,
+        "unbound_values": 2,
+        "column_shift_in_rows": [
+          -0.08,
+          -0.02
+        ],
+        "skew": 0.0141
+      }
+    },
+    {
+      "id": "off:5060131761954:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 7,
+        "columns": 2,
+        "values": 23,
+        "unbound_values": 9,
+        "column_shift_in_rows": [
+          0.07,
+          -0.07
+        ],
+        "skew": 0.0099
+      }
+    },
+    {
+      "id": "off:5000187132315:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 16,
+      "cells_bound": 0,
+      "all_cells": 16,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 7,
+        "columns": 2,
+        "values": 10,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          0.0,
+          0.31
+        ],
+        "skew": -0.1678
+      }
+    },
+    {
+      "id": "off:5057172728022:nutrition_en.15",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "duplicate_basis"
+      ],
+      "cells_exact": 0,
+      "product_cells": 18,
+      "cells_bound": 0,
+      "all_cells": 18,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 10,
+        "columns": 2,
+        "values": 20,
+        "unbound_values": 1,
+        "column_shift_in_rows": [
+          0.16,
+          0.2
+        ],
+        "skew": -0.0308
+      }
+    },
+    {
+      "id": "off:5060201623175:nutrition_en.8",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 13,
+        "columns": 2,
+        "values": 8,
+        "unbound_values": 2,
+        "column_shift_in_rows": [
+          -0.24,
+          0.13
+        ],
+        "skew": 0.0486
+      }
+    },
+    {
+      "id": "off:5060276371216:nutrition_en.9",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "values_without_row"
+      ],
+      "cells_exact": 0,
+      "product_cells": 10,
+      "cells_bound": 0,
+      "all_cells": 10,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 0,
+        "columns": 1,
+        "values": 12,
+        "unbound_values": 12,
+        "column_shift_in_rows": [
+          0.0
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5060665750608:nutrition_en.7",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "values_without_row"
+      ],
+      "cells_exact": 0,
+      "product_cells": 8,
+      "cells_bound": 0,
+      "all_cells": 8,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 12,
+        "columns": 1,
+        "values": 6,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          0.65
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5060323902912:nutrition_en.18",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "no_basis_header"
+      ],
+      "cells_exact": 0,
+      "product_cells": 10,
+      "cells_bound": 0,
+      "all_cells": 10,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 0,
+        "labels": 12,
+        "columns": 1,
+        "values": 10,
+        "unbound_values": 2,
+        "column_shift_in_rows": [
+          0.11
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5057172706181:nutrition_fr.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "value_without_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 18,
+      "cells_bound": 0,
+      "all_cells": 18,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 9,
+        "columns": 2,
+        "values": 26,
+        "unbound_values": 8,
+        "column_shift_in_rows": [
+          -0.02,
+          -0.03
+        ],
+        "skew": 0.01
+      }
+    },
+    {
+      "id": "off:5000453123795:nutrition_en.7",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "value_without_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 8,
+        "columns": 1,
+        "values": 7,
+        "unbound_values": 2,
+        "column_shift_in_rows": [
+          0.05
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5060413823295:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": false,
+      "decline_reasons": [],
+      "cells_exact": 1,
+      "product_cells": 9,
+      "cells_bound": 1,
+      "all_cells": 9,
+      "extra_cells": 4,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 11,
+        "columns": 1,
+        "values": 9,
+        "unbound_values": 1,
+        "column_shift_in_rows": [
+          -0.01
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5012389900142:nutrition_en.3",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 8,
+      "cells_bound": 0,
+      "all_cells": 8,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 2,
+        "columns": 0,
+        "values": 0,
+        "unbound_values": 0,
+        "column_shift_in_rows": [],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5057172859696:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "value_without_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 20,
+      "cells_bound": 0,
+      "all_cells": 20,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 11,
+        "columns": 2,
+        "values": 22,
+        "unbound_values": 5,
+        "column_shift_in_rows": [
+          0.26,
+          0.1
+        ],
+        "skew": -0.0
+      }
+    },
+    {
+      "id": "off:5056555202760:nutrition_en.7",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 15,
+        "columns": 1,
+        "values": 18,
+        "unbound_values": 10,
+        "column_shift_in_rows": [
+          0.21
+        ],
+        "skew": -0.0666
+      }
+    },
+    {
+      "id": "off:5015696447201:nutrition_en.9",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 15,
+        "columns": 2,
+        "values": 24,
+        "unbound_values": 4,
+        "column_shift_in_rows": [
+          -0.15,
+          -0.3
+        ],
+        "skew": 0.0052
+      }
+    },
+    {
+      "id": "off:5057172978809:nutrition_en.10",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 1,
+        "columns": 0,
+        "values": 0,
+        "unbound_values": 0,
+        "column_shift_in_rows": [],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5051622956027:nutrition_es.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "multiple_panels"
+      ],
+      "cells_exact": 0,
+      "product_cells": 9,
+      "cells_bound": 0,
+      "all_cells": 9,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 9,
+        "columns": 1,
+        "values": 11,
+        "unbound_values": 3,
+        "column_shift_in_rows": [
+          0.0
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5060026822371:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "value_without_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 10,
+        "columns": 1,
+        "values": 10,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          0.06
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5010102243446:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "values_without_row"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 0,
+        "columns": 1,
+        "values": 5,
+        "unbound_values": 5,
+        "column_shift_in_rows": [
+          0.0
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5053990185917:nutrition_en.9",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "no_basis_header"
+      ],
+      "cells_exact": 0,
+      "product_cells": 18,
+      "cells_bound": 0,
+      "all_cells": 25,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 8,
+        "columns": 1,
+        "values": 25,
+        "unbound_values": 17,
+        "column_shift_in_rows": [
+          0.09
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5029396002509:nutrition_en.11",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "no_basis_header"
+      ],
+      "cells_exact": 0,
+      "product_cells": 8,
+      "cells_bound": 0,
+      "all_cells": 8,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 0,
+        "labels": 8,
+        "columns": 1,
+        "values": 2,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          -0.83
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5010102243842:nutrition_fr.18",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 5,
+        "columns": 2,
+        "values": 8,
+        "unbound_values": 4,
+        "column_shift_in_rows": [
+          -0.18,
+          0.13
+        ],
+        "skew": -0.0301
+      }
+    },
+    {
+      "id": "off:5057624572234:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "multiple_panels"
+      ],
+      "cells_exact": 0,
+      "product_cells": 18,
+      "cells_bound": 0,
+      "all_cells": 25,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 25,
+        "unbound_values": 8,
+        "column_shift_in_rows": [
+          0.03,
+          0.07
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5010482793302:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "value_without_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 18,
+      "cells_bound": 0,
+      "all_cells": 18,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 19,
+        "columns": 2,
+        "values": 14,
+        "unbound_values": 2,
+        "column_shift_in_rows": [
+          0.64,
+          -0.19
+        ],
+        "skew": -0.1032
+      }
+    },
+    {
+      "id": "off:5000205045986:nutrition_en.7",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "no_basis_header"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 21,
+        "columns": 2,
+        "values": 25,
+        "unbound_values": 16,
+        "column_shift_in_rows": [
+          0.0,
+          0.0
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5056169112905:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 9,
+        "columns": 1,
+        "values": 20,
+        "unbound_values": 11,
+        "column_shift_in_rows": [
+          0.08
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5010292978418:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "unsupported_language"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 0,
+        "labels": 0,
+        "columns": 3,
+        "values": 4,
+        "unbound_values": 4,
+        "column_shift_in_rows": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5031396074394:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "unrecognised_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 9,
+      "cells_bound": 0,
+      "all_cells": 9,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 8,
+        "columns": 1,
+        "values": 5,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          0.42
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5000157071620:nutrition_en.7",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 3,
+        "labels": 8,
+        "columns": 3,
+        "values": 21,
+        "unbound_values": 2,
+        "column_shift_in_rows": [
+          -0.33,
+          0.22,
+          0.11
+        ],
+        "skew": 0.1189
+      }
+    },
+    {
+      "id": "off:5000157078773:nutrition_en.45",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "values_without_row"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 0,
+        "labels": 0,
+        "columns": 1,
+        "values": 1,
+        "unbound_values": 1,
+        "column_shift_in_rows": [
+          0.0
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5060380692207:nutrition_en.3",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "unsupported_language"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 0,
+        "labels": 0,
+        "columns": 3,
+        "values": 3,
+        "unbound_values": 3,
+        "column_shift_in_rows": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5065004177016:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "unrecognised_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 18,
+      "cells_bound": 0,
+      "all_cells": 18,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 9,
+        "columns": 2,
+        "values": 14,
+        "unbound_values": 1,
+        "column_shift_in_rows": [
+          -0.03,
+          -0.99
+        ],
+        "skew": -0.0013
+      }
+    },
+    {
+      "id": "off:5060011955695:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "energy_without_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 18,
+      "cells_bound": 0,
+      "all_cells": 18,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 9,
+        "columns": 2,
+        "values": 16,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          0.12,
+          0.19
+        ],
+        "skew": -0.0846
+      }
+    },
+    {
+      "id": "off:5014234085769:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "multiple_panels"
+      ],
+      "cells_exact": 0,
+      "product_cells": 18,
+      "cells_bound": 0,
+      "all_cells": 18,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 16,
+        "unbound_values": 1,
+        "column_shift_in_rows": [
+          -0.01,
+          -0.12
+        ],
+        "skew": 0.0554
+      }
+    },
+    {
+      "id": "off:5052909355021:nutrition_en.9",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "no_basis_header"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 0,
+        "labels": 1,
+        "columns": 2,
+        "values": 5,
+        "unbound_values": 4,
+        "column_shift_in_rows": [
+          0.0,
+          0.0
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5063089832110:nutrition_en.11",
+      "stratum": "uk_en",
+      "requires_decline": true,
+      "declined": true,
+      "decline_reasons": [
+        "value_without_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 0,
+      "cells_bound": 0,
+      "all_cells": 0,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 22,
+        "columns": 1,
+        "values": 18,
+        "unbound_values": 6,
+        "column_shift_in_rows": [
+          0.01
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5060292125237:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 16,
+      "cells_bound": 0,
+      "all_cells": 16,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 8,
+        "columns": 2,
+        "values": 5,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          -0.27,
+          0.0
+        ],
+        "skew": 0.0598
+      }
+    },
+    {
+      "id": "off:5010251767503:nutrition_en.7",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "count_mismatch"
+      ],
+      "cells_exact": 0,
+      "product_cells": 18,
+      "cells_bound": 0,
+      "all_cells": 18,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 14,
+        "columns": 2,
+        "values": 31,
+        "unbound_values": 6,
+        "column_shift_in_rows": [
+          -0.08,
+          -0.09
+        ],
+        "skew": 0.0165
+      }
+    },
+    {
+      "id": "off:5010251686477:nutrition_en.5",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": false,
+      "decline_reasons": [],
+      "cells_exact": 8,
+      "product_cells": 8,
+      "cells_bound": 8,
+      "all_cells": 8,
+      "extra_cells": 0,
+      "table_exact": 1,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 8,
+        "columns": 1,
+        "values": 8,
+        "unbound_values": 0,
+        "column_shift_in_rows": [
+          0.89
+        ],
+        "skew": 0.0
+      }
+    },
+    {
+      "id": "off:5000232893314:nutrition_en.10",
+      "stratum": "uk_en",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "unrecognised_unit"
+      ],
+      "cells_exact": 0,
+      "product_cells": 18,
+      "cells_bound": 0,
+      "all_cells": 18,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 1,
+        "labels": 8,
+        "columns": 1,
+        "values": 18,
+        "unbound_values": 9,
+        "column_shift_in_rows": [
+          0.08
+        ],
+        "skew": 0.0
+      }
+    }
+  ]
+}

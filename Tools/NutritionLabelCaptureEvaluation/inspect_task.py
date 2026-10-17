@@ -6,7 +6,8 @@ licence). Solvers differ per route; the scorer and metrics are the same for ever
 route and call the pure functions in `score.py` and `arithmetic.py`.
 
 - Route A: `route_a_parser` runs the Swift parser through its CLI wrapper.
-- Route B: `route_b_vision` is a reserved slot for the Vision CLI (later phase).
+- Route B: `route_b_vision` runs the Vision CLI (`vision_v3.swift`), the geometry
+  serialiser (`serialise_lines.py`) and the same Swift parser; development images only.
 - Route C: `route_c_openrouter` is defined but disabled in phase 1; it makes no call
   unless explicitly enabled, the consent check passes and the spend guard allows it.
 """
@@ -34,6 +35,7 @@ sys.path.insert(0, str(HERE))
 import cases as case_loading  # noqa: E402
 import openrouter_route  # noqa: E402
 import score as scoring  # noqa: E402
+import serialise_lines  # noqa: E402
 from budget import RunBudget  # noqa: E402
 from openrouter_route import RouteCModel  # noqa: E402
 
@@ -84,12 +86,71 @@ def route_a_parser(binary: str) -> Solver:
     return solve
 
 
+async def _run_json(binary: Path, payload: Any, what: str) -> Any:
+    process = await asyncio.create_subprocess_exec(
+        str(binary), stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await process.communicate(json.dumps(payload).encode("utf-8"))
+    if process.returncode != 0:
+        raise RuntimeError(f"{what} failed: {stderr.decode(errors='replace')}")
+    return json.loads(stdout)
+
+
+def route_b_input_allowed(metadata: dict[str, Any]) -> None:
+    """Route B runs on development images only in this phase; never on a sealed folder."""
+    path = Path(str(metadata.get("image_path", "")))
+    if metadata.get("split") != "development" or "sealed" in path.parts:
+        raise case_loading.SealedSetError("route B may run on development images only")
+    if metadata.get("corpus") == "owner" and metadata.get("consent_local_routes") is not True:
+        raise PermissionError("the owner photo has no local_routes consent")
+
+
 @solver
-def route_b_vision(binary: str | None = None) -> Solver:
-    """Route B slot: Vision (zh-Hant + en) then the serialiser and the same parser (later phase)."""
+def route_b_vision(vision_binary: str | None = None, parser_binary: str | None = None) -> Solver:
+    """Route B: Apple Vision (zh-Hant + en) through `vision_v3`, the serialiser, then the same parser as A.
+
+    No network. The recognised lines stay in the Inspect log outside the repository; the
+    scored candidate carries the image hash as its `input_sha256`.
+    """
 
     async def solve(state: TaskState, generate: Generate) -> TaskState:
-        raise NotImplementedError("route B is not implemented in phase 1")
+        if vision_binary is None or parser_binary is None:
+            raise ValueError("route B needs the vision_v3 and NutritionLabelTextParse binaries")
+        if state.metadata.get("input_kind") != "image":
+            raise ValueError("route B only takes images")
+        route_b_input_allowed(state.metadata)
+        recognised = await _run_json(Path(vision_binary), [{"id": str(state.sample_id), "path": state.metadata["image_path"]}], "vision")
+        (image,) = recognised["results"]
+        if image.get("error"):
+            raise RuntimeError(f"vision failed for {state.sample_id}: {image['error']}")
+        if image["image_sha256"] != state.metadata["sha256"]:
+            raise ValueError(f"{state.sample_id} bytes do not match the recorded hash")
+        serialised = serialise_lines.serialise(image)
+        (parsed,) = await _run_json(
+            Path(parser_binary),
+            [{"id": str(state.sample_id), "text": serialised["text"], "route": "B", "input_sha256": image["image_sha256"]}],
+            "parser",
+        )
+        state.metadata.update(
+            {
+                "parser_version": parsed["parser_version"],
+                "vision": {
+                    k: recognised[k]
+                    for k in (
+                        "adapter_version",
+                        "request_revision",
+                        "recognition_languages",
+                        "uses_language_correction",
+                        "operating_system",
+                    )
+                },
+                "serialiser_version": serialised["serialiser_version"],
+                "serialiser_report": serialised["report"],
+                "serialised_text": serialised["text"],
+            }
+        )
+        state.output = ModelOutput.from_content(model="route-b-vision", content=json.dumps(parsed["candidate"], ensure_ascii=False))
+        return state
 
     return solve
 
@@ -294,6 +355,21 @@ def label_capture_development_text(parser_binary: str, dataset: str = str(DEVELO
         scorer=label_capture_scorer(),
         epochs=epochs,
         name="label_capture_route_a_development",
+    )
+
+
+@task
+def label_capture_development_photos(cases_file: str, vision_binary: str, parser_binary: str) -> Task:
+    """Route B on development photos; `cases_file` is a JSON list built by `run_route_b.py`."""
+    loaded = json.loads(Path(cases_file).read_text(encoding="utf-8"))
+    for case in loaded:
+        if case["metadata"].get("split") != "development":
+            raise case_loading.SealedSetError(f"{case['id']} is not a development case")
+    return Task(
+        dataset=MemoryDataset([to_sample(c) for c in loaded], name="development-photos-v1"),
+        solver=route_b_vision(vision_binary, parser_binary),
+        scorer=label_capture_scorer(),
+        name="label_capture_route_b_development",
     )
 
 
