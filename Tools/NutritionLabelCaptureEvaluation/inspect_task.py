@@ -18,10 +18,12 @@ import asyncio
 import base64
 import json
 import sys
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.event import ModelEvent
@@ -36,6 +38,7 @@ sys.path.insert(0, str(HERE))
 
 import cases as case_loading  # noqa: E402
 import openrouter_route  # noqa: E402
+import route_c_mapping  # noqa: E402
 import score as scoring  # noqa: E402
 import serialise_lines  # noqa: E402
 from budget import LedgerBudget  # noqa: E402
@@ -240,19 +243,39 @@ def route_c_openrouter(budget: LedgerBudget, enabled: bool = False, target: Rout
             raise RuntimeError(f"credential-like extra_headers configured for route C: {configured}")
         guard.before_call(target.label)
         wire = json.loads(ROUTE_C_WIRE_SCHEMA.read_text(encoding="utf-8"))
-        # One request, no tool loop, no retries, 4096 output tokens, 90 s timeout, strict schema.
-        state = await generate(
-            state,
-            tool_calls="none",
-            max_tokens=4096,
-            timeout=90,
-            max_retries=0,
-            response_schema=ResponseSchema(name="label_image_extraction_v1", json_schema=JSONSchema.model_validate(wire), strict=True),
-        )
+        # One request, no tool loop, no retries, 4096 output tokens, strict schema. `timeout`
+        # bounds the HTTP request and `attempt_timeout` is the 90 s wall-clock deadline for
+        # the whole call (phase 2 found a socket timeout alone let a call run past 90 s).
+        # Anthropic prompt-cache markers stay off so every model gets the same request.
+        started = time.monotonic()
+        error: str | None = None
+        try:
+            state = await generate(
+                state,
+                tool_calls="none",
+                max_tokens=4096,
+                timeout=90,
+                attempt_timeout=90,
+                max_retries=0,
+                cache_prompt=False,
+                reasoning_effort=target.reasoning_effort,  # type: ignore[arg-type]
+                # A description must be set: Inspect otherwise sends `"description": null`, and on
+                # 17 October 2026 OpenRouter (Luna on Azure) then answered outside the strict schema.
+                response_schema=ResponseSchema(
+                    name="label_image_extraction_v1",
+                    description="The nutrition table printed in the image, transcribed as printed.",
+                    json_schema=JSONSchema.model_validate(wire),
+                    strict=True,
+                ),
+            )
+        except Exception as failure:  # an HTTP error, timeout or refusal is a failed case, never a crash
+            error = f"{type(failure).__name__}: {str(failure)[:300]}"
+        latency = time.monotonic() - started
         raw = _last_raw_response()
+        cost = openrouter_route.reported_cost(raw)
         guard.record_call(
             target.label,
-            openrouter_route.reported_cost(raw),
+            cost,
             purpose="route_c_sealed" if guard.sealed_run else "route_c_development",
             case_id=str(state.sample_id),
             at=datetime.now(UTC).isoformat(timespec="seconds"),
@@ -263,10 +286,35 @@ def route_c_openrouter(budget: LedgerBudget, enabled: bool = False, target: Rout
         leaked = openrouter_route.logged_request_credentials(_last_logged_request())
         if leaked:
             raise RuntimeError(f"credential-like headers in the logged request: {leaked}; delete this .eval log")
-        problems = openrouter_route.route_mismatches(raw, target)
-        if problems:
+        raw_usage = raw.get("usage") if isinstance(raw, dict) else None
+        usage: dict[str, Any] = raw_usage if isinstance(raw_usage, dict) else {}
+        state.metadata["route_c"] = {
+            "model_label": target.label,
+            "cost_usd": None if cost is None else str(cost),
+            "latency_seconds": round(latency, 3),
+            "returned_model": raw.get("model") if isinstance(raw, dict) else None,
+            "returned_provider": raw.get("provider") if isinstance(raw, dict) else None,
+            "prompt_tokens": usage.get("prompt_tokens"),
+            "completion_tokens": usage.get("completion_tokens"),
+        }
+        problems = [error] if error else openrouter_route.route_mismatches(raw, target)
+        candidate = None
+        if not problems:
+            try:
+                parsed = json.loads(state.output.completion)
+                # Strict output is requested, but the answer is checked here too: a
+                # schema-invalid answer is failed (plan section 6), never mapped.
+                jsonschema.validate(parsed, wire)
+                candidate = route_c_mapping.map_wire(parsed, str(state.metadata["sha256"]))
+            except jsonschema.ValidationError as failure:
+                problems = [f"schema-invalid output: {failure.message[:160]}"]
+            except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as failure:
+                problems = [f"content is not schema JSON: {type(failure).__name__}"]
+        if problems or candidate is None:
             state.metadata["route_c_failed"] = problems
             state.output = ModelOutput.from_content(model=target.model, content="")
+        else:
+            state.output = ModelOutput.from_content(model=target.model, content=json.dumps(candidate, ensure_ascii=False))
         return state
 
     return solve
@@ -463,14 +511,21 @@ def label_capture_development_photos(cases_file: str, vision_binary: str, parser
 
 @task
 def label_capture_route_c_development(
-    cases_file: str, ledger: str, model: str, endpoint: str, provider_name: str, label: str, enabled: bool = False
+    cases_file: str,
+    ledger: str,
+    model: str,
+    endpoint: str,
+    provider_name: str,
+    label: str,
+    enabled: bool = False,
+    reasoning_effort: str | None = None,
 ) -> Task:
     """Route C on development photos; run only through `run_route_c.py` (log directory and image logging rules)."""
     loaded = json.loads(Path(cases_file).read_text(encoding="utf-8"))
     for case in loaded:
-        if case["metadata"].get("split") != "development":
+        if case["metadata"].get("split") != "development" or "sealed" in Path(str(case["input"].get("path", ""))).parts:
             raise case_loading.SealedSetError(f"{case['id']} is not a development case")
-    target = RouteCModel(label=label, model=model, endpoint=endpoint, provider_name=provider_name)
+    target = RouteCModel(label=label, model=model, endpoint=endpoint, provider_name=provider_name, reasoning_effort=reasoning_effort)
     return Task(
         dataset=MemoryDataset([to_sample(c) for c in loaded], name="development-photos-route-c-v1"),
         solver=route_c_openrouter(LedgerBudget(Path(ledger)), enabled=enabled, target=target),

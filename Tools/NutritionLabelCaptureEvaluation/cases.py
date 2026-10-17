@@ -253,5 +253,7 @@ def load_owner_photo(master: Path, consent_path: Path, truth: dict[str, Any], co
             "sha256": expected,
             "coverage_tags": ["zh_hant", "column_offset", "two_column_serving_and_100"],
             "consent_local_routes": True,
+            # Route C reads this flag and refuses the photo unless it is exactly true.
+            "consent_send_to_openrouter": consent.get("send_to_openrouter") is True,
         },
     }

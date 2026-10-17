@@ -1,5 +1,5 @@
 {
-  "$comment": "label-image-wire-schema-v1 DRAFT (phase 1, not frozen, never sent). Designed with no union-bearing parameters (limit 16): absent values use the explicit string unknown instead of null. The harness maps it to label-capture-candidate-v1.",
+  "$comment": "label-image-wire-schema-v1 (route C, development). Designed with no union-bearing parameters (limit 16): absent values use the explicit string unknown instead of null. The harness maps it to label-capture-candidate-v1.",
   "type": "object",
   "additionalProperties": false,
   "required": ["declined", "decline_reasons", "language", "serving_size_text", "servings_per_pack_text", "headers", "rows"],

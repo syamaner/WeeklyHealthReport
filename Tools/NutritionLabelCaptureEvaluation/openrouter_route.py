@@ -26,6 +26,8 @@ class RouteCModel:
     endpoint: str
     # The provider name OpenRouter returns for that endpoint, recorded from the catalogue on the run day.
     provider_name: str
+    # OpenRouter reasoning effort, mirroring the app's route where one exists; None leaves the provider default.
+    reasoning_effort: str | None = None
 
 
 def provider_block(endpoint: str) -> dict[str, Any]:
@@ -40,8 +42,8 @@ def provider_block(endpoint: str) -> dict[str, Any]:
 
 
 def model_args(target: RouteCModel) -> dict[str, Any]:
-    """Inspect `model_args` for the OpenRouter provider (`openrouter/<model>`)."""
-    return {"provider": provider_block(target.endpoint)}
+    """Inspect `model_args` for the OpenRouter provider (`openrouter/<model>`); no streaming (plan section 8.1)."""
+    return {"provider": provider_block(target.endpoint), "stream": False}
 
 
 def reported_cost(raw: dict[str, Any] | None) -> Decimal | None:

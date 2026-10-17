@@ -1,2 +1,4 @@
 # Pinned 15 days before 17 October 2026 (released 2 October 2026).
 inspect-ai==0.3.276
+# Required by Inspect's openrouter/... provider for route C (phase 3); released 2 October 2026.
+openai==3.24.0

@@ -1593,3 +1593,17 @@ Same `claude-opus-5-5` implementation subagent and transcript as the previous ro
 Boundary: `2026-10-17T02:04:12Z` → `2026-10-17T02:24:33Z`. Cache writes: 560,640 5-minute, 0 1-hour. Exact API-equivalent USD 8.1451158.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-17f: Claude Code label capture evaluation phase 3
+
+One `claude-opus-5-5` implementation subagent (branch `feat/255-label-eval-phase-3`), transcript `subagents/agent-acc5861cbb67b22f7.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. Covers the owner's round-1 answers merged into the review sheet, the owner-verified untouched truth, the refills and round-2 drafting, the muesli consent and its route A and B runs, the route C mapping, runner, catalogue gate and qualification, the held partial Luna run, the contract, plan and results documents and the gates, up to this ledger edit. No start boundary was captured, but the transcript holds only this phase, so the row is the whole transcript. No subagents were launched; the orchestrator's usage is outside the row. This ledger edit, the commit, the push and the PR are outside the row. The OpenRouter spend in this phase (USD 0.0651708 for Qwen drafting and USD 0.0345623 for route C, reported `usage.cost`) is a separate actual charge, not part of this comparison.
+
+Pricing as in the previous sections (checked 11 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label capture evaluation phase 3 (#255), implementation subagent | 46,707,030 (46,301,266) | 405,432 | 50,736 | 46,757,766 | $12.30 |
+
+Boundary: whole transcript (`phase_usage.py --format claude`, no `--since`). Cache writes: 405,432 5-minute, 0 1-hour. Exact API-equivalent USD 12.3034612.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

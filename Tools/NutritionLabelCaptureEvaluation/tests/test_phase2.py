@@ -753,24 +753,21 @@ class ReReviewTests(unittest.TestCase):
         self.assertNotIn("extra_headers", kwargs)
         with self.assertRaises(SystemExit):
             run_route_c.eval_kwargs(target, HERE / "logs")
-        argv = [
-            "--cases-file",
-            "x",
-            "--ledger",
-            "y",
-            "--log-dir",
-            "/tmp/z",
-            "--label",
-            "l",
-            "--model",
-            "m",
-            "--endpoint",
-            "e",
-            "--provider-name",
-            "p",
-        ]
-        with self.assertRaisesRegex(SystemExit, "disabled"):
-            run_route_c.main(argv)
+        argv = ["--label", "luna", "--ledger", "/tmp/y", "--log-dir", "/tmp/z", "--qualification-dir", "/tmp/q", "--uk-workspace", "/tmp/u"]
+        contract = json.loads(run_route_c.CONTRACT.read_text())
+        contract["route_c"]["enabled"] = False
+        original = run_route_c.CONTRACT
+        with tempfile.TemporaryDirectory() as folder:
+            run_route_c.CONTRACT = Path(folder) / "contract.json"
+            run_route_c.CONTRACT.write_text(json.dumps(contract))
+            try:
+                with self.assertRaisesRegex(SystemExit, "disabled"):
+                    run_route_c.main(argv)
+            finally:
+                run_route_c.CONTRACT = original
+        contract["route_c"]["enabled"] = True
+        with self.assertRaisesRegex(SystemExit, "not pinned"):
+            run_route_c.pinned_target(contract, "qwen")
 
     @unittest.skipUnless(importlib.util.find_spec("inspect_ai"), "inspect_ai is not installed (see requirements.txt)")
     def test_route_c_refuses_credential_like_extra_headers_before_the_call(self):

@@ -1,6 +1,42 @@
-# Untouched truth drafting, Taiwan (decision A, phase 2, #255)
+# Untouched truth drafting, Taiwan (decision A, phases 2 and 3, #255)
 
-Status: **draft, owner verification pending.** No drafted value is committed; the drafts, raw response bodies, journal and review sheet are outside the repository under `~/WHR-label-eval-private/drafts/untouched-taiwan-v1/`. No route reads that folder.
+Status: **round 1 owner-verified (17 October 2026); round 2 drafted, owner verification pending.** The verified records are committed as [`fixtures/ground-truth-off-taiwan-untouched-v1.json`](../fixtures/ground-truth-off-taiwan-untouched-v1.json), evidence label **model-drafted, owner-verified (no owner corrections)**, pinned by hash in the contract. Drafts, raw response bodies, the journal and the review sheet stay outside the repository under `~/WHR-label-eval-private/drafts/untouched-taiwan-v1/`. No route reads that folder or the truth; routes A, B and C have still not run on any untouched photo.
+
+## Owner verification, round 1 (phase 3)
+
+The owner checked all 40 untouched photos in a private review page on 17 October 2026, each photo beside its draft: every drafted value, serving line and table decision.
+
+- **527 of 527 cells confirmed, with no corrections.** Because nothing was corrected, **anchoring on the draft cannot be ruled out**: a value accepted because the draft showed it looks the same as one confirmed independently. The evidence label says so ("no owner corrections"), and this is weaker than an independent human transcription.
+- **Table decisions:** the 11 proposed exclusions were agreed (orders 25, 38, 39, 40, 44, 46, 50, 52 and 54 are not Traditional Chinese tables; 28 and 48 have no nutrition table); order 23 (drafting failed on length) is excluded; **order 34 was kept**: Qwen had proposed excluding it as a US-style bilingual English and Traditional Chinese label, and the owner counts it as a Taiwan label.
+- **Merge:** the answers were written into `review.csv` through the existing merge (`merge_owner_entries`, after copying the sheet aside): 539 owner entries, the 527 cells plus 12 table decisions that have a sheet row (order 23 has none).
+- **Truth file:** 38 records, 27 usable tables (434 scored cells) and 11 exclusion records; 0 required declines. Twelve drafted values that are not printed amounts (ten reference-intake cells printed as `*`, and order 53's sodium values, obscured on the pack) are kept as unscored cells, never as values.
+- **What the page did not show:** parent rows and nutrient keys. Parentage is therefore structural: a draft parent naming the row itself or a row absent from the table is cleared (188 cells; Qwen mostly recorded a top-level row as its own parent). Nutrient keys and bases were checked mechanically against the printed labels and headers, and every printed label maps to one key. This is recorded as a deviation in the contract.
+
+## Refills (decision B, phase 3)
+
+Twelve untouched photos were excluded (the 11 agreed plus order 23), so refills were downloaded in hash order from order 63 (CC BY-SA 3.0, revision pinned, recorded in the manifest with attribution and a per-order reason, written read-only to the sealed folder). Three refills were themselves proposed for exclusion by their drafts and replaced by the next order at once, as the owner allowed: 66 (Thai) by 75, 71 (Simplified Chinese) by 76, and 75 (English) by 77. Those three exclusions await the owner's round-2 confirmation.
+
+| Batch | Orders | Replaces | Bytes |
+|---|---|---|---:|
+| 1 | 63 to 68 | 23, 25, 28, 38, 39, 40 | 2,758,088 |
+| 2 | 69 to 74 | 44, 46, 48, 50, 52, 54 | 1,855,753 |
+| 3 | 75, 76 | 66, 71 | 992,562 |
+| 4 | 77 | 75 | 170,265 |
+| **Total** | 15 photos | | **5,776,668** (10 MB hard stop) |
+
+The untouched set is 40 photos again: orders 21 to 60 less the 12 exclusions (28, including 34), plus 63, 64, 65, 67, 68, 69, 70, 72, 73, 74, 76 and 77.
+
+## Round 2 drafting (phase 3)
+
+Same contract-bound route as round 1 (`qwen/qwen3.5-397b-a17b` on `deepinfra/fp8`; catalogue checked on the day: image input, ZDR endpoint "DeepInfra | qwen/qwen3.5-397b-a17b-20260216", $0.45 / $3.00 per million prompt / completion tokens, unchanged), with the persistent spend ledger. Every response reported the requested model and provider.
+
+- **Refills 63 to 77:** instruction v1 unchanged. Twelve are proposed usable; 66, 71 and 75 are proposed exclusions (refilled as above).
+- **Order 34:** drafted with a bilingual instruction, recorded as a deviation. The minimum change is one clause in the `taiwan_nutrition_label` bullet. The first wording (v1.1: a bilingual table that prints Traditional Chinese beside English counts, transcribing its Traditional Chinese labels and headers, and each value as printed) was sent once and Qwen still proposed an exclusion because the values carry English units and the layout is US style. v1.2 adds "in a Taiwan or a US layout and whether its units are printed in Chinese or in English (g, mg, mcg)". Under v1.2 Qwen transcribed the table (30 cells, with the Traditional Chinese labels beside the English ones, 6 uncertain) but still labelled it `other_language_nutrition_table`; the owner's keep decision stands, and the round-2 page asks for every value. Both earlier drafts and raw responses are kept aside, not used.
+- **Spend:** 17 calls, **$0.0651708** reported (round 1 was $0.14616675 over 40 calls; drafting total $0.21133755 over 57 calls).
+
+Round 2 (16 cases: 34, the 12 proposed-usable refills and the 3 proposed refill exclusions) is prepared for the owner's review page outside the repository. After it, the truth file is rebuilt with the same code and re-pinned.
+
+## Phase 2 record
 
 ## What ran
 

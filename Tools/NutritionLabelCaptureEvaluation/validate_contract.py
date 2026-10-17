@@ -60,8 +60,13 @@ PINNED = [
     "Tools/NutritionLabelCaptureEvaluation/run_route_c.py",
     "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.txt",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.1.txt",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.2.txt",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-wire-schema-v1.json",
+    "Tools/NutritionLabelCaptureEvaluation/route_c_mapping.py",
+    "Tools/NutritionLabelCaptureEvaluation/qualification/render_qualification.swift",
 ]
+ROUTE_C_LABELS = ("luna", "grok", "sol", "gemini", "opus")
 
 
 def sha256(path: Path) -> str:
@@ -102,6 +107,15 @@ def validate(contract: dict[str, Any], root: Path = REPO) -> list[str]:
         errors.append("route C must stay disabled in phases 1 and 2")
     if "model_slug_rule" not in route_c or "spend_ledger" not in route_c:
         errors.append("route C must record the model slug rule and the persistent spend ledger")
+    if route_c.get("enabled") is True:
+        models = route_c.get("models") or {}
+        if sorted(models) != sorted(ROUTE_C_LABELS):
+            errors.append("route C must pin exactly the five approved models (Luna, Grok, Sol, Gemini 4, Opus)")
+        for label, pin in models.items():
+            if pin.get("gate") == "passed" and not all(pin.get(k) for k in ("slug", "endpoint", "provider_name", "catalogue_2026_10_17")):
+                errors.append(f"route C model {label} passed the gate without a slug, endpoint, provider and catalogue record")
+            if "qwen" in str(pin.get("slug", "")).lower():
+                errors.append("the untouched-truth drafting model cannot also be a route C model")
     route_b = contract.get("route_b", {})
     if route_b and (route_b.get("development_runs_only") is not True or route_b.get("never_runs_on_sealed_folder") is not True):
         errors.append("route B may run on development images only before the frozen run")
@@ -129,6 +143,13 @@ def validate(contract: dict[str, Any], root: Path = REPO) -> list[str]:
     manifest = root / taiwan.get("manifest", "")
     if not manifest.is_file() or sha256(manifest) != taiwan.get("manifest_sha256"):
         errors.append("Taiwan manifest hash does not match the contract")
+    truth = contract.get("ground_truth", {})
+    if truth.get("untouched"):
+        untouched = root / truth["untouched"]
+        if not untouched.is_file() or sha256(untouched) != truth.get("untouched_sha256"):
+            errors.append("untouched ground truth hash does not match the contract")
+    if refill.get("untouched_total_stop_bytes", 10_000_000) > 10_000_000:
+        errors.append("untouched refills are limited to 10 MB in total (owner, 17 October 2026)")
     artefacts = contract.get("frozen_artefacts", {})
     if sorted(artefacts) != sorted(PINNED):
         errors.append("frozen_artefacts must pin exactly the listed artefacts")
@@ -147,6 +168,9 @@ def pin(contract_path: Path) -> None:
         raise SystemExit("refusing to re-pin a contract frozen for the untouched run")
     contract["corpus"]["off_taiwan"]["manifest_sha256"] = sha256(REPO / contract["corpus"]["off_taiwan"]["manifest"])
     contract["frozen_artefacts"] = {path: sha256(REPO / path) for path in PINNED}
+    untouched = contract.get("ground_truth", {}).get("untouched")
+    if untouched and (REPO / untouched).is_file():
+        contract["ground_truth"]["untouched_sha256"] = sha256(REPO / untouched)
     contract_path.write_text(json.dumps(contract, indent=2, ensure_ascii=False) + "\n")
 
 

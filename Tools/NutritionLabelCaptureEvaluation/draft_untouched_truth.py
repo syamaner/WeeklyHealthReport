@@ -61,6 +61,18 @@ from openrouter_route import RouteCModel  # noqa: E402
 CONTRACT = HERE / "frozen-contract-v1.json"
 MANIFEST = HERE / "fixtures" / "off-taiwan-manifest-v1.json"
 INSTRUCTION = HERE / "openrouter" / "truth-drafting-instruction-v1.txt"
+# v1 plus one clause for bilingual Traditional Chinese tables (owner, 17 October 2026),
+# used only for the orders the contract lists under untouched_truth_drafting.bilingual_instruction.
+# v1.1 was tried once for order 34 and still proposed an exclusion (English units), so
+# v1.2 names the US layout and English units; v1.1 is kept as a record of that call.
+INSTRUCTION_V1_1 = HERE / "openrouter" / "truth-drafting-instruction-v1.1.txt"
+INSTRUCTION_BILINGUAL = HERE / "openrouter" / "truth-drafting-instruction-v1.2.txt"
+INSTRUCTION_IDS = {
+    INSTRUCTION: "truth-drafting-instruction-v1",
+    INSTRUCTION_V1_1: "truth-drafting-instruction-v1.1",
+    INSTRUCTION_BILINGUAL: "truth-drafting-instruction-v1.2",
+}
+TRUTH_SCHEMA = "label-capture-truth-v1"
 WIRE_SCHEMA = HERE / "openrouter" / "truth-drafting-wire-schema-v1.json"
 ENDPOINT_URL = "https://openrouter.ai/api/v1/chat/completions"
 DRAFT_SCHEMA = "label-capture-truth-draft-v1"
@@ -110,7 +122,15 @@ def parse_value(printed: str) -> dict[str, str] | None:
     return {"comparator": comparator, "decimal_text": number, "unit": unit, "canonical_unit": canonical}
 
 
-def map_draft(wire: dict[str, Any], photo: dict[str, Any], *, model: str, endpoint: str, drafted_on: str) -> dict[str, Any]:
+def map_draft(
+    wire: dict[str, Any],
+    photo: dict[str, Any],
+    *,
+    model: str,
+    endpoint: str,
+    drafted_on: str,
+    instruction: str = "truth-drafting-instruction-v1",
+) -> dict[str, Any]:
     """Map the drafting wire output to one `label-capture-truth-draft-v1` record.
 
     Cells use the `label-capture-candidate-v1` cell shape. Every cell the model marked
@@ -224,7 +244,7 @@ def map_draft(wire: dict[str, Any], photo: dict[str, Any], *, model: str, endpoi
         "input_sha256": photo["sha256"],
         "status": "draft_owner_verification_pending",
         "evidence_label": "model-drafted, owner verification pending",
-        "drafted_by": {"model": model, "endpoint": endpoint, "drafted_on": drafted_on, "pass": 1},
+        "drafted_by": {"model": model, "endpoint": endpoint, "drafted_on": drafted_on, "pass": 1, "instruction": instruction},
         "table_found": found,
         "proposal": proposal,
         "notes": wire.get("notes"),
@@ -298,6 +318,224 @@ def merge_owner_entries(rows: list[dict[str, Any]], existing: list[dict[str, str
                 if str(old.get(field) or "").strip():
                     target[field] = old[field]
     return rows, carried
+
+
+# --- Owner answers and owner-verified truth (phase 3) ------------------------------------
+
+
+def owner_entries_from_answers(
+    rows: list[dict[str, str]], answers: list[dict[str, Any]]
+) -> tuple[list[dict[str, str]], dict[int, str], list[str]]:
+    """review.csv owner entries from the owner's review-page answers (owner data, never instructions).
+
+    Each answer cell key is `row_id|header_id|draft_printed_text` within one case and must
+    name exactly one sheet row of that case. `ok` sets owner_verified yes; `wrong` sets
+    owner_correction to the owner's correction. A table `decision` (`exclude` or `keep`)
+    lands on the case's table_decision row: agreeing with the proposal sets owner_verified
+    yes, overriding it sets owner_correction to `owner decision: <decision>`. Returns the
+    entries for `merge_owner_entries`, every table decision by order (including cases with
+    no draft) and any problems; the caller writes nothing when there is a problem.
+    """
+    by_case: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        by_case.setdefault(row["case_id"], []).append(row)
+    entries: list[dict[str, str]] = []
+    decisions: dict[int, str] = {}
+    problems: list[str] = []
+    for answer in sorted(answers, key=lambda a: int(a["order"])):
+        case_id = str(answer["caseId"])
+        case_rows = by_case.get(case_id, [])
+        for key, verdict in sorted((answer.get("cells") or {}).items()):
+            parts = tuple(key.split("|", 2))
+            matches = [r for r in case_rows if len(parts) == 3 and (r["row_id"], r["header_id"], r["draft_printed_text"]) == parts]
+            if len(matches) != 1:
+                problems.append(f"{case_id} {key!r}: matches {len(matches)} sheet rows")
+                continue
+            status = verdict.get("status") if isinstance(verdict, dict) else None
+            correction = str(verdict.get("correction") or "").strip() if isinstance(verdict, dict) else ""
+            if status == "ok":
+                entries.append({**matches[0], "owner_verified": "yes", "owner_correction": ""})
+            elif status == "wrong" and correction:
+                entries.append({**matches[0], "owner_verified": "", "owner_correction": correction})
+            else:
+                problems.append(f"{case_id} {key!r}: status {status!r} without a usable verdict")
+        decision = answer.get("decision")
+        if decision is None:
+            continue
+        if decision not in ("exclude", "keep"):
+            problems.append(f"{case_id}: unknown table decision {decision!r}")
+            continue
+        decisions[int(answer["order"])] = decision
+        decision_rows = [r for r in case_rows if r["row_id"] == "table_decision"]
+        if not decision_rows:
+            continue  # no draft (a failed drafting call): the decision is recorded by order only
+        row = decision_rows[0]
+        proposal = row["draft_printed_text"].rsplit(" -> ", 1)[-1]
+        agrees = (decision == "exclude" and proposal == "exclude_and_refill") or (decision == "keep" and proposal == "usable")
+        if agrees:
+            entries.append({**row, "owner_verified": "yes", "owner_correction": ""})
+        else:
+            entries.append({**row, "owner_verified": "", "owner_correction": f"owner decision: {decision}"})
+    return entries, decisions, problems
+
+
+def _serving_size_from_text(text: str) -> dict[str, Any] | str:
+    if text == "unknown":
+        return "unknown"
+    match = SERVING.search(text)
+    return {
+        "printed_text": text,
+        "decimal_text": match.group(1) if match else None,
+        "unit": match.group(2) if match else None,
+        "canonical_unit": UNITS.get(match.group(2)) if match else None,
+    }
+
+
+def _servings_per_pack_from_text(text: str) -> dict[str, Any] | str:
+    match = SERVINGS.search(text) if text != "unknown" else None
+    if not match:
+        return "unknown"
+    return {"printed_text": text, "decimal_text": match.group(2), "approximate": match.group(1) is not None}
+
+
+def coverage_tags(record: dict[str, Any]) -> list[str]:
+    """Coverage tags (plan section 3.1) derived from a truth record alone, never from route output."""
+    cells = record.get("cells") or []
+    headers = record.get("headers") or []
+    bases = {h["basis"] for h in headers}
+    amount_bases = bases - {"reference_intake"}
+    tags = {"zh_hant"} if record.get("language") in ("zh-Hant", "mixed") else set()
+    if "per_serving" in amount_bases and amount_bases & {"per_100g", "per_100ml"}:
+        tags.add("two_column_serving_and_100")
+    if len([h for h in headers if h["basis"] != "reference_intake"]) == 1:
+        tags.add("single_column")
+    if "reference_intake" in bases:
+        tags.add("reference_intake_column")
+    if "per_100ml" in bases:
+        tags.add("per_100ml")
+    if any(c.get("comparator") not in (None, "=") for c in cells):
+        tags.add("bound")
+    if any(c.get("nutrient") == "sodium" for c in cells):
+        tags.add("sodium")
+    if any(c.get("parent_row_id") for c in cells):
+        tags.add("nested_rows")
+    if record.get("serving_size") not in (None, "unknown"):
+        tags.add("serving_line")
+    if record.get("servings_per_pack") not in (None, "unknown"):
+        tags.add("servings_per_pack")
+    if record.get("requires_decline"):
+        tags.add("decline_expected")
+    return sorted(tags)
+
+
+def verified_record(draft: dict[str, Any], case_rows: list[dict[str, str]], *, verified_on: str) -> dict[str, Any] | None:
+    """One `label-capture-truth-v1` record from a draft whose every sheet row the owner has checked.
+
+    Returns None while any row is unchecked, while the table decision is unconfirmed, or
+    when the owner kept a table the draft left empty (it needs a new draft first). An owner
+    correction replaces the drafted printed text; a value that is not a printed amount
+    (such as `*`, or `unknown` for an illegible value) is kept as an unscored cell, never as a value.
+    """
+    decision_row = next((r for r in case_rows if r["row_id"] == "table_decision"), None)
+    if decision_row is None:
+        return None
+    if decision_row["owner_verified"] == "yes":
+        outcome = draft["proposal"]
+    elif decision_row["owner_correction"] == "owner decision: keep":
+        outcome = "usable"
+    elif decision_row["owner_correction"] == "owner decision: exclude":
+        outcome = "exclude_and_refill"
+    else:
+        return None
+    if outcome == "usable" and not draft["cells"]:
+        return None  # kept by the owner, but the draft has no table yet: redraft, then review again
+    # An exclusion needs only the confirmed decision; any other outcome needs every row checked.
+    if outcome != "exclude_and_refill" and not all(r["owner_verified"] == "yes" or r["owner_correction"].strip() for r in case_rows):
+        return None
+    corrections = {(r["row_id"], r["header_id"]): r["owner_correction"].strip() for r in case_rows if r["owner_correction"].strip()}
+    corrected = sum(1 for key in corrections if key[0] != "table_decision")
+    drafted = draft["drafted_by"]
+    record: dict[str, Any] = {
+        "case_id": draft["case_id"],
+        "input_sha256": draft["input_sha256"],
+        "order": draft["order"],
+        "review": {
+            "pass_1": {
+                "drafted_by": drafted["model"],
+                "endpoint": drafted["endpoint"],
+                "instruction": drafted.get("instruction", "truth-drafting-instruction-v1"),
+                "drafted_on": drafted["drafted_on"],
+            },
+            "pass_2": {
+                "reviewer": "owner",
+                "method": "every drafted value, serving line and table decision checked against the image in a private review page",
+                "verified_on": verified_on,
+                "owner_corrections": corrected,
+            },
+            "evidence_label": "model-drafted, owner-verified" + (" (no owner corrections)" if corrected == 0 else ""),
+        },
+        "excluded": outcome == "exclude_and_refill",
+        "exclusion_reason": draft["table_found"] if outcome == "exclude_and_refill" else None,
+        "requires_decline": outcome == "requires_decline",
+        "decline_reason": draft["table_found"] if outcome == "requires_decline" else None,
+        "language": draft["language"],
+    }
+    if outcome != "usable":
+        record.update({"headers": [], "serving_size": "unknown", "servings_per_pack": "unknown", "cells": [], "unscored_cells": []})
+        record["coverage_tags"] = coverage_tags(record)
+        return record
+    serving_text = corrections.get(("serving_size", ""))
+    pack_text = corrections.get(("servings_per_pack", ""))
+    serving = _serving_size_from_text(serving_text) if serving_text else draft["serving_size"]
+    pack = _servings_per_pack_from_text(pack_text) if pack_text else draft["servings_per_pack"]
+    serving_quantity = f"{serving['decimal_text']}{serving['unit']}" if isinstance(serving, dict) and serving.get("decimal_text") else None
+    headers = [
+        {
+            "header_id": h["header_id"],
+            "printed_text": h["printed_text"],
+            "basis": h["basis"],
+            "serving_conversion": serving_quantity if h["basis"] == "per_serving" else None,
+        }
+        for h in draft["headers"]
+    ]
+    cells, unscored = [], []
+    row_ids = {cell["row_id"] for cell in draft["cells"]}
+    parents_cleared = 0
+    for cell in draft["cells"]:
+        # The review page showed values, not parents, so parentage is structural only: a
+        # draft parent naming the row itself or a row absent from the table (`energy` for
+        # 熱量, `unrecognised`) means no parent. No printed text is changed.
+        parent = cell["parent_row_id"]
+        if parent is not None and (parent in (cell["row_id"], cell["nutrient"]) or parent not in row_ids):
+            parent = None
+            parents_cleared += 1
+        printed = str(corrections.get((cell["row_id"], cell["header_id"]), cell["printed_text"]))
+        parsed = parse_value(printed)
+        if parsed is None or cell["basis"] == "unknown":
+            unscored.append(
+                {
+                    "row_id": cell["row_id"],
+                    "header_id": cell["header_id"],
+                    "printed_label": cell["printed_label"],
+                    "printed_text": printed,
+                    "reason": "not a printed amount" if parsed is None else "unknown column",
+                }
+            )
+            continue
+        cells.append(
+            {
+                "row_id": cell["row_id"],
+                "parent_row_id": parent,
+                **{k: cell[k] for k in ("nutrient", "printed_label", "header_id", "basis")},
+                "printed_text": printed,
+                **parsed,
+                "serving_conversion": (serving_quantity or "unknown") if cell["basis"] == "per_serving" else "not_applicable",
+            }
+        )
+    record.update({"headers": headers, "serving_size": serving, "servings_per_pack": pack, "cells": cells, "unscored_cells": unscored})
+    record["review"]["structural_parent_cells_cleared"] = parents_cleared
+    record["coverage_tags"] = coverage_tags(record)
+    return record
 
 
 def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str, Path]) -> int:
@@ -511,6 +749,87 @@ def post(body: dict[str, Any], key: str) -> tuple[int, dict[str, Any] | None, fl
     return status, parsed, time.monotonic() - started
 
 
+def _read_sheet(out: Path) -> tuple[str, list[dict[str, str]]]:
+    previous = (out / "review.csv").read_text(encoding="utf-8")
+    return previous, list(csv.DictReader(previous.splitlines()))
+
+
+def apply_owner_answers(out: Path, answers_dir: Path) -> int:
+    """Merge the owner's review-page answers into review.csv (copied aside first); no call."""
+    previous, rows = _read_sheet(out)
+    answers = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(answers_dir.glob("o*.json"))]
+    entries, decisions, problems = owner_entries_from_answers(rows, answers)
+    if problems:
+        raise SystemExit("owner answers do not match the sheet; nothing written:\n" + "\n".join(problems))
+    backup = out / f"review.csv.before-{hashlib.sha256(previous.encode('utf-8')).hexdigest()[:12]}"
+    if not backup.exists():
+        backup.write_text(previous, encoding="utf-8")
+    merged, carried = merge_owner_entries(rows, entries)
+    with (out / "review.csv").open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(merged[0]))
+        writer.writeheader()
+        writer.writerows(merged)
+    statuses = [v.get("status") for a in answers for v in (a.get("cells") or {}).values()]
+    record = {
+        "answers": len(answers),
+        "cells_answered": len(statuses),
+        "cells_ok": statuses.count("ok"),
+        "cells_wrong": statuses.count("wrong"),
+        "entries_merged": carried,
+        "table_decisions": {str(k): v for k, v in sorted(decisions.items())},
+    }
+    (out / "owner-answers-applied.json").write_text(json.dumps(record, indent=1), encoding="utf-8")
+    print(json.dumps(record))
+    return 0
+
+
+def write_truth(out: Path, path: Path, *, verified_on: str, manifest_sha256: str) -> int:
+    """Write the owner-verified untouched truth file; only fully checked cases become records."""
+    _, rows = _read_sheet(out)
+    rows = [r for r in rows if not (r.get("merge_note") or "").strip()]  # orphans from an earlier draft are not evidence
+    by_case: dict[str, list[dict[str, str]]] = {}
+    for row in rows:
+        by_case.setdefault(row["case_id"], []).append(row)
+    drafts = [json.loads(p.read_text(encoding="utf-8")) for p in sorted((out / "drafts").glob("*.json"))]
+    records, pending = [], []
+    for draft in sorted(drafts, key=lambda d: d["order"]):
+        record = verified_record(draft, by_case.get(draft["case_id"], []), verified_on=verified_on)
+        if record is None:
+            pending.append(draft["order"])
+        else:
+            records.append(record)
+    usable = [r for r in records if not r["excluded"]]
+    corrections = sum(r["review"]["pass_2"]["owner_corrections"] for r in records)
+    document = {
+        "schema_version": TRUTH_SCHEMA,
+        "set": "off_taiwan_untouched",
+        "status": "owner_verified",
+        "evidence_label": "model-drafted, owner-verified" + (" (no owner corrections)" if corrections == 0 else ""),
+        "drafting_method": "Pass 1 drafted by Qwen 3.5 (not a route C model) under owner decision A; pass 2 by the owner, every value "
+        "checked against the image. Weaker evidence than independent human transcription.",
+        "anchoring_note": "The owner confirmed every drafted value without a correction. Agreement with the draft cannot rule out "
+        "anchoring on it: a value the owner accepted because the draft showed it would look the same.",
+        "parentage_note": "The review page showed printed values, headers and serving lines, not parent rows, so parentage is "
+        "structural: a draft parent naming the row itself or a row absent from the table is cleared.",
+        "manifest_sha256": manifest_sha256,
+        "verified_on": verified_on,
+        "counts": {
+            "records": len(records),
+            "usable": len(usable),
+            "required_declines": sum(r["requires_decline"] for r in records),
+            "excluded": sum(r["excluded"] for r in records),
+            "scored_cells": sum(len(r["cells"]) for r in usable),
+            "unscored_cells": sum(len(r["unscored_cells"]) for r in usable),
+            "owner_corrections": corrections,
+            "pending_orders": pending,
+        },
+        "records": records,
+    }
+    path.write_text(json.dumps(document, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
+    print(json.dumps(document["counts"]))
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--image-root", type=Path, required=True, help="the Taiwan photo folder (with sealed/) outside any checkout")
@@ -524,6 +843,17 @@ def main() -> int:
     parser.add_argument("--orders", help="comma-separated untouched orders to draft (default: all not yet drafted)")
     parser.add_argument("--sheet-only", action="store_true", help="rebuild the review sheet from saved drafts; no call")
     parser.add_argument("--env-file", type=Path, help="dotenv file to take OPENROUTER_API_KEY from (only that variable, into this process)")
+    parser.add_argument(
+        "--bilingual-orders",
+        help="comma-separated orders drafted with the bilingual instruction (listed in the contract); an earlier draft is moved aside",
+    )
+    parser.add_argument(
+        "--apply-owner-answers", type=Path, help="folder of the owner's oNN.json review answers; merges them into review.csv, no call"
+    )
+    parser.add_argument(
+        "--write-truth", type=Path, help="write the owner-verified untouched truth file from drafts and review.csv, no call"
+    )
+    parser.add_argument("--verified-on", help="date of the owner's verification (YYYY-MM-DD), with --write-truth")
     args = parser.parse_args()
 
     contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
@@ -547,6 +877,17 @@ def main() -> int:
             raise SystemExit(f"refusing a path inside a git checkout: {path}")
     args.out.mkdir(parents=True, exist_ok=True)
     args.ledger.parent.mkdir(parents=True, exist_ok=True)
+
+    if args.apply_owner_answers:
+        return apply_owner_answers(args.out, args.apply_owner_answers)
+    if args.write_truth:
+        if not args.verified_on:
+            raise SystemExit("--write-truth needs --verified-on")
+        return write_truth(args.out, args.write_truth, verified_on=args.verified_on, manifest_sha256=expected)
+    bilingual_orders = {int(o) for o in args.bilingual_orders.split(",")} if args.bilingual_orders else set()
+    allowed_bilingual = set(contract["untouched_truth_drafting"].get("bilingual_instruction", {}).get("orders", []))
+    if not bilingual_orders <= allowed_bilingual:
+        raise SystemExit(f"bilingual instruction orders {sorted(bilingual_orders - allowed_bilingual)} are not listed in the contract")
 
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     photos = [p for p in manifest["photos"] + manifest.get("refills", []) if p["split"] == "untouched" and not p.get("excluded")]
@@ -582,13 +923,27 @@ def main() -> int:
             "sealed_reserved_calls": contract["route_c"]["sealed_run_reserved_calls"],
         }
         budget = LedgerBudget(args.ledger, limits=limits)
-        instruction = INSTRUCTION.read_text(encoding="utf-8")
         wire_schema = json.loads(WIRE_SCHEMA.read_text(encoding="utf-8"))
+        superseded = args.out / "superseded"
         for photo in sorted(photos, key=lambda p: p["order"]):
             case_id = f"off-taiwan:{photo['barcode13']}:nutrition_zh.{photo['revision']}"
             draft_path = drafts_dir / f"{photo['order']:02d}.json"
+            instruction_path = INSTRUCTION_BILINGUAL if photo["order"] in bilingual_orders else INSTRUCTION
+            instruction_id = INSTRUCTION_IDS[instruction_path]
+            if draft_path.exists() and instruction_path is INSTRUCTION_BILINGUAL:
+                old = json.loads(draft_path.read_text(encoding="utf-8"))
+                old_id = old["drafted_by"].get("instruction", "truth-drafting-instruction-v1")
+                if old_id != instruction_id:
+                    # Keep the earlier draft and its raw response; nothing is overwritten.
+                    superseded.mkdir(exist_ok=True)
+                    for source in (draft_path, raw_dir / draft_path.name):
+                        moved = superseded / f"{source.parent.name}-{photo['order']:02d}.{old_id.rsplit('-', 1)[-1]}.json"
+                        if moved.exists():
+                            raise SystemExit(f"refusing to overwrite {moved}")
+                        source.rename(moved)
             if draft_path.exists():
                 continue
+            instruction = instruction_path.read_text(encoding="utf-8")
             image = images[case_id]
             data = image.read_bytes()
             if hashlib.sha256(data).hexdigest() != photo["sha256"]:
@@ -607,6 +962,7 @@ def main() -> int:
                     "at": now(),
                     "model": target.model,
                     "endpoint": target.endpoint,
+                    "instruction": instruction_id,
                 },
             )
             status, response, seconds = post(request_body(target, data, instruction, wire_schema), key)
@@ -656,7 +1012,9 @@ def main() -> int:
             except (KeyError, IndexError, TypeError, json.JSONDecodeError):
                 print(f"{case_id}: failed (content is not schema JSON)")
                 continue
-            draft = map_draft(wire, photo, model=str(response.get("model")), endpoint=target.endpoint, drafted_on=now()[:10])
+            draft = map_draft(
+                wire, photo, model=str(response.get("model")), endpoint=target.endpoint, drafted_on=now()[:10], instruction=instruction_id
+            )
             draft_path.write_text(json.dumps(draft, ensure_ascii=False, indent=1), encoding="utf-8")
             print(f"{case_id}: drafted, {len(draft['cells'])} cells, {len(draft['uncertain_cells'])} uncertain, cost {cost}")
         print(f"ledger reported spend so far: {json.loads(args.ledger.read_text())['reported_spend_usd']}")
@@ -671,7 +1029,12 @@ def main() -> int:
             wire = json.loads(body["choices"][0]["message"]["content"])
             drafted = old["drafted_by"]
             draft = map_draft(
-                wire, by_order[old["order"]], model=drafted["model"], endpoint=drafted["endpoint"], drafted_on=drafted["drafted_on"]
+                wire,
+                by_order[old["order"]],
+                model=drafted["model"],
+                endpoint=drafted["endpoint"],
+                drafted_on=drafted["drafted_on"],
+                instruction=drafted.get("instruction", "truth-drafting-instruction-v1"),
             )
             path.write_text(json.dumps(draft, ensure_ascii=False, indent=1), encoding="utf-8")
     drafts = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(drafts_dir.glob("*.json"))]

@@ -29,7 +29,8 @@ class ProviderBlockTests(unittest.TestCase):
                     "require_parameters": True,
                     "data_collection": "deny",
                     "zdr": True,
-                }
+                },
+                "stream": False,
             },
         )
 

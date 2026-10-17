@@ -19,7 +19,7 @@ Machine-readable summary, per-case outcome flags and serialiser counts: [`route-
 |---|---:|---|
 | Taiwan `zh-Hant` (Open Food Facts development photos) | 20 (orders 1 to 20 less 4 and 17, plus refills 61 and 62) | Orders 4 and 17: English-only labels, excluded |
 | UK `en` (v2 public development review images) | 39 | 1 panel the owner excluded in that review |
-| Muesli (owner photo) | 0 | Not run: its consent record has `local_routes` false |
+| Muesli (owner photo) | 1 | Run in phase 3 (17 October 2026) after the owner set every consent flag true |
 
 The plan's UK development set (40 v1 gate images and 60 v2 tuning images) could not be used: the v1 panel images are no longer on disk and the v2 public selection was never acquired. The UK stratum here is the 40 exposed v2 public development review images that are on disk, with their frozen, owner-verified review. That review records no servings-per-pack or serving-size line, so those are not scored for UK cases. No UK image was downloaded. UK untouched set deferred by the owner on 17 Oct 2026; acquire a fresh sealed UK set only if Taiwan results justify it. Until then no promotion decision for UK label photos.
 
@@ -42,7 +42,7 @@ Taiwan truth is the Claude-drafted first pass (`first_pass_unverified`), awaitin
 | Would mark ready after arithmetic (reported, not gated) | n/a | 3 of 20 (2 exact, 1 false-ready) | 0 of 39 |
 | Arithmetic mutation detection (on truth) | 100% | 20 / 21 **fail** | 10 / 13 **fail** |
 
-Muesli: not run (no consent), so the plan's binding stress case on the real photo is unmeasured; a synthetic one-row-offset fixture in `tests/test_phase2.py` binds correctly.
+Muesli (phase 3 rerun of the whole development set, same Taiwan and UK results as above): the photo is **declined** (`unsupported_language`), so 0 of 18 cells, 0 of 1 tables, and it is not false-ready. Vision read every value of both columns, but the label's marketing paragraph is interleaved with the table lines and contains a katakana middle dot (`・`), which the shared parser's language rule treats as Japanese; the serialiser also left one value unbound. The decline is the safe direction, but the plan's binding stress case on the real photo still has no positive result for route B. A synthetic one-row-offset fixture in `tests/test_phase2.py` binds correctly.
 
 False declines on usable tables: Taiwan 8 of 15, UK 21 of 22 (the extra UK decline is `off:5060413823295:nutrition_en.5`, which had one unbound value that the parser had attached to the row above). Route B declines far more often than it misbinds, which is the intended failure direction, but it leaves very little usable output.
 
