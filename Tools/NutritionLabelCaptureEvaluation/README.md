@@ -7,7 +7,7 @@ pasted text (A), on-device Vision (B) and a multimodal model through OpenRouter 
 Nothing here ships product behaviour, saves food or treats any output as nutrition truth.
 `Tools/FoodOCREvaluation/` stays frozen; its files are read, never edited.
 
-Phase 1 had no AI or OpenRouter call and no Vision run. Phase 2 adds route B (Vision on development images only), the phase 1 review safeguards and the untouched truth drafting (decision A). Phase 3 records the owner's verification of the untouched Taiwan drafts (round 1), downloads and drafts the refills (round 2), gives the muesli photo every consent flag, and enables route C on **development photos only** (five models gated on the day; the development run is held by the owner).
+Phase 1 had no AI or OpenRouter call and no Vision run. Phase 2 adds route B (Vision on development images only), the phase 1 review safeguards and the untouched truth drafting (decision A). Phase 3 records the owner's verification of the untouched Taiwan drafts (round 1), downloads and drafts the refills (round 2), gives the muesli photo every consent flag, and runs route C on **development photos only** (five models, reasoning off and on, under the owner's evaluation-only routing decisions of 17 October 2026).
 
 ## Framework: Inspect AI
 
@@ -35,12 +35,20 @@ untouched set that refuses to load without a hash-bound unseal.
 Where Inspect does not enforce a plan rule natively, a small wrapper does:
 
 - `budget.py` enforces the route C stops on the cost OpenRouter reports per response
-  ($0.05 per call, $25 in total including the reserved sealed-run budget, at most
-  three unknown-cost calls). Inspect's own `cost_limit` is per sample and priced from
+  ($0.20 per call and $60 in total since the owner's decisions of 17 October 2026, with the
+  200 sealed calls reserved at $0.20, $40; at most three unknown-cost calls, not counting
+  retryable errors with no generation). Inspect's own `cost_limit` is per sample and priced from
   a model-cost table, so it is not used for these stops. `LedgerBudget` keeps that state in
   one ledger outside the repository (`~/WHR-label-eval-private/spend-ledger-v1.json`), so the
   total and the 200-call sealed reservation hold across separate runs, models and the drafting;
-  it refuses changed limits and charges any call left unrecorded at the $0.05 ceiling.
+  it refuses changed limits (they change only through `amend_limits`, recorded in
+  `limits_history`) and charges any call left unrecorded at the per-call ceiling.
+- `openrouter_client.py` is the one OpenRouter client for route C and the drafting: retryable
+  errors (transport, timeouts, 408, 429, 5xx, provider overloaded) are retried with exponential
+  backoff and full jitter, honouring `Retry-After` (seconds or HTTP-date), for at most 5 attempts
+  within 180 s; content outcomes are never retried. Every attempt is a ledger entry. Inspect's own
+  retry is not used for route C (its backoff ignores `Retry-After` and the OpenAI SDK below it
+  retries again), so route C runs on `mockllm/model` and posts through this client.
 - `openrouter_route.py` accepts a response model only when it is the requested slug or that
   slug plus one dated snapshot suffix (`-YYYYMMDD`, `-YYYY-MM-DD`, `-MM-DD`, `-MMDD`); any other
   suffix or routing variant is a mismatch. A missing `finish_reason` fails the response.
@@ -68,7 +76,8 @@ Where Inspect does not enforce a plan rule natively, a small wrapper does:
 | `ingest.py` | Muesli photo: private copy, metadata strip, hash, consent stub |
 | `build_cases.py`, `synthetic/` | Deterministic pasted-text development cases |
 | `run_route_a.py` | Route A through Inspect; writes `results/` summaries |
-| `openrouter/` | Route C instruction and wire schema, drafts, never sent in phase 1 |
+| `openrouter/` | Route C instruction and wire schema; truth-drafting instructions and schema |
+| `openrouter_client.py` | The one OpenRouter client (retry policy, `Retry-After`, generation lookup) for route C and the drafting |
 | `fixtures/` | Taiwan photo manifest, FDA 188 source record, first-pass Taiwan development truth |
 
 The parser under evaluation is the Swift target `NutritionLabelParsing` in
@@ -190,18 +199,19 @@ the sheet (only fully checked cases become records). `--bilingual-orders 34` dra
 orders with `openrouter/truth-drafting-instruction-v1.2.txt` (contract `bilingual_instruction`).
 
 Route C on development photos, one pinned model at a time in the run order Luna, Grok, Sol,
-Gemini 4, Opus (fictional qualification labels are rendered first with
-`xcrun swift qualification/render_qualification.swift <folder outside the repository>`):
+Gemini 4, Opus, each with reasoning off and on (fictional qualification labels are rendered first
+with `xcrun swift qualification/render_qualification.swift <folder outside the repository>`). The
+runner reports the key's remaining credit (free `GET /api/v1/key`) before the first call:
 
 ```sh
-.venv/bin/python run_route_c.py --label luna --env-file <dotenv with OPENROUTER_API_KEY> \
+.venv/bin/python run_route_c.py --label luna --reasoning off --env-file <dotenv with OPENROUTER_API_KEY> \
   --ledger ~/WHR-label-eval-private/spend-ledger-v1.json \
-  --log-dir ~/WHR-label-eval-private/runs/route-c-dev/luna \
+  --log-dir ~/WHR-label-eval-private/runs/route-c-dev/luna-off \
   --qualification-dir <rendered labels> --uk-workspace <checkout>/Tools/FoodOCREvaluation/review_workspace/v2_public_development \
-  --summary ~/WHR-label-eval-private/runs/route-c-dev/luna-summary.json
+  --summary ~/WHR-label-eval-private/runs/route-c-dev/luna-off-summary.json --projected-cost-usd 0.1
 ```
 
-Record (the development run is held by the owner): [`results/route-c-development-v1.md`](results/route-c-development-v1.md).
+Results: [`results/route-c-development-v1.md`](results/route-c-development-v1.md).
 
 **UK images.** The v1 panel images are no longer on disk and the v2 public selection (60 tuning,
 40 sealed) was never acquired, so the UK route B stratum is the 40 exposed v2 development review

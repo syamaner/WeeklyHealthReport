@@ -43,18 +43,17 @@ import os
 import re
 import subprocess
 import sys
-import time
-import urllib.error
-import urllib.request
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import openrouter_client  # noqa: E402
 import openrouter_route  # noqa: E402
-from budget import BudgetStop, LedgerBudget  # noqa: E402
+from budget import BudgetStop, LedgerBudget, contract_limits  # noqa: E402
 from candidate import _collect, schema  # noqa: E402
 from openrouter_route import RouteCModel  # noqa: E402
 
@@ -501,6 +500,7 @@ def verified_record(draft: dict[str, Any], case_rows: list[dict[str, str]], *, v
     cells, unscored = [], []
     row_ids = {cell["row_id"] for cell in draft["cells"]}
     parents_cleared = 0
+    mechanical: list[dict[str, str]] = []
     for cell in draft["cells"]:
         # The review page showed values, not parents, so parentage is structural only: a
         # draft parent naming the row itself or a row absent from the table (`energy` for
@@ -512,21 +512,36 @@ def verified_record(draft: dict[str, Any], case_rows: list[dict[str, str]], *, v
         printed = str(corrections.get((cell["row_id"], cell["header_id"]), cell["printed_text"]))
         parsed = parse_value(printed)
         if parsed is None or cell["basis"] == "unknown":
+            if parsed is None and BARE_NUMBER.match(printed):
+                # Printed without a unit (for example 熱量 "100" on a US-style label): kept as
+                # printed and ungradable; no unit is inferred.
+                reason = "printed without a unit; kept as printed and ungradable (no unit inferred)"
+            else:
+                reason = "not a printed amount" if parsed is None else "unknown column"
             unscored.append(
                 {
                     "row_id": cell["row_id"],
                     "header_id": cell["header_id"],
                     "printed_label": cell["printed_label"],
                     "printed_text": printed,
-                    "reason": "not a printed amount" if parsed is None else "unknown column",
+                    "reason": reason,
                 }
             )
             continue
+        nutrient, row_id = cell["nutrient"], cell["row_id"]
+        mapped = mechanical_nutrient(cell["printed_label"]) if nutrient == "unrecognised" else None
+        if mapped is not None:
+            # The review page showed labels and values, not nutrient keys: a draft that left a
+            # closed Taiwan row name (for example 鈉 in "Sodium/鈉") unrecognised is mapped by the
+            # agent's mechanical check, recorded per record, never by the owner's review.
+            mechanical.append({"printed_label": cell["printed_label"], "draft_nutrient": nutrient, "nutrient": mapped})
+            nutrient, row_id = mapped, mapped if mapped not in row_ids else row_id
         cells.append(
             {
-                "row_id": cell["row_id"],
+                "row_id": row_id,
                 "parent_row_id": parent,
-                **{k: cell[k] for k in ("nutrient", "printed_label", "header_id", "basis")},
+                "nutrient": nutrient,
+                **{k: cell[k] for k in ("printed_label", "header_id", "basis")},
                 "printed_text": printed,
                 **parsed,
                 "serving_conversion": (serving_quantity or "unknown") if cell["basis"] == "per_serving" else "not_applicable",
@@ -534,8 +549,36 @@ def verified_record(draft: dict[str, Any], case_rows: list[dict[str, str]], *, v
         )
     record.update({"headers": headers, "serving_size": serving, "servings_per_pack": pack, "cells": cells, "unscored_cells": unscored})
     record["review"]["structural_parent_cells_cleared"] = parents_cleared
+    if mechanical:
+        record["review"]["mechanical_nutrient_mappings"] = [dict(t) for t in {tuple(sorted(m.items())) for m in mechanical}]
     record["coverage_tags"] = coverage_tags(record)
     return record
+
+
+BARE_NUMBER = re.compile(r"^\s*\d+(?:[.,]\d+)?\s*$")
+# The closed Taiwan 營養標示 row names (plan section 2.1) and their canonical keys.
+TAIWAN_ROW_NAMES = {
+    "熱量": "energy_kcal",
+    "蛋白質": "protein",
+    "脂肪": "fat",
+    "飽和脂肪": "saturates",
+    "反式脂肪": "trans_fat",
+    "碳水化合物": "carbohydrate",
+    "糖": "sugars",
+    "膳食纖維": "fibre",
+    "鈉": "sodium",
+}
+
+
+def mechanical_nutrient(printed_label: str) -> str | None:
+    """The canonical key when the label's Traditional Chinese part is exactly one closed row name.
+
+    A bilingual label such as "Sodium/鈉" gives 鈉, so sodium. A longer name that only contains a
+    row name (總脂肪, 添加糖) is not mapped. 熱量 maps only when the cell is graded at all.
+    """
+    parts = [part.strip() for part in re.split(r"[/／]", printed_label)]
+    names = {TAIWAN_ROW_NAMES[p] for p in parts if p in TAIWAN_ROW_NAMES}
+    return names.pop() if len(names) == 1 else None
 
 
 def write_review_sheet(out: Path, drafts: list[dict[str, Any]], images: dict[str, Path]) -> int:
@@ -679,14 +722,9 @@ def inside_git(path: Path) -> bool:
     return probe.returncode == 0
 
 
-class RefuseRedirects(urllib.request.HTTPRedirectHandler):
-    """Never follow a redirect: urllib would resend the Authorization header to the new host."""
-
-    def redirect_request(self, req, fp, code, msg, headers, newurl):  # noqa: ANN001, ANN201
-        raise urllib.error.HTTPError(req.full_url, code, f"redirect refused ({code})", headers, fp)
-
-
-OPENER = urllib.request.build_opener(RefuseRedirects)
+# The redirect-refusing opener now lives in the shared client (one retry policy for both callers).
+RefuseRedirects = openrouter_client.RefuseRedirects
+OPENER = openrouter_client.OPENER
 
 
 def key_from_env_file(path: Path) -> str | None:
@@ -714,39 +752,14 @@ def journal_open_request(journal: Path) -> str | None:
     if journal.exists():
         for line in journal.read_text(encoding="utf-8").splitlines():
             event = json.loads(line)
-            pending[event["case_id"]] = pending.get(event["case_id"], 0) + (1 if event["event"] == "request" else -1)
+            if event["event"] in ("request", "receipt"):  # per-attempt events sit between the two
+                pending[event["case_id"]] = pending.get(event["case_id"], 0) + (1 if event["event"] == "request" else -1)
     return next((case for case, count in pending.items() if count > 0), None)
 
 
 def append(journal: Path, event: dict[str, Any]) -> None:
     with journal.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(event, ensure_ascii=False) + "\n")
-
-
-def post(body: dict[str, Any], key: str) -> tuple[int, dict[str, Any] | None, float]:
-    request = urllib.request.Request(
-        ENDPOINT_URL,
-        data=json.dumps(body).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {key}",
-            "Content-Type": "application/json",
-            "X-Title": "WeeklyHealthReport label evaluation drafting",
-        },
-        method="POST",
-    )
-    started = time.monotonic()
-    try:
-        with OPENER.open(request, timeout=90) as response:
-            status, payload = response.status, response.read()
-    except urllib.error.HTTPError as error:
-        status, payload = error.code, error.read()
-    except (urllib.error.URLError, TimeoutError) as error:
-        return 0, {"error": {"message": type(error).__name__}}, time.monotonic() - started
-    try:
-        parsed = json.loads(payload)
-    except json.JSONDecodeError:
-        parsed = None
-    return status, parsed, time.monotonic() - started
 
 
 def _read_sheet(out: Path) -> tuple[str, list[dict[str, str]]]:
@@ -811,6 +824,15 @@ def write_truth(out: Path, path: Path, *, verified_on: str, manifest_sha256: str
         "anchoring on it: a value the owner accepted because the draft showed it would look the same.",
         "parentage_note": "The review page showed printed values, headers and serving lines, not parent rows, so parentage is "
         "structural: a draft parent naming the row itself or a row absent from the table is cleared.",
+        "nutrient_key_note": "Nutrient keys were not on the review page either. A key the draft left unrecognised for a label whose "
+        "Traditional Chinese part is exactly one closed Taiwan row name (for example 鈉 in 'Sodium/鈉') is mapped by the agent's "
+        "mechanical check and listed per record under review.mechanical_nutrient_mappings; it is not owner-verified.",
+        "unit_note": "A value printed without a unit (for example 熱量 '100' on a US-style bilingual label) is kept exactly as "
+        "printed in unscored_cells and is ungradable; no unit is inferred.",
+        "review_rounds": "Round 1 (17 October 2026): 40 photos, 527 of 527 cells confirmed, 11 exclusions agreed, order 23 excluded, "
+        "order 34 kept. Round 2 (17 October 2026): order 34 (redrafted with the bilingual instruction v1.2) and refills 63 to 77, "
+        "268 of 268 cells confirmed with no corrections, refill exclusions 66, 71 and 75 agreed. The owner confirmed order 34's "
+        "printed values as drafted, including 熱量 '100' with no unit.",
         "manifest_sha256": manifest_sha256,
         "verified_on": verified_on,
         "counts": {
@@ -916,13 +938,7 @@ def main() -> int:
         target = RouteCModel(
             label="qwen-drafting", model=pinned["slug"], endpoint=pinned["endpoint"], provider_name=pinned["provider_name"]
         )
-        limits = {
-            "per_call_usd": contract["route_c"]["per_call_stop_usd"],
-            "total_usd": contract["route_c"]["total_stop_usd"],
-            "unknown_cost_calls_allowed": contract["route_c"]["unknown_cost_calls_allowed"],
-            "sealed_reserved_calls": contract["route_c"]["sealed_run_reserved_calls"],
-        }
-        budget = LedgerBudget(args.ledger, limits=limits)
+        budget = LedgerBudget(args.ledger, limits=contract_limits(contract))
         wire_schema = json.loads(WIRE_SCHEMA.read_text(encoding="utf-8"))
         superseded = args.out / "superseded"
         for photo in sorted(photos, key=lambda p: p["order"]):
@@ -948,11 +964,6 @@ def main() -> int:
             data = image.read_bytes()
             if hashlib.sha256(data).hexdigest() != photo["sha256"]:
                 raise SystemExit(f"{case_id} bytes do not match the manifest")
-            try:
-                budget.before_call(target.label)
-            except BudgetStop as stop:
-                print(f"stopped before {case_id}: {stop}")
-                break
             append(
                 journal,
                 {
@@ -965,13 +976,74 @@ def main() -> int:
                     "instruction": instruction_id,
                 },
             )
-            status, response, seconds = post(request_body(target, data, instruction, wire_schema), key)
+            poster = openrouter_client.http_post(key, "WeeklyHealthReport label evaluation drafting")
+
+            def ledgered_post(
+                payload: dict[str, Any], timeout: float, poster: openrouter_client.PostFn = poster
+            ) -> tuple[int, dict[str, Any] | None, dict[str, str], float]:
+                budget.before_call(target.label)  # the open call is on disk before each attempt is sent
+                return poster(payload, timeout)
+
+            def record(attempt: openrouter_client.Attempt, case_id: str = case_id, order: int = photo["order"]) -> None:
+                # Every attempt is a ledger entry: its reported cost, or unknown (never zero).
+                cost = openrouter_route.reported_cost(attempt.body)
+                generation = attempt.body.get("id") if isinstance(attempt.body, dict) else None
+                kind = openrouter_client.attempt_kind(attempt.status, attempt.body, attempt.retryable)
+                if cost is None and attempt.retryable and isinstance(generation, str):
+                    found, value = openrouter_client.generation_cost(key, generation)
+                    if found == "found" and value is not None:
+                        cost = Decimal(str(value))
+                append(
+                    journal,
+                    {
+                        "event": "attempt",
+                        "case_id": case_id,
+                        "order": order,
+                        "attempt": attempt.number,
+                        "at": now(),
+                        "http_status": attempt.status,
+                        "retryable": attempt.retryable,
+                        "cause": attempt.cause,
+                        "retry_after": attempt.retry_after,
+                        "cost_usd": None if cost is None else str(cost),
+                        "seconds": round(attempt.seconds, 2),
+                    },
+                )
+                budget.record_call(
+                    target.label,
+                    cost,
+                    purpose=PURPOSE,
+                    case_id=case_id,
+                    at=now(),
+                    returned_model=attempt.body.get("model") if isinstance(attempt.body, dict) else None,
+                    kind=kind,
+                    attempt=attempt.number,
+                    generation_id=generation if isinstance(generation, str) else None,
+                )
+
+            try:
+                result = openrouter_client.call_with_retry(
+                    request_body(target, data, instruction, wire_schema), ledgered_post, on_attempt=record
+                )
+            except BudgetStop as stop:
+                append(journal, {"event": "receipt", "case_id": case_id, "order": photo["order"], "at": now(), "stopped": str(stop)})
+                print(f"stopped at {case_id}: {stop}")
+                break
+            status, response = result.status, result.body
+            seconds = sum(a.seconds for a in result.attempts)
             (raw_dir / f"{photo['order']:02d}.json").write_text(
-                json.dumps({"http_status": status, "seconds": round(seconds, 2), "body": response}, ensure_ascii=False, indent=1),
+                json.dumps(
+                    {"http_status": status, "seconds": round(seconds, 2), "attempts": len(result.attempts), "body": response},
+                    ensure_ascii=False,
+                    indent=1,
+                ),
                 encoding="utf-8",
             )
             cost = openrouter_route.reported_cost(response)
-            problems = openrouter_route.route_mismatches(response, target) if status == 200 else [f"HTTP {status}"]
+            if result.exhausted or status != 200 or result.cause:
+                problems = [f"request failed: {result.cause or f'HTTP {status}'}"]
+            else:
+                problems = openrouter_route.route_mismatches(response, target)
             append(
                 journal,
                 {
@@ -980,26 +1052,14 @@ def main() -> int:
                     "order": photo["order"],
                     "at": now(),
                     "http_status": status,
+                    "attempts": len(result.attempts),
                     "cost_usd": None if cost is None else str(cost),
                     "seconds": round(seconds, 2),
                     "problems": problems,
                     "returned_model": response.get("model") if isinstance(response, dict) else None,
                 },
             )
-            try:
-                # A missing cost is unknown, never zero, whatever the HTTP status.
-                budget.record_call(
-                    target.label,
-                    cost,
-                    purpose=PURPOSE,
-                    case_id=case_id,
-                    at=now(),
-                    returned_model=response.get("model") if isinstance(response, dict) else None,
-                )
-            except BudgetStop as stop:
-                print(f"stopped after {case_id}: {stop}")
-                break
-            if status in (401, 402, 403, 429):
+            if status in (401, 402, 403):
                 message = (response or {}).get("error", {}).get("message", "") if isinstance(response, dict) else ""
                 print(f"stopping: HTTP {status} {message[:200]}")
                 break

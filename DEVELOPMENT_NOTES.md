@@ -1607,3 +1607,15 @@ Pricing as in the previous sections (checked 11 October 2026): USD 4/M base inpu
 Boundary: whole transcript (`phase_usage.py --format claude`, no `--since`). Cache writes: 405,432 5-minute, 0 1-hour. Exact API-equivalent USD 12.3034612.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-17g: Claude Code label capture evaluation phase 3, owner decisions and route C runs
+
+Same `claude-opus-5-5` implementation subagent and transcript as WHR-255-2026-10-17f, at the same pricing (checked 11 October 2026). Runs from that row's commit (`2026-10-17T14:06:32Z`) to this ledger edit: the owner's evaluation-only routing decisions (provider blocks, 16k tokens, $0.20 per call, $60 then $65 total, retry policy and the shared OpenRouter client, reasoning off and on, latest models, three extra arms), the ledger amendments and relabelling, the round-2 truth, the credit gate, the route C development runs and the documents and gates. No subagents. This ledger edit, the commit and the push are outside the row. The OpenRouter spend in this window (USD 5.88 in the ledger, reported `usage.cost` plus the $0.05 ceiling charge for the hold's in-flight call) is a separate actual charge, not part of this comparison.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 3 owner decisions and route C runs (#255) | 83,381,030 (80,616,128) | 2,765,185 | 32,629 | 83,413,659 | $30.60 |
+
+Boundary: `2026-10-17T14:06:32Z` → this edit (`phase_usage.py --format claude --since …`). Cache writes: 2,765,185 5-minute, 0 1-hour. Exact API-equivalent USD 30.6000116.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

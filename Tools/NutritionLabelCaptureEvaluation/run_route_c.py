@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
-"""Run route C on DEVELOPMENT photos through Inspect, under the logging rules.
+"""Run route C on DEVELOPMENT photos through Inspect, one pinned model and one reasoning setting at a time.
 
 Route C runs only while the contract sets `route_c.enabled` true, and only for a model
-pinned in `route_c.models` (slug, endpoint, returned provider name and reasoning effort,
-recorded from the catalogue on the run day); the runner refuses any other value. When it
-runs:
+pinned in `route_c.models` with a passed catalogue gate (slug, endpoint and returned
+provider name recorded on the run day); the runner refuses any other value. When it runs:
 
-- the Inspect log directory must be outside the repository (a `.eval` log holds model
-  requests and responses), and `log_images=False`, so image bytes are never written into
-  the log;
-- `GenerateConfig.extra_headers` is left empty, and the solver refuses any configured or
-  logged header that looks like a credential; the key is read from the environment, or
-  that one variable from `--env-file` into this process only, and is never printed,
-  logged or written;
-- the model is `openrouter/<slug>` with the pinned provider block (one endpoint, no
-  fallbacks, ZDR, data collection denied), no streaming, and the persistent spend ledger;
+- the Inspect log directory must be outside the repository, and `log_images=False`;
+- the key is read from the environment, or that one variable from `--env-file` into this
+  process only, and is never printed, logged or written; before the first call the free
+  `GET /api/v1/key` lookup reports the key's remaining credit, with a warning when it is
+  below what the run could spend;
+- requests go to OpenRouter through `openrouter_client` (one retry loop, every attempt in
+  the persistent spend ledger) with the evaluation-only provider block (one pinned
+  provider, no fallbacks, parameters required) and reasoning off or on;
 - two fictional qualification labels go first (plan section 8.2); a model that does not
-  return an accepted, schema-valid answer for both is not sent any real image;
+  return an accepted, schema-valid answer for both is sent no real image;
 - development photos only: the Taiwan development photos, the UK development review
   images and the muesli photo (only with `send_to_openrouter` consent). Nothing here reads
   a sealed folder, untouched truth or drafts.
@@ -25,11 +23,14 @@ runs:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
 import statistics
 import sys
+import urllib.error
+import urllib.request
 from collections import Counter, defaultdict
 from decimal import Decimal
 from pathlib import Path
@@ -39,11 +40,11 @@ HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 sys.path.insert(0, str(HERE))
 
-import openrouter_route  # noqa: E402
 from openrouter_route import RouteCModel  # noqa: E402
 
 CONTRACT = HERE / "frozen-contract-v1.json"
 QUALIFICATION_FILES = ("qualification-zh-hant.png", "qualification-en-uk.png")
+KEY_URL = "https://openrouter.ai/api/v1/key"
 
 
 def outside_repository(path: Path) -> bool:
@@ -51,32 +52,31 @@ def outside_repository(path: Path) -> bool:
     return resolved != REPO and REPO not in resolved.parents
 
 
-def eval_kwargs(target: RouteCModel, log_dir: Path) -> dict[str, Any]:
-    """Keyword arguments for `inspect_ai.eval`; pure, so the logging rules are testable."""
+def eval_kwargs(log_dir: Path) -> dict[str, Any]:
+    """Keyword arguments for `inspect_ai.eval`; pure, so the logging rules are testable.
+
+    The solver posts to OpenRouter itself, so Inspect's model is `mockllm/model` and its
+    `generate` is never called; there is no second retry loop.
+    """
     if not outside_repository(log_dir):
         raise SystemExit("--log-dir must be outside the repository")
-    return {
-        "model": f"openrouter/{target.model}",
-        "model_args": openrouter_route.model_args(target),
-        "log_dir": str(log_dir),
-        "log_images": False,
-        "display": "none",
-        "max_samples": 1,
-    }
+    return {"model": "mockllm/model", "log_dir": str(log_dir), "log_images": False, "display": "none", "max_samples": 4}
 
 
-def pinned_target(contract: dict[str, Any], label: str) -> RouteCModel:
-    """The contract's pinned model for a run label; refuses an unknown or unpinned label."""
+def pinned_target(contract: dict[str, Any], label: str, reasoning: str = "off") -> RouteCModel:
+    """The contract's pinned model for a run label and reasoning setting; refuses anything unpinned."""
     models = contract["route_c"].get("models") or {}
     pin = models.get(label)
     if not pin or pin.get("gate") != "passed":
         raise SystemExit(f"route C model {label!r} is not pinned with a passed catalogue gate in the contract")
+    if reasoning not in (pin.get("reasoning_settings") or {}):
+        raise SystemExit(f"reasoning {reasoning!r} is not a pinned setting for {label}")
     return RouteCModel(
-        label=label,
+        label=f"{label}-reasoning-{reasoning}",
         model=pin["slug"],
         endpoint=pin["endpoint"],
         provider_name=pin["provider_name"],
-        reasoning_effort=pin.get("reasoning_effort"),
+        reasoning=reasoning,
     )
 
 
@@ -89,11 +89,13 @@ def percentile(values: list[float], fraction: float) -> float | None:
 
 
 def call_stats(rows: list[dict[str, Any]]) -> dict[str, Any]:
-    """Cost and latency per call from the solver's metadata; unknown costs are counted, never zero."""
+    """Cost, latency and retries per call; unknown costs are counted, never zero."""
     costs = [Decimal(r["cost_usd"]) for r in rows if r.get("cost_usd") is not None]
     latencies = [float(r["latency_seconds"]) for r in rows if r.get("latency_seconds") is not None]
     return {
         "calls": len(rows),
+        "attempts": sum(int(r.get("attempts") or 1) for r in rows),
+        "retries": sum(int(r.get("retries") or 0) for r in rows),
         "reported_cost_usd": str(sum(costs, Decimal(0))),
         "unknown_cost_calls": sum(1 for r in rows if r.get("cost_usd") is None),
         "cost_median_usd": str(statistics.median(costs)) if costs else None,
@@ -105,9 +107,55 @@ def call_stats(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def qualification_cases(folder: Path) -> list[dict[str, Any]]:
-    import hashlib
+CREDITS_URL = "https://openrouter.ai/api/v1/credits"
 
+
+def _get(url: str, key: str) -> dict[str, Any]:
+    import openrouter_client
+
+    request = urllib.request.Request(url, headers={"Authorization": f"Bearer {key}"}, method="GET")
+    try:
+        with openrouter_client.OPENER.open(request, timeout=20) as response:
+            return json.loads(response.read()).get("data") or {}
+    except (urllib.error.URLError, TimeoutError, OSError, json.JSONDecodeError) as error:
+        return {"error": type(error).__name__}
+
+
+def key_credit(key: str) -> dict[str, Any]:
+    """The key's remaining limit (`GET /api/v1/key`) and the account's balance (`GET /api/v1/credits`), both free.
+
+    Both matter: on 17 October 2026 the key had $58 of its limit left while the account balance
+    was $0.76, and OpenRouter answered HTTP 402. `available` is the smaller of the two. The key
+    itself is never returned.
+    """
+    key_data = _get(KEY_URL, key)
+    credits = _get(CREDITS_URL, key)
+    result: dict[str, Any] = {k: key_data.get(k) for k in ("limit", "limit_remaining", "usage", "is_free_tier")}
+    total, used = credits.get("total_credits"), credits.get("total_usage")
+    result["account_remaining"] = (
+        float(Decimal(str(total)) - Decimal(str(used))) if isinstance(total, int | float) and isinstance(used, int | float) else None
+    )
+    known = [v for v in (result["limit_remaining"], result["account_remaining"]) if isinstance(v, int | float)]
+    result["available"] = min(known) if known else None
+    return result
+
+
+CREDIT_MARGIN_FRACTION = Decimal("0.25")
+CREDIT_MARGIN_MIN_USD = Decimal("1")
+
+
+def credit_gate(credit: dict[str, Any], projected_usd: Decimal, *, reserve_usd: Decimal = Decimal(0)) -> tuple[bool, Decimal]:
+    """Whether an arm may start: available credit (the smaller of the key's remaining limit and the
+    account balance) must cover its projected cost plus a margin (the larger of 25% and $1) plus any
+    reserve. Unknown credit refuses. Returns (allowed, needed)."""
+    needed = projected_usd + max(projected_usd * CREDIT_MARGIN_FRACTION, CREDIT_MARGIN_MIN_USD) + reserve_usd
+    available = credit.get("available")
+    if not isinstance(available, int | float) or isinstance(available, bool):
+        return False, needed
+    return Decimal(str(available)) >= needed, needed
+
+
+def qualification_cases(folder: Path) -> list[dict[str, Any]]:
     loaded = []
     for name in QUALIFICATION_FILES:
         path = folder / name
@@ -128,7 +176,7 @@ def qualification_cases(folder: Path) -> list[dict[str, Any]]:
     return loaded
 
 
-def run(target: RouteCModel, loaded: list[dict[str, Any]], ledger: Path, log_dir: Path, name: str) -> tuple[Any, Path]:
+def run(target: RouteCModel, loaded: list[dict[str, Any]], ledger: Path, log_dir: Path, name: str) -> Any:
     from inspect_ai import eval as inspect_eval
 
     from inspect_task import label_capture_route_c_development
@@ -144,9 +192,24 @@ def run(target: RouteCModel, loaded: list[dict[str, Any]], ledger: Path, log_dir
         provider_name=target.provider_name,
         label=target.label,
         enabled=True,
-        reasoning_effort=target.reasoning_effort,
+        reasoning=target.reasoning,
     )
-    return inspect_eval(task, **eval_kwargs(target, log_dir))[0], cases_file
+    return inspect_eval(task, **eval_kwargs(log_dir))[0]
+
+
+CALL_FIELDS = (
+    "cost_usd",
+    "attempts",
+    "retries",
+    "retry_causes",
+    "unknown_cost_attempts",
+    "latency_seconds",
+    "returned_model",
+    "returned_provider",
+    "prompt_tokens",
+    "completion_tokens",
+    "reasoning_tokens",
+)
 
 
 def per_case_rows(log: Any, loaded: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -175,10 +238,7 @@ def per_case_rows(log: Any, loaded: list[dict[str, Any]]) -> list[dict[str, Any]
                 "would_mark_ready": bool(candidate.get("would_mark_ready")),
                 "warnings": candidate.get("warnings", []),
                 "score": score.metadata if score is not None else None,
-                **{
-                    k: call.get(k)
-                    for k in ("cost_usd", "latency_seconds", "returned_model", "returned_provider", "prompt_tokens", "completion_tokens")
-                },
+                **{k: call.get(k) for k in CALL_FIELDS},
             }
         )
     return rows
@@ -214,7 +274,7 @@ def summarise(target: RouteCModel, loaded: list[dict[str, Any]], rows: list[dict
     return {
         "route": "C",
         "split": "development",
-        "model": {"label": target.label, "slug": target.model, "endpoint": target.endpoint, "reasoning_effort": target.reasoning_effort},
+        "model": {"label": target.label, "slug": target.model, "endpoint": target.endpoint, "reasoning": target.reasoning},
         "inspect_status": log.status,
         "inspect_error": str(log.error.message)[:300] if log.error else None,
         "inspect_log": Path(log.location).name,
@@ -234,6 +294,7 @@ def summarise(target: RouteCModel, loaded: list[dict[str, Any]], rows: list[dict
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--label", required=True, help="run label pinned in the contract's route_c.models (luna, grok, sol, gemini, opus)")
+    parser.add_argument("--reasoning", choices=("off", "on"), required=True)
     parser.add_argument("--ledger", type=Path, required=True)
     parser.add_argument("--log-dir", type=Path, required=True)
     parser.add_argument("--qualification-dir", type=Path, required=True, help="folder with the two rendered fictional labels")
@@ -241,39 +302,81 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--uk-workspace", type=Path, required=True)
     parser.add_argument("--env-file", type=Path, help="dotenv file to take OPENROUTER_API_KEY from (only that variable, into this process)")
     parser.add_argument("--summary", type=Path)
+    parser.add_argument("--projected-cost-usd", type=float, required=True, help="this arm's projected cost, from measured per-call costs")
+    parser.add_argument(
+        "--reserve-usd",
+        type=float,
+        default=0.0,
+        help="credit that must stay available after the arm (for example the $40 sealed reservation)",
+    )
     parser.add_argument("--qualification-only", action="store_true")
     args = parser.parse_args(argv)
 
     contract = json.loads(CONTRACT.read_text(encoding="utf-8"))
     if contract["route_c"].get("enabled") is not True:
         raise SystemExit("route C is disabled in the contract; no call is made")
-    target = pinned_target(contract, args.label)
+    target = pinned_target(contract, args.label, args.reasoning)
     for path in (args.log_dir, args.ledger):
         if not outside_repository(path):
             raise SystemExit(f"refusing a path inside the repository: {path}")
-    if not os.environ.get("OPENROUTER_API_KEY"):
+    key = os.environ.get("OPENROUTER_API_KEY")
+    if not key:
         from draft_untouched_truth import key_from_env_file
 
         key = key_from_env_file(args.env_file) if args.env_file else None
         if not key:
             raise SystemExit("OPENROUTER_API_KEY is not set")
-        os.environ["OPENROUTER_API_KEY"] = key  # this process only; never printed or written
+
+    import openrouter_client
+    from inspect_task import configure_route_c_transport
+
+    credit = key_credit(key)
+    ledger = json.loads(args.ledger.read_text(encoding="utf-8"))
+    could_spend = Decimal(str(contract["route_c"]["total_stop_usd"])) - Decimal(ledger["reported_spend_usd"])
+    available = credit.get("available")
+    credit["warning"] = (
+        f"available credit {available} is below the {could_spend} the run could still spend under the total stop"
+        if isinstance(available, int | float) and Decimal(str(available)) < could_spend
+        else None
+    )
+    allowed, needed = credit_gate(credit, Decimal(str(args.projected_cost_usd)), reserve_usd=Decimal(str(args.reserve_usd)))
+    credit["gate"] = {"projected_cost_usd": str(args.projected_cost_usd), "reserve_usd": str(args.reserve_usd), "needed_usd": str(needed)}
+    print(json.dumps({"key_credit": credit}))
+    if not allowed:
+        raise SystemExit(
+            f"refusing to start: available credit {available} is below the {needed} this arm needs (projection, margin, reserve)"
+        )
+    configure_route_c_transport(
+        openrouter_client.http_post(key, "WeeklyHealthReport label evaluation route C"),
+        lambda generation: openrouter_client.generation_cost(key, generation),
+    )
 
     qualifying = qualification_cases(args.qualification_dir)
-    log, _ = run(target, qualifying, args.ledger, args.log_dir, "qualification")
+    log = run(target, qualifying, args.ledger, args.log_dir, "qualification")
     rows = per_case_rows(log, qualifying)
     passed = all(r["attempted"] and not r["failed"] and not r["error"] and not r["declined"] for r in rows)
     result: dict[str, Any] = {
+        "key_credit": credit,
         "qualification": {
             "passed": passed,
             "cases": [
                 {
                     k: r[k]
-                    for k in ("id", "failed", "error", "declined", "cost_usd", "latency_seconds", "returned_model", "returned_provider")
+                    for k in (
+                        "id",
+                        "failed",
+                        "error",
+                        "declined",
+                        "cost_usd",
+                        "attempts",
+                        "latency_seconds",
+                        "returned_model",
+                        "returned_provider",
+                    )
                 }
                 for r in rows
             ],
-        }
+        },
     }
     print(json.dumps(result["qualification"], ensure_ascii=False))
     if passed and not args.qualification_only:
@@ -283,7 +386,7 @@ def main(argv: list[str] | None = None) -> int:
         for case in loaded:
             if case["metadata"].get("corpus") == "owner" and case["metadata"].get("consent_send_to_openrouter") is not True:
                 raise SystemExit("the muesli photo has no send_to_openrouter consent")
-        log, _ = run(target, loaded, args.ledger, args.log_dir, "development")
+        log = run(target, loaded, args.ledger, args.log_dir, "development")
         rows = per_case_rows(log, loaded)
         result.update(summarise(target, loaded, rows, log))
         result["notes"] = notes

@@ -172,11 +172,14 @@
   "route_c": {
     "enabled": true,
     "models_in_run_order": [
-      "GPT-6 Luna (azure)",
-      "Grok 4.7 (xai/zdr)",
-      "GPT-6.1 Sol (azure)",
-      "Gemini 4 (ZDR endpoint on the day)",
-      "Claude Opus 4.7 (google-vertex/global)"
+      "GPT-6 Luna (openai), off and on",
+      "GPT-6 Luna Pro (openai), off and on",
+      "Grok 4.7 (xai), on",
+      "Gemini 4 Argon (google-ai-studio), on",
+      "GPT-6.1 Sol (openai), on",
+      "GPT-6.1 Sol Pro (openai), on",
+      "Claude Opus 5.5 (anthropic), on",
+      "Claude Fable 5.1 (anthropic), on: held for the owner because the projection crosses the $20 development allowance"
     ],
     "provider_block": {
       "only": [
@@ -186,28 +189,26 @@
         "<endpoint>"
       ],
       "allow_fallbacks": false,
-      "require_parameters": true,
-      "data_collection": "deny",
-      "zdr": true
+      "require_parameters": true
     },
-    "max_output_tokens": 4096,
-    "timeout_seconds": 90,
-    "retries": 0,
-    "per_call_stop_usd": 0.05,
-    "total_stop_usd": 25,
+    "max_output_tokens": 16384,
+    "timeout_seconds": 180,
+    "retries": 4,
+    "per_call_stop_usd": 0.2,
+    "total_stop_usd": 65,
     "unknown_cost_calls_allowed": 3,
     "sealed_run_reserved_calls": 200,
-    "response_checks": "response model must match the request under model_slug_rule, provider must match the pinned endpoint, and finish_reason must be present and stop; a missing choice or finish_reason is a problem; otherwise the case is failed",
+    "response_checks": "response model must match the request under model_slug_rule, provider must match the pinned endpoint's provider name, finish_reason must be stop, and the answer must validate against the wire schema; otherwise the case is failed (never retried)",
     "cost_source": "usage.cost on the raw OpenRouter response; Inspect's ModelUsage.total_cost is computed from Inspect's own price table, so it is not used; a missing cost is unknown",
     "reserve_models": [],
     "reserve_note": "Qwen 3.5 was removed from the route C reserve because it drafts untouched truth (decision A).",
     "never_sees_untouched_truth_or_drafts": true,
-    "sealed_reservation": "RunBudget holds back 200 calls at the $0.05 ceiling ($10) from development calls",
+    "sealed_reservation": "LedgerBudget holds back 200 calls at sealed_reservation_per_call_usd ($0.20, $40) from development calls",
     "model_slug_rule": "A response model is accepted only when it equals the requested slug, or the requested slug followed by '-' and one real calendar date in the closed forms YYYYMMDD, YYYY-MM-DD, MM-DD or MMDD (month-day forms checked in a leap year) (openrouter_route.model_slug_matches). Other sizes, -mini, -thinking, -vN, '.1', :free or :nitro routing variants and other vendors are mismatches. Widening the set is a contract change.",
     "spend_ledger": {
       "implementation": "budget.LedgerBudget (required by route_c_openrouter; no in-memory default)",
       "location": "outside the repository (~/WHR-label-eval-private/spend-ledger-v1.json); one ledger for route C and the untouched truth drafting",
-      "holds": "the $25 total, the $0.05 per-call stop, the three unknown-cost allowance (a fourth unknown-cost call is refused before it is made) and the 200-call sealed reservation, shared across separate Inspect runs, models and processes",
+      "holds": "the $65 total, the $0.20 per-call stop, the three unknown-cost allowance (retryable errors with no generation excluded) and the 200-call sealed reservation, shared across runs, models, processes and the drafting",
       "refuses_changed_limits": true,
       "unrecorded_calls": "a call started but not recorded stays open: it is charged at the $0.05 ceiling and, if sealed, counts against the 200-call sealed cap",
       "locking": "an exclusive fcntl.flock on a sibling lock file around every reload, check, append and save, so separate processes share one true total",
@@ -232,127 +233,382 @@
         "stopped_models",
         "entries"
       ],
-      "never_holds": "no key, header, prompt, image or response"
+      "never_holds": "no key, header, prompt, image or response",
+      "limits_change": "the ledger's limits were changed twice, each by LedgerBudget.amend_limits with a recorded limits_history entry (owner decisions of 17 October 2026: $0.20 per call and $60 total, then $65 total), never by hand"
     },
-    "logged_request_check": "Inspect 0.3.276 logs the OpenAI-compatible request dict (including extra_headers, which hold only the request and session ids) in ModelEvent.call.request; the API key is in the SDK client's Authorization header, not in that dict. route_c_openrouter stops the run if any credential-like header appears in the logged request (openrouter_route.logged_request_credentials).",
-    "runner": "run_route_c.py: refuses to start while route_c.enabled is false or for a model not pinned here with a passed gate; refuses a log directory or ledger inside the repository; reads the key from the environment or one dotenv variable into the process only; passes log_images=False; leaves extra_headers empty, and the solver refuses configured or logged credential-like headers before and after each call; runs the two qualification labels first; maps the wire output with route_c_mapping.py",
+    "logged_request_check": "The key is only in the Authorization header of openrouter_client's POST; the Inspect log holds the request body without the image and the response body, never a header.",
+    "runner": "run_route_c.py: refuses to start while route_c.enabled is false or for a model not pinned here with a passed gate; refuses a log directory or ledger inside the repository; reads the key from the environment or one dotenv variable into the process only; posts through openrouter_client (one retry loop, every attempt in the ledger); Inspect runs on mockllm/model with log_images False; runs the two qualification labels first; maps answers with route_c_mapping.py",
     "enabled_scope": "DEVELOPMENT photos only (phase 3, 17 October 2026): the muesli photo (send_to_openrouter consent), the Taiwan development photos and the UK development review images. The untouched and sealed photos, untouched truth and drafts are never read by route C.",
     "qualification": "Before any real image, each model gets two fictional labels rendered by qualification/render_qualification.swift (one Taiwan, one UK); a model that does not return an accepted, schema-valid, non-declined answer for both is sent no real image.",
-    "reasoning_note": "Reasoning effort mirrors the app's OpenRouterFoodProvider routes where one exists (Luna none, Sol low, Grok low, Opus not set); Gemini 4 has no app route and uses low.",
-    "timeouts": "timeout 90 s on the request and attempt_timeout 90 s as the wall-clock deadline for the whole call; no streaming; Anthropic prompt-cache markers off (cache_prompt false)",
+    "reasoning_note": "Two development runs per model: reasoning off sends reasoning {enabled: false}; reasoning on sends reasoning {enabled: true} with no effort set, the model's default effort.",
+    "timeouts": "180 s total deadline per call including retries; no streaming",
     "models": {
       "luna": {
         "name": "GPT-6 Luna",
         "slug": "openai/gpt-6-luna",
-        "endpoint": "azure",
-        "provider_name": "Azure",
-        "reasoning_effort": "none",
+        "endpoint": "openai",
+        "provider_name": "OpenAI",
+        "reasoning_settings": {
+          "off": {
+            "enabled": false
+          },
+          "on": {
+            "enabled": true
+          }
+        },
         "catalogue_2026_10_17": {
           "image_input": true,
-          "zdr": "Azure | openai/gpt-6-luna-20260922",
           "prompt_usd_per_million": "0.10",
           "completion_usd_per_million": "0.50",
-          "structured_outputs": true
+          "structured_outputs": true,
+          "response_format": true,
+          "reasoning": true,
+          "max_tokens": true,
+          "status": 0
         },
-        "gate": "passed"
+        "endpoint_choice": "First-party OpenAI endpoint at the list price; azure has the same price but does not take max_tokens.",
+        "zdr_endpoint_available": "Azure | openai/gpt-6-luna-20260922 (azure, azure/us, azure/eu)",
+        "zdr_note": "information only; the evaluation endpoint is not ZDR, and any product use would still need ZDR",
+        "gate": "passed",
+        "previous_pin": {
+          "endpoint": "azure",
+          "provider_name": "Azure",
+          "reasoning_effort": "none"
+        },
+        "release_date": "2026-09-22"
       },
       "grok": {
         "name": "Grok 4.7",
         "slug": "x-ai/grok-4.7",
-        "endpoint": "xai/zdr",
+        "endpoint": "xai",
         "provider_name": "xAI",
-        "reasoning_effort": "low",
+        "reasoning_settings": {
+          "on": {
+            "enabled": true
+          }
+        },
         "catalogue_2026_10_17": {
           "image_input": true,
-          "zdr": "xAI | x-ai/grok-4.7-20260916",
           "prompt_usd_per_million": "2.00",
           "completion_usd_per_million": "6.00",
-          "structured_outputs": true
+          "structured_outputs": true,
+          "response_format": true,
+          "reasoning": true,
+          "max_tokens": true,
+          "status": 0
         },
-        "gate": "passed"
+        "endpoint_choice": "First-party xAI standard endpoint at the list price.",
+        "zdr_endpoint_available": "xAI | x-ai/grok-4.7-20260916 (xai/zdr, xai/zdr/us, xai/zdr/priority)",
+        "zdr_note": "information only; the evaluation endpoint is not ZDR, and any product use would still need ZDR",
+        "gate": "passed",
+        "previous_pin": {
+          "endpoint": "xai/zdr",
+          "provider_name": "xAI",
+          "reasoning_effort": "low"
+        },
+        "reasoning_off": "not available on the endpoint (reasoning mandatory); HTTP 400 'Reasoning is mandatory for this endpoint and cannot be disabled.' on both qualification labels, 17 October 2026",
+        "release_date": "2026-09-21"
       },
       "sol": {
         "name": "GPT-6.1 Sol",
         "slug": "openai/gpt-6.1-sol",
-        "endpoint": "azure",
-        "provider_name": "Azure",
-        "reasoning_effort": "low",
+        "endpoint": "openai",
+        "provider_name": "OpenAI",
+        "reasoning_settings": {
+          "on": {
+            "enabled": true
+          }
+        },
         "catalogue_2026_10_17": {
           "image_input": true,
-          "zdr": "Azure | openai/gpt-6.1-sol-20260929",
           "prompt_usd_per_million": "2.00",
           "completion_usd_per_million": "10.00",
-          "structured_outputs": true
+          "structured_outputs": true,
+          "response_format": true,
+          "reasoning": true,
+          "max_tokens": true,
+          "status": 0
         },
-        "gate": "passed"
+        "endpoint_choice": "First-party OpenAI standard endpoint at the list price (flex is half price but slower and queue-limited).",
+        "zdr_endpoint_available": "Azure | openai/gpt-6.1-sol-20260929 (azure, azure/us, azure/eu)",
+        "zdr_note": "information only; the evaluation endpoint is not ZDR, and any product use would still need ZDR",
+        "gate": "passed",
+        "previous_pin": {
+          "endpoint": "azure",
+          "provider_name": "Azure",
+          "reasoning_effort": "low"
+        },
+        "release_date": "2026-09-29",
+        "reasoning_off": "not available on the endpoint (reasoning mandatory): HTTP 400 'Reasoning is mandatory for this endpoint and cannot be disabled.' on both qualification labels, 17 October 2026; reasoning on only, no substitute"
       },
       "gemini": {
         "name": "Gemini 4 (Gemini 4 Argon)",
         "slug": "google/gemini-4-argon",
-        "endpoint": "google-vertex/us",
-        "provider_name": "Google",
-        "reasoning_effort": "low",
+        "endpoint": "google-ai-studio",
+        "provider_name": "Google AI Studio",
+        "reasoning_settings": {
+          "on": {
+            "enabled": true
+          }
+        },
         "catalogue_2026_10_17": {
           "image_input": true,
-          "zdr": "Google | google/gemini-4-argon-20261013",
-          "prompt_usd_per_million": "2.20",
-          "completion_usd_per_million": "11.00",
-          "image_usd_per_million": "2.20",
+          "prompt_usd_per_million": "2.00",
+          "completion_usd_per_million": "10.00",
           "structured_outputs": true,
-          "note": "google/gemini-4-argon is the only Gemini 4 model in the catalogue on the day. Its ZDR endpoints are google-vertex/global (status -2 on the day, so not chosen), google-vertex/us and google-vertex/global/priority; google-vertex/us is pinned."
+          "response_format": true,
+          "reasoning": true,
+          "max_tokens": true,
+          "status": 0
         },
-        "gate": "passed"
+        "endpoint_choice": "First-party Google AI Studio standard endpoint at the list price; the only Gemini 4 model in the catalogue.",
+        "zdr_endpoint_available": "Google | google/gemini-4-argon-20261013 (google-vertex/global, google-vertex/us, priority)",
+        "zdr_note": "information only; the evaluation endpoint is not ZDR, and any product use would still need ZDR",
+        "gate": "passed",
+        "previous_pin": {
+          "endpoint": "google-vertex/us",
+          "provider_name": "Google",
+          "reasoning_effort": "low"
+        },
+        "release_date": "2026-10-13",
+        "reasoning_off": "not available on the endpoint (reasoning mandatory): HTTP 400 'Reasoning is mandatory for this endpoint and cannot be disabled.' on both qualification labels, 17 October 2026; reasoning on only, no substitute"
       },
       "opus": {
-        "name": "Claude Opus 4.7",
-        "slug": "anthropic/claude-opus-4.7",
-        "endpoint": "google-vertex/global",
-        "provider_name": "Google",
-        "reasoning_effort": null,
+        "name": "Claude Opus 5.5",
+        "slug": "anthropic/claude-opus-5.5",
+        "endpoint": "anthropic",
+        "provider_name": "Anthropic",
+        "reasoning_settings": {
+          "on": {
+            "enabled": true
+          }
+        },
         "catalogue_2026_10_17": {
           "image_input": true,
-          "zdr": "Google | anthropic/claude-4.7-opus-20260416",
-          "prompt_usd_per_million": "5.00",
-          "completion_usd_per_million": "25.00",
-          "structured_outputs": true
+          "prompt_usd_per_million": "4.00",
+          "completion_usd_per_million": "20.00",
+          "structured_outputs": true,
+          "response_format": true,
+          "reasoning": true,
+          "max_tokens": true,
+          "status": 0
         },
+        "endpoint_choice": "First-party Anthropic endpoint at the list price.",
+        "zdr_endpoint_available": "Google | anthropic/claude-opus-5.5-20260921 (google-vertex/global and regional); Amazon Bedrock (no structured outputs)",
+        "zdr_note": "information only; the evaluation endpoint is not ZDR, and any product use would still need ZDR",
         "gate": "passed",
-        "caveat": "The 20 Taiwan development truths were drafted by Claude (the assistant), so Opus results on the Taiwan development stratum carry that caveat."
+        "previous_pin": {
+          "endpoint": "google-vertex/global",
+          "provider_name": "Google",
+          "reasoning_effort": null
+        },
+        "caveat": "The 20 Taiwan development truths were drafted by Claude (the assistant, Claude Opus 5.5 itself), so Opus 5.5 results on the Taiwan development stratum carry a self-agreement caveat.",
+        "release_date": "2026-09-22",
+        "replaces": "anthropic/claude-opus-4.7 (2026-04-16) on anthropic, never run in phase 3",
+        "reasoning_off": "not available on the endpoint (reasoning mandatory): HTTP 400 'Reasoning is mandatory for this endpoint and cannot be disabled.' on both qualification labels, 17 October 2026; reasoning on only, no substitute"
+      },
+      "luna_pro": {
+        "name": "GPT-6 Luna Pro",
+        "slug": "openai/gpt-6-luna-pro",
+        "endpoint": "openai",
+        "provider_name": "OpenAI",
+        "release_date": "2026-09-22",
+        "catalogue_2026_10_17": {
+          "image_input": true,
+          "structured_outputs": true,
+          "response_format": true,
+          "reasoning": true,
+          "max_tokens": true,
+          "status": 0,
+          "prompt_usd_per_million": "0.10",
+          "completion_usd_per_million": "0.50"
+        },
+        "catalogue_note": "the same underlying model as GPT-6 Luna, served with reasoning.mode pro (the catalogue warns it spends far more reasoning tokens)",
+        "endpoint_choice": "First-party OpenAI endpoint at the list price.",
+        "zdr_endpoint_available": "Azure | openai/gpt-6-luna-pro-20260922 (azure, azure/us, azure/eu)",
+        "reasoning_settings": {
+          "off": {
+            "enabled": false
+          },
+          "on": {
+            "enabled": true
+          }
+        },
+        "zdr_note": "information only; the evaluation endpoint is not ZDR, and any product use would still need ZDR",
+        "gate": "passed",
+        "role": "extra arm (owner decision, 17 October 2026)"
+      },
+      "sol_pro": {
+        "name": "GPT-6.1 Sol Pro",
+        "slug": "openai/gpt-6.1-sol-pro",
+        "endpoint": "openai",
+        "provider_name": "OpenAI",
+        "release_date": "2026-09-29",
+        "catalogue_2026_10_17": {
+          "image_input": true,
+          "structured_outputs": true,
+          "response_format": true,
+          "reasoning": true,
+          "max_tokens": true,
+          "status": 0,
+          "prompt_usd_per_million": "2.00",
+          "completion_usd_per_million": "10.00"
+        },
+        "catalogue_note": "the same underlying model as GPT-6.1 Sol, served with reasoning.mode pro (the catalogue warns it spends far more reasoning tokens)",
+        "endpoint_choice": "First-party OpenAI endpoint at the list price.",
+        "zdr_endpoint_available": "Azure | openai/gpt-6.1-sol-pro-20260929 (azure, azure/us, azure/eu)",
+        "reasoning_settings": {
+          "on": {
+            "enabled": true
+          }
+        },
+        "zdr_note": "information only; the evaluation endpoint is not ZDR, and any product use would still need ZDR",
+        "gate": "passed",
+        "role": "extra arm (owner decision, 17 October 2026)",
+        "reasoning_off": "not available on the endpoint (reasoning mandatory): HTTP 400 'Reasoning is mandatory for this endpoint and cannot be disabled.' on both qualification labels, 17 October 2026; reasoning on only, no substitute"
+      },
+      "fable": {
+        "name": "Claude Fable 5.1",
+        "slug": "anthropic/claude-fable-5.1",
+        "endpoint": "anthropic",
+        "provider_name": "Anthropic",
+        "release_date": "2026-09-01",
+        "catalogue_2026_10_17": {
+          "image_input": true,
+          "structured_outputs": true,
+          "response_format": true,
+          "reasoning": true,
+          "max_tokens": true,
+          "status": 0,
+          "prompt_usd_per_million": "10.00",
+          "completion_usd_per_million": "50.00"
+        },
+        "endpoint_choice": "First-party Anthropic endpoint at the list price.",
+        "zdr_endpoint_available": "none listed on 17 October 2026",
+        "caveat": "The 20 Taiwan development truths were drafted by Claude (the assistant), so Fable 5.1 results on the Taiwan development stratum carry the same Claude self-agreement caveat as Opus 5.5.",
+        "reasoning_settings": {
+          "on": {
+            "enabled": true
+          }
+        },
+        "zdr_note": "information only; the evaluation endpoint is not ZDR, and any product use would still need ZDR",
+        "gate": "passed",
+        "role": "extra arm (owner decision, 17 October 2026)",
+        "reasoning_off": "not available on the endpoint (reasoning mandatory): HTTP 400 'Reasoning is mandatory for this endpoint and cannot be disabled.' on both qualification labels, 17 October 2026; reasoning on only, no substitute"
       }
     },
-    "hold": "Held by the owner on 17 October 2026 while the routing restrictions (ZDR, data_collection deny, reasoning off, the 4096-token ceiling and the $0.05 per-call stop) are reconsidered. Before the hold, Luna passed qualification and sent 43 of 60 development photos (20 Taiwan, 23 UK, no muesli); that partial run is not reported as a result. No other model received an image.",
-    "schema_description_finding": "Inspect sends \"description\": null in json_schema when none is set; with it, Luna on Azure answered outside the strict schema (one diagnostic call each way on a fictional label, 17 October 2026). The solver sets a description and validates every answer against the wire schema; a schema-invalid answer is failed."
+    "schema_description_finding": "Inspect sends \"description\": null in json_schema when none is set; with it, Luna on Azure answered outside the strict schema (one diagnostic call each way on a fictional label, 17 October 2026). The solver sets a description and validates every answer against the wire schema; a schema-invalid answer is failed.",
+    "hold_history": "Held by the owner on 17 October 2026 while the routing restrictions were reconsidered; lifted the same day by the decisions in owner_decisions_2026_10_17. Before the hold, Luna (azure, ZDR) passed qualification and sent 43 of 60 development photos; that partial run is discarded and never scored.",
+    "owner_decisions_2026_10_17": {
+      "scope": "route C for the EVALUATION only; product routing (OpenRouterFoodProvider) is unchanged, and any product use of route C still needs a ZDR endpoint, data collection denied and the contract, policy and approval steps in the plan",
+      "1_zdr": "zdr true and data_collection deny are dropped from the route C provider block; whether each model has a ZDR endpoint is recorded as information only (models.*.zdr_endpoint_available)",
+      "2_provider": "one pinned provider per model (only and order, allow_fallbacks false, require_parameters true), chosen by quality and price; the model and provider identity checks stay",
+      "3_max_tokens": "max output tokens raised from 4096 to 16384",
+      "4_stops": "per-call stop raised from $0.05 to $0.20; the 200-call sealed reservation stays",
+      "5_resilience": "retry retryable errors with exponential backoff and jitter, respecting Retry-After (seconds and HTTP-date); see retry_policy",
+      "6_reasoning": "each model runs twice on development data, reasoning off and reasoning on (the model's default effort), so the owner can choose per model before the untouched run",
+      "7_ceilings": "product ceilings unchanged: median $0.02 per photo and p90 20 s",
+      "reservation": "the 200 sealed calls are held back at the full per-call ceiling: 200 x $0.20 = $40, leaving $20 for development and the drafting. Before any sealed run, if the remaining budget cannot cover it, the run stops and is reported to the owner (budget.sealed_projection_check); a sealed run is never cut short silently.",
+      "unknown_costs": "a retryable attempt with no generation returned (transport error, timeout, 408, 429 or 5xx) is logged as retryable_error_unknown_cost and does not count toward the three-unknown stop; an HTTP 200 answer with no cost still counts. Retried attempts are reconciled through OpenRouter's generation lookup where an id exists, and any non-zero charge found is recorded.",
+      "total_stop": "the evaluation's total stop is raised from $25 to $60 (owner, 17 October 2026); this replaces an earlier same-day decision that priced the reservation at a projected cost",
+      "key_check": "before the first route C call of a run, the runner reads the key's remaining credit with the free GET /api/v1/key call (key in the process only, never printed) and warns when it is below what the run could spend",
+      "rejections": "a non-retryable HTTP 4xx that returns no generation (no id and no usage) is logged as rejected_no_generation_unknown_cost and does not count toward the three-unknown stop; an HTTP 200 answer with no cost still counts. Existing entries were relabelled through a recorded ledger amendment (LedgerBudget.relabel_entries), with a generation lookup where an id existed.",
+      "grok_reasoning_off": "not available on the endpoint (reasoning mandatory): xai rejected reasoning {enabled: false} with HTTP 400; Grok runs with reasoning on only, with no substitute",
+      "latest_models": "every route C model must be the latest generally available version in its family that takes image input, keeping the roles (cheap fast OpenAI, premium OpenAI, Grok, Gemini, premium Claude); checked against the public /api/v1/models catalogue on 17 October 2026 (models.*.release_date). Only the Claude slot changed: Opus 4.7 to Opus 5.5.",
+      "extra_arms": "every latest upgrade is included as an extra development arm alongside the five base models: gpt-6-luna-pro, gpt-6.1-sol-pro and Claude Fable 5.1, each with both reasoning settings wherever the endpoint allows. The development allowance stays $20 and the 200-call sealed reservation is unchanged (the sealed run covers only the models chosen after development). If the projected development spend for all eight arms would exceed $20, the owner is asked before it is crossed; no arm is trimmed without the owner. Run order is cheapest first.",
+      "total_stop_65": "the evaluation's total stop is raised from $60 to $65 (owner, 17 October 2026); the sealed reservation stays $40, so the development allowance is $25. Fable 5.1 runs on all 60 development photos with reasoning on, after a free key-credit check shows enough remaining credit for Fable plus the $40 reservation.",
+      "comment_fix_and_reasoning_off": "approved by the owner on 17 October 2026: the $comment stripping fix, and reasoning off recorded as not available (reasoning mandatory) for Sol, Sol Pro, Gemini 4, Opus 5.5 and Fable 5.1"
+    },
+    "sealed_reservation_per_call_usd": "0.20",
+    "sealed_reservation_status": "held at the full per-call ceiling ($40)",
+    "retry_policy": {
+      "implementation": "openrouter_client.call_with_retry, shared by route C and the untouched truth drafting",
+      "retryable": "transport or network error, timeout, HTTP 408, 429, 500, 502, 503, 504, 529, and error bodies whose code is one of those or whose message says the provider is overloaded",
+      "never_retried": "content outcomes (schema failure, finish_reason other than stop, model or provider mismatch) and any other HTTP status; those are scored failures",
+      "backoff": "exponential with full jitter, base 2 s, cap 60 s; Retry-After (delta-seconds or HTTP-date) is the minimum wait",
+      "bounds": "at most 5 attempts and 180 s in total per call, each attempt's socket timeout being the time left; an exhausted call is a failure with its cause",
+      "ledger": "every attempt is a ledger entry with its reported cost or as unknown (retryable errors with no generation as retryable_error_unknown_cost)",
+      "inspect_retry": "Inspect 0.3.276's openrouter provider parses Retry-After but its backoff ignores it, and its OpenAI SDK client keeps the SDK's two internal retries; attempts in either loop never reach the ledger and the loops compound. Route C therefore posts to OpenRouter directly through this client (Inspect runs the dataset, scorer and logs on mockllm/model, and generate is never called), so there is one retry loop."
+    },
+    "latest_model_check_2026_10_17": {
+      "openai_cheap": "openai/gpt-6-luna (2026-09-22) is the newest Luna; gpt-6-luna-pro shares its date and price and is not chosen",
+      "openai_premium": "openai/gpt-6.1-sol (2026-09-29) is the newest Sol; gpt-6.1-sol-pro shares its date and price and is not chosen",
+      "xai": "x-ai/grok-4.7 (2026-09-21) is the newest Grok",
+      "google": "google/gemini-4-argon (2026-10-13) is the newest Gemini",
+      "anthropic": "anthropic/claude-opus-5.5 (2026-09-22) is the newest premium Claude; Haiku 5.5 (2026-10-07) and Sonnet 5.5 (2026-09-28) are cheaper tiers, Fable 5.1 (2026-09-01) a pricier but older tier"
+    },
+    "run_order_note": "cheapest first by qualification-measured cost (17 October 2026)",
+    "schema_comment_finding": "Anthropic rejected the wire schema with 'property $comment is not supported' (HTTP 400, 17 October 2026); openrouter_route.route_c_request_body strips $comment (documentation only) for every model. Luna and the first Grok attempts were sent with it; the schema's constraints are unchanged.",
+    "deadline_gap": {
+      "finding": "openrouter_client's 180 s deadline bounds when retries may start, but urllib's timeout applies to each socket read, so one slow attempt can run past it: Grok 4.7 with reasoning on took up to 263 s (p50 48.6 s, p90 133.9 s) on 17 October 2026.",
+      "decision": "recorded now; a whole-call deadline (a watchdog or a streaming read with an overall timer) is implemented before the sealed run, not during development, so every development arm runs on the same client",
+      "status": "open; required before the sealed run"
+    },
+    "product_ceiling_check": "the product ceilings (median $0.02 per photo, p90 20 s) are unchanged; on development Grok 4.7 with reasoning on is far above the latency ceiling (p90 133.9 s) and above the cost ceiling (median $0.032), so it cannot be promoted as configured, whatever its accuracy",
+    "credit_gate": "run_route_c.py reads the key's remaining limit (GET /api/v1/key) and the account balance (GET /api/v1/credits), both free, and refuses to start an arm when the smaller is below the arm's projected cost plus a margin (the larger of 25% and $1) plus any reserve (--reserve-usd, $40 for Fable by owner decision). Added after the account balance ran out on 17 October 2026 ($0.76 left while the key had $58), when OpenRouter answered HTTP 402 to most Sol and Sol Pro calls and to Opus 5.5's qualification.",
+    "arm_status_2026_10_17": {
+      "complete": [
+        "luna off",
+        "luna on",
+        "luna_pro off",
+        "luna_pro on",
+        "grok on (full rerun)",
+        "gemini on"
+      ],
+      "invalid_credit_402": [
+        "sol on (33 of 60 calls failed with HTTP 402)",
+        "sol_pro on (54 of 60 calls failed with HTTP 402)"
+      ],
+      "not_run": [
+        "opus on (qualification failed with HTTP 402)",
+        "fable on (not started)"
+      ],
+      "superseded": [
+        "grok on, partial (41 of 60, paused for the latest-model check)",
+        "luna on azure (ZDR), partial (43 of 60, held run)"
+      ],
+      "not_available": [
+        "grok off",
+        "sol off",
+        "sol_pro off",
+        "gemini off",
+        "opus off",
+        "fable off (reasoning mandatory)"
+      ]
+    }
   },
   "ground_truth": {
     "development_off_taiwan": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json",
     "development_off_taiwan_status": "first_pass_unverified",
-    "untouched_sha256": "cdfe8f10c4dac82200ec761441837cb768933093979fb84b1d2270738f7a4d94",
+    "untouched_sha256": "d40a56b7b35aad65a26338ded755bb22475520ccf1dd6fc2a26150c64e5b57a3",
     "development_off_taiwan_drafting": "Pass 1 of the 20 Taiwan development truths was drafted by Claude (the assistant); Claude Opus route C results on development data carry that caveat.",
-    "untouched_taiwan_status": "owner_verified_round_1; round 2 pending (order 34 and the refills)",
+    "untouched_taiwan_status": "owner_verified (rounds 1 and 2 complete): 40 usable tables, 14 exclusion records, 0 required declines",
     "untouched": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-untouched-v1.json",
     "untouched_evidence_label": "model-drafted, owner-verified (no owner corrections)",
     "untouched_owner_verification": {
       "date": "2026-10-17",
       "method": "the owner checked all 40 untouched Taiwan photos in a private review page: every drafted value, serving line and table decision against the image",
-      "cells_confirmed": "527 of 527 confirmed ok, with no corrections",
+      "cells_confirmed": "795 of 795 confirmed ok over two rounds (527 in round 1, 268 in round 2), with no corrections",
       "anchoring_note": "With no corrections at all, anchoring on the draft cannot be ruled out: a value accepted because the draft showed it would look the same as an independently confirmed one.",
       "table_decisions": "11 proposed exclusions agreed; order 23 (drafting failed on length) excluded; order 34 kept as a Taiwan label (Qwen had proposed excluding it as a US-style bilingual label)",
       "parentage": "The review page showed printed values, headers and serving lines but not parent rows or nutrient keys. Parentage is therefore structural: a draft parent naming the row itself or a row absent from the table is cleared (188 cells, mostly a row recorded as its own parent). Nutrient keys and bases were checked mechanically for consistency with the printed labels and headers (every printed label maps to one key).",
       "unscored_cells": "12 drafted values that are not printed amounts (10 reference-intake cells printed as *, 2 sodium values obscured on order 53) are kept as unscored cells, never as values",
-      "merge": "answers merged into review.csv through draft_untouched_truth.merge_owner_entries (539 owner entries: 527 cells plus 12 table decisions with a sheet row); the earlier sheet was copied aside first"
+      "merge": "answers merged into review.csv through draft_untouched_truth.merge_owner_entries (539 owner entries: 527 cells plus 12 table decisions with a sheet row); the earlier sheet was copied aside first",
+      "round_2": "17 October 2026: order 34 (redrafted with the bilingual instruction v1.2) and refills 63 to 77; 268 of 268 cells confirmed with no corrections; refill exclusions 66 (Thai), 71 (Simplified Chinese) and 75 (English) agreed. The owner confirmed order 34's printed values as drafted, including 熱量 '100' with no unit, which is kept as printed and ungradable (no unit inferred). Order 34's round-1 keep decision was applied to its new draft's table decision.",
+      "mechanical_nutrient_mappings": "nutrient keys were not on the review page; in order 34 the draft left 'Sodium/鈉' unrecognised and the agent's mechanical check maps it to sodium (exact closed Taiwan row name), recorded in the record's review block and not owner-verified"
     },
-    "untouched_pinning": "untouched_sha256 pins the current file (27 usable records and 11 exclusion records from round 1). It is re-pinned after round 2 adds order 34 and the refills, and frozen with the contract before the single untouched run."
+    "untouched_pinning": "untouched_sha256 pins the complete file (40 usable records, 14 exclusion records). It is frozen with the contract before the single untouched run."
   },
   "frozen_artefacts": {
     "Tools/NutritionLabelCaptureEvaluation/candidate-schema-v1.json": "74333555741f73f2557fe74e11cfcb7b2693f5a261c49957a9e8e6e39404e531",
     "Tools/NutritionLabelCaptureEvaluation/candidate.py": "05f67900b4b38bd820d71a04351b5a26553a976d74051a5964210a24e20109c1",
     "Tools/NutritionLabelCaptureEvaluation/score.py": "dd3acb65669dcbfef35132a56de07382e504c4866d779d7576a6782618f9dbd6",
     "Tools/NutritionLabelCaptureEvaluation/arithmetic.py": "ffaf734c50d732c57da705bcb09787fe46c8e4fae2649353a3594d03a39f9d1c",
-    "Tools/NutritionLabelCaptureEvaluation/budget.py": "880161ac58b16230e6f78751c57549eb818fc25b910851faed54e1417de5f298",
-    "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py": "fef7ecc612f52d1c2c1e81c1cb77381809113d4c9d9079f508b4bf64179bf1ad",
+    "Tools/NutritionLabelCaptureEvaluation/budget.py": "c551d400acf668e55e84d209adaaa722fe3cee4344368c1c71022fe17505bd8d",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py": "18d21a1fe43a46cf10b72ca492da5faccb40c8026b7884836fa20cf8ef1afdf7",
     "Tools/NutritionLabelCaptureEvaluation/requirements-dev.lock": "db250645854ebc9f1b6e97f5685d45727f09e106efbebe0d42ce652140017cac",
     "Tools/NutritionLabelCaptureEvaluation/cases.py": "ce133f7b8ac09e1cd304b78532b1bb2d55a60d0fa52cec744c374f52a1cb6fe1",
-    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "0cd1b6b1d1f82fa5c35f1b219a7b92e61ed4a094e582e109ac619a0dbe560309",
+    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "a3c9224443214f47cb37f9e935b012b9bdf4d387b6d5c854999c615c82ba11d5",
     "Tools/NutritionLabelCaptureEvaluation/requirements.txt": "e16421a862c52e544b6938e94fec9650b5197b7cb43e5330ae23bfebbb4cb635",
     "Tools/NutritionLabelCaptureEvaluation/synthetic/render.py": "6c8fcb7d30f7829f1f493859bc63ae6828c4af67dff77aa1aded7919c0996ae1",
     "Tools/NutritionLabelCaptureEvaluation/build_cases.py": "4fcaf2685f24d4a359ff7d7d76ea36464dfd000a3582bbca375b613031e38b15",
@@ -369,13 +625,14 @@
     "Tools/NutritionLabelCaptureEvaluation/vision_v3.swift": "942064b84d069358d4878624802b994ecbca5aa43583c6ca418236cad2656e02",
     "Tools/NutritionLabelCaptureEvaluation/serialise_lines.py": "81c279137e4c1b6ad0a3b08cd43733c625aa9b1edb64e1a395aec91ef1ff7ec2",
     "Tools/NutritionLabelCaptureEvaluation/run_route_b.py": "e2da453fe273017590c5e78c330f1ab0f17416dfe3657b06c12d2927b679f90a",
-    "Tools/NutritionLabelCaptureEvaluation/run_route_c.py": "eff51c4f290a253dae6dd52606ca75c02a311c8cd3b9efa2d72aeb7c62ece5aa",
-    "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py": "07dd0b231627da5e45f64332da1244e11ff85158b90f94432da945f5be7363b4",
+    "Tools/NutritionLabelCaptureEvaluation/run_route_c.py": "d27d5defe75f6e1746c88c55ee0cc052e10afee0ef4e6923d77f0262d40ae4a4",
+    "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py": "4804ce6505137af1b92aed32ea97bf998bea074097a773bce8174c0e2d2b6ba1",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.txt": "721569af7b34ac5108456e7930f35b7883ab4fa049aed79a3893bf7af4c154aa",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.1.txt": "83667e61d22f76c6ebb33f525e49676f7ab1f6c1e985ac8a777b5411a0ef6d3a",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.2.txt": "6e224a542f47894c21e87e43c7413b489d5a7b352b340c5eda718cbefc80ff34",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-wire-schema-v1.json": "75af5c236184284c239a5170a0ab6efb2e8637c9f508cf02fe4c0b220fba0c2d",
     "Tools/NutritionLabelCaptureEvaluation/route_c_mapping.py": "0abcdd23ab0b4fce55ac83e0570b50d2284c8e294f3163e849b6415a10ffa6a0",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter_client.py": "19799b6d2e6866e5546af6ecc9e30cd23a2f2205419bf36ddacbf98232e60b87",
     "Tools/NutritionLabelCaptureEvaluation/qualification/render_qualification.swift": "0820650b78c72abaf480b079d2f4454612e1151d86fcfba84327f2c770fc3e91"
   },
   "untouched_truth_drafting": {
@@ -389,7 +646,7 @@
     "evidence_label": "model-drafted, owner-verified (weaker than independent human transcription)",
     "egress": "public corpus images only, sent to OpenRouter with the route C provider block (one endpoint, ZDR, data collection denied, no fallbacks); runs in a later phase under the spend stops",
     "route_c_never_sees_untouched_truth_or_drafts": true,
-    "status": "round 1 (40 photos) drafted and owner-verified on 2026-10-17; round 2 (order 34 and refills 63 to 77) drafted on 2026-10-17, owner verification pending",
+    "status": "rounds 1 and 2 drafted and owner-verified on 2026-10-17; the untouched Taiwan truth is complete (40 usable tables)",
     "unsealing": "Opening the 40 untouched Taiwan photos for this drafting is their unsealing for truth purposes only (2026-10-17). Routes A, B and C still have not run on them and may not until the single frozen untouched run; the photos stay in the read-only sealed folder.",
     "model": {
       "slug": "qwen/qwen3.5-397b-a17b",
@@ -450,7 +707,8 @@
       "orders": "34 (bilingual instruction; v1.1 once, then v1.2) and refills 63 to 77 (instruction v1)",
       "model_check_2026_10_17": "qwen/qwen3.5-397b-a17b on deepinfra/fp8: image input advertised; listed in OpenRouter's ZDR endpoints as 'DeepInfra | qwen/qwen3.5-397b-a17b-20260216'; structured outputs supported; prompt $0.45 and completion $3.00 per million tokens (unchanged)",
       "proposals": "usable: 34 (owner keep; Qwen still labelled it other_language but transcribed the table under v1.2), 63, 64, 65, 67, 68, 69, 70, 72, 73, 74, 76, 77; proposed exclusions refilled at once: 66 (Thai, by 75), 71 (Simplified Chinese, by 76), 75 (English, by 77)",
-      "all_responses_model_and_provider_matched": true
+      "all_responses_model_and_provider_matched": true,
+      "owner_verification": "done on 2026-10-17: 268 of 268 cells confirmed, no corrections; exclusions 66, 71 and 75 agreed"
     }
   },
   "deviations": [

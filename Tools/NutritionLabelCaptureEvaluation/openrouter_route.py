@@ -26,11 +26,12 @@ class RouteCModel:
     endpoint: str
     # The provider name OpenRouter returns for that endpoint, recorded from the catalogue on the run day.
     provider_name: str
-    # OpenRouter reasoning effort, mirroring the app's route where one exists; None leaves the provider default.
-    reasoning_effort: str | None = None
+    # "off" sends reasoning {enabled: false}; "on" sends {enabled: true} at the model's default effort.
+    reasoning: str = "off"
 
 
 def provider_block(endpoint: str) -> dict[str, Any]:
+    """The app's provider block (ZDR, data collection denied); still used by the untouched truth drafting."""
     return {
         "only": [endpoint],
         "order": [endpoint],
@@ -41,9 +42,57 @@ def provider_block(endpoint: str) -> dict[str, Any]:
     }
 
 
-def model_args(target: RouteCModel) -> dict[str, Any]:
-    """Inspect `model_args` for the OpenRouter provider (`openrouter/<model>`); no streaming (plan section 8.1)."""
-    return {"provider": provider_block(target.endpoint), "stream": False}
+def route_c_provider_block(endpoint: str) -> dict[str, Any]:
+    """Route C's evaluation-only block (owner decisions 1 and 2, 17 October 2026): one pinned provider,
+    no fallbacks, parameters required, without the ZDR and data-collection requirements. Product
+    routing is unchanged and would still need `provider_block`."""
+    return {"only": [endpoint], "order": [endpoint], "allow_fallbacks": False, "require_parameters": True}
+
+
+ROUTE_C_MAX_TOKENS = 16384  # owner decision 3, 17 October 2026 (was 4096)
+
+
+def _without_comments(node: Any) -> Any:
+    if isinstance(node, dict):
+        return {k: _without_comments(v) for k, v in node.items() if k != "$comment"}
+    if isinstance(node, list):
+        return [_without_comments(v) for v in node]
+    return node
+
+
+SCHEMA_DESCRIPTION = "The nutrition table printed in the image, transcribed as printed."
+
+
+def route_c_request_body(target: RouteCModel, image_data_uri: str, instruction: str, wire_schema: dict[str, Any]) -> dict[str, Any]:
+    """One route C chat-completions request: instruction and image only, strict schema, pinned provider.
+
+    The schema block always carries a description: with `"description": null` (what Inspect
+    sends when none is set) OpenRouter's Azure route for Luna answered outside the strict schema
+    on 17 October 2026. No streaming, no tools, one choice.
+    """
+    if target.reasoning not in ("off", "on"):
+        raise ValueError(f"reasoning must be off or on, not {target.reasoning!r}")
+    # `$comment` is documentation only; Anthropic rejects it in a structured-output schema
+    # (HTTP 400, 17 October 2026), so it is stripped for every model. Nothing else changes.
+    wire_schema = _without_comments(wire_schema)
+    return {
+        "model": target.model,
+        "messages": [
+            {
+                "role": "user",
+                "content": [{"type": "text", "text": instruction}, {"type": "image_url", "image_url": {"url": image_data_uri}}],
+            }
+        ],
+        "response_format": {
+            "type": "json_schema",
+            "json_schema": {"name": "label_image_extraction_v1", "description": SCHEMA_DESCRIPTION, "strict": True, "schema": wire_schema},
+        },
+        "provider": route_c_provider_block(target.endpoint),
+        "max_tokens": ROUTE_C_MAX_TOKENS,
+        "reasoning": {"enabled": target.reasoning == "on"},
+        "stream": False,
+        "usage": {"include": True},
+    }
 
 
 def reported_cost(raw: dict[str, Any] | None) -> Decimal | None:

@@ -8,7 +8,7 @@ route and call the pure functions in `score.py` and `arithmetic.py`.
 - Route A: `route_a_parser` runs the Swift parser through its CLI wrapper.
 - Route B: `route_b_vision` runs the Vision CLI (`vision_v3.swift`), the geometry
   serialiser (`serialise_lines.py`) and the same Swift parser; development images only.
-- Route C: `route_c_openrouter` is defined but disabled in phase 1; it makes no call
+- Route C: `route_c_openrouter` posts to OpenRouter through `openrouter_client` (one retry loop); it makes no call
   unless explicitly enabled, the consent check passes and the spend guard allows it.
 """
 
@@ -19,29 +19,29 @@ import base64
 import json
 import sys
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 import jsonschema
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
-from inspect_ai.event import ModelEvent
-from inspect_ai.log import transcript
-from inspect_ai.model import ChatMessageUser, ContentImage, ContentText, ModelOutput, ResponseSchema, get_model
+from inspect_ai.model import ModelOutput
 from inspect_ai.scorer import CORRECT, INCORRECT, Metric, SampleScore, Score, Target, metric, scorer
 from inspect_ai.solver import Generate, Solver, TaskState, solver
-from inspect_ai.util import JSONSchema
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import cases as case_loading  # noqa: E402
+import openrouter_client  # noqa: E402
 import openrouter_route  # noqa: E402
 import route_c_mapping  # noqa: E402
 import score as scoring  # noqa: E402
 import serialise_lines  # noqa: E402
-from budget import LedgerBudget  # noqa: E402
+from budget import LedgerBudget, contract_limits  # noqa: E402
 from openrouter_route import RouteCModel  # noqa: E402
 
 DEVELOPMENT_TEXT = HERE / "synthetic" / "development-cases-v1.jsonl"
@@ -204,22 +204,40 @@ def route_b_vision(vision_binary: str | None = None, parser_binary: str | None =
 
 ROUTE_C_RUN_ORDER = ("luna", "grok", "sol", "gemini", "opus")  # Qwen 3.5 is no longer a route C reserve (decision A)
 
+# The real POST is injected by the runner (with the key); tests inject a fake. Route C never calls
+# Inspect's `generate`, so there is one retry loop (openrouter_client) and every attempt is ledgered.
+RouteCPoster = Callable[[dict[str, Any], float], tuple[int, dict[str, Any] | None, dict[str, str], float]]
+GenerationLookup = Callable[[str], tuple[str, Any]]
+# Set by `run_route_c.py` (and tests) through `configure_route_c_transport`, so the key-bearing
+# callables never become Inspect task arguments (which Inspect writes into the log).
+ROUTE_C_TRANSPORT: dict[str, Any] = {}
+
+
+def configure_route_c_transport(post: RouteCPoster | None, lookup: GenerationLookup | None) -> None:
+    ROUTE_C_TRANSPORT.clear()
+    if post is not None:
+        ROUTE_C_TRANSPORT.update({"post": post, "lookup": lookup})
+
 
 @solver
-def route_c_openrouter(budget: LedgerBudget, enabled: bool = False, target: RouteCModel | None = None) -> Solver:
-    """Route C: one OpenRouter request per image with strict structured output.
+def route_c_openrouter(
+    budget: LedgerBudget,
+    enabled: bool = False,
+    target: RouteCModel | None = None,
+    post: RouteCPoster | None = None,
+    lookup: GenerationLookup | None = None,
+    policy: openrouter_client.RetryPolicy | None = None,
+    sleep: Callable[[float], None] | None = None,
+) -> Solver:
+    """Route C: one OpenRouter request per image (with bounded retries) and strict structured output.
 
-    Disabled in phase 1. Before it is ever enabled: the task must be run with model
-    `openrouter/<target.model>` and `model_args=openrouter_route.model_args(target)` so
-    the provider block pins one endpoint (only and order, no fallbacks, ZDR, data
-    collection denied). The owner photo needs `send_to_openrouter` consent; the spend
-    guard (with the 200-call sealed reservation) runs before and after each call; the
-    reported `usage.cost` and the returned model and provider are read from the raw
-    response; a mismatch makes the case failed. The messages are rebuilt from the
-    instruction and the image only, so route C never sees truth or drafts.
-
-    The spend guard must be the persistent `LedgerBudget` shared with every other run
-    (there is no in-memory default); each call is recorded with its purpose and sample id.
+    The request is rebuilt from the instruction and the image only, so route C never sees
+    truth or drafts. The owner photo needs `send_to_openrouter` consent. Each attempt passes
+    the persistent spend ledger before it is sent and is recorded after, with its reported
+    `usage.cost`, or as unknown (a retryable error with no generation as
+    `retryable_error_unknown_cost`, reconciled through the generation lookup where an id
+    exists). The final answer must match the requested model and provider, finish with
+    `stop` and validate against the wire schema; otherwise the case is failed, never retried.
     """
     if not isinstance(budget, LedgerBudget):
         raise TypeError("route C needs the persistent LedgerBudget; refusing an in-memory or missing budget")
@@ -227,88 +245,101 @@ def route_c_openrouter(budget: LedgerBudget, enabled: bool = False, target: Rout
 
     async def solve(state: TaskState, generate: Generate) -> TaskState:
         if not enabled:
-            raise RuntimeError("route C is disabled in phase 1; no provider call is made")
-        if target is None:
-            raise ValueError("route C needs a pinned model and endpoint")
+            raise RuntimeError("route C is disabled; no provider call is made")
+        poster = post if post is not None else ROUTE_C_TRANSPORT.get("post")
+        finder = lookup if post is not None else ROUTE_C_TRANSPORT.get("lookup")
+        if target is None or poster is None:
+            raise ValueError("route C needs a pinned model and endpoint and a poster")
         if state.metadata.get("corpus") == "owner" and state.metadata.get("consent_send_to_openrouter") is not True:
             raise PermissionError("the owner photo has no send_to_openrouter consent")
         instruction = ROUTE_C_INSTRUCTION.read_text(encoding="utf-8")
-        # Inspect 0.3.276 refuses a file path at submission; the image goes inline as a data URI.
-        state.messages = [
-            ChatMessageUser(content=[ContentText(text=instruction), ContentImage(image=_data_uri(Path(state.metadata["image_path"])))])
-        ]
-        # Pre-call: nothing credential-like may ride in extra_headers, which Inspect logs.
-        configured = openrouter_route.logged_request_credentials({"extra_headers": _configured_extra_headers()})
-        if configured:
-            raise RuntimeError(f"credential-like extra_headers configured for route C: {configured}")
-        guard.before_call(target.label)
         wire = json.loads(ROUTE_C_WIRE_SCHEMA.read_text(encoding="utf-8"))
-        # One request, no tool loop, no retries, 4096 output tokens, strict schema. `timeout`
-        # bounds the HTTP request and `attempt_timeout` is the 90 s wall-clock deadline for
-        # the whole call (phase 2 found a socket timeout alone let a call run past 90 s).
-        # Anthropic prompt-cache markers stay off so every model gets the same request.
-        started = time.monotonic()
-        error: str | None = None
-        try:
-            state = await generate(
-                state,
-                tool_calls="none",
-                max_tokens=4096,
-                timeout=90,
-                attempt_timeout=90,
-                max_retries=0,
-                cache_prompt=False,
-                reasoning_effort=target.reasoning_effort,  # type: ignore[arg-type]
-                # A description must be set: Inspect otherwise sends `"description": null`, and on
-                # 17 October 2026 OpenRouter (Luna on Azure) then answered outside the strict schema.
-                response_schema=ResponseSchema(
-                    name="label_image_extraction_v1",
-                    description="The nutrition table printed in the image, transcribed as printed.",
-                    json_schema=JSONSchema.model_validate(wire),
-                    strict=True,
-                ),
+        body = openrouter_route.route_c_request_body(target, _data_uri(Path(state.metadata["image_path"])), instruction, wire)
+        purpose = "route_c_sealed" if guard.sealed_run else "route_c_development"
+        attempt_costs: list[str | None] = []
+        label = target.label
+
+        def before(_: Any) -> None:
+            guard.before_call(label)
+
+        def record(attempt: openrouter_client.Attempt) -> None:
+            cost = openrouter_route.reported_cost(attempt.body)
+            generation = attempt.body.get("id") if isinstance(attempt.body, dict) else None
+            kind = openrouter_client.attempt_kind(attempt.status, attempt.body, attempt.retryable)
+            if cost is None and attempt.retryable and isinstance(generation, str) and finder is not None:
+                found, value = finder(generation)  # reconcile a retried attempt that did produce a generation
+                if found == "found" and value is not None:
+                    cost = Decimal(str(value))
+            attempt_costs.append(None if cost is None else str(cost))
+            guard.record_call(
+                label,
+                cost,
+                purpose=purpose,
+                case_id=str(state.sample_id),
+                at=datetime.now(UTC).isoformat(timespec="seconds"),
+                returned_model=attempt.body.get("model") if isinstance(attempt.body, dict) else None,
+                kind=kind,
+                attempt=attempt.number,
+                generation_id=generation if isinstance(generation, str) else None,
             )
-        except Exception as failure:  # an HTTP error, timeout or refusal is a failed case, never a crash
-            error = f"{type(failure).__name__}: {str(failure)[:300]}"
-        latency = time.monotonic() - started
-        raw = _last_raw_response()
-        cost = openrouter_route.reported_cost(raw)
-        guard.record_call(
-            target.label,
-            cost,
-            purpose="route_c_sealed" if guard.sealed_run else "route_c_development",
-            case_id=str(state.sample_id),
-            at=datetime.now(UTC).isoformat(timespec="seconds"),
-            returned_model=raw.get("model") if isinstance(raw, dict) else None,
+
+        def ledgered_post(payload: dict[str, Any], timeout: float) -> tuple[int, dict[str, Any] | None, dict[str, str], float]:
+            before(None)  # the open call is on disk before the request is sent
+            return poster(payload, timeout)
+
+        started = time.monotonic()
+        result = await asyncio.to_thread(
+            openrouter_client.call_with_retry,
+            body,
+            ledgered_post,
+            policy=policy or openrouter_client.DEFAULT_POLICY,
+            sleep=sleep or time.sleep,
+            on_attempt=record,
         )
-        # The logged request (`ModelEvent.call.request`, kept in the .eval log) must never
-        # carry a credential header; stop the run if anything put one there.
-        leaked = openrouter_route.logged_request_credentials(_last_logged_request())
-        if leaked:
-            raise RuntimeError(f"credential-like headers in the logged request: {leaked}; delete this .eval log")
+        latency = time.monotonic() - started
+        raw = result.body
         raw_usage = raw.get("usage") if isinstance(raw, dict) else None
         usage: dict[str, Any] = raw_usage if isinstance(raw_usage, dict) else {}
+        known = [Decimal(c) for c in attempt_costs if c is not None]
+        details = usage.get("completion_tokens_details")
+        # A call's cost is the sum of its attempts' reported costs; it is unknown when the final
+        # attempt (the one that answered) reported none. Retryable attempts without a cost are counted.
+        final_known = bool(attempt_costs) and attempt_costs[-1] is not None
         state.metadata["route_c"] = {
             "model_label": target.label,
-            "cost_usd": None if cost is None else str(cost),
+            "reasoning": target.reasoning,
+            "cost_usd": str(sum(known, Decimal(0))) if final_known else None,
+            "unknown_cost_attempts": sum(1 for c in attempt_costs if c is None),
+            "attempt_costs_usd": attempt_costs,
+            "attempts": len(result.attempts),
+            "retries": result.retries,
+            "retry_causes": [a.cause for a in result.attempts if a.retryable],
             "latency_seconds": round(latency, 3),
             "returned_model": raw.get("model") if isinstance(raw, dict) else None,
             "returned_provider": raw.get("provider") if isinstance(raw, dict) else None,
             "prompt_tokens": usage.get("prompt_tokens"),
             "completion_tokens": usage.get("completion_tokens"),
+            "reasoning_tokens": details.get("reasoning_tokens") if isinstance(details, dict) else None,
         }
-        problems = [error] if error else openrouter_route.route_mismatches(raw, target)
+        problems: list[str] = []
+        if result.exhausted or result.status != 200 or result.cause:
+            problems = [f"request failed: {result.cause or f'HTTP {result.status}'}"]
+        else:
+            problems = openrouter_route.route_mismatches(raw, target)
         candidate = None
         if not problems:
             try:
-                parsed = json.loads(state.output.completion)
+                assert isinstance(raw, dict)
+                content = raw["choices"][0]["message"]["content"]
+                state.metadata["route_c_answer"] = content  # kept in the private Inspect log only
+                parsed = json.loads(content)
                 # Strict output is requested, but the answer is checked here too: a
                 # schema-invalid answer is failed (plan section 6), never mapped.
                 jsonschema.validate(parsed, wire)
                 candidate = route_c_mapping.map_wire(parsed, str(state.metadata["sha256"]))
             except jsonschema.ValidationError as failure:
                 problems = [f"schema-invalid output: {failure.message[:160]}"]
-            except (json.JSONDecodeError, KeyError, TypeError, AttributeError) as failure:
+            except (json.JSONDecodeError, KeyError, IndexError, TypeError, AttributeError, AssertionError) as failure:
                 problems = [f"content is not schema JSON: {type(failure).__name__}"]
         if problems or candidate is None:
             state.metadata["route_c_failed"] = problems
@@ -323,29 +354,6 @@ def route_c_openrouter(budget: LedgerBudget, enabled: bool = False, target: Rout
 def _data_uri(path: Path) -> str:
     mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(path.suffix.lower(), "image/jpeg")
     return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode("ascii")
-
-
-def _configured_extra_headers() -> dict[str, Any]:
-    """extra_headers from the model's and the run's GenerateConfig (Inspect logs them with each request)."""
-    from inspect_ai.model._generate_config import active_generate_config
-
-    return {**(get_model().config.extra_headers or {}), **(active_generate_config().extra_headers or {})}
-
-
-def _last_logged_request() -> dict[str, Any] | None:
-    """The request dict Inspect logged for the most recent model call in this sample."""
-    for event in reversed(transcript().events):
-        if isinstance(event, ModelEvent) and event.call is not None and isinstance(event.call.request, dict):
-            return dict(event.call.request)
-    return None
-
-
-def _last_raw_response() -> dict[str, Any] | None:
-    """The raw provider response of the most recent model call in this sample."""
-    for event in reversed(transcript().events):
-        if isinstance(event, ModelEvent) and event.call is not None and isinstance(event.call.response, dict):
-            return dict(event.call.response)
-    return None
 
 
 # --- Scorer and metrics ------------------------------------------------------------
@@ -518,17 +526,19 @@ def label_capture_route_c_development(
     provider_name: str,
     label: str,
     enabled: bool = False,
-    reasoning_effort: str | None = None,
+    reasoning: str = "off",
 ) -> Task:
-    """Route C on development photos; run only through `run_route_c.py` (log directory and image logging rules)."""
+    """Route C on development photos; run only through `run_route_c.py` (log directory, key and retry rules)."""
     loaded = json.loads(Path(cases_file).read_text(encoding="utf-8"))
     for case in loaded:
         if case["metadata"].get("split") != "development" or "sealed" in Path(str(case["input"].get("path", ""))).parts:
             raise case_loading.SealedSetError(f"{case['id']} is not a development case")
-    target = RouteCModel(label=label, model=model, endpoint=endpoint, provider_name=provider_name, reasoning_effort=reasoning_effort)
+    target = RouteCModel(label=label, model=model, endpoint=endpoint, provider_name=provider_name, reasoning=reasoning)
+    contract = json.loads((HERE / "frozen-contract-v1.json").read_text(encoding="utf-8"))
+    budget = LedgerBudget(Path(ledger), limits=contract_limits(contract))
     return Task(
         dataset=MemoryDataset([to_sample(c) for c in loaded], name="development-photos-route-c-v1"),
-        solver=route_c_openrouter(LedgerBudget(Path(ledger)), enabled=enabled, target=target),
+        solver=route_c_openrouter(budget, enabled=enabled, target=target),
         scorer=label_capture_scorer(),
         name="label_capture_route_c_development",
     )
@@ -551,7 +561,8 @@ def label_capture_untouched_photos(
     if route == "C":
         if ledger is None:
             raise ValueError("route C needs the persistent spend ledger")
-        chosen = route_c_openrouter(LedgerBudget(Path(ledger), sealed_run=True), enabled=False)
+        contract = json.loads((HERE / "frozen-contract-v1.json").read_text(encoding="utf-8"))
+        chosen = route_c_openrouter(LedgerBudget(Path(ledger), sealed_run=True, limits=contract_limits(contract)), enabled=False)
     else:
         chosen = route_b_vision()
     return Task(

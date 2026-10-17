@@ -1,6 +1,6 @@
 # Untouched truth drafting, Taiwan (decision A, phases 2 and 3, #255)
 
-Status: **round 1 owner-verified (17 October 2026); round 2 drafted, owner verification pending.** The verified records are committed as [`fixtures/ground-truth-off-taiwan-untouched-v1.json`](../fixtures/ground-truth-off-taiwan-untouched-v1.json), evidence label **model-drafted, owner-verified (no owner corrections)**, pinned by hash in the contract. Drafts, raw response bodies, the journal and the review sheet stay outside the repository under `~/WHR-label-eval-private/drafts/untouched-taiwan-v1/`. No route reads that folder or the truth; routes A, B and C have still not run on any untouched photo.
+Status: **rounds 1 and 2 owner-verified (17 October 2026); 40 usable untouched tables.** The verified records are committed as [`fixtures/ground-truth-off-taiwan-untouched-v1.json`](../fixtures/ground-truth-off-taiwan-untouched-v1.json), evidence label **model-drafted, owner-verified (no owner corrections)**, pinned by hash in the contract. Drafts, raw response bodies, the journal and the review sheet stay outside the repository under `~/WHR-label-eval-private/drafts/untouched-taiwan-v1/`. No route reads that folder or the truth; routes A, B and C have still not run on any untouched photo.
 
 ## Owner verification, round 1 (phase 3)
 
@@ -34,7 +34,11 @@ Same contract-bound route as round 1 (`qwen/qwen3.5-397b-a17b` on `deepinfra/fp8
 - **Order 34:** drafted with a bilingual instruction, recorded as a deviation. The minimum change is one clause in the `taiwan_nutrition_label` bullet. The first wording (v1.1: a bilingual table that prints Traditional Chinese beside English counts, transcribing its Traditional Chinese labels and headers, and each value as printed) was sent once and Qwen still proposed an exclusion because the values carry English units and the layout is US style. v1.2 adds "in a Taiwan or a US layout and whether its units are printed in Chinese or in English (g, mg, mcg)". Under v1.2 Qwen transcribed the table (30 cells, with the Traditional Chinese labels beside the English ones, 6 uncertain) but still labelled it `other_language_nutrition_table`; the owner's keep decision stands, and the round-2 page asks for every value. Both earlier drafts and raw responses are kept aside, not used.
 - **Spend:** 17 calls, **$0.0651708** reported (round 1 was $0.14616675 over 40 calls; drafting total $0.21133755 over 57 calls).
 
-Round 2 (16 cases: 34, the 12 proposed-usable refills and the 3 proposed refill exclusions) is prepared for the owner's review page outside the repository. After it, the truth file is rebuilt with the same code and re-pinned.
+## Owner verification, round 2 (phase 3)
+
+The owner reviewed the 16 round-2 cases on 17 October 2026: **268 of 268 cells confirmed, with no corrections** (the same anchoring caveat applies), and the refill exclusions 66, 71 and 75 agreed. For order 34 the owner confirmed Qwen's printed values as drafted, including 熱量 "100" printed with no unit; that value is kept exactly as printed as an unscored, ungradable cell, and no unit is inferred. The draft had left "Sodium/鈉" unrecognised; the agent's mechanical check maps it to sodium (its Traditional Chinese part is exactly the closed row name 鈉), recorded in the record and not owner-verified. The owner's round-1 keep decision for order 34 was applied to its new draft's table decision.
+
+The truth file now holds **40 usable tables** (654 scored cells, 22 unscored cells) and 14 exclusion records, with no required declines, evidence label "model-drafted, owner-verified (no owner corrections)", and its hash is re-pinned in the contract. Order 34's draft records its language as `en` (Qwen's reading of the primary language); it is kept as drafted.
 
 ## Phase 2 record
 

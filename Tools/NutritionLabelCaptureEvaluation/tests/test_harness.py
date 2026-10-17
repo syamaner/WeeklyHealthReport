@@ -282,7 +282,7 @@ class ContractTests(unittest.TestCase):
     def test_enabled_route_c_pins_exactly_the_five_models_with_a_catalogue_record(self):
         contract = json.loads((HERE / "frozen-contract-v1.json").read_text())
         self.assertIs(contract["route_c"]["enabled"], True)
-        self.assertEqual(sorted(contract["route_c"]["models"]), ["gemini", "grok", "luna", "opus", "sol"])
+        self.assertEqual(sorted(contract["route_c"]["models"]), ["fable", "gemini", "grok", "luna", "luna_pro", "opus", "sol", "sol_pro"])
         del contract["route_c"]["models"]["opus"]["catalogue_2026_10_17"]
         self.assertIn(
             "route C model opus passed the gate without a slug, endpoint, provider and catalogue record",
@@ -290,7 +290,7 @@ class ContractTests(unittest.TestCase):
         )
         contract["route_c"]["models"]["qwen"] = {"slug": "qwen/qwen3.5-397b-a17b"}
         self.assertIn(
-            "route C must pin exactly the five approved models (Luna, Grok, Sol, Gemini 4, Opus)", validate_contract.validate(contract)
+            "route C must pin exactly the approved models (five base models and three extra arms)", validate_contract.validate(contract)
         )
 
     def test_untouched_truth_hash_is_pinned(self):
