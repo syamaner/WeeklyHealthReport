@@ -120,7 +120,7 @@ def serving_size_equal(truth: Any, candidate: Any) -> bool:
 def strict_equal(expected: dict[str, Any], found: dict[str, Any] | None) -> bool:
     return bool(found) and all(
         (expected.get(field) or "=") == (found.get(field) or "=") if field == "comparator" else expected.get(field) == found.get(field)
-        for field in ("decimal_text", "comparator", "canonical_unit", "basis")
+        for field in ("decimal_text", "comparator", "unit", "canonical_unit", "basis")
     )
 
 
@@ -228,7 +228,10 @@ def _count_expected(result: dict[str, Any], cell: dict[str, Any], found: dict[st
         result["product_cells"] += 1
         result["cells_exact"] += int(exact)
         result["cells_unit_basis"] += int(
-            bool(found) and found.get("canonical_unit") == cell.get("canonical_unit") and found.get("basis") == cell.get("basis")
+            bool(found)
+            and found.get("unit") == cell.get("unit")
+            and found.get("canonical_unit") == cell.get("canonical_unit")
+            and found.get("basis") == cell.get("basis")
         )
         if cell.get("comparator") in ("<", "<="):
             result["bounded_cells"] += 1

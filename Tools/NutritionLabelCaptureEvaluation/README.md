@@ -17,7 +17,7 @@ UK AI Security Institute's evaluation framework), pinned in `requirements.txt` t
 
 ```sh
 python3 -m venv Tools/NutritionLabelCaptureEvaluation/.venv
-Tools/NutritionLabelCaptureEvaluation/.venv/bin/pip install -r Tools/NutritionLabelCaptureEvaluation/requirements.txt
+Tools/NutritionLabelCaptureEvaluation/.venv/bin/pip install --require-hashes -r Tools/NutritionLabelCaptureEvaluation/requirements-dev.lock
 ```
 
 Why Inspect: it gives datasets of `Sample`s with targets and metadata, pluggable
@@ -77,6 +77,16 @@ muesli master live under `~/WHR-label-eval-private/` (outside any checkout).
   the candidate list exactly. Orders 1 to 20 are development, 21 to 60 untouched.
   Each photo is CC BY-SA 3.0; `fixtures/off-taiwan-manifest-v1.json` records the
   barcode, pinned revision, URL, SHA-256, uploader and attribution.
+- **Refills** (owner decision B): up to 27 more photos, orders 61 to 87 in hash order, each
+  downloaded only when an exclusion needs it (`acquire_off_taiwan.py refill`, reason logged,
+  5 MB batch stop). Development replacements come first: orders 61 and 62 replaced the
+  English-only development orders 4 and 17 (427,244 bytes). Untouched refills follow from 63.
+- **Ground truth:** the 22 development records (20 plus 2 replacements, 2 excluded) are a
+  Claude-drafted first pass awaiting the owner's second pass, so Claude Opus route C results
+  on development data carry that caveat. Untouched truth (decision A) will be drafted by
+  Qwen 3.5 VL, which is not a route C model, then verified value by value by the owner, and
+  recorded as model-drafted, owner-verified. That drafting is defined, not run. Route C never
+  sees untouched truth or drafts.
 - **Sealing:** the 40 untouched photos were hashed on download, written read-only
   to a separate `sealed/` folder and have not been opened, viewed or recognised.
 - **Taiwan FDA dataset 188:** `fixtures/fda-188-source-v1.json` records the archive
@@ -95,13 +105,13 @@ swift test --package-path Packages/FoodLedgerKit --filter NutritionLabelParsingT
 Static checks use the pinned dev tools (`requirements-dev.txt`: pyright 1.1.414, ruff 0.16.10), with `pyrightconfig.json` and `ruff.toml` in this folder so local imports resolve. Run them from this folder:
 
 ```sh
-.venv/bin/pip install -r requirements-dev.txt
+.venv/bin/pip install --require-hashes -r requirements-dev.lock
 .venv/bin/ruff check .
 .venv/bin/ruff format --check .
 .venv/bin/pyright
 ```
 
-CI runs the offline tests and contract validation with the system Python, then ruff, pyright and the full tests (including the Inspect wiring test) in a venv with the pinned tools.
+`requirements-dev.lock` hash-locks every package (direct and transitive) with all published file hashes, so `pip install --require-hashes` works on macOS and Linux; regenerate it after changing a pin in `requirements-dev.txt`. CI runs the unit tests and contract validation with the system Python (no network), then installs the lock from PyPI and runs ruff, pyright and the full tests, including the Inspect wiring test. No step makes a model or provider call.
 
 The contract pins artefact hashes. After a deliberate development change, re-pin with
 `--pin` (refused once the contract is `frozen_for_untouched_run`).

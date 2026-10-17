@@ -21,11 +21,30 @@ class EnergyTests(unittest.TestCase):
         forms = {f["form"]: f for f in check["forms"]}
         self.assertEqual(forms["taiwan"]["computed_kcal"], "367.2")
         self.assertEqual(forms["taiwan"]["difference"], "0.0")
-        self.assertEqual(forms["general"]["computed_kcal"], "391.2")
+        # With a printed fibre row only the Taiwan form is used (general would give 391.2).
+        self.assertEqual(set(forms), {"taiwan"})
+
+    def test_taiwan_without_fibre_row_uses_general_form(self):
+        table = muesli_truth()
+        table["cells"] = [c for c in table["cells"] if c["nutrient"] != "fibre"]
+        check = arithmetic.energy_check(table, "per_100g")
+        self.assertEqual({f["form"]: f["computed_kcal"] for f in check["forms"]}, {"general": "391.2"})
+
+    def test_taiwan_bounded_fibre_is_not_checkable(self):
+        table = muesli_truth()
+        set_value(table, "fibre", "per_100g", "0.5", comparator="<")
+        self.assertEqual(arithmetic.energy_check(table, "per_100g")["status"], arithmetic.NOT_CHECKABLE)
+
+    def test_taiwan_does_not_fall_back_to_general_form(self):
+        table = muesli_truth()
+        # 410 kcal is within tolerance of the general form (18.8 above) but 42.8 above the
+        # Taiwan form, where the allowance is max(15, 41) = 41, so it fails.
+        set_value(table, "energy_kcal", "per_100g", "410")
+        self.assertEqual(arithmetic.energy_check(table, "per_100g")["status"], arithmetic.FAIL)
 
     def test_tolerance_is_larger_of_15_kcal_and_10_percent(self):
         table = muesli_truth()
-        set_value(table, "energy_kcal", "per_100g", "450")  # every form is over 45 kcal above
+        set_value(table, "energy_kcal", "per_100g", "450")  # 82.8 above the Taiwan form, allowed 45
         self.assertEqual(arithmetic.energy_check(table, "per_100g")["status"], arithmetic.FAIL)
         set_value(table, "energy_kcal", "per_100g", "400")  # 32.8 above, allowed 40
         self.assertEqual(arithmetic.energy_check(table, "per_100g")["status"], arithmetic.PASS)

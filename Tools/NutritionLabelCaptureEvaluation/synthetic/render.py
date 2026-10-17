@@ -17,6 +17,7 @@ Rendering rules that touch values:
 from __future__ import annotations
 
 import hashlib
+import random
 import re
 from collections import Counter, OrderedDict
 from decimal import Decimal
@@ -395,13 +396,19 @@ def render_chinese(
             else "　　　　" + separator.join(h["printed_text"] for h in headers)
         )
     for label, cells in rows.items():
-        ordered = [c for h in headers for c in cells if c["header_id"] == h["header_id"]]
         values = []
-        for cell in ordered:
-            text = cell["printed_text"]
-            if strip_energy_unit and cell["nutrient"] == "energy_kcal":
-                text = cell["decimal_text"]
-            values.append(text)
+        for header in headers:
+            matching = [c for c in cells if c["header_id"] == header["header_id"]]
+            if not matching:
+                # A reference value that is not set prints as * on Taiwan labels; it is not a cell.
+                if header["basis"] == "reference_intake":
+                    values.append("*")
+                continue
+            for cell in matching:
+                text = cell["printed_text"]
+                if strip_energy_unit and cell["nutrient"] == "energy_kcal":
+                    text = cell["decimal_text"]
+                values.append(text)
         indent = "　" if any(c.get("parent_row_id") for c in cells) else ""
         if shape == "one_per_line":
             lines.append(indent + label)
@@ -479,3 +486,110 @@ def is_number(text: str) -> bool:
         return True
     except Exception:  # noqa: BLE001 - any parse failure means not a number
         return False
+
+
+# --- Closed Taiwan template (plan section 3.1), for coverage tags FDA 188 lacks --------
+
+TEMPLATE_VARIANTS = ("bound", "reference_intake_column", "per_100ml", "single_column", "servings_2_5")
+TEMPLATE_CANDIDATES_PER_VARIANT = 12
+# Taiwan daily reference values for 每日參考值百分比 (熱量 2000 大卡, 蛋白質 60, 脂肪 60,
+# 飽和脂肪 18, 碳水化合物 300 公克, 鈉 2000 毫克); 反式脂肪 and 糖 have none and print *.
+TAIWAN_REFERENCE = {"energy_kcal": 2000, "protein": 60, "fat": 60, "saturates": 18, "carbohydrate": 300, "sodium": 2000}
+
+
+def _one(value: float) -> str:
+    return f"{value:.1f}"
+
+
+def template_truth(variant: str, index: int) -> dict[str, Any]:
+    """One deterministic synthetic Taiwan table from the closed template; values are seeded."""
+    rng = random.Random(f"{SEED}:template:{variant}:{index}")
+    liquid = variant == "per_100ml"
+    serving = rng.choice((150, 200, 250, 330)) if liquid else rng.choice((15, 20, 25, 30, 40, 50))
+    pack = "2.5" if variant == "servings_2_5" else str(rng.choice((1, 2, 4, 5, 8, 10)))
+    with_fibre = not liquid and rng.random() < 0.5
+    if liquid:
+        per100 = {
+            "protein": rng.uniform(0, 3.5),
+            "fat": rng.uniform(0, 3.5),
+            "carbohydrate": rng.uniform(2, 12),
+            "sodium": rng.uniform(5, 60),
+        }
+    else:
+        per100 = {
+            "protein": rng.uniform(0.5, 25),
+            "fat": rng.uniform(0.5, 30),
+            "carbohydrate": rng.uniform(5, 75),
+            "sodium": rng.uniform(5, 900),
+        }
+    per100["saturates"] = per100["fat"] * rng.uniform(0.1, 0.6)
+    per100["trans_fat"] = 0.0
+    per100["sugars"] = per100["carbohydrate"] * rng.uniform(0.05, 0.6)
+    if with_fibre:
+        per100["fibre"] = min(per100["carbohydrate"] - per100["sugars"], rng.uniform(1, 10))
+    hundred = {k: str(round(v)) if k == "sodium" else _one(v) for k, v in per100.items()}
+    p, f, c = (float(hundred[k]) for k in ("protein", "fat", "carbohydrate"))
+    fibre = float(hundred["fibre"]) if with_fibre else None
+    kcal = 4 * p + 9 * f + (4 * (c - fibre) + 2 * fibre if fibre is not None else 4 * c)
+    hundred["energy_kcal"] = _one(kcal)
+    portion = {k: str(round(float(v) * serving / 100)) if k == "sodium" else _one(float(v) * serving / 100) for k, v in hundred.items()}
+    bounds: dict[str, str] = {}
+    if variant == "bound":
+        hundred["trans_fat"] = portion["trans_fat"] = "0.1"
+        hundred["sugars"] = portion["sugars"] = "0.5"
+        bounds = {"trans_fat": "<", "sugars": "<"}
+    unit_word = "毫升" if liquid else "公克"
+    columns: list[tuple[str, str, dict[str, str]]] = [("每份", "per_serving", portion)]
+    if variant == "single_column":
+        columns = [("每100公克", "per_100g", hundred)]
+    elif variant == "reference_intake_column":
+        reference = {k: str(round(float(portion[k]) / TAIWAN_REFERENCE[k] * 100)) for k in TAIWAN_REFERENCE}
+        columns.append(("每日參考值百分比", "reference_intake", reference))
+    else:
+        columns.append(("每100毫升" if liquid else "每100公克", "per_100ml" if liquid else "per_100g", hundred))
+    headers, cells = [], []
+    for position, (printed, basis, values) in enumerate(columns, start=1):
+        header_id = f"header_{position}"
+        conversion = f"{serving}{unit_word}" if basis == "per_serving" else None
+        headers.append({"header_id": header_id, "printed_text": printed, "basis": basis, "serving_conversion": conversion})
+        for label, nutrient, parent, unit in CHINESE_ROWS:
+            if nutrient not in values:
+                continue
+            cell_unit = "%" if basis == "reference_intake" else unit
+            cells.append(
+                {
+                    "row_id": nutrient,
+                    "parent_row_id": parent,
+                    "nutrient": nutrient,
+                    "printed_label": label,
+                    "header_id": header_id,
+                    "basis": basis,
+                    "printed_text": "",
+                    "comparator": "=" if basis == "reference_intake" else bounds.get(nutrient, "="),
+                    "decimal_text": values[nutrient],
+                    "unit": cell_unit,
+                    "canonical_unit": CANONICAL[cell_unit],
+                    "serving_conversion": conversion if basis == "per_serving" else "not_applicable",
+                }
+            )
+    identity = digest(f"template-v1:{variant}:{index}")
+    return {
+        "case_id": f"template:{variant}:{identity[:12]}",
+        "template_order_key": identity,
+        "requires_decline": False,
+        "decline_reason": None,
+        "language": "zh-Hant",
+        "headers": headers,
+        "serving_size": {
+            "printed_text": f"每一份量{serving}{unit_word}",
+            "decimal_text": str(serving),
+            "unit": unit_word,
+            "canonical_unit": CANONICAL[unit_word],
+        },
+        "servings_per_pack": {"printed_text": f"本包裝含{pack}份", "decimal_text": pack, "approximate": False},
+        "cells": cells,
+    }
+
+
+def template_split(identity: str) -> str:
+    return "development" if int(identity[:8], 16) % 2 == 0 else "untouched"

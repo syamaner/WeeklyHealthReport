@@ -85,7 +85,9 @@
       "split": "development",
       "bytes": 291554,
       "sha256": "2b006b1803cd18e61b8f62f0185cf4ad117352b1de5dbb4a9b982a8541006cad",
-      "attribution": "Nutrition label photo of product 7394376619779 by Open Food Facts contributor smoothie-app, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/739/437/661/9779/nutrition_zh.5.full.jpg)."
+      "attribution": "Nutrition label photo of product 7394376619779 by Open Food Facts contributor smoothie-app, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/739/437/661/9779/nutrition_zh.5.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "English-only label, not a 營養標示 panel (first-pass review 17 October 2026)"
     },
     {
       "barcode": "4713072173096",
@@ -280,7 +282,9 @@
       "split": "development",
       "bytes": 1171681,
       "sha256": "cbdb3543e7a0d1d9bc795fdd8c0f75465a6eec2343548eaf9d83ae7875511e4d",
-      "attribution": "Nutrition label photo of product 9413000044508 by Open Food Facts contributor openfoodfacts-contributors, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/941/300/004/4508/nutrition_zh.5.full.jpg)."
+      "attribution": "Nutrition label photo of product 9413000044508 by Open Food Facts contributor openfoodfacts-contributors, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/941/300/004/4508/nutrition_zh.5.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "English-only label, not a 營養標示 panel (first-pass review 17 October 2026)"
     },
     {
       "barcode": "2030428734117",
@@ -927,5 +931,42 @@
       "sha256": "95b767ce68091a6d260a2436013659bb9c9af8c6c64b4667052e0384ec4458be",
       "attribution": "Nutrition label photo of product 4710057189271 by Open Food Facts contributor vogurm, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/005/718/9271/nutrition_zh.7.full.jpg)."
     }
-  ]
+  ],
+  "refills": [
+    {
+      "barcode": "0022000035011",
+      "barcode13": "0022000035011",
+      "order_key_sha256": "a77b202c3d53d4b3341fe365fd4c20bf5128984e5570519d64c401ec75bad374",
+      "image_key": "nutrition_zh",
+      "revision": "6",
+      "raw_image_id": "1",
+      "uploader": "openfoodfacts-contributors",
+      "url": "https://images.openfoodfacts.org/images/products/002/200/003/5011/nutrition_zh.6.full.jpg",
+      "order": 61,
+      "split": "development",
+      "replaces_order": 4,
+      "replacement_reason": "English-only label, not a 營養標示 panel (first-pass review 17 October 2026)",
+      "bytes": 43388,
+      "sha256": "1ec1f8cc51f8af5177c6ec6da3d1cbc5d22c3f1d648d469ef26e369bf00f9e45",
+      "attribution": "Nutrition label photo of product 0022000035011 by Open Food Facts contributor openfoodfacts-contributors, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/002/200/003/5011/nutrition_zh.6.full.jpg)."
+    },
+    {
+      "barcode": "4711518003037",
+      "barcode13": "4711518003037",
+      "order_key_sha256": "b12b5c8248db6d18a728ee003179ff65c940586d424b05c4cf65c1d2d5836319",
+      "image_key": "nutrition_zh",
+      "revision": "10",
+      "raw_image_id": "2",
+      "uploader": "aquilax",
+      "url": "https://images.openfoodfacts.org/images/products/471/151/800/3037/nutrition_zh.10.full.jpg",
+      "order": 62,
+      "split": "development",
+      "replaces_order": 17,
+      "replacement_reason": "English-only label, not a 營養標示 panel (first-pass review 17 October 2026)",
+      "bytes": 383856,
+      "sha256": "34154493e1809e96732da18ba5690c499a632d6559065d12a2c572e50ff68786",
+      "attribution": "Nutrition label photo of product 4711518003037 by Open Food Facts contributor aquilax, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/151/800/3037/nutrition_zh.10.full.jpg)."
+    }
+  ],
+  "refill_rule": "Owner decision B, 17 October 2026: up to 27 refills (orders 61 to 87) in hash order, each downloaded only when an exclusion needs it, reason logged. Development replacements take the next orders first (61, 62), untouched refills after."
 }

@@ -61,9 +61,27 @@ class BudgetTests(unittest.TestCase):
             budget.before_call("opus")
         budget.before_call("luna")
 
-    def test_total_stop_counts_the_reserved_sealed_run(self):
-        budget = RunBudget(reserved_usd=Decimal("4"))
-        for _ in range(419):
+    def test_development_calls_cannot_spend_the_sealed_reservation(self):
+        budget = RunBudget()
+        self.assertEqual(budget.reserved_usd, Decimal("10.00"))  # 200 calls at the $0.05 ceiling
+        for _ in range(300):  # $15 = $25 total minus the $10 reservation
+            budget.before_call("luna")
+            budget.record("luna", Decimal("0.05"))
+        with self.assertRaises(BudgetStop):
+            budget.before_call("luna")
+
+    def test_sealed_run_may_use_its_reservation_once(self):
+        budget = RunBudget(spent_usd=Decimal("14.95"), sealed_run=True)
+        for _ in range(200):
+            budget.before_call("luna")
+            budget.record("luna", Decimal("0.05"))
+        self.assertEqual(budget.reserved_usd, 0)
+        with self.assertRaises(BudgetStop):
+            budget.before_call("luna")
+
+    def test_total_stop_on_reported_cost(self):
+        budget = RunBudget(sealed_run=True, sealed_reserved_calls=10_000)
+        for _ in range(499):
             budget.record("luna", Decimal("0.05"))
         with self.assertRaises(BudgetStop):
             budget.record("luna", Decimal("0.05"))
@@ -185,6 +203,48 @@ class RendererTests(unittest.TestCase):
         self.assertIn("热量", text)
 
 
+class TemplateTests(unittest.TestCase):
+    def test_template_tables_pass_the_arithmetic_policy(self):
+        import arithmetic
+
+        for variant in render.TEMPLATE_VARIANTS:
+            for index in range(render.TEMPLATE_CANDIDATES_PER_VARIANT):
+                truth = render.template_truth(variant, index)
+                self.assertNotEqual(arithmetic.check_table(truth)["status"], arithmetic.FAIL, (variant, index))
+
+    def test_variants_carry_their_tags(self):
+        bound = render.template_truth("bound", 0)
+        self.assertTrue(any(c["comparator"] == "<" for c in bound["cells"]))
+        reference = render.template_truth("reference_intake_column", 0)
+        ri = {c["nutrient"] for c in reference["cells"] if c["basis"] == "reference_intake"}
+        self.assertNotIn("trans_fat", ri)
+        self.assertNotIn("sugars", ri)
+        text, _ = render.render_chinese(reference, "tab")
+        self.assertIn("每日參考值百分比", text)
+        self.assertIn("*", text)
+        self.assertEqual(render.template_truth("servings_2_5", 0)["servings_per_pack"]["decimal_text"], "2.5")
+        self.assertEqual(render.template_truth("per_100ml", 0)["headers"][1]["basis"], "per_100ml")
+
+
+class RefillRuleTests(unittest.TestCase):
+    def test_refills_are_limited_to_orders_61_to_87(self):
+        ranked = [{"order": order, "barcode13": str(order)} for order in range(1, 90)]
+        self.assertEqual([t["order"] for t in acquire_off_taiwan.refill_targets(ranked, [61, 62])], [61, 62])
+        with self.assertRaises(ValueError):
+            acquire_off_taiwan.refill_targets(ranked, [60])
+        with self.assertRaises(ValueError):
+            acquire_off_taiwan.refill_targets(ranked, [88])
+
+    def test_manifest_records_the_development_replacements(self):
+        manifest = json.loads((HERE / "fixtures" / "off-taiwan-manifest-v1.json").read_text())
+        refills = {r["order"]: r for r in manifest["refills"]}
+        self.assertEqual({o: r["replaces_order"] for o, r in refills.items()}, {61: 4, 62: 17})
+        self.assertTrue(all(r["split"] == "development" and "CC BY-SA 3.0" in r["attribution"] for r in refills.values()))
+        photos = {p["order"]: p for p in manifest["photos"]}
+        self.assertTrue(photos[4]["excluded"] and photos[17]["excluded"])
+        self.assertLessEqual(sum(r["bytes"] for r in refills.values()), 5_000_000)
+
+
 class ContractTests(unittest.TestCase):
     def test_contract_is_valid(self):
         contract = json.loads((HERE / "frozen-contract-v1.json").read_text())
@@ -212,7 +272,7 @@ class DevelopmentDatasetTests(unittest.TestCase):
         self.assertTrue(all(c["metadata"]["split"] == "development" for c in loaded))
         self.assertTrue(all(c["metadata"]["synthetic"] for c in loaded if c["metadata"]["corpus"] != "muesli_typed"))
         corpora = {c["metadata"]["corpus"] for c in loaded}
-        self.assertEqual(corpora, {"v1", "v2dev", "muesli_typed", "fda188"})
+        self.assertEqual(corpora, {"v1", "v2dev", "muesli_typed", "fda188", "zh_template"})
         fda_dev = [c for c in loaded if c["metadata"]["corpus"] == "fda188" and not c["truth"]["requires_decline"]]
         self.assertGreaterEqual(len(fda_dev), 40)
         self.assertTrue(all(render.fda_split(c["metadata"]["fda_order_key"]) == "development" for c in fda_dev))

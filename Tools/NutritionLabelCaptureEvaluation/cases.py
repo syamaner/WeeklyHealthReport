@@ -46,8 +46,8 @@ def load_development_photos(manifest_path: Path, image_root: Path, truth_path: P
     if truth_path is not None:
         truths = {record["case_id"]: record for record in json.loads(truth_path.read_text(encoding="utf-8"))["records"]}
     cases = []
-    for photo in manifest["photos"]:
-        if photo["split"] != "development":
+    for photo in manifest["photos"] + manifest.get("refills", []):
+        if photo["split"] != "development" or photo.get("excluded"):
             continue
         case_id = f"off-taiwan:{photo['barcode13']}:nutrition_zh.{photo['revision']}"
         path = image_root / "development" / f"{photo['order']:02d}-{photo['barcode13']}-nutrition_zh.{photo['revision']}.jpg"
@@ -94,8 +94,8 @@ def load_untouched_photos(
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     truths = {record["case_id"]: record for record in json.loads(truth_path.read_text(encoding="utf-8"))["records"]}
     cases = []
-    for photo in manifest["photos"]:
-        if photo["split"] != "untouched":
+    for photo in manifest["photos"] + manifest.get("refills", []):
+        if photo["split"] != "untouched" or photo.get("excluded"):
             continue
         case_id = f"off-taiwan:{photo['barcode13']}:nutrition_zh.{photo['revision']}"
         path = image_root / "sealed" / f"{photo['order']:02d}-{photo['barcode13']}-nutrition_zh.{photo['revision']}.jpg"

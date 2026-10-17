@@ -71,12 +71,21 @@ def energy_check(table: dict[str, Any], basis: str) -> dict[str, Any]:
     fibre = exact_value(cells, "fibre", "g", basis)
     if kcal is None or p is None or f is None or c is None:
         return {"name": "energy", "basis": basis, "status": NOT_CHECKABLE}
+    fibre_printed = any(cell.get("nutrient") == "fibre" and cell.get("basis") == basis for cell in cells)
     forms: list[tuple[str, Decimal]] = []
-    if jurisdiction == "taiwan" and fibre is not None:
-        forms.append(("taiwan", 4 * p + 4 * (c - fibre) + 2 * fibre + 9 * f))
-    forms.append(("general", 4 * p + 4 * c + 9 * f))
-    if jurisdiction == "uk" and fibre is not None:
-        forms.append(("uk_fibre", 4 * p + 4 * c + 9 * f + 2 * fibre))
+    if jurisdiction == "taiwan":
+        # Taiwan carbohydrate includes fibre. With a fibre row only the Taiwan form is
+        # used; the general form applies only when no fibre row is printed (decision Q1).
+        if fibre_printed:
+            if fibre is None:
+                return {"name": "energy", "basis": basis, "status": NOT_CHECKABLE}
+            forms.append(("taiwan", 4 * p + 4 * (c - fibre) + 2 * fibre + 9 * f))
+        else:
+            forms.append(("general", 4 * p + 4 * c + 9 * f))
+    else:
+        forms.append(("general", 4 * p + 4 * c + 9 * f))
+        if fibre is not None:
+            forms.append(("uk_fibre", 4 * p + 4 * c + 9 * f + 2 * fibre))
     tolerance = TOLERANCES[jurisdiction]
     allowed = max(tolerance["absolute_kcal"], tolerance["relative"] * kcal)
     results = [{"form": name, "computed_kcal": str(value), "difference": str(abs(value - kcal))} for name, value in forms]

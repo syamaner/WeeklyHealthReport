@@ -1,13 +1,14 @@
 {
   "generator_version": "label-pasted-text-renderer-v1",
   "seed": "nutrition-label-capture-v1",
-  "dataset_sha256": "3247b8292f07a7c106265a94a9067c470cbcbaad2b8461522a6a412f0a31eb17",
-  "cases": 179,
+  "dataset_sha256": "894a406d6e1a720b0712517beb59da3387171d7c3e6cedd46b2b7a7813175da8",
+  "cases": 207,
   "by_corpus": {
     "fda188": 76,
     "muesli_typed": 1,
     "v1": 80,
-    "v2dev": 22
+    "v2dev": 22,
+    "zh_template": 28
   },
   "required_declines": 16,
   "sources": {
@@ -27,6 +28,65 @@
       "unstructured or wrongly united value for 熱量": 9,
       "serving size or servings per pack not structured": 3,
       "unstructured or wrongly united value for 鈉": 1
+    }
+  },
+  "zh_template": {
+    "variants": [
+      "bound",
+      "reference_intake_column",
+      "per_100ml",
+      "single_column",
+      "servings_2_5"
+    ],
+    "candidates_per_variant": 12,
+    "split": {
+      "development": 28,
+      "untouched": 32
+    }
+  },
+  "chinese_coverage": {
+    "chinese_cases": 105,
+    "covered": [
+      "bound",
+      "decline_expected",
+      "nested_rows",
+      "per_100ml",
+      "reference_intake_column",
+      "serving_line",
+      "servings_per_pack",
+      "single_column",
+      "sodium",
+      "synthetic",
+      "two_column_serving_and_100",
+      "zh_hant"
+    ],
+    "not_covered": [
+      "column_offset",
+      "curved_or_crumpled",
+      "en_uk",
+      "glossy",
+      "salt",
+      "small_font"
+    ],
+    "not_applicable_to_pasted_text": [
+      "column_offset",
+      "curved_or_crumpled",
+      "glossy",
+      "small_font"
+    ],
+    "counts": {
+      "zh_hant": 105,
+      "two_column_serving_and_100": 44,
+      "single_column": 61,
+      "reference_intake_column": 7,
+      "per_100ml": 8,
+      "bound": 3,
+      "sodium": 105,
+      "serving_line": 105,
+      "servings_per_pack": 105,
+      "nested_rows": 105,
+      "decline_expected": 16,
+      "synthetic": 104
     }
   },
   "english_exclusions": [

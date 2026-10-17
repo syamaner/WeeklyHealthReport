@@ -146,6 +146,85 @@ def fda_cases(csv_path: Path, exclusions: list[dict[str, str]]) -> tuple[list[di
     return cases, summary
 
 
+TEMPLATE_TAGS = {
+    "bound": {"bound", "two_column_serving_and_100"},
+    "reference_intake_column": {"reference_intake_column", "single_column"},
+    "per_100ml": {"per_100ml", "two_column_serving_and_100"},
+    "single_column": {"single_column"},
+    "servings_2_5": {"two_column_serving_and_100"},
+}
+# Coverage tags from plan section 3.1. Photo-only tags cannot apply to pasted text.
+PLAN_TAGS = [
+    "zh_hant",
+    "en_uk",
+    "two_column_serving_and_100",
+    "single_column",
+    "reference_intake_column",
+    "per_100ml",
+    "bound",
+    "salt",
+    "sodium",
+    "serving_line",
+    "servings_per_pack",
+    "nested_rows",
+    "column_offset",
+    "glossy",
+    "curved_or_crumpled",
+    "small_font",
+    "decline_expected",
+    "synthetic",
+]
+PHOTO_ONLY_TAGS = {"column_offset", "glossy", "curved_or_crumpled", "small_font"}
+
+
+def template_cases() -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    """Development cases from the closed Taiwan template; untouched candidates are counted, not rendered."""
+    cases = []
+    split_counts = {"development": 0, "untouched": 0}
+    for variant in render.TEMPLATE_VARIANTS:
+        for index in range(render.TEMPLATE_CANDIDATES_PER_VARIANT):
+            truth = render.template_truth(variant, index)
+            split = render.template_split(truth["template_order_key"])
+            split_counts[split] += 1
+            if split != "development":
+                continue
+            shape = render.choose(render.CHINESE_SHAPES, truth["template_order_key"], "shape")
+            text, rendered = render.render_chinese(truth, shape)
+            tags = {"zh_hant", "synthetic", "serving_line", "servings_per_pack", "sodium", "nested_rows", f"shape_{shape}"}
+            tags |= TEMPLATE_TAGS[variant]
+            cases.append(
+                text_case(
+                    f"{truth['case_id']}:{shape}",
+                    text,
+                    rendered,
+                    {
+                        "corpus": "zh_template",
+                        "language": "zh-Hant",
+                        "template_variant": variant,
+                        "licence": "Synthetic values from a seeded closed template; no source data",
+                        "coverage_tags": sorted(tags),
+                    },
+                )
+            )
+    return cases, {
+        "variants": list(render.TEMPLATE_VARIANTS),
+        "candidates_per_variant": render.TEMPLATE_CANDIDATES_PER_VARIANT,
+        "split": split_counts,
+    }
+
+
+def coverage(cases: list[dict[str, Any]]) -> dict[str, Any]:
+    chinese = [c for c in cases if c["metadata"]["language"] == "zh-Hant"]
+    present = {tag for c in chinese for tag in c["metadata"]["coverage_tags"]}
+    return {
+        "chinese_cases": len(chinese),
+        "covered": sorted(tag for tag in PLAN_TAGS if tag in present),
+        "not_covered": sorted(tag for tag in PLAN_TAGS if tag not in present),
+        "not_applicable_to_pasted_text": sorted(PHOTO_ONLY_TAGS),
+        "counts": {tag: sum(tag in c["metadata"]["coverage_tags"] for c in chinese) for tag in PLAN_TAGS if tag in present},
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--v1-ground-truth", type=Path, required=True)
@@ -184,7 +263,6 @@ def main() -> int:
                     "servings_per_pack",
                     "nested_rows",
                     "sodium",
-                    "column_offset",
                 ],
                 "synthetic": False,
             },
@@ -193,6 +271,8 @@ def main() -> int:
     fda, fda_summary = fda_cases(args.fda_csv, exclusions)
     cases += fda
     sources["fda188_csv_sha256"] = sha256_file(args.fda_csv)
+    template, template_summary = template_cases()
+    cases += template
 
     lines = [json.dumps(case, ensure_ascii=False, sort_keys=True) for case in cases]
     args.out.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -207,6 +287,8 @@ def main() -> int:
         "required_declines": sum(1 for c in cases if c["truth"]["requires_decline"]),
         "sources": sources,
         "fda188": fda_summary,
+        "zh_template": template_summary,
+        "chinese_coverage": coverage(cases),
         "english_exclusions": exclusions,
     }
     args.report.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

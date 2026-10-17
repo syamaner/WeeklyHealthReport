@@ -88,14 +88,39 @@ def candidate_from_hit(hit: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def select(hits: Iterable[dict[str, Any]], count: int = SELECTED, development: int = DEVELOPMENT) -> list[dict[str, Any]]:
+def rank(hits: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every eligible product, in hash order, numbered from 1."""
     seen: dict[str, dict[str, Any]] = {}
     for hit in hits:
         candidate = candidate_from_hit(hit)
         if candidate and candidate["barcode13"] not in seen:
             seen[candidate["barcode13"]] = candidate
     ordered = sorted(seen.values(), key=lambda item: item["order_key_sha256"])
-    chosen = ordered[:count]
+    for index, item in enumerate(ordered):
+        item["order"] = index + 1
+    return ordered
+
+
+# Pre-registered refill order (owner decision B, 17 October 2026): the replacements for
+# excluded development photos take the next barcodes in hash order (61, 62, ...), and any
+# untouched refill comes after them. Up to 27 refills (orders 61 to 87) are approved, each
+# downloaded only when an exclusion needs it, with the reason logged.
+REFILL_FIRST_ORDER = SELECTED + 1
+REFILL_LAST_ORDER = 87
+
+
+def refill_targets(ranked: list[dict[str, Any]], orders: list[int]) -> list[dict[str, Any]]:
+    if any(order < REFILL_FIRST_ORDER or order > REFILL_LAST_ORDER for order in orders):
+        raise ValueError("refills are limited to orders 61 to 87")
+    by_order = {item["order"]: item for item in ranked}
+    missing = [order for order in orders if order not in by_order]
+    if missing:
+        raise ValueError(f"no eligible product at orders {missing}")
+    return [dict(by_order[order]) for order in orders]
+
+
+def select(hits: Iterable[dict[str, Any]], count: int = SELECTED, development: int = DEVELOPMENT) -> list[dict[str, Any]]:
+    chosen = rank(hits)[:count]
     for index, item in enumerate(chosen):
         item["order"] = index + 1
         item["split"] = "development" if index < development else "untouched"
@@ -133,7 +158,98 @@ def download(url: str) -> bytes:
         return response.read()
 
 
+def refill(argv: list[str]) -> int:
+    """Download pre-registered refills into the existing folder and log them in the manifest."""
+    parser = argparse.ArgumentParser(description="refill excluded photos in pre-registered hash order")
+    parser.add_argument("--out", type=Path, required=True, help="the existing photo folder outside any git checkout")
+    parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--replace", required=True, help="comma-separated orders being replaced, e.g. 4,17")
+    parser.add_argument("--reason", required=True, help="logged exclusion reason for the replaced photos")
+    parser.add_argument("--max-bytes", type=int, required=True, help="hard stop for this refill batch")
+    args = parser.parse_args(argv)
+
+    out = args.out.expanduser().resolve()
+    probe = subprocess.run(["git", "-C", str(out), "rev-parse", "--show-toplevel"], capture_output=True, text=True)
+    if probe.returncode == 0:
+        print(f"refusing a folder inside a git checkout: {probe.stdout.strip()}", file=sys.stderr)
+        return 2
+    manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
+    replaced = [int(order) for order in args.replace.split(",")]
+    photos = {p["order"]: p for p in manifest["photos"]}
+    if any(order not in photos for order in replaced):
+        print("an order to replace is not in the manifest", file=sys.stderr)
+        return 3
+    if len({photos[order]["split"] for order in replaced}) != 1:
+        print("one refill batch replaces photos from one split only", file=sys.stderr)
+        return 3
+    split = photos[replaced[0]]["split"]
+    previous = manifest.get("refills", [])
+    used = sorted(item["order"] for item in previous)
+    next_order = (used[-1] + 1) if used else REFILL_FIRST_ORDER
+    if split == "development" and any(p["split"] == "untouched" for p in previous):
+        print("development replacements must precede untouched refills in hash order", file=sys.stderr)
+        return 3
+    orders = list(range(next_order, next_order + len(replaced)))
+
+    hits, _ = fetch_all_hits()
+    ranked = rank(hits)
+    first = {item["barcode13"]: item["order"] for item in ranked[:SELECTED]}
+    if first != {p["barcode13"]: p["order"] for p in manifest["photos"]}:
+        print("the first 60 in hash order no longer match the manifest; stopping", file=sys.stderr)
+        return 4
+    targets = refill_targets(ranked, orders)
+    folder = out / ("development" if split == "development" else "sealed")
+    total = 0
+    downloaded: list[tuple[Path, bytes, dict[str, Any]]] = []
+    for item, old in zip(targets, replaced, strict=True):
+        data = download(item["url"])
+        total += len(data)
+        if total > args.max_bytes:
+            print(f"refill batch {total} bytes exceeds the {args.max_bytes} byte stop; nothing written", file=sys.stderr)
+            return 5
+        item.update(
+            {
+                "split": split,
+                "replaces_order": old,
+                "replacement_reason": args.reason,
+                "bytes": len(data),
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "attribution": (
+                    f"Nutrition label photo of product {item['barcode']} by Open Food Facts contributor "
+                    f"{item['uploader']}, {LICENCE} ({LICENCE_URL}), from Open Food Facts ({item['url']})."
+                ),
+            }
+        )
+        downloaded.append((folder / f"{item['order']:02d}-{item['barcode13']}-{IMAGE_KEY}.{item['revision']}.jpg", data, item))
+        time.sleep(0.5)
+    for target, data, _ in downloaded:
+        if target.exists():
+            print(f"refusing to overwrite {target}", file=sys.stderr)
+            return 6
+        target.write_bytes(data)
+        if split != "development":
+            os.chmod(target, stat.S_IRUSR | stat.S_IRGRP)
+    for order in replaced:
+        photos[order]["excluded"] = True
+        photos[order]["exclusion_reason"] = args.reason
+    manifest["refills"] = previous + [item for _, _, item in downloaded]
+    manifest["refill_rule"] = (
+        "Owner decision B, 17 October 2026: up to 27 refills (orders 61 to 87) in hash order, each downloaded only when an "
+        "exclusion needs it, reason logged. Development replacements take the next orders first (61, 62), untouched refills after."
+    )
+    args.manifest.write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n")
+    print(
+        json.dumps(
+            [{k: i[k] for k in ("order", "barcode13", "revision", "bytes", "sha256", "replaces_order")} for _, _, i in downloaded], indent=1
+        )
+    )
+    print(f"refill batch total {total} bytes")
+    return 0
+
+
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "refill":
+        return refill(sys.argv[2:])
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--out", type=Path, required=True, help="new, empty directory outside any git checkout")
     parser.add_argument("--expected-urls", type=Path, help="candidate URL list to compare with the re-derived selection")

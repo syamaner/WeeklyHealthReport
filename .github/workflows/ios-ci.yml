@@ -231,14 +231,14 @@ jobs:
           python3 Tools/NutritionLabelCaptureEvaluation/validate_contract.py \
             Tools/NutritionLabelCaptureEvaluation/frozen-contract-v1.json
 
-      # Installs the pinned Inspect AI, pyright and ruff into the harness venv, then runs
-      # ruff, pyright and the same tests, including the Inspect wiring test with a stub
-      # parser and the mockllm model.
-      - name: Verify Inspect wiring, ruff and pyright with pinned tools
+      # Installs the hash-locked Inspect AI, pyright and ruff from PyPI into the harness
+      # venv (network, but no model or provider call), then runs ruff, pyright and the
+      # same tests, including the Inspect wiring test with a stub parser and mockllm.
+      - name: Verify Inspect wiring, ruff and pyright with hash-locked tools
         working-directory: Tools/NutritionLabelCaptureEvaluation
         run: |
           python3 -m venv .venv
-          .venv/bin/pip install --disable-pip-version-check -r requirements-dev.txt
+          .venv/bin/pip install --disable-pip-version-check --require-hashes -r requirements-dev.lock
           .venv/bin/ruff check .
           .venv/bin/ruff format --check .
           .venv/bin/pyright

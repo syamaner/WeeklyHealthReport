@@ -1542,3 +1542,16 @@ Pricing as in the previous sections (checked 11 October 2026): USD 4/M base inpu
 Boundary: `2026-10-16T17:25:56Z` → `2026-10-16T18:29:51Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,095,891 5-minute, 0 1-hour. Exact API-equivalent USD 12.1020622.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-17b: Claude Code label capture evaluation phase 1, follow-ups
+
+Same `claude-opus-5-5` implementation subagent and transcript as the previous row, at the same pricing (checked 11 October 2026). The first row runs from the previous row's end to the end of the `c85d9ff` work: Inspect switch-over checks, the gates, the PR, the pyright and ruff pass, and the handover. The second row covers the invariant-review fixes and owner decisions A and B (refill downloads, contract, parser, route C guards, template cases, route A rerun), up to this ledger edit. This ledger edit, the final gates, the commit and the push are outside both rows. No subagents.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 1 delivery, gates and pyright / ruff (#255) | 31,764,024 (29,599,618) | 2,164,248 | 5,374 | 31,769,398 | $16.85 |
+| Phase 1 review fixes and owner decisions A and B (#255) | 33,726,008 (33,180,377) | 545,495 | 17,100 | 33,743,108 | $9.71 |
+
+Boundaries: `2026-10-16T18:29:51Z` → `2026-10-16T19:50:47Z` (exact USD 16.8492756) and `2026-10-17T00:12:02Z` → `2026-10-17T00:24:17Z` (exact USD 9.7060944). All cache writes were 5-minute writes. Long waits for gates fall inside the first window and add no tokens.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

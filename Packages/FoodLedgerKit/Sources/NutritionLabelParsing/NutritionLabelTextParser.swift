@@ -20,7 +20,7 @@ public struct NutritionLabelTextParser: Sendable {
             .replacingOccurrences(of: "\r", with: "\n")
             .replacingOccurrences(of: "\u{00A0}", with: " ")
         let language = Self.language(of: normalised)
-        if Self.hasUnsupportedScript(normalised) {
+        if Self.hasUnsupportedScript(normalised) || (language == .unknown && !normalised.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
             return .declined(route: route, inputSHA256: inputSHA256, language: language, reasons: ["unsupported_language"])
         }
         for rawLine in normalised.components(separatedBy: "\n") {
@@ -30,8 +30,13 @@ public struct NutritionLabelTextParser: Sendable {
         return state.finish(route: route, inputSHA256: inputSHA256, language: language)
     }
 
+    /// Japanese kana, Korean Hangul (syllables, jamo and compatibility jamo) or a
+    /// Simplified-only character means the label is outside `en` and `zh-Hant`.
     static func hasUnsupportedScript(_ text: String) -> Bool {
-        text.unicodeScalars.contains { (0x3040...0x30FF).contains($0.value) }
+        text.unicodeScalars.contains { scalar in
+            (0x3040...0x30FF).contains(scalar.value) || (0xAC00...0xD7AF).contains(scalar.value)
+                || (0x1100...0x11FF).contains(scalar.value) || (0x3130...0x318F).contains(scalar.value)
+        }
             || text.contains { LabelVocabulary.unsupportedScriptMarkers.contains($0) }
     }
 

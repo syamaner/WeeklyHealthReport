@@ -14,6 +14,8 @@ import sys
 from pathlib import Path
 from typing import Any
 
+import openrouter_route
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 
@@ -35,6 +37,8 @@ PINNED = [
     "Tools/NutritionLabelCaptureEvaluation/score.py",
     "Tools/NutritionLabelCaptureEvaluation/arithmetic.py",
     "Tools/NutritionLabelCaptureEvaluation/budget.py",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py",
+    "Tools/NutritionLabelCaptureEvaluation/requirements-dev.lock",
     "Tools/NutritionLabelCaptureEvaluation/cases.py",
     "Tools/NutritionLabelCaptureEvaluation/inspect_task.py",
     "Tools/NutritionLabelCaptureEvaluation/requirements.txt",
@@ -90,8 +94,19 @@ def validate(contract: dict[str, Any], root: Path = REPO) -> list[str]:
     if contract.get("status") == "development_phase_1" and route_c.get("enabled") is not False:
         errors.append("route C must stay disabled in phase 1")
     provider = route_c.get("provider_block", {})
-    if provider != {"allow_fallbacks": False, "require_parameters": True, "data_collection": "deny", "zdr": True}:
-        errors.append("route C provider block must deny collection, require ZDR and forbid fallbacks")
+    if provider != openrouter_route.provider_block("<endpoint>"):
+        errors.append("route C provider block must pin one endpoint, deny collection, require ZDR and forbid fallbacks")
+    if route_c.get("never_sees_untouched_truth_or_drafts") is not True:
+        errors.append("route C must never see untouched truth or drafts")
+    drafting = contract.get("untouched_truth_drafting", {})
+    if drafting.get("route_c_never_sees_untouched_truth_or_drafts") is not True or "Qwen" not in drafting.get("pass_1", ""):
+        errors.append("untouched truth drafting must follow owner decision A")
+    route_c_models = " ".join(route_c.get("models_in_run_order", []) + route_c.get("reserve_models", []))
+    if "Qwen" in route_c_models:
+        errors.append("the untouched-truth drafting model cannot also be a route C model")
+    refill = contract.get("corpus", {}).get("off_taiwan", {}).get("refill_rule", {})
+    if refill.get("batch_stop_bytes") != 5_000_000 or "61 to 87" not in refill.get("approved_orders", ""):
+        errors.append("Taiwan refill rule must match owner decision B")
     wire = root / "Tools/NutritionLabelCaptureEvaluation/openrouter/label-image-wire-schema-v1.json"
     if wire.exists() and count_unions(json.loads(wire.read_text())) > 16:
         errors.append("route C wire schema exceeds 16 union-bearing parameters")

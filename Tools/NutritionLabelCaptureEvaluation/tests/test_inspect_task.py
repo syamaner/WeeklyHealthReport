@@ -1,4 +1,4 @@
-"""Inspect wiring, offline: a stub parser stands in for the Swift CLI; no model is called."""
+"""Inspect wiring with no model or provider call: a stub parser stands in for the Swift CLI."""
 
 import importlib.util
 import json
@@ -56,11 +56,25 @@ class InspectWiringTests(unittest.TestCase):
         self.assertEqual(metrics["full_table"], 0.0)
         self.assertEqual(metrics["false_ready"], 0.0)
 
-    def test_route_b_and_c_are_not_runnable_in_phase_1(self):
-        from inspect_task import route_b_vision, route_c_openrouter
+    def test_route_c_raises_while_disabled_and_makes_no_call(self):
+        from inspect_ai import Task
+        from inspect_ai import eval as inspect_eval
+        from inspect_ai.dataset import Sample
+
+        from inspect_task import label_capture_scorer, route_c_openrouter
+
+        sample = Sample(id="x", input="image:" + "0" * 64, target="{}", metadata={"image_path": "/nonexistent.jpg", "corpus": "off_taiwan"})
+        task = Task(dataset=[sample], solver=route_c_openrouter(), scorer=label_capture_scorer())
+        with tempfile.TemporaryDirectory() as folder:
+            log = inspect_eval(task, model="mockllm/model", log_dir=folder, display="none")[0]
+        self.assertEqual(log.status, "error")
+        self.assertIn("route C is disabled", str(log.error))
+        self.assertFalse(log.stats.model_usage)
+
+    def test_route_b_is_not_implemented_in_phase_1(self):
+        from inspect_task import route_b_vision
 
         self.assertTrue(callable(route_b_vision()))
-        self.assertTrue(callable(route_c_openrouter()))
 
 
 if __name__ == "__main__":

@@ -16,12 +16,13 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
-from decimal import Decimal
 from pathlib import Path
 from typing import Any
 
 from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
+from inspect_ai.event import ModelEvent
+from inspect_ai.log import transcript
 from inspect_ai.model import ChatMessageUser, ContentImage, ContentText, ModelOutput, ResponseSchema
 from inspect_ai.scorer import CORRECT, INCORRECT, Metric, SampleScore, Score, Target, metric, scorer
 from inspect_ai.solver import Generate, Solver, TaskState, solver
@@ -31,8 +32,10 @@ HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import cases as case_loading  # noqa: E402
+import openrouter_route  # noqa: E402
 import score as scoring  # noqa: E402
 from budget import RunBudget  # noqa: E402
+from openrouter_route import RouteCModel  # noqa: E402
 
 DEVELOPMENT_TEXT = HERE / "synthetic" / "development-cases-v1.jsonl"
 ROUTE_C_INSTRUCTION = HERE / "openrouter" / "label-image-extraction-instruction-v1.txt"
@@ -91,27 +94,34 @@ def route_b_vision(binary: str | None = None) -> Solver:
     return solve
 
 
-ROUTE_C_RUN_ORDER = ("luna", "grok", "sol", "gemini", "opus")
+ROUTE_C_RUN_ORDER = ("luna", "grok", "sol", "gemini", "opus")  # Qwen 3.5 is no longer a route C reserve (decision A)
 
 
 @solver
-def route_c_openrouter(enabled: bool = False, budget: RunBudget | None = None, model_label: str = "") -> Solver:
+def route_c_openrouter(enabled: bool = False, budget: RunBudget | None = None, target: RouteCModel | None = None) -> Solver:
     """Route C: one OpenRouter request per image with strict structured output.
 
-    Disabled in phase 1. When enabled later: the owner photo needs `send_to_openrouter`
-    consent, the spend guard runs before and after each call, there are no retries and
-    no streaming, and the response is validated against the shared candidate schema.
+    Disabled in phase 1. Before it is ever enabled: the task must be run with model
+    `openrouter/<target.model>` and `model_args=openrouter_route.model_args(target)` so
+    the provider block pins one endpoint (only and order, no fallbacks, ZDR, data
+    collection denied). The owner photo needs `send_to_openrouter` consent; the spend
+    guard (with the 200-call sealed reservation) runs before and after each call; the
+    reported `usage.cost` and the returned model and provider are read from the raw
+    response; a mismatch makes the case failed. The messages are rebuilt from the
+    instruction and the image only, so route C never sees truth or drafts.
     """
     guard = budget or RunBudget()
 
     async def solve(state: TaskState, generate: Generate) -> TaskState:
         if not enabled:
             raise RuntimeError("route C is disabled in phase 1; no provider call is made")
+        if target is None:
+            raise ValueError("route C needs a pinned model and endpoint")
         if state.metadata.get("corpus") == "owner" and state.metadata.get("consent_send_to_openrouter") is not True:
             raise PermissionError("the owner photo has no send_to_openrouter consent")
         instruction = ROUTE_C_INSTRUCTION.read_text(encoding="utf-8")
         state.messages = [ChatMessageUser(content=[ContentText(text=instruction), ContentImage(image=state.metadata["image_path"])])]
-        guard.before_call(model_label)
+        guard.before_call(target.label)
         wire = json.loads(ROUTE_C_WIRE_SCHEMA.read_text(encoding="utf-8"))
         # One request, no tool loop, no retries, 4096 output tokens, 90 s timeout, strict schema.
         state = await generate(
@@ -122,11 +132,23 @@ def route_c_openrouter(enabled: bool = False, budget: RunBudget | None = None, m
             max_retries=0,
             response_schema=ResponseSchema(name="label_image_extraction_v1", json_schema=JSONSchema.model_validate(wire), strict=True),
         )
-        cost = state.output.usage.total_cost if state.output and state.output.usage else None
-        guard.record(model_label, Decimal(str(cost)) if cost is not None else None)
+        raw = _last_raw_response()
+        guard.record(target.label, openrouter_route.reported_cost(raw))
+        problems = openrouter_route.route_mismatches(raw, target)
+        if problems:
+            state.metadata["route_c_failed"] = problems
+            state.output = ModelOutput.from_content(model=target.model, content="")
         return state
 
     return solve
+
+
+def _last_raw_response() -> dict[str, Any] | None:
+    """The raw provider response of the most recent model call in this sample."""
+    for event in reversed(transcript().events):
+        if isinstance(event, ModelEvent) and event.call is not None and isinstance(event.call.response, dict):
+            return dict(event.call.response)
+    return None
 
 
 # --- Scorer and metrics ------------------------------------------------------------
