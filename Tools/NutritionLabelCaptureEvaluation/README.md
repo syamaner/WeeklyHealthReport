@@ -7,7 +7,7 @@ pasted text (A), on-device Vision (B) and a multimodal model through OpenRouter 
 Nothing here ships product behaviour, saves food or treats any output as nutrition truth.
 `Tools/FoodOCREvaluation/` stays frozen; its files are read, never edited.
 
-Phase 1 (this folder as first committed) has **no AI or OpenRouter call and no Vision run**.
+Phase 1 had no AI or OpenRouter call and no Vision run. Phase 2 adds route B (Vision on development images only), the phase 1 review safeguards and the untouched truth drafting (decision A), the only OpenRouter calls so far; route C stays disabled.
 
 ## Framework: Inspect AI
 
@@ -37,7 +37,13 @@ Where Inspect does not enforce a plan rule natively, a small wrapper does:
 - `budget.py` enforces the route C stops on the cost OpenRouter reports per response
   ($0.05 per call, $25 in total including the reserved sealed-run budget, at most
   three unknown-cost calls). Inspect's own `cost_limit` is per sample and priced from
-  a model-cost table, so it is not used for these stops.
+  a model-cost table, so it is not used for these stops. `LedgerBudget` keeps that state in
+  one ledger outside the repository (`~/WHR-label-eval-private/spend-ledger-v1.json`), so the
+  total and the 200-call sealed reservation hold across separate runs, models and the drafting;
+  it refuses changed limits and charges any call left unrecorded at the $0.05 ceiling.
+- `openrouter_route.py` accepts a response model only when it is the requested slug or that
+  slug plus one dated snapshot suffix (`-YYYYMMDD`, `-YYYY-MM-DD`, `-MM-DD`, `-MMDD`); any other
+  suffix or routing variant is a mismatch. A missing `finish_reason` fails the response.
 - `cases.py` refuses the untouched set unless an explicit unseal flag and the sealed
   manifest's SHA-256 are both given and the contract is frozen.
 
@@ -45,7 +51,11 @@ Where Inspect does not enforce a plan rule natively, a small wrapper does:
 
 | Path | Role |
 |---|---|
-| `inspect_task.py` | Inspect tasks, route solvers (A live, B reserved slot, C defined but disabled), the shared scorer and metrics |
+| `inspect_task.py` | Inspect tasks, route solvers (A and B live, C defined but disabled), the shared scorer and metrics |
+| `vision_v3.swift` | Route B recogniser: Vision revision 3, accurate, `zh-Hant` and `en-US`, lines and token geometry |
+| `serialise_lines.py` | Route B serialiser: geometry to parser text, binding by column header and order within a column |
+| `run_route_b.py` | Route B on development photos through Inspect, per stratum; writes `results/` summaries |
+| `draft_untouched_truth.py`, `openrouter/truth-drafting-*` | Decision A drafting of untouched truth (Qwen 3.5), journal, receipts, ledger, owner review sheet |
 | `score.py` | Pure scoring with the frozen v2 matching rules; called by the Inspect scorer |
 | `arithmetic.py` | Section 7 checks (general, UK fibre and Taiwan fibre energy forms; kJ / kcal; serving scaling; sub-rows) and the three frozen mutations |
 | `candidate.py`, `candidate-schema-v1.json` | Shared candidate schema and an offline validator |
@@ -83,12 +93,15 @@ muesli master live under `~/WHR-label-eval-private/` (outside any checkout).
   English-only development orders 4 and 17 (427,244 bytes). Untouched refills follow from 63.
 - **Ground truth:** the 22 development records (20 plus 2 replacements, 2 excluded) are a
   Claude-drafted first pass awaiting the owner's second pass, so Claude Opus route C results
-  on development data carry that caveat. Untouched truth (decision A) will be drafted by
-  Qwen 3.5 VL, which is not a route C model, then verified value by value by the owner, and
-  recorded as model-drafted, owner-verified. That drafting is defined, not run. Route C never
-  sees untouched truth or drafts.
-- **Sealing:** the 40 untouched photos were hashed on download, written read-only
-  to a separate `sealed/` folder and have not been opened, viewed or recognised.
+  on development data carry that caveat. Untouched truth (decision A) for the 40 untouched
+  Taiwan photos was drafted on 17 October 2026 by Qwen 3.5 (`qwen/qwen3.5-397b-a17b` on
+  `deepinfra/fp8`; OpenRouter lists no separate Qwen 3.5 VL), which is not a route C model.
+  The owner now verifies it value by value, and it is then recorded as model-drafted,
+  owner-verified. The drafts stay outside the repository until then. Route C never sees
+  untouched truth or drafts.
+- **Sealing:** the 40 untouched photos were hashed on download and written read-only
+  to a separate `sealed/` folder. They were opened once, for the decision A drafting only
+  (their unsealing for truth purposes); no route has recognised them.
 - **Taiwan FDA dataset 188:** `fixtures/fda-188-source-v1.json` records the archive
   and CSV hashes and the Open Government Data License attribution.
 - **Muesli photo:** stripped master and consent stub (all four flags `false`) under
@@ -101,6 +114,10 @@ python3 -m unittest discover -s Tools/NutritionLabelCaptureEvaluation/tests -v
 python3 Tools/NutritionLabelCaptureEvaluation/validate_contract.py Tools/NutritionLabelCaptureEvaluation/frozen-contract-v1.json
 swift test --package-path Packages/FoodLedgerKit --filter NutritionLabelParsingTests
 ```
+
+The route B end-to-end tests in `tests/test_phase2.py` (serialiser, then the parser CLI) are **local only**: they need the built
+`NutritionLabelTextParse` (`swift build --package-path Packages/FoodLedgerKit --product NutritionLabelTextParse`) and skip
+without it. CI's label-capture job runs on Linux and does not build the Swift CLI, so they do not run there.
 
 Static checks use the pinned dev tools (`requirements-dev.txt`: pyright 1.1.414, ruff 0.16.10), with `pyrightconfig.json` and `ruff.toml` in this folder so local imports resolve. Run them from this folder:
 
@@ -128,3 +145,39 @@ cd Tools/NutritionLabelCaptureEvaluation
 ```
 
 Results and their limits are in [`results/route-a-development-v1.md`](results/route-a-development-v1.md).
+
+Route B on the development photos (Taiwan development photos, the 40 v2 public development
+review images, and the muesli photo only with `local_routes` consent). The Vision binary is
+built outside the repository; the UK review workspace is the main checkout's ignored folder:
+
+```sh
+xcrun swiftc -O vision_v3.swift -o ~/WHR-label-eval-private/bin/vision_v3
+.venv/bin/python run_route_b.py \
+  --vision-binary ~/WHR-label-eval-private/bin/vision_v3 \
+  --parser-binary ../../Packages/FoodLedgerKit/.build/out/Products/Debug/NutritionLabelTextParse \
+  --uk-workspace <checkout>/Tools/FoodOCREvaluation/review_workspace/v2_public_development \
+  --log-dir ~/WHR-label-eval-private/runs/route-b-dev/<run> \
+  --summary results/route-b-development-v1.json
+```
+
+Results: [`results/route-b-development-v1.md`](results/route-b-development-v1.md).
+
+Untouched truth drafting (decision A) for the 40 untouched Taiwan photos, then the owner's
+review sheet (`--sheet-only` rebuilds it from saved responses without a call):
+
+```sh
+.venv/bin/python draft_untouched_truth.py --env-file <dotenv with OPENROUTER_API_KEY> \
+  --image-root ~/WHR-label-eval-private/off-taiwan-v1 \
+  --out ~/WHR-label-eval-private/drafts/untouched-taiwan-v1 \
+  --ledger ~/WHR-label-eval-private/spend-ledger-v1.json \
+  --unseal-for-drafting --manifest-sha256 <contract manifest_sha256> \
+  --model qwen/qwen3.5-397b-a17b --endpoint deepinfra/fp8 --provider-name DeepInfra
+```
+
+Record: [`results/untouched-truth-drafting-v1.md`](results/untouched-truth-drafting-v1.md).
+
+**UK images.** The v1 panel images are no longer on disk and the v2 public selection (60 tuning,
+40 sealed) was never acquired, so the UK route B stratum is the 40 exposed v2 development review
+images and there is no UK untouched stratum. UK untouched set deferred by the owner on 17 Oct 2026;
+acquire a fresh sealed UK set only if Taiwan results justify it. Until then no promotion decision
+for UK label photos.

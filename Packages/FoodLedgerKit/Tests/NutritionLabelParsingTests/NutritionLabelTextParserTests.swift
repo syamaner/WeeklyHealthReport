@@ -231,6 +231,9 @@ private let muesli = """
     ("栄養成分表示\nエネルギー 100kcal", "unsupported_language"),
     ("영양정보\n\t100g당\n열량\t250kcal", "unsupported_language"),
     ("營養標示\n每份\t每100公克\n熱量\t100大卡\t200大卡\nㅇ", "unsupported_language"),
+    ("營養標示\n每份\t每100公克\n熱量\t100大卡\t200大卡\n\u{A960}", "unsupported_language"),
+    ("營養標示\n每份\t每100公克\n熱量\t100大卡\t200大卡\n\u{D7B0}", "unsupported_language"),
+    ("營養標示\n每份\t每100公克\n熱量\t100大卡\t200大卡\n\u{FFA1}", "unsupported_language"),
     ("1500\n3.0g\n0.5g", "unsupported_language"),
     ("Ingredients: oats, raisins", "no_basis_header"),
     ("", "no_table"),
@@ -253,6 +256,59 @@ func declinesInsteadOfGuessing(text: String, reason: String) {
     #expect(calcium?.decimalText == "120")
     #expect(!candidate.wouldMarkReady)
     #expect(candidate.warnings.contains("unrecognised_row: Calcium"))
+}
+
+@Test func valueOnlyLineAfterACompleteRowBlocksReady() {
+    // A % cell whose own row label was not captured lands after a complete row: the counts
+    // still match, so only the attachment rule stops a silent misbinding.
+    let candidate = parse("\tPer 100g\t%RI\nFat\t3g\n4%\nProtein\t2g\t4%")
+    #expect(!candidate.declined)
+    #expect(!candidate.wouldMarkReady)
+    #expect(candidate.warnings.contains("values_after_complete_row: Fat"))
+}
+
+@Test func valueOnlyLineAfterACompleteRowWithMismatchedCountDeclines() {
+    let candidate = parse("\tPer 100g\nFat\t3g\n2g\nProtein\t2g")
+    #expect(candidate.declined)
+    #expect(candidate.declineReasons == ["count_mismatch"])
+}
+
+@Test func provablySafeValueOnlyLinesStillAttach() {
+    let stacked = parse("\tPer 100g\nEnergy\t1500kJ\n355kcal\nFat\t3g")
+    #expect(stacked.wouldMarkReady)
+    #expect(stacked.cells.contains { $0.nutrient == "energy_kcal" && $0.decimalText == "355" })
+    let separate = parse("\tPer 100g\nFat\n3g\nProtein\t2g")
+    #expect(separate.wouldMarkReady)
+    #expect(separate.warnings.isEmpty)
+    let repeatedUnit = parse("\tPer 100g\nEnergy\t1500kJ\n1500kJ")
+    #expect(!repeatedUnit.wouldMarkReady)
+}
+
+@Test func multiColumnOneValuePerLineIsReady() {
+    let candidate = parse("Typical values\nPer 100g\nPer serving\nEnergy\n455kJ\n865kJ\n108kcal\n206kcal\nFat\n3.4g\n6.4g\nProtein\n2g\n3.8g")
+    #expect(!candidate.declined)
+    #expect(candidate.wouldMarkReady)
+    #expect(candidate.warnings.isEmpty)
+    #expect(candidate.cells.count == 8)
+    #expect(candidate.cells.first { $0.nutrient == "fat" && $0.basis == .perServing }?.decimalText == "6.4")
+}
+
+@Test func multiColumnLabelThenValuesLineIsReady() {
+    let candidate = parse("\tPer 100g\tPer serving\nFat\n3.4g\t6.4g\nProtein\n2g\t3.8g")
+    #expect(candidate.wouldMarkReady)
+    #expect(candidate.cells.count == 4)
+}
+
+@Test func bareLabelOverflowStillDeclines() {
+    let candidate = parse("\tPer 100g\nFat\n3g\n4g\nProtein\t2g")
+    #expect(candidate.declined)
+    #expect(candidate.declineReasons == ["count_mismatch"])
+}
+
+@Test func energyContinuationWithItsReferenceIntakeIsReady() {
+    let candidate = parse("\tPer 100g\t%RI\nEnergy\t1500kJ\n\t355kcal\t18%\nFat\t3g\t4%")
+    #expect(candidate.wouldMarkReady)
+    #expect(candidate.cells.contains { $0.nutrient == "energy_kcal" && $0.basis == .referenceIntake && $0.decimalText == "18" })
 }
 
 @Test func partialRowWithoutValuesIsNeverReady() {

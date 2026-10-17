@@ -36,6 +36,10 @@ NUTRIENTS = {
     "sodium",
 }
 NOT_A_CONVERSION = {None, "", "unknown", "not_applicable"}
+# A truth field the source review never transcribed (the UK v2 development review has no
+# servings-per-pack field): left out of that metric's denominator and of full-table
+# equality, never scored as `unknown`.
+NOT_RECORDED = "not_recorded"
 
 # Metric name -> (numerator count, denominator count, contract threshold key, direction)
 METRICS = {
@@ -201,7 +205,10 @@ def score_case(candidate: dict[str, Any] | None, truth: dict[str, Any]) -> dict[
         and all_exact
         and not extra
         and not found_ambiguous
-        and servings_equal(truth.get("servings_per_pack"), output.get("servings_per_pack"))
+        and (
+            truth.get("servings_per_pack") == NOT_RECORDED
+            or servings_equal(truth.get("servings_per_pack"), output.get("servings_per_pack"))
+        )
         and (not result["serving_size_known"] or result["serving_size_exact"])
     )
     result["tables_exact"] = int(table_exact)
@@ -284,6 +291,10 @@ def aggregate(results: list[dict[str, Any]], thresholds: dict[str, float]) -> di
         "false_declines": totals["false_declines"],
         "extra_cells": totals["extra_cells"],
         "serving_size": {"exact": totals["serving_size_exact"], "known": totals["serving_size_known"]},
+        # Tables the route would mark ready after the shared arithmetic policy (any case).
+        # Reported so that a parser change which silently stops marking correct tables ready
+        # is visible, not hidden behind a false-ready count of zero.
+        "would_mark_ready_after_arithmetic": totals["would_mark_ready_after_arithmetic"],
         "energy_check_informing_only": dict(sorted(energy.items())),
         "metrics": metrics,
     }

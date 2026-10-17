@@ -60,19 +60,16 @@
       "two_column_serving_and_100",
       "zh_hant"
     ],
-    "not_covered": [
-      "column_offset",
-      "curved_or_crumpled",
-      "en_uk",
-      "glossy",
-      "salt",
-      "small_font"
-    ],
+    "not_covered": [],
     "not_applicable_to_pasted_text": [
       "column_offset",
       "curved_or_crumpled",
       "glossy",
       "small_font"
+    ],
+    "not_applicable_to_chinese_cases": [
+      "en_uk",
+      "salt"
     ],
     "counts": {
       "zh_hant": 105,

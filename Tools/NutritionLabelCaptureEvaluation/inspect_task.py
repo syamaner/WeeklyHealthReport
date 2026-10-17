@@ -6,7 +6,8 @@ licence). Solvers differ per route; the scorer and metrics are the same for ever
 route and call the pure functions in `score.py` and `arithmetic.py`.
 
 - Route A: `route_a_parser` runs the Swift parser through its CLI wrapper.
-- Route B: `route_b_vision` is a reserved slot for the Vision CLI (later phase).
+- Route B: `route_b_vision` runs the Vision CLI (`vision_v3.swift`), the geometry
+  serialiser (`serialise_lines.py`) and the same Swift parser; development images only.
 - Route C: `route_c_openrouter` is defined but disabled in phase 1; it makes no call
   unless explicitly enabled, the consent check passes and the spend guard allows it.
 """
@@ -14,8 +15,10 @@ route and call the pure functions in `score.py` and `arithmetic.py`.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +26,7 @@ from inspect_ai import Task, task
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.event import ModelEvent
 from inspect_ai.log import transcript
-from inspect_ai.model import ChatMessageUser, ContentImage, ContentText, ModelOutput, ResponseSchema
+from inspect_ai.model import ChatMessageUser, ContentImage, ContentText, ModelOutput, ResponseSchema, get_model
 from inspect_ai.scorer import CORRECT, INCORRECT, Metric, SampleScore, Score, Target, metric, scorer
 from inspect_ai.solver import Generate, Solver, TaskState, solver
 from inspect_ai.util import JSONSchema
@@ -34,7 +37,8 @@ sys.path.insert(0, str(HERE))
 import cases as case_loading  # noqa: E402
 import openrouter_route  # noqa: E402
 import score as scoring  # noqa: E402
-from budget import RunBudget  # noqa: E402
+import serialise_lines  # noqa: E402
+from budget import LedgerBudget  # noqa: E402
 from openrouter_route import RouteCModel  # noqa: E402
 
 DEVELOPMENT_TEXT = HERE / "synthetic" / "development-cases-v1.jsonl"
@@ -84,12 +88,113 @@ def route_a_parser(binary: str) -> Solver:
     return solve
 
 
+async def _run_json(binary: Path, payload: Any, what: str) -> Any:
+    process = await asyncio.create_subprocess_exec(
+        str(binary), stdin=asyncio.subprocess.PIPE, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
+    stdout, stderr = await process.communicate(json.dumps(payload).encode("utf-8"))
+    if process.returncode != 0:
+        raise RuntimeError(f"{what} failed: {stderr.decode(errors='replace')}")
+    return json.loads(stdout)
+
+
+def route_b_input_allowed(metadata: dict[str, Any]) -> None:
+    """Route B runs on development images only in this phase; never on a sealed folder."""
+    path = Path(str(metadata.get("image_path", "")))
+    if metadata.get("split") != "development" or "sealed" in path.parts:
+        raise case_loading.SealedSetError("route B may run on development images only")
+    if metadata.get("corpus") == "owner" and metadata.get("consent_local_routes") is not True:
+        raise PermissionError("the owner photo has no local_routes consent")
+
+
+def route_b_structural_checks(candidate: dict[str, Any], report: dict[str, Any]) -> dict[str, Any]:
+    """Route B's structural guards on top of the parser, for photos only.
+
+    1. A value the serialiser could not bind to a row means a row label or cell was
+       missed, so the table is declined, whatever the parser made of the text (the parser
+       may attach a value-only line to the row above, a legitimate pasted shape).
+    2. When a reference-intake column exists, every row with an amount should carry a
+       reference-intake cell; a photo row without one may be a missed cell, so the table
+       is never marked ready (it stays a partial candidate; nothing is removed).
+    """
+    unbound = int(report.get("unbound_values", 0))
+    if candidate.get("declined"):
+        return candidate
+    if unbound > 0:
+        return {
+            **candidate,
+            "declined": True,
+            "decline_reasons": ["values_without_row"],
+            "ready_for_confirmation": False,
+            "would_mark_ready": False,
+            "automatic_save": False,
+            "serving_size": "unknown",
+            "servings_per_pack": "unknown",
+            "headers": [],
+            "cells": [],
+            "warnings": [*candidate.get("warnings", []), f"serialiser_unbound_values: {unbound}"],
+        }
+    cells = candidate.get("cells") or []
+    if any(h.get("basis") == "reference_intake" for h in candidate.get("headers") or []):
+        amount_rows = {c["row_id"] for c in cells if c.get("basis") != "reference_intake"}
+        reference_rows = {c["row_id"] for c in cells if c.get("basis") == "reference_intake"}
+        missing = sorted(amount_rows - reference_rows)
+        if missing:
+            return {
+                **candidate,
+                "would_mark_ready": False,
+                "warnings": [*candidate.get("warnings", []), "rows_without_reference_intake_cell: " + ", ".join(missing)],
+            }
+    return candidate
+
+
 @solver
-def route_b_vision(binary: str | None = None) -> Solver:
-    """Route B slot: Vision (zh-Hant + en) then the serialiser and the same parser (later phase)."""
+def route_b_vision(vision_binary: str | None = None, parser_binary: str | None = None) -> Solver:
+    """Route B: Apple Vision (zh-Hant + en) through `vision_v3`, the serialiser, then the same parser as A.
+
+    No network. The recognised lines stay in the Inspect log outside the repository; the
+    scored candidate carries the image hash as its `input_sha256`.
+    """
 
     async def solve(state: TaskState, generate: Generate) -> TaskState:
-        raise NotImplementedError("route B is not implemented in phase 1")
+        if vision_binary is None or parser_binary is None:
+            raise ValueError("route B needs the vision_v3 and NutritionLabelTextParse binaries")
+        if state.metadata.get("input_kind") != "image":
+            raise ValueError("route B only takes images")
+        route_b_input_allowed(state.metadata)
+        recognised = await _run_json(Path(vision_binary), [{"id": str(state.sample_id), "path": state.metadata["image_path"]}], "vision")
+        (image,) = recognised["results"]
+        if image.get("error"):
+            raise RuntimeError(f"vision failed for {state.sample_id}: {image['error']}")
+        if image["image_sha256"] != state.metadata["sha256"]:
+            raise ValueError(f"{state.sample_id} bytes do not match the recorded hash")
+        serialised = serialise_lines.serialise(image)
+        (parsed,) = await _run_json(
+            Path(parser_binary),
+            [{"id": str(state.sample_id), "text": serialised["text"], "route": "B", "input_sha256": image["image_sha256"]}],
+            "parser",
+        )
+        state.metadata.update(
+            {
+                "parser_version": parsed["parser_version"],
+                "vision": {
+                    k: recognised[k]
+                    for k in (
+                        "adapter_version",
+                        "request_revision",
+                        "recognition_languages",
+                        "uses_language_correction",
+                        "operating_system",
+                    )
+                },
+                "serialiser_version": serialised["serialiser_version"],
+                "serialiser_report": serialised["report"],
+                "serialised_text": serialised["text"],
+            }
+        )
+        candidate = route_b_structural_checks(parsed["candidate"], serialised["report"])
+        state.output = ModelOutput.from_content(model="route-b-vision", content=json.dumps(candidate, ensure_ascii=False))
+        return state
 
     return solve
 
@@ -98,7 +203,7 @@ ROUTE_C_RUN_ORDER = ("luna", "grok", "sol", "gemini", "opus")  # Qwen 3.5 is no 
 
 
 @solver
-def route_c_openrouter(enabled: bool = False, budget: RunBudget | None = None, target: RouteCModel | None = None) -> Solver:
+def route_c_openrouter(budget: LedgerBudget, enabled: bool = False, target: RouteCModel | None = None) -> Solver:
     """Route C: one OpenRouter request per image with strict structured output.
 
     Disabled in phase 1. Before it is ever enabled: the task must be run with model
@@ -109,8 +214,13 @@ def route_c_openrouter(enabled: bool = False, budget: RunBudget | None = None, t
     reported `usage.cost` and the returned model and provider are read from the raw
     response; a mismatch makes the case failed. The messages are rebuilt from the
     instruction and the image only, so route C never sees truth or drafts.
+
+    The spend guard must be the persistent `LedgerBudget` shared with every other run
+    (there is no in-memory default); each call is recorded with its purpose and sample id.
     """
-    guard = budget or RunBudget()
+    if not isinstance(budget, LedgerBudget):
+        raise TypeError("route C needs the persistent LedgerBudget; refusing an in-memory or missing budget")
+    guard = budget
 
     async def solve(state: TaskState, generate: Generate) -> TaskState:
         if not enabled:
@@ -120,7 +230,14 @@ def route_c_openrouter(enabled: bool = False, budget: RunBudget | None = None, t
         if state.metadata.get("corpus") == "owner" and state.metadata.get("consent_send_to_openrouter") is not True:
             raise PermissionError("the owner photo has no send_to_openrouter consent")
         instruction = ROUTE_C_INSTRUCTION.read_text(encoding="utf-8")
-        state.messages = [ChatMessageUser(content=[ContentText(text=instruction), ContentImage(image=state.metadata["image_path"])])]
+        # Inspect 0.3.276 refuses a file path at submission; the image goes inline as a data URI.
+        state.messages = [
+            ChatMessageUser(content=[ContentText(text=instruction), ContentImage(image=_data_uri(Path(state.metadata["image_path"])))])
+        ]
+        # Pre-call: nothing credential-like may ride in extra_headers, which Inspect logs.
+        configured = openrouter_route.logged_request_credentials({"extra_headers": _configured_extra_headers()})
+        if configured:
+            raise RuntimeError(f"credential-like extra_headers configured for route C: {configured}")
         guard.before_call(target.label)
         wire = json.loads(ROUTE_C_WIRE_SCHEMA.read_text(encoding="utf-8"))
         # One request, no tool loop, no retries, 4096 output tokens, 90 s timeout, strict schema.
@@ -133,7 +250,19 @@ def route_c_openrouter(enabled: bool = False, budget: RunBudget | None = None, t
             response_schema=ResponseSchema(name="label_image_extraction_v1", json_schema=JSONSchema.model_validate(wire), strict=True),
         )
         raw = _last_raw_response()
-        guard.record(target.label, openrouter_route.reported_cost(raw))
+        guard.record_call(
+            target.label,
+            openrouter_route.reported_cost(raw),
+            purpose="route_c_sealed" if guard.sealed_run else "route_c_development",
+            case_id=str(state.sample_id),
+            at=datetime.now(UTC).isoformat(timespec="seconds"),
+            returned_model=raw.get("model") if isinstance(raw, dict) else None,
+        )
+        # The logged request (`ModelEvent.call.request`, kept in the .eval log) must never
+        # carry a credential header; stop the run if anything put one there.
+        leaked = openrouter_route.logged_request_credentials(_last_logged_request())
+        if leaked:
+            raise RuntimeError(f"credential-like headers in the logged request: {leaked}; delete this .eval log")
         problems = openrouter_route.route_mismatches(raw, target)
         if problems:
             state.metadata["route_c_failed"] = problems
@@ -141,6 +270,26 @@ def route_c_openrouter(enabled: bool = False, budget: RunBudget | None = None, t
         return state
 
     return solve
+
+
+def _data_uri(path: Path) -> str:
+    mime = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}.get(path.suffix.lower(), "image/jpeg")
+    return f"data:{mime};base64," + base64.b64encode(path.read_bytes()).decode("ascii")
+
+
+def _configured_extra_headers() -> dict[str, Any]:
+    """extra_headers from the model's and the run's GenerateConfig (Inspect logs them with each request)."""
+    from inspect_ai.model._generate_config import active_generate_config
+
+    return {**(get_model().config.extra_headers or {}), **(active_generate_config().extra_headers or {})}
+
+
+def _last_logged_request() -> dict[str, Any] | None:
+    """The request dict Inspect logged for the most recent model call in this sample."""
+    for event in reversed(transcript().events):
+        if isinstance(event, ModelEvent) and event.call is not None and isinstance(event.call.request, dict):
+            return dict(event.call.request)
+    return None
 
 
 def _last_raw_response() -> dict[str, Any] | None:
@@ -298,17 +447,61 @@ def label_capture_development_text(parser_binary: str, dataset: str = str(DEVELO
 
 
 @task
+def label_capture_development_photos(cases_file: str, vision_binary: str, parser_binary: str) -> Task:
+    """Route B on development photos; `cases_file` is a JSON list built by `run_route_b.py`."""
+    loaded = json.loads(Path(cases_file).read_text(encoding="utf-8"))
+    for case in loaded:
+        if case["metadata"].get("split") != "development":
+            raise case_loading.SealedSetError(f"{case['id']} is not a development case")
+    return Task(
+        dataset=MemoryDataset([to_sample(c) for c in loaded], name="development-photos-v1"),
+        solver=route_b_vision(vision_binary, parser_binary),
+        scorer=label_capture_scorer(),
+        name="label_capture_route_b_development",
+    )
+
+
+@task
+def label_capture_route_c_development(
+    cases_file: str, ledger: str, model: str, endpoint: str, provider_name: str, label: str, enabled: bool = False
+) -> Task:
+    """Route C on development photos; run only through `run_route_c.py` (log directory and image logging rules)."""
+    loaded = json.loads(Path(cases_file).read_text(encoding="utf-8"))
+    for case in loaded:
+        if case["metadata"].get("split") != "development":
+            raise case_loading.SealedSetError(f"{case['id']} is not a development case")
+    target = RouteCModel(label=label, model=model, endpoint=endpoint, provider_name=provider_name)
+    return Task(
+        dataset=MemoryDataset([to_sample(c) for c in loaded], name="development-photos-route-c-v1"),
+        solver=route_c_openrouter(LedgerBudget(Path(ledger)), enabled=enabled, target=target),
+        scorer=label_capture_scorer(),
+        name="label_capture_route_c_development",
+    )
+
+
+@task
 def label_capture_untouched_photos(
-    route: str, manifest: str, image_root: str, truth: str, unseal: bool = False, manifest_sha256: str | None = None
+    route: str,
+    manifest: str,
+    image_root: str,
+    truth: str,
+    unseal: bool = False,
+    manifest_sha256: str | None = None,
+    ledger: str | None = None,
 ) -> Task:
     """The sealed 40 Taiwan photos; refuses without an explicit, hash-bound unseal."""
     loaded = case_loading.load_untouched_photos(
         Path(manifest), Path(image_root), unseal=unseal, manifest_sha256=manifest_sha256, truth_path=Path(truth)
     )
-    solvers = {"B": route_b_vision(), "C": route_c_openrouter(enabled=False)}
+    if route == "C":
+        if ledger is None:
+            raise ValueError("route C needs the persistent spend ledger")
+        chosen = route_c_openrouter(LedgerBudget(Path(ledger), sealed_run=True), enabled=False)
+    else:
+        chosen = route_b_vision()
     return Task(
         dataset=MemoryDataset([to_sample(c) for c in loaded], name="untouched-photos-v1"),
-        solver=solvers[route],
+        solver=chosen,
         scorer=label_capture_scorer(),
         name=f"label_capture_route_{route.lower()}_untouched",
     )

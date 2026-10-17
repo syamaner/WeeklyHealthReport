@@ -16,3 +16,6 @@ Tools/SyntheticDriveExport/Config/OAuth.local.xcconfig
 # Nutrition-label capture evaluation: local Inspect venv and run logs
 Tools/NutritionLabelCaptureEvaluation/.venv/
 Tools/NutritionLabelCaptureEvaluation/runs/
+# Inspect logs can hold images and model requests; they live outside the repository.
+logs/
+*.eval

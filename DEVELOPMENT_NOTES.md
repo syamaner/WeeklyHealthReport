@@ -1555,3 +1555,41 @@ Same `claude-opus-5-5` implementation subagent and transcript as the previous ro
 Boundaries: `2026-10-16T18:29:51Z` → `2026-10-16T19:50:47Z` (exact USD 16.8492756) and `2026-10-17T00:12:02Z` → `2026-10-17T00:24:17Z` (exact USD 9.7060944). All cache writes were 5-minute writes. Long waits for gates fall inside the first window and add no tokens.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-17c: Claude Code label capture evaluation phase 2
+
+One `claude-opus-5-5` implementation subagent (branch `feat/255-label-eval-phase-2`), transcript `subagents/agent-ab52cafec8975bb17.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. Covers route B (Vision CLI, serialiser, Inspect solver, development runs and tuning), the phase 1 review safeguards, the persistent spend ledger, the model slug rule, the untouched Taiwan truth drafting and its review sheet, the contract, plan and results documents and the gates, up to this ledger edit. No subagents were launched by this agent; the orchestrator's usage is outside the row. This ledger edit, the commit, the push and the PR are outside the row. The drafting's OpenRouter spend (USD 0.14616675 reported `usage.cost`, Qwen 3.5) is a separate actual charge, not part of this comparison.
+
+Pricing as in the previous sections (checked 11 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Label capture evaluation phase 2 (#255), implementation subagent | 44,361,770 (44,018,431) | 343,009 | 55,209 | 44,416,979 | $11.62 |
+
+Boundary: `2026-10-17T00:43:54Z` → `2026-10-17T01:40:15Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 343,009 5-minute, 0 1-hour. Exact API-equivalent USD 11.6242312.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-17d: Claude Code label capture evaluation phase 2, review fixes
+
+Same `claude-opus-5-5` implementation subagent and transcript as WHR-255-2026-10-17c, at the same pricing (checked 11 October 2026). Runs from that row's end and so includes its ledger edit, the first commit, the push and the draft PR, then the invariant-review fixes (structural route B declines, parser attachment rule, required spend ledger with file locking, drafting mapper and runner hardening, offline draft regeneration, route B rerun) and the gates, up to this ledger edit. This ledger edit, the commit and the push are outside the row. No subagents. No OpenRouter call was made in this window.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 2 delivery and review fixes (#255) | 32,298,994 (31,783,527) | 515,323 | 1,767 | 32,300,761 | $8.97 |
+
+Boundary: `2026-10-17T01:40:15Z` → `2026-10-17T02:04:12Z`. Cache writes: 515,323 5-minute, 0 1-hour. Exact API-equivalent USD 8.9692364.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-17e: Claude Code label capture evaluation phase 2, second review fixes
+
+Same `claude-opus-5-5` implementation subagent and transcript as the previous rows, at the same pricing (checked 11 October 2026). Runs from the WHR-255-2026-10-17d end, so it includes that row's ledger edit, commit, push and PR edit, then the second invariant-review fixes (parser v2 attachment rule and ready count, route C runner and header checks, review-sheet merge key, unknown-cost refusal, route A and B reruns, offline sheet regeneration) and the gates, up to this ledger edit. This ledger edit, the commit and the push are outside the row. No subagents and no OpenRouter call.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 2 second review fixes (#255) | 27,001,743 (26,440,999) | 560,640 | 2,665 | 27,004,408 | $8.15 |
+
+Boundary: `2026-10-17T02:04:12Z` → `2026-10-17T02:24:33Z`. Cache writes: 560,640 5-minute, 0 1-hour. Exact API-equivalent USD 8.1451158.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

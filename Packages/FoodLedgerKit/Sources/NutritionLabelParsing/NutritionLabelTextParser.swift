@@ -9,7 +9,7 @@ import Foundation
 /// per-serving value to per 100 g. It has no network, clock, randomness or hashing
 /// dependency: the caller supplies the input hash.
 public struct NutritionLabelTextParser: Sendable {
-    public static let version = "nutrition-label-text-parser-v1"
+    public static let version = "nutrition-label-text-parser-v2"
 
     public init() {}
 
@@ -30,15 +30,26 @@ public struct NutritionLabelTextParser: Sendable {
         return state.finish(route: route, inputSHA256: inputSHA256, language: language)
     }
 
-    /// Japanese kana, Korean Hangul (syllables, jamo and compatibility jamo) or a
-    /// Simplified-only character means the label is outside `en` and `zh-Hant`.
+    /// Japanese kana, Korean Hangul or a Simplified-only character means the label is
+    /// outside `en` and `zh-Hant`.
     static func hasUnsupportedScript(_ text: String) -> Bool {
         text.unicodeScalars.contains { scalar in
-            (0x3040...0x30FF).contains(scalar.value) || (0xAC00...0xD7AF).contains(scalar.value)
-                || (0x1100...0x11FF).contains(scalar.value) || (0x3130...0x318F).contains(scalar.value)
+            unsupportedScalarRanges.contains { $0.contains(scalar.value) }
         }
             || text.contains { LabelVocabulary.unsupportedScriptMarkers.contains($0) }
     }
+
+    /// Kana, then every Hangul block: syllables, jamo, compatibility jamo, jamo
+    /// extended A and B, and halfwidth Hangul.
+    static let unsupportedScalarRanges: [ClosedRange<UInt32>] = [
+        0x3040...0x30FF,
+        0xAC00...0xD7AF,
+        0x1100...0x11FF,
+        0x3130...0x318F,
+        0xA960...0xA97F,
+        0xD7B0...0xD7FF,
+        0xFFA0...0xFFDC,
+    ]
 
     static func language(of text: String) -> LabelLanguage {
         let hasHan = text.unicodeScalars.contains { (0x4E00...0x9FFF).contains($0.value) }
@@ -143,6 +154,11 @@ struct RowDraft {
     var label: String
     var indented: Bool
     var values: [PrintedValue]
+    /// The label line itself carried values (the inline shape `Fat 3g 4g`).
+    var labelLineHadValues: Bool
+    /// A value-only line was attached after this row's own label line had carried values,
+    /// in a shape that is not provably the same printed row (see `consumeRow`). Blocks ready.
+    var attachedAfterValues = false
 }
 
 struct ParseState {
@@ -255,17 +271,52 @@ struct ParseState {
                RowClassifier.classify(cleanedLabel) == nil || RowClassifier.classify(last.label + " " + cleanedLabel) != nil {
                 last.label += " " + cleanedLabel
                 last.values = values
+                last.labelLineHadValues = !values.isEmpty
                 rows[rows.count - 1] = last
             } else {
-                rows.append(RowDraft(label: cleanedLabel, indented: indented, values: values))
+                rows.append(RowDraft(label: cleanedLabel, indented: indented, values: values, labelLineHadValues: !values.isEmpty))
             }
         } else if !values.isEmpty {
             guard !rows.isEmpty else {
                 declineReasons.append("values_without_row")
                 return
             }
-            rows[rows.count - 1].values += values
+            // A value-only line attaches silently where that is provably the same row:
+            // (a) the row's label stood alone on its line (the one-value-per-line and
+            //     label-then-values paste shapes): its values all arrive as value-only lines,
+            //     and the per-unit count check against the column headers still declines
+            //     any overflow; or
+            // (b) an energy row taking only energy units it does not already carry (kJ and
+            //     kcal printed on two lines); counts are again checked per unit.
+            // A value-only line after a label line that already carried values (for example
+            // a value whose own row label was not captured) is attached but blocks ready, and
+            // the count check then normally declines the table. Route B adds a stricter,
+            // structural guard: its solver declines any table with a value the serialiser
+            // could not bind, so (a) never rescues an unbound photo value.
+            var last = rows[rows.count - 1]
+            if last.labelLineHadValues, !Self.isStackedEnergy(row: last, adding: values) {
+                last.attachedAfterValues = true
+            }
+            last.values += values
+            rows[rows.count - 1] = last
         }
+    }
+
+    /// An energy row continued on the next line: every added value is an energy unit the
+    /// row does not carry yet, or the energy row's first `%` (its reference-intake cell,
+    /// printed after the second energy unit), and at least one energy unit is added.
+    static func isStackedEnergy(row: RowDraft, adding values: [PrintedValue]) -> Bool {
+        guard RowClassifier.classify(row.label)?.row == .energy else { return false }
+        let energyUnits = LabelVocabulary.allowedUnits(for: .energy)
+        let existing = Set(row.values.compactMap { $0.unit.flatMap(LabelVocabulary.canonicalUnit) })
+        let added = values.map { $0.unit.flatMap(LabelVocabulary.canonicalUnit) }
+        let addsEnergy = added.contains { unit in unit.map { energyUnits.contains($0) && !existing.contains($0) } ?? false }
+        let allowed = added.allSatisfy { unit in
+            guard let unit else { return false }
+            if unit == "%" { return !existing.contains("%") }
+            return energyUnits.contains(unit) && !existing.contains(unit)
+        }
+        return addsEnergy && allowed
     }
 
     /// Text between the first opening and the last closing parenthesis, so nested
@@ -337,6 +388,9 @@ struct ParseState {
             if row.values.isEmpty {
                 warnings.append("row_without_values: \(row.label)")
                 continue
+            }
+            if row.attachedAfterValues {
+                warnings.append("values_after_complete_row: \(row.label)")
             }
             let hint = RowClassifier.unitHint(row.label)
             var amounts: [PrintedValue] = []

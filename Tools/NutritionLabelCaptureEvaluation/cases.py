@@ -114,3 +114,144 @@ def load_untouched_photos(
             }
         )
     return cases
+
+
+# --- Route B development photo sets (phase 2) ----------------------------------------
+
+UK_UNITS = {"kj": "kJ", "kcal": "kcal", "g": "g", "mg": "mg", "µg": "µg", "mcg": "µg", "%": "%", "ml": "ml"}
+UK_NUTRIENTS = {"energy_kj", "energy_kcal", "fat", "saturates", "trans_fat", "carbohydrate", "sugars", "fibre", "protein", "salt", "sodium"}
+UK_REFERENCE_SUFFIX = "_ri"
+
+
+def _printed_unit(cell: dict[str, Any]) -> str:
+    """The unit as printed: the trailing unit in printed_text, else the recorded unit."""
+    printed = str(cell.get("printed_text") or "").rstrip()
+    for unit in sorted(UK_UNITS, key=len, reverse=True):
+        if printed.lower().endswith(unit):
+            return printed[-len(unit) :]
+    return str(cell.get("unit") or "")
+
+
+def uk_truth_from_review(panel: dict[str, Any]) -> dict[str, Any]:
+    """Convert one frozen v2 development review record to `label-capture-truth-v1`.
+
+    The v2 review (September 2026, image-first, owner-verified) predates this evaluation.
+    It records no servings per pack, so that field is `not_recorded` and the scorer leaves
+    it out of every denominator; it records no serving-size line, so serving size is
+    `unknown` and not scored (per-cell serving conversions still are). Headers are rebuilt
+    from the cells' header ids and bases; reference-intake rows (`fat_ri`) become
+    reference-intake cells of their nutrient; other rows are unrecognised with the row id
+    as the label.
+    """
+    truth = panel["ground_truth"]
+    cells, headers = [], {}
+    for cell in truth.get("cells") or []:
+        row = str(cell["row_id"])
+        unit = _printed_unit(cell)
+        canonical = UK_UNITS.get(unit.lower(), unit)
+        basis = cell["basis"]
+        nutrient = row
+        if row.endswith(UK_REFERENCE_SUFFIX):
+            nutrient = row[: -len(UK_REFERENCE_SUFFIX)]
+            nutrient = "energy_kcal" if nutrient == "energy" else nutrient
+            basis = "reference_intake"
+        if nutrient not in UK_NUTRIENTS:
+            nutrient = "unrecognised"
+        headers.setdefault(cell["header_id"], basis)
+        conversion = cell.get("serving_conversion")
+        cells.append(
+            {
+                "row_id": row,
+                "parent_row_id": cell.get("parent_row_id"),
+                "nutrient": nutrient,
+                "printed_label": row.replace("_", " "),
+                "header_id": cell["header_id"],
+                "basis": basis,
+                "printed_text": cell.get("printed_text"),
+                "comparator": cell.get("comparator") or "=",
+                "decimal_text": cell.get("decimal_text"),
+                "unit": unit,
+                "canonical_unit": canonical,
+                "serving_conversion": conversion if basis == "per_serving" else "not_applicable",
+            }
+        )
+    serving = next((c["serving_conversion"] for c in cells if c["basis"] == "per_serving" and c["serving_conversion"]), None)
+    return {
+        "case_id": panel["panel_id"],
+        "input_sha256": panel["image_sha256"],
+        "requires_decline": bool(truth.get("requires_decline")),
+        "decline_reason": truth.get("decline_reason"),
+        "language": "en",
+        "jurisdiction": "uk",
+        "headers": [
+            {"header_id": h, "printed_text": "", "basis": b, "serving_conversion": serving if b == "per_serving" else None}
+            for h, b in sorted(headers.items())
+        ],
+        "serving_size": "unknown",
+        "servings_per_pack": "not_recorded",
+        "cells": cells,
+    }
+
+
+def load_uk_development_review(workspace: Path) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """The 40 exposed v2 public development review images (UK, `en`) with their frozen review.
+
+    Development only: each was exposed by the v2 development review, so none can be
+    untouched evidence. A panel the owner excluded in that review is recorded, not scored.
+    Returns (cases, exclusions).
+    """
+    frozen = json.loads((workspace / "frozen-public-development-review-v1.json").read_text(encoding="utf-8"))
+    manifest = json.loads((workspace / "review-manifest.json").read_text(encoding="utf-8"))
+    files = {p["panel_id"]: p["image_file"] for p in manifest["panels"]}
+    if frozen.get("acceptance_gate") is not False:
+        raise SealedSetError("the UK review is not a development-only snapshot")
+    cases, exclusions = [], []
+    for panel in frozen["panels"]:
+        panel_id = panel["panel_id"]
+        if str(panel["ground_truth"].get("decline_reason") or "").startswith("Exclude "):
+            exclusions.append({"id": panel_id, "reason": "excluded by the owner in the v2 development review"})
+            continue
+        path = workspace / "images" / files[panel_id]
+        if sha256_file(path) != panel["image_sha256"]:
+            raise ValueError(f"{panel_id} bytes do not match the frozen review")
+        cases.append(
+            {
+                "id": panel_id,
+                "input": {"kind": "image", "path": str(path)},
+                "truth": uk_truth_from_review(panel),
+                "metadata": {
+                    "corpus": "uk_v2_development_review",
+                    "stratum": "uk_en",
+                    "split": "development",
+                    "sha256": panel["image_sha256"],
+                    "coverage_tags": sorted(panel["ground_truth"].get("families") or []),
+                    "licence": "CC BY-SA 3.0 (Open Food Facts)",
+                    "attribution": panel.get("image_url"),
+                },
+            }
+        )
+    return cases, exclusions
+
+
+def load_owner_photo(master: Path, consent_path: Path, truth: dict[str, Any], contract_path: Path = CONTRACT) -> dict[str, Any]:
+    """The muesli photo for a local route, only with `local_routes` consent (plan section 3.3)."""
+    contract = json.loads(contract_path.read_text(encoding="utf-8"))
+    expected = contract["corpus"]["muesli"]["stripped_master_sha256"]
+    consent = json.loads(consent_path.read_text(encoding="utf-8"))
+    if consent.get("master_sha256") != expected or sha256_file(master) != expected:
+        raise ValueError("the muesli master or its consent record does not match the contract hash")
+    if consent.get("local_routes") is not True:
+        raise PermissionError("the owner photo has no local_routes consent")
+    return {
+        "id": "owner:muesli-6-grain:photo",
+        "input": {"kind": "image", "path": str(master)},
+        "truth": {**truth, "case_id": "owner:muesli-6-grain:photo", "input_sha256": expected},
+        "metadata": {
+            "corpus": "owner",
+            "stratum": "muesli",
+            "split": "development",
+            "sha256": expected,
+            "coverage_tags": ["zh_hant", "column_offset", "two_column_serving_and_100"],
+            "consent_local_routes": True,
+        },
+    }
