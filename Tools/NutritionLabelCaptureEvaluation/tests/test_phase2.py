@@ -744,59 +744,30 @@ class ReReviewTests(unittest.TestCase):
     def test_route_c_runner_keeps_logs_outside_and_images_out_of_logs(self):
         import run_route_c
 
-        target = RouteCModel(label="luna", model="openai/gpt-6-luna", endpoint="azure", provider_name="Azure")
         with tempfile.TemporaryDirectory() as folder:
-            kwargs = run_route_c.eval_kwargs(target, Path(folder))
+            kwargs = run_route_c.eval_kwargs(Path(folder))
         self.assertIs(kwargs["log_images"], False)
-        self.assertEqual(kwargs["model"], "openrouter/openai/gpt-6-luna")
-        self.assertEqual(kwargs["model_args"], openrouter_route.model_args(target))
+        self.assertEqual(kwargs["model"], "mockllm/model")  # the solver posts itself; generate is never called
+        self.assertNotIn("model_args", kwargs)
         self.assertNotIn("extra_headers", kwargs)
         with self.assertRaises(SystemExit):
-            run_route_c.eval_kwargs(target, HERE / "logs")
-        argv = [
-            "--cases-file",
-            "x",
-            "--ledger",
-            "y",
-            "--log-dir",
-            "/tmp/z",
-            "--label",
-            "l",
-            "--model",
-            "m",
-            "--endpoint",
-            "e",
-            "--provider-name",
-            "p",
-        ]
-        with self.assertRaisesRegex(SystemExit, "disabled"):
-            run_route_c.main(argv)
-
-    @unittest.skipUnless(importlib.util.find_spec("inspect_ai"), "inspect_ai is not installed (see requirements.txt)")
-    def test_route_c_refuses_credential_like_extra_headers_before_the_call(self):
-        from inspect_ai import Task
-        from inspect_ai import eval as inspect_eval
-        from inspect_ai.dataset import Sample
-        from inspect_ai.model import GenerateConfig
-
-        import inspect_task
-
-        target = RouteCModel(label="luna", model="mockllm/model", endpoint="azure", provider_name="Azure")
+            run_route_c.eval_kwargs(HERE / "logs")
+        argv = ["--label", "luna", "--reasoning", "off", "--ledger", "/tmp/y", "--log-dir", "/tmp/z"]
+        argv += ["--qualification-dir", "/tmp/q", "--uk-workspace", "/tmp/u", "--projected-cost-usd", "0.1"]
+        contract = json.loads(run_route_c.CONTRACT.read_text())
+        contract["route_c"]["enabled"] = False
+        original = run_route_c.CONTRACT
         with tempfile.TemporaryDirectory() as folder:
-            image = Path(folder) / "a.png"
-            image.write_bytes(b"\x89PNG\r\n\x1a\n")
-            sample = Sample(id="c", input="image", target="{}", metadata={"image_path": str(image), "corpus": "off_taiwan"})
-            budget = LedgerBudget(Path(folder) / "ledger.json")
-            task = Task(
-                dataset=[sample],
-                solver=inspect_task.route_c_openrouter(budget, enabled=True, target=target),
-                scorer=inspect_task.label_capture_scorer(),
-                config=GenerateConfig(extra_headers={"Authorization": "Bearer test"}),
-            )
-            log = inspect_eval(task, model="mockllm/model", log_dir=folder, display="none")[0]
-            self.assertEqual(log.status, "error")
-            self.assertIn("credential-like extra_headers", str(log.error))
-            self.assertEqual(json.loads((Path(folder) / "ledger.json").read_text())["open_calls"], 0)
+            run_route_c.CONTRACT = Path(folder) / "contract.json"
+            run_route_c.CONTRACT.write_text(json.dumps(contract))
+            try:
+                with self.assertRaisesRegex(SystemExit, "disabled"):
+                    run_route_c.main(argv)
+            finally:
+                run_route_c.CONTRACT = original
+        contract["route_c"]["enabled"] = True
+        with self.assertRaisesRegex(SystemExit, "not pinned"):
+            run_route_c.pinned_target(contract, "qwen")
 
 
 if __name__ == "__main__":

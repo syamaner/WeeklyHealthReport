@@ -160,6 +160,23 @@ def download(url: str) -> bytes:
 
 # frozen-contract-v1.json corpus.off_taiwan.refill_rule.batch_stop_bytes
 REFILL_BATCH_STOP_BYTES = 5_000_000
+# frozen-contract-v1.json corpus.off_taiwan.refill_rule.untouched_total_stop_bytes (owner, 17 October 2026)
+UNTOUCHED_REFILL_TOTAL_STOP_BYTES = 10_000_000
+
+
+def refill_reasons(replaced: list[int], reason: str | None, reason_for: list[str]) -> dict[int, str] | None:
+    """One logged reason per replaced order: `--reason` for all, or `--reason-for ORDER=TEXT` for each."""
+    if (reason is None) == (not reason_for):
+        return None
+    if reason is not None:
+        return {order: reason for order in replaced}
+    reasons: dict[int, str] = {}
+    for item in reason_for:
+        order, sep, text = item.partition("=")
+        if not sep or not order.strip().isdigit() or not text.strip():
+            return None
+        reasons[int(order)] = text.strip()
+    return reasons if set(reasons) == set(replaced) else None
 
 
 def refill(argv: list[str]) -> int:
@@ -168,11 +185,17 @@ def refill(argv: list[str]) -> int:
     parser.add_argument("--out", type=Path, required=True, help="the existing photo folder outside any git checkout")
     parser.add_argument("--manifest", type=Path, required=True)
     parser.add_argument("--replace", required=True, help="comma-separated orders being replaced, e.g. 4,17")
-    parser.add_argument("--reason", required=True, help="logged exclusion reason for the replaced photos")
+    parser.add_argument("--reason", help="logged exclusion reason for every replaced photo")
+    parser.add_argument("--reason-for", action="append", default=[], help="ORDER=TEXT, the logged reason for one replaced photo")
     parser.add_argument("--max-bytes", type=int, required=True, help="hard stop for this refill batch")
     args = parser.parse_args(argv)
     if not 0 < args.max_bytes <= REFILL_BATCH_STOP_BYTES:
         print(f"--max-bytes must be between 1 and the contract's {REFILL_BATCH_STOP_BYTES} byte batch stop", file=sys.stderr)
+        return 2
+    replaced = [int(order) for order in args.replace.split(",")]
+    reasons = refill_reasons(replaced, args.reason, args.reason_for)
+    if reasons is None:
+        print("give --reason, or one --reason-for ORDER=TEXT per replaced order", file=sys.stderr)
         return 2
 
     out = args.out.expanduser().resolve()
@@ -181,10 +204,10 @@ def refill(argv: list[str]) -> int:
         print(f"refusing a folder inside a git checkout: {probe.stdout.strip()}", file=sys.stderr)
         return 2
     manifest = json.loads(args.manifest.read_text(encoding="utf-8"))
-    replaced = [int(order) for order in args.replace.split(",")]
-    photos = {p["order"]: p for p in manifest["photos"]}
-    if any(order not in photos for order in replaced):
-        print("an order to replace is not in the manifest", file=sys.stderr)
+    # A refill that is itself unusable is replaced by the next order in the same way.
+    photos = {p["order"]: p for p in manifest["photos"] + manifest.get("refills", [])}
+    if any(order not in photos or photos[order].get("excluded") for order in replaced):
+        print("an order to replace is not in the manifest or is already excluded", file=sys.stderr)
         return 3
     if len({photos[order]["split"] for order in replaced}) != 1:
         print("one refill batch replaces photos from one split only", file=sys.stderr)
@@ -206,6 +229,7 @@ def refill(argv: list[str]) -> int:
         return 4
     targets = refill_targets(ranked, orders)
     folder = out / ("development" if split == "development" else "sealed")
+    earlier_untouched = sum(int(p["bytes"]) for p in previous if p["split"] == "untouched")
     total = 0
     downloaded: list[tuple[Path, bytes, dict[str, Any]]] = []
     for item, old in zip(targets, replaced, strict=True):
@@ -214,11 +238,18 @@ def refill(argv: list[str]) -> int:
         if total > args.max_bytes:
             print(f"refill batch {total} bytes exceeds the {args.max_bytes} byte stop; nothing written", file=sys.stderr)
             return 5
+        if split == "untouched" and earlier_untouched + total > UNTOUCHED_REFILL_TOTAL_STOP_BYTES:
+            print(
+                f"untouched refills would reach {earlier_untouched + total} bytes, over the "
+                f"{UNTOUCHED_REFILL_TOTAL_STOP_BYTES} byte total stop; nothing written",
+                file=sys.stderr,
+            )
+            return 5
         item.update(
             {
                 "split": split,
                 "replaces_order": old,
-                "replacement_reason": args.reason,
+                "replacement_reason": reasons[old],
                 "bytes": len(data),
                 "sha256": hashlib.sha256(data).hexdigest(),
                 "attribution": (
@@ -229,16 +260,24 @@ def refill(argv: list[str]) -> int:
         )
         downloaded.append((folder / f"{item['order']:02d}-{item['barcode13']}-{IMAGE_KEY}.{item['revision']}.jpg", data, item))
         time.sleep(0.5)
-    for target, data, _ in downloaded:
-        if target.exists():
-            print(f"refusing to overwrite {target}", file=sys.stderr)
-            return 6
-        target.write_bytes(data)
-        if split != "development":
-            os.chmod(target, stat.S_IRUSR | stat.S_IRGRP)
+    if any(target.exists() for target, _, _ in downloaded):
+        print("refusing to overwrite an existing photo", file=sys.stderr)
+        return 6
+    # The sealed folder is read-only: owner write access is granted only while the new
+    # files are written, then the folder's previous mode is restored.
+    folder_mode = stat.S_IMODE(folder.stat().st_mode)
+    if split != "development":
+        os.chmod(folder, folder_mode | stat.S_IWUSR)
+    try:
+        for target, data, _ in downloaded:
+            target.write_bytes(data)
+            if split != "development":
+                os.chmod(target, stat.S_IRUSR | stat.S_IRGRP)
+    finally:
+        os.chmod(folder, folder_mode)
     for order in replaced:
         photos[order]["excluded"] = True
-        photos[order]["exclusion_reason"] = args.reason
+        photos[order]["exclusion_reason"] = reasons[order]
     manifest["refills"] = previous + [item for _, _, item in downloaded]
     manifest["refill_rule"] = (
         "Owner decision B, 17 October 2026: up to 27 refills (orders 61 to 87) in hash order, each downloaded only when an "

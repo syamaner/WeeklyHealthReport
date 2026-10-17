@@ -1,59 +1,59 @@
 {
   "overall": {
-    "cases": 59,
+    "cases": 60,
     "failed": 0,
-    "false_declines": 29,
+    "false_declines": 30,
     "extra_cells": 2,
     "serving_size": {
       "exact": 7,
-      "known": 15
+      "known": 16
     },
     "would_mark_ready_after_arithmetic": 3,
     "energy_check_informing_only": {
       "fail": 1,
-      "not_checkable": 51,
+      "not_checkable": 52,
       "pass": 7
     },
     "metrics": {
       "strict_cells": {
         "numerator": 92,
-        "denominator": 525,
-        "rate": 0.1752,
+        "denominator": 543,
+        "rate": 0.1694,
         "bar": 0.95,
         "verdict": "fail"
       },
       "binding": {
         "numerator": 103,
-        "denominator": 563,
-        "rate": 0.1829,
+        "denominator": 581,
+        "rate": 0.1773,
         "bar": 0.98,
         "verdict": "fail"
       },
       "unit_and_basis": {
         "numerator": 102,
-        "denominator": 525,
-        "rate": 0.1943,
+        "denominator": 543,
+        "rate": 0.1878,
         "bar": 1.0,
         "verdict": "fail"
       },
       "full_table": {
         "numerator": 4,
-        "denominator": 37,
-        "rate": 0.1081,
+        "denominator": 38,
+        "rate": 0.1053,
         "bar": 0.75,
         "verdict": "fail"
       },
       "serving_conversions": {
         "numerator": 55,
-        "denominator": 239,
-        "rate": 0.2301,
+        "denominator": 248,
+        "rate": 0.2218,
         "bar": 0.98,
         "verdict": "fail"
       },
       "servings_per_pack": {
         "numerator": 7,
-        "denominator": 15,
-        "rate": 0.4667,
+        "denominator": 16,
+        "rate": 0.4375,
         "bar": 0.98,
         "verdict": "fail"
       },
@@ -73,7 +73,7 @@
       },
       "false_ready": {
         "count": 1,
-        "denominator": 59,
+        "denominator": 60,
         "bar": "<= 0",
         "verdict": "fail"
       },
@@ -84,6 +84,96 @@
     }
   },
   "by_stratum": {
+    "muesli": {
+      "cases": 1,
+      "failed": 0,
+      "false_declines": 1,
+      "extra_cells": 0,
+      "serving_size": {
+        "exact": 0,
+        "known": 1
+      },
+      "would_mark_ready_after_arithmetic": 0,
+      "energy_check_informing_only": {
+        "not_checkable": 1
+      },
+      "metrics": {
+        "strict_cells": {
+          "numerator": 0,
+          "denominator": 18,
+          "rate": 0.0,
+          "bar": 0.95,
+          "verdict": "fail"
+        },
+        "binding": {
+          "numerator": 0,
+          "denominator": 18,
+          "rate": 0.0,
+          "bar": 0.98,
+          "verdict": "fail"
+        },
+        "unit_and_basis": {
+          "numerator": 0,
+          "denominator": 18,
+          "rate": 0.0,
+          "bar": 1.0,
+          "verdict": "fail"
+        },
+        "full_table": {
+          "numerator": 0,
+          "denominator": 1,
+          "rate": 0.0,
+          "bar": 0.75,
+          "verdict": "fail"
+        },
+        "serving_conversions": {
+          "numerator": 0,
+          "denominator": 9,
+          "rate": 0.0,
+          "bar": 0.98,
+          "verdict": "fail"
+        },
+        "servings_per_pack": {
+          "numerator": 0,
+          "denominator": 1,
+          "rate": 0.0,
+          "bar": 0.98,
+          "verdict": "fail"
+        },
+        "bounds": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "bar": 1.0,
+          "verdict": "no_denominator"
+        },
+        "correct_decline": {
+          "numerator": 0,
+          "denominator": 0,
+          "rate": null,
+          "bar": 0.95,
+          "verdict": "no_denominator"
+        },
+        "false_ready": {
+          "count": 0,
+          "denominator": 1,
+          "bar": "<= 0",
+          "verdict": "pass"
+        },
+        "automatic_persistence": {
+          "count": 0,
+          "verdict": "pass"
+        },
+        "arithmetic_mutation_detection": {
+          "numerator": 1,
+          "denominator": 1,
+          "verdict": "pass"
+        }
+      },
+      "decline_reasons": {
+        "unsupported_language": 1
+      }
+    },
     "taiwan_zh_hant": {
       "cases": 20,
       "failed": 0,
@@ -283,7 +373,7 @@
   },
   "route": "B",
   "split": "development",
-  "inspect_log": "2026-10-17T02-19-06-00-00_label-capture-route-b-development_DPMk4wCUZLHenroe7hQbLT.eval",
+  "inspect_log": "2026-10-17T13-48-16-00-00_label-capture-route-b-development_JyVq9w8stGvSE5jAeyWKVg.eval",
   "vision": {
     "adapter_version": "label-capture-vision-v3",
     "request_revision": 3,
@@ -296,7 +386,7 @@
   },
   "serialiser_version": "label-capture-serialiser-v1",
   "parser_version": "nutrition-label-text-parser-v2",
-  "cases": 59,
+  "cases": 60,
   "notes": {
     "taiwan_excluded": [
       {
@@ -316,7 +406,7 @@
         "reason": "excluded by the owner in the v2 development review"
       }
     ],
-    "muesli": "not run: the owner photo has no local_routes consent"
+    "muesli": "run"
   },
   "per_case": [
     {
@@ -1927,6 +2017,34 @@
           0.08
         ],
         "skew": 0.0
+      }
+    },
+    {
+      "id": "owner:muesli-6-grain:photo",
+      "stratum": "muesli",
+      "requires_decline": false,
+      "declined": true,
+      "decline_reasons": [
+        "unsupported_language"
+      ],
+      "cells_exact": 0,
+      "product_cells": 18,
+      "cells_bound": 0,
+      "all_cells": 18,
+      "extra_cells": 0,
+      "table_exact": 0,
+      "false_ready": 0,
+      "serialiser": {
+        "headers": 2,
+        "labels": 18,
+        "columns": 2,
+        "values": 18,
+        "unbound_values": 1,
+        "column_shift_in_rows": [
+          0.0,
+          0.21
+        ],
+        "skew": 0.0348
       }
     }
   ]

@@ -7,7 +7,7 @@ pasted text (A), on-device Vision (B) and a multimodal model through OpenRouter 
 Nothing here ships product behaviour, saves food or treats any output as nutrition truth.
 `Tools/FoodOCREvaluation/` stays frozen; its files are read, never edited.
 
-Phase 1 had no AI or OpenRouter call and no Vision run. Phase 2 adds route B (Vision on development images only), the phase 1 review safeguards and the untouched truth drafting (decision A), the only OpenRouter calls so far; route C stays disabled.
+Phase 1 had no AI or OpenRouter call and no Vision run. Phase 2 adds route B (Vision on development images only), the phase 1 review safeguards and the untouched truth drafting (decision A). Phase 3 records the owner's verification of the untouched Taiwan drafts (round 1), downloads and drafts the refills (round 2), gives the muesli photo every consent flag, and runs route C on **development photos only** (eight models in ten arms, reasoning off and on where the endpoint allows, under the owner's evaluation-only routing decisions of 17 October 2026).
 
 ## Framework: Inspect AI
 
@@ -35,12 +35,20 @@ untouched set that refuses to load without a hash-bound unseal.
 Where Inspect does not enforce a plan rule natively, a small wrapper does:
 
 - `budget.py` enforces the route C stops on the cost OpenRouter reports per response
-  ($0.05 per call, $25 in total including the reserved sealed-run budget, at most
-  three unknown-cost calls). Inspect's own `cost_limit` is per sample and priced from
+  ($0.20 per call and $60 in total since the owner's decisions of 17 October 2026, with the
+  200 sealed calls reserved at $0.20, $40; at most three unknown-cost calls, not counting
+  retryable errors with no generation). Inspect's own `cost_limit` is per sample and priced from
   a model-cost table, so it is not used for these stops. `LedgerBudget` keeps that state in
   one ledger outside the repository (`~/WHR-label-eval-private/spend-ledger-v1.json`), so the
   total and the 200-call sealed reservation hold across separate runs, models and the drafting;
-  it refuses changed limits and charges any call left unrecorded at the $0.05 ceiling.
+  it refuses changed limits (they change only through `amend_limits`, recorded in
+  `limits_history`) and charges any call left unrecorded at the per-call ceiling.
+- `openrouter_client.py` is the one OpenRouter client for route C and the drafting: retryable
+  errors (transport, timeouts, 408, 429, 5xx, provider overloaded) are retried with exponential
+  backoff and full jitter, honouring `Retry-After` (seconds or HTTP-date), for at most 5 attempts
+  within 180 s; content outcomes are never retried. Every attempt is a ledger entry. Inspect's own
+  retry is not used for route C (its backoff ignores `Retry-After` and the OpenAI SDK below it
+  retries again), so route C runs on `mockllm/model` and posts through this client.
 - `openrouter_route.py` accepts a response model only when it is the requested slug or that
   slug plus one dated snapshot suffix (`-YYYYMMDD`, `-YYYY-MM-DD`, `-MM-DD`, `-MMDD`); any other
   suffix or routing variant is a mismatch. A missing `finish_reason` fails the response.
@@ -51,7 +59,9 @@ Where Inspect does not enforce a plan rule natively, a small wrapper does:
 
 | Path | Role |
 |---|---|
-| `inspect_task.py` | Inspect tasks, route solvers (A and B live, C defined but disabled), the shared scorer and metrics |
+| `inspect_task.py` | Inspect tasks, route solvers (A, B and C; C on development photos only), the shared scorer and metrics |
+| `route_c_mapping.py` | Route C wire output to `label-capture-candidate-v1` (no conversion or inference; unread values block ready) |
+| `run_route_c.py`, `qualification/` | Route C on development photos per pinned model, after two fictional qualification labels; per-stratum summary with cost and latency |
 | `vision_v3.swift` | Route B recogniser: Vision revision 3, accurate, `zh-Hant` and `en-US`, lines and token geometry |
 | `serialise_lines.py` | Route B serialiser: geometry to parser text, binding by column header and order within a column |
 | `run_route_b.py` | Route B on development photos through Inspect, per stratum; writes `results/` summaries |
@@ -66,7 +76,8 @@ Where Inspect does not enforce a plan rule natively, a small wrapper does:
 | `ingest.py` | Muesli photo: private copy, metadata strip, hash, consent stub |
 | `build_cases.py`, `synthetic/` | Deterministic pasted-text development cases |
 | `run_route_a.py` | Route A through Inspect; writes `results/` summaries |
-| `openrouter/` | Route C instruction and wire schema, drafts, never sent in phase 1 |
+| `openrouter/` | Route C instruction and wire schema; truth-drafting instructions and schema |
+| `openrouter_client.py` | The one OpenRouter client (retry policy, `Retry-After`, generation lookup) for route C and the drafting |
 | `fixtures/` | Taiwan photo manifest, FDA 188 source record, first-pass Taiwan development truth |
 
 The parser under evaluation is the Swift target `NutritionLabelParsing` in
@@ -88,24 +99,29 @@ muesli master live under `~/WHR-label-eval-private/` (outside any checkout).
   Each photo is CC BY-SA 3.0; `fixtures/off-taiwan-manifest-v1.json` records the
   barcode, pinned revision, URL, SHA-256, uploader and attribution.
 - **Refills** (owner decision B): up to 27 more photos, orders 61 to 87 in hash order, each
-  downloaded only when an exclusion needs it (`acquire_off_taiwan.py refill`, reason logged,
-  5 MB batch stop). Development replacements come first: orders 61 and 62 replaced the
-  English-only development orders 4 and 17 (427,244 bytes). Untouched refills follow from 63.
+  downloaded only when an exclusion needs it (`acquire_off_taiwan.py refill`, a reason logged per
+  order, 5 MB batch stop, 10 MB stop over all untouched refills). Development replacements came first:
+  orders 61 and 62 replaced the English-only development orders 4 and 17 (427,244 bytes). Untouched
+  refills 63 to 77 (5,776,668 bytes) replaced the 12 owner-confirmed exclusions and three refills
+  that were themselves other-language labels; see [`results/untouched-truth-drafting-v1.md`](results/untouched-truth-drafting-v1.md).
 - **Ground truth:** the 22 development records (20 plus 2 replacements, 2 excluded) are a
   Claude-drafted first pass awaiting the owner's second pass, so Claude Opus route C results
   on development data carry that caveat. Untouched truth (decision A) for the 40 untouched
   Taiwan photos was drafted on 17 October 2026 by Qwen 3.5 (`qwen/qwen3.5-397b-a17b` on
   `deepinfra/fp8`; OpenRouter lists no separate Qwen 3.5 VL), which is not a route C model.
-  The owner now verifies it value by value, and it is then recorded as model-drafted,
-  owner-verified. The drafts stay outside the repository until then. Route C never sees
-  untouched truth or drafts.
+  The owner verified round 1 on 17 October 2026 (527 of 527 cells confirmed, no corrections,
+  so anchoring on the draft cannot be ruled out); the verified records are committed as
+  `fixtures/ground-truth-off-taiwan-untouched-v1.json`, labelled model-drafted, owner-verified
+  (no owner corrections), and pinned by hash in the contract. Round 2 (order 34 and the refills)
+  awaits the owner. Drafts stay outside the repository. Route C never sees untouched truth or drafts.
 - **Sealing:** the 40 untouched photos were hashed on download and written read-only
   to a separate `sealed/` folder. They were opened once, for the decision A drafting only
   (their unsealing for truth purposes); no route has recognised them.
 - **Taiwan FDA dataset 188:** `fixtures/fda-188-source-v1.json` records the archive
   and CSV hashes and the Open Government Data License attribution.
-- **Muesli photo:** stripped master and consent stub (all four flags `false`) under
-  `owner/`; `consent-redacted-v1.json` holds hashes and flags only.
+- **Muesli photo:** stripped master and consent record under `owner/`; the owner set all four
+  flags true on 17 October 2026 (every route, including OpenRouter); `consent-redacted-v1.json`
+  holds hashes, flags and the date only.
 
 ## Local checks
 
@@ -175,6 +191,32 @@ review sheet (`--sheet-only` rebuilds it from saved responses without a call):
 ```
 
 Record: [`results/untouched-truth-drafting-v1.md`](results/untouched-truth-drafting-v1.md).
+
+Phase 3 additions to the same script, none of which makes a call: `--apply-owner-answers <folder>`
+merges the owner's review-page answers (`oNN.json`) into `review.csv` through `merge_owner_entries`,
+and `--write-truth <file> --verified-on <date>` writes the owner-verified truth from the drafts and
+the sheet (only fully checked cases become records). `--bilingual-orders 34` drafts the listed
+orders with `openrouter/truth-drafting-instruction-v1.2.txt` (contract `bilingual_instruction`).
+
+Route C on development photos, one pinned model and reasoning setting at a time: eight models in
+ten arms. The order run on 17 October 2026, cheapest first, was Luna (off, on), Luna Pro (off, on),
+Grok 4.7 (on), Gemini 4 Argon (on), GPT-6.1 Sol (on), GPT-6.1 Sol Pro (on), Claude Opus 5.5 (on) and
+Claude Fable 5.1 (on); reasoning off is not available on the last six (reasoning mandatory).
+Fictional qualification labels are rendered first with
+`xcrun swift qualification/render_qualification.swift <folder outside the repository>`. Before the
+first call the runner reads the key's remaining limit and the account balance (both free) and
+refuses an arm whose projected cost plus a margin (and any `--reserve-usd`) is not covered, or
+when either lookup fails:
+
+```sh
+.venv/bin/python run_route_c.py --label luna --reasoning off --env-file <dotenv with OPENROUTER_API_KEY> \
+  --ledger ~/WHR-label-eval-private/spend-ledger-v1.json \
+  --log-dir ~/WHR-label-eval-private/runs/route-c-dev/luna-off \
+  --qualification-dir <rendered labels> --uk-workspace <checkout>/Tools/FoodOCREvaluation/review_workspace/v2_public_development \
+  --summary ~/WHR-label-eval-private/runs/route-c-dev/luna-off-summary.json --projected-cost-usd 0.1
+```
+
+Results: [`results/route-c-development-v1.md`](results/route-c-development-v1.md).
 
 **UK images.** The v1 panel images are no longer on disk and the v2 public selection (60 tuning,
 40 sealed) was never acquired, so the UK route B stratum is the 40 exposed v2 development review

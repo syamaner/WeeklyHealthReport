@@ -374,7 +374,9 @@
       "split": "untouched",
       "bytes": 1923091,
       "sha256": "c346addef89881cc590838fc46777c29a125e62005f626c042ff6cb581267cda",
-      "attribution": "Nutrition label photo of product 4711457828364 by Open Food Facts contributor smoothie-app, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/145/782/8364/nutrition_zh.7.full.jpg)."
+      "attribution": "Nutrition label photo of product 4711457828364 by Open Food Facts contributor smoothie-app, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/145/782/8364/nutrition_zh.7.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "untouched truth drafting failed (finish_reason length at the 4096-token ceiling, not retried); excluded by the owner on 17 October 2026"
     },
     {
       "barcode": "4710018164101",
@@ -404,7 +406,9 @@
       "split": "untouched",
       "bytes": 521152,
       "sha256": "11874b67adc5c1750df47ca8d8a71315e1cd1b90a6154f17ebbb7d09d2bf7255",
-      "attribution": "Nutrition label photo of product 4710943130936 by Open Food Facts contributor jules-de-chez-smith-en-face, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/094/313/0936/nutrition_zh.10.full.jpg)."
+      "attribution": "Nutrition label photo of product 4710943130936 by Open Food Facts contributor jules-de-chez-smith-en-face, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/094/313/0936/nutrition_zh.10.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (English Nutrition Facts, drafting proposal); exclusion confirmed by the owner on 17 October 2026"
     },
     {
       "barcode": "4710126001718",
@@ -449,7 +453,9 @@
       "split": "untouched",
       "bytes": 296087,
       "sha256": "db9ccf600324616183064de1177d9936cf0bbc515241b1b316266cbec6191e0c",
-      "attribution": "Nutrition label photo of product 4710085104130 by Open Food Facts contributor lee, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/008/510/4130/nutrition_zh.15.full.jpg)."
+      "attribution": "Nutrition label photo of product 4710085104130 by Open Food Facts contributor lee, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/008/510/4130/nutrition_zh.15.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "no nutrition table (ingredients and preparation text only, drafting proposal); exclusion confirmed by the owner on 17 October 2026"
     },
     {
       "barcode": "4710035801515",
@@ -599,7 +605,9 @@
       "split": "untouched",
       "bytes": 193413,
       "sha256": "e0b543f2e82b201d149b0386027914f32b971007e8429f8bebb7cfdf4cc1a98c",
-      "attribution": "Nutrition label photo of product 9415522003889 by Open Food Facts contributor hewel, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/941/552/200/3889/nutrition_zh.7.full.jpg)."
+      "attribution": "Nutrition label photo of product 9415522003889 by Open Food Facts contributor hewel, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/941/552/200/3889/nutrition_zh.7.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (Simplified Chinese and English, drafting proposal); exclusion confirmed by the owner on 17 October 2026"
     },
     {
       "barcode": "4712893431279",
@@ -614,7 +622,9 @@
       "split": "untouched",
       "bytes": 35875,
       "sha256": "5ca250ec49c8fac892665e921a5cc017695002519861ab68c3c857cabc18c629",
-      "attribution": "Nutrition label photo of product 4712893431279 by Open Food Facts contributor atpigy069, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/289/343/1279/nutrition_zh.10.full.jpg)."
+      "attribution": "Nutrition label photo of product 4712893431279 by Open Food Facts contributor atpigy069, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/289/343/1279/nutrition_zh.10.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (Simplified Chinese, drafting proposal); exclusion confirmed by the owner on 17 October 2026"
     },
     {
       "barcode": "4710022201403",
@@ -629,7 +639,9 @@
       "split": "untouched",
       "bytes": 485316,
       "sha256": "20612706d3afa2f79fffc6325eccfe03388b16134be81d65921b67a0286df41e",
-      "attribution": "Nutrition label photo of product 4710022201403 by Open Food Facts contributor kiliweb, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/002/220/1403/nutrition_zh.8.full.jpg)."
+      "attribution": "Nutrition label photo of product 4710022201403 by Open Food Facts contributor kiliweb, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/002/220/1403/nutrition_zh.8.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (English, German and French, drafting proposal); exclusion confirmed by the owner on 17 October 2026"
     },
     {
       "barcode": "4710209334115",
@@ -689,7 +701,9 @@
       "split": "untouched",
       "bytes": 52576,
       "sha256": "410bf5645e6c02616cca7d1ec5aa5647598be5c624eea739fb51e62f107fcf52",
-      "attribution": "Nutrition label photo of product 0028029203110 by Open Food Facts contributor kiliweb, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/002/802/920/3110/nutrition_zh.12.full.jpg)."
+      "attribution": "Nutrition label photo of product 0028029203110 by Open Food Facts contributor kiliweb, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/002/802/920/3110/nutrition_zh.12.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (English Supplement Facts, drafting proposal); exclusion confirmed by the owner on 17 October 2026"
     },
     {
       "barcode": "4710018168307",
@@ -719,7 +733,9 @@
       "split": "untouched",
       "bytes": 349549,
       "sha256": "4371adff8be934f75f1038b4de3f24f52b7d829b89271add21f50b6d95039f5a",
-      "attribution": "Nutrition label photo of product 6908095930186 by Open Food Facts contributor wellin, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/690/809/593/0186/nutrition_zh.9.full.jpg)."
+      "attribution": "Nutrition label photo of product 6908095930186 by Open Food Facts contributor wellin, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/690/809/593/0186/nutrition_zh.9.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (Simplified Chinese, drafting proposal); exclusion confirmed by the owner on 17 October 2026"
     },
     {
       "barcode": "3228022000311",
@@ -749,7 +765,9 @@
       "split": "untouched",
       "bytes": 1099041,
       "sha256": "12fe6167bad3015e9f139b46f96095f86837769bd66d59d1e6f2e6069add0126",
-      "attribution": "Nutrition label photo of product 0196062672627 by Open Food Facts contributor smoothie-app, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/019/606/267/2627/nutrition_zh.3.full.jpg)."
+      "attribution": "Nutrition label photo of product 0196062672627 by Open Food Facts contributor smoothie-app, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/019/606/267/2627/nutrition_zh.3.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "no nutrition table (a clothing label, drafting proposal); exclusion confirmed by the owner on 17 October 2026"
     },
     {
       "barcode": "4972767003715",
@@ -779,7 +797,9 @@
       "split": "untouched",
       "bytes": 170506,
       "sha256": "511413eb093117bdcd1ce382d1186f8106f351118bdaba1fad8b3775db8657c7",
-      "attribution": "Nutrition label photo of product 6911316361294 by Open Food Facts contributor wellin, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/691/131/636/1294/nutrition_zh.7.full.jpg)."
+      "attribution": "Nutrition label photo of product 6911316361294 by Open Food Facts contributor wellin, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/691/131/636/1294/nutrition_zh.7.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (Simplified Chinese, drafting proposal); exclusion confirmed by the owner on 17 October 2026"
     },
     {
       "barcode": "4711506424059",
@@ -809,7 +829,9 @@
       "split": "untouched",
       "bytes": 247771,
       "sha256": "7b825247a1394bd43c48deaa87c3ef50d64e36c9bc57cbf03f4477a2644d8ecd",
-      "attribution": "Nutrition label photo of product 5200118470312 by Open Food Facts contributor kiliweb, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/520/011/847/0312/nutrition_zh.11.full.jpg)."
+      "attribution": "Nutrition label photo of product 5200118470312 by Open Food Facts contributor kiliweb, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/520/011/847/0312/nutrition_zh.11.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (French, Dutch and German, drafting proposal); exclusion confirmed by the owner on 17 October 2026"
     },
     {
       "barcode": "4711957513876",
@@ -839,7 +861,9 @@
       "split": "untouched",
       "bytes": 33046,
       "sha256": "e4be044ab20ef8a8f04f5e49305bda37211ba9e46314a1d2238f803c89bb338d",
-      "attribution": "Nutrition label photo of product 4710421072055 by Open Food Facts contributor kiliweb, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/042/107/2055/nutrition_zh.16.full.jpg)."
+      "attribution": "Nutrition label photo of product 4710421072055 by Open Food Facts contributor kiliweb, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/042/107/2055/nutrition_zh.16.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (English and French, drafting proposal); exclusion confirmed by the owner on 17 October 2026"
     },
     {
       "barcode": "8886467102394",
@@ -966,6 +990,267 @@
       "bytes": 383856,
       "sha256": "34154493e1809e96732da18ba5690c499a632d6559065d12a2c572e50ff68786",
       "attribution": "Nutrition label photo of product 4711518003037 by Open Food Facts contributor aquilax, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/151/800/3037/nutrition_zh.10.full.jpg)."
+    },
+    {
+      "barcode": "4809010272331",
+      "barcode13": "4809010272331",
+      "order_key_sha256": "b27861d8f411af9bc50fd6b3c322434e20c4c209ef08e3405dbb223f966b9954",
+      "image_key": "nutrition_zh",
+      "revision": "16",
+      "raw_image_id": "6",
+      "uploader": "openfoodfacts-contributors",
+      "url": "https://images.openfoodfacts.org/images/products/480/901/027/2331/nutrition_zh.16.full.jpg",
+      "order": 63,
+      "split": "untouched",
+      "replaces_order": 23,
+      "replacement_reason": "untouched truth drafting failed (finish_reason length at the 4096-token ceiling, not retried); excluded by the owner on 17 October 2026",
+      "bytes": 997889,
+      "sha256": "c6d8455338a8f0eb7022398fdf2ca266edf9b5b8b739f4068d0210eb1caaa932",
+      "attribution": "Nutrition label photo of product 4809010272331 by Open Food Facts contributor openfoodfacts-contributors, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/480/901/027/2331/nutrition_zh.16.full.jpg)."
+    },
+    {
+      "barcode": "4710011470605",
+      "barcode13": "4710011470605",
+      "order_key_sha256": "b715a5e3425714a1373556bbf55bdb69d06bcfca49c858d42b93bbca2835e0b6",
+      "image_key": "nutrition_zh",
+      "revision": "5",
+      "raw_image_id": "1",
+      "uploader": "date-limite-app",
+      "url": "https://images.openfoodfacts.org/images/products/471/001/147/0605/nutrition_zh.5.full.jpg",
+      "order": 64,
+      "split": "untouched",
+      "replaces_order": 25,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (English Nutrition Facts, drafting proposal); exclusion confirmed by the owner on 17 October 2026",
+      "bytes": 11080,
+      "sha256": "e67cf4f747080e04bde3309a8c4e1b5b460adc3ad169976bbcc98f94cc7d8cbe",
+      "attribution": "Nutrition label photo of product 4710011470605 by Open Food Facts contributor date-limite-app, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/001/147/0605/nutrition_zh.5.full.jpg)."
+    },
+    {
+      "barcode": "4710126040595",
+      "barcode13": "4710126040595",
+      "order_key_sha256": "bdfd0f930455d6823698281d35f41457bea9b3aa16f66e339f312e038560fd54",
+      "image_key": "nutrition_zh",
+      "revision": "10",
+      "raw_image_id": "3",
+      "uploader": "john-hu",
+      "url": "https://images.openfoodfacts.org/images/products/471/012/604/0595/nutrition_zh.10.full.jpg",
+      "order": 65,
+      "split": "untouched",
+      "replaces_order": 28,
+      "replacement_reason": "no nutrition table (ingredients and preparation text only, drafting proposal); exclusion confirmed by the owner on 17 October 2026",
+      "bytes": 44457,
+      "sha256": "cff7eaf7e8fc1bec822e151294aaa30d94b947c2daab326cb6142bcb1c17f378",
+      "attribution": "Nutrition label photo of product 4710126040595 by Open Food Facts contributor john-hu, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/012/604/0595/nutrition_zh.10.full.jpg)."
+    },
+    {
+      "barcode": "8850987101021",
+      "barcode13": "8850987101021",
+      "order_key_sha256": "c8536cec695a6c994e9f68c8a923863968ffa6e7be7957f1e0106316a82e6145",
+      "image_key": "nutrition_zh",
+      "revision": "23",
+      "raw_image_id": "4",
+      "uploader": "bank-pc",
+      "url": "https://images.openfoodfacts.org/images/products/885/098/710/1021/nutrition_zh.23.full.jpg",
+      "order": 66,
+      "split": "untouched",
+      "replaces_order": 38,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (Simplified Chinese and English, drafting proposal); exclusion confirmed by the owner on 17 October 2026",
+      "bytes": 372186,
+      "sha256": "80a601e760007e68425cad4b274e87353c7446be08267f843beaa125f5df27e4",
+      "attribution": "Nutrition label photo of product 8850987101021 by Open Food Facts contributor bank-pc, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/885/098/710/1021/nutrition_zh.23.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (Thai, drafting proposal on the refill); owner confirmation pending in review round 2"
+    },
+    {
+      "barcode": "4710088432513",
+      "barcode13": "4710088432513",
+      "order_key_sha256": "cb0893f268622566169ccf9a765a35d16c765d39562ebd9ce3a8ae5cb2499e9c",
+      "image_key": "nutrition_zh",
+      "revision": "5",
+      "raw_image_id": "2",
+      "uploader": "aquilax",
+      "url": "https://images.openfoodfacts.org/images/products/471/008/843/2513/nutrition_zh.5.full.jpg",
+      "order": 67,
+      "split": "untouched",
+      "replaces_order": 39,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (Simplified Chinese, drafting proposal); exclusion confirmed by the owner on 17 October 2026",
+      "bytes": 1233994,
+      "sha256": "ef0d64db1e55520158bb9f47204cd06bee8b991deb4e832f2ab3f265cc39440f",
+      "attribution": "Nutrition label photo of product 4710088432513 by Open Food Facts contributor aquilax, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/008/843/2513/nutrition_zh.5.full.jpg)."
+    },
+    {
+      "barcode": "4710060010180",
+      "barcode13": "4710060010180",
+      "order_key_sha256": "d0e824943231f8ceae03c2c95fa8bec28ae4a698b9fa8614c3fc61f33c278da7",
+      "image_key": "nutrition_zh",
+      "revision": "9",
+      "raw_image_id": "2",
+      "uploader": "john-hu",
+      "url": "https://images.openfoodfacts.org/images/products/471/006/001/0180/nutrition_zh.9.full.jpg",
+      "order": 68,
+      "split": "untouched",
+      "replaces_order": 40,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (English, German and French, drafting proposal); exclusion confirmed by the owner on 17 October 2026",
+      "bytes": 98482,
+      "sha256": "727434570c8343bff1e99a86cf8776df2a2dd5e6b816d6295152358879258e7e",
+      "attribution": "Nutrition label photo of product 4710060010180 by Open Food Facts contributor john-hu, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/006/001/0180/nutrition_zh.9.full.jpg)."
+    },
+    {
+      "barcode": "4710063337710",
+      "barcode13": "4710063337710",
+      "order_key_sha256": "d62bb3d9f9d28f3f42ead5c7faf4898333e8be16d4c77d5a0b99b0103ed82484",
+      "image_key": "nutrition_zh",
+      "revision": "15",
+      "raw_image_id": "4",
+      "uploader": "john-hu",
+      "url": "https://images.openfoodfacts.org/images/products/471/006/333/7710/nutrition_zh.15.full.jpg",
+      "order": 69,
+      "split": "untouched",
+      "replaces_order": 44,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (English Supplement Facts, drafting proposal); exclusion confirmed by the owner on 17 October 2026",
+      "bytes": 62126,
+      "sha256": "3b40cfe6f0d6c4837aa4764302dbed189410769ed9ddf5dc747e6ad66f13ebe5",
+      "attribution": "Nutrition label photo of product 4710063337710 by Open Food Facts contributor john-hu, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/006/333/7710/nutrition_zh.15.full.jpg)."
+    },
+    {
+      "barcode": "4712245000566",
+      "barcode13": "4712245000566",
+      "order_key_sha256": "d6cbb0515182b431142770fcbe989fea5db1065b858e4206235988a3ba09a944",
+      "image_key": "nutrition_zh",
+      "revision": "9",
+      "raw_image_id": "2",
+      "uploader": "tacite",
+      "url": "https://images.openfoodfacts.org/images/products/471/224/500/0566/nutrition_zh.9.full.jpg",
+      "order": 70,
+      "split": "untouched",
+      "replaces_order": 46,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (Simplified Chinese, drafting proposal); exclusion confirmed by the owner on 17 October 2026",
+      "bytes": 372985,
+      "sha256": "fb2aa92b53079dd7d7098198da998b0e330b32fb7e4b14edc4fe2ffa38cafc5d",
+      "attribution": "Nutrition label photo of product 4712245000566 by Open Food Facts contributor tacite, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/224/500/0566/nutrition_zh.9.full.jpg)."
+    },
+    {
+      "barcode": "4891028718130",
+      "barcode13": "4891028718130",
+      "order_key_sha256": "dd7f702883b16a8563424623438591b45403295039e5a31148311a511be56a49",
+      "image_key": "nutrition_zh",
+      "revision": "7",
+      "raw_image_id": "3",
+      "uploader": "wellin",
+      "url": "https://images.openfoodfacts.org/images/products/489/102/871/8130/nutrition_zh.7.full.jpg",
+      "order": 71,
+      "split": "untouched",
+      "replaces_order": 48,
+      "replacement_reason": "no nutrition table (a clothing label, drafting proposal); exclusion confirmed by the owner on 17 October 2026",
+      "bytes": 231046,
+      "sha256": "3adf03d01c82139825e53613cfb9e056b476850bf383aa6555cd0ea5f0c4e29f",
+      "attribution": "Nutrition label photo of product 4891028718130 by Open Food Facts contributor wellin, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/489/102/871/8130/nutrition_zh.7.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (Simplified Chinese, drafting proposal on the refill); owner confirmation pending in review round 2"
+    },
+    {
+      "barcode": "4710059012263",
+      "barcode13": "4710059012263",
+      "order_key_sha256": "e0bb2411b267791a660e70088356f9634c20d4eeb35ebace0ffb7d50d44aa23e",
+      "image_key": "nutrition_zh",
+      "revision": "7",
+      "raw_image_id": "1",
+      "uploader": "sophy",
+      "url": "https://images.openfoodfacts.org/images/products/471/005/901/2263/nutrition_zh.7.full.jpg",
+      "order": 72,
+      "split": "untouched",
+      "replaces_order": 50,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (Simplified Chinese, drafting proposal); exclusion confirmed by the owner on 17 October 2026",
+      "bytes": 17985,
+      "sha256": "460cea56753a82c3470f7ada8737856c1218bb51621e1eae7c70b73feb83c12c",
+      "attribution": "Nutrition label photo of product 4710059012263 by Open Food Facts contributor sophy, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/005/901/2263/nutrition_zh.7.full.jpg)."
+    },
+    {
+      "barcode": "4710874639393",
+      "barcode13": "4710874639393",
+      "order_key_sha256": "e18c47fb9b6adbf5bb994fb22de21511118c0a4abcc378b8aff4759c87ea27d5",
+      "image_key": "nutrition_zh",
+      "revision": "7",
+      "raw_image_id": "1",
+      "uploader": "date-limite-app",
+      "url": "https://images.openfoodfacts.org/images/products/471/087/463/9393/nutrition_zh.7.full.jpg",
+      "order": 73,
+      "split": "untouched",
+      "replaces_order": 52,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (French, Dutch and German, drafting proposal); exclusion confirmed by the owner on 17 October 2026",
+      "bytes": 29337,
+      "sha256": "91511a3ae0aaf2b30ade3ed6383e3d87fd027b737ba5a17b715a06bce6994242",
+      "attribution": "Nutrition label photo of product 4710874639393 by Open Food Facts contributor date-limite-app, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/087/463/9393/nutrition_zh.7.full.jpg)."
+    },
+    {
+      "barcode": "4710018000102",
+      "barcode13": "4710018000102",
+      "order_key_sha256": "e3a7fc8cde87e760f463c791868c4e47339defc3486bf29d1354b50c05e5775c",
+      "image_key": "nutrition_zh",
+      "revision": "27",
+      "raw_image_id": "3",
+      "uploader": "alonso",
+      "url": "https://images.openfoodfacts.org/images/products/471/001/800/0102/nutrition_zh.27.full.jpg",
+      "order": 74,
+      "split": "untouched",
+      "replaces_order": 54,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (English and French, drafting proposal); exclusion confirmed by the owner on 17 October 2026",
+      "bytes": 1142274,
+      "sha256": "a81c0dbe5a706aea810115c84d4264cfc62bff39d689b2ca46eb535e8d46c7b9",
+      "attribution": "Nutrition label photo of product 4710018000102 by Open Food Facts contributor alonso, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/001/800/0102/nutrition_zh.27.full.jpg)."
+    },
+    {
+      "barcode": "4710421071577",
+      "barcode13": "4710421071577",
+      "order_key_sha256": "e484a2d2a5657599634dae29d7a33ef7b050ad237bcf44b28371792aafd7d223",
+      "image_key": "nutrition_zh",
+      "revision": "14",
+      "raw_image_id": "5",
+      "uploader": "kiliweb",
+      "url": "https://images.openfoodfacts.org/images/products/471/042/107/1577/nutrition_zh.14.full.jpg",
+      "order": 75,
+      "split": "untouched",
+      "replaces_order": 66,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (Thai, drafting proposal on the refill); owner confirmation pending in review round 2",
+      "bytes": 39380,
+      "sha256": "2e085d722a2014fbd5304b385f035f6f3cd4cd86c3e2b8f5d72201270f5ba4a4",
+      "attribution": "Nutrition label photo of product 4710421071577 by Open Food Facts contributor kiliweb, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/042/107/1577/nutrition_zh.14.full.jpg).",
+      "excluded": true,
+      "exclusion_reason": "not a Traditional Chinese 營養標示 table (English, drafting proposal on the refill); owner confirmation pending in review round 2"
+    },
+    {
+      "barcode": "4710088433312",
+      "barcode13": "4710088433312",
+      "order_key_sha256": "e6418957b370360bd4df0f14242a133f0987e8fe2c7d0695523de0964f55f824",
+      "image_key": "nutrition_zh",
+      "revision": "10",
+      "raw_image_id": "3",
+      "uploader": "openfoodfacts-contributors",
+      "url": "https://images.openfoodfacts.org/images/products/471/008/843/3312/nutrition_zh.10.full.jpg",
+      "order": 76,
+      "split": "untouched",
+      "replaces_order": 71,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (Simplified Chinese, drafting proposal on the refill); owner confirmation pending in review round 2",
+      "bytes": 953182,
+      "sha256": "e8910b6bd3a288fec8ea6ac1945f6eb5c1e068b5eb6cbe1dad7b28bd9cecb429",
+      "attribution": "Nutrition label photo of product 4710088433312 by Open Food Facts contributor openfoodfacts-contributors, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/008/843/3312/nutrition_zh.10.full.jpg)."
+    },
+    {
+      "barcode": "4710060010012",
+      "barcode13": "4710060010012",
+      "order_key_sha256": "ea285a21b2b7500731bfdebd7d2d0fa31c14115645d132795bffbe0a844e5d05",
+      "image_key": "nutrition_zh",
+      "revision": "12",
+      "raw_image_id": "2",
+      "uploader": "john-hu",
+      "url": "https://images.openfoodfacts.org/images/products/471/006/001/0012/nutrition_zh.12.full.jpg",
+      "order": 77,
+      "split": "untouched",
+      "replaces_order": 75,
+      "replacement_reason": "not a Traditional Chinese 營養標示 table (English, drafting proposal on the refill); owner confirmation pending in review round 2",
+      "bytes": 170265,
+      "sha256": "46830fe561c9e90969e183010d6a14b9ddbeab68ee855127b908d14e8ac26cac",
+      "attribution": "Nutrition label photo of product 4710060010012 by Open Food Facts contributor john-hu, CC BY-SA 3.0 (https://creativecommons.org/licenses/by-sa/3.0/), from Open Food Facts (https://images.openfoodfacts.org/images/products/471/006/001/0012/nutrition_zh.12.full.jpg)."
     }
   ],
   "refill_rule": "Owner decision B, 17 October 2026: up to 27 refills (orders 61 to 87) in hash order, each downloaded only when an exclusion needs it, reason logged. Development replacements take the next orders first (61, 62), untouched refills after."

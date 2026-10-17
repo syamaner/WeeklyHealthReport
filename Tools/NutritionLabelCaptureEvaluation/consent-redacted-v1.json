@@ -5,11 +5,12 @@
   "master_sha256": "4c4a2d790ebe85a3853fed7ae2f1c09e7448f3179866658f0994b519b7b9f220",
   "stripping": "exiftool -all= -tagsFromFile @ -Orientation, verified with exiftool -G -a: only file, EXIF orientation and resolution, and composite tags remain (the ICC profile was removed by the command).",
   "flags": {
-    "local_routes": false,
-    "send_to_openrouter": false,
-    "commit_ground_truth": false,
-    "commit_crop": false
+    "local_routes": true,
+    "send_to_openrouter": true,
+    "commit_ground_truth": true,
+    "commit_crop": true
   },
-  "flags_note": "All four flags are false by default and are set by the owner in the private consent record after looking at the stripped master. The hand-checked values committed in this folder are the ones already published in the plan (section 3.4); no image bytes are committed.",
+  "flags_set_on": "2026-10-17",
+  "flags_note": "The flags were false by default. On 17 October 2026 the owner granted every route, including sending the stripped master to the route C models through OpenRouter, and all four flags were set true in the private consent record. The hand-checked values committed in this folder are the ones already published in the plan (section 3.4); no image bytes are committed, and no crop has been made.",
   "private_location": "~/WHR-label-eval-private/owner/ (outside any git checkout)"
 }

@@ -237,12 +237,26 @@ class RefillRuleTests(unittest.TestCase):
 
     def test_manifest_records_the_development_replacements(self):
         manifest = json.loads((HERE / "fixtures" / "off-taiwan-manifest-v1.json").read_text())
-        refills = {r["order"]: r for r in manifest["refills"]}
+        refills = {r["order"]: r for r in manifest["refills"] if r["split"] == "development"}
         self.assertEqual({o: r["replaces_order"] for o, r in refills.items()}, {61: 4, 62: 17})
-        self.assertTrue(all(r["split"] == "development" and "CC BY-SA 3.0" in r["attribution"] for r in refills.values()))
+        self.assertTrue(all("CC BY-SA 3.0" in r["attribution"] for r in refills.values()))
         photos = {p["order"]: p for p in manifest["photos"]}
         self.assertTrue(photos[4]["excluded"] and photos[17]["excluded"])
         self.assertLessEqual(sum(r["bytes"] for r in refills.values()), 5_000_000)
+
+    def test_manifest_records_the_untouched_refills_in_hash_order(self):
+        manifest = json.loads((HERE / "fixtures" / "off-taiwan-manifest-v1.json").read_text())
+        refills = [r for r in manifest["refills"] if r["split"] == "untouched"]
+        self.assertEqual([r["order"] for r in refills], list(range(63, 78)))
+        self.assertTrue(all(r["replacement_reason"] and "CC BY-SA 3.0" in r["attribution"] for r in refills))
+        self.assertLessEqual(sum(r["bytes"] for r in refills), 10_000_000)
+        everything = {p["order"]: p for p in manifest["photos"] + manifest["refills"]}
+        for refill in refills:
+            replaced = everything[refill["replaces_order"]]
+            self.assertTrue(replaced["excluded"] and replaced["exclusion_reason"] == refill["replacement_reason"])
+        usable = [p for p in everything.values() if p["split"] == "untouched" and not p.get("excluded")]
+        self.assertEqual(len(usable), 40)
+        self.assertFalse(everything[34].get("excluded"))
 
 
 class ContractTests(unittest.TestCase):
@@ -261,8 +275,28 @@ class ContractTests(unittest.TestCase):
 
     def test_route_c_disabled_in_phases_1_and_2(self):
         contract = json.loads((HERE / "frozen-contract-v1.json").read_text())
+        contract["status"] = "development_phase_2"
         contract["route_c"]["enabled"] = True
         self.assertIn("route C must stay disabled in phases 1 and 2", validate_contract.validate(contract))
+
+    def test_enabled_route_c_pins_exactly_the_five_models_with_a_catalogue_record(self):
+        contract = json.loads((HERE / "frozen-contract-v1.json").read_text())
+        self.assertIs(contract["route_c"]["enabled"], True)
+        self.assertEqual(sorted(contract["route_c"]["models"]), ["fable", "gemini", "grok", "luna", "luna_pro", "opus", "sol", "sol_pro"])
+        del contract["route_c"]["models"]["opus"]["catalogue_2026_10_17"]
+        self.assertIn(
+            "route C model opus passed the gate without a slug, endpoint, provider and catalogue record",
+            validate_contract.validate(contract),
+        )
+        contract["route_c"]["models"]["qwen"] = {"slug": "qwen/qwen3.5-397b-a17b"}
+        self.assertIn(
+            "route C must pin exactly the approved models (five base models and three extra arms)", validate_contract.validate(contract)
+        )
+
+    def test_untouched_truth_hash_is_pinned(self):
+        contract = json.loads((HERE / "frozen-contract-v1.json").read_text())
+        contract["ground_truth"]["untouched_sha256"] = "0" * 64
+        self.assertIn("untouched ground truth hash does not match the contract", validate_contract.validate(contract))
 
 
 class DevelopmentDatasetTests(unittest.TestCase):

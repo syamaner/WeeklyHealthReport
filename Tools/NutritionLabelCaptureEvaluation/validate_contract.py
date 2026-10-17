@@ -60,8 +60,14 @@ PINNED = [
     "Tools/NutritionLabelCaptureEvaluation/run_route_c.py",
     "Tools/NutritionLabelCaptureEvaluation/draft_untouched_truth.py",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.txt",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.1.txt",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-instruction-v1.2.txt",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/truth-drafting-wire-schema-v1.json",
+    "Tools/NutritionLabelCaptureEvaluation/route_c_mapping.py",
+    "Tools/NutritionLabelCaptureEvaluation/openrouter_client.py",
+    "Tools/NutritionLabelCaptureEvaluation/qualification/render_qualification.swift",
 ]
+ROUTE_C_LABELS = ("luna", "grok", "sol", "gemini", "opus", "luna_pro", "sol_pro", "fable")
 
 
 def sha256(path: Path) -> str:
@@ -94,20 +100,37 @@ def validate(contract: dict[str, Any], root: Path = REPO) -> list[str]:
     if contract.get("arithmetic", {}).get("kj_kcal_relative_tolerance") != 0.02:
         errors.append("kJ / kcal tolerance must be 2%")
     route_c = contract.get("route_c", {})
-    if route_c.get("per_call_stop_usd") != 0.05 or route_c.get("total_stop_usd") != 25 or route_c.get("unknown_cost_calls_allowed") != 3:
-        errors.append("route C spend stops differ from decision 9")
-    if route_c.get("retries") != 0 or route_c.get("max_output_tokens") != 4096 or route_c.get("timeout_seconds") != 90:
-        errors.append("route C call limits differ from the plan")
+    # Owner decisions of 17 October 2026 (evaluation only): $0.20 per call, $60 in total, 200 sealed
+    # calls reserved at $0.20, 16384 output tokens, at most 4 retries within a 180 s deadline.
+    if (
+        route_c.get("per_call_stop_usd") != 0.2
+        or route_c.get("total_stop_usd") != 65
+        or route_c.get("unknown_cost_calls_allowed") != 3
+        or route_c.get("sealed_run_reserved_calls") != 200
+        or route_c.get("sealed_reservation_per_call_usd") != "0.20"
+    ):
+        errors.append("route C spend stops differ from the owner's decisions of 17 October 2026")
+    if route_c.get("retries") != 4 or route_c.get("max_output_tokens") != 16384 or route_c.get("timeout_seconds") != 180:
+        errors.append("route C call limits differ from the owner's decisions of 17 October 2026")
     if contract.get("status") in ("development_phase_1", "development_phase_2") and route_c.get("enabled") is not False:
         errors.append("route C must stay disabled in phases 1 and 2")
     if "model_slug_rule" not in route_c or "spend_ledger" not in route_c:
         errors.append("route C must record the model slug rule and the persistent spend ledger")
+    if route_c.get("enabled") is True:
+        models = route_c.get("models") or {}
+        if sorted(models) != sorted(ROUTE_C_LABELS):
+            errors.append("route C must pin exactly the approved models (five base models and three extra arms)")
+        for label, pin in models.items():
+            if pin.get("gate") == "passed" and not all(pin.get(k) for k in ("slug", "endpoint", "provider_name", "catalogue_2026_10_17")):
+                errors.append(f"route C model {label} passed the gate without a slug, endpoint, provider and catalogue record")
+            if "qwen" in str(pin.get("slug", "")).lower():
+                errors.append("the untouched-truth drafting model cannot also be a route C model")
     route_b = contract.get("route_b", {})
     if route_b and (route_b.get("development_runs_only") is not True or route_b.get("never_runs_on_sealed_folder") is not True):
         errors.append("route B may run on development images only before the frozen run")
     provider = route_c.get("provider_block", {})
-    if provider != openrouter_route.provider_block("<endpoint>"):
-        errors.append("route C provider block must pin one endpoint, deny collection, require ZDR and forbid fallbacks")
+    if provider != openrouter_route.route_c_provider_block("<endpoint>"):
+        errors.append("route C provider block must pin one endpoint, require parameters and forbid fallbacks")
     if route_c.get("never_sees_untouched_truth_or_drafts") is not True:
         errors.append("route C must never see untouched truth or drafts")
     drafting = contract.get("untouched_truth_drafting", {})
@@ -129,6 +152,13 @@ def validate(contract: dict[str, Any], root: Path = REPO) -> list[str]:
     manifest = root / taiwan.get("manifest", "")
     if not manifest.is_file() or sha256(manifest) != taiwan.get("manifest_sha256"):
         errors.append("Taiwan manifest hash does not match the contract")
+    truth = contract.get("ground_truth", {})
+    if truth.get("untouched"):
+        untouched = root / truth["untouched"]
+        if not untouched.is_file() or sha256(untouched) != truth.get("untouched_sha256"):
+            errors.append("untouched ground truth hash does not match the contract")
+    if refill.get("untouched_total_stop_bytes", 10_000_000) > 10_000_000:
+        errors.append("untouched refills are limited to 10 MB in total (owner, 17 October 2026)")
     artefacts = contract.get("frozen_artefacts", {})
     if sorted(artefacts) != sorted(PINNED):
         errors.append("frozen_artefacts must pin exactly the listed artefacts")
@@ -147,6 +177,9 @@ def pin(contract_path: Path) -> None:
         raise SystemExit("refusing to re-pin a contract frozen for the untouched run")
     contract["corpus"]["off_taiwan"]["manifest_sha256"] = sha256(REPO / contract["corpus"]["off_taiwan"]["manifest"])
     contract["frozen_artefacts"] = {path: sha256(REPO / path) for path in PINNED}
+    untouched = contract.get("ground_truth", {}).get("untouched")
+    if untouched and (REPO / untouched).is_file():
+        contract["ground_truth"]["untouched_sha256"] = sha256(REPO / untouched)
     contract_path.write_text(json.dumps(contract, indent=2, ensure_ascii=False) + "\n")
 
 

@@ -1,5 +1,6 @@
 """Route C routing and response checks; no model or provider call."""
 
+import json
 import unittest
 from decimal import Decimal
 
@@ -18,20 +19,42 @@ def response(**overrides):
 
 
 class ProviderBlockTests(unittest.TestCase):
-    def test_pins_one_endpoint_with_zdr_and_no_collection(self):
+    def test_drafting_block_keeps_zdr_and_no_collection(self):
         self.assertEqual(
-            openrouter_route.model_args(TARGET),
+            openrouter_route.provider_block("azure"),
             {
-                "provider": {
-                    "only": ["azure"],
-                    "order": ["azure"],
-                    "allow_fallbacks": False,
-                    "require_parameters": True,
-                    "data_collection": "deny",
-                    "zdr": True,
-                }
+                "only": ["azure"],
+                "order": ["azure"],
+                "allow_fallbacks": False,
+                "require_parameters": True,
+                "data_collection": "deny",
+                "zdr": True,
             },
         )
+
+    def test_route_c_request_pins_one_provider_without_zdr_for_the_evaluation(self):
+        body = openrouter_route.route_c_request_body(TARGET, "data:image/png;base64,AA==", "instruction", {"type": "object"})
+        self.assertEqual(body["provider"], {"only": ["azure"], "order": ["azure"], "allow_fallbacks": False, "require_parameters": True})
+        self.assertEqual((body["max_tokens"], body["stream"], body["reasoning"]), (16384, False, {"enabled": False}))
+        self.assertTrue(body["response_format"]["json_schema"]["strict"])
+        self.assertTrue(body["response_format"]["json_schema"]["description"])  # never null (Luna on Azure ignored the schema)
+        on = RouteCModel(label="luna", model="openai/gpt-6-luna", endpoint="openai", provider_name="OpenAI", reasoning="on")
+        self.assertEqual(openrouter_route.route_c_request_body(on, "d", "i", {})["reasoning"], {"enabled": True})
+        with self.assertRaises(ValueError):
+            openrouter_route.route_c_request_body(RouteCModel("x", "m", "e", "p", reasoning="low"), "d", "i", {})
+
+    def test_comments_are_stripped_at_every_depth_and_nothing_else_changes(self):
+        schema = {
+            "$comment": "top",
+            "type": "object",
+            "properties": {"rows": {"type": "array", "items": {"$comment": "nested", "type": "object", "required": ["a"]}}},
+            "anyOf": [{"$comment": "in a list", "required": ["rows"]}],
+        }
+        sent = openrouter_route.route_c_request_body(TARGET, "d", "i", schema)["response_format"]["json_schema"]["schema"]
+        self.assertNotIn("$comment", json.dumps(sent))
+        self.assertEqual(sent["properties"]["rows"]["items"], {"type": "object", "required": ["a"]})
+        self.assertEqual(sent["anyOf"], [{"required": ["rows"]}])
+        self.assertIn("$comment", schema)  # the caller's schema is not modified
 
 
 class ResponseTests(unittest.TestCase):
