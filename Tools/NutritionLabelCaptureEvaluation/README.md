@@ -244,6 +244,23 @@ diagnosis written at `5c3d1548`; rerunning `uk_diagnosis.py` now scores with the
 time left of the 180 s budget runs out). Results, gate rules and the UK diagnosis:
 [`results/phase-4-decline-gate-and-uk-diagnosis-v1.md`](results/phase-4-decline-gate-and-uk-diagnosis-v1.md).
 
+**Phase 5: the untouched Taiwan run.** The contract is `frozen_for_untouched_run`; `run_untouched.py`
+runs route B or one frozen route C arm on the 40 untouched Taiwan photos, once only (a run register
+outside the repository refuses a second start), after the free catalogue, credit and qualification
+checks. It ran on 18 October 2026:
+
+```sh
+.venv/bin/python run_untouched.py --route C --arm gemini-on --unseal --manifest-sha256 <corpus.off_taiwan.manifest_sha256> \
+  --env-file <dotenv with OPENROUTER_API_KEY> --projected-cost-usd 0.6 \
+  --log-dir ~/WHR-label-eval-private/runs/untouched-v1/gemini-on --summary ~/WHR-label-eval-private/runs/untouched-v1/gemini-on-summary.json
+```
+
+Route A's untouched pasted-text cases ran the same day with `run_untouched_text.py` (frozen generator path, frozen parser binary,
+no network). `rescore_untouched.py` is the correction path for the untouched truth: owner corrections in a separate file,
+applied in memory, saved outputs re-scored offline, never a rerun.
+
+Results: [`results/untouched-taiwan-v1.md`](results/untouched-taiwan-v1.md). It cannot be rerun.
+
 **UK images.** The v1 panel images are no longer on disk and the v2 public selection (60 tuning,
 40 sealed) was never acquired, so the UK route B stratum is the 40 exposed v2 development review
 images and there is no UK untouched stratum. UK untouched set deferred by the owner on 17 Oct 2026;

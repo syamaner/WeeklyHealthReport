@@ -243,8 +243,12 @@ class VerifiedTruthTests(unittest.TestCase):
 
     def test_committed_untouched_truth_is_owner_verified_with_no_corrections(self):
         truth = json.loads((HERE / "fixtures" / "ground-truth-off-taiwan-untouched-v1.json").read_text())
-        self.assertEqual(truth["evidence_label"], "model-drafted, owner-verified (no owner corrections)")
-        self.assertEqual(truth["counts"]["owner_corrections"], 0)
+        # Phase 5: three owner corrections after the untouched run, a recorded deviation.
+        self.assertEqual(
+            truth["evidence_label"], "model-drafted, owner-verified (3 owner corrections after the untouched run, 18 October 2026)"
+        )
+        self.assertEqual(truth["counts"]["owner_corrections"], 3)
+        self.assertIn("unknown error rate", truth["post_run_correction_note"])
         self.assertIn("anchoring", truth["anchoring_note"])
         for record in truth["records"]:
             for cell in record["cells"]:

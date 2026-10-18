@@ -1,0 +1,1192 @@
+{
+ "schema_version": "label-capture-untouched-result-v1",
+ "set": "untouched Taiwan photos (40 usable owner-verified tables)",
+ "truth_evidence_label": "model-drafted, owner-verified (3 owner corrections after the untouched run, 18 October 2026)",
+ "contract_status": "frozen_for_untouched_run",
+ "run_once": [
+  {
+   "route": "B",
+   "arm": "route-b",
+   "started_at": "2026-10-18T05:29:38+00:00",
+   "status": "complete",
+   "log_dir": "runs/untouched-v1/route-b/untouched",
+   "finished_at": "2026-10-18T05:30:38+00:00",
+   "log_dir_root": "~/WHR-label-eval-private"
+  },
+  {
+   "route": "C",
+   "arm": "luna-off",
+   "started_at": "2026-10-18T05:31:05+00:00",
+   "status": "complete",
+   "log_dir": "runs/untouched-v1/luna-off/untouched",
+   "finished_at": "2026-10-18T05:32:15+00:00",
+   "log_dir_root": "~/WHR-label-eval-private"
+  },
+  {
+   "route": "C",
+   "arm": "gemini-on",
+   "started_at": "2026-10-18T05:32:42+00:00",
+   "status": "complete",
+   "log_dir": "runs/untouched-v1/gemini-on/untouched",
+   "finished_at": "2026-10-18T05:34:44+00:00",
+   "log_dir_root": "~/WHR-label-eval-private"
+  },
+  {
+   "route": "C",
+   "arm": "sol-on",
+   "started_at": "2026-10-18T05:35:08+00:00",
+   "status": "complete",
+   "log_dir": "runs/untouched-v1/sol-on/untouched",
+   "finished_at": "2026-10-18T05:38:04+00:00",
+   "log_dir_root": "~/WHR-label-eval-private"
+  },
+  {
+   "route": "A",
+   "arm": "untouched-text",
+   "started_at": "2026-10-18T06:12:15+00:00",
+   "status": "complete",
+   "log_dir": "runs/untouched-v1/route-a",
+   "finished_at": "2026-10-18T06:12:15+00:00",
+   "log_dir_root": "~/WHR-label-eval-private"
+  }
+ ],
+ "note": "Counts, call statistics and case ids only; no model answer, decline text or image. Inspect logs are outside the repository.",
+ "arms": {
+  "route-b": {
+   "route": "B",
+   "git_head": "6df16b6f556b7715c7e1febc50d133517866414c",
+   "inspect_status": "success",
+   "cases": 40,
+   "failed": 0,
+   "false_declines": 35,
+   "extra_cells": 0,
+   "would_mark_ready_after_arithmetic": 2,
+   "metrics": {
+    "strict_cells": {
+     "numerator": 74,
+     "denominator": 601,
+     "rate": 0.1231,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 80,
+     "denominator": 654,
+     "rate": 0.1223,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 74,
+     "denominator": 601,
+     "rate": 0.1231,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 4,
+     "denominator": 40,
+     "rate": 0.1,
+     "bar": 0.75,
+     "verdict": "fail"
+    },
+    "serving_conversions": {
+     "numerator": 33,
+     "denominator": 335,
+     "rate": 0.0985,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 5,
+     "denominator": 39,
+     "rate": 0.1282,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 0,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "pass"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    },
+    "arithmetic_mutation_detection": {
+     "numerator": 50,
+     "denominator": 54,
+     "verdict": "fail"
+    }
+   },
+   "decline_reason_codes": {
+    "count_mismatch": 7,
+    "energy_without_unit": 1,
+    "multiple_panels": 13,
+    "unrecognised_unit": 2,
+    "unsupported_language": 1,
+    "value_without_unit": 6,
+    "values_without_row": 5
+   },
+   "false_ready_ids": []
+  },
+  "luna-off": {
+   "route": "C",
+   "git_head": "6df16b6f556b7715c7e1febc50d133517866414c",
+   "inspect_status": "success",
+   "cases": 40,
+   "failed": 0,
+   "false_declines": 2,
+   "extra_cells": 40,
+   "would_mark_ready_after_arithmetic": 31,
+   "metrics": {
+    "strict_cells": {
+     "numerator": 536,
+     "denominator": 601,
+     "rate": 0.8918,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 573,
+     "denominator": 654,
+     "rate": 0.8761,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 548,
+     "denominator": 601,
+     "rate": 0.9118,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 30,
+     "denominator": 40,
+     "rate": 0.75,
+     "bar": 0.75,
+     "verdict": "pass"
+    },
+    "serving_conversions": {
+     "numerator": 282,
+     "denominator": 335,
+     "rate": 0.8418,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 37,
+     "denominator": 39,
+     "rate": 0.9487,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 4,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "fail"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    },
+    "arithmetic_mutation_detection": {
+     "numerator": 50,
+     "denominator": 54,
+     "verdict": "fail"
+    }
+   },
+   "decline_reason_codes": {
+    "gate:required_row_missing": 2
+   },
+   "model": {
+    "label": "luna-reasoning-off",
+    "slug": "openai/gpt-6-luna",
+    "endpoint": "openai",
+    "reasoning": "off"
+   },
+   "returned_models": {
+    "openai/gpt-6-luna": 40
+   },
+   "returned_providers": {
+    "OpenAI": 40
+   },
+   "calls": {
+    "calls": 40,
+    "attempts": 40,
+    "retries": 0,
+    "reported_cost_usd": "0.038558775",
+    "unknown_cost_calls": 0,
+    "cost_median_usd": "0.0005688625",
+    "cost_p90_usd": "0.00217605",
+    "cost_max_usd": "0.0027413",
+    "latency_p50_seconds": 5.76,
+    "latency_p90_seconds": 9.81,
+    "latency_max_seconds": 16.01
+   },
+   "qualification_passed": true,
+   "pre_run_checks": {
+    "catalogue_problems": [],
+    "arm_credit_gate": {
+     "allowed": true,
+     "needed_usd": "1.1"
+    },
+    "sealed_reservation_usd": "40.00",
+    "credit_covers_sealed_reservation": true
+   },
+   "false_ready_ids": [
+    "off-taiwan:4710105020310:nutrition_zh.13",
+    "off-taiwan:4710018164101:nutrition_zh.11",
+    "off-taiwan:4710209334115:nutrition_zh.11",
+    "off-taiwan:4710018168307:nutrition_zh.10"
+   ],
+   "declined": [
+    {
+     "id": "off-taiwan:4710022030713:nutrition_zh.10",
+     "by": "gate"
+    },
+    {
+     "id": "off-taiwan:4711957513876:nutrition_zh.3",
+     "by": "gate"
+    }
+   ],
+   "failed_ids": []
+  },
+  "gemini-on": {
+   "route": "C",
+   "git_head": "6df16b6f556b7715c7e1febc50d133517866414c",
+   "inspect_status": "success",
+   "cases": 40,
+   "failed": 0,
+   "false_declines": 5,
+   "extra_cells": 2,
+   "would_mark_ready_after_arithmetic": 33,
+   "metrics": {
+    "strict_cells": {
+     "numerator": 521,
+     "denominator": 601,
+     "rate": 0.8669,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 563,
+     "denominator": 654,
+     "rate": 0.8609,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 524,
+     "denominator": 601,
+     "rate": 0.8719,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 33,
+     "denominator": 40,
+     "rate": 0.825,
+     "bar": 0.75,
+     "verdict": "pass"
+    },
+    "serving_conversions": {
+     "numerator": 290,
+     "denominator": 335,
+     "rate": 0.8657,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 35,
+     "denominator": 39,
+     "rate": 0.8974,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 2,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "fail"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    },
+    "arithmetic_mutation_detection": {
+     "numerator": 50,
+     "denominator": 54,
+     "verdict": "fail"
+    }
+   },
+   "decline_reason_codes": {
+    "gate:required_row_missing": 2
+   },
+   "model": {
+    "label": "gemini-reasoning-on",
+    "slug": "google/gemini-4-argon",
+    "endpoint": "google-ai-studio",
+    "reasoning": "on"
+   },
+   "returned_models": {
+    "google/gemini-4-argon": 40
+   },
+   "returned_providers": {
+    "Google AI Studio": 40
+   },
+   "calls": {
+    "calls": 40,
+    "attempts": 40,
+    "retries": 0,
+    "reported_cost_usd": "0.432870",
+    "unknown_cost_calls": 0,
+    "cost_median_usd": "0.010458",
+    "cost_p90_usd": "0.012454",
+    "cost_max_usd": "0.015552",
+    "latency_p50_seconds": 9.93,
+    "latency_p90_seconds": 15.49,
+    "latency_max_seconds": 25.23
+   },
+   "qualification_passed": true,
+   "pre_run_checks": {
+    "catalogue_problems": [],
+    "arm_credit_gate": {
+     "allowed": true,
+     "needed_usd": "1.6"
+    },
+    "sealed_reservation_usd": "40.00",
+    "credit_covers_sealed_reservation": true
+   },
+   "false_ready_ids": [
+    "off-taiwan:3228022000311:nutrition_zh.12",
+    "off-taiwan:4972767003715:nutrition_zh.8"
+   ],
+   "declined": [
+    {
+     "id": "off-taiwan:4713105808025:nutrition_zh.7",
+     "by": "model"
+    },
+    {
+     "id": "off-taiwan:4710022030713:nutrition_zh.10",
+     "by": "gate"
+    },
+    {
+     "id": "off-taiwan:4712893950282:nutrition_zh.7",
+     "by": "model"
+    },
+    {
+     "id": "off-taiwan:4711957513876:nutrition_zh.3",
+     "by": "gate"
+    },
+    {
+     "id": "off-taiwan:4710425590197:nutrition_zh.5",
+     "by": "model"
+    }
+   ],
+   "failed_ids": []
+  },
+  "sol-on": {
+   "route": "C",
+   "git_head": "6df16b6f556b7715c7e1febc50d133517866414c",
+   "inspect_status": "success",
+   "cases": 40,
+   "failed": 0,
+   "false_declines": 4,
+   "extra_cells": 0,
+   "would_mark_ready_after_arithmetic": 32,
+   "metrics": {
+    "strict_cells": {
+     "numerator": 538,
+     "denominator": 601,
+     "rate": 0.8952,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 580,
+     "denominator": 654,
+     "rate": 0.8869,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 542,
+     "denominator": 601,
+     "rate": 0.9018,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 33,
+     "denominator": 40,
+     "rate": 0.825,
+     "bar": 0.75,
+     "verdict": "pass"
+    },
+    "serving_conversions": {
+     "numerator": 291,
+     "denominator": 335,
+     "rate": 0.8687,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 36,
+     "denominator": 39,
+     "rate": 0.9231,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 1,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "fail"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    },
+    "arithmetic_mutation_detection": {
+     "numerator": 50,
+     "denominator": 54,
+     "verdict": "fail"
+    }
+   },
+   "decline_reason_codes": {
+    "gate:required_row_missing": 2
+   },
+   "model": {
+    "label": "sol-reasoning-on",
+    "slug": "openai/gpt-6.1-sol",
+    "endpoint": "openai",
+    "reasoning": "on"
+   },
+   "returned_models": {
+    "openai/gpt-6.1-sol": 40
+   },
+   "returned_providers": {
+    "OpenAI": 40
+   },
+   "calls": {
+    "calls": 40,
+    "attempts": 40,
+    "retries": 0,
+    "reported_cost_usd": "0.8995755",
+    "unknown_cost_calls": 0,
+    "cost_median_usd": "0.016186",
+    "cost_p90_usd": "0.046761",
+    "cost_max_usd": "0.059696",
+    "latency_p50_seconds": 16.69,
+    "latency_p90_seconds": 22.55,
+    "latency_max_seconds": 35.11
+   },
+   "qualification_passed": true,
+   "pre_run_checks": {
+    "catalogue_problems": [],
+    "arm_credit_gate": {
+     "allowed": true,
+     "needed_usd": "1.7"
+    },
+    "sealed_reservation_usd": "40.00",
+    "credit_covers_sealed_reservation": true
+   },
+   "false_ready_ids": [
+    "off-taiwan:3228022000311:nutrition_zh.12"
+   ],
+   "declined": [
+    {
+     "id": "off-taiwan:4710022030713:nutrition_zh.10",
+     "by": "model"
+    },
+    {
+     "id": "off-taiwan:4712893950282:nutrition_zh.7",
+     "by": "gate"
+    },
+    {
+     "id": "off-taiwan:4711957513876:nutrition_zh.3",
+     "by": "gate"
+    },
+    {
+     "id": "off-taiwan:4710425590197:nutrition_zh.5",
+     "by": "model"
+    }
+   ],
+   "failed_ids": []
+  }
+ },
+ "route_a_untouched_text": {
+  "set": "untouched pasted-text cases: FDA dataset 188 untouched rows (with their hash-seeded decline variants) and the closed-template untouched candidates, rendered once with the frozen generator path",
+  "synthetic": true,
+  "generator_version": "label-pasted-text-renderer-v1",
+  "seed": "nutrition-label-capture-v1",
+  "dataset_sha256": "9eace6511eee1a0defb1c251a772b152a9a13169a49d894ca67e7cf2cc09c3c4",
+  "parser_version": "nutrition-label-text-parser-v2",
+  "gate_version": "label-capture-decline-gate-v2",
+  "cases": 107,
+  "required_declines": 15,
+  "by_corpus_cases": {
+   "fda188": 75,
+   "zh_template": 32
+  },
+  "overall": {
+   "cases": 107,
+   "failed": 0,
+   "false_declines": 0,
+   "extra_cells": 0,
+   "serving_size": {
+    "exact": 92,
+    "known": 92
+   },
+   "would_mark_ready_after_arithmetic": 92,
+   "energy_check_informing_only": {
+    "not_checkable": 15,
+    "pass": 92
+   },
+   "metrics": {
+    "strict_cells": {
+     "numerator": 1093,
+     "denominator": 1093,
+     "rate": 1.0,
+     "bar": 0.95,
+     "verdict": "pass"
+    },
+    "binding": {
+     "numerator": 1123,
+     "denominator": 1123,
+     "rate": 1.0,
+     "bar": 0.98,
+     "verdict": "pass"
+    },
+    "unit_and_basis": {
+     "numerator": 1093,
+     "denominator": 1093,
+     "rate": 1.0,
+     "bar": 1.0,
+     "verdict": "pass"
+    },
+    "full_table": {
+     "numerator": 92,
+     "denominator": 92,
+     "rate": 1.0,
+     "bar": 0.75,
+     "verdict": "pass"
+    },
+    "serving_conversions": {
+     "numerator": 599,
+     "denominator": 599,
+     "rate": 1.0,
+     "bar": 0.98,
+     "verdict": "pass"
+    },
+    "servings_per_pack": {
+     "numerator": 92,
+     "denominator": 92,
+     "rate": 1.0,
+     "bar": 0.98,
+     "verdict": "pass"
+    },
+    "bounds": {
+     "numerator": 36,
+     "denominator": 36,
+     "rate": 1.0,
+     "bar": 1.0,
+     "verdict": "pass"
+    },
+    "correct_decline": {
+     "numerator": 15,
+     "denominator": 15,
+     "rate": 1.0,
+     "bar": 0.95,
+     "verdict": "pass"
+    },
+    "false_ready": {
+     "count": 0,
+     "denominator": 107,
+     "bar": "<= 0",
+     "verdict": "pass"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    }
+   }
+  },
+  "by_corpus": {
+   "fda188": {
+    "cases": 75,
+    "failed": 0,
+    "false_declines": 0,
+    "extra_cells": 0,
+    "serving_size": {
+     "exact": 60,
+     "known": 60
+    },
+    "would_mark_ready_after_arithmetic": 60,
+    "energy_check_informing_only": {
+     "not_checkable": 15,
+     "pass": 60
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 632,
+      "denominator": 632,
+      "rate": 1.0,
+      "bar": 0.95,
+      "verdict": "pass"
+     },
+     "binding": {
+      "numerator": 632,
+      "denominator": 632,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "unit_and_basis": {
+      "numerator": 632,
+      "denominator": 632,
+      "rate": 1.0,
+      "bar": 1.0,
+      "verdict": "pass"
+     },
+     "full_table": {
+      "numerator": 60,
+      "denominator": 60,
+      "rate": 1.0,
+      "bar": 0.75,
+      "verdict": "pass"
+     },
+     "serving_conversions": {
+      "numerator": 368,
+      "denominator": 368,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "servings_per_pack": {
+      "numerator": 60,
+      "denominator": 60,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "bounds": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 1.0,
+      "verdict": "no_denominator"
+     },
+     "correct_decline": {
+      "numerator": 15,
+      "denominator": 15,
+      "rate": 1.0,
+      "bar": 0.95,
+      "verdict": "pass"
+     },
+     "false_ready": {
+      "count": 0,
+      "denominator": 75,
+      "bar": "<= 0",
+      "verdict": "pass"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    }
+   },
+   "zh_template": {
+    "cases": 32,
+    "failed": 0,
+    "false_declines": 0,
+    "extra_cells": 0,
+    "serving_size": {
+     "exact": 32,
+     "known": 32
+    },
+    "would_mark_ready_after_arithmetic": 32,
+    "energy_check_informing_only": {
+     "pass": 32
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 461,
+      "denominator": 461,
+      "rate": 1.0,
+      "bar": 0.95,
+      "verdict": "pass"
+     },
+     "binding": {
+      "numerator": 491,
+      "denominator": 491,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "unit_and_basis": {
+      "numerator": 461,
+      "denominator": 461,
+      "rate": 1.0,
+      "bar": 1.0,
+      "verdict": "pass"
+     },
+     "full_table": {
+      "numerator": 32,
+      "denominator": 32,
+      "rate": 1.0,
+      "bar": 0.75,
+      "verdict": "pass"
+     },
+     "serving_conversions": {
+      "numerator": 231,
+      "denominator": 231,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "servings_per_pack": {
+      "numerator": 32,
+      "denominator": 32,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "bounds": {
+      "numerator": 36,
+      "denominator": 36,
+      "rate": 1.0,
+      "bar": 1.0,
+      "verdict": "pass"
+     },
+     "correct_decline": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 0.95,
+      "verdict": "no_denominator"
+     },
+     "false_ready": {
+      "count": 0,
+      "denominator": 32,
+      "bar": "<= 0",
+      "verdict": "pass"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    }
+   }
+  },
+  "arithmetic_mutation_detection": {
+   "detected": 110,
+   "applicable": 116
+  },
+  "arithmetic_mutation_detection_by_kind": {
+   "tenfold_serving": [
+    69,
+    72
+   ],
+   "basis_transposition": [
+    32,
+    35
+   ],
+   "bound_replaced_by_exact": [
+    9,
+    9
+   ]
+  },
+  "false_ready_ids": [],
+  "false_decline_ids": [],
+  "provenance": {
+   "summary": "run once on 18 October 2026 by owner decision: the untouched FDA 188 and template pasted-text cases (107, 15 required declines) rendered with the frozen generator path (run_untouched_text.py; the same path reproduces the committed development cases byte for byte), the frozen parser binary, decline gate v2 and the frozen scorer; dataset SHA-256 9eace6511eee1a0defb1c251a772b152a9a13169a49d894ca67e7cf2cc09c3c4; every route-output bar passes; arithmetic mutation detection 110/116 fails its 100% bar (policy, not route)",
+   "runner": "Tools/NutritionLabelCaptureEvaluation/run_untouched_text.py",
+   "runner_sha256_as_run": "595513109db8aa750a0ff33b59bb76dba7f1b80f33bd79718cd1b9af9ef313b2",
+   "runner_commit_as_run": "6eadb4aa",
+   "provenance_label": "written after the photo freeze; mirrors build_cases logic",
+   "byte_for_byte_test_before_run": {
+    "test": "tests/test_phase5_text.py (local only; needs the FDA 188 CSV)",
+    "ran": "yes, locally with the CSV present, before the run",
+    "at": "2026-10-18T06:12:02Z (transcript time of the result)",
+    "result": "2 tests OK, including test_development_split_is_reproduced_byte_for_byte",
+    "run_started_at": "2026-10-18T06:12:15Z (run register)",
+    "evidence": "the agent transcript of this phase; the tested files are byte-identical to commit 6eadb4aa"
+   },
+   "byte_for_byte_test_recheck": {
+    "at": "2026-10-18T07:30:34Z",
+    "result": "2 tests OK",
+    "note": "separate re-run after the PR #260 review"
+   },
+   "post_run_edit": {
+    "runner_sha256_now": "fb0c7e718566c59265783827b75359ee08be2f147653e8247485fd1d0f9ba37b",
+    "change": "refuses a --register other than untouched_run.run_register (PR #260 review); no change to rendering, parsing or scoring"
+   }
+  }
+ },
+ "correction_path": {
+  "status": "applied 18 October 2026 (owner-approved deviation); see untouched-truth-correction-rescore-v1.json"
+ },
+ "truth_caveat": "Owner verification confirmed 811 drafted cells with no corrections (owner's count, 18 October 2026) but missed at least one drafting error (off-taiwan:3228022000311), found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate: table-level conclusions stand, cell scores are approximate. Cell counts: 811 is the owner's count, 527 (round 1) + 268 (round 2) + 16 (the round-4 re-check of off-taiwan:3228022000311, in which the owner reconfirmed all 16 cells, including the three later corrected); 795 is rounds 1 and 2 only; 676 is the number of cells in the truth file (654 scored and 22 unscored). Verified from the review sheet snapshots: rounds 1 and 2 counted review items, not only nutrient cells. Round 1's 527 = 446 nutrient cells + 54 serving-size and servings-per-pack lines (27 kept tables) + 27 keep decisions; round 2's 268 = 230 nutrient cells + 26 serving lines (13 kept tables) + 12 keep decisions. So 795 = 676 nutrient cells + 80 serving lines + 39 keep decisions, with no unexplained remainder; the 14 exclusion decisions are not in either count.",
+ "after_truth_correction": {
+  "route-b": {
+   "metrics": {
+    "strict_cells": {
+     "numerator": 74,
+     "denominator": 601,
+     "rate": 0.1231,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 80,
+     "denominator": 654,
+     "rate": 0.1223,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 74,
+     "denominator": 601,
+     "rate": 0.1231,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 4,
+     "denominator": 40,
+     "rate": 0.1,
+     "bar": 0.75,
+     "verdict": "fail"
+    },
+    "serving_conversions": {
+     "numerator": 33,
+     "denominator": 335,
+     "rate": 0.0985,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 5,
+     "denominator": 39,
+     "rate": 0.1282,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 0,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "pass"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    }
+   },
+   "false_ready_ids": []
+  },
+  "luna-off": {
+   "metrics": {
+    "strict_cells": {
+     "numerator": 536,
+     "denominator": 601,
+     "rate": 0.8918,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 573,
+     "denominator": 654,
+     "rate": 0.8761,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 548,
+     "denominator": 601,
+     "rate": 0.9118,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 30,
+     "denominator": 40,
+     "rate": 0.75,
+     "bar": 0.75,
+     "verdict": "pass"
+    },
+    "serving_conversions": {
+     "numerator": 282,
+     "denominator": 335,
+     "rate": 0.8418,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 37,
+     "denominator": 39,
+     "rate": 0.9487,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 4,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "fail"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    }
+   },
+   "false_ready_ids": [
+    "off-taiwan:4710018164101:nutrition_zh.11",
+    "off-taiwan:4710018168307:nutrition_zh.10",
+    "off-taiwan:4710105020310:nutrition_zh.13",
+    "off-taiwan:4710209334115:nutrition_zh.11"
+   ]
+  },
+  "gemini-on": {
+   "metrics": {
+    "strict_cells": {
+     "numerator": 524,
+     "denominator": 601,
+     "rate": 0.8719,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 566,
+     "denominator": 654,
+     "rate": 0.8654,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 524,
+     "denominator": 601,
+     "rate": 0.8719,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 34,
+     "denominator": 40,
+     "rate": 0.85,
+     "bar": 0.75,
+     "verdict": "pass"
+    },
+    "serving_conversions": {
+     "numerator": 290,
+     "denominator": 335,
+     "rate": 0.8657,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 35,
+     "denominator": 39,
+     "rate": 0.8974,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 1,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "fail"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    }
+   },
+   "false_ready_ids": [
+    "off-taiwan:4972767003715:nutrition_zh.8"
+   ]
+  },
+  "sol-on": {
+   "metrics": {
+    "strict_cells": {
+     "numerator": 541,
+     "denominator": 601,
+     "rate": 0.9002,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 583,
+     "denominator": 654,
+     "rate": 0.8914,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 542,
+     "denominator": 601,
+     "rate": 0.9018,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 34,
+     "denominator": 40,
+     "rate": 0.85,
+     "bar": 0.75,
+     "verdict": "pass"
+    },
+    "serving_conversions": {
+     "numerator": 291,
+     "denominator": 335,
+     "rate": 0.8687,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 36,
+     "denominator": 39,
+     "rate": 0.9231,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 0,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "pass"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    }
+   },
+   "false_ready_ids": []
+  }
+ },
+ "truth_consistency_check": {
+  "note": "Lists inconsistencies only; no value was changed (the owner decides).",
+  "records_usable": 40,
+  "records_with_a_mass_or_volume_serving": 40,
+  "records_with_both_columns": 32,
+  "nutrient_pairs_checked": 261,
+  "inconsistencies": []
+ }
+}

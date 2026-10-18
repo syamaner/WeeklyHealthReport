@@ -1,0 +1,8 @@
+{
+ "note": "Lists inconsistencies only; no value was changed (the owner decides).",
+ "records_usable": 40,
+ "records_with_a_mass_or_volume_serving": 40,
+ "records_with_both_columns": 32,
+ "nutrient_pairs_checked": 261,
+ "inconsistencies": []
+}

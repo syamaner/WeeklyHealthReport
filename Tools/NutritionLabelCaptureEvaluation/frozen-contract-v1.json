@@ -1,8 +1,8 @@
 {
   "schema_version": "label-capture-evaluation-contract-v1",
   "contract_version": "label-capture-evaluation-v1",
-  "status": "development_phase_4",
-  "status_note": "Phase 3 (#255): the owner verified the untouched Taiwan drafts (round 1), refills were drafted for round 2, the muesli photo has every consent flag, and route C is enabled for DEVELOPMENT photos only (the muesli photo, the Taiwan development photos and the UK development review images). Thresholds, adequacy minima, tolerances, selection, split and sealing rules are unchanged. Artefact hashes pin the current development state; they are re-pinned, and the status set to frozen_for_untouched_run, only when every route is frozen before the single untouched run. Phase 4 (#255, 18 October 2026): the deterministic decline gate `label-capture-decline-gate-v1` (decline_gate block) runs on every route's candidate after extraction and is frozen for the untouched run; saved development outputs of routes A, B and C were re-scored offline with it (no API call); the whole-call deadline closes route_c.deadline_gap. The untouched and sealed sets have still not been run. Owner amendments S1, M1, M2, M3 and T1 (18 October 2026) are applied and recorded in amendments_2026_10_18; development outputs were re-scored offline. After the PR #259 invariant review: decline gate v2 (G1 shared variants, G2 without standalone 錠, G4 per 100 g or ml only), the M3 unit match, a bounded DNS and connect, and the spend rule after a deadline cut; re-scored as results/gate-v2-rescore-v1.json.",
+  "status": "frozen_for_untouched_run",
+  "status_note": "Phase 3 (#255): the owner verified the untouched Taiwan drafts (round 1), refills were drafted for round 2, the muesli photo has every consent flag, and route C is enabled for DEVELOPMENT photos only (the muesli photo, the Taiwan development photos and the UK development review images). Thresholds, adequacy minima, tolerances, selection, split and sealing rules are unchanged. Artefact hashes pin the current development state; they are re-pinned, and the status set to frozen_for_untouched_run, only when every route is frozen before the single untouched run. Phase 4 (#255, 18 October 2026): the deterministic decline gate `label-capture-decline-gate-v1` (decline_gate block) runs on every route's candidate after extraction and is frozen for the untouched run; saved development outputs of routes A, B and C were re-scored offline with it (no API call); the whole-call deadline closes route_c.deadline_gap. The untouched and sealed sets have still not been run. Owner amendments S1, M1, M2, M3 and T1 (18 October 2026) are applied and recorded in amendments_2026_10_18; development outputs were re-scored offline. After the PR #259 invariant review: decline gate v2 (G1 shared variants, G2 without standalone 錠, G4 per 100 g or ml only), the M3 unit match, a bounded DNS and connect, and the spend rule after a deadline cut; re-scored as results/gate-v2-rescore-v1.json. Phase 5 (18 October 2026): round-3 truth answers applied, then the contract was frozen for the single untouched Taiwan run (untouched_run).",
   "plan": "docs/nutrition-label-capture-evaluation-v1.md",
   "plan_approved": "2026-10-17",
   "framework": {
@@ -238,7 +238,7 @@
     },
     "logged_request_check": "The key is only in the Authorization header of openrouter_client's POST; the Inspect log holds the request body without the image and the response body, never a header.",
     "runner": "run_route_c.py: refuses to start while route_c.enabled is false or for a model not pinned here with a passed gate; refuses a log directory or ledger inside the repository; reads the key from the environment or one dotenv variable into the process only; posts through openrouter_client (one retry loop, every attempt in the ledger); Inspect runs on mockllm/model with log_images False; runs the two qualification labels first; maps answers with route_c_mapping.py",
-    "enabled_scope": "DEVELOPMENT photos only (phase 3, 17 October 2026): the muesli photo (send_to_openrouter consent), the Taiwan development photos and the UK development review images. The untouched and sealed photos, untouched truth and drafts are never read by route C.",
+    "enabled_scope": "DEVELOPMENT photos only (phase 3, 17 October 2026): the muesli photo (send_to_openrouter consent), the Taiwan development photos and the UK development review images. The untouched and sealed photos, untouched truth and drafts are never read by route C. Phase 5 (18 October 2026): additionally the single untouched Taiwan run for the three frozen arms in untouched_run, through run_untouched.py only.",
     "qualification": "Before any real image, each model gets two fictional labels rendered by qualification/render_qualification.swift (one Taiwan, one UK); a model that does not return an accepted, schema-valid, non-declined answer for both is sent no real image.",
     "reasoning_note": "Two development runs per model: reasoning off sends reasoning {enabled: false}; reasoning on sends reasoning {enabled: true} with no effort set, the model's default effort.",
     "timeouts": "180 s total deadline per call including retries, enforced per attempt as a whole-call deadline since phase 4; no streaming",
@@ -584,7 +584,7 @@
   "ground_truth": {
     "development_off_taiwan": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json",
     "development_off_taiwan_status": "first_pass_unverified",
-    "untouched_sha256": "d40a56b7b35aad65a26338ded755bb22475520ccf1dd6fc2a26150c64e5b57a3",
+    "untouched_sha256": "8c871d2d0d866f1ba4af72072767294f55b39d901818cf7e569ac2fb62495c46",
     "development_off_taiwan_drafting": "Pass 1 of the 20 Taiwan development truths was drafted by Claude (the assistant); Claude Opus route C results on development data carry that caveat.",
     "untouched_taiwan_status": "owner_verified (rounds 1 and 2 complete): 40 usable tables, 14 exclusion records, 0 required declines",
     "untouched": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-untouched-v1.json",
@@ -601,7 +601,8 @@
       "round_2": "17 October 2026: order 34 (redrafted with the bilingual instruction v1.2) and refills 63 to 77; 268 of 268 cells confirmed with no corrections; refill exclusions 66 (Thai), 71 (Simplified Chinese) and 75 (English) agreed. The owner confirmed order 34's printed values as drafted, including 熱量 '100' with no unit, which is kept as printed and ungradable (no unit inferred). Order 34's round-1 keep decision was applied to its new draft's table decision.",
       "mechanical_nutrient_mappings": "nutrient keys were not on the review page; in order 34 the draft left 'Sodium/鈉' unrecognised and the agent's mechanical check maps it to sodium (exact closed Taiwan row name), recorded in the record's review block and not owner-verified"
     },
-    "untouched_pinning": "untouched_sha256 pins the complete file (40 usable records, 14 exclusion records). It is frozen with the contract before the single untouched run."
+    "untouched_pinning": "untouched_sha256 pins the complete file (40 usable records, 14 exclusion records). It is frozen with the contract before the single untouched run.",
+    "untouched_taiwan_caveat": "Owner verification confirmed 811 drafted cells with no corrections (owner's count, 18 October 2026) but missed at least one drafting error (off-taiwan:3228022000311), found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate: table-level conclusions stand, cell scores are approximate. Cell counts: 811 is the owner's count, 527 (round 1) + 268 (round 2) + 16 (the round-4 re-check of off-taiwan:3228022000311, in which the owner reconfirmed all 16 cells, including the three later corrected); 795 is rounds 1 and 2 only; 676 is the number of cells in the truth file (654 scored and 22 unscored). Verified from the review sheet snapshots: rounds 1 and 2 counted review items, not only nutrient cells. Round 1's 527 = 446 nutrient cells + 54 serving-size and servings-per-pack lines (27 kept tables) + 27 keep decisions; round 2's 268 = 230 nutrient cells + 26 serving lines (13 kept tables) + 12 keep decisions. So 795 = 676 nutrient cells + 80 serving lines + 39 keep decisions, with no unexplained remainder; the 14 exclusion decisions are not in either count."
   },
   "frozen_artefacts": {
     "Tools/NutritionLabelCaptureEvaluation/candidate-schema-v1.json": "74333555741f73f2557fe74e11cfcb7b2693f5a261c49957a9e8e6e39404e531",
@@ -611,15 +612,15 @@
     "Tools/NutritionLabelCaptureEvaluation/budget.py": "a053fbf7b576f7daa3376a0ac7be77e4f3b26c9dbbf19e5a46f7bcb73494babb",
     "Tools/NutritionLabelCaptureEvaluation/openrouter_route.py": "18d21a1fe43a46cf10b72ca492da5faccb40c8026b7884836fa20cf8ef1afdf7",
     "Tools/NutritionLabelCaptureEvaluation/requirements-dev.lock": "ecdedef956a76eeed2983139f2b82f89bf0ebbecd54b5de4bc8e964e4c32674a",
-    "Tools/NutritionLabelCaptureEvaluation/cases.py": "aed4d908ed026d50699849b28e6aaf3e883c60185f4fe59eb7c2665c4b850890",
-    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "1e2bf3ed0c012d771fa57cdc29c528ba4871b6fc5587f55b334be78dc4bfd8c9",
+    "Tools/NutritionLabelCaptureEvaluation/cases.py": "7322e8ebf6713e2dfc39f65e6f471c73b69f3209544e2244eda7117f23950d12",
+    "Tools/NutritionLabelCaptureEvaluation/inspect_task.py": "50c075c4eefa0a00fd6cc3772eb0efd32037848f41162d3cc54221687c256001",
     "Tools/NutritionLabelCaptureEvaluation/requirements.txt": "56dfa330c985616b9a3704fc5f5df526abb6e7136ece92a29bfa471db190acf4",
     "Tools/NutritionLabelCaptureEvaluation/synthetic/render.py": "6c8fcb7d30f7829f1f493859bc63ae6828c4af67dff77aa1aded7919c0996ae1",
     "Tools/NutritionLabelCaptureEvaluation/build_cases.py": "4fcaf2685f24d4a359ff7d7d76ea36464dfd000a3582bbca375b613031e38b15",
     "Tools/NutritionLabelCaptureEvaluation/synthetic/development-cases-v1.jsonl": "894a406d6e1a720b0712517beb59da3387171d7c3e6cedd46b2b7a7813175da8",
     "Tools/NutritionLabelCaptureEvaluation/fixtures/off-taiwan-manifest-v1.json": "09569cc778a9e880443b5c2a5d37bdb08c9505ce90df2e96bf750a14a79bcc0f",
     "Tools/NutritionLabelCaptureEvaluation/fixtures/fda-188-source-v1.json": "f39b56aaef33cce0d0ab01555938a54cb4254521205eb5007e47b677632fd82b",
-    "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json": "ba3d75f03c19214d368ed508e0cebf14e640c99c929b7c4ff6c9f1f49d31029d",
+    "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json": "d018d326d0415aae337ac837048cc5d6f6cfc36bc529ced585e00a4c3345bdc2",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/label-image-extraction-instruction-v1.txt": "1839bc16b275f6f92e9d1a9af1a50d3c4a03185dd06425d5f267286b5fffc3e2",
     "Tools/NutritionLabelCaptureEvaluation/openrouter/label-image-wire-schema-v1.json": "7e9f9cf9d3f67dbbf1cac9b70d6163e7609e7da82447e67291291a37cbad0007",
     "Packages/FoodLedgerKit/Sources/NutritionLabelParsing/LabelCaptureCandidate.swift": "65722296a95944d0c6d32505beb35f469c0906cd7782fed769aa0c6a5576c76f",
@@ -638,7 +639,9 @@
     "Tools/NutritionLabelCaptureEvaluation/route_c_mapping.py": "ff73ea3cac3a98b027383b2033cb49aa1500ccca27723d439cb1a565d44a6466",
     "Tools/NutritionLabelCaptureEvaluation/openrouter_client.py": "a7af4c1ed4692446d7ff6435fbd97293b614e18dabe198d4159c8d4e299cf714",
     "Tools/NutritionLabelCaptureEvaluation/qualification/render_qualification.swift": "0820650b78c72abaf480b079d2f4454612e1151d86fcfba84327f2c770fc3e91",
-    "Tools/NutritionLabelCaptureEvaluation/decline_gate.py": "4c1a3f4429a635c269e5c1b7148f096f5d0d224101068f4d187efde04be8392d"
+    "Tools/NutritionLabelCaptureEvaluation/decline_gate.py": "4c1a3f4429a635c269e5c1b7148f096f5d0d224101068f4d187efde04be8392d",
+    "Tools/NutritionLabelCaptureEvaluation/run_untouched.py": "30474638c10c0ab1a8221b2426087b4dfe2e37cf134d88a962b7dac16bef4dc7",
+    "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-untouched-v1.json": "8c871d2d0d866f1ba4af72072767294f55b39d901818cf7e569ac2fb62495c46"
   },
   "untouched_truth_drafting": {
     "owner_decision": "A, 17 October 2026",
@@ -938,5 +941,227 @@
       "not_applied_to": "the route A v2dev synthetic pasted-text cases, whose rendered truth is part of the pinned development dataset; Taiwan truths carry no reference_intake_transcribed field and score as before"
     },
     "rescore": "results/amendments-rescore-v1.json (offline, no API call; route C re-mapped from the saved wire answers; before = results/decline-gate-rescore-v1.json at commit f313578c)"
+  },
+  "round3_truth_changes_2026_10_18": {
+    "decision": "owner answers to the round-3 review of possible development truth errors, 18 October 2026",
+    "changes": [
+      {
+        "case_id": "off-taiwan:4710228034096:nutrition_zh.7",
+        "change": "required decline removed (the per-100 ml sodium is legible, printed 19毫克); the record is a usable table whose truth is incomplete (owner verified only 鈉 每100毫升 19毫克), so it is excluded from development scoring rather than filled",
+        "file": "fixtures/ground-truth-off-taiwan-development-v1.json"
+      }
+    ],
+    "confirmed_unchanged": [
+      "off:5010482793302:nutrition_en.5: per-slice saturates 0.1g and sugars 1.7g are printed; the truth stands and the models' misses are model errors"
+    ],
+    "log": "results/truth-changes-round3-v1.json",
+    "rescore": "results/round3-rescore-v1.json (offline, gate v2)"
+  },
+  "untouched_run": {
+    "decision": "owner, 18 October 2026: run the untouched Taiwan set once, after the round-3 answers and the merge of #259",
+    "set": "the 40 usable owner-verified untouched Taiwan tables (fixtures/ground-truth-off-taiwan-untouched-v1.json, pinned by ground_truth.untouched_sha256); the recorded exclusions are reported, not run",
+    "truth_evidence_label": "model-drafted, owner-verified (no owner corrections)",
+    "unseal": "explicit --unseal flag plus the sealed manifest SHA-256 (corpus.off_taiwan.manifest_sha256); every photo's bytes are checked against the manifest",
+    "runner": "Tools/NutritionLabelCaptureEvaluation/run_untouched.py; each route and arm runs exactly once (run register outside the repository); no rerun and no tuning after results; an infrastructure failure stops the arm and is reported",
+    "decline_gate": "label-capture-decline-gate-v2 on every route",
+    "route_c_arms": {
+      "gemini-on": {
+        "label": "gemini",
+        "reasoning": "on",
+        "slug": "google/gemini-4-argon",
+        "endpoint": "google-ai-studio"
+      },
+      "sol-on": {
+        "label": "sol",
+        "reasoning": "on",
+        "slug": "openai/gpt-6.1-sol",
+        "endpoint": "openai"
+      },
+      "luna-off": {
+        "label": "luna",
+        "reasoning": "off",
+        "slug": "openai/gpt-6-luna",
+        "endpoint": "openai"
+      }
+    },
+    "route_c_settings": "as the development arms: one pinned provider, no fallbacks, parameters required, 16384 output tokens, $0.20 per-call stop, retries per route_c.retry_policy, and the whole-call deadline (route_c.deadline_gap); sealed reservation ledger (sealed_run true)",
+    "pre_run_checks": "free catalogue lookup (same slug, endpoint, provider, prices, required parameters and status; any change stops the run with no substitution); free key and account lookups must cover the arm's projection with margin and the $40 sealed reservation; both fictional qualification labels pass first",
+    "route_b": {
+      "vision_binary": "~/WHR-label-eval-private/bin/vision_v3-phase5, built from the pinned vision_v3.swift on 18 October 2026",
+      "vision_binary_sha256": "6a21cda7bd38b7bb4453373358b1ca9729b649f8b8e8e1bd062ff1d4fa6074c7",
+      "parser_binary": "~/WHR-label-eval-private/bin/NutritionLabelTextParse-phase5, built from the pinned NutritionLabelParsing sources",
+      "parser_binary_sha256": "95c259254a1a014c4163878f07b37db22f3222eb21580a3ff09a03c2c1ffd668"
+    },
+    "route_a": {
+      "summary": "run once on 18 October 2026 by owner decision: the untouched FDA 188 and template pasted-text cases (107, 15 required declines) rendered with the frozen generator path (run_untouched_text.py; the same path reproduces the committed development cases byte for byte), the frozen parser binary, decline gate v2 and the frozen scorer; dataset SHA-256 9eace6511eee1a0defb1c251a772b152a9a13169a49d894ca67e7cf2cc09c3c4; every route-output bar passes; arithmetic mutation detection 110/116 fails its 100% bar (policy, not route)",
+      "runner": "Tools/NutritionLabelCaptureEvaluation/run_untouched_text.py",
+      "runner_sha256_as_run": "595513109db8aa750a0ff33b59bb76dba7f1b80f33bd79718cd1b9af9ef313b2",
+      "runner_commit_as_run": "6eadb4aa",
+      "provenance_label": "written after the photo freeze; mirrors build_cases logic",
+      "byte_for_byte_test_before_run": {
+        "test": "tests/test_phase5_text.py (local only; needs the FDA 188 CSV)",
+        "ran": "yes, locally with the CSV present, before the run",
+        "at": "2026-10-18T06:12:02Z (transcript time of the result)",
+        "result": "2 tests OK, including test_development_split_is_reproduced_byte_for_byte",
+        "run_started_at": "2026-10-18T06:12:15Z (run register)",
+        "evidence": "the agent transcript of this phase; the tested files are byte-identical to commit 6eadb4aa"
+      },
+      "byte_for_byte_test_recheck": {
+        "at": "2026-10-18T07:30:34Z",
+        "result": "2 tests OK",
+        "note": "separate re-run after the PR #260 review"
+      },
+      "post_run_edit": {
+        "runner_sha256_now": "fb0c7e718566c59265783827b75359ee08be2f147653e8247485fd1d0f9ba37b",
+        "change": "refuses a --register other than untouched_run.run_register (PR #260 review); no change to rendering, parsing or scoring"
+      }
+    },
+    "result_caveat": "Owner verification confirmed 811 drafted cells with no corrections (owner's count, 18 October 2026) but missed at least one drafting error (off-taiwan:3228022000311), found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate: table-level conclusions stand, cell scores are approximate. Cell counts: 811 is the owner's count, 527 (round 1) + 268 (round 2) + 16 (the round-4 re-check of off-taiwan:3228022000311, in which the owner reconfirmed all 16 cells, including the three later corrected); 795 is rounds 1 and 2 only; 676 is the number of cells in the truth file (654 scored and 22 unscored). Verified from the review sheet snapshots: rounds 1 and 2 counted review items, not only nutrient cells. Round 1's 527 = 446 nutrient cells + 54 serving-size and servings-per-pack lines (27 kept tables) + 27 keep decisions; round 2's 268 = 230 nutrient cells + 26 serving lines (13 kept tables) + 12 keep decisions. So 795 = 676 nutrient cells + 80 serving lines + 39 keep decisions, with no unexplained remainder; the 14 exclusion decisions are not in either count.",
+    "run_register": "~/WHR-label-eval-private/untouched-run-register-v1.json"
+  },
+  "untouched_truth_deviations": {
+    "procedure": "default procedure (superseded for the one applied correction by the owner override at the end): an owner correction of the frozen untouched truth is never applied by editing the pinned file: the answers go in a separate corrections file, rescore_untouched.py applies them in memory to a copy (refusing ambiguous, stale or excluded targets) and re-scores the saved untouched outputs offline; the run is never repeated; each applied correction is recorded here with its answers, changed cells and the before and after numbers; owner override, 18 October 2026: for off-taiwan:3228022000311 the owner directed that the truth file itself be updated with the corrections and its hash re-pinned, after the in-memory re-score had been run from the separate corrections file",
+    "pending": [],
+    "applied": [
+      {
+        "at": "2026-10-18",
+        "approved_by": "owner",
+        "after_untouched_run": true,
+        "case_id": "off-taiwan:3228022000311:nutrition_zh.12",
+        "corrections_file": "Tools/NutritionLabelCaptureEvaluation/fixtures/untouched-truth-corrections-v1.json",
+        "cells": [
+          {
+            "nutrient": "energy_kcal",
+            "basis": "per_serving",
+            "before": {
+              "printed_text": "745大卡",
+              "comparator": "=",
+              "decimal_text": "745",
+              "unit": "大卡",
+              "canonical_unit": "kcal"
+            },
+            "after": {
+              "printed_text": "74.5大卡",
+              "comparator": "=",
+              "decimal_text": "74.5",
+              "unit": "大卡",
+              "canonical_unit": "kcal"
+            }
+          },
+          {
+            "nutrient": "fat",
+            "basis": "per_100g",
+            "before": {
+              "printed_text": "8.2公克",
+              "comparator": "=",
+              "decimal_text": "8.2",
+              "unit": "公克",
+              "canonical_unit": "g"
+            },
+            "after": {
+              "printed_text": "82公克",
+              "comparator": "=",
+              "decimal_text": "82",
+              "unit": "公克",
+              "canonical_unit": "g"
+            }
+          },
+          {
+            "nutrient": "saturates",
+            "basis": "per_100g",
+            "before": {
+              "printed_text": "5.7公克",
+              "comparator": "=",
+              "decimal_text": "5.7",
+              "unit": "公克",
+              "canonical_unit": "g"
+            },
+            "after": {
+              "printed_text": "57公克",
+              "comparator": "=",
+              "decimal_text": "57",
+              "unit": "公克",
+              "canonical_unit": "g"
+            }
+          }
+        ],
+        "truth_sha256_before": "d40a56b7b35aad65a26338ded755bb22475520ccf1dd6fc2a26150c64e5b57a3",
+        "truth_sha256_after": "8c871d2d0d866f1ba4af72072767294f55b39d901818cf7e569ac2fb62495c46",
+        "repin": "only the untouched truth hash (ground_truth.untouched_sha256 and its frozen_artefacts entry) was changed, by this recorded deviation; the contract stays frozen_for_untouched_run and no other artefact was re-pinned",
+        "rescore": "Tools/NutritionLabelCaptureEvaluation/results/untouched-truth-correction-rescore-v1.json (saved outputs, no rerun, no API call)",
+        "post_freeze_record_edits": [
+          {
+            "commit": "221ccb29",
+            "files": [
+              "results/untouched-taiwan-v1.md",
+              "results/untouched-taiwan-v1.json",
+              "README.md"
+            ],
+            "contract_fields": []
+          },
+          {
+            "commit": "6eadb4aa",
+            "files": [
+              "run_untouched_text.py (new)",
+              "tests/test_phase5_text.py (new)"
+            ],
+            "contract_fields": []
+          },
+          {
+            "commit": "32f59aff",
+            "files": [
+              "rescore_untouched.py (new)",
+              "results/untouched-taiwan-v1.md",
+              "results/untouched-taiwan-v1.json",
+              "README.md",
+              "tests/test_phase5.py"
+            ],
+            "contract_fields": [
+              "untouched_run.route_a",
+              "untouched_truth_deviations"
+            ]
+          },
+          {
+            "commit": "ee28b127",
+            "files": [
+              "fixtures/ground-truth-off-taiwan-untouched-v1.json (3 cells, evidence_label, counts.owner_corrections, record review.owner_correction_2026_10_18, post_run_correction_note)",
+              "fixtures/untouched-truth-corrections-v1.json (new)",
+              "consistency_check.py (new)",
+              "results (md, json, correction re-score, consistency)",
+              "tests/test_phase3.py",
+              "tests/test_phase5.py"
+            ],
+            "contract_fields": [
+              "ground_truth.untouched_sha256",
+              "frozen_artefacts[fixtures/ground-truth-off-taiwan-untouched-v1.json]",
+              "ground_truth.untouched_taiwan_caveat",
+              "untouched_truth_deviations (procedure, pending, applied, caveat)",
+              "untouched_run.result_caveat"
+            ]
+          },
+          {
+            "commit": "this commit (PR #260 review fixes)",
+            "files": [
+              "run_untouched.py (register guard)",
+              "run_untouched_text.py (register guard)",
+              "rescore_untouched.py",
+              "consistency_check.py (docstring)",
+              "results",
+              "plan",
+              "ledger"
+            ],
+            "contract_fields": [
+              "frozen_artefacts[run_untouched.py] 6e0dfddad25e85130f62aa4b3e4076cbbd24d915d3313c018fff712a5190fb52 -> 30474638c10c0ab1a8221b2426087b4dfe2e37cf134d88a962b7dac16bef4dc7 (register guard only; the run used 6e0dfddad25e85130f62aa4b3e4076cbbd24d915d3313c018fff712a5190fb52)",
+              "untouched_run.run_register",
+              "untouched_run.route_a (provenance)",
+              "untouched_truth_deviations.caveat, ground_truth.untouched_taiwan_caveat, untouched_run.result_caveat (cell counts)",
+              "untouched_truth_deviations.applied[0].post_freeze_record_edits"
+            ]
+          }
+        ],
+        "reproduce": "git show 32f59aff:Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-untouched-v1.json > /tmp/truth-as-run.json; .venv/bin/python rescore_untouched.py --truth /tmp/truth-as-run.json --expected-sha256 d40a56b7b35aad65a26338ded755bb22475520ccf1dd6fc2a26150c64e5b57a3 --corrections fixtures/untouched-truth-corrections-v1.json --out results/untouched-truth-correction-rescore-v1.json (reproduced on 18 October 2026: identical arms and corrections)"
+      }
+    ],
+    "caveat": "Owner verification confirmed 811 drafted cells with no corrections (owner's count, 18 October 2026) but missed at least one drafting error (off-taiwan:3228022000311), found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate: table-level conclusions stand, cell scores are approximate. Cell counts: 811 is the owner's count, 527 (round 1) + 268 (round 2) + 16 (the round-4 re-check of off-taiwan:3228022000311, in which the owner reconfirmed all 16 cells, including the three later corrected); 795 is rounds 1 and 2 only; 676 is the number of cells in the truth file (654 scored and 22 unscored). Verified from the review sheet snapshots: rounds 1 and 2 counted review items, not only nutrient cells. Round 1's 527 = 446 nutrient cells + 54 serving-size and servings-per-pack lines (27 kept tables) + 27 keep decisions; round 2's 268 = 230 nutrient cells + 26 serving lines (13 kept tables) + 12 keep decisions. So 795 = 676 nutrient cells + 80 serving lines + 39 keep decisions, with no unexplained remainder; the 14 exclusion decisions are not in either count."
   }
 }

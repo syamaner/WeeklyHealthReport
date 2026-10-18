@@ -1,0 +1,769 @@
+{
+ "note": "Offline re-score of the saved untouched outputs; no rerun and no API call. frozen_truth is the truth file given; corrected_truth is that file with the corrections applied in memory.",
+ "truth_sha256": "d40a56b7b35aad65a26338ded755bb22475520ccf1dd6fc2a26150c64e5b57a3",
+ "truth_sha256_note": "superseded: this is an earlier truth file; the contract now pins 8c871d2d0d866f1ba4af72072767294f55b39d901818cf7e569ac2fb62495c46",
+ "corrections_applied": [
+  {
+   "case_id": "off-taiwan:3228022000311:nutrition_zh.12",
+   "nutrient": "energy_kcal",
+   "basis": "per_serving",
+   "before": {
+    "printed_text": "745大卡",
+    "comparator": "=",
+    "decimal_text": "745",
+    "unit": "大卡",
+    "canonical_unit": "kcal"
+   },
+   "after": {
+    "printed_text": "74.5大卡",
+    "comparator": "=",
+    "decimal_text": "74.5",
+    "unit": "大卡",
+    "canonical_unit": "kcal"
+   }
+  },
+  {
+   "case_id": "off-taiwan:3228022000311:nutrition_zh.12",
+   "nutrient": "fat",
+   "basis": "per_100g",
+   "before": {
+    "printed_text": "8.2公克",
+    "comparator": "=",
+    "decimal_text": "8.2",
+    "unit": "公克",
+    "canonical_unit": "g"
+   },
+   "after": {
+    "printed_text": "82公克",
+    "comparator": "=",
+    "decimal_text": "82",
+    "unit": "公克",
+    "canonical_unit": "g"
+   }
+  },
+  {
+   "case_id": "off-taiwan:3228022000311:nutrition_zh.12",
+   "nutrient": "saturates",
+   "basis": "per_100g",
+   "before": {
+    "printed_text": "5.7公克",
+    "comparator": "=",
+    "decimal_text": "5.7",
+    "unit": "公克",
+    "canonical_unit": "g"
+   },
+   "after": {
+    "printed_text": "57公克",
+    "comparator": "=",
+    "decimal_text": "57",
+    "unit": "公克",
+    "canonical_unit": "g"
+   }
+  }
+ ],
+ "arms": {
+  "route-b": {
+   "log": "2026-10-18T05-29-38-00-00_label-capture-route-b-untouched_6pakfnyA7NjW2gMxK85iKM.eval",
+   "frozen_truth": {
+    "cases": 40,
+    "failed": 0,
+    "false_declines": 35,
+    "extra_cells": 0,
+    "serving_size": {
+     "exact": 4,
+     "known": 40
+    },
+    "would_mark_ready_after_arithmetic": 2,
+    "energy_check_informing_only": {
+     "not_checkable": 35,
+     "pass": 5
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 74,
+      "denominator": 601,
+      "rate": 0.1231,
+      "bar": 0.95,
+      "verdict": "fail"
+     },
+     "binding": {
+      "numerator": 80,
+      "denominator": 654,
+      "rate": 0.1223,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "unit_and_basis": {
+      "numerator": 74,
+      "denominator": 601,
+      "rate": 0.1231,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "full_table": {
+      "numerator": 4,
+      "denominator": 40,
+      "rate": 0.1,
+      "bar": 0.75,
+      "verdict": "fail"
+     },
+     "serving_conversions": {
+      "numerator": 33,
+      "denominator": 335,
+      "rate": 0.0985,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "servings_per_pack": {
+      "numerator": 5,
+      "denominator": 39,
+      "rate": 0.1282,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "bounds": {
+      "numerator": 0,
+      "denominator": 1,
+      "rate": 0.0,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "correct_decline": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 0.95,
+      "verdict": "no_denominator"
+     },
+     "false_ready": {
+      "count": 0,
+      "denominator": 40,
+      "bar": "<= 0",
+      "verdict": "pass"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    },
+    "false_ready_ids": []
+   },
+   "corrected_truth": {
+    "cases": 40,
+    "failed": 0,
+    "false_declines": 35,
+    "extra_cells": 0,
+    "serving_size": {
+     "exact": 4,
+     "known": 40
+    },
+    "would_mark_ready_after_arithmetic": 2,
+    "energy_check_informing_only": {
+     "not_checkable": 35,
+     "pass": 5
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 74,
+      "denominator": 601,
+      "rate": 0.1231,
+      "bar": 0.95,
+      "verdict": "fail"
+     },
+     "binding": {
+      "numerator": 80,
+      "denominator": 654,
+      "rate": 0.1223,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "unit_and_basis": {
+      "numerator": 74,
+      "denominator": 601,
+      "rate": 0.1231,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "full_table": {
+      "numerator": 4,
+      "denominator": 40,
+      "rate": 0.1,
+      "bar": 0.75,
+      "verdict": "fail"
+     },
+     "serving_conversions": {
+      "numerator": 33,
+      "denominator": 335,
+      "rate": 0.0985,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "servings_per_pack": {
+      "numerator": 5,
+      "denominator": 39,
+      "rate": 0.1282,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "bounds": {
+      "numerator": 0,
+      "denominator": 1,
+      "rate": 0.0,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "correct_decline": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 0.95,
+      "verdict": "no_denominator"
+     },
+     "false_ready": {
+      "count": 0,
+      "denominator": 40,
+      "bar": "<= 0",
+      "verdict": "pass"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    },
+    "false_ready_ids": []
+   }
+  },
+  "luna-off": {
+   "log": "2026-10-18T05-31-05-00-00_label-capture-route-c-untouched_9MGD5iYSTCa5KMWDkDJrEH.eval",
+   "frozen_truth": {
+    "cases": 40,
+    "failed": 0,
+    "false_declines": 2,
+    "extra_cells": 40,
+    "serving_size": {
+     "exact": 35,
+     "known": 40
+    },
+    "would_mark_ready_after_arithmetic": 31,
+    "energy_check_informing_only": {
+     "fail": 2,
+     "not_checkable": 2,
+     "pass": 36
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 536,
+      "denominator": 601,
+      "rate": 0.8918,
+      "bar": 0.95,
+      "verdict": "fail"
+     },
+     "binding": {
+      "numerator": 573,
+      "denominator": 654,
+      "rate": 0.8761,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "unit_and_basis": {
+      "numerator": 548,
+      "denominator": 601,
+      "rate": 0.9118,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "full_table": {
+      "numerator": 30,
+      "denominator": 40,
+      "rate": 0.75,
+      "bar": 0.75,
+      "verdict": "pass"
+     },
+     "serving_conversions": {
+      "numerator": 282,
+      "denominator": 335,
+      "rate": 0.8418,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "servings_per_pack": {
+      "numerator": 37,
+      "denominator": 39,
+      "rate": 0.9487,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "bounds": {
+      "numerator": 0,
+      "denominator": 1,
+      "rate": 0.0,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "correct_decline": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 0.95,
+      "verdict": "no_denominator"
+     },
+     "false_ready": {
+      "count": 4,
+      "denominator": 40,
+      "bar": "<= 0",
+      "verdict": "fail"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    },
+    "false_ready_ids": [
+     "off-taiwan:4710018164101:nutrition_zh.11",
+     "off-taiwan:4710018168307:nutrition_zh.10",
+     "off-taiwan:4710105020310:nutrition_zh.13",
+     "off-taiwan:4710209334115:nutrition_zh.11"
+    ]
+   },
+   "corrected_truth": {
+    "cases": 40,
+    "failed": 0,
+    "false_declines": 2,
+    "extra_cells": 40,
+    "serving_size": {
+     "exact": 35,
+     "known": 40
+    },
+    "would_mark_ready_after_arithmetic": 31,
+    "energy_check_informing_only": {
+     "fail": 2,
+     "not_checkable": 2,
+     "pass": 36
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 536,
+      "denominator": 601,
+      "rate": 0.8918,
+      "bar": 0.95,
+      "verdict": "fail"
+     },
+     "binding": {
+      "numerator": 573,
+      "denominator": 654,
+      "rate": 0.8761,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "unit_and_basis": {
+      "numerator": 548,
+      "denominator": 601,
+      "rate": 0.9118,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "full_table": {
+      "numerator": 30,
+      "denominator": 40,
+      "rate": 0.75,
+      "bar": 0.75,
+      "verdict": "pass"
+     },
+     "serving_conversions": {
+      "numerator": 282,
+      "denominator": 335,
+      "rate": 0.8418,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "servings_per_pack": {
+      "numerator": 37,
+      "denominator": 39,
+      "rate": 0.9487,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "bounds": {
+      "numerator": 0,
+      "denominator": 1,
+      "rate": 0.0,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "correct_decline": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 0.95,
+      "verdict": "no_denominator"
+     },
+     "false_ready": {
+      "count": 4,
+      "denominator": 40,
+      "bar": "<= 0",
+      "verdict": "fail"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    },
+    "false_ready_ids": [
+     "off-taiwan:4710018164101:nutrition_zh.11",
+     "off-taiwan:4710018168307:nutrition_zh.10",
+     "off-taiwan:4710105020310:nutrition_zh.13",
+     "off-taiwan:4710209334115:nutrition_zh.11"
+    ]
+   }
+  },
+  "gemini-on": {
+   "log": "2026-10-18T05-32-42-00-00_label-capture-route-c-untouched_GGxTYXNEJxpGTb7rnqf93k.eval",
+   "frozen_truth": {
+    "cases": 40,
+    "failed": 0,
+    "false_declines": 5,
+    "extra_cells": 2,
+    "serving_size": {
+     "exact": 35,
+     "known": 40
+    },
+    "would_mark_ready_after_arithmetic": 33,
+    "energy_check_informing_only": {
+     "not_checkable": 5,
+     "pass": 35
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 521,
+      "denominator": 601,
+      "rate": 0.8669,
+      "bar": 0.95,
+      "verdict": "fail"
+     },
+     "binding": {
+      "numerator": 563,
+      "denominator": 654,
+      "rate": 0.8609,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "unit_and_basis": {
+      "numerator": 524,
+      "denominator": 601,
+      "rate": 0.8719,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "full_table": {
+      "numerator": 33,
+      "denominator": 40,
+      "rate": 0.825,
+      "bar": 0.75,
+      "verdict": "pass"
+     },
+     "serving_conversions": {
+      "numerator": 290,
+      "denominator": 335,
+      "rate": 0.8657,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "servings_per_pack": {
+      "numerator": 35,
+      "denominator": 39,
+      "rate": 0.8974,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "bounds": {
+      "numerator": 0,
+      "denominator": 1,
+      "rate": 0.0,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "correct_decline": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 0.95,
+      "verdict": "no_denominator"
+     },
+     "false_ready": {
+      "count": 2,
+      "denominator": 40,
+      "bar": "<= 0",
+      "verdict": "fail"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    },
+    "false_ready_ids": [
+     "off-taiwan:3228022000311:nutrition_zh.12",
+     "off-taiwan:4972767003715:nutrition_zh.8"
+    ]
+   },
+   "corrected_truth": {
+    "cases": 40,
+    "failed": 0,
+    "false_declines": 5,
+    "extra_cells": 2,
+    "serving_size": {
+     "exact": 35,
+     "known": 40
+    },
+    "would_mark_ready_after_arithmetic": 33,
+    "energy_check_informing_only": {
+     "not_checkable": 5,
+     "pass": 35
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 524,
+      "denominator": 601,
+      "rate": 0.8719,
+      "bar": 0.95,
+      "verdict": "fail"
+     },
+     "binding": {
+      "numerator": 566,
+      "denominator": 654,
+      "rate": 0.8654,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "unit_and_basis": {
+      "numerator": 524,
+      "denominator": 601,
+      "rate": 0.8719,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "full_table": {
+      "numerator": 34,
+      "denominator": 40,
+      "rate": 0.85,
+      "bar": 0.75,
+      "verdict": "pass"
+     },
+     "serving_conversions": {
+      "numerator": 290,
+      "denominator": 335,
+      "rate": 0.8657,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "servings_per_pack": {
+      "numerator": 35,
+      "denominator": 39,
+      "rate": 0.8974,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "bounds": {
+      "numerator": 0,
+      "denominator": 1,
+      "rate": 0.0,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "correct_decline": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 0.95,
+      "verdict": "no_denominator"
+     },
+     "false_ready": {
+      "count": 1,
+      "denominator": 40,
+      "bar": "<= 0",
+      "verdict": "fail"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    },
+    "false_ready_ids": [
+     "off-taiwan:4972767003715:nutrition_zh.8"
+    ]
+   }
+  },
+  "sol-on": {
+   "log": "2026-10-18T05-35-08-00-00_label-capture-route-c-untouched_K8L9qYbjjn8iZUMe7tZxxb.eval",
+   "frozen_truth": {
+    "cases": 40,
+    "failed": 0,
+    "false_declines": 4,
+    "extra_cells": 0,
+    "serving_size": {
+     "exact": 35,
+     "known": 40
+    },
+    "would_mark_ready_after_arithmetic": 32,
+    "energy_check_informing_only": {
+     "not_checkable": 4,
+     "pass": 36
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 538,
+      "denominator": 601,
+      "rate": 0.8952,
+      "bar": 0.95,
+      "verdict": "fail"
+     },
+     "binding": {
+      "numerator": 580,
+      "denominator": 654,
+      "rate": 0.8869,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "unit_and_basis": {
+      "numerator": 542,
+      "denominator": 601,
+      "rate": 0.9018,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "full_table": {
+      "numerator": 33,
+      "denominator": 40,
+      "rate": 0.825,
+      "bar": 0.75,
+      "verdict": "pass"
+     },
+     "serving_conversions": {
+      "numerator": 291,
+      "denominator": 335,
+      "rate": 0.8687,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "servings_per_pack": {
+      "numerator": 36,
+      "denominator": 39,
+      "rate": 0.9231,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "bounds": {
+      "numerator": 0,
+      "denominator": 1,
+      "rate": 0.0,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "correct_decline": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 0.95,
+      "verdict": "no_denominator"
+     },
+     "false_ready": {
+      "count": 1,
+      "denominator": 40,
+      "bar": "<= 0",
+      "verdict": "fail"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    },
+    "false_ready_ids": [
+     "off-taiwan:3228022000311:nutrition_zh.12"
+    ]
+   },
+   "corrected_truth": {
+    "cases": 40,
+    "failed": 0,
+    "false_declines": 4,
+    "extra_cells": 0,
+    "serving_size": {
+     "exact": 35,
+     "known": 40
+    },
+    "would_mark_ready_after_arithmetic": 32,
+    "energy_check_informing_only": {
+     "not_checkable": 4,
+     "pass": 36
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 541,
+      "denominator": 601,
+      "rate": 0.9002,
+      "bar": 0.95,
+      "verdict": "fail"
+     },
+     "binding": {
+      "numerator": 583,
+      "denominator": 654,
+      "rate": 0.8914,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "unit_and_basis": {
+      "numerator": 542,
+      "denominator": 601,
+      "rate": 0.9018,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "full_table": {
+      "numerator": 34,
+      "denominator": 40,
+      "rate": 0.85,
+      "bar": 0.75,
+      "verdict": "pass"
+     },
+     "serving_conversions": {
+      "numerator": 291,
+      "denominator": 335,
+      "rate": 0.8687,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "servings_per_pack": {
+      "numerator": 36,
+      "denominator": 39,
+      "rate": 0.9231,
+      "bar": 0.98,
+      "verdict": "fail"
+     },
+     "bounds": {
+      "numerator": 0,
+      "denominator": 1,
+      "rate": 0.0,
+      "bar": 1.0,
+      "verdict": "fail"
+     },
+     "correct_decline": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 0.95,
+      "verdict": "no_denominator"
+     },
+     "false_ready": {
+      "count": 0,
+      "denominator": 40,
+      "bar": "<= 0",
+      "verdict": "pass"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    },
+    "false_ready_ids": []
+   }
+  }
+ }
+}

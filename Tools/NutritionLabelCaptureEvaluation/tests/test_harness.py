@@ -108,8 +108,16 @@ class SealedSetTests(unittest.TestCase):
 
     def test_refuses_while_contract_is_not_frozen(self):
         digest = hashlib.sha256(self.manifest.read_bytes()).hexdigest()
-        with self.assertRaisesRegex(cases.SealedSetError, "not frozen"):
-            cases.load_untouched_photos(self.manifest, Path("/nonexistent"), unseal=True, manifest_sha256=digest)
+        # The live contract is frozen since phase 5, so an unfrozen copy is used here.
+        contract = json.loads(cases.CONTRACT.read_text(encoding="utf-8"))
+        contract["status"] = "development_phase_4"
+        with tempfile.TemporaryDirectory() as folder:
+            unfrozen = Path(folder) / "contract.json"
+            unfrozen.write_text(json.dumps(contract), encoding="utf-8")
+            with self.assertRaisesRegex(cases.SealedSetError, "not frozen"):
+                cases.load_untouched_photos(
+                    self.manifest, Path("/nonexistent"), unseal=True, manifest_sha256=digest, contract_path=unfrozen
+                )
 
     def test_development_loader_refuses_untouched_cases(self):
         with tempfile.TemporaryDirectory() as folder:
