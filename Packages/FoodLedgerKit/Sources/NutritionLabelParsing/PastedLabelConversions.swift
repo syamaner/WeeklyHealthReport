@@ -121,9 +121,18 @@ public enum PastedLabelConversions {
     }
 
     /// Recomputes steps 1 to 4 from `operand_text` and the rule and compares the stored string
-    /// only; the intermediate is audit evidence and never compared (section 3.5).
+    /// only; the intermediate is audit evidence and never compared (section 3.5). The record must
+    /// also be coherent: its nutrient is the rule's, and a comparator appears only for a bound,
+    /// always with outward rounding (an exact value carries neither).
     public static func storedTextMatches(_ record: PastedLabelConversionRecord) -> Bool {
-        guard record.ruleVersion == version, record.factorText == record.rule.factorText, record.operandUnit == record.rule.operandUnit,
+        let coherentBound: Bool
+        switch record.comparator {
+        case nil: coherentBound = record.rounding == nil
+        case .equal?: coherentBound = false
+        case _?: coherentBound = record.rounding == "outward"
+        }
+        guard coherentBound, record.nutrient == record.rule.nutrient,
+              record.ruleVersion == version, record.factorText == record.rule.factorText, record.operandUnit == record.rule.operandUnit,
               let recomputed = convert(record.rule, operandText: record.operandText, comparator: record.comparator ?? .equal, sourceHeaderID: record.sourceHeaderID, sourceRowID: record.sourceRowID) else {
             return false
         }

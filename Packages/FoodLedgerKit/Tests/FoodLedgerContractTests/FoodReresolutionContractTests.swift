@@ -114,7 +114,7 @@ final class FoodReresolutionContractTests: XCTestCase {
         let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
         let ledger = try LedgerFixtures.service(harness.committer)
         let base = try LedgerFixtures.baseMutation()
-        let candidate = try ProviderNeutralCandidate(sourceReleaseID: base.sourceReleases[0].sourceReleaseID, recordID: ExternalIdentifier("sample"), identity: LedgerFixtures.identity(), edibleQuantity: .known(PositiveQuantity(value: 100, unit: .grams), conversionVersionID: nil), nutrients: LedgerFixtures.nutrientSet(), evidenceIDs: base.evidence.map(\.evidenceID), matchMetadata: CandidateMatchMetadata(methodVersion: LedgerText("synthetic-v1"), score: 1, materialDifferences: [], libraryAliases: []))
+        let candidate = try ProviderNeutralCandidate(sourceReleaseID: base.sourceReleases[0].sourceReleaseID, recordID: ExternalIdentifier("sample"), identity: LedgerFixtures.identity(), edibleQuantity: .known(PositiveQuantity(value: 100, unit: .grams), conversionVersionID: nil), nutrients: LedgerFixtures.nutrientSet(sourceKind: .manualDeclaration), evidenceIDs: base.evidence.map(\.evidenceID), matchMetadata: CandidateMatchMetadata(methodVersion: LedgerText("synthetic-v1"), score: 1, materialDifferences: [], libraryAliases: []))
         let populated = try PopulatedFoodCandidate(candidate: candidate, name: LedgerText("Sample food"), itemClass: .food)
         let input = try PopulatedFoodConfirmation(evidence: base.evidence, sourceReleases: base.sourceReleases, candidates: [populated], expectedIdentity: candidate.identity, expectedEdibleQuantity: candidate.edibleQuantity)
         var state = FoodConfirmationState(input: input)

@@ -389,7 +389,7 @@ final class DirectWeightContractTests: XCTestCase {
             recordID: ExternalIdentifier("sample"), identity: LedgerFixtures.identity(),
             edibleQuantity: .known(
                 PositiveQuantity(value: 100, unit: .grams), conversionVersionID: nil),
-            nutrients: LedgerFixtures.nutrientSet(), evidenceIDs: base.evidence.map(\.evidenceID))
+            nutrients: LedgerFixtures.nutrientSet(sourceKind: .manualDeclaration), evidenceIDs: base.evidence.map(\.evidenceID))
         return try PopulatedFoodConfirmation(
             evidence: base.evidence, sourceReleases: base.sourceReleases,
             candidates: [

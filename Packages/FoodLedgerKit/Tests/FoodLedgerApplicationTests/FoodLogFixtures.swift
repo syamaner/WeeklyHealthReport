@@ -13,7 +13,7 @@ enum FoodLogFixtures {
     }
 
     static func nutrients(fatKnown: Bool = false) throws -> NutrientSet {
-        let provenance = NutrientProvenance(sourceKind: .userVerifiedPanel, sourceID: try ExternalIdentifier("physical_package"),
+        let provenance = NutrientProvenance(sourceKind: .manualDeclaration, sourceID: try ExternalIdentifier("physical_package"),
             sourceReleaseID: try ExternalIdentifier("package:fixture-v1"), evidenceID: try id(1, EvidenceTag.self), capturedAt: date)
         let known: [NutrientKey: Double] = [.energyConsumed: 200, .protein: 10, .carbohydrates: 30]
             .merging(fatKnown ? [.fatTotal: 5] : [:]) { first, _ in first }

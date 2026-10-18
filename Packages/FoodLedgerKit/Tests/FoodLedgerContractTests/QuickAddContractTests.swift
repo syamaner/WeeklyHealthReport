@@ -482,8 +482,8 @@ final class QuickAddContractTests: XCTestCase {
             XCTAssertThrowsError(try LedgerOperationRegistry.builtInV6.requireSupported(type, payload: .ledger(LedgerMutation())))
         }
         XCTAssertThrowsError(try LedgerOperationRegistry.builtInV6.requireSupported(.createProduct, payload: .favourites(favourites)))
-        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 6)
-        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 6)
+        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 7)
+        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 7)
     }
 
     // MARK: A. Repeated water saves

@@ -652,7 +652,7 @@ final class QuickAddAppTests: XCTestCase {
             artifactHash: try SHA256Digest(String(repeating: "c", count: 64)), schemaVersion: try LedgerText("food-contract-v1"),
             pipelineVersion: try LedgerText("manual-capture-v1"), licence: try LedgerText("user supplied evidence"),
             attribution: try LedgerText("synthetic fixture"), manifestHash: try SHA256Digest(String(repeating: "d", count: 64)))
-        let provenance = NutrientProvenance(sourceKind: .userVerifiedPanel, sourceID: release.sourceID,
+        let provenance = NutrientProvenance(sourceKind: .manualDeclaration, sourceID: release.sourceID,
             sourceReleaseID: release.sourceReleaseID, evidenceID: evidenceID)
         let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in
             guard key == .energyConsumed else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }

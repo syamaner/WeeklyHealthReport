@@ -381,7 +381,7 @@ final class FoodLogReadingServiceContractTests: XCTestCase {
     }
 
     private func nutrients(_ evidenceID: EvidenceID, augmented: Set<NutrientKey> = []) throws -> NutrientSet {
-        let provenance = NutrientProvenance(sourceKind: .userVerifiedPanel, sourceID: try ExternalIdentifier("physical_package"),
+        let provenance = NutrientProvenance(sourceKind: .manualDeclaration, sourceID: try ExternalIdentifier("physical_package"),
             sourceReleaseID: try ExternalIdentifier("package:fixture-v1"), evidenceID: evidenceID, capturedAt: LedgerFixtures.date)
         // Augmented values need dataset provenance with a record (domain rule).
         let datasetProvenance = NutrientProvenance(sourceKind: .exactProductDataset, sourceID: try ExternalIdentifier("physical_package"),

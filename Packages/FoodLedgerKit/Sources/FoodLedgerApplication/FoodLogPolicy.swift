@@ -39,12 +39,14 @@ public enum FoodLogPolicy {
             || quantity.conversion != nil || quantity.plateChoice != .foodOnly
         if state.isSourceRecipe && servingMisuse { result.append(.recipeServingsRequired) }
         if state.usesSourceDeclaredServing && !state.isSourceRecipe && servingMisuse { result.append(.sourceServingsRequired) }
+        if state.pastedLabelServingMisuse { result.append(.sourceServingsRequired) }
         if let direct = quantity.directWeight {
             if direct.totalGrams.map({ !$0.isFinite || $0 <= 0 }) ?? true { result.append(.measuredWeightMissing) }
             if direct.basis == nil { result.append(.weightBasisMissing) }
             if direct.needsReconfirmation { result.append(.retainedWeightNeedsConfirmation) }
         }
-        if quantity.directWeight == nil && quantity.unit == .count && quantity.conversion == nil && !state.usesSourceDeclaredServing {
+        if quantity.directWeight == nil && quantity.unit == .count && quantity.conversion == nil && !state.usesSourceDeclaredServing
+            && !state.logsPastedLabelServings {
             result.append(.countNeedsMeasuredAmount)
         }
         result += plateRequirements(quantity)

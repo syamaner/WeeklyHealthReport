@@ -24,6 +24,14 @@ extension FoodConfirmationState {
     public var reviewedWebProposalScope: FoodProposalReviewScope? { FoodReviewedWebProposalPolicy.scope(input, candidate: selectedCandidate) }
     /// A source recipe serving is a user-entered fraction/count of that recipe, not food pieces.
     public func calculatedEdibleQuantity() throws -> PositiveQuantity {
+        // pasted-label-serving-v1: servings scale by the count; case 2 through the printed serving size.
+        if pastedLabelServing != nil {
+            guard !pastedLabelServingMisuse else { throw FoodLedgerValidationError.invalidUnit }
+            if logsPastedLabelServings {
+                let draft = try policyQuantity()
+                return draft.conversion == nil ? try draft.calculationInput() : try draft.calculatedEdibleQuantity()
+            }
+        }
         guard usesSourceDeclaredServing else { return try quantity.calculatedEdibleQuantity() }
         let basis = (correction?.identity ?? reopened?.productVersion.identity ?? selectedCandidate.candidate.identity).servingBasis
         let expected = isSourceRecipe ? FoodSourceRecipeProfile.basis : selectedCandidate.candidate.identity.servingBasis

@@ -221,7 +221,8 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
             default: break
             }
         }
-        if reopened == nil, FoodSourceServingPolicy.applies(input, candidate: input.candidates[0]) {
+        if reopened == nil, FoodSourceServingPolicy.applies(input, candidate: input.candidates[0])
+            || PastedLabelServingPolicy.servingsOnly(input, candidate: input.candidates[0]) {
             quantity = FoodQuantityDraft(unit: .count)
         }
         // A parsed exact amount is consumed quantity, distinct from the source's 100-unit basis.
@@ -402,6 +403,9 @@ public enum FoodConfirmationSaveError: Error, Equatable, Sendable {
     case staleDecisions
     case invalidQuantity
     case invalidReviewedSource
+    /// A `user_verified_panel` value (or a manual declaration claiming an admitted panel
+    /// release) that no admitted source verifier accepts against its stored evidence.
+    case invalidPastedLabelSource
 }
 
 public final class FoodConfirmationService: @unchecked Sendable {
@@ -412,7 +416,10 @@ public final class FoodConfirmationService: @unchecked Sendable {
     private let digester: any Digesting
     private let encoder: any CanonicalEncoding
     private let calendar: Calendar
+    private let pastedLabelConversions: (any PastedLabelConversionChecking)?
 
+    /// `pastedLabelConversions` recomputes pasted-label conversions at save and reopen. Without
+    /// it, a pasted-label entry with a calculated value fails verification (closed by default).
     public init(
         ledger: FoodLedgerService,
         reader: any FoodConfirmationReading,
@@ -420,8 +427,10 @@ public final class FoodConfirmationService: @unchecked Sendable {
         ids: any LedgerIDGenerating,
         digester: any Digesting,
         calendar: Calendar = .autoupdatingCurrent,
-        encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder()
+        encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder(),
+        pastedLabelConversions: (any PastedLabelConversionChecking)? = nil
     ) {
+        self.pastedLabelConversions = pastedLabelConversions
         self.ledger = ledger
         self.reader = reader
         self.clock = clock
@@ -460,6 +469,15 @@ public final class FoodConfirmationService: @unchecked Sendable {
                 throw FoodConfirmationSaveError.invalidReviewedSource
             }
         }
+        // Panel admission (pasted label v1): verified against the stored manifest, before policy.
+        if PanelSourceAdmission.applies(state.input, candidate: selected) {
+            guard PanelSourceAdmission.verify(state.input, candidate: selected, encoder: encoder, digester: digester,
+                                              conversions: pastedLabelConversions),
+                  identity.servingBasis == selected.candidate.identity.servingBasis,
+                  (state.correction?.nutrients ?? state.reopened?.resolutionVersion.nutrients ?? selected.candidate.nutrients) == selected.candidate.nutrients else {
+                throw FoodConfirmationSaveError.invalidPastedLabelSource
+            }
+        }
         let now = clock.now()
         // The service is authoritative: the same pure policy that drives the Log button.
         let unmet = FoodLogPolicy.requirements(state, now: now, calendar: calendar)
@@ -474,12 +492,15 @@ public final class FoodConfirmationService: @unchecked Sendable {
         } else {
             reportingDate = try LedgerText(FoodReportingDay.key(for: occurredAt, calendar: calendar))
         }
-        let declaration = try state.quantity.declaration()
-        let entered = try state.quantity.calculationInput()
+        // pasted-label-serving-v1 supplies its own conversion for servings (case 2) or none (case 3).
+        let quantity = try state.policyQuantity()
+        let declaration = try quantity.declaration()
+        let entered = try quantity.calculationInput()
+        let countedServings = state.usesSourceDeclaredServing || (state.logsPastedLabelServings && quantity.conversion == nil)
         let conversion = declaration == nil
-            ? try makeConversion(state.quantity, entered: entered, previous: previous, at: now, sourceRecipe: state.usesSourceDeclaredServing)
+            ? try makeConversion(quantity, entered: entered, previous: previous, at: now, sourceRecipe: countedServings)
             : (version: nil, isNew: false)
-        let plate = try makePlate(state.quantity.plateChoice, previous: previous, at: now)
+        let plate = try makePlate(quantity.plateChoice, previous: previous, at: now)
         let edibleQuantity = try state.calculatedEdibleQuantity()
 
         let changesProduct = previous == nil || state.correction != nil
@@ -775,6 +796,19 @@ public final class FoodConfirmationService: @unchecked Sendable {
                   saved.resolutionVersion.nutrients == restored.candidate.nutrients,
                   saved.productVersion.identity.servingBasis == restored.candidate.identity.servingBasis else {
                 throw FoodLedgerStoreError.integrityFailure("reviewed web source manifest does not match the retained candidate")
+            }
+            input = try PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: input.sourceReleases,
+                candidates: [restored], expectedIdentity: input.expectedIdentity, expectedEdibleQuantity: input.expectedEdibleQuantity)
+        }
+        if PanelSourceAdmission.applies(input, candidate: input.candidates[0]) {
+            // Verified against the stored manifest, never a re-parse. The source candidate's
+            // name, brand and class are restored from the manifest, not from the saved product.
+            guard let restored = try? PastedLabelSource.restoredSourceCandidate(input, candidate: input.candidates[0]),
+                  PanelSourceAdmission.verify(input, candidate: restored, encoder: encoder, digester: digester,
+                                              conversions: pastedLabelConversions),
+                  saved.resolutionVersion.nutrients == restored.candidate.nutrients,
+                  saved.productVersion.identity.servingBasis == restored.candidate.identity.servingBasis else {
+                throw FoodLedgerStoreError.integrityFailure("pasted label manifest does not match the retained candidate")
             }
             input = try PopulatedFoodConfirmation(evidence: input.evidence, sourceReleases: input.sourceReleases,
                 candidates: [restored], expectedIdentity: input.expectedIdentity, expectedEdibleQuantity: input.expectedEdibleQuantity)

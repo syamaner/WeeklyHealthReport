@@ -240,9 +240,9 @@ final class ReviewManifestV2ContractTests: XCTestCase {
     // MARK: 8. Admission and storage
 
     func test08ContractFiveSchemaFiveAndDailyPinBoundaries() throws {
-        // Contract 6 (favourites, #198) followed; contract 5 conditions are unchanged.
-        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 6)
-        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 6)
+        // Contracts 6 (favourites, #198) and 7 (pasted label, #93) followed; contract 5 conditions are unchanged.
+        XCTAssertEqual(CanonicalFoodProjection.foodContractVersion, 7)
+        XCTAssertEqual(FoodLedgerGRDBStore.schemaVersion, 7)
         for harness in try LedgerFixtures.harnesses() {
             defer { harness.cleanup() }
             _ = try saveRepresentative(try ReviewedWebFixtures.v1Fixture("representative-serving").input, harness, operation: 1180)
@@ -523,7 +523,7 @@ final class ReviewManifestV2ContractTests: XCTestCase {
         let evidence = try CaptureEvidence(evidenceID: evidenceID, kind: .synthetic, capturedAt: LedgerFixtures.date,
             locale: LedgerText("en_GB"), captureMethod: LedgerText("synthetic_fixture"), captureMethodVersion: LedgerText("v1"),
             originalPayload: .text(LedgerText("recent fixture \(number) evidence \(evidenceNumber)")))
-        let provenance = NutrientProvenance(sourceKind: .userVerifiedPanel, sourceID: try ExternalIdentifier("physical_package"),
+        let provenance = NutrientProvenance(sourceKind: .manualDeclaration, sourceID: try ExternalIdentifier("physical_package"),
             sourceReleaseID: try ExternalIdentifier("package:fixture-v1"), evidenceID: evidenceID, capturedAt: LedgerFixtures.date)
         let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in
             guard key == .protein else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }

@@ -781,7 +781,7 @@ final class SharedStoreContractTests: XCTestCase {
                         try PositiveQuantity(value: 100, unit: .grams),
                         conversionVersionID: nil
                     ),
-                    nutrients: try LedgerFixtures.nutrientSet(),
+                    nutrients: try LedgerFixtures.nutrientSet(sourceKind: .manualDeclaration),
                     evidenceIDs: [try LedgerFixtures.id(1, EvidenceTag.self)]
                 ),
                 name: try LedgerText("Fixture food"),

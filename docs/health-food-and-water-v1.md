@@ -14,7 +14,7 @@ Version 1.1. Status: **approved by the owner, 16 October 2026; every decision in
 
 `FoodLogDayContent` for one reporting date (`FoodLedgerApplication/FoodLogDayContent.swift`) already gives:
 
-- `totals`, which is nil when the day has no current entries. The energy total is `FoodIntakeTotal(key: .energyConsumed)` with `knownAmount`, `incompleteContributions` and `includesEstimates` (summary policy `food-intake-summary-v2`).
+- `totals`, which is nil when the day has no current entries. The energy total is `FoodIntakeTotal(key: .energyConsumed)` with `knownAmount`, `incompleteContributions` and `includesEstimates` (summary policy `food-intake-summary-v3`, which adds one rule to v2: a calculated pasted-label value sets `includesEstimates`; see [pasted-nutrition-label-v1.md](pasted-nutrition-label-v1.md) section 3.5).
 - `plainWater`, which is nil when no plain water was logged. It is a known minimum when `incompleteContributions > 0` (`PlainWaterDayTotal`).
 
 Day classification (v1.1). A **food entry** is a current entry that is not plain water; plain water entries are identified by the saved entry's `isPlainWater` (`PlainWaterReference.isPlainWater`). Energy for a day is the `energyConsumed` total over its food entries: plain water contributes exactly 0 kcal, and a plain water entry that cannot be scaled is not counted as an incomplete energy contribution.
