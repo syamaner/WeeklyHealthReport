@@ -1869,6 +1869,19 @@ extension WeeklyReportScreenshotTests {
         XCTAssertFalse(collapsed.sections.flatMap(\.rows).contains { $0.id == "blood-pressure-morning-coverage" })
     }
 
+    // #249 and #250: at accessibility sizes a section title gets the full row
+    // width above its chevron, and the Export days are listed as wrapping rows.
+    func testAccessibilitySizesStackSectionChevronsAndListExportDaysInline() {
+        for size in DynamicTypeSize.allCases {
+            XCTAssertEqual(ReportSectionHeader.stacksChevron(at: size), size.isAccessibilitySize, "\(size)")
+            XCTAssertEqual(DailyExportView.listsDaysInline(at: size), size.isAccessibilitySize, "\(size)")
+        }
+        XCTAssertFalse(ReportSectionHeader.stacksChevron(at: .xxxLarge))
+        XCTAssertTrue(ReportSectionHeader.stacksChevron(at: .accessibility1))
+        XCTAssertFalse(DailyExportView.listsDaysInline(at: .xxxLarge))
+        XCTAssertTrue(DailyExportView.listsDaysInline(at: .accessibility1))
+    }
+
     func testHealthAndExportRenderAtDefaultAndAccessibilitySizes() async throws {
         let calendar = testCalendar()
         let viewModel = WeeklyReportViewModel(healthData: FakeHealthDataProvider(), calendar: calendar, now: Date.init)
@@ -1884,7 +1897,7 @@ extension WeeklyReportScreenshotTests {
             nutritionSourceSelection: EmptyNutritionSourceSelectionStore(), notes: notes
         )
         for scheme in [ColorScheme.light, .dark] {
-            for size in [DynamicTypeSize.large, .accessibility3] {
+            for size in [DynamicTypeSize.large, .accessibility3, .accessibility5] {
                 renderFoodView(NavigationStack {
                     HealthReportView(viewModel: viewModel, presentationState: state)
                         .environment(\.dynamicTypeSize, size)
