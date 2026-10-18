@@ -68,6 +68,7 @@ Where Inspect does not enforce a plan rule natively, a small wrapper does:
 | `draft_untouched_truth.py`, `openrouter/truth-drafting-*` | Decision A drafting of untouched truth (Qwen 3.5), journal, receipts, ledger, owner review sheet |
 | `score.py` | Pure scoring with the frozen v2 matching rules; called by the Inspect scorer |
 | `decline_gate.py` | Phase 4 decline gate: route-independent, declines or blocks ready, never changes a value |
+| `correction_effort.py` | Post-freeze correction-effort analysis of the saved outputs (no call; not a pass or fail) |
 | `rescore_development.py`, `uk_diagnosis.py` | Offline re-score of saved development outputs with the gate, and the UK diagnosis (no API call) |
 | `arithmetic.py` | Section 7 checks (general, UK fibre and Taiwan fibre energy forms; kJ / kcal; serving scaling; sub-rows) and the three frozen mutations |
 | `candidate.py`, `candidate-schema-v1.json` | Shared candidate schema and an offline validator |
@@ -260,6 +261,17 @@ no network). `rescore_untouched.py` is the correction path for the untouched tru
 applied in memory, saved outputs re-scored offline, never a rerun.
 
 Results: [`results/untouched-taiwan-v1.md`](results/untouched-taiwan-v1.md). It cannot be rerun.
+
+**Correction effort (post-freeze analysis, owner approval 18 October 2026).** `correction_effort.py` reads the saved untouched
+and development outputs (no rerun, no API call) and counts what a user would edit on Confirm if a route only pre-filled the
+table: corrections, fills, removals, serving-line edits, whole tables by hand and silent errors, under gate v2 as run and
+under the assisted design's hard declines (route decline, G1, G2). It is not a pass or fail and changes no pinned file:
+
+```sh
+.venv/bin/python correction_effort.py --runs ~/WHR-label-eval-private/runs --out results/correction-effort-v1.json
+```
+
+Results: [`results/correction-effort-v1.md`](results/correction-effort-v1.md).
 
 **UK images.** The v1 panel images are no longer on disk and the v2 public selection (60 tuning,
 40 sealed) was never acquired, so the UK route B stratum is the 40 exposed v2 development review
