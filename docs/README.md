@@ -18,7 +18,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Intake home projection v1](intake-home-projection-v1.md) and [intake management v2](intake-management-v2.md) (removal, restoration, reporting day)
 - [Today-so-far health projection v1](today-so-far-projection-v1.md) (Home provisional health highlights, separate from report and export) and the [phase 6 Home plan](ux-revamp-phase-6-home.md)
 - Health follow-up drafts awaiting owner approval: [steps trend v1](health-steps-trend-v1.md) (#215), [food and water section v1](health-food-and-water-v1.md) (#214), [section groups v1](health-report-section-groups-v1.md) (#216), [Export included summary v1](daily-export-included-summary-v1.md) (#217)
-- [Pasted nutrition label v1](pasted-nutrition-label-v1.md) (#93): pasted or typed label text read on device to Confirm (draft awaiting owner approval)
+- [Pasted nutrition label v1](pasted-nutrition-label-v1.md) (#93): pasted or typed label text read on device to Confirm (owner-approved 18 October 2026; awaiting architecture-gate review)
 - [Food drafts and common foods](food-drafts-and-common-foods.md), [food list import](food-list-import.md)
 - [Food list lexical v4](food-list-lexical-v4.md) (locale-aware list amount grammar) and [v5](food-list-lexical-v5.md) (vague portions such as "a handful" need an amount)
 - [Local inventory contract](local-inventory-contract.md)

@@ -1,6 +1,8 @@
 # Pasted nutrition label v1 (#93)
 
-Status: **draft for owner approval, 18 October 2026. Documentation only; it authorises no production code until the owner answers the decisions in section 10.** The owner approved drafting this contract on 18 October 2026, after route A of the label-capture evaluation (#255) passed every reader bar on its untouched synthetic pasted-text cases. It is the "independent promotion" that evaluation decision 11 allows, for route A only. No photo route (B or C) is proposed here, and nothing here adds egress.
+Status: **approved by the owner, 18 October 2026.** All twelve decisions in section 10 are decided; decisions 6 (convert kJ-only energy and salt-only sodium, labelled as calculated) and 12 ("Report a misread" in v1, as a user-initiated share) were **changed from the recommendation** by the owner. Implementation waits for an architecture-gate review of this contract. The owner approved drafting it on 18 October 2026, after route A of the label-capture evaluation (#255) passed every reader bar on its untouched synthetic pasted-text cases. It is the "independent promotion" that evaluation decision 11 allows, for route A only. No photo route (B or C) is proposed here. Nothing here adds an app-controlled destination; the user-initiated misread report extends what the existing clipboard and share-sheet row describes (section 7).
+
+**Launch scope (decisions 3, 4 and 11):** Taiwan 營養標示 text ships first. UK English ships only after at least 20 real public UK label texts read with zero wrong values. US "Nutrition Facts" layouts decline in v1.
 
 This contract composes with, and does not amend, [food confirmation v5](food-confirmation-contract-v5.md) (`food_confirmation_v5`), the [food identity and nutrition contract](food-identity-nutrition-contract.md), the [review manifest v2](generic-food-review-manifest-v2.md) and [UX revamp v1](ux-revamp-v1.md). The evaluation it relies on is [`nutrition-label-capture-evaluation-v1.md`](nutrition-label-capture-evaluation-v1.md); its phase 5 results are on PR #260's branch `feat/255-label-eval-phase-5`, cited by path below.
 
@@ -53,9 +55,11 @@ The shared Confirm screen, with its `food_confirmation_v5` requirements, amount,
 - **Basis** of the stored values: per 100 g, per 100 ml or per serving (section 6.3 says which column is stored).
 - **Serving size and servings per pack** as printed, with the parsed amount: "Serving size 30 g (printed: Serving size 30g)", "Servings per pack about 8 (printed: Servings per container about 8)", "本包裝含 2.5 份". Absent lines read "Not stated".
 - **Not stated:** every app nutrient the label does not print reads "Not stated". It is unknown, never zero.
-- **Read but not used:** printed rows the ledger does not store (salt, a kJ value beside kcal, % RI or %DV columns, unrecognised rows) are listed with their printed text and "Not used", so nothing printed vanishes silently (section 3.3).
+- **Calculated values** (section 3.4): a kcal value calculated from printed kJ, or a sodium value calculated from printed salt, reads with a "Calculated" tag and its printed source beside it, for example `Energy about 370 kcal · Calculated` beside "Energy · 1550kJ (printed), kcal = kJ ÷ 4.184", or `Sodium about 240 mg · Calculated` beside "Salt · 0.6g (printed), sodium = salt ÷ 2.5". It is never shown as printed.
+- **Read but not used:** printed rows the ledger does not store (a kJ value beside a printed kcal value, salt beside printed sodium, % RI or %DV columns, unrecognised rows) are listed with their printed text and "Not used", so nothing printed vanishes silently (section 3.3).
 - **Other column:** when a second amount column was printed (for example per serving beside per 100 g), its values are shown under a disclosure as evidence, read-only.
 - **Warnings** (non-blocking, section 4), above the Log bar.
+- **Report a misread** (section 9.1), a secondary action that only opens a preview the user can share or cancel.
 - **Pasted text:** the whole text, read-only, behind one disclosure.
 - **Edit label text** returns to the label text screen with the text and name kept. Values cannot be edited on Confirm: a misread is fixed by editing the text and reading it again, so every stored value stays bound to the text it came from.
 
@@ -73,7 +77,8 @@ Read label runs, on device and in this order, with no network, clock or randomne
 
 1. `nutrition-label-text-parser-v2` (unchanged) on the exact text;
 2. the decline gate ported to Swift (section 7), which may decline but never changes a value;
-3. the arithmetic and consistency checks (section 4), which may add warnings but never change, fill or remove a value.
+3. the labelled conversions (section 3.4), only for kJ-only energy and salt-only sodium;
+4. the arithmetic and consistency checks (section 4) on printed values, which may add warnings but never change, fill or remove a value.
 
 A declined result shows the decline screen state (section 3). A non-declined result opens Confirm.
 
@@ -104,24 +109,48 @@ The gate's two "blocks ready" findings (`required_basis_missing`, `required_serv
 - **Edit the text** and read it again (the text and name stay in the fields).
 - **Paste again** (clear and paste).
 - **Use another route:** Search or Barcode from Add food, each a one-tap link under the reason.
+- **Report a misread** if the user thinks the decline is wrong (section 9.1); nothing is sent unless the user shares it.
 
 A decline writes nothing to the ledger, keeps no copy of the text after the screen closes, and records nothing except, while the screen is open, the reason codes in Developer tools.
 
 ### 3.3 Partial tables and unknowns
 
-- **Never silently completed.** No value is inferred, back-filled or converted to complete a table: no salt to sodium, no kJ to kcal, no % RI to an amount, no per-serving value to per 100 g (or the reverse), no value copied from the other column, no zero for a missing row.
+- **Never silently completed.** No value is inferred, back-filled or defaulted to complete a table: no % RI to an amount, no per-serving value to per 100 g (or the reverse), no value copied from the other column, no zero for a missing row. The only conversions are the two labelled ones in section 3.4, and they are never silent.
 - **Not printed means unknown.** A nutrient the label does not print is stored as `unknown(not_declared)` and reads "Not stated".
-- **Printed but not used stays visible.** Salt, kJ beside kcal, reference-intake columns and unrecognised rows are listed on Confirm as read but not used, and kept in the stored evidence; they never become a ledger value.
-- **kJ only:** when energy is printed only in kJ, energy is `unknown(missing_conversion)` and the kJ text is shown as not used (decision 6).
-- **Salt only:** when a UK label prints salt and no sodium, sodium is `unknown(missing_conversion)` and salt is shown as not used (decision 6).
+- **Printed but not used stays visible.** kJ beside printed kcal, salt beside printed sodium, reference-intake columns and unrecognised rows are listed on Confirm as read but not used, and kept in the stored evidence; they never become a ledger value.
 - **Bounds stay bounds.** `<0.1g`, `< 0.5 公克` and `less than 1g` are stored as bounded values with their printed comparator, never as an exact value or zero.
 - **Mandatory rows** are enforced by the gate: a UK or Taiwan table missing a mandatory row declines (section 3.1), so a table that reaches Confirm has every mandatory row read. Any other row may be partial in the sense above, and stays unknown.
+
+### 3.4 Calculated values: kJ-only energy and salt-only sodium (decision 6, changed)
+
+The owner chose to convert these two cases rather than leave them unknown. A conversion is a labelled calculation from a printed value, never a printed value, and never silent.
+
+**Rules** (`pasted-label-conversions-v1`):
+
+| Case | Rule | When it applies |
+|---|---|---|
+| Energy printed only in kJ | kcal = kJ ÷ 4.184 | The stored column prints energy in kJ and does **not** print kcal |
+| Sodium not printed, salt printed | sodium (mg) = salt (g) ÷ 2.5 × 1000 | The stored column prints salt and does **not** print sodium |
+
+- **Printed always wins.** If kcal is printed, kcal is used as printed and kJ is never converted. If sodium is printed, sodium is used as printed and salt is never converted. This holds even when the printed pair disagree; the kJ / kcal check (section 4) may then warn.
+- **Same cell, same column.** A conversion reads only the printed cell in the stored column (section 6.3). It never reads the other column and never chains (no conversion of a converted value).
+- **Exact arithmetic.** The calculation uses decimal arithmetic on the printed decimal text (not binary floating point), with the factors exactly 4.184 and 2.5.
+- **Stored rounding.** The stored amount is rounded half away from zero to **one decimal place** in the canonical unit (kcal, mg). Example: 1550 kJ gives 370.4589 kcal, stored 370.5 kcal; 0.6 g salt gives 240.0 mg sodium; 0.03 g salt gives 12.0 mg.
+- **Bounds stay bounds.** A printed bound converts endpoint by endpoint with the same factor and keeps its comparator and closedness. Each endpoint is rounded **outward** to one decimal place (an upper endpoint up, a lower endpoint down) so the converted bound still contains every value the printed bound allows. Example: `<0.01g` salt gives sodium `< 4.0 mg`; `<0.1g` salt gives `< 40.0 mg`.
+- **Zero stays printed zero.** A printed `0` converts to 0.0 and keeps the "Calculated" label; an absent row is never converted and stays unknown.
+- **Display.** A calculated value always shows "about", the "Calculated" tag and its printed source with the rule, everywhere it is shown (Confirm, the saved entry, Developer tools, the misread report): "Energy about 370 kcal · Calculated from 1550 kJ (printed)". Display rounding: kcal and mg sodium to a whole number (half away from zero); the stored value keeps one decimal place. VoiceOver reads "calculated" as a word, so the label never relies on colour or a symbol.
+- **Estimate labelling.** The value is labelled as calculated (an estimate) at value level wherever it is shown. Whether the entry as a whole shows the "Estimate" prefix (confirmation v5 section 5) is unchanged by a calculated value: the identity is the user's named food and is not an estimate. Daily and report aggregates include the stored amount as they include any other stored value; how calculated values are flagged in aggregates, if at all, is an architecture-gate item (section 8.6).
+- **Checks.** The section 4 checks run on printed values only, as frozen. A calculated value is never a check input, so with kJ-only energy the energy check is "not checkable".
+
+**Storage.** A calculated value is a `measured` nutrient whose `sourceValue` is the printed value and unit (`kJ`, or `g_salt` for salt as in the food identity contract's sodium example), whose `unit` is the canonical unit, and whose provenance carries one `NutrientTransform` (`transformID` `kj_to_kcal` or `salt_to_sodium`, `transformVersion` `pasted-label-conversions-v1`). This is the ledger's existing shape for a declared value converted by a deterministic transform; `ExactNutrientValue` already requires a transform when the source unit differs. No domain type changes, and the domain's closed rule that `augmented` values never carry `user_verified_panel` provenance stays closed. "Calculated" is a projection over that transform, not a new state. The manifest records each conversion: the nutrient, the printed cell it read, the rule, the version, the unrounded decimal result and the stored rounded amount.
+
+**Reachability under gate v2 (finding).** Gate v2's mandatory rows require kcal on both UK (`energy_kcal`) and Taiwan tables, and sodium on Taiwan tables. So under gate v2 a kJ-only table declines `required_row_missing` before conversion, and the kJ rule is unreachable; it is still specified and tested so that a later gate version can rely on it. Salt-only sodium is reachable on UK tables, where salt is mandatory and sodium is not, so it matters only once UK English ships (decision 3).
 
 ## 4. Arithmetic and consistency checks: warnings only
 
 The frozen section 7 policy of the evaluation, ported to Swift with its own identifier (`label-arithmetic-checks-v1`, proposed), runs on every non-declined table:
 
-- energy against macronutrients: `kcal ≈ 4P + 4C + 9F` (UK may also pass with `+ 2·fibre`); Taiwan, when fibre is printed, `kcal ≈ 4P + 4(C − fibre) + 2·fibre + 9F`; tolerance the larger of 15 kcal and 10% (UK, Taiwan) or 20 kcal and 20% (US, if enabled);
+- energy against macronutrients: `kcal ≈ 4P + 4C + 9F` (UK may also pass with `+ 2·fibre`); Taiwan, when fibre is printed, `kcal ≈ 4P + 4(C − fibre) + 2·fibre + 9F`; tolerance the larger of 15 kcal and 10% (UK, Taiwan) (US layouts decline in v1, so the US tolerance is not used);
 - `kJ / kcal` within 4.184 ± 2% when both are printed;
 - per serving against per 100 × serving / 100, within printed rounding;
 - sub-rows not exceeding their parent (saturates ≤ fat, sugars ≤ carbohydrate, Taiwan fibre ≤ carbohydrate);
@@ -136,11 +165,11 @@ Warnings are not persisted as nutrition. The warning codes shown at Log are reco
 | Language | Layout (gate format) | v1 |
 |---|---|---|
 | Traditional Chinese (`zh-Hant`) | Taiwan 營養標示 (`taiwan_nutrition_labelling`) | Supported. Untouched synthetic evidence |
-| English | UK nutrition declaration (`uk_nutrition_declaration`) | Supported if the owner accepts development-only evidence plus the pre-release real-text check (decision 3) |
-| English | US "Nutrition Facts" | Declines with `layout_not_supported` in v1 unless the owner chooses otherwise (decision 4) |
+| English | UK nutrition declaration (`uk_nutrition_declaration`) | Ships second, only after at least 20 real public UK label texts read with zero wrong values (decisions 3 and 11). Until then it declines with `layout_not_supported` |
+| English | US "Nutrition Facts" | Declines with `layout_not_supported` in v1 (decision 4) |
 | Simplified Chinese, Japanese, Korean, every other language | none | Declines (`unsupported_language` or `unsupported_script`) |
 
-**Format inference.** The evaluation declared each case's format from its corpus, never from route output. The product has no corpus, so the gate's format must be inferred, deterministically, from the candidate: `zh-Hant` resolves to Taiwan; English with a per 100 g or per 100 ml column resolves to UK; English without one resolves to US (declined in v1 unless decision 4 says otherwise); `mixed` or `unknown` language declines with `format_ambiguous`. This is a deviation from the evaluation method, so it gets its own test vectors (section 8.5) built from the frozen development and untouched cases with their declared formats, and inference must agree with the declared format on every one.
+**Format inference.** The evaluation declared each case's format from its corpus, never from route output. The product has no corpus, so the gate's format must be inferred, deterministically, from the candidate: `zh-Hant` resolves to Taiwan; English with a per 100 g or per 100 ml column resolves to UK; English without one resolves to US, which declines in v1; `mixed` or `unknown` language declines with `format_ambiguous`. This is a deviation from the evaluation method, so it gets its own test vectors (section 8.4) built from the frozen development and untouched cases with their declared formats, and inference must agree with the declared format on every one.
 
 ## 6. Data model
 
@@ -156,19 +185,21 @@ A logged label is stored as one `CaptureEvidence` whose payload is a canonical, 
 | `parser_version` | `nutrition-label-text-parser-v2` |
 | `gate_version` | the Swift gate version (section 7) |
 | `arithmetic_version` | `label-arithmetic-checks-v1` (proposed) |
+| `conversion_version` | `pasted-label-conversions-v1` |
 | `label_format` | the inferred gate format |
 | `candidate` | the `label-capture-candidate-v1` the reader produced: headers, cells (printed label, printed text, comparator, decimal text, unit, basis, parent), serving size, servings per pack, warnings |
 | `stored_header_id` | the column whose values were stored (section 6.3) |
+| `conversions` | for each calculated value (section 3.4): nutrient, source cell, rule, `pasted-label-conversions-v1`, unrounded decimal result, stored amount; empty when nothing was converted |
 | `warnings_shown` | the warning codes on Confirm at Log |
 | `name`, `brand` | as entered |
 
 - Encoding: `FoundationCanonicalJSONEncoder` (sorted keys, unescaped slashes), the same as the review manifest. The bytes are stored verbatim as the `.text` payload and are never re-encoded from the struct after save.
 - `CaptureEvidence`: `kind = .labelText` (existing), `captureMethod = "User pasted nutrition label"`, `captureMethodVersion = "pasted-nutrition-label-v1"`, `byteHash` = SHA-256 of the manifest bytes, `locale` as today.
-- `SourceRelease`: `sourceID = "pasted-nutrition-label"`, `sourceReleaseID = "pasted-label:" + manifestHash`, `manifestHash`, `artifactHash = pasted_text_sha256`, `schemaVersion = "pasted-nutrition-label-v1:" + label_format`, `pipelineVersion = "<parser_version>:<gate_version>:<arithmetic_version>"`, `licence = "User-supplied label text; no redistribution licence inferred."`, `attribution = "Pasted nutrition label"`.
-- Provenance on every stored nutrient: `source_kind = user_verified_panel` (existing; decision 7), `source_id = pasted-nutrition-label`, the release above, `evidence_id`, and `manifestReference = "manifest-sha256=…;header=…;row=…;literal=…"` naming the cell it came from. No transform is recorded because none is applied.
+- `SourceRelease`: `sourceID = "pasted-nutrition-label"`, `sourceReleaseID = "pasted-label:" + manifestHash`, `manifestHash`, `artifactHash = pasted_text_sha256`, `schemaVersion = "pasted-nutrition-label-v1:" + label_format`, `pipelineVersion = "<parser_version>:<gate_version>:<arithmetic_version>:<conversion_version>"`, `licence = "User-supplied label text; no redistribution licence inferred."`, `attribution = "Pasted nutrition label"`.
+- Provenance on every stored nutrient: `source_kind = user_verified_panel` (existing; decision 7), `source_id = pasted-nutrition-label`, the release above, `evidence_id`, and `manifestReference = "manifest-sha256=…;header=…;row=…;literal=…"` naming the cell it came from. A printed value carries no transform; a calculated value carries exactly one (section 3.4).
 - `kind = .labelText` is already used by the reviewed web manifest. Lookups for each route discriminate by `release.sourceID` and `captureMethodVersion`, and a contract test proves neither route's verifier accepts the other's evidence (section 8.4).
 
-**Verification at save and at reopen.** As for reviewed web proposals: the service checks the manifest digest, that the stored nutrients, units, bounds and basis equal the manifest's cells for `stored_header_id`, and that the pipeline is an admitted one; otherwise `invalidPastedLabelSource` before policy at save and `integrityFailure` at reopen. Verification compares against the stored manifest, **not** a re-parse, so a later parser version never invalidates an old entry. Developer tools can re-run the current parser on `pasted_text` and show any difference, for reproduction only.
+**Verification at save and at reopen.** As for reviewed web proposals: the service checks the manifest digest, that the stored nutrients, units, bounds and basis equal the manifest's cells for `stored_header_id`, and every calculated value equals its recorded conversion recomputed under the recorded rule version, and that the pipeline is an admitted one; otherwise `invalidPastedLabelSource` before policy at save and `integrityFailure` at reopen. Verification compares against the stored manifest, **not** a re-parse, so a later parser version never invalidates an old entry. Developer tools can re-run the current parser on `pasted_text` and show any difference, for reproduction only.
 
 ### 6.2 Limits on the pasted text
 
@@ -205,16 +236,20 @@ The enum cases already exist (`CaptureKind.labelText`, `ProvenanceSourceKind.use
 - **SQLite migration `v7_pasted_label`:** metadata only (`schema_identity = food-ledger-v7`, `user_version = 7`). No immutable row is rewritten. A schema-6 opener throws `unknownSchema(7)`.
 - **Existing records keep their bytes.** Every v1 to v6 record and archive decodes and re-encodes byte for byte (golden fixtures, section 8.4). The operation type stays `confirm_food_v1`, `confirm_food_v2` or `confirm_food_v3` as the save requires; no operation type is added.
 - **Daily JSON:** unchanged. Food entries are not in the Daily JSON today; the pasted text and manifest never enter it.
-- Release note: after updating, the app cannot be downgraded once a label is logged, and an archive with a logged label cannot be restored into an older build.
+- **Release note (decision 9),** in the same form as 0.2.0 (25) "Older builds cannot open the food data after updating" in `docs/releases/internal-testflight-0.2.0-build25.md`: when the implementation merges, `docs/releases/unreleased.md` gains a row for this change (archive contract 7, schema `food-ledger-v7`) stating that once the food log opens with the new build an older build can no longer open it, that existing records keep their bytes, and that the Daily JSON export is unchanged in shape. It is not added now because no implementation has merged.
 
 ## 7. Privacy
 
-**Fully on device. No egress. [`privacy-and-egress.md`](privacy-and-egress.md) and [`privacy-policy.txt`](privacy-policy.txt) do not change.**
+**Reading is fully on device, with no egress. The one change to the privacy documents is the "Report a misread" share (decision 12), which is a user-initiated share through the system share sheet, not new app egress.**
 
-- Reading uses only `NutritionLabelParsing` and the ported gate and checks, with no network, provider, model or OCR call.
-- The pasted text is stored only in the local food ledger, inside the manifest of the entry it produced, under the existing rule that the food log stays local. It leaves the device only inside an inventory backup file the user explicitly exports, which that document already covers for the whole food log. It is never in Daily JSON, Copy all, Full Page or any report.
+- Reading uses only `NutritionLabelParsing` and the ported gate, checks and conversions, with no network, provider, model or OCR call.
+- The pasted text is stored only in the local food ledger, inside the manifest of the entry it produced, under the existing rule that the food log stays local. It leaves the device only inside an inventory backup file the user explicitly exports, which [`privacy-and-egress.md`](privacy-and-egress.md) already covers for the whole food log, or inside a misread report the user chooses to share. It is never in Daily JSON, Copy all, Full Page or any report.
 - Reading the clipboard happens only when the user pastes into the field (the system paste control); the app never reads the pasteboard on its own.
-- No telemetry, analytics or automatic report of any kind (section 9).
+- **Report a misread** (section 9.1) opens the iOS share sheet only when the user taps it. The user sees and can edit the report first, picks the destination in the share sheet, and can cancel at any point. The app has no destination of its own for it: no prefilled address, no endpoint, no upload, no background collection, no retry and no record that a report was made.
+- **Document changes made with this contract:**
+  - [`privacy-and-egress.md`](privacy-and-egress.md): the existing "Clipboard, share sheet or the iOS screenshot editor" row's "What is sent" and "When" now include a misread report (pasted label text, the values read from it and the parser, gate, check and conversion versions), sent only when the user chooses Report a misread and then shares it. No row and no destination is added.
+  - [`privacy-policy.txt`](privacy-policy.txt): the "Sharing and Google Drive" paragraph covers the misread report, and the "Local food records and notes" paragraph says pasted nutrition-label text is kept locally as the evidence for a logged food. The effective date is left unchanged until the feature ships (section 8.6).
+- No telemetry, analytics or automatic report of any kind.
 
 ## 8. Architecture gate
 
@@ -239,13 +274,13 @@ Hashing (SHA-256 of the text and the manifest) uses the injected digester, as `R
 ### 8.3 Invariants
 
 1. The only save is the user's Log on Confirm. Reading, a gate pass, a check pass and the absence of a warning never save and never enable Log.
-2. Every stored value is a printed cell of the stored column, bound by `manifestReference` to its printed label and text; no value is inferred, converted, copied from another column or defaulted.
+2. Every stored value is a printed cell of the stored column, bound by `manifestReference` to its printed label and text, or a calculated value from exactly one such cell under `pasted-label-conversions-v1`, labelled as calculated wherever shown; no value is inferred, copied from another column or defaulted, and a printed value always wins over a calculation.
 3. Unknown is never zero; bounds stay bounds; "Not stated" is unknown.
 4. Declines write nothing and retain nothing.
 5. The gate and checks never change a value; checks never block or authorise Log.
 6. Records are append-only and versioned; stored manifests are byte-exact and verified at save and reopen against themselves, not a re-parse.
-7. No egress; the app never reads the pasteboard unprompted.
-8. Only `en` (UK layout, and US if decision 4 allows) and `zh-Hant` (Taiwan layout) are read; everything else declines.
+7. No app egress: nothing leaves the device except through a share the user starts and completes in the system share sheet, or the existing user-exported backup; the app never reads the pasteboard unprompted.
+8. Only `zh-Hant` (Taiwan layout) and, once its release gate passes, `en` (UK layout) are read; US layouts and everything else decline.
 9. No medical classification, targets or interpretation in any copy.
 10. Older records and archives decode and re-encode unchanged.
 
@@ -256,27 +291,33 @@ Parsing and gate (pure, `NutritionLabelParsingTests`):
 1. **Gate port parity:** the Swift gate reproduces `decline_gate.py` (gate v2) on frozen vectors exported from every development and untouched pasted-text case, including the shared-variant code points (内 温 黄 …), supplement markers, missing mandatory rows and per 100 column checks.
 2. **Arithmetic port parity:** the Swift checks reproduce `arithmetic.py` on the three frozen mutation families applied to the untouched truth, including the same 6 misses, the muesli example (367.2 kcal) and "not checkable" for bounds.
 3. **Format inference** agrees with the declared format on every frozen case; `mixed` and `unknown` decline `format_ambiguous`.
-4. **No inference:** kJ-only energy, salt-only sodium, % RI columns and one-column-only nutrients never produce a stored value.
-5. **Determinism:** the same text gives byte-identical candidate and findings across runs and locales.
+4. **No inference:** % RI columns and one-column-only nutrients never produce a stored value; the only derived values are the section 3.4 conversions.
+5. **Conversion rules (`pasted-label-conversions-v1`):** golden cases for kJ to kcal and salt to sodium with exact decimal results and one-decimal stored rounding (1550 kJ → 370.5 kcal; 0.6 g → 240.0 mg; 0.03 g → 12.0 mg; a half-way case rounds away from zero); outward rounding of bounds (`<0.01g` → `< 4.0 mg`, `<0.1g` → `< 40.0 mg`, a lower bound rounds down); printed `0` converts to 0.0; an absent row is never converted.
+6. **Printed wins:** with kcal and kJ both printed, kcal is stored as printed and no transform is recorded, including when they disagree; the same for sodium and salt.
+7. **No cross-column or chained conversion:** a kJ value only in the other column, or salt only in the other column, gives unknown, not a calculated value.
+8. **Checks never read a calculated value:** kJ-only energy makes the energy check "not checkable".
+9. **Determinism:** the same text gives byte-identical candidate and findings across runs and locales.
 
 Application (`FoodLedgerApplicationTests`, `FoodLedgerContractTests`):
 
-6. A non-declined reading yields a `PopulatedFoodConfirmation` whose every non-unknown nutrient cites a manifest cell of the stored column; no-other-column fill.
-7. A declined reading yields no confirmation and writes no evidence.
-8. A failed arithmetic check yields a warning and no `FoodLogRequirement`; Log enablement with and without the warning is identical.
-9. Save verification: an altered value, unit, bound, basis or manifest byte fails `invalidPastedLabelSource` before policy; reopen fails `integrityFailure`.
-10. **Cross-route isolation:** the reviewed web verifier rejects pasted-label evidence and the pasted-label verifier rejects reviewed web evidence, though both use `kind = .labelText`.
-11. A pasted-label save writes no assertion and records `methodVersion = food_confirmation_v5`; a named label does not raise `sourceIdentityMissing`.
-12. `minimumContractVersion` returns 7 with pasted-label evidence and is unchanged without it.
-13. Golden fixtures: every existing v1 to v6 record and archive decodes and re-encodes byte for byte; a contract-7 archive round-trips byte for byte; a schema-6 opener throws `unknownSchema(7)`.
-14. A logged label reused from search creates a new log item against the stored resolution and reads no text.
+10. A non-declined reading yields a `PopulatedFoodConfirmation` whose every non-unknown nutrient cites a manifest cell of the stored column; no-other-column fill. A calculated value is `measured` with its printed `sourceValue` (`kJ` or `g_salt`) and exactly one `pasted-label-conversions-v1` transform, passes existing domain validation unchanged, and is recorded in the manifest's `conversions`.
+11. Save verification fails `invalidPastedLabelSource` when a calculated amount differs from its recomputed conversion, or a conversion is recorded where the printed counterpart exists.
+12. A declined reading yields no confirmation and writes no evidence.
+13. A failed arithmetic check yields a warning and no `FoodLogRequirement`; Log enablement with and without the warning is identical.
+14. Save verification: an altered value, unit, bound, basis or manifest byte fails `invalidPastedLabelSource` before policy; reopen fails `integrityFailure`.
+15. **Cross-route isolation:** the reviewed web verifier rejects pasted-label evidence and the pasted-label verifier rejects reviewed web evidence, though both use `kind = .labelText`.
+16. A pasted-label save writes no assertion and records `methodVersion = food_confirmation_v5`; a named label does not raise `sourceIdentityMissing`.
+17. `minimumContractVersion` returns 7 with pasted-label evidence and is unchanged without it.
+18. Golden fixtures: every existing v1 to v6 record and archive decodes and re-encodes byte for byte; a contract-7 archive round-trips byte for byte; a schema-6 opener throws `unknownSchema(7)`.
+19. A logged label reused from search creates a new log item against the stored resolution and reads no text.
 
 Presentation and UI:
 
-15. View-model tests: Read label disabled states, each decline code maps to its copy, the text and name survive a decline and Edit label text.
-16. Confirm shows every stored value beside its printed source text, the basis, serving size and servings per pack (or "Not stated"), and the read-but-not-used rows.
-17. Simulator UI test: Add food → Paste nutrition label → read → Confirm → Log; and a declined paste → edit → read → Confirm.
-18. Accessibility: VoiceOver reads each value with its source text; 44 pt targets; Dynamic Type at the largest size; warnings not conveyed by colour alone.
+20. View-model tests: Read label disabled states, each decline code maps to its copy, the text and name survive a decline and Edit label text.
+21. Confirm shows every stored value beside its printed source text, the basis, serving size and servings per pack (or "Not stated"), and the read-but-not-used rows; every calculated value shows "about", the "Calculated" tag, its printed source and rule, on Confirm, the saved entry and the misread report, and VoiceOver reads "calculated".
+22. Report a misread: the action opens a preview with Share and Cancel; Cancel writes and sends nothing; Share passes only the previewed (possibly edited) text to the system share sheet; the report holds no other entry, health data, note or identifier; no code path sends it without the share sheet.
+23. Simulator UI test: Add food → Paste nutrition label → read → Confirm → Log; and a declined paste → edit → read → Confirm.
+24. Accessibility: VoiceOver reads each value with its source text; 44 pt targets; Dynamic Type at the largest size; warnings not conveyed by colour alone.
 
 ### 8.5 Extension axes
 
@@ -284,35 +325,50 @@ Presentation and UI:
 - **Layouts.** A new layout (US, then others) is a new gate format with its own mandatory rows and test vectors, under a new gate version; the parser and Confirm do not change unless the layout needs new vocabulary (a new parser version).
 - **Closed:** what counts as a stored value, unknown handling, the Log rule, provenance and the manifest's byte-exact retention.
 
+### 8.6 Open items for the architecture gate
+
+- Which `DecisiveIdentity` facets a named packaged food carries, so `sourceIdentityMissing` does not block a fully named label (section 6.5).
+- Whether daily and report aggregates that include a calculated value need any flag beyond the value-level "Calculated" label (section 3.4). The default is no aggregate change.
+- Where the "Calculated" projection lives: an application projection over the `pasted-label-conversions-v1` transform, used by the Confirm, saved-entry and report renderers, so the label cannot drift between screens.
+- When the privacy policy's effective date changes: the wording is updated with this contract, but the bundled policy should take a new effective date in the release that ships the route.
+
 ## 9. Measuring real pasted text without collecting user data
 
-Real pasted text is unmeasured, so v1 has a measurement plan that collects nothing from users automatically. **No telemetry.**
+Real pasted text is unmeasured, so v1 has a measurement plan that collects nothing from users automatically. **No telemetry.** The release gate below applies per shipped language: Taiwan first, then UK English (decision 3).
 
 1. **Pre-release owner check (release gate, decision 11).** Before any user sees the route, the owner copies real labels from public pages (retailer product pages, manufacturer PDFs, Taiwan product pages) into the CLI `NutritionLabelTextParse` and on a device build. Each result is checked against its source. The texts stay outside the repository; the repository gets counts, page kinds and hashes only. Bar: zero wrong values in any non-declined table; declines and their reasons are reported, not gated. Any wrong value stops release and goes to a new parser or gate version.
 2. **Owner-run local regression.** The owner's private real-text set is re-run against every new parser or gate version before it ships, with the same bar.
 3. **Developer tools.** On the owner's own device, Developer tools show, for any logged label, the manifest, its versions, and a re-parse with the current parser with differences, so a reported misread can be reproduced locally.
-4. **Opt-in "Report a misread" (deferred, decision 12).** A user-initiated action that builds a plain-text report (the text the user chooses to include, the versions, the parsed values and what the user says is wrong) for the user to copy or share themselves. It sends nothing on its own. It widens what the existing clipboard and share-sheet row carries, so it needs a one-line `privacy-and-egress.md` and `privacy-policy.txt` change; that is why it is not in v1.
+4. **Report a misread (in v1, decision 12, changed).** The only way real pasted text from users reaches anyone is a report the user decides to share (section 9.1).
 
-## 10. Owner decisions
+### 9.1 Report a misread
 
-Each has one question and a recommendation.
+- **Where:** a "Report a misread" action on Confirm, on the saved entry of a logged label, and on the decline state of the label text screen.
+- **What it builds:** a plain-text report, shown in a preview the user can edit, containing: the pasted text; each value read with its printed source text, basis and "Calculated" label where it applies; the serving size and servings per pack as read; the decline reasons, if declined; the warnings shown; and the parser, gate, check and conversion versions. It contains no other food entry, no health data, no notes, no name or brand unless the user leaves them in, and no device or account identifier.
+- **What the user does:** edits or trims the preview, then taps **Share**, which opens the iOS share sheet with that text only; the user chooses the destination (for example Mail, Messages, Notes or Copy). **Cancel** at the preview or in the share sheet sends and writes nothing.
+- **What the app never does:** choose or prefill a destination, send without the share sheet, retry, queue, attach anything else, or record that a report was made. Nothing in the ledger changes.
+- **Privacy:** this is a user-initiated share under the existing clipboard and share-sheet row, not new app egress (section 7).
 
-1. **Entry point.** Should "Paste nutrition label" be its own row in Add food, rather than detected automatically inside "Paste or dictate"? *Recommendation: yes, its own row; one intent per journey, and no guessing what a paste is.*
-2. **The failed mutation bar.** Should route A proceed to product although arithmetic mutation detection was 110/116, given that the check is warning-only and never authorises a save? *Recommendation: yes; the bar measures the shared check, the reader passed every bar, and the product shows no "checked" badge.*
-3. **English at launch.** Should UK English labels ship in v1 on development-only evidence plus the pre-release real-text check, rather than waiting for untouched English evidence? *Recommendation: yes, but only if the pre-release check (decision 11) includes at least 20 real UK labels with zero wrong values; otherwise ship Taiwan first.*
-4. **US layout.** Should US "Nutrition Facts" pastes decline in v1 until a US gate format with its own test vectors exists? *Recommendation: yes; gate v2 has no US mandatory rows, so it cannot decline a broken US table.*
-5. **Pasted text or hash.** Should the manifest keep the pasted text verbatim, rather than only its hash? *Recommendation: verbatim; it is the evidence behind every value, it stays on device, and a hash alone cannot be reproduced or shown on Confirm or in Developer tools.*
-6. **No conversion.** Should kJ-only energy and salt-only sodium stay unknown in v1, with the printed value shown as "not used", rather than converting? *Recommendation: yes; any conversion needs its own versioned transform contract.*
-7. **Provenance kind.** Should label-sourced values use the existing `user_verified_panel` source kind (distinguished by `source_id = pasted-nutrition-label`), rather than a new kind? *Recommendation: yes; it matches "a user-entered or verified package declaration" and adds no enum case.*
-8. **Reuse.** Should a logged label become a reusable library food under its entered name, with favouriting only by the existing explicit action? *Recommendation: yes.*
-9. **Version bump.** Should a logged label move the store to food contract 7 and `food-ledger-v7`, so older builds refuse rather than misread it? *Recommendation: yes, metadata-only migration, no rows rewritten.*
-10. **Adapter target.** Should the parser reach the application through a new adapter target `FoodLabelTextCapture` behind an application-owned port, rather than the application importing `NutritionLabelParsing` directly? *Recommendation: yes; it keeps the parser replaceable by a photo route and keeps parser types out of the application.*
-11. **Pre-release check size.** Should the release gate be at least 20 real public labels per shipped language, with zero wrong values in non-declined tables? *Recommendation: yes.*
-12. **Report a misread.** Should the opt-in "Report a misread" wait for its own small contract and privacy update, leaving v1 with owner-run checks only? *Recommendation: yes; v1 then changes no privacy text.*
+## 10. Owner decisions (decided 18 October 2026)
+
+All twelve were answered by the owner on 18 October 2026. Ten follow the recommendation; decisions 6 and 12 were **changed from the recommendation**.
+
+1. **Entry point.** Should "Paste nutrition label" be its own row in Add food, rather than detected automatically inside "Paste or dictate"? *Recommendation: yes.* **Decided: yes,** its own row, separate from the paste list.
+2. **The failed mutation bar.** Should route A proceed to product although arithmetic mutation detection was 110/116, given that the check is warning-only and never authorises a save? *Recommendation: yes.* **Decided: yes,** ship; the check is a warning only, with no "checked" badge.
+3. **English at launch.** Should UK English labels ship in v1 on development-only evidence plus the pre-release real-text check? *Recommendation: yes only with at least 20 real UK labels and zero wrong values; otherwise Taiwan first.* **Decided: Taiwan ships first;** UK English ships only after at least 20 real public UK label texts read with zero wrong values.
+4. **US layout.** Should US "Nutrition Facts" pastes decline in v1? *Recommendation: yes.* **Decided: yes,** declined in v1.
+5. **Pasted text or hash.** Should the manifest keep the pasted text verbatim? *Recommendation: verbatim.* **Decided: verbatim.**
+6. **Conversion.** Should kJ-only energy and salt-only sodium stay unknown in v1? *Recommendation: yes, stay unknown.* **Decided, changed from the recommendation: convert,** kcal = kJ ÷ 4.184 and sodium = salt ÷ 2.5. Each value is labelled as calculated (an estimate), shown with its printed source, never presented as printed, recorded with its rule and version, and never used when the counterpart is printed (section 3.4).
+7. **Provenance kind.** Should label-sourced values use the existing `user_verified_panel` kind with `source_id = pasted-nutrition-label`? *Recommendation: yes.* **Decided: yes.**
+8. **Reuse.** Should a logged label become a reusable library food under its entered name, with favouriting only by the explicit action? *Recommendation: yes.* **Decided: yes.**
+9. **Version bump.** Should a logged label move the store to food contract 7 and `food-ledger-v7`? *Recommendation: yes, metadata-only.* **Decided: yes,** metadata-only migration, existing records keep their bytes, with a release note in the 0.2.0 form (section 6.6).
+10. **Adapter target.** Should the parser reach the application through a new `FoodLabelTextCapture` adapter behind an application-owned port? *Recommendation: yes.* **Decided: yes.**
+11. **Pre-release check size.** Should the release gate be at least 20 real public labels per shipped language, with zero wrong values? *Recommendation: yes.* **Decided: yes.**
+12. **Report a misread.** Should the opt-in "Report a misread" wait for its own contract and privacy update? *Recommendation: yes, defer.* **Decided, changed from the recommendation: in v1,** because privacy is the user's decision. It is a strictly user-initiated share through the iOS share sheet, with no app-controlled destination and no background collection. The existing clipboard and share-sheet row in `privacy-and-egress.md` and the privacy policy wording are updated to cover its content (sections 7 and 9.1).
 
 ## 11. Not changing
 
 - `food_confirmation_v5`, its requirements and its assertion grammar; the review manifest v2; parser v2; the evaluation and its frozen artefacts.
-- `privacy-and-egress.md` and `privacy-policy.txt`.
+- The egress list's destinations: no row and no destination is added (only the existing share row's description changes, section 7).
 - HealthKit (read-only); the Health report, Copy all and Daily JSON.
 - Photo capture of any kind (#93's photo route stays unpromoted).
