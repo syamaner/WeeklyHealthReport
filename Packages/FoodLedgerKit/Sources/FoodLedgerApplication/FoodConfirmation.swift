@@ -221,7 +221,8 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
             default: break
             }
         }
-        if reopened == nil, FoodSourceServingPolicy.applies(input, candidate: input.candidates[0]) {
+        if reopened == nil, FoodSourceServingPolicy.applies(input, candidate: input.candidates[0])
+            || PastedLabelServingPolicy.servingsOnly(input, candidate: input.candidates[0]) {
             quantity = FoodQuantityDraft(unit: .count)
         }
         // A parsed exact amount is consumed quantity, distinct from the source's 100-unit basis.
@@ -470,7 +471,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         }
         // Panel admission (pasted label v1): verified against the stored manifest, before policy.
         if PanelSourceAdmission.applies(state.input, candidate: selected) {
-            guard PanelSourceAdmission.verify(state.input, candidate: selected, digester: digester,
+            guard PanelSourceAdmission.verify(state.input, candidate: selected, encoder: encoder, digester: digester,
                                               conversions: pastedLabelConversions),
                   identity.servingBasis == selected.candidate.identity.servingBasis,
                   (state.correction?.nutrients ?? state.reopened?.resolutionVersion.nutrients ?? selected.candidate.nutrients) == selected.candidate.nutrients else {
@@ -491,12 +492,15 @@ public final class FoodConfirmationService: @unchecked Sendable {
         } else {
             reportingDate = try LedgerText(FoodReportingDay.key(for: occurredAt, calendar: calendar))
         }
-        let declaration = try state.quantity.declaration()
-        let entered = try state.quantity.calculationInput()
+        // pasted-label-serving-v1 supplies its own conversion for servings (case 2) or none (case 3).
+        let quantity = try state.policyQuantity()
+        let declaration = try quantity.declaration()
+        let entered = try quantity.calculationInput()
+        let countedServings = state.usesSourceDeclaredServing || (state.logsPastedLabelServings && quantity.conversion == nil)
         let conversion = declaration == nil
-            ? try makeConversion(state.quantity, entered: entered, previous: previous, at: now, sourceRecipe: state.usesSourceDeclaredServing)
+            ? try makeConversion(quantity, entered: entered, previous: previous, at: now, sourceRecipe: countedServings)
             : (version: nil, isNew: false)
-        let plate = try makePlate(state.quantity.plateChoice, previous: previous, at: now)
+        let plate = try makePlate(quantity.plateChoice, previous: previous, at: now)
         let edibleQuantity = try state.calculatedEdibleQuantity()
 
         let changesProduct = previous == nil || state.correction != nil
@@ -800,7 +804,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
             // Verified against the stored manifest, never a re-parse. The source candidate's
             // name, brand and class are restored from the manifest, not from the saved product.
             guard let restored = try? PastedLabelSource.restoredSourceCandidate(input, candidate: input.candidates[0]),
-                  PanelSourceAdmission.verify(input, candidate: restored, digester: digester, conversions: pastedLabelConversions),
+                  PanelSourceAdmission.verify(input, candidate: restored, encoder: encoder, digester: digester,
+                                              conversions: pastedLabelConversions),
                   saved.resolutionVersion.nutrients == restored.candidate.nutrients,
                   saved.productVersion.identity.servingBasis == restored.candidate.identity.servingBasis else {
                 throw FoodLedgerStoreError.integrityFailure("pasted label manifest does not match the retained candidate")

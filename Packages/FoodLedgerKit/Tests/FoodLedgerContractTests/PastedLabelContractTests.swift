@@ -265,10 +265,11 @@ final class PastedLabelContractTests: XCTestCase {
             // Build with a permissive checker, so the records exist, then verify with the golden one.
             struct Permissive: PastedLabelConversionChecking { func storedTextMatches(_: PastedLabelManifest.Conversion) -> Bool { true } }
             // A manifest the single derivation refuses cannot yield records at all: fail closed.
-            guard var input = try? PastedLabelSource.confirmation(manifestData: F.data(manifest), evidenceID: LedgerFixtures.id(9_100, EvidenceTag.self),
-                capturedAt: LedgerFixtures.date, locale: LedgerText("zh_TW"), digester: LedgerFixtures.digester, conversions: Permissive()) else { return false }
+            guard var input = try? PastedLabelSource.confirmation(manifest: manifest, evidenceID: LedgerFixtures.id(9_100, EvidenceTag.self),
+                capturedAt: LedgerFixtures.date, locale: LedgerText("zh_TW"), encoder: LedgerFixtures.encoder,
+                digester: LedgerFixtures.digester, conversions: Permissive()) else { return false }
             if let mutate { input = try mutate(input) }
-            return PanelSourceAdmission.verify(input, candidate: input.candidates[0], digester: LedgerFixtures.digester,
+            return PanelSourceAdmission.verify(input, candidate: input.candidates[0], encoder: LedgerFixtures.encoder, digester: LedgerFixtures.digester,
                                                conversions: GoldenPastedLabelConversions())
         }
         func with(_ conversion: PastedLabelManifest.Conversion, stored: String? = nil, intermediate: String? = nil) -> PastedLabelManifest.Conversion {
@@ -382,7 +383,7 @@ final class PastedLabelContractTests: XCTestCase {
             ("a correction that does not exist", try declared(reference: "manifest-sha256=\(hash);correction=7"))
         ]
         for (name, changed) in cases {
-            XCTAssertFalse(PanelSourceAdmission.verify(changed, candidate: changed.candidates[0], digester: LedgerFixtures.digester,
+            XCTAssertFalse(PanelSourceAdmission.verify(changed, candidate: changed.candidates[0], encoder: LedgerFixtures.encoder, digester: LedgerFixtures.digester,
                                                        conversions: GoldenPastedLabelConversions()), name)
         }
         // A correction whose recognised value is not the printed cell is not a correction.

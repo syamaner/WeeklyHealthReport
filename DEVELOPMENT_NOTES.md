@@ -1879,3 +1879,24 @@ Pricing as in the previous sections (checked 11 October 2026, not re-checked on 
 Boundary: `2026-10-18T14:50:32Z` → `2026-10-18T17:03:11Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 3,856,668 5-minute, 0 1-hour. Exact API-equivalent USD 28.136116. The output count is as the transcript records it and may be a lower bound where messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-18d: Claude Code pasted nutrition label PR 2, invariant review fixes
+
+Same subagent, transcript and pricing as WHR-93-2026-10-18c. Runs from the coordinator's message relaying the invariant review (`2026-10-18T17:11:10Z` in the transcript, UTC) to `2026-10-18T18:25:54Z`, just before this ledger edit. It covers:
+
+- `pasted-label-serving-v1`;
+- canonical manifest bytes at build, save and reopen;
+- the admitted pipelines pin;
+- verifying a conversion beside a correction;
+- the contract and release-note wording;
+- the gates.
+
+The gap between the previous row's end and this message (the commit, push and PR) is unmeasured. No subagents and no provider call.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label PR 2 invariant review fixes (#93) | 17,877,516 (14,499,106) | 3,378,332 | 2,883 | 17,880,399 | $19.85 |
+
+Boundary: `2026-10-18T17:11:10Z` → `2026-10-18T18:25:54Z`. Cache writes: 3,378,332 5-minute, 0 1-hour. Exact API-equivalent USD 19.8494532. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

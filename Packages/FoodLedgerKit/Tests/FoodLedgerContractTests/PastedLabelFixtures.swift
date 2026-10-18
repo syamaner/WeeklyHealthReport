@@ -89,9 +89,53 @@ enum PastedLabelFixtures {
     static func data(_ manifest: PastedLabelManifest) throws -> Data { try LedgerFixtures.encoder.encode(manifest) }
 
     static func input(_ manifest: PastedLabelManifest, evidence: Int = 9_100) throws -> PopulatedFoodConfirmation {
-        try PastedLabelSource.confirmation(manifestData: data(manifest), evidenceID: LedgerFixtures.id(evidence, EvidenceTag.self),
-            capturedAt: LedgerFixtures.date, locale: LedgerText("zh_TW"), digester: LedgerFixtures.digester,
-            conversions: GoldenPastedLabelConversions())
+        try PastedLabelSource.confirmation(manifest: manifest, evidenceID: LedgerFixtures.id(evidence, EvidenceTag.self),
+            capturedAt: LedgerFixtures.date, locale: LedgerText("zh_TW"), encoder: LedgerFixtures.encoder,
+            digester: LedgerFixtures.digester, conversions: GoldenPastedLabelConversions())
+    }
+
+    /// A label printed per serving only (`h1`), with or without a readable serving size:
+    /// section 6.3 case 2 (`perServing(30 g)`) or case 3 (`perServing(1 count)`).
+    static func perServingManifest(readableServingSize: Bool) throws -> PastedLabelManifest {
+        let full = try candidate()
+        let size = readableServingSize ? full.servingSize : nil
+        let candidate = PastedLabelManifest.Candidate(route: "A", inputSHA256: full.inputSHA256, declined: false, declineReasons: [],
+            wouldMarkReady: false, language: "zh-Hant", servingSize: size, servingsPerPack: nil,
+            headers: [.init(headerID: "h1", printedText: "每份", basis: "per_serving", servingConversion: "30公克")],
+            cells: full.cells.filter { $0.headerID == "h1" }, warnings: [])
+        let basis: ResolutionBasis = readableServingSize ? .perServing(try PositiveQuantity(value: 30, unit: .grams))
+            : .perServing(try PositiveQuantity(value: 1, unit: .count))
+        return PastedLabelManifest(pastedText: pastedText, pastedTextSHA256: try textHash(), parserVersion: PastedLabelSource.parserVersion,
+            gateVersion: PastedLabelSource.gateVersion, arithmeticVersion: PastedLabelSource.arithmeticVersion,
+            conversionVersion: PastedLabelSource.conversionVersion, labelFormat: "taiwan_nutrition_labelling",
+            launchScope: ["taiwan_nutrition_labelling"], identityMapping: try .init(fortificationAnswer: .no, servingBasis: basis),
+            candidate: candidate, storedHeaderID: "h1", conversions: [], flagsShown: [], corrections: [],
+            warningsShown: [], name: "Synthetic per-serving crackers", brand: nil)
+    }
+
+    /// Re-encodes `value` with the retained manifest text replaced and every hash rebound, so
+    /// only a content or canonical-bytes check can catch the change.
+    static func rebinding<T: Codable & Sendable>(_ value: T, manifestText old: String, with new: String) throws -> T {
+        let oldHash = try SHA256Digester().sha256(Data(old.utf8)).value
+        let newHash = try SHA256Digester().sha256(Data(new.utf8)).value
+        func escaped(_ text: String) throws -> String {
+            let quoted = String(decoding: try LedgerFixtures.encoder.encode([text]), as: UTF8.self)
+            return String(quoted.dropFirst(2).dropLast(2))
+        }
+        var json = String(decoding: try LedgerFixtures.encoder.encode(value), as: UTF8.self)
+        let from = try escaped(old), to = try escaped(new)
+        precondition(json.contains(from))
+        json = json.replacingOccurrences(of: from, with: to).replacingOccurrences(of: oldHash, with: newHash)
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .millisecondsSince1970
+        return try decoder.decode(T.self, from: Data(json.utf8))
+    }
+
+    /// Byte-level variants of a canonical manifest that decode to the same manifest.
+    static func nonCanonicalVariants(_ text: String) -> [(String, String)] {
+        [("whitespace", text.replacingOccurrences(of: #"{"arithmetic_version""#, with: #"{ "arithmetic_version""#)),
+         ("key order", text.replacingOccurrences(of: #""arithmetic_version":"label-arithmetic-checks-v1","brand":"Synthetic Mill","#,
+                                                 with: #""brand":"Synthetic Mill","arithmetic_version":"label-arithmetic-checks-v1","#)),
+         ("escaped UTF-8", text.replacingOccurrences(of: "營", with: #"\u71df"#))]
     }
 
     static func service(_ harness: TestHarness, conversions: (any PastedLabelConversionChecking)? = GoldenPastedLabelConversions()) throws -> FoodConfirmationService {

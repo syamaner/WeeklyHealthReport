@@ -8,10 +8,10 @@ Pasted nutrition label v1 ([contract](../pasted-nutrition-label-v1.md), #93) mov
 
 | Change | Merged in | Archive contract | Schema |
 | --- | --- | --- | --- |
-| Pasted nutrition label: domain, manifest and storage (PR 2 of 5; no route or screen yet) | PR 2 (#93) | 7 | `food-ledger-v7` |
+| Pasted nutrition label: domain, manifest and storage (PR 2 of 5; no route or screen yet) | [PR267](https://github.com/syamaner/WeeklyHealthReport/pull/267) (#93) | 7 | `food-ledger-v7` |
 
 The migration (`v7_pasted_label`) changes metadata only: existing records keep their bytes and no table is added. A backup exports contract 7 only when it holds a pasted-label entry; otherwise it exports contract 6 exactly as before. The Daily JSON export stays pinned to food contract 3, so exported files are unchanged in shape.
 
 ## Food totals
 
-- Summary policy `food-intake-summary-v3` (#93, PR 2): a day or period total that includes a calculated value (kcal from a printed kJ value, or sodium from a printed salt value, `pasted-label-conversions-v1`) shows the existing "Includes estimates" indicator. Values the user corrected or entered do not. Nothing else in the totals changes, and no stored record changes; until the paste route ships, no entry has a calculated value, so every total reads as before.
+- Summary policy `food-intake-summary-v3` ([PR267](https://github.com/syamaner/WeeklyHealthReport/pull/267), #93): a day or period total that includes a calculated value (kcal from a printed kJ value, or sodium from a printed salt value, `pasted-label-conversions-v1`) shows the existing "Includes estimates" indicator. Values the user corrected or entered do not. Nothing else in the totals changes, and no stored record changes; until the paste route ships, no entry has a calculated value, so every total reads as before.

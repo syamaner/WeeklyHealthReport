@@ -71,11 +71,14 @@ public enum PastedLabelSource {
 
     // MARK: Building
 
-    /// The confirmation input for a manifest the user is logging. `manifestData` must be the
-    /// canonical encoding of `manifest`; the bytes become the evidence payload unchanged.
-    public static func confirmation(manifestData: Data, evidenceID: EvidenceID, capturedAt: Date, locale: LedgerText,
-                                    digester: any Digesting, conversions: (any PastedLabelConversionChecking)?) throws -> PopulatedFoodConfirmation {
-        guard let manifest = PastedLabelManifest.decode(manifestData) else { throw PastedLabelSourceError.invalidManifest("decoding") }
+    /// The confirmation input for a manifest the user is logging. The manifest is encoded once
+    /// with the injected canonical encoder; those bytes become the evidence payload unchanged and
+    /// are never re-encoded from the struct after save.
+    public static func confirmation(manifest: PastedLabelManifest, evidenceID: EvidenceID, capturedAt: Date, locale: LedgerText,
+                                    encoder: any CanonicalEncoding, digester: any Digesting,
+                                    conversions: (any PastedLabelConversionChecking)?) throws -> PopulatedFoodConfirmation {
+        let manifestData = try encoder.encode(manifest)
+        guard isCanonical(manifestData, encoder: encoder) else { throw PastedLabelSourceError.invalidManifest("canonical bytes") }
         let manifestHash = try digester.sha256(manifestData)
         let evidence = try CaptureEvidence(evidenceID: evidenceID, kind: .labelText, capturedAt: capturedAt, locale: locale,
             captureMethod: LedgerText(captureMethod), captureMethodVersion: LedgerText(PastedLabelManifest.version),
@@ -95,7 +98,7 @@ public enum PastedLabelSource {
 
     /// Save and reopen verification against the stored manifest: digest, release, pipeline,
     /// identity mapping, and every stored nutrient, unit, bound and basis.
-    public static func verify(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate,
+    public static func verify(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate, encoder: any CanonicalEncoding,
                               digester: any Digesting, conversions: (any PastedLabelConversionChecking)?) -> Bool {
         let source = candidate.candidate
         guard let release = input.sourceReleases.first(where: { $0.sourceReleaseID == source.sourceReleaseID }),
@@ -107,10 +110,17 @@ public enum PastedLabelSource {
               case let .text(payload) = evidence.originalPayload else { return false }
         let data = Data(payload.value.utf8)
         guard let hash = try? digester.sha256(data), evidence.byteHash == hash, release.manifestHash == hash,
-              let manifest = PastedLabelManifest.decode(data),
+              isCanonical(data, encoder: encoder), let manifest = PastedLabelManifest.decode(data),
               let expected = try? expectedCandidate(manifest: manifest, release: release, evidence: evidence,
                                                     digester: digester, conversions: conversions) else { return false }
         return expected == candidate
+    }
+
+    /// Canonical bytes only: the stored bytes must decode as a strict v1 manifest and re-encode
+    /// to exactly themselves (no other whitespace, key order or escaping is admitted).
+    public static func isCanonical(_ data: Data, encoder: any CanonicalEncoding) -> Bool {
+        guard let manifest = PastedLabelManifest.decode(data), let encoded = try? encoder.encode(manifest) else { return false }
+        return encoded == data
     }
 
     /// On reopen the saved product may carry the user's later name or class corrections; the
@@ -268,15 +278,10 @@ public enum PastedLabelSource {
             let labelNutrients = ledgerKeys.filter { $0.value == key }.map(\.key)
             guard let labelNutrient = labelNutrients.first else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }
             let printed = column.filter { $0.nutrient == labelNutrient }
-            // A value the user corrected or entered: manual_declaration, bound to its record.
-            if let (index, correction) = corrections.first(where: { $0.element.nutrient == labelNutrient }) {
-                try checkCorrection(correction, key: key, labelNutrient: labelNutrient, manifest: manifest, column: column)
-                let origin = try provenance(.manualDeclaration, reference: correctionReference(hash: hash, index: index))
-                return try NutrientEntry(key: key, value: value(decimalText: correction.corrected.decimalText,
-                    comparator: correction.corrected.comparator, key: key, basis: basis, sourceUnit: key.canonicalUnit.rawValue,
-                    sourceDecimalText: correction.corrected.decimalText, provenance: origin))
-            }
+            // A recorded conversion is always verified, even when a correction supplies the
+            // stored value: it stays in the manifest as evidence of what Confirm showed.
             let conversion = manifest.conversions.first { $0.nutrient == labelNutrient }
+            var conversionCell: PastedLabelManifest.Candidate.Cell?
             if let conversion {
                 // Printed always wins: a recorded conversion beside a printed counterpart is invalid.
                 guard printed.isEmpty, let checker, checker.storedTextMatches(conversion),
@@ -289,6 +294,18 @@ public enum PastedLabelSource {
                       coherentComparator(cell: cell.comparator, record: conversion.comparator, rounding: conversion.rounding) else {
                     throw PastedLabelSourceError.invalidManifest("conversion source")
                 }
+                conversionCell = cell
+            }
+            // A value the user corrected or entered: manual_declaration, bound to its record.
+            if let (index, correction) = corrections.first(where: { $0.element.nutrient == labelNutrient }) {
+                try checkCorrection(correction, key: key, labelNutrient: labelNutrient, manifest: manifest, column: column,
+                                    conversionSource: conversionCell)
+                let origin = try provenance(.manualDeclaration, reference: correctionReference(hash: hash, index: index))
+                return try NutrientEntry(key: key, value: value(decimalText: correction.corrected.decimalText,
+                    comparator: correction.corrected.comparator, key: key, basis: basis, sourceUnit: key.canonicalUnit.rawValue,
+                    sourceDecimalText: correction.corrected.decimalText, provenance: origin))
+            }
+            if let conversion, let cell = conversionCell, let rule = rules[conversion.rule] {
                 let transform = NutrientTransform(transformID: try LedgerText(conversion.rule),
                                                   transformVersion: try LedgerText(conversion.ruleVersion))
                 let origin = try provenance(.userVerifiedPanel, reference: manifestReference(hash: hash, cell: cell), transforms: [transform])
@@ -315,23 +332,25 @@ public enum PastedLabelSource {
         }
     }
 
+    /// A corrected value names the cell it replaced: a printed cell of the nutrient, or, for a
+    /// calculated value, the source cell of its verified conversion. An entered value replaces nothing.
     static func checkCorrection(_ correction: PastedLabelManifest.Correction, key: NutrientKey, labelNutrient: String,
-                                manifest: PastedLabelManifest, column: [PastedLabelManifest.Candidate.Cell]) throws {
+                                manifest: PastedLabelManifest, column: [PastedLabelManifest.Candidate.Cell],
+                                conversionSource: PastedLabelManifest.Candidate.Cell?) throws {
         guard correction.headerID == manifest.storedHeaderID, correction.corrected.unit == key.canonicalUnit.rawValue,
               ["=", "<", "<="].contains(correction.corrected.comparator) else {
             throw PastedLabelSourceError.invalidManifest("correction value")
         }
-        let source = rules.values.first { $0.nutrient == labelNutrient }?.sourceNutrient
         switch correction.kind {
         case .corrected:
             guard let rowID = correction.rowID, let recognised = correction.recognised,
                   let cell = column.first(where: { $0.rowID == rowID }),
-                  cell.nutrient == labelNutrient || cell.nutrient == source,
+                  cell.nutrient == labelNutrient || cell == conversionSource,
                   recognised == .init(printedText: cell.printedText, decimalText: cell.decimalText, unit: cell.unit, comparator: cell.comparator) else {
                 throw PastedLabelSourceError.invalidManifest("correction recognised")
             }
         case .entered:
-            guard correction.rowID == nil, correction.recognised == nil,
+            guard correction.rowID == nil, correction.recognised == nil, conversionSource == nil,
                   !column.contains(where: { $0.nutrient == labelNutrient }) else {
                 throw PastedLabelSourceError.invalidManifest("entered value")
             }
@@ -366,7 +385,8 @@ public enum PastedLabelSource {
 public enum PanelSourceAdmission {
     public struct Verifier: Sendable {
         public let sourceID: String
-        let verify: @Sendable (PopulatedFoodConfirmation, PopulatedFoodCandidate, any Digesting, (any PastedLabelConversionChecking)?) -> Bool
+        let verify: @Sendable (PopulatedFoodConfirmation, PopulatedFoodCandidate, any CanonicalEncoding, any Digesting,
+                               (any PastedLabelConversionChecking)?) -> Bool
     }
 
     /// Append-only. The v1 entry is `pasted-nutrition-label`; no entry is removed or rekeyed.
@@ -392,7 +412,7 @@ public enum PanelSourceAdmission {
     /// Fails closed: every panel value, and every manual declaration claiming an admitted
     /// release, must name an admitted `sourceID` whose release says the same, and that source's
     /// verifier must accept the candidate against its stored evidence.
-    public static func verify(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate,
+    public static func verify(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate, encoder: any CanonicalEncoding,
                               digester: any Digesting, conversions: (any PastedLabelConversionChecking)?) -> Bool {
         let source = candidate.candidate
         let ids = Set(admittedSourceIDs)
@@ -409,7 +429,7 @@ public enum PanelSourceAdmission {
         if let named = release(input, source.sourceReleaseID)?.sourceID.value, ids.contains(named) { claimed.insert(named) }
         guard claimed.count == 1, let id = claimed.first,
               let verifier = admitted.first(where: { $0.sourceID == id }) else { return false }
-        return verifier.verify(input, candidate, digester, conversions)
+        return verifier.verify(input, candidate, encoder, digester, conversions)
     }
 
     static func provenance(_ candidate: ProviderNeutralCandidate) -> [NutrientProvenance] {
