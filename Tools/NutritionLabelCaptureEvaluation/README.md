@@ -82,6 +82,7 @@ Where Inspect does not enforce a plan rule natively, a small wrapper does:
 | `openrouter/` | Route C instruction and wire schema; truth-drafting instructions and schema |
 | `openrouter_client.py` | The one OpenRouter client (retry policy, `Retry-After`, generation lookup) for route C and the drafting |
 | `fixtures/` | Taiwan photo manifest, FDA 188 source record, first-pass Taiwan development truth |
+| `export_swift_parity.py` | Pasted label PR 1 (#93): writes gate v2's frozen tables for the Swift port and the parity vectors; `check` re-derives them offline |
 
 The parser under evaluation is the Swift target `NutritionLabelParsing` in
 `Packages/FoodLedgerKit` (Foundation only, enforced by `check-boundaries.sh`), so the
@@ -272,6 +273,27 @@ under the assisted design's hard declines (route decline, G1, G2). It is not a p
 ```
 
 Results: [`results/correction-effort-v1.md`](results/correction-effort-v1.md).
+
+**Swift parity (pasted label PR 1, #93).** `export_swift_parity.py` serves the product port of
+decline gate v2, the arithmetic checks and the format inference
+([`docs/pasted-nutrition-label-v1.md`](../../docs/pasted-nutrition-label-v1.md) section 8). It
+changes no frozen artefact:
+
+```sh
+.venv/bin/python export_swift_parity.py tables      # Simplified-only table, Python re marker classes, code-point runs
+.venv/bin/python export_swift_parity.py vectors --parser-binary <built NutritionLabelTextParse>
+.venv/bin/python export_swift_parity.py check       # offline; also run by tests/test_swift_parity_export.py
+```
+
+The tables go to `Packages/FoodLedgerKit/Sources/NutritionLabelParsing/Resources/` and the
+vectors, with their SHA-256 list, to `Packages/FoodLedgerKit/Tests/NutritionLabelParsingTests/Fixtures/`.
+The vectors hold every committed development pasted-text case and the untouched closed-template
+cases, re-rendered with the frozen generator (synthetic, no source data), plus hand-built
+synthetic candidates for gate rules no rendered case reaches. The untouched FDA dataset 188
+cases need the CSV, which stays outside the repository, so they are left out unless
+`--untouched-fda-csv` names it; without them the evaluation's 6 mutation misses (all on FDA rows)
+are not in the vectors. The marker classes depend on Python's Unicode database, so `check`
+compares them only under the version recorded in the table (Python 3.11, Unicode 14.0.0).
 
 **UK images.** The v1 panel images are no longer on disk and the v2 public selection (60 tuning,
 40 sealed) was never acquired, so the UK route B stratum is the 40 exposed v2 development review

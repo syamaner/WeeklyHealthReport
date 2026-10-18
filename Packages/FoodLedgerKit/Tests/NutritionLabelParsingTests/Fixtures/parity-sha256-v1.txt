@@ -1,0 +1,5 @@
+a75bd032fb24c234686bc808ab1926cc502380f8421d2ba833bdceffb9dfafa5  gate-v2-simplified-only-v1.txt
+65761772f268b4c7ec41d096ebd4ac9f01f10a1fe5e8bf7144898781f7855109  gate-v2-marker-classes-v1.txt
+4bdaec46ea473a6f60c1b330c0bc37dc1a7444627cfc9ef13e8bb5bd31e09d34  parity-code-points-v1.json
+67ac09d69ea198074d6b4f5070f9a71253251961fce9b35afd2c3a08983e23ed  parity-cases-v1.jsonl
+4d30e1cf5c619f66b2edb851e558569256eef5d6c3cf94edc8c6a16259d8afe1  parity-mutations-v1.jsonl

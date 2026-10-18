@@ -30,8 +30,9 @@ let package = Package(
         .executableTarget(name: "FoodProposalProbe", dependencies: ["FoodGenericSearch", "FoodLedgerApplication", "FoodLedgerDomain"], path: "Tools/FoodProposalProbe"),
         .executableTarget(name: "NutritionLabelTextParse", dependencies: ["NutritionLabelParsing"], path: "Tools/NutritionLabelTextParse"),
         .target(name: "FoodLedgerDomain"),
-        // Pure label-text parser under evaluation (#255); Foundation only, no app dependency.
-        .target(name: "NutritionLabelParsing"),
+        // Pure label-text parser (#255) and the pasted-label parity ports (#93); Foundation only,
+        // no app dependency. Resources: the frozen decline gate v2 tables.
+        .target(name: "NutritionLabelParsing", resources: [.copy("Resources")]),
         .target(
             name: "FoodLedgerApplication",
             dependencies: ["FoodLedgerDomain"]
@@ -68,7 +69,9 @@ let package = Package(
         ),
         .testTarget(
             name: "NutritionLabelParsingTests",
-            dependencies: ["NutritionLabelParsing"]
+            dependencies: ["NutritionLabelParsing"],
+            // Parity vectors exported from the frozen Python reference (#93, pasted label PR 1).
+            resources: [.copy("Fixtures")]
         ),
         .testTarget(
             name: "FoodLedgerDomainTests",
