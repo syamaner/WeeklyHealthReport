@@ -48,17 +48,29 @@ struct ReportGroupHeading: View {
 struct ReportSectionHeader: View {
     let title: String
     @Binding var isExpanded: Bool
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {
         Button {
             withAnimation { isExpanded.toggle() }
         } label: {
-            HStack {
-                Text(title)
-                Spacer()
-                Image(systemName: "chevron.right")
-                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                    .accessibilityHidden(true)
+            Group {
+                if Self.stacksChevron(at: dynamicTypeSize) {
+                    // At accessibility sizes the title takes the full row width,
+                    // so a long word such as "composition" wraps whole instead
+                    // of hyphenating beside the chevron (#249).
+                    VStack(alignment: .leading, spacing: 4) {
+                        titleText
+                        chevron
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    HStack {
+                        titleText
+                        Spacer()
+                        chevron
+                    }
+                }
             }
             .frame(minHeight: 44)
             .contentShape(Rectangle())
@@ -68,6 +80,22 @@ struct ReportSectionHeader: View {
         .accessibilityValue(isExpanded ? "Expanded" : "Collapsed")
         .accessibilityHint(isExpanded ? "Hides this section's rows" : "Shows this section's rows")
         .accessibilityAddTraits(.isHeader)
+    }
+
+    static func stacksChevron(at size: DynamicTypeSize) -> Bool {
+        size.isAccessibilitySize
+    }
+
+    private var titleText: some View {
+        Text(title)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var chevron: some View {
+        Image(systemName: "chevron.right")
+            .rotationEffect(.degrees(isExpanded ? 90 : 0))
+            .accessibilityHidden(true)
     }
 }
 
