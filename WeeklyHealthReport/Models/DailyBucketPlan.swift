@@ -11,6 +11,11 @@ struct DailyBucketPlan: Equatable {
     let anchorDate: Date
     let intervalComponents: DateComponents
     let days: [DateInterval]
+    /// The next local midnight after each day's start. A correct day bucket
+    /// ends there, including the last one when the query stops at a frozen
+    /// cutoff: HealthKit's buckets end at interval boundaries, not at the
+    /// predicate's end.
+    let expectedBucketEnds: [Date]
 
     init?(period: ReportPeriod, calendar: Calendar) {
         self.init(interval: period.interval, days: period.completedDays, calendar: calendar)
@@ -26,6 +31,7 @@ struct DailyBucketPlan: Equatable {
               first.start == interval.start,
               last.end == interval.end
         else { return nil }
+        var ends: [Date] = []
         for (index, day) in days.enumerated() {
             guard calendar.startOfDay(for: day.start) == day.start,
                   let nextMidnight = calendar.date(byAdding: .day, value: 1, to: day.start),
@@ -36,11 +42,13 @@ struct DailyBucketPlan: Equatable {
             } else {
                 guard day.end <= nextMidnight else { return nil }
             }
+            ends.append(nextMidnight)
         }
         self.queryInterval = interval
         self.anchorDate = calendar.startOfDay(for: interval.start)
         self.intervalComponents = DateComponents(day: 1)
         self.days = days
+        self.expectedBucketEnds = ends
     }
 }
 
@@ -48,6 +56,7 @@ struct DailyBucketPlan: Equatable {
 /// samples are not represented: they are neither values nor mismatches.
 struct DailyBucket<Value> {
     let start: Date
+    let end: Date
     let value: Value
 }
 
@@ -55,17 +64,22 @@ enum DailyBucketAlignment {
     struct Match<Value> {
         /// One entry per report day, in day order; nil where no bucket matched.
         let values: [Value?]
-        /// Buckets whose start is not exactly a report day's start, or that
+        /// Starts of buckets that do not span exactly one report day, or that
         /// repeat a day already matched.
         let mismatchedBucketStarts: [Date]
 
         var requiresFallback: Bool { !mismatchedBucketStarts.isEmpty }
     }
 
-    /// Attaches a bucket to a report day only when `bucket.start == day.start`
-    /// exactly. A bucket never lands on a neighbouring day and never replaces a
-    /// value already attached.
-    static func match<Value>(_ buckets: [DailyBucket<Value>], days: [DateInterval]) -> Match<Value> {
+    /// Attaches a bucket to a report day only when it starts at the day's
+    /// start and ends at the day's next local midnight. Checking the end as
+    /// well catches a fixed 24 hour bucket on a 23 hour day, which would carry
+    /// the first hour of the next day even when the next bucket is empty. The
+    /// last day also accepts a bucket clipped to its own end (a frozen cutoff).
+    /// A bucket never lands on a neighbouring day and never replaces a value
+    /// already attached.
+    static func match<Value>(_ buckets: [DailyBucket<Value>], plan: DailyBucketPlan) -> Match<Value> {
+        let days = plan.days
         var indexByStart: [Date: Int] = [:]
         for (index, day) in days.enumerated() where indexByStart[day.start] == nil {
             indexByStart[day.start] = index
@@ -74,7 +88,10 @@ enum DailyBucketAlignment {
         var filled = Set<Int>()
         var mismatched: [Date] = []
         for bucket in buckets {
-            guard let index = indexByStart[bucket.start], !filled.contains(index) else {
+            guard let index = indexByStart[bucket.start], !filled.contains(index),
+                  bucket.end == plan.expectedBucketEnds[index]
+                    || (index == days.count - 1 && bucket.end == days[index].end)
+            else {
                 mismatched.append(bucket.start)
                 continue
             }
@@ -84,13 +101,16 @@ enum DailyBucketAlignment {
         return Match(values: values, mismatchedBucketStarts: mismatched)
     }
 
-    static func match(bucketStarts: [Date], days: [DateInterval]) -> Match<Void> {
-        match(bucketStarts.map { DailyBucket(start: $0, value: ()) }, days: days)
+    static func match(bucketIntervals: [DateInterval], plan: DailyBucketPlan) -> Match<Void> {
+        match(
+            bucketIntervals.map { DailyBucket(start: $0.start, end: $0.end, value: ()) },
+            plan: plan
+        )
     }
 }
 
 enum DailyBucketFallbackReason: Equatable, Sendable {
-    /// At least one returned bucket did not start at a report day's start.
+    /// At least one returned bucket did not span exactly one report day.
     case bucketMismatch
     /// The report days were not consecutive days of the supplied calendar.
     case planRejected
@@ -131,7 +151,7 @@ enum DailyBucketReader {
                 outcome: .perDayFallback(reason: .planRejected, mismatchedBucketCount: 0)
             )
         }
-        let match = DailyBucketAlignment.match(try await collection(plan), days: plan.days)
+        let match = DailyBucketAlignment.match(try await collection(plan), plan: plan)
         guard match.requiresFallback else {
             return Result(values: match.values, outcome: .aligned)
         }

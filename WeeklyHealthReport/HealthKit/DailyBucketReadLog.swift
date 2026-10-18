@@ -26,6 +26,12 @@ final class DailyBucketReadLog: @unchecked Sendable {
         }
     }
 
+    func removeRecords(for intervals: [DateInterval]) {
+        lock.withLock {
+            entries.removeAll { intervals.contains($0.interval) }
+        }
+    }
+
     /// Newest first.
     func records() -> [DailyBucketReadRecord] {
         lock.withLock { entries.reversed() }

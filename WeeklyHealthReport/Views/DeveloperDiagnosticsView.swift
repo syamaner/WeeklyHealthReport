@@ -16,7 +16,14 @@ struct DeveloperDiagnosticsView: View {
             )
             QueryDiagnosticsSection(period: viewModel.period)
             StepsDiagnosticsSection(state: viewModel.state)
-            DailyBucketDiagnosticsSection(records: viewModel.dailyBucketReads)
+            DailyBucketDiagnosticsSection(
+                title: "Daily buckets",
+                records: viewModel.dailyBucketReads
+            )
+            DailyBucketDiagnosticsSection(
+                title: "Daily buckets, Daily JSON export",
+                records: viewModel.otherDailyBucketReads
+            )
             BodyMeasurementsDiagnosticsSections(
                 weightState: viewModel.weightState,
                 bodyFatState: viewModel.bodyFatState,

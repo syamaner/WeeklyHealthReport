@@ -4,6 +4,7 @@ protocol HealthDataProviding: Sendable {
     var isHealthDataAvailable: Bool { get }
     var supportsMedicationData: Bool { get }
     var dailyBucketReadRecords: [DailyBucketReadRecord] { get }
+    func clearDailyBucketReadRecords(for intervals: [DateInterval])
 
     func requestReadAuthorization() async throws
     /// Daily collections take the calendar that built `period`, so HealthKit's
@@ -42,4 +43,5 @@ extension HealthDataProviding {
     /// Developer tools only: recent daily-bucket read outcomes. Providers
     /// without a collection query have none.
     var dailyBucketReadRecords: [DailyBucketReadRecord] { [] }
+    func clearDailyBucketReadRecords(for intervals: [DateInterval]) {}
 }

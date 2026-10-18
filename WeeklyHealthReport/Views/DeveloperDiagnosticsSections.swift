@@ -795,13 +795,15 @@ struct TodaySoFarDiagnosticsSection: View {
     }
 }
 
-/// How the latest report's daily collections were bucketed
+/// How daily collections were bucketed: the latest report's reads, or every
+/// other read (the Daily JSON export's context and nutrition)
 /// (docs/healthkit-day-bucketing-v1.md decision 5: Developer tools only).
 struct DailyBucketDiagnosticsSection: View {
+    let title: String
     let records: [DailyBucketReadRecord]
 
     var body: some View {
-        Section("Daily buckets") {
+        Section(title) {
             ForEach(Array(DailyBucketDiagnostics.lines(records).enumerated()), id: \.offset) { _, line in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(line.title)
@@ -851,7 +853,7 @@ enum DailyBucketDiagnostics {
             return "Collection aligned, \(days)"
         case .perDayFallback(.bucketMismatch, let count):
             let buckets = count == 1 ? "1 bucket" : "\(count) buckets"
-            return "Per-day fallback: \(buckets) did not start at a report day; \(days) re-read"
+            return "Per-day fallback: \(buckets) did not span exactly one report day; \(days) re-read"
         case .perDayFallback(.planRejected, _):
             return "Per-day fallback: report days are not consecutive days of the calendar; "
                 + "\(days) re-read"

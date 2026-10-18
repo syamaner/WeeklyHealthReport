@@ -62,6 +62,14 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
         receivedCalendars.timeZoneIdentifiers()
     }
 
+    func clearedDailyBucketIntervals() -> [[DateInterval]] {
+        receivedCalendars.clearedIntervals()
+    }
+
+    func clearDailyBucketReadRecords(for intervals: [DateInterval]) {
+        receivedCalendars.appendCleared(intervals)
+    }
+
     private func recordCalendar(_ calendar: Calendar) {
         receivedCalendars.append(calendar)
     }
@@ -352,6 +360,15 @@ actor FakeHealthDataControl {
 private final class FakeCalendarRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var identifiers: [String] = []
+    private var cleared: [[DateInterval]] = []
+
+    func appendCleared(_ intervals: [DateInterval]) {
+        lock.withLock { cleared.append(intervals) }
+    }
+
+    func clearedIntervals() -> [[DateInterval]] {
+        lock.withLock { cleared }
+    }
 
     func append(_ calendar: Calendar) {
         lock.withLock { identifiers.append(calendar.timeZone.identifier) }

@@ -72,11 +72,11 @@ final class DailyBucketPlanTests: XCTestCase {
 
         let currentRead = try await readSteps(
             plan: currentPlan,
-            bucketStarts: calendarDayStarts(from: currentPlan.anchorDate, count: 7, in: london)
+            buckets: calendarDays(from: currentPlan.anchorDate, count: 7, in: london)
         )
         let previousRead = try await readSteps(
             plan: previousPlan,
-            bucketStarts: calendarDayStarts(from: previousPlan.anchorDate, count: 7, in: london)
+            buckets: calendarDays(from: previousPlan.anchorDate, count: 7, in: london)
         )
         XCTAssertEqual(currentRead.outcome, .aligned)
         XCTAssertEqual(previousRead.outcome, .aligned)
@@ -102,9 +102,11 @@ final class DailyBucketPlanTests: XCTestCase {
             now: date(2026, 10, 28, 12, london),
             calendar: london
         )
+        let plan = try XCTUnwrap(DailyBucketPlan(period: period, calendar: london))
+        XCTAssertEqual(plan.expectedBucketEnds, period.completedDays.map(\.end))
         let match = DailyBucketAlignment.match(
-            bucketStarts: calendarDayStarts(from: period.interval.start, count: 7, in: london),
-            days: period.completedDays
+            bucketIntervals: calendarDays(from: period.interval.start, count: 7, in: london),
+            plan: plan
         )
         XCTAssertFalse(match.requiresFallback)
         XCTAssertEqual(match.mismatchedBucketStarts, [])
@@ -124,14 +126,17 @@ final class DailyBucketPlanTests: XCTestCase {
         )
         let plan = try XCTUnwrap(DailyBucketPlan(period: period, calendar: london))
         let starts = (0..<7).map { plan.anchorDate.addingTimeInterval(Double($0) * day) }
-        let buckets = starts.enumerated().map { DailyBucket(start: $1, value: Double($0)) }
+        let buckets = starts.enumerated().map {
+            DailyBucket(start: $1, end: $1 + day, value: Double($0))
+        }
 
-        let match = DailyBucketAlignment.match(buckets, days: plan.days)
-        // 22 to 25 October start at London midnight; the 24 hour step then
-        // lands at 23:00 GMT on 25, 26 and 27 October.
-        XCTAssertEqual(match.values, [0, 1, 2, 3, nil, nil, nil])
-        XCTAssertEqual(match.mismatchedBucketStarts, Array(starts[4...]))
-        XCTAssertEqual(match.mismatchedBucketStarts.first, date(2026, 10, 25, 23, london))
+        let match = DailyBucketAlignment.match(buckets, plan: plan)
+        // 22 to 24 October are whole 24 hour days and match. The 25 October
+        // bucket starts at London midnight but ends at 23:00 GMT, an hour
+        // short of the 25 hour day; later buckets start at 23:00 GMT.
+        XCTAssertEqual(match.values, [0, 1, 2, nil, nil, nil, nil])
+        XCTAssertEqual(match.mismatchedBucketStarts, Array(starts[3...]))
+        XCTAssertEqual(match.mismatchedBucketStarts[1], date(2026, 10, 25, 23, london))
         XCTAssertTrue(match.requiresFallback)
 
         var reread: [DateInterval] = []
@@ -148,8 +153,83 @@ final class DailyBucketPlanTests: XCTestCase {
         XCTAssertEqual(result.values, Array(repeating: 100, count: 7))
         XCTAssertEqual(
             result.outcome,
-            .perDayFallback(reason: .bucketMismatch, mismatchedBucketCount: 3)
+            .perDayFallback(reason: .bucketMismatch, mismatchedBucketCount: 4)
         )
+    }
+
+    // MARK: 5b. Spring change, data only in the next day's first hour
+
+    func testTwentyFourHourBucketOnTheShortDayIsAMismatchEvenWhenTheNextBucketIsEmpty() async throws {
+        let london = calendar("Europe/London")
+        // Wednesday 1 April 2026: last seven days 25 to 31 March; Sunday
+        // 29 March is 23 hours long.
+        let period = ReportPeriod.make(
+            selection: .lastSevenCompletedDays,
+            now: date(2026, 4, 1, 9, london),
+            calendar: london
+        )
+        let plan = try XCTUnwrap(DailyBucketPlan(period: period, calendar: london))
+        let shortDay = try XCTUnwrap(plan.days.firstIndex { $0.duration == day - hour })
+        XCTAssertEqual(plan.days[shortDay].start, date(2026, 3, 29, 0, london))
+        XCTAssertEqual(plan.expectedBucketEnds[shortDay], date(2026, 3, 30, 0, london))
+
+        // A fixed 24 hour step: the 29 March bucket runs to 01:00 BST on
+        // 30 March. The only samples after 28 March sit between 00:00 and
+        // 01:00 BST on 30 March, so they land in that bucket and every later
+        // bucket is empty (no statistic). A start-only check would file the
+        // 30 March steps on 29 March and still report the read as aligned.
+        let starts = (0..<7).map { plan.anchorDate.addingTimeInterval(Double($0) * day) }
+        let buckets = starts.prefix(shortDay + 1).map {
+            DailyBucket(start: $0, end: $0 + day, value: 1_000.0)
+        }
+        XCTAssertEqual(buckets.last?.end, date(2026, 3, 30, 1, london))
+
+        let match = DailyBucketAlignment.match(buckets, plan: plan)
+        XCTAssertEqual(match.mismatchedBucketStarts, [plan.days[shortDay].start])
+        XCTAssertNil(match.values[shortDay])
+
+        let result = try await DailyBucketReader.read(
+            days: plan.days,
+            plan: plan,
+            collection: { _ in buckets },
+            perDay: { interval -> Double? in
+                // Exact London days: the 30 March steps belong to 30 March.
+                interval.start == date(2026, 3, 30, 0, london) ? 250
+                    : interval.start < date(2026, 3, 29, 0, london) ? 1_000 : nil
+            }
+        )
+        XCTAssertEqual(
+            result.outcome,
+            .perDayFallback(reason: .bucketMismatch, mismatchedBucketCount: 1)
+        )
+        XCTAssertNil(result.values[shortDay], "29 March had no steps")
+        XCTAssertEqual(result.values[shortDay + 1], 250)
+    }
+
+    func testLastDayBucketMayEndAtItsMidnightOrAtTheFrozenCutoff() throws {
+        let london = calendar("Europe/London")
+        let window = try DailyExportWindow.capture(at: date(2026, 10, 30, 20, london), calendar: london)
+        let previous = try XCTUnwrap(window.context.precedingEquivalent(calendar: london))
+        let days = NutritionNutrientTotals.collectionDays(window: window, previous: previous)
+        let plan = try XCTUnwrap(DailyBucketPlan(
+            interval: DateInterval(start: previous.interval.start, end: window.cutoff),
+            days: days,
+            calendar: london
+        ))
+        XCTAssertEqual(plan.expectedBucketEnds.last, date(2026, 10, 31, 0, london))
+        let earlier = calendarDays(from: plan.anchorDate, count: 14, in: london)
+        for todayEnd in [date(2026, 10, 31, 0, london), window.cutoff] {
+            let match = DailyBucketAlignment.match(
+                bucketIntervals: earlier + [DateInterval(start: window.day.start, end: todayEnd)],
+                plan: plan
+            )
+            XCTAssertFalse(match.requiresFallback)
+        }
+        let overlong = DailyBucketAlignment.match(
+            bucketIntervals: [DateInterval(start: window.day.start, end: date(2026, 10, 31, 1, london))],
+            plan: plan
+        )
+        XCTAssertTrue(overlong.requiresFallback)
     }
 
     // MARK: 6. Alignment, time-zone change
@@ -162,13 +242,14 @@ final class DailyBucketPlanTests: XCTestCase {
             now: date(2026, 9, 10, 12, london),
             calendar: london
         )
-        let tokyoStarts = calendarDayStarts(
+        let tokyoDays = calendarDays(
             from: tokyo.startOfDay(for: period.interval.start),
             count: 8,
             in: tokyo
         )
-        let match = DailyBucketAlignment.match(bucketStarts: tokyoStarts, days: period.completedDays)
-        XCTAssertEqual(match.mismatchedBucketStarts.count, tokyoStarts.count)
+        let londonPlan = try XCTUnwrap(DailyBucketPlan(period: period, calendar: london))
+        let match = DailyBucketAlignment.match(bucketIntervals: tokyoDays, plan: londonPlan)
+        XCTAssertEqual(match.mismatchedBucketStarts.count, tokyoDays.count)
         XCTAssertTrue(match.values.allSatisfy { $0 == nil })
         XCTAssertTrue(match.requiresFallback)
 
@@ -228,11 +309,11 @@ final class DailyBucketPlanTests: XCTestCase {
             calendar: london
         )
         let plan = try XCTUnwrap(DailyBucketPlan(period: period, calendar: london))
-        let starts = calendarDayStarts(from: plan.anchorDate, count: 7, in: london)
+        let intervals = calendarDays(from: plan.anchorDate, count: 7, in: london)
         // Days 2 and 5 have no samples, so HealthKit returns no statistic.
-        let buckets = starts.enumerated()
+        let buckets = intervals.enumerated()
             .filter { ![2, 5].contains($0.offset) }
-            .map { DailyBucket(start: $0.element, value: 1_000.0) }
+            .map { DailyBucket(start: $0.element.start, end: $0.element.end, value: 1_000.0) }
         var perDayCalls = 0
         let result = try await DailyBucketReader.read(
             days: plan.days,
@@ -308,7 +389,7 @@ final class DailyBucketPlanTests: XCTestCase {
             )
             XCTAssertEqual(
                 currentRead.outcome,
-                .perDayFallback(reason: .bucketMismatch, mismatchedBucketCount: 3)
+                .perDayFallback(reason: .bucketMismatch, mismatchedBucketCount: 4)
             )
         }
         XCTAssertEqual(stepsCurrent.values, store.truth(current) { 4_000 + $0 * 100 })
@@ -348,6 +429,9 @@ final class DailyBucketPlanTests: XCTestCase {
         XCTAssertEqual(zones.count, 7)
         XCTAssertEqual(Set(zones), ["Europe/London"])
         XCTAssertEqual(viewModel.dailyBucketReads, [fallback])
+        XCTAssertEqual(viewModel.otherDailyBucketReads, [foreign])
+        let previous = period.precedingEquivalent(calendar: london)!
+        XCTAssertEqual(provider.clearedDailyBucketIntervals(), [[period.interval, previous.interval]])
         XCTAssertEqual(
             DailyBucketDiagnostics.lines(viewModel.dailyBucketReads).map(\.title).prefix(2),
             ["Policy", "Per-day fallbacks"]
@@ -358,7 +442,7 @@ final class DailyBucketPlanTests: XCTestCase {
         )
         XCTAssertEqual(
             DailyBucketDiagnostics.lines(viewModel.dailyBucketReads).last?.detail,
-            "Per-day fallback: 3 buckets did not start at a report day; 7 days re-read"
+            "Per-day fallback: 3 buckets did not span exactly one report day; 7 days re-read"
         )
     }
 
@@ -419,11 +503,13 @@ final class DailyBucketPlanTests: XCTestCase {
         // at 23:00 GMT the evening before. The old re-keying by startOfDay filed
         // those under the previous day and overwrote its total.
         let starts = (0..<15).map { plan.anchorDate.addingTimeInterval(Double($0) * day) }
-        let decoys = starts.enumerated().map { DailyBucket(start: $1, value: 9_000 + Double($0)) }
-        let match = DailyBucketAlignment.match(decoys, days: plan.days)
+        let decoys = starts.enumerated().map {
+            DailyBucket(start: $1, end: $1 + day, value: 9_000 + Double($0))
+        }
+        let match = DailyBucketAlignment.match(decoys, plan: plan)
         let changeIndex = try XCTUnwrap(days.firstIndex { $0.start == date(2026, 10, 25, 0, london) })
-        XCTAssertEqual(match.values[changeIndex], 9_000 + Double(changeIndex))
-        XCTAssertTrue(match.values[(changeIndex + 1)...].allSatisfy { $0 == nil })
+        XCTAssertEqual(match.values[changeIndex - 1], 9_000 + Double(changeIndex - 1))
+        XCTAssertTrue(match.values[changeIndex...].allSatisfy { $0 == nil })
         XCTAssertTrue(match.requiresFallback)
 
         let truth: [Date: Double] = Dictionary(uniqueKeysWithValues: days.enumerated().map {
@@ -476,12 +562,12 @@ final class DailyBucketPlanTests: XCTestCase {
 
     private func readSteps(
         plan: DailyBucketPlan,
-        bucketStarts: [Date]
+        buckets: [DateInterval]
     ) async throws -> DailyBucketReader.Result<Double> {
         try await DailyBucketReader.read(
             days: plan.days,
             plan: plan,
-            collection: { _ in bucketStarts.map { DailyBucket(start: $0, value: 5_000) } },
+            collection: { _ in buckets.map { DailyBucket(start: $0.start, end: $0.end, value: 5_000) } },
             perDay: { _ in XCTFail("aligned buckets need no fallback"); return nil }
         )
     }
@@ -506,8 +592,14 @@ final class DailyBucketPlanTests: XCTestCase {
         zip(days, values).map { DailyHeartMetricValue(day: $0, value: $1, sourceNames: []) }
     }
 
-    private func calendarDayStarts(from start: Date, count: Int, in calendar: Calendar) -> [Date] {
-        (0..<count).compactMap { calendar.date(byAdding: .day, value: $0, to: start) }
+    /// Day buckets as a calendar-aware HealthKit would return them.
+    private func calendarDays(from start: Date, count: Int, in calendar: Calendar) -> [DateInterval] {
+        (0..<count).compactMap {
+            guard let dayStart = calendar.date(byAdding: .day, value: $0, to: start),
+                  let dayEnd = calendar.date(byAdding: .day, value: $0 + 1, to: start)
+            else { return nil }
+            return DateInterval(start: dayStart, end: dayEnd)
+        }
     }
 
     private func assertConsecutive(_ days: [DateInterval], file: StaticString = #filePath, line: UInt = #line) {
@@ -531,8 +623,8 @@ final class DailyBucketPlanTests: XCTestCase {
 
 /// A fake HealthKit adapter: its collections step a fixed 24 hours from the
 /// anchor (what a calendar without DST produces across the London change). A
-/// bucket that happens to start at a London day carries that day's true value;
-/// any other bucket mixes two days and carries a decoy. Per-day statistics
+/// bucket that happens to span exactly one London day carries that day's true
+/// value; any other bucket mixes two days and carries a decoy. Per-day statistics
 /// return the true value for an exact London day only.
 private struct MisalignedDailyStore {
     let calendar: Calendar
@@ -556,7 +648,13 @@ private struct MisalignedDailyStore {
             collection: { plan in
                 plan.days.indices.map {
                     let start = plan.anchorDate.addingTimeInterval(Double($0) * 24 * hour)
-                    return DailyBucket(start: start, value: truth[start].flatMap { $0 } ?? -1)
+                    let end = start + 24 * hour
+                    let alignedDay = period.completedDays.first { $0.start == start && $0.end == end }
+                    return DailyBucket(
+                        start: start,
+                        end: end,
+                        value: alignedDay.flatMap { truth[$0.start] ?? nil } ?? -1
+                    )
                 }
             },
             perDay: { interval in

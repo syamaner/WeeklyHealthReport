@@ -112,6 +112,10 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         dailyBucketReadLog.records()
     }
 
+    func clearDailyBucketReadRecords(for intervals: [DateInterval]) {
+        dailyBucketReadLog.removeRecords(for: intervals)
+    }
+
     var isHealthDataAvailable: Bool {
         HKHealthStore.isHealthDataAvailable()
     }
@@ -1147,7 +1151,9 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
                     returned.append(statistics)
                 }
                 return returned.compactMap { statistics in
-                    value(statistics).map { DailyBucket(start: statistics.startDate, value: $0) }
+                    value(statistics).map {
+                        DailyBucket(start: statistics.startDate, end: statistics.endDate, value: $0)
+                    }
                 }
             },
             perDay: { day in

@@ -355,6 +355,7 @@ final class DailyHealthExportTests: XCTestCase {
                 value.map {
                     DailyBucket(
                         start: calendar.date(byAdding: .day, value: index, to: plan.anchorDate)!,
+                        end: calendar.date(byAdding: .day, value: index + 1, to: plan.anchorDate)!,
                         value: $0
                     )
                 }
@@ -418,7 +419,8 @@ final class DailyHealthExportTests: XCTestCase {
         )
 
         // Nutrition: values read through the aligned check equal the totals the
-        // previous start-of-day keying produced, so the bytes cannot move.
+        // previous start-of-day keying produced, and the bytes match the
+        // checked-in populated-nutrition golden.
         let expected = nutrition(
             window: window,
             key: "energy_consumed",
@@ -451,6 +453,7 @@ final class DailyHealthExportTests: XCTestCase {
             ))
         }
         XCTAssertEqual(try bytes(rebuilt), try bytes(expected))
+        try assertGolden(try bytes(rebuilt), equals: DailyHealthExportGoldenSnapshots.populatedNutrition)
     }
 
     func testEnvelopePreservesDailySemanticsAndExplicitAvailability() throws {

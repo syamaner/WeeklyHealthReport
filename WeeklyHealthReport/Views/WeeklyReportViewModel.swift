@@ -92,6 +92,17 @@ final class WeeklyReportViewModel: ObservableObject {
     /// Developer tools only: how the latest report's daily collections were
     /// bucketed (docs/healthkit-day-bucketing-v1.md decision 5).
     @Published private(set) var dailyBucketReads: [DailyBucketReadRecord] = []
+    /// The intervals the latest report read, so Developer tools can list every
+    /// other daily read (the Daily JSON export's context and nutrition) apart.
+    private var dailyBucketReportIntervals: [DateInterval] = []
+
+    /// Developer tools only: daily reads outside the latest report, read live
+    /// because the Daily JSON export runs independently of report refreshes.
+    var otherDailyBucketReads: [DailyBucketReadRecord] {
+        healthData.dailyBucketReadRecords.filter {
+            !dailyBucketReportIntervals.contains($0.interval)
+        }
+    }
     /// Food and water (#214). Kept apart from the HealthKit states: a food-log
     /// failure never changes them, and Apple Health being unavailable never
     /// hides the food log.
@@ -459,7 +470,13 @@ final class WeeklyReportViewModel: ObservableObject {
         generation: Int,
         medicationGeneration: Int
     ) async {
-        guard let previousPeriod = period.precedingEquivalent(calendar: calendar) else {
+        // Drop the previous outcome for these intervals first, so a read that
+        // fails or is skipped can never leave a stale line in Developer tools.
+        let previousPeriodIfAny = period.precedingEquivalent(calendar: calendar)
+        dailyBucketReportIntervals = [period.interval] + (previousPeriodIfAny.map { [$0.interval] } ?? [])
+        healthData.clearDailyBucketReadRecords(for: dailyBucketReportIntervals)
+        dailyBucketReads = []
+        guard let previousPeriod = previousPeriodIfAny else {
             reportStates.restingHeartRate = .noDataOrAccess
             reportStates.hrv = .noDataOrAccess
             return
@@ -573,9 +590,8 @@ final class WeeklyReportViewModel: ObservableObject {
             reportStates.hrv = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
-        let readIntervals = [period.interval, previousPeriod.interval]
         dailyBucketReads = healthData.dailyBucketReadRecords.filter {
-            readIntervals.contains($0.interval)
+            dailyBucketReportIntervals.contains($0.interval)
         }
 
         do {
