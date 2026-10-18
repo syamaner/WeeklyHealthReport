@@ -1,0 +1,565 @@
+{
+ "schema_version": "label-capture-untouched-result-v1",
+ "set": "untouched Taiwan photos (40 usable owner-verified tables)",
+ "truth_evidence_label": "model-drafted, owner-verified (no owner corrections)",
+ "contract_status": "frozen_for_untouched_run",
+ "run_once": [
+  {
+   "route": "B",
+   "arm": "route-b",
+   "started_at": "2026-10-18T05:29:38+00:00",
+   "status": "complete",
+   "log_dir": "/Users/sertanyamaner/WHR-label-eval-private/runs/untouched-v1/route-b/untouched",
+   "finished_at": "2026-10-18T05:30:38+00:00"
+  },
+  {
+   "route": "C",
+   "arm": "luna-off",
+   "started_at": "2026-10-18T05:31:05+00:00",
+   "status": "complete",
+   "log_dir": "/Users/sertanyamaner/WHR-label-eval-private/runs/untouched-v1/luna-off/untouched",
+   "finished_at": "2026-10-18T05:32:15+00:00"
+  },
+  {
+   "route": "C",
+   "arm": "gemini-on",
+   "started_at": "2026-10-18T05:32:42+00:00",
+   "status": "complete",
+   "log_dir": "/Users/sertanyamaner/WHR-label-eval-private/runs/untouched-v1/gemini-on/untouched",
+   "finished_at": "2026-10-18T05:34:44+00:00"
+  },
+  {
+   "route": "C",
+   "arm": "sol-on",
+   "started_at": "2026-10-18T05:35:08+00:00",
+   "status": "complete",
+   "log_dir": "/Users/sertanyamaner/WHR-label-eval-private/runs/untouched-v1/sol-on/untouched",
+   "finished_at": "2026-10-18T05:38:04+00:00"
+  }
+ ],
+ "note": "Counts, call statistics and case ids only; no model answer, decline text or image. Inspect logs are outside the repository.",
+ "arms": {
+  "route-b": {
+   "route": "B",
+   "git_head": "6df16b6f556b7715c7e1febc50d133517866414c",
+   "inspect_status": "success",
+   "cases": 40,
+   "failed": 0,
+   "false_declines": 35,
+   "extra_cells": 0,
+   "would_mark_ready_after_arithmetic": 2,
+   "metrics": {
+    "strict_cells": {
+     "numerator": 74,
+     "denominator": 601,
+     "rate": 0.1231,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 80,
+     "denominator": 654,
+     "rate": 0.1223,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 74,
+     "denominator": 601,
+     "rate": 0.1231,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 4,
+     "denominator": 40,
+     "rate": 0.1,
+     "bar": 0.75,
+     "verdict": "fail"
+    },
+    "serving_conversions": {
+     "numerator": 33,
+     "denominator": 335,
+     "rate": 0.0985,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 5,
+     "denominator": 39,
+     "rate": 0.1282,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 0,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "pass"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    },
+    "arithmetic_mutation_detection": {
+     "numerator": 50,
+     "denominator": 54,
+     "verdict": "fail"
+    }
+   },
+   "decline_reason_codes": {
+    "count_mismatch": 7,
+    "energy_without_unit": 1,
+    "multiple_panels": 13,
+    "unrecognised_unit": 2,
+    "unsupported_language": 1,
+    "value_without_unit": 6,
+    "values_without_row": 5
+   },
+   "false_ready_ids": []
+  },
+  "luna-off": {
+   "route": "C",
+   "git_head": "6df16b6f556b7715c7e1febc50d133517866414c",
+   "inspect_status": "success",
+   "cases": 40,
+   "failed": 0,
+   "false_declines": 2,
+   "extra_cells": 40,
+   "would_mark_ready_after_arithmetic": 31,
+   "metrics": {
+    "strict_cells": {
+     "numerator": 536,
+     "denominator": 601,
+     "rate": 0.8918,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 573,
+     "denominator": 654,
+     "rate": 0.8761,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 548,
+     "denominator": 601,
+     "rate": 0.9118,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 30,
+     "denominator": 40,
+     "rate": 0.75,
+     "bar": 0.75,
+     "verdict": "pass"
+    },
+    "serving_conversions": {
+     "numerator": 282,
+     "denominator": 335,
+     "rate": 0.8418,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 37,
+     "denominator": 39,
+     "rate": 0.9487,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 4,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "fail"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    },
+    "arithmetic_mutation_detection": {
+     "numerator": 50,
+     "denominator": 54,
+     "verdict": "fail"
+    }
+   },
+   "decline_reason_codes": {
+    "gate:required_row_missing": 2
+   },
+   "model": {
+    "label": "luna-reasoning-off",
+    "slug": "openai/gpt-6-luna",
+    "endpoint": "openai",
+    "reasoning": "off"
+   },
+   "returned_models": {
+    "openai/gpt-6-luna": 40
+   },
+   "returned_providers": {
+    "OpenAI": 40
+   },
+   "calls": {
+    "calls": 40,
+    "attempts": 40,
+    "retries": 0,
+    "reported_cost_usd": "0.038558775",
+    "unknown_cost_calls": 0,
+    "cost_median_usd": "0.0005688625",
+    "cost_p90_usd": "0.00217605",
+    "cost_max_usd": "0.0027413",
+    "latency_p50_seconds": 5.76,
+    "latency_p90_seconds": 9.81,
+    "latency_max_seconds": 16.01
+   },
+   "qualification_passed": true,
+   "pre_run_checks": {
+    "catalogue_problems": [],
+    "arm_credit_gate": {
+     "allowed": true,
+     "needed_usd": "1.1"
+    },
+    "sealed_reservation_usd": "40.00",
+    "credit_covers_sealed_reservation": true
+   },
+   "false_ready_ids": [
+    "off-taiwan:4710105020310:nutrition_zh.13",
+    "off-taiwan:4710018164101:nutrition_zh.11",
+    "off-taiwan:4710209334115:nutrition_zh.11",
+    "off-taiwan:4710018168307:nutrition_zh.10"
+   ],
+   "declined": [
+    {
+     "id": "off-taiwan:4710022030713:nutrition_zh.10",
+     "by": "gate"
+    },
+    {
+     "id": "off-taiwan:4711957513876:nutrition_zh.3",
+     "by": "gate"
+    }
+   ],
+   "failed_ids": []
+  },
+  "gemini-on": {
+   "route": "C",
+   "git_head": "6df16b6f556b7715c7e1febc50d133517866414c",
+   "inspect_status": "success",
+   "cases": 40,
+   "failed": 0,
+   "false_declines": 5,
+   "extra_cells": 2,
+   "would_mark_ready_after_arithmetic": 33,
+   "metrics": {
+    "strict_cells": {
+     "numerator": 521,
+     "denominator": 601,
+     "rate": 0.8669,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 563,
+     "denominator": 654,
+     "rate": 0.8609,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 524,
+     "denominator": 601,
+     "rate": 0.8719,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 33,
+     "denominator": 40,
+     "rate": 0.825,
+     "bar": 0.75,
+     "verdict": "pass"
+    },
+    "serving_conversions": {
+     "numerator": 290,
+     "denominator": 335,
+     "rate": 0.8657,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 35,
+     "denominator": 39,
+     "rate": 0.8974,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 2,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "fail"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    },
+    "arithmetic_mutation_detection": {
+     "numerator": 50,
+     "denominator": 54,
+     "verdict": "fail"
+    }
+   },
+   "decline_reason_codes": {
+    "gate:required_row_missing": 2
+   },
+   "model": {
+    "label": "gemini-reasoning-on",
+    "slug": "google/gemini-4-argon",
+    "endpoint": "google-ai-studio",
+    "reasoning": "on"
+   },
+   "returned_models": {
+    "google/gemini-4-argon": 40
+   },
+   "returned_providers": {
+    "Google AI Studio": 40
+   },
+   "calls": {
+    "calls": 40,
+    "attempts": 40,
+    "retries": 0,
+    "reported_cost_usd": "0.432870",
+    "unknown_cost_calls": 0,
+    "cost_median_usd": "0.010458",
+    "cost_p90_usd": "0.012454",
+    "cost_max_usd": "0.015552",
+    "latency_p50_seconds": 9.93,
+    "latency_p90_seconds": 15.49,
+    "latency_max_seconds": 25.23
+   },
+   "qualification_passed": true,
+   "pre_run_checks": {
+    "catalogue_problems": [],
+    "arm_credit_gate": {
+     "allowed": true,
+     "needed_usd": "1.6"
+    },
+    "sealed_reservation_usd": "40.00",
+    "credit_covers_sealed_reservation": true
+   },
+   "false_ready_ids": [
+    "off-taiwan:3228022000311:nutrition_zh.12",
+    "off-taiwan:4972767003715:nutrition_zh.8"
+   ],
+   "declined": [
+    {
+     "id": "off-taiwan:4713105808025:nutrition_zh.7",
+     "by": "model"
+    },
+    {
+     "id": "off-taiwan:4710022030713:nutrition_zh.10",
+     "by": "gate"
+    },
+    {
+     "id": "off-taiwan:4712893950282:nutrition_zh.7",
+     "by": "model"
+    },
+    {
+     "id": "off-taiwan:4711957513876:nutrition_zh.3",
+     "by": "gate"
+    },
+    {
+     "id": "off-taiwan:4710425590197:nutrition_zh.5",
+     "by": "model"
+    }
+   ],
+   "failed_ids": []
+  },
+  "sol-on": {
+   "route": "C",
+   "git_head": "6df16b6f556b7715c7e1febc50d133517866414c",
+   "inspect_status": "success",
+   "cases": 40,
+   "failed": 0,
+   "false_declines": 4,
+   "extra_cells": 0,
+   "would_mark_ready_after_arithmetic": 32,
+   "metrics": {
+    "strict_cells": {
+     "numerator": 538,
+     "denominator": 601,
+     "rate": 0.8952,
+     "bar": 0.95,
+     "verdict": "fail"
+    },
+    "binding": {
+     "numerator": 580,
+     "denominator": 654,
+     "rate": 0.8869,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "unit_and_basis": {
+     "numerator": 542,
+     "denominator": 601,
+     "rate": 0.9018,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "full_table": {
+     "numerator": 33,
+     "denominator": 40,
+     "rate": 0.825,
+     "bar": 0.75,
+     "verdict": "pass"
+    },
+    "serving_conversions": {
+     "numerator": 291,
+     "denominator": 335,
+     "rate": 0.8687,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "servings_per_pack": {
+     "numerator": 36,
+     "denominator": 39,
+     "rate": 0.9231,
+     "bar": 0.98,
+     "verdict": "fail"
+    },
+    "bounds": {
+     "numerator": 0,
+     "denominator": 1,
+     "rate": 0.0,
+     "bar": 1.0,
+     "verdict": "fail"
+    },
+    "correct_decline": {
+     "numerator": 0,
+     "denominator": 0,
+     "rate": null,
+     "bar": 0.95,
+     "verdict": "no_denominator"
+    },
+    "false_ready": {
+     "count": 1,
+     "denominator": 40,
+     "bar": "<= 0",
+     "verdict": "fail"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    },
+    "arithmetic_mutation_detection": {
+     "numerator": 50,
+     "denominator": 54,
+     "verdict": "fail"
+    }
+   },
+   "decline_reason_codes": {
+    "gate:required_row_missing": 2
+   },
+   "model": {
+    "label": "sol-reasoning-on",
+    "slug": "openai/gpt-6.1-sol",
+    "endpoint": "openai",
+    "reasoning": "on"
+   },
+   "returned_models": {
+    "openai/gpt-6.1-sol": 40
+   },
+   "returned_providers": {
+    "OpenAI": 40
+   },
+   "calls": {
+    "calls": 40,
+    "attempts": 40,
+    "retries": 0,
+    "reported_cost_usd": "0.8995755",
+    "unknown_cost_calls": 0,
+    "cost_median_usd": "0.016186",
+    "cost_p90_usd": "0.046761",
+    "cost_max_usd": "0.059696",
+    "latency_p50_seconds": 16.69,
+    "latency_p90_seconds": 22.55,
+    "latency_max_seconds": 35.11
+   },
+   "qualification_passed": true,
+   "pre_run_checks": {
+    "catalogue_problems": [],
+    "arm_credit_gate": {
+     "allowed": true,
+     "needed_usd": "1.7"
+    },
+    "sealed_reservation_usd": "40.00",
+    "credit_covers_sealed_reservation": true
+   },
+   "false_ready_ids": [
+    "off-taiwan:3228022000311:nutrition_zh.12"
+   ],
+   "declined": [
+    {
+     "id": "off-taiwan:4710022030713:nutrition_zh.10",
+     "by": "model"
+    },
+    {
+     "id": "off-taiwan:4712893950282:nutrition_zh.7",
+     "by": "gate"
+    },
+    {
+     "id": "off-taiwan:4711957513876:nutrition_zh.3",
+     "by": "gate"
+    },
+    {
+     "id": "off-taiwan:4710425590197:nutrition_zh.5",
+     "by": "model"
+    }
+   ],
+   "failed_ids": []
+  }
+ }
+}

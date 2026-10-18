@@ -1,6 +1,6 @@
 # Nutrition-label capture evaluation v1
 
-Status: **evaluation plan, approved by the owner, 17 October 2026.** All twelve decisions in section 12 were accepted as recommended, with decision 4 amended to five route C models. Later the same day the owner confirmed there will be **no new owner photos**: the corpus is limited to material the project already has (section 3), which makes decisions 6, 7 and 8 largely moot and narrows what any result can promote (section 3.5). The implementation phases are tracked in #255. Also on 17 October 2026 the owner approved two public Chinese additions (section 3.5): 60 Open Food Facts Taiwan label photos and Taiwan FDA open dataset 188 for synthetic pasted text. This document authorises no product code, no production capture route, no automatic saving and no API call. Route C below adds egress for the evaluation only; any product use of route C needs its own versioned contract, an update to [`privacy-and-egress.md`](privacy-and-egress.md), an update to [`privacy-policy.txt`](privacy-policy.txt) and separate owner approval. Version 1.1 (17 October 2026) records the evaluation framework, Inspect AI, in section 9.3, and the owner decisions on untouched ground truth and refills, with the deviations, in section 9.4. Version 1.2 (17 October 2026, phase 2) records route B, the safeguards, the untouched truth drafting and the UK shortfall and deferral in section 9.5. Version 1.3 (17 October 2026, phase 3) records the owner's verification of the untouched Taiwan drafts, the refills, the muesli consent and the route C development runs in section 9.6. Version 1.4 (18 October 2026, phase 4) records the decline gate, the offline re-score, the UK diagnosis and the whole-call deadline in section 9.7.
+Status: **evaluation plan, approved by the owner, 17 October 2026.** All twelve decisions in section 12 were accepted as recommended, with decision 4 amended to five route C models. Later the same day the owner confirmed there will be **no new owner photos**: the corpus is limited to material the project already has (section 3), which makes decisions 6, 7 and 8 largely moot and narrows what any result can promote (section 3.5). The implementation phases are tracked in #255. Also on 17 October 2026 the owner approved two public Chinese additions (section 3.5): 60 Open Food Facts Taiwan label photos and Taiwan FDA open dataset 188 for synthetic pasted text. This document authorises no product code, no production capture route, no automatic saving and no API call. Route C below adds egress for the evaluation only; any product use of route C needs its own versioned contract, an update to [`privacy-and-egress.md`](privacy-and-egress.md), an update to [`privacy-policy.txt`](privacy-policy.txt) and separate owner approval. Version 1.1 (17 October 2026) records the evaluation framework, Inspect AI, in section 9.3, and the owner decisions on untouched ground truth and refills, with the deviations, in section 9.4. Version 1.2 (17 October 2026, phase 2) records route B, the safeguards, the untouched truth drafting and the UK shortfall and deferral in section 9.5. Version 1.3 (17 October 2026, phase 3) records the owner's verification of the untouched Taiwan drafts, the refills, the muesli consent and the route C development runs in section 9.6. Version 1.4 (18 October 2026, phase 4) records the decline gate, the offline re-score, the UK diagnosis and the whole-call deadline in section 9.7. Version 1.5 (18 October 2026, phase 5) records the round-3 truth answers, the freeze and the single untouched Taiwan run in section 9.8.
 
 Related: #93 (printed-panel capture, blocked), #99 (cloud OCR challengers), #91 (handwritten lists, separate problem, not combined here), #86 (epic). Background evidence lives in [`Tools/FoodOCREvaluation/`](../Tools/FoodOCREvaluation/README.md).
 
@@ -356,6 +356,25 @@ No API call was made in phase 4, and the untouched and sealed sets were not open
 - **Whole-call deadline.** `openrouter_client.http_post` now bounds each attempt by the time left of the 180 s call budget: DNS in a thread abandoned at the deadline, an explicit connect, and a watchdog that closes the socket. The retry policy is unchanged. The phase 3 development arms ran without it.
 
 Results: [`Tools/NutritionLabelCaptureEvaluation/results/phase-4-decline-gate-and-uk-diagnosis-v1.md`](../Tools/NutritionLabelCaptureEvaluation/results/phase-4-decline-gate-and-uk-diagnosis-v1.md). The untouched Taiwan run (Gemini 4 Argon reasoning on, GPT-6.1 Sol on, Luna off) waits for the owner.
+
+### 9.8 Phase 5 note (v1.5, 18 October 2026)
+
+- **Round-3 truth answers (owner, 18 October 2026).**
+  - Development order 3 (`off-taiwan:4710228034096`): the per-100 ml sodium is legible (19毫克), so its required decline was wrong. It is now a usable table whose truth is incomplete, and it is excluded from development scoring rather than filled.
+  - The UK per-slice values of `off:5010482793302` stand; the models' misses are model errors.
+  - Logged in `results/truth-changes-round3-v1.json` and the contract, and re-scored offline under gate v2 (`results/round3-rescore-v1.json`). The change removes one required decline and up to one false-ready table per arm on Taiwan. Gemini 4 is now 214/214, 15/15, 4/4 with no false-ready on Taiwan development.
+- **Freeze.** The contract was set to `frozen_for_untouched_run`.
+  - Every artefact is pinned, including the untouched truth, gate v2, scorer, mapping, client, loaders and the new single-run runner `run_untouched.py`.
+  - The `untouched_run` block records the three arms (Gemini 4 Argon on, GPT-6.1 Sol on, GPT-6 Luna off, with their development pins and settings) and the route B binary hashes.
+- **The untouched Taiwan run.** It ran once, after free catalogue and credit checks and the qualification labels, with no reruns.
+  - **Route C:** the full-table bar is the only one any arm passes. Every arm fails strict cells (best 89.5%), conversions, servings per pack, bounds and the zero false-ready bar (Gemini 4: 2, Sol: 1, Luna: 4).
+  - **Route B:** no false-ready, but it declines 35 of 40 usable tables.
+  - **Correct decline:** no denominator.
+  - **Spend:** $1.42.
+  - **Possible truth error:** one owner-verified table (`off-taiwan:3228022000311`) looks wrong in three cells. It is reported for the owner, not changed.
+  - **Route A:** not run, because the untouched pasted-text cases were never rendered.
+  - **Verdict:** under section 10, no route is proposed for product.
+  - Results: [`Tools/NutritionLabelCaptureEvaluation/results/untouched-taiwan-v1.md`](../Tools/NutritionLabelCaptureEvaluation/results/untouched-taiwan-v1.md).
 
 ## 10. Promotion and decline
 

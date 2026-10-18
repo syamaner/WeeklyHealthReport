@@ -1690,3 +1690,24 @@ The previous row's gates, commit, push and Swift wait fall between the two rows 
 Boundary: `2026-10-17T18:04:33Z` → this edit. Cache writes: 518,578 5-minute, 0 1-hour. Exact API-equivalent USD 6.7442438.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-18d: Claude Code label capture evaluation phase 5
+
+Same `claude-opus-5-5` implementation subagent, transcript and pricing as WHR-255-2026-10-18c (branch `feat/255-label-eval-phase-5`). Runs from the branch start (`2026-10-18T05:21:25Z`, captured with `date -u`) to this ledger edit. It covers:
+
+- the round-3 truth answers and the offline re-score;
+- the untouched runner and its tests;
+- the freeze;
+- the pre-run checks and the single untouched Taiwan run (route B and three route C arms);
+- the results, plan and README;
+- the gates.
+
+The gap between the orchestrator's message and the branch start is unmeasured. No subagents. This ledger edit, the commit, the push and the PR are outside the row. The OpenRouter spend of the run (USD 1.4204 reported `usage.cost`: 120 untouched calls plus 6 qualification calls) is a separate actual charge, not part of this comparison.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 5 untouched Taiwan run (#255) | 27,226,361 (27,144,700) | 81,567 | 13,628 | 27,239,989 | $6.11 |
+
+Boundary: `2026-10-18T05:21:25Z` → this edit. Cache writes: 81,567 5-minute, 0 1-hour. Exact API-equivalent USD 6.109711.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
