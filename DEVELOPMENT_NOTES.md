@@ -1773,3 +1773,17 @@ The gates, the commit and the push after the boundary are unmeasured. No subagen
 Boundary: `2026-10-18T07:29:08Z` → `2026-10-18T07:39:02Z`. Cache writes: 726,446 5-minute, 0 1-hour. Exact API-equivalent USD 8.2218256. The output count is as the transcript records it: 350 tokens over 32 assistant messages, at most 32 per message. That looks like streaming-time snapshots, so it is a lower bound, not a measured total.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-18h: Claude Code label capture evaluation, correction-effort analysis
+
+One `claude-opus-5-5` implementation subagent (branch `feat/255-correction-effort`), transcript `subagents/agent-a6cd61725b93c2954.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. Covers the post-freeze correction-effort analysis approved by the owner on 18 October 2026: the reading, `correction_effort.py` and its tests, the offline analysis of the saved untouched and development outputs, the results, the README, the plan note, the contract record and the gates, up to this measurement. No subagents were launched; the orchestrator's usage is outside the row. This ledger edit, the commit, the push and the PR are outside the row. No OpenRouter call was made.
+
+Pricing as in the previous sections (checked 11 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Correction-effort analysis (#255) | 8,633,812 (8,417,813) | 215,891 | 19,175 | 8,652,987 | $3.15 |
+
+Boundary: `2026-10-18T08:21:42Z` (the transcript's first record) → `2026-10-18T08:34:05Z` (`phase_usage.py --format claude --since …`). Cache writes: 215,891 5-minute, 0 1-hour. Exact API-equivalent USD 3.1469496. The output count is as the transcript records it and may be a lower bound where messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
