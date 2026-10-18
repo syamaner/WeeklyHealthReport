@@ -2,7 +2,11 @@
 
 Status: **run once, 18 October 2026. No photo route (B or C) passed the pre-registered bars.** Route A on its untouched pasted-text cases passed every bar on route output but fails the arithmetic mutation-detection bar, which tests the shared arithmetic policy rather than the route (section 6). The 40 untouched Taiwan photos were unsealed under the contract rules and run through route B and three route C arms, each exactly once. There were no reruns, no tuning after results and no infrastructure failures. Machine-readable counts (case ids only, no model answers): [`untouched-taiwan-v1.json`](untouched-taiwan-v1.json).
 
-- **Truth evidence:** model-drafted, owner-verified (no owner corrections). The 40 usable tables were drafted by Qwen 3.5 and checked by the owner, who made no corrections, so anchoring on the draft cannot be ruled out. Section 4 lists three cells that look wrong.
+> **Truth caveat (owner decision, 18 October 2026).** Owner verification confirmed 811 drafted cells with no corrections, yet it missed at least one drafting error. That error was found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate. **Table-level conclusions stand; cell scores are approximate.**
+
+- **Truth evidence:** model-drafted, owner-verified. The 40 usable tables were drafted by Qwen 3.5 and checked by the owner with no corrections, so anchoring on the draft cannot be ruled out.
+- **After the run:** the owner corrected three cells of `off-taiwan:3228022000311` (section 7), an owner-approved deviation.
+- **Which figures are which:** section 2 gives the figures as run; section 7 gives them re-scored against the corrected truth from the saved outputs, with no rerun.
 - **Limits** (plan section 3.5): the photos are crowd-sourced Open Food Facts uploads, not this app's captures. A route C result here is evaluation-only egress. Any product use still needs ZDR routing, a versioned contract, a privacy update and owner approval.
 
 ## 1. How it ran
@@ -27,7 +31,7 @@ Status: **run once, 18 October 2026. No photo route (B or C) passed the pre-regi
 - **Route B:** Vision revision 3 (`zh-Hant`, `en-US`), the pinned serialiser and the shared parser. Both binaries were built from the pinned sources on the day, and their hashes are frozen in the contract.
 - **Route A:** run once afterwards on its own untouched pasted-text set, by owner decision of 18 October 2026 (section 6).
 
-## 2. Results against the bars (40 tables, Taiwan stratum)
+## 2. Results against the bars (40 tables, Taiwan stratum; as run, before the truth correction)
 
 | Metric | Bar | Gemini 4, on | Sol, on | Luna, off | Route B |
 |---|---|---|---|---|---|
@@ -66,11 +70,11 @@ Automatic persistence was 0 in every arm.
 
 ## 4. Anything unexpected
 
-1. **A likely truth error on `off-taiwan:3228022000311` (owner re-check in progress; correction path in section 7).** Gemini 4 and Sol independently read three cells as 74.5大卡 (energy per serving), 82公克 (fat per 100 g) and 57公克 (saturated fat per 100 g). The owner-verified truth has 745大卡, 8.2公克 and 5.7公克.
+1. **A truth error on `off-taiwan:3228022000311`, confirmed by the owner and corrected after the run (section 7).** Gemini 4 and Sol independently read three cells as 74.5大卡 (energy per serving), 82公克 (fat per 100 g) and 57公克 (saturated fat per 100 g). The owner-verified truth has 745大卡, 8.2公克 and 5.7公克.
    - The truth's values are implausible together: 745 kcal is impossible in a 10 g serving. The models' values are consistent with each other: 82% fat and 74.5 kcal per 10 g fit a butter-like product.
    - If the truth is wrong, both arms lose a false-ready table and three cells.
    - In the truth, the per-serving and per-100 g columns carry identical values for energy (745), fat (8.2) and saturates (5.7), so one column's values look copied into the other. The models read 745大卡 per 100 g and 8.2公克 fat per serving, which agree with the truth, and differ only in the other column.
-   - Nothing was changed. The truth stays frozen for this run, and any correction is the owner's to make and report as a deviation.
+   - The owner re-checked the photo: the serving is 10 g and the per-100 g values are ten times the per-serving values. Section 7 has the correction and the re-score.
 2. **The one bounded cell** (`off-taiwan:4710022030713`, sugars "less than 1 g") is in a table that every route declined, so the bounds bar is 0/1 for all four.
 3. **Arithmetic mutation detection is 50/54 on the untouched truth.** This checks the policy, not the routes, and it fails its 100% bar as it did on development.
 
@@ -124,17 +128,47 @@ The untouched pasted-text cases were rendered once with the frozen generator pat
   - That decision is needed before route A moves to its own product contract (decision 11).
 - **Limits** (plan section 3.5): all of this text is synthetic, rendered from verified values by the same generator family the parser was developed against. Real pasted Taiwan or UK text from web pages is unmeasured, so a product phase would have to spot-check real pasted examples first.
 
-## 7. Correction path for the untouched truth (prepared, not applied)
+## 7. Truth correction after the run (owner-approved deviation, 18 October 2026)
 
-The owner is re-checking every cell of `off-taiwan:3228022000311:nutrition_zh.12` against the photo. Nothing changes until the answers are in. The path is:
+The owner re-checked `off-taiwan:3228022000311:nutrition_zh.12` against the photo. The serving is 10 g and the per-100 g values are ten times the per-serving values, so three cells were corrected:
 
-1. The owner's answers go in a separate corrections file, `{case_id, cells: [{nutrient, basis, was, now}]}`. The frozen truth file is never edited, and its pinned hash stays valid.
-2. `rescore_untouched.py` checks the frozen truth hash and applies the corrections in memory to a copy.
-   - It refuses a correction that matches no cell or several cells, whose `was` text is stale, or that targets an excluded record.
-   - It re-scores the saved, already gated outputs of all four untouched arms offline, before and after the correction. There is no rerun and no API call.
-3. The deviation is recorded in the contract (`untouched_truth_deviations`), with the answers, the changed cells and both sets of numbers. This report is then updated, keeping the original figures.
+| Row | Basis | Was | Now |
+|---|---|---|---|
+| 熱量 | 每份 | 745大卡 | 74.5大卡 |
+| 脂肪 | 每100公克 | 8.2公克 | 82公克 |
+| 飽和脂肪 | 每100公克 | 5.7公克 | 57公克 |
 
-With no corrections the tool reproduces every arm's numbers exactly: route B 74/4/0, Luna 536/30/4, Gemini 4 521/33/2 and Sol 538/33/1 (strict cells, full tables, false-ready). A template listing every cell of the record, with the three questioned cells, is ready for the owner's answers outside the repository.
+Every other cell of the record is unchanged.
+
+**How it was applied:**
+- The owner's answers are in [`fixtures/untouched-truth-corrections-v1.json`](../fixtures/untouched-truth-corrections-v1.json).
+- The prepared tool (`rescore_untouched.py`) applied them to a copy and re-scored the saved, already gated outputs of every route and arm. There was no rerun and no API call: [`untouched-truth-correction-rescore-v1.json`](untouched-truth-correction-rescore-v1.json).
+- By owner decision the truth file was then updated with the same three cells (evidence label "3 owner corrections after the untouched run"). Only its hash was re-pinned, as a recorded deviation in the contract (`untouched_truth_deviations.applied`). The contract stays `frozen_for_untouched_run`.
+- Re-scoring with the updated file and no corrections gives the corrected figures below.
+
+| Arm | Strict cells | Binding | Full table | Serving conv. | False-ready |
+|---|---|---|---|---|---|
+| Gemini 4, on | 521 → **524**/601 (87.2%) | 563 → 566/654 | 33 → **34**/40 | 290/335 (unchanged) | 2 → **1** (`off-taiwan:4972767003715`) |
+| Sol, on | 538 → **541**/601 (90.0%) | 580 → 583/654 | 33 → **34**/40 | 291/335 (unchanged) | 1 → **0** |
+| Luna, off | 536/601 (unchanged) | 573/654 | 30/40 | 282/335 | 4 (unchanged) |
+| Route B | 74/601 (unchanged) | 80/654 | 4/40 | 33/335 | 0 (unchanged) |
+
+Route A runs on a separate set and is not affected.
+
+**After the correction:**
+- **Sol now has no false-ready table on the untouched set**, but it still fails strict cells (90.0%), binding, unit and basis, conversions, servings per pack, bounds and the p90 latency ceiling.
+- **Gemini 4 still has one false-ready table:** a cholesterol row given fat as its parent, which the truth does not.
+- **No photo route passes the pre-registered bars,** before or after the correction.
+
+### Consistency check of the whole untouched truth
+
+[`untouched-truth-consistency-v1.json`](untouched-truth-consistency-v1.json), produced by `consistency_check.py`:
+
+- **What was checked:** for every usable record with a serving size and both columns, whether the per-100 g (or ml) value is about per-serving × 100 / serving size, within label rounding. The tolerance is half a unit of each printed value's last digit, with the per-serving one scaled up, plus 5%.
+- **Coverage:** 32 of the 40 records have both columns, giving 261 nutrient pairs. The other 8 have no per-100 g or per-100 ml column.
+- **On the corrected truth: no inconsistency.**
+- **On the truth as run:** it flags exactly the three corrected cells of `off-taiwan:3228022000311`, which is how the check was validated.
+- **Limits:** the check cannot see an error that keeps the two columns consistent, for example both columns misread, a single-column table, or a wrong serving size, so it bounds the error rate only partly. Nothing was corrected by it.
 
 ## 8. Photo AI: conclusion, decision deferred
 
@@ -146,7 +180,7 @@ Nothing here supports promoting a photo route under the plan's rules.
 
 **For information only (not a recommendation to ship): AI pre-fill with a mandatory Confirm.** Suppose the route C output were used only to pre-fill the shared Confirm screen beside the photo, with every cell requiring the user's explicit selection and the Log action as the only save.
 - **Effort:** the best arms would hand the user an exactly right table about four times in five (33 of 40 here). They would leave a wrong or missing cell to correct in most of the rest, and decline about one in eight usable tables, which the user would then enter by hand.
-- **Silent errors:** the risk the zero false-ready bar guards against is that a user accepts a wrong pre-filled table without noticing. On this set that would have been 1 to 4 tables in 40 per arm (2.5% to 10%), before any reduction from the user's own check, which is unmeasured.
+- **Silent errors:** the risk the zero false-ready bar guards against is that a user accepts a wrong pre-filled table without noticing. On this set that would have been 0 to 4 tables in 40 per arm after the truth correction (Sol 0, Gemini 4 1, Luna 4), before any reduction from the user's own check, which is unmeasured.
   - Some errors are plausible-looking: a tenfold slip, or a missing 0% reference value.
   - The arithmetic check does not catch all of them.
 - **Cost and latency:** Gemini 4 and Luna fit the cost and latency ceilings. Sol is over the latency ceiling.
@@ -166,4 +200,4 @@ The decision is left for later.
   - real-world rates beyond this denominator;
   - UK labels, because the UK untouched set is deferred;
   - real pasted text.
-- **Next decisions are the owner's:** the truth of `off-taiwan:3228022000311` (section 7), whether route A goes to its own product contract (section 6), and the photo AI question (section 8).
+- **Next decisions are the owner's:** whether route A goes to its own product contract (section 6), and the photo AI question (section 8).

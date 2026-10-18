@@ -375,7 +375,10 @@ Results: [`Tools/NutritionLabelCaptureEvaluation/results/phase-4-decline-gate-an
   - **Route A** (owner decision, the same day): rendered once with the frozen generator path and run once on its 107 untouched pasted-text cases (FDA 188 and template, 15 required declines).
     - Every bar on route output passes: 1093/1093 strict cells, 92/92 tables, 599/599 conversions, 36/36 bounds, 15/15 declines, 0 false-ready.
     - Arithmetic mutation detection is 110/116, which fails its 100% bar. It tests the shared policy, not the parser; the owner decides how that bears on decision 11.
-  - **Correction path:** for `off-taiwan:3228022000311`, a recorded deviation plus an offline re-score of the saved outputs (`rescore_untouched.py`). It is prepared and not applied while the owner re-checks the record.
+  - **Truth correction (owner-approved deviation, after the run):** the owner corrected three cells of `off-taiwan:3228022000311` (serving 10 g; the per-100 g values are ten times the per-serving values).
+    - The saved outputs were re-scored with no rerun: Sol false-ready 1 → 0, Gemini 4 2 → 1, Luna unchanged at 4. No photo route passes, before or after.
+    - A consistency check over the whole untouched truth finds no other per-serving against per-100 inconsistency.
+  - **Caveat (owner decision):** owner verification confirmed 811 drafted cells with no corrections yet missed at least one drafting error. It was found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate: table-level conclusions stand, cell scores are approximate.
   - **Photo AI:** no photo route passed the pre-registered bars. The plain reading of an AI pre-fill with a mandatory Confirm is in the results, as information only; the decision is deferred, and any product use needs its own contract and privacy work.
   - **Verdict:** under section 10, no route is proposed for product.
   - Results: [`Tools/NutritionLabelCaptureEvaluation/results/untouched-taiwan-v1.md`](../Tools/NutritionLabelCaptureEvaluation/results/untouched-taiwan-v1.md).

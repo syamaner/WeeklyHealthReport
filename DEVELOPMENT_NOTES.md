@@ -1731,3 +1731,23 @@ The previous row's commit, push, PR and Swift wait fall between the two rows and
 Boundary: `2026-10-18T06:10:33Z` → this edit. Cache writes: 666,996 5-minute, 0 1-hour. Exact API-equivalent USD 5.7737676.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-18f: Claude Code label capture evaluation phase 5, untouched truth correction
+
+Same subagent, transcript and pricing as WHR-255-2026-10-18e. Runs from the orchestrator's message relaying the owner's correction (`2026-10-18T06:27:59Z` in the transcript, UTC) to this measurement. It covers:
+
+- the corrections file, and the correction and re-pin as a recorded deviation;
+- the offline re-score of the saved untouched outputs;
+- the truth consistency check and its tests;
+- the caveat in the results, plan and contract;
+- the gates.
+
+The previous row's commit, push, PR and Swift wait fall between the two rows and are unmeasured. No subagents and no OpenRouter call. The output counter is as the transcript records it.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 5 untouched truth correction (#255) | 13,101,484 (12,400,581) | 700,865 | 233 | 13,101,717 | $5.99 |
+
+Boundary: `2026-10-18T06:27:59Z` → measurement. Cache writes: 700,865 5-minute, 0 1-hour. Exact API-equivalent USD 5.9892532.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

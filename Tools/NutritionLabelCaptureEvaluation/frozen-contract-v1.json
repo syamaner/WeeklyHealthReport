@@ -584,7 +584,7 @@
   "ground_truth": {
     "development_off_taiwan": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-development-v1.json",
     "development_off_taiwan_status": "first_pass_unverified",
-    "untouched_sha256": "d40a56b7b35aad65a26338ded755bb22475520ccf1dd6fc2a26150c64e5b57a3",
+    "untouched_sha256": "8c871d2d0d866f1ba4af72072767294f55b39d901818cf7e569ac2fb62495c46",
     "development_off_taiwan_drafting": "Pass 1 of the 20 Taiwan development truths was drafted by Claude (the assistant); Claude Opus route C results on development data carry that caveat.",
     "untouched_taiwan_status": "owner_verified (rounds 1 and 2 complete): 40 usable tables, 14 exclusion records, 0 required declines",
     "untouched": "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-untouched-v1.json",
@@ -601,7 +601,8 @@
       "round_2": "17 October 2026: order 34 (redrafted with the bilingual instruction v1.2) and refills 63 to 77; 268 of 268 cells confirmed with no corrections; refill exclusions 66 (Thai), 71 (Simplified Chinese) and 75 (English) agreed. The owner confirmed order 34's printed values as drafted, including 熱量 '100' with no unit, which is kept as printed and ungradable (no unit inferred). Order 34's round-1 keep decision was applied to its new draft's table decision.",
       "mechanical_nutrient_mappings": "nutrient keys were not on the review page; in order 34 the draft left 'Sodium/鈉' unrecognised and the agent's mechanical check maps it to sodium (exact closed Taiwan row name), recorded in the record's review block and not owner-verified"
     },
-    "untouched_pinning": "untouched_sha256 pins the complete file (40 usable records, 14 exclusion records). It is frozen with the contract before the single untouched run."
+    "untouched_pinning": "untouched_sha256 pins the complete file (40 usable records, 14 exclusion records). It is frozen with the contract before the single untouched run.",
+    "untouched_taiwan_caveat": "Owner verification confirmed 811 drafted cells with no corrections (owner's count, 18 October 2026) but missed at least one drafting error (off-taiwan:3228022000311), found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate: table-level conclusions stand, cell scores are approximate."
   },
   "frozen_artefacts": {
     "Tools/NutritionLabelCaptureEvaluation/candidate-schema-v1.json": "74333555741f73f2557fe74e11cfcb7b2693f5a261c49957a9e8e6e39404e531",
@@ -640,7 +641,7 @@
     "Tools/NutritionLabelCaptureEvaluation/qualification/render_qualification.swift": "0820650b78c72abaf480b079d2f4454612e1151d86fcfba84327f2c770fc3e91",
     "Tools/NutritionLabelCaptureEvaluation/decline_gate.py": "4c1a3f4429a635c269e5c1b7148f096f5d0d224101068f4d187efde04be8392d",
     "Tools/NutritionLabelCaptureEvaluation/run_untouched.py": "6e0dfddad25e85130f62aa4b3e4076cbbd24d915d3313c018fff712a5190fb52",
-    "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-untouched-v1.json": "d40a56b7b35aad65a26338ded755bb22475520ccf1dd6fc2a26150c64e5b57a3"
+    "Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-untouched-v1.json": "8c871d2d0d866f1ba4af72072767294f55b39d901818cf7e569ac2fb62495c46"
   },
   "untouched_truth_drafting": {
     "owner_decision": "A, 17 October 2026",
@@ -991,13 +992,81 @@
       "parser_binary": "~/WHR-label-eval-private/bin/NutritionLabelTextParse-phase5, built from the pinned NutritionLabelParsing sources",
       "parser_binary_sha256": "95c259254a1a014c4163878f07b37db22f3222eb21580a3ff09a03c2c1ffd668"
     },
-    "route_a": "run once on 18 October 2026 by owner decision: the untouched FDA 188 and template pasted-text cases (107, 15 required declines) rendered with the frozen generator path (run_untouched_text.py; the same path reproduces the committed development cases byte for byte), the frozen parser binary, decline gate v2 and the frozen scorer; dataset SHA-256 9eace6511eee1a0defb1c251a772b152a9a13169a49d894ca67e7cf2cc09c3c4; every route-output bar passes; arithmetic mutation detection 110/116 fails its 100% bar (policy, not route)"
+    "route_a": "run once on 18 October 2026 by owner decision: the untouched FDA 188 and template pasted-text cases (107, 15 required declines) rendered with the frozen generator path (run_untouched_text.py; the same path reproduces the committed development cases byte for byte), the frozen parser binary, decline gate v2 and the frozen scorer; dataset SHA-256 9eace6511eee1a0defb1c251a772b152a9a13169a49d894ca67e7cf2cc09c3c4; every route-output bar passes; arithmetic mutation detection 110/116 fails its 100% bar (policy, not route)",
+    "result_caveat": "Owner verification confirmed 811 drafted cells with no corrections (owner's count, 18 October 2026) but missed at least one drafting error (off-taiwan:3228022000311), found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate: table-level conclusions stand, cell scores are approximate."
   },
   "untouched_truth_deviations": {
-    "procedure": "an owner correction of the frozen untouched truth is never applied by editing the pinned file: the answers go in a separate corrections file, rescore_untouched.py applies them in memory to a copy (refusing ambiguous, stale or excluded targets) and re-scores the saved untouched outputs offline; the run is never repeated; each applied correction is recorded here with its answers, changed cells and the before and after numbers",
-    "pending": [
-      "off-taiwan:3228022000311:nutrition_zh.12: owner re-checking every cell against the photo (18 October 2026); not applied"
+    "procedure": "an owner correction of the frozen untouched truth is never applied by editing the pinned file: the answers go in a separate corrections file, rescore_untouched.py applies them in memory to a copy (refusing ambiguous, stale or excluded targets) and re-scores the saved untouched outputs offline; the run is never repeated; each applied correction is recorded here with its answers, changed cells and the before and after numbers; owner override, 18 October 2026: for off-taiwan:3228022000311 the owner directed that the truth file itself be updated with the corrections and its hash re-pinned, after the in-memory re-score had been run from the separate corrections file",
+    "pending": [],
+    "applied": [
+      {
+        "at": "2026-10-18",
+        "approved_by": "owner",
+        "after_untouched_run": true,
+        "case_id": "off-taiwan:3228022000311:nutrition_zh.12",
+        "corrections_file": "Tools/NutritionLabelCaptureEvaluation/fixtures/untouched-truth-corrections-v1.json",
+        "cells": [
+          {
+            "nutrient": "energy_kcal",
+            "basis": "per_serving",
+            "before": {
+              "printed_text": "745大卡",
+              "comparator": "=",
+              "decimal_text": "745",
+              "unit": "大卡",
+              "canonical_unit": "kcal"
+            },
+            "after": {
+              "printed_text": "74.5大卡",
+              "comparator": "=",
+              "decimal_text": "74.5",
+              "unit": "大卡",
+              "canonical_unit": "kcal"
+            }
+          },
+          {
+            "nutrient": "fat",
+            "basis": "per_100g",
+            "before": {
+              "printed_text": "8.2公克",
+              "comparator": "=",
+              "decimal_text": "8.2",
+              "unit": "公克",
+              "canonical_unit": "g"
+            },
+            "after": {
+              "printed_text": "82公克",
+              "comparator": "=",
+              "decimal_text": "82",
+              "unit": "公克",
+              "canonical_unit": "g"
+            }
+          },
+          {
+            "nutrient": "saturates",
+            "basis": "per_100g",
+            "before": {
+              "printed_text": "5.7公克",
+              "comparator": "=",
+              "decimal_text": "5.7",
+              "unit": "公克",
+              "canonical_unit": "g"
+            },
+            "after": {
+              "printed_text": "57公克",
+              "comparator": "=",
+              "decimal_text": "57",
+              "unit": "公克",
+              "canonical_unit": "g"
+            }
+          }
+        ],
+        "truth_sha256_before": "d40a56b7b35aad65a26338ded755bb22475520ccf1dd6fc2a26150c64e5b57a3",
+        "truth_sha256_after": "8c871d2d0d866f1ba4af72072767294f55b39d901818cf7e569ac2fb62495c46",
+        "repin": "only the untouched truth hash (ground_truth.untouched_sha256 and its frozen_artefacts entry) was changed, by this recorded deviation; the contract stays frozen_for_untouched_run and no other artefact was re-pinned",
+        "rescore": "Tools/NutritionLabelCaptureEvaluation/results/untouched-truth-correction-rescore-v1.json (saved outputs, no rerun, no API call)"
+      }
     ],
-    "applied": []
+    "caveat": "Owner verification confirmed 811 drafted cells with no corrections (owner's count, 18 October 2026) but missed at least one drafting error (off-taiwan:3228022000311), found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate: table-level conclusions stand, cell scores are approximate."
   }
 }

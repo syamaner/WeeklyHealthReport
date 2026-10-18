@@ -1,0 +1,16 @@
+{
+  "schema_version": "label-capture-untouched-truth-corrections-v1",
+  "status": "owner-approved deviation after the untouched run, 18 October 2026",
+  "source": "owner re-check of off-taiwan:3228022000311:nutrition_zh.12 against the photo: the serving is 10 g and the per-100 g values are ten times the per-serving values",
+  "corrections": [
+    {
+      "case_id": "off-taiwan:3228022000311:nutrition_zh.12",
+      "cells": [
+        {"nutrient": "energy_kcal", "basis": "per_serving", "printed_label": "熱量", "was": "745大卡", "now": {"printed_text": "74.5大卡", "decimal_text": "74.5"}},
+        {"nutrient": "fat", "basis": "per_100g", "printed_label": "脂肪", "was": "8.2公克", "now": {"printed_text": "82公克", "decimal_text": "82"}},
+        {"nutrient": "saturates", "basis": "per_100g", "printed_label": "飽和脂肪", "was": "5.7公克", "now": {"printed_text": "57公克", "decimal_text": "57"}}
+      ],
+      "unchanged": "熱量 每100公克 745大卡, 脂肪 每份 8.2公克, 飽和脂肪 每份 5.7公克 and every other cell"
+    }
+  ]
+}

@@ -163,5 +163,30 @@ class UntouchedCorrectionPath(unittest.TestCase):
         self.assertEqual(len([r for r in rescore_untouched.frozen_truth().values() if not r.get("excluded")]), 40)
 
 
+class TruthConsistencyCheck(unittest.TestCase):
+    def record(self, serving_value: str, per_100_value: str, size: str = "10") -> dict:
+        def cell(basis: str, value: str) -> dict:
+            return {"nutrient": "fat", "basis": basis, "printed_text": f"{value}公克", "comparator": "=", "decimal_text": value}
+
+        return {
+            "case_id": "t:1",
+            "serving_size": {"printed_text": f"每一份量{size}公克", "decimal_text": size, "canonical_unit": "g"},
+            "cells": [cell("per_serving", serving_value), cell("per_100g", per_100_value)],
+        }
+
+    def test_a_copied_column_is_flagged(self) -> None:
+        import consistency_check
+
+        issues = consistency_check.check_record(self.record("8.2", "8.2"))
+        self.assertEqual([(i["nutrient"], i["expected_per_100"]) for i in issues], [("fat", "82.00")])
+
+    def test_label_rounding_is_tolerated(self) -> None:
+        import consistency_check
+
+        self.assertEqual(consistency_check.check_record(self.record("8.2", "82")), [])
+        self.assertEqual(consistency_check.check_record(self.record("1.3", "4.2", size="30")), [])  # 1.3 x 100 / 30 = 4.33
+        self.assertEqual(consistency_check.check_record({**self.record("8.2", "8.2"), "serving_size": "unknown"}), [])
+
+
 if __name__ == "__main__":
     unittest.main()
