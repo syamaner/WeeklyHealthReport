@@ -2,7 +2,7 @@
  "schema_version": "label-capture-truth-v1",
  "set": "off_taiwan_untouched",
  "status": "owner_verified",
- "evidence_label": "model-drafted, owner-verified (no owner corrections)",
+ "evidence_label": "model-drafted, owner-verified (3 owner corrections after the untouched run, 18 October 2026)",
  "drafting_method": "Pass 1 drafted by Qwen 3.5 (not a route C model) under owner decision A; pass 2 by the owner, every value checked against the image. Weaker evidence than independent human transcription.",
  "anchoring_note": "The owner confirmed every drafted value without a correction. Agreement with the draft cannot rule out anchoring on it: a value the owner accepted because the draft showed it would look the same.",
  "parentage_note": "The review page showed printed values, headers and serving lines, not parent rows, so parentage is structural: a draft parent naming the row itself or a row absent from the table is cleared.",
@@ -18,7 +18,7 @@
   "excluded": 14,
   "scored_cells": 654,
   "unscored_cells": 22,
-  "owner_corrections": 0,
+  "owner_corrections": 3,
   "pending_orders": []
  },
  "records": [
@@ -5640,7 +5640,67 @@
      "owner_corrections": 0
     },
     "evidence_label": "model-drafted, owner-verified (no owner corrections)",
-    "structural_parent_cells_cleared": 0
+    "structural_parent_cells_cleared": 0,
+    "owner_correction_2026_10_18": {
+     "after_untouched_run": true,
+     "cells": [
+      {
+       "nutrient": "energy_kcal",
+       "basis": "per_serving",
+       "before": {
+        "printed_text": "745大卡",
+        "comparator": "=",
+        "decimal_text": "745",
+        "unit": "大卡",
+        "canonical_unit": "kcal"
+       },
+       "after": {
+        "printed_text": "74.5大卡",
+        "comparator": "=",
+        "decimal_text": "74.5",
+        "unit": "大卡",
+        "canonical_unit": "kcal"
+       }
+      },
+      {
+       "nutrient": "fat",
+       "basis": "per_100g",
+       "before": {
+        "printed_text": "8.2公克",
+        "comparator": "=",
+        "decimal_text": "8.2",
+        "unit": "公克",
+        "canonical_unit": "g"
+       },
+       "after": {
+        "printed_text": "82公克",
+        "comparator": "=",
+        "decimal_text": "82",
+        "unit": "公克",
+        "canonical_unit": "g"
+       }
+      },
+      {
+       "nutrient": "saturates",
+       "basis": "per_100g",
+       "before": {
+        "printed_text": "5.7公克",
+        "comparator": "=",
+        "decimal_text": "5.7",
+        "unit": "公克",
+        "canonical_unit": "g"
+       },
+       "after": {
+        "printed_text": "57公克",
+        "comparator": "=",
+        "decimal_text": "57",
+        "unit": "公克",
+        "canonical_unit": "g"
+       }
+      }
+     ],
+     "reason": "owner re-check against the photo: the serving is 10 g and the per-100 g values are ten times the per-serving values"
+    }
    },
    "excluded": false,
    "exclusion_reason": null,
@@ -5680,9 +5740,9 @@
      "printed_label": "熱量",
      "header_id": "per_serving",
      "basis": "per_serving",
-     "printed_text": "745大卡",
+     "printed_text": "74.5大卡",
      "comparator": "=",
-     "decimal_text": "745",
+     "decimal_text": "74.5",
      "unit": "大卡",
      "canonical_unit": "kcal",
      "serving_conversion": "10公克"
@@ -5750,9 +5810,9 @@
      "printed_label": "脂肪",
      "header_id": "per_100g",
      "basis": "per_100g",
-     "printed_text": "8.2公克",
+     "printed_text": "82公克",
      "comparator": "=",
-     "decimal_text": "8.2",
+     "decimal_text": "82",
      "unit": "公克",
      "canonical_unit": "g",
      "serving_conversion": "not_applicable"
@@ -5778,9 +5838,9 @@
      "printed_label": "飽和脂肪",
      "header_id": "per_100g",
      "basis": "per_100g",
-     "printed_text": "5.7公克",
+     "printed_text": "57公克",
      "comparator": "=",
-     "decimal_text": "5.7",
+     "decimal_text": "57",
      "unit": "公克",
      "canonical_unit": "g",
      "serving_conversion": "not_applicable"
@@ -12285,5 +12345,6 @@
     "zh_hant"
    ]
   }
- ]
+ ],
+ "post_run_correction_note": "On 18 October 2026, after the untouched run, the owner corrected three cells of off-taiwan:3228022000311:nutrition_zh.12 (fixtures/untouched-truth-corrections-v1.json), a recorded owner-approved deviation. Owner verification had confirmed every drafted cell with no corrections and still missed this drafting error, found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on this set therefore has an unknown error rate."
 }

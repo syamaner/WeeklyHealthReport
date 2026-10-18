@@ -8,8 +8,9 @@
   "counts": {
     "records": 22,
     "usable": 15,
-    "required_declines": 5,
-    "excluded": 2
+    "required_declines": 4,
+    "excluded": 2,
+    "excluded_from_scoring": 1
   },
   "records": [
     {
@@ -526,8 +527,8 @@
         "method": "Transcribed from the image itself; Open Food Facts nutrient fields were not used as truth."
       },
       "excluded": false,
-      "requires_decline": true,
-      "decline_reason": "The bottom 鈉 row is partly cut off by the bottle edge; the per-100 ml sodium value is not legible.",
+      "requires_decline": false,
+      "decline_reason": null,
       "language": "unknown",
       "headers": [],
       "serving_size": "unknown",
@@ -535,10 +536,26 @@
       "cells": [],
       "coverage_tags": [
         "curved_or_crumpled",
-        "decline_expected",
         "per_100ml",
         "two_column_serving_and_100"
-      ]
+      ],
+      "excluded_from_scoring": true,
+      "truth_status": "usable table, truth incomplete (owner verified only 鈉 每100毫升 19毫克)",
+      "owner_verified_cells": [
+        {
+          "nutrient": "sodium",
+          "printed_label": "鈉",
+          "header_printed_text": "每100毫升",
+          "basis": "per_100ml",
+          "printed_text": "19毫克"
+        }
+      ],
+      "round3": {
+        "answered_on": "2026-10-18",
+        "by": "owner",
+        "finding": "the per-100 ml sodium is legible and printed as 19毫克; the required decline was wrong",
+        "action": "required decline removed; the other cells are not transcribed, so the case is excluded from development scoring rather than filled"
+      }
     },
     {
       "case_id": "off-taiwan:7394376619779:nutrition_zh.5",

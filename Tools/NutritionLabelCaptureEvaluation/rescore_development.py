@@ -21,9 +21,11 @@ mapping it uses change between commits:
 - `results/amendments-rescore-v1.json`: gate v1 with amendments S1, M1 to M3 and T1, written
   at commit ac584932;
 - `results/gate-v2-rescore-v1.json`: gate v2 with the amendments and the review fixes, written
-  by this version.
+  at commit 3949e11d;
+- `results/round3-rescore-v1.json`: as gate v2, with the round-3 owner answers of 18 October
+  2026 applied to the development truth, written by this version.
 
-This version refuses to overwrite the two earlier files.
+This version refuses to overwrite the three earlier files.
 """
 
 from __future__ import annotations
@@ -77,10 +79,28 @@ def _candidates(log_path: Path, allowed_ids: set[str]) -> dict[str, dict[str, An
     return found
 
 
-def current_truth(truth: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any]:
-    """The saved truth under the current convention: amendment T1 for the UK photo stratum."""
+TAIWAN_DEVELOPMENT_TRUTH = HERE / "fixtures" / "ground-truth-off-taiwan-development-v1.json"
+
+
+def _taiwan_development_truth() -> dict[str, dict[str, Any]]:
+    records = json.loads(TAIWAN_DEVELOPMENT_TRUTH.read_text(encoding="utf-8"))["records"]
+    return {record["case_id"]: record for record in records}
+
+
+def current_truth(case_id: str, truth: dict[str, Any], metadata: dict[str, Any]) -> dict[str, Any] | None:
+    """The saved truth under the current truth and convention; None when the case is not scored.
+
+    - UK photo stratum: amendment T1.
+    - Taiwan development photos: the committed truth file (round-3 owner answers), and a
+      record marked `excluded_from_scoring` is left out rather than filled.
+    """
     if metadata.get("corpus") == "uk_v2_development_review":
         return case_loading.apply_uk_truth_convention_t1(truth)[0]
+    if metadata.get("corpus") == "off_taiwan":
+        record = _taiwan_development_truth().get(case_id)
+        if record is None or record.get("excluded_from_scoring"):
+            return None
+        return record
     return truth
 
 
@@ -94,12 +114,15 @@ def load_arm(log_path: Path, cases: list[dict[str, Any]]) -> list[dict[str, Any]
     rows = []
     for case in cases:
         metadata = case["metadata"]
+        truth = current_truth(str(case["id"]), case["truth"], metadata)
+        if truth is None:
+            continue
         rows.append(
             {
                 "id": case["id"],
                 "stratum": metadata.get("stratum") or metadata.get("corpus"),
                 "label_format": decline_gate.format_for_case(metadata),
-                "truth": current_truth(case["truth"], metadata),
+                "truth": truth,
                 "candidate": outputs.get(case["id"]),
             }
         )
@@ -168,7 +191,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--t1-log", type=Path, help="write every UK truth record amendment T1 changes (case ids, row ids, parents)")
     args = parser.parse_args(argv)
-    if args.out.name in ("decline-gate-rescore-v1.json", "amendments-rescore-v1.json"):
+    if args.out.name in ("decline-gate-rescore-v1.json", "amendments-rescore-v1.json", "gate-v2-rescore-v1.json"):
         raise SystemExit(f"{args.out.name} was written by an earlier commit; write this version's re-score to a new file")
     thresholds = scoring.load_thresholds()
     arms: dict[str, Any] = {}
