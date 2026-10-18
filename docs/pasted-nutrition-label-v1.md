@@ -1,6 +1,6 @@
 # Pasted nutrition label v1 (#93)
 
-Status: **approved by the owner, 18 October 2026.** All twelve decisions in section 10 are decided; decisions 6 (convert kJ-only energy and salt-only sodium, labelled as calculated) and 12 ("Report a misread" in v1, as a user-initiated share) were **changed from the recommendation** by the owner. Implementation waits for an architecture-gate review of this contract. The owner approved drafting it on 18 October 2026, after route A of the label-capture evaluation (#255) passed every reader bar on its untouched synthetic pasted-text cases. It is the "independent promotion" that evaluation decision 11 allows, for route A only. No photo route (B or C) is proposed here. Nothing here adds an app-controlled destination; the user-initiated misread report extends what the existing clipboard and share-sheet row describes (section 7).
+Status: **approved by the owner, in session, 18 October 2026.** All twelve decisions in section 10 are decided; decisions 6 (convert kJ-only energy and salt-only sodium, labelled as calculated) and 12 ("Report a misread" in v1, as a user-initiated share) were **changed from the recommendation** by the owner. Implementation waits for an architecture-gate review of this contract. The owner approved drafting it on 18 October 2026, after route A of the label-capture evaluation (#255) passed every reader bar on its untouched synthetic pasted-text cases. It is the "independent promotion" that evaluation decision 11 allows, for route A only. No photo route (B or C) is proposed here. Nothing here adds an app-controlled destination. The user-initiated misread report extends what the existing clipboard and share-sheet row describes; the exact privacy document wording is approved here and ships with the implementation, not with this contract (section 7).
 
 **Launch scope (decisions 3, 4 and 11):** Taiwan 營養標示 text ships first. UK English ships only after at least 20 real public UK label texts read with zero wrong values. US "Nutrition Facts" layouts decline in v1.
 
@@ -246,9 +246,29 @@ The enum cases already exist (`CaptureKind.labelText`, `ProvenanceSourceKind.use
 - The pasted text is stored only in the local food ledger, inside the manifest of the entry it produced, under the existing rule that the food log stays local. It leaves the device only inside an inventory backup file the user explicitly exports, which [`privacy-and-egress.md`](privacy-and-egress.md) already covers for the whole food log, or inside a misread report the user chooses to share. It is never in Daily JSON, Copy all, Full Page or any report.
 - Reading the clipboard happens only when the user pastes into the field (the system paste control); the app never reads the pasteboard on its own.
 - **Report a misread** (section 9.1) opens the iOS share sheet only when the user taps it. The user sees and can edit the report first, picks the destination in the share sheet, and can cancel at any point. The app has no destination of its own for it: no prefilled address, no endpoint, no upload, no background collection, no retry and no record that a report was made.
-- **Document changes made with this contract:**
-  - [`privacy-and-egress.md`](privacy-and-egress.md): the existing "Clipboard, share sheet or the iOS screenshot editor" row's "What is sent" and "When" now include a misread report (pasted label text, the values read from it and the parser, gate, check and conversion versions), sent only when the user chooses Report a misread and then shares it. No row and no destination is added.
-  - [`privacy-policy.txt`](privacy-policy.txt): the "Sharing and Google Drive" paragraph covers the misread report, and the "Local food records and notes" paragraph says pasted nutrition-label text is kept locally as the evidence for a logged food. The effective date is left unchanged until the feature ships (section 8.6).
+- **Required privacy document changes, shipped in the implementation PR together with the feature.** They are **not** made by this contract's PR: the app bundles `privacy-policy.txt` (`PrivacyPolicyView`), and neither document may describe the route before it exists. The owner's approval of this contract covers the exact wording below; the implementation PR applies it verbatim, and any change to it needs owner approval again. Both are user-initiated shares under the existing row; no row and no destination is added.
+
+  1. **[`privacy-and-egress.md`](privacy-and-egress.md), "Allowed egress", the existing first row.** Replace it with:
+
+     ```
+     | Clipboard, share sheet or the iOS screenshot editor | The report text, or a Full Page PDF of Health (the report) or Today (today's food totals, quick-add favourite names and amounts, today's note count and today-so-far Health values), created in memory; or a misread report for a pasted nutrition label (the pasted label text, the values read from it, and the parser, gate, check and conversion versions), as previewed and edited by the user | Only when the user chooses Copy all, Share, a screenshot's Full Page, or Report a misread, and then saves or shares it; the user picks the destination in the system share sheet and can cancel; the app has no destination of its own and nothing is sent automatically | [README.md](../README.md), [pasted-nutrition-label-v1.md](pasted-nutrition-label-v1.md) |
+     ```
+
+  2. **[`privacy-policy.txt`](privacy-policy.txt), "Sharing and Google Drive".** After the sentence ending "today's note count and today-so-far Health values." insert:
+
+     ```
+     If you choose Report a misread for a pasted nutrition label, the app shows a report containing the pasted label text, the values it read and the reader versions; you can edit it, and it goes only to the destination you pick in the share sheet, or nowhere if you cancel.
+     ```
+
+  3. **[`privacy-policy.txt`](privacy-policy.txt), "Local food records and notes".** After the sentence "Receipt text you paste and text extracted from a PDF you select can be retained as evidence." insert:
+
+     ```
+     Nutrition-label text you paste and then log is kept locally, unchanged, as the evidence for that food; it is read on your device and is not sent to any service.
+     ```
+
+  4. **[`privacy-policy.txt`](privacy-policy.txt), first line after the title.** Set "Effective" to the date of the release that ships the route.
+
+  A contract test or review check in the implementation PR confirms these three texts appear verbatim.
 - No telemetry, analytics or automatic report of any kind.
 
 ## 8. Architecture gate
@@ -330,7 +350,7 @@ Presentation and UI:
 - Which `DecisiveIdentity` facets a named packaged food carries, so `sourceIdentityMissing` does not block a fully named label (section 6.5).
 - Whether daily and report aggregates that include a calculated value need any flag beyond the value-level "Calculated" label (section 3.4). The default is no aggregate change.
 - Where the "Calculated" projection lives: an application projection over the `pasted-label-conversions-v1` transform, used by the Confirm, saved-entry and report renderers, so the label cannot drift between screens.
-- When the privacy policy's effective date changes: the wording is updated with this contract, but the bundled policy should take a new effective date in the release that ships the route.
+- The privacy document edits in section 7 land in the implementation PR, verbatim, with a new policy effective date for the release that ships the route.
 
 ## 9. Measuring real pasted text without collecting user data
 
@@ -351,7 +371,7 @@ Real pasted text is unmeasured, so v1 has a measurement plan that collects nothi
 
 ## 10. Owner decisions (decided 18 October 2026)
 
-All twelve were answered by the owner on 18 October 2026. Ten follow the recommendation; decisions 6 and 12 were **changed from the recommendation**.
+All twelve were answered by the owner, in session, 18 October 2026. Ten follow the recommendation; decisions 6 and 12 were **changed from the recommendation**.
 
 1. **Entry point.** Should "Paste nutrition label" be its own row in Add food, rather than detected automatically inside "Paste or dictate"? *Recommendation: yes.* **Decided: yes,** its own row, separate from the paste list.
 2. **The failed mutation bar.** Should route A proceed to product although arithmetic mutation detection was 110/116, given that the check is warning-only and never authorises a save? *Recommendation: yes.* **Decided: yes,** ship; the check is a warning only, with no "checked" badge.
@@ -364,11 +384,11 @@ All twelve were answered by the owner on 18 October 2026. Ten follow the recomme
 9. **Version bump.** Should a logged label move the store to food contract 7 and `food-ledger-v7`? *Recommendation: yes, metadata-only.* **Decided: yes,** metadata-only migration, existing records keep their bytes, with a release note in the 0.2.0 form (section 6.6).
 10. **Adapter target.** Should the parser reach the application through a new `FoodLabelTextCapture` adapter behind an application-owned port? *Recommendation: yes.* **Decided: yes.**
 11. **Pre-release check size.** Should the release gate be at least 20 real public labels per shipped language, with zero wrong values? *Recommendation: yes.* **Decided: yes.**
-12. **Report a misread.** Should the opt-in "Report a misread" wait for its own contract and privacy update? *Recommendation: yes, defer.* **Decided, changed from the recommendation: in v1,** because privacy is the user's decision. It is a strictly user-initiated share through the iOS share sheet, with no app-controlled destination and no background collection. The existing clipboard and share-sheet row in `privacy-and-egress.md` and the privacy policy wording are updated to cover its content (sections 7 and 9.1).
+12. **Report a misread.** Should the opt-in "Report a misread" wait for its own contract and privacy update? *Recommendation: yes, defer.* **Decided, changed from the recommendation: in v1,** because privacy is the user's decision. It is a strictly user-initiated share through the iOS share sheet, with no app-controlled destination and no background collection. The existing clipboard and share-sheet row in `privacy-and-egress.md` and the privacy policy wording are updated to cover its content, with the exact wording in section 7, applied in the implementation PR (sections 7 and 9.1).
 
 ## 11. Not changing
 
 - `food_confirmation_v5`, its requirements and its assertion grammar; the review manifest v2; parser v2; the evaluation and its frozen artefacts.
-- The egress list's destinations: no row and no destination is added (only the existing share row's description changes, section 7).
+- `privacy-and-egress.md` and `privacy-policy.txt` in this contract's PR. Their required wording (section 7) ships with the implementation; even then no egress row and no destination is added.
 - HealthKit (read-only); the Health report, Copy all and Daily JSON.
 - Photo capture of any kind (#93's photo route stays unpromoted).
