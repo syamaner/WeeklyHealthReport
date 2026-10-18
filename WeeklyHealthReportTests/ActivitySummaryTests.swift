@@ -20,4 +20,37 @@ final class ActivitySummaryTests: XCTestCase {
         XCTAssertEqual(summary.count, 0)
         XCTAssertEqual(summary.totalDuration, 0)
     }
+
+    // #248: no empty "Activity" header in Developer diagnostics.
+    func testActivityDiagnosticsSectionIsOmittedWhenNoActivityReadHasAValue() {
+        let failure = "Missing com.apple.developer.healthkit entitlement."
+        XCTAssertFalse(ActivityDiagnosticsSection.hasRows(
+            activeEnergyState: .failed(failure),
+            exerciseState: .failed(failure),
+            workoutState: .failed(failure)
+        ))
+        XCTAssertFalse(ActivityDiagnosticsSection.hasRows(
+            activeEnergyState: .noDataOrAccess,
+            exerciseState: .loading,
+            workoutState: .healthUnavailable
+        ))
+    }
+
+    func testActivityDiagnosticsSectionIsShownWhenAnyActivityReadHasAValue() {
+        XCTAssertTrue(ActivityDiagnosticsSection.hasRows(
+            activeEnergyState: .available(0),
+            exerciseState: .failed("failed"),
+            workoutState: .noDataOrAccess
+        ))
+        XCTAssertTrue(ActivityDiagnosticsSection.hasRows(
+            activeEnergyState: .failed("failed"),
+            exerciseState: .available(12),
+            workoutState: .failed("failed")
+        ))
+        XCTAssertTrue(ActivityDiagnosticsSection.hasRows(
+            activeEnergyState: .failed("failed"),
+            exerciseState: .failed("failed"),
+            workoutState: .available(WorkoutSummary(workouts: []))
+        ))
+    }
 }

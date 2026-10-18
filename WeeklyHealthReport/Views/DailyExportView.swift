@@ -7,6 +7,7 @@ struct DailyExportView: View {
     /// it (previews and render tests) the action is a plain navigation link to the same route.
     private let openDriveSetup: (() -> Void)?
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @State private var exactJSON: ExactJSONInspection?
     @State private var showingTrashedDestinationConfirmation = false
     @State private var showingTrashedFileConfirmation = false
@@ -128,25 +129,42 @@ struct DailyExportView: View {
 
     private var daySection: some View {
         Section {
-            Picker("Day", selection: Binding(
-                get: { session.selectedReportDay },
-                set: { session.selectReportDay($0) }
-            )) {
-                Text(todayLabel).tag(Optional<DailyNoteDayID>.none)
-                ForEach(Array(session.availableReportDays.dropFirst()), id: \.self) { day in
-                    Text(DailyExportDayLabel.previousDay(
-                        reportDate: day.reportDate,
-                        locale: .autoupdatingCurrent
-                    ))
-                    .tag(Optional(day))
-                }
+            if Self.listsDaysInline(at: dynamicTypeSize) {
+                // A menu picker keeps its value on one line and truncates it
+                // ("Monda…October") at accessibility sizes; inline rows wrap (#250).
+                dayPicker
+                    .pickerStyle(.inline)
+                    .labelsHidden()
+            } else {
+                dayPicker
+                    .pickerStyle(.menu)
             }
-            .disabled(session.busy)
         } header: {
             Text("Day")
         } footer: {
             Text("Today covers midnight up to the moment the file was prepared. Earlier days cover the whole day as Apple Health shows it now. Changing the day discards the prepared file; saved notes are kept.")
         }
+    }
+
+    static func listsDaysInline(at size: DynamicTypeSize) -> Bool {
+        size.isAccessibilitySize
+    }
+
+    private var dayPicker: some View {
+        Picker("Day", selection: Binding(
+            get: { session.selectedReportDay },
+            set: { session.selectReportDay($0) }
+        )) {
+            Text(todayLabel).tag(Optional<DailyNoteDayID>.none)
+            ForEach(Array(session.availableReportDays.dropFirst()), id: \.self) { day in
+                Text(DailyExportDayLabel.previousDay(
+                    reportDate: day.reportDate,
+                    locale: .autoupdatingCurrent
+                ))
+                .tag(Optional(day))
+            }
+        }
+        .disabled(session.busy)
     }
 
     /// The cutoff appears only once a snapshot of today is prepared; the

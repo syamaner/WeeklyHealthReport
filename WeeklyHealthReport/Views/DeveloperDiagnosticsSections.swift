@@ -484,7 +484,29 @@ struct ActivityDiagnosticsSection: View {
     let exerciseState: MetricState<Double>
     let workoutState: MetricState<WorkoutSummary>
 
+    /// Like the other diagnostics sections, Activity appears only when it has a
+    /// value to show; a failed read is listed under "Health report read
+    /// failures" instead of leaving an empty header (#248).
+    static func hasRows(
+        activeEnergyState: MetricState<Double>,
+        exerciseState: MetricState<Double>,
+        workoutState: MetricState<WorkoutSummary>
+    ) -> Bool {
+        activeEnergyState.value != nil || exerciseState.value != nil || workoutState.value != nil
+    }
+
+    @ViewBuilder
     var body: some View {
+        if Self.hasRows(
+            activeEnergyState: activeEnergyState,
+            exerciseState: exerciseState,
+            workoutState: workoutState
+        ) {
+            section
+        }
+    }
+
+    private var section: some View {
         Section("Activity") {
             DiagnosticMetricRow(
                 "Active energy exact total",
