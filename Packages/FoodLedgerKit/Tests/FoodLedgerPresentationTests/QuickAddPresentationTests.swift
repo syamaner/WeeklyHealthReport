@@ -42,7 +42,7 @@ final class QuickAddPresentationTests: XCTestCase {
             releasedAt: now, artifactHash: try SHA256Digest(String(repeating: "c", count: 64)), schemaVersion: try LedgerText("v1"),
             pipelineVersion: try LedgerText("v1"), licence: try LedgerText("user supplied evidence"), attribution: try LedgerText("synthetic"),
             manifestHash: try SHA256Digest(String(repeating: "d", count: 64)))
-        let provenance = NutrientProvenance(sourceKind: .userVerifiedPanel, sourceID: release.sourceID, sourceReleaseID: release.sourceReleaseID, evidenceID: evidenceID)
+        let provenance = NutrientProvenance(sourceKind: .manualDeclaration, sourceID: release.sourceID, sourceReleaseID: release.sourceReleaseID, evidenceID: evidenceID)
         let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in
             guard key == .protein else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }
             return try NutrientEntry(key: key, value: .measured(ExactNutrientValue(amount: 10, unit: .grams,

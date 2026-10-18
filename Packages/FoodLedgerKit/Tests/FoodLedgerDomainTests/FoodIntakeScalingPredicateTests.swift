@@ -37,6 +37,6 @@ final class FoodIntakeScalingPredicateTests: XCTestCase {
         let protein = try XCTUnwrap(FoodIntakeSummary(contributions: [known, mismatch, unknown]).totals.first { $0.key == .protein })
         XCTAssertEqual(protein.knownAmount, 10)
         XCTAssertEqual(protein.incompleteContributions, 2)
-        XCTAssertEqual(FoodIntakeSummary.version, "food-intake-summary-v2")
+        XCTAssertEqual(FoodIntakeSummary.version, "food-intake-summary-v3")
     }
 }

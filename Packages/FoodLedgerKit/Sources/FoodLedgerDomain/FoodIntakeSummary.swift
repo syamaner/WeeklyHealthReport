@@ -26,8 +26,11 @@ public struct FoodIntakeTotal: Equatable, Sendable {
     }
 }
 
+/// `food-intake-summary-v3`: v2 plus one rule. A contribution whose value is calculated
+/// (`NutrientDerivation.isCalculated`, pasted-label conversions) sets `includesEstimates`.
+/// Values the user corrected or entered (`manual_declaration`) do not (owner decision 13).
 public struct FoodIntakeSummary: Equatable, Sendable {
-    public static let version = "food-intake-summary-v2"
+    public static let version = "food-intake-summary-v3"
     public let itemCount: Int
     public let totals: [FoodIntakeTotal]
 
@@ -44,7 +47,9 @@ public struct FoodIntakeSummary: Equatable, Sendable {
                 estimated = estimated || contribution.quantityIsEstimate
                 let amount: Double
                 switch entry.value {
-                case let .measured(value): amount = value.amount
+                case let .measured(value):
+                    amount = value.amount
+                    estimated = estimated || NutrientDerivation.isCalculated(entry.value)
                 case let .augmented(value): amount = value.amount; estimated = true
                 case .bounded, .unknown: missing += 1; continue
                 }

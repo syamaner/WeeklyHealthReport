@@ -155,6 +155,49 @@ private let goldens: [Golden] = [
     #expect(!PastedLabelConversions.storedTextMatches(record))
 }
 
+/// Test 46 (pasted label PR 2): verification recomputes the stored string only, and the record
+/// must be coherent. A changed `intermediate_text` alone still verifies; a changed `stored_text`,
+/// a nutrient that is not the rule's, or a comparator and rounding that do not agree do not.
+@Test func test46ConversionVerificationRejectsIncoherentRecords() throws {
+    let exact = try #require(PastedLabelConversions.convert(.kjToKcal, operandText: "1550", sourceHeaderID: "h", sourceRowID: "r")).record
+    let bound = try #require(PastedLabelConversions.convert(.saltToSodium, operandText: "0.0333", comparator: .lessOrEqual, sourceHeaderID: "h", sourceRowID: "r")).record
+    #expect(PastedLabelConversions.storedTextMatches(exact))
+    #expect(PastedLabelConversions.storedTextMatches(bound))
+
+    var intermediate = exact
+    intermediate.intermediateText = "999.999999"
+    #expect(PastedLabelConversions.storedTextMatches(intermediate), "The intermediate is audit evidence only")
+
+    var stored = bound
+    stored.storedText = "13.3"
+    #expect(!PastedLabelConversions.storedTextMatches(stored), "An upper bound rounds up")
+
+    var nutrient = exact
+    nutrient.nutrient = "sodium"
+    #expect(!PastedLabelConversions.storedTextMatches(nutrient), "The nutrient must be the rule's")
+
+    var explicitEqual = exact
+    explicitEqual.comparator = .equal
+    #expect(!PastedLabelConversions.storedTextMatches(explicitEqual), "An exact value carries no comparator")
+
+    var roundingWithoutBound = exact
+    roundingWithoutBound.rounding = "outward"
+    #expect(!PastedLabelConversions.storedTextMatches(roundingWithoutBound))
+
+    var boundWithoutRounding = bound
+    boundWithoutRounding.rounding = nil
+    #expect(!PastedLabelConversions.storedTextMatches(boundWithoutRounding))
+
+    var inward = bound
+    inward.rounding = "inward"
+    #expect(!PastedLabelConversions.storedTextMatches(inward))
+
+    var dropped = bound
+    dropped.comparator = nil
+    dropped.rounding = nil
+    #expect(!PastedLabelConversions.storedTextMatches(dropped), "Without the bound, 13.32 rounds half away to 13.3, not 13.4")
+}
+
 @Test func test6PrintedAlwaysWins() {
     // kcal and kJ both printed, and disagreeing: kcal is stored as printed, nothing is converted.
     let energy = candidate([

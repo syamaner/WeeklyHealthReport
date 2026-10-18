@@ -43,6 +43,13 @@ extension FoodLedgerGRDBStore {
             try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v6' WHERE key = 'schema_identity'")
             try db.execute(sql: "PRAGMA user_version = 6")
         }
+        migrator.registerMigration("v7_pasted_label") { db in
+            // Pasted nutrition label evidence (pasted-nutrition-label-v1, food contract 7).
+            // Metadata only: no table is created and no immutable row is rewritten; only
+            // ledger_metadata changes. Older binaries decline schema 7 (unknownSchema(7)).
+            try db.execute(sql: "UPDATE ledger_metadata SET value = 'food-ledger-v7' WHERE key = 'schema_identity'")
+            try db.execute(sql: "PRAGMA user_version = 7")
+        }
         return migrator
     }
 

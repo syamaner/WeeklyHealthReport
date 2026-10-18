@@ -76,13 +76,13 @@ final class ConfirmationV5ContractTests: XCTestCase {
             let ledger = try LedgerFixtures.service(harness.committer)
             XCTAssertThrowsError(try ledger.commit(decided, type: .confirmFood, operationID: LedgerFixtures.operationID(901)), harness.name)
             XCTAssertEqual(try harness.reader.counts().operations, 0, harness.name)
-            // This binary always exports its current contract (6, favourites), even without any decision record.
+            // Without pasted-label evidence this binary exports the contract-6 floor (favourites), even without any decision record.
             _ = try ledger.commit(LedgerFixtures.baseMutation(), type: .createProduct, operationID: LedgerFixtures.operationID(902))
             let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
             let bundle = try FoodArchiveGenerator().generate(state: archive.archiveState(), ledgerID: LedgerText("v5"),
                 createdAt: LedgerFixtures.date, creatingActorID: LedgerFixtures.id(900, ActorTag.self))
             let verified = try FoodArchiveVerifier().verify(bundle)
-            XCTAssertEqual(verified.manifest.foodContractVersion, CanonicalFoodProjection.foodContractVersion, harness.name)
+            XCTAssertEqual(verified.manifest.foodContractVersion, CanonicalFoodProjection.exportFloorContractVersion, harness.name)
             XCTAssertEqual(verified.manifest.migrationIdentifiers.map(\.value).last, "food-ledger-v6", harness.name)
             XCTAssertFalse((1...3).contains(verified.manifest.foodContractVersion),
                 "Contract-3 admission (1...3) used by older binaries rejects every v5 archive")
@@ -153,7 +153,7 @@ final class ConfirmationV5ContractTests: XCTestCase {
             let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
             let bundle = try FoodArchiveGenerator().generate(state: archive.archiveState(), ledgerID: LedgerText("estimate"),
                 createdAt: LedgerFixtures.date, creatingActorID: LedgerFixtures.id(900, ActorTag.self))
-            XCTAssertEqual(try FoodArchiveVerifier().verify(bundle).manifest.foodContractVersion, CanonicalFoodProjection.foodContractVersion)
+            XCTAssertEqual(try FoodArchiveVerifier().verify(bundle).manifest.foodContractVersion, CanonicalFoodProjection.exportFloorContractVersion)
             for destination in try LedgerFixtures.harnesses() {
                 defer { destination.cleanup() }
                 let live = try XCTUnwrap(destination.committer as? any FoodArchiveLedgerAccess)
@@ -301,7 +301,7 @@ final class ConfirmationV5ContractTests: XCTestCase {
         let evidence = try CaptureEvidence(evidenceID: evidenceID, kind: .synthetic, capturedAt: LedgerFixtures.date,
             locale: LedgerText("en_GB"), captureMethod: LedgerText("synthetic_fixture"), captureMethodVersion: LedgerText("v1"),
             originalPayload: .text(LedgerText("fixture \(number)")))
-        let provenance = NutrientProvenance(sourceKind: .userVerifiedPanel, sourceID: try ExternalIdentifier("physical_package"),
+        let provenance = NutrientProvenance(sourceKind: .manualDeclaration, sourceID: try ExternalIdentifier("physical_package"),
             sourceReleaseID: try ExternalIdentifier("package:fixture-v1"), evidenceID: evidenceID, capturedAt: LedgerFixtures.date)
         let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in
             guard key == .protein else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }

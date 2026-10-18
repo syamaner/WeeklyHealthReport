@@ -92,7 +92,7 @@ enum QuickAddFixtures {
         let evidence = try CaptureEvidence(evidenceID: evidenceID, kind: .synthetic, capturedAt: LedgerFixtures.date,
             locale: LedgerText("en_GB"), captureMethod: LedgerText("synthetic_fixture"), captureMethodVersion: LedgerText("v1"),
             originalPayload: .text(LedgerText("fixture \(number)")))
-        let provenance = NutrientProvenance(sourceKind: .userVerifiedPanel, sourceID: try ExternalIdentifier("physical_package"),
+        let provenance = NutrientProvenance(sourceKind: .manualDeclaration, sourceID: try ExternalIdentifier("physical_package"),
             sourceReleaseID: try ExternalIdentifier("package:fixture-v1"), evidenceID: evidenceID, capturedAt: LedgerFixtures.date)
         let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in
             guard [.protein, .energyConsumed].contains(key) else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }

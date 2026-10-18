@@ -37,8 +37,18 @@ public struct CanonicalFoodNutritionSummary: Codable, Equatable, Sendable {
 }
 
 public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
-    public static let foodContractVersion = 6
+    /// The highest contract this binary reads and writes (7: pasted-label evidence).
+    public static let foodContractVersion = 7
+    /// The contract an export carries when its records need no more: unchanged from contract 6,
+    /// so a store without pasted-label evidence exports exactly the bytes it did before contract 7.
+    public static let exportFloorContractVersion = 6
     public static let dailySchemaVersion = 4
+
+    /// The contract an export of these records carries: contract 7 only when pasted-label
+    /// evidence exists, otherwise the contract-6 floor as before.
+    public static func exportContractVersion(for records: LedgerMutation, favourites: FavouriteMutation = FavouriteMutation()) -> Int {
+        max(exportFloorContractVersion, minimumContractVersion(for: records, favourites: favourites))
+    }
 
     public let foodContractVersion: Int
     public let dailySchemaVersion: Int
@@ -52,9 +62,10 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
         records: LedgerMutation,
         summaries: [CanonicalFoodNutritionSummary] = [],
         favourites: FavouriteMutation = FavouriteMutation(),
-        foodContractVersion: Int = Self.foodContractVersion,
+        foodContractVersion: Int? = nil,
         encoder: any CanonicalEncoding = FoundationCanonicalJSONEncoder()
     ) throws {
+        let foodContractVersion = foodContractVersion ?? Self.exportContractVersion(for: records, favourites: favourites)
         guard (1...Self.foodContractVersion).contains(foodContractVersion),
               foodContractVersion >= Self.minimumContractVersion(for: records, favourites: favourites) else { throw FoodArchiveError.unsupportedFoodContract(foodContractVersion) }
         self.foodContractVersion = foodContractVersion
@@ -92,9 +103,12 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
         if !favourites.isEmpty { try values.encode(favourites, forKey: .favourites) }
     }
 
-    /// Lowest contract that can carry these records. Contract 6 conditions are checked first:
-    /// any favourite record, app reference provenance or reference definition evidence.
+    /// Lowest contract that can carry these records. Contract 7 (pasted-label evidence) is
+    /// checked first, before the contract 6 early returns, so an archive with both favourites
+    /// and a pasted label is never reported as contract 6. Then contract 6: any favourite
+    /// record, app reference provenance or reference definition evidence.
     public static func minimumContractVersion(for records: LedgerMutation, favourites: FavouriteMutation = FavouriteMutation()) -> Int {
+        if records.evidence.contains(where: { $0.captureMethodVersion.value == PastedLabelManifest.version }) { return 7 }
         if !favourites.isEmpty { return 6 }
         if records.evidence.contains(where: { $0.kind == .referenceDefinition }) { return 6 }
         let provenance = records.resolutionVersions.flatMap { $0.nutrients.entries }
@@ -248,7 +262,7 @@ public struct FoodArchiveManifest: Codable, Equatable, Sendable {
         recordCount: Int,
         operationCount: Int,
         members: [FoodArchiveMember],
-        foodContractVersion: Int = CanonicalFoodProjection.foodContractVersion
+        foodContractVersion: Int = CanonicalFoodProjection.exportFloorContractVersion
     ) throws {
         backupFormatVersion = Self.currentBackupFormatVersion
         guard (1...CanonicalFoodProjection.foodContractVersion).contains(foodContractVersion) else {
@@ -265,7 +279,7 @@ public struct FoodArchiveManifest: Codable, Equatable, Sendable {
             : foodContractVersion == 3 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3")]
             : foodContractVersion == 4 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4")]
             : foodContractVersion == 5 ? [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4"), try LedgerText("food-ledger-v5")]
-            : [try LedgerText("food-ledger-v1"), try LedgerText("food-ledger-v2"), try LedgerText("food-ledger-v3"), try LedgerText("food-ledger-v4"), try LedgerText("food-ledger-v5"), try LedgerText("food-ledger-v6")]
+            : try (1...foodContractVersion).map { try LedgerText("food-ledger-v\($0)") }
         self.sourceReleaseIDs = sourceReleaseIDs.sorted { $0.value < $1.value }
         self.watermarks = watermarks.sorted { $0.actorID.rawValue < $1.actorID.rawValue }
         self.recordCount = recordCount
@@ -342,7 +356,8 @@ public struct FoodArchiveGenerator: Sendable {
             watermarks: watermarks,
             recordCount: Self.recordCount(projection.records, favourites: projection.favourites),
             operationCount: sortedOperations.count,
-            members: members
+            members: members,
+            foodContractVersion: projection.foodContractVersion
         )
         return FoodArchiveBundle(
             manifest: try encoder.encode(manifest),

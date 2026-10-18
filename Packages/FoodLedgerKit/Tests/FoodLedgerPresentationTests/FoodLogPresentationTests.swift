@@ -531,7 +531,7 @@ private final class World {
             manifestHash: try SHA256Digest(String(repeating: "b", count: 64)))
         let identity = try DecisiveIdentity(preparation: PreparationState(kind: .asSold), bone: .notApplicable, skin: .notApplicable,
             drained: .notApplicable, packingMedium: .named(LedgerText("none")), fortification: .unfortified, servingBasis: .per100Grams)
-        let provenance = NutrientProvenance(sourceKind: .userVerifiedPanel, sourceID: try ExternalIdentifier("physical_package"),
+        let provenance = NutrientProvenance(sourceKind: .manualDeclaration, sourceID: try ExternalIdentifier("physical_package"),
             sourceReleaseID: releaseID, evidenceID: evidenceID, capturedAt: now)
         let known: [NutrientKey: Double] = [.energyConsumed: 200, .protein: 10]
         let nutrients = try NutrientSet(entries: NutrientKey.allCases.map { key in

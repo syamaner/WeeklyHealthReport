@@ -116,9 +116,13 @@ enum LedgerFixtures {
         )
     }
 
-    static func nutrientSet() throws -> NutrientSet {
+    /// `sourceKind` defaults to the historical `user_verified_panel`, whose bytes the direct
+    /// ledger commits pin. Inputs saved through `FoodConfirmationService` pass
+    /// `.manualDeclaration`: a panel value is admitted at save only through an admitted source
+    /// verifier (pasted label v1, test 32), which `physical_package` is not.
+    static func nutrientSet(sourceKind: ProvenanceSourceKind = .userVerifiedPanel) throws -> NutrientSet {
         let provenance = NutrientProvenance(
-            sourceKind: .userVerifiedPanel,
+            sourceKind: sourceKind,
             sourceID: try ExternalIdentifier("physical_package"),
             sourceReleaseID: try ExternalIdentifier("package:fixture-v1"),
             evidenceID: try id(1, EvidenceTag.self),

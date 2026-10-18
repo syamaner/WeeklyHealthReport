@@ -1854,3 +1854,28 @@ Review fix passes, same subagent and transcript: the invariant-review fixes (buc
 Boundary: `2026-10-18T10:31:37Z` (the first row's end) → `2026-10-18T11:09:37Z` (`phase_usage.py --format claude --since …`). Cache writes: 373,261 5-minute, 0 1-hour. Exact API-equivalent USD 4.34077. The output count is as the transcript records it: it looks like streaming-time snapshots, so it is a lower bound, not a measured total.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-18c: Claude Code pasted nutrition label PR 2, domain, manifest and storage
+
+One `claude-opus-5-5` implementation subagent (branch `feat/93-pasted-label-pr2-domain`), transcript `subagents/agent-aa2b2f05a30656f71.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. Runs from the phase start (`2026-10-18T14:50:32Z`, captured with `date -u`) to `2026-10-18T17:03:11Z`, just before this ledger edit. It covers:
+
+- reading the contract, the domain, the confirmation service, the archive and the GRDB migrations;
+- the derivation predicate, summary v3 and the identity constants;
+- the manifest, the records derivation, panel admission and save and reopen verification;
+- contract 7 and the `v7_pasted_label` migration;
+- the fixture moves forced by test 32;
+- the tests and goldens, including a contract-6 re-export golden from a temporary `origin/main` worktree;
+- the release notes;
+- the gates.
+
+No subagents were launched; the orchestrator's usage is outside the row. This ledger edit, the commit, the push and the PR are outside the row. No OpenRouter or other provider call was made.
+
+Pricing as in the previous sections (checked 11 October 2026, not re-checked on 18 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label PR 2 domain, manifest and storage (#93), implementation subagent | 42,615,752 (38,758,800) | 3,856,668 | 54,994 | 42,670,746 | $28.14 |
+
+Boundary: `2026-10-18T14:50:32Z` → `2026-10-18T17:03:11Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 3,856,668 5-minute, 0 1-hour. Exact API-equivalent USD 28.136116. The output count is as the transcript records it and may be a lower bound where messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

@@ -142,6 +142,16 @@ enum StrictManifestKeys {
             throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unexpected or missing manifest keys"))
         }
     }
+    /// As `require`, with members that may be omitted (encoded only when present). Every present
+    /// key must be known and every non-optional key must be present.
+    static func require<Keys: CodingKey & CaseIterable & Hashable>(_ keys: Keys.Type, optional: Set<Keys>, in decoder: any Decoder) throws {
+        let present = try decoder.container(keyedBy: AnyKey.self).allKeys.map(\.stringValue)
+        let allowed = Set(Keys.allCases.map(\.stringValue))
+        let required = allowed.subtracting(optional.map(\.stringValue))
+        guard Set(present).isSubset(of: allowed), required.isSubset(of: Set(present)), Set(present).count == present.count else {
+            throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unexpected or missing manifest keys"))
+        }
+    }
 }
 
 /// A decoded retained manifest of a known version. Dispatch is by the `version` field;
