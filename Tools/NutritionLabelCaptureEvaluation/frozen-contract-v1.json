@@ -1157,6 +1157,22 @@
               "untouched_truth_deviations.caveat, ground_truth.untouched_taiwan_caveat, untouched_run.result_caveat (cell counts)",
               "untouched_truth_deviations.applied[0].post_freeze_record_edits"
             ]
+          },
+          {
+            "commit": "this commit (post-freeze analysis addition: correction effort, owner approval 18 October 2026)",
+            "files": [
+              "correction_effort.py (new)",
+              "tests/test_correction_effort.py (new)",
+              "results/correction-effort-v1.md (new)",
+              "results/correction-effort-v1.json (new)",
+              "README.md",
+              "plan",
+              "ledger"
+            ],
+            "contract_fields": [
+              "untouched_truth_deviations.applied[0].post_freeze_record_edits (this entry only)"
+            ],
+            "note": "Offline analysis of the saved outputs against the current pinned truth; no rerun and no API call. No pinned scoring file (scorer, gate, mapping, truth, loaders, runners) changed, and it is not a pass or fail: the pre-registered verdict is unchanged."
           }
         ],
         "reproduce": "git show 32f59aff:Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-untouched-v1.json > /tmp/truth-as-run.json; .venv/bin/python rescore_untouched.py --truth /tmp/truth-as-run.json --expected-sha256 d40a56b7b35aad65a26338ded755bb22475520ccf1dd6fc2a26150c64e5b57a3 --corrections fixtures/untouched-truth-corrections-v1.json --out results/untouched-truth-correction-rescore-v1.json (reproduced on 18 October 2026: identical arms and corrections)"
