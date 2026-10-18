@@ -2,12 +2,22 @@
 set -euo pipefail
 
 package_root="$(cd "$(dirname "$0")/.." && pwd)"
+app_root="$(cd "$package_root/../.." && pwd)"
+
+# Every import form names its module the same way: `import X`, `@testable import X`,
+# `@_implementationOnly import X`, `@preconcurrency import X` and `import struct X.Y` (and
+# class, enum, protocol, func, var, let, typealias), with or without a trailing comment.
+import_attributes='^[[:space:]]*(@[A-Za-z_]+(\([^)]*\))?[[:space:]]+)*import[[:space:]]+((typealias|struct|class|enum|protocol|let|var|func)[[:space:]]+)?'
+
+module_imports() {
+  sed -nE "s/${import_attributes}([A-Za-z0-9_]+).*$/\5/p" "$@"
+}
 
 check_imports() {
   local target="$1"
   local allowed="$2"
   local unexpected
-  unexpected="$(sed -n 's/^import \([A-Za-z0-9_]*\)$/\1/p' "$package_root"/Sources/"$target"/*.swift \
+  unexpected="$(module_imports "$package_root"/Sources/"$target"/*.swift \
     | sort -u \
     | grep -Ev "$allowed" || true)"
   if [[ -n "$unexpected" ]]; then
@@ -17,6 +27,148 @@ check_imports() {
   fi
 }
 
+# Swift files under the given directories (those that exist) importing `module` in any form.
+files_importing() {
+  local module="$1"; shift
+  local dirs=()
+  local dir
+  for dir in "$@"; do
+    if [[ -d "$dir" ]]; then dirs+=("$dir"); fi
+  done
+  if [[ ${#dirs[@]} -eq 0 ]]; then return 0; fi
+  grep -rlE --include='*.swift' "${import_attributes}${module}([.[:space:]]|$)" "${dirs[@]}" || true
+}
+
+# Each target declaration in Package.swift on one line, comments removed.
+package_targets() {
+  sed -e 's://.*$::' "$1" | tr '\n' ' ' \
+    | awk '{ gsub(/\.(testTarget|executableTarget|target)\(/, "\n&"); print }' | sed -n '2,$p'
+}
+
+# Pasted nutrition label (docs/pasted-nutrition-label-v1.md section 8.2, decision 10): only the
+# adapter, the parser CLI and their tests reach NutritionLabelParsing, and only the composition
+# root and the adapter's tests reach FoodLabelTextCapture. Checked over every import form, in the
+# package sources, tools and tests, in the app target and its tests, and in both manifests.
+# Returns non-zero with the violations on stderr.
+check_label_reader_edges() {
+  local pkg="$1" app="$2"
+  local violations="" file line name rest dep allowed
+  local scanned=("$pkg/Sources" "$pkg/Tools" "$pkg/Tests")
+  for file in "$app"/WeeklyHealthReport*; do
+    if [[ -d "$file" && "$file" != *.xcodeproj ]]; then scanned+=("$file"); fi
+  done
+
+  while IFS= read -r file; do
+    if [[ -z "$file" ]]; then continue; fi
+    if [[ ! "$file" =~ /(Sources/(NutritionLabelParsing|FoodLabelTextCapture)|Tools/NutritionLabelTextParse|Tests/(NutritionLabelParsingTests|FoodLabelTextCaptureTests))/ ]]; then
+      violations+="NutritionLabelParsing imported by $file"$'\n'
+    fi
+  done < <(files_importing NutritionLabelParsing "${scanned[@]}")
+
+  while IFS= read -r file; do
+    if [[ -z "$file" ]]; then continue; fi
+    if [[ "$file" != "$app/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift" && ! "$file" =~ /Tests/FoodLabelTextCaptureTests/ ]]; then
+      violations+="FoodLabelTextCapture imported by $file"$'\n'
+    fi
+  done < <(files_importing FoodLabelTextCapture "${scanned[@]}")
+
+  if [[ -n "$(files_importing FoodLabelTextCapture "$pkg/Sources/FoodLedgerPresentation")" ]]; then
+    violations+="FoodLedgerPresentation must not import FoodLabelTextCapture"$'\n'
+  fi
+
+  while IFS= read -r line; do
+    name="$(sed -nE 's/^[^"]*name:[[:space:]]*"([A-Za-z0-9_]+)".*/\1/p' <<< "$line")"
+    rest="$(sed -E 's/name:[[:space:]]*"[A-Za-z0-9_]+"//' <<< "$line")"
+    for dep in NutritionLabelParsing FoodLabelTextCapture; do
+      if [[ "$rest" != *"\"$dep\""* ]]; then continue; fi
+      case "$dep" in
+        NutritionLabelParsing) allowed='^(FoodLabelTextCapture|NutritionLabelTextParse|NutritionLabelParsingTests|FoodLabelTextCaptureTests)$' ;;
+        *) allowed='^(FoodLabelTextCaptureTests)$' ;;
+      esac
+      if [[ ! "$name" =~ $allowed ]]; then violations+="Package.swift: $name depends on $dep"$'\n'; fi
+    done
+  done < <(package_targets "$pkg/Package.swift")
+
+  for file in "$app"/*.xcodeproj/project.pbxproj; do
+    if [[ -f "$file" ]] && grep -q 'productName = NutritionLabelParsing;' "$file"; then
+      violations+="$file links NutritionLabelParsing; the app reaches it only through FoodLabelTextCapture"$'\n'
+    fi
+  done
+
+  if [[ -n "$violations" ]]; then
+    printf '%s' "$violations" >&2
+    return 1
+  fi
+}
+
+# Contract test 48: the edge check must fail on each forbidden form. Fixtures are written to a
+# temporary tree shaped like this repository; the baseline must pass and every mutation fail.
+self_test_label_reader_edges() {
+  local scratch status=0
+  scratch="$(mktemp -d "${TMPDIR:-/tmp}/check-boundaries.XXXXXX")"
+  local base="$scratch/base"
+  local pkg="$base/Packages/FoodLedgerKit"
+  mkdir -p "$pkg/Sources/NutritionLabelParsing" "$pkg/Sources/FoodLabelTextCapture" "$pkg/Sources/FoodLedgerApplication" \
+    "$pkg/Sources/FoodLedgerPresentation" "$pkg/Sources/FoodGenericSearch" "$pkg/Tools/NutritionLabelTextParse" \
+    "$pkg/Tests/NutritionLabelParsingTests" "$pkg/Tests/FoodLabelTextCaptureTests" "$pkg/Tests/FoodLedgerContractTests" \
+    "$base/WeeklyHealthReport/FoodLedger" "$base/WeeklyHealthReport.xcodeproj"
+  cat > "$pkg/Package.swift" <<'SWIFT'
+let package = Package(
+    name: "FoodLedgerKit",
+    targets: [
+        .executableTarget(name: "NutritionLabelTextParse", dependencies: ["NutritionLabelParsing"], path: "Tools/NutritionLabelTextParse"),
+        .target(name: "NutritionLabelParsing"),
+        .target(name: "FoodLedgerApplication", dependencies: ["FoodLedgerDomain"]),
+        .target(
+            name: "FoodLabelTextCapture",
+            dependencies: ["FoodLedgerApplication", "NutritionLabelParsing"]
+        ),
+        .testTarget(name: "NutritionLabelParsingTests", dependencies: ["NutritionLabelParsing"]),
+        .testTarget(name: "FoodLabelTextCaptureTests", dependencies: ["FoodLabelTextCapture", "NutritionLabelParsing"])
+    ]
+)
+SWIFT
+  echo 'import Foundation' > "$pkg/Sources/NutritionLabelParsing/Parser.swift"
+  printf 'import FoodLedgerApplication\nimport NutritionLabelParsing\n' > "$pkg/Sources/FoodLabelTextCapture/Reader.swift"
+  echo 'import Foundation' > "$pkg/Sources/FoodLedgerApplication/Port.swift"
+  echo 'import SwiftUI' > "$pkg/Sources/FoodLedgerPresentation/View.swift"
+  echo 'import NutritionLabelParsing' > "$pkg/Tools/NutritionLabelTextParse/main.swift"
+  echo '@testable import NutritionLabelParsing' > "$pkg/Tests/NutritionLabelParsingTests/ParserTests.swift"
+  printf '@testable import FoodLabelTextCapture\nimport NutritionLabelParsing\n' > "$pkg/Tests/FoodLabelTextCaptureTests/ReaderTests.swift"
+  echo 'import FoodLabelTextCapture' > "$base/WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift"
+  echo 'productName = FoodLabelTextCapture;' > "$base/WeeklyHealthReport.xcodeproj/project.pbxproj"
+  if ! check_label_reader_edges "$pkg" "$base" 2>/dev/null; then
+    echo "check-boundaries self-test: the baseline fixture must pass" >&2; status=1
+  fi
+
+  local fixture target fpkg
+  for fixture in testable struct_form implementation_only package_edge app_import presentation_adapter app_link; do
+    target="$scratch/$fixture"
+    cp -R "$base" "$target"
+    fpkg="$target/Packages/FoodLedgerKit"
+    case "$fixture" in
+      testable) echo '@testable import NutritionLabelParsing' > "$fpkg/Tests/FoodLedgerContractTests/Leak.swift" ;;
+      struct_form) echo 'import struct NutritionLabelParsing.LabelCell' > "$fpkg/Sources/FoodLedgerApplication/Leak.swift" ;;
+      implementation_only) echo '@_implementationOnly import NutritionLabelParsing' > "$fpkg/Sources/FoodGenericSearch/Leak.swift" ;;
+      package_edge)
+        sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", "NutritionLabelParsing"]/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      app_import) echo 'import NutritionLabelParsing' > "$target/WeeklyHealthReport/Leak.swift" ;;
+      presentation_adapter) echo 'import FoodLabelTextCapture' > "$fpkg/Sources/FoodLedgerPresentation/Leak.swift" ;;
+      app_link) echo 'productName = NutritionLabelParsing;' >> "$target/WeeklyHealthReport.xcodeproj/project.pbxproj" ;;
+    esac
+    if check_label_reader_edges "$fpkg" "$target" 2>/dev/null; then
+      echo "check-boundaries self-test: the $fixture fixture must fail" >&2; status=1
+    fi
+  done
+  rm -rf "$scratch"
+  return "$status"
+}
+
+self_test_label_reader_edges
+check_label_reader_edges "$package_root" "$app_root"
+
+check_imports FoodLabelTextCapture '^(Foundation|FoodLedgerApplication|FoodLedgerDomain|NutritionLabelParsing)$'
 check_imports FoodLedgerDomain '^(Foundation)$'
 # Pure label-text parser under evaluation (#255): no app, platform or hashing dependency.
 check_imports NutritionLabelParsing '^(Foundation)$'
