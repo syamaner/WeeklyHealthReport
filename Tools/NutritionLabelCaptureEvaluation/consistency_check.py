@@ -8,7 +8,10 @@ on its own, so the tolerance is the rounding of the per-serving value scaled up 
 of its last printed digit, x 100 / serving size), plus half a unit of the per-100 value's last
 digit, plus 5% of the expected value. Bounds and unknowns are not checked.
 
-It only lists inconsistencies; it never changes a value (the owner decides). With saved
+Limits: a comma is read as a decimal separator, so a thousands separator (`1,234`) would be
+misread; a serving in ml against a per-100 g column (or the reverse) is compared without any
+density, so a mixed pair is no real check; and an error that keeps both columns consistent is
+invisible. It only lists inconsistencies; it never changes a value (the owner decides). With saved
 untouched outputs it also reports whether each route C arm read the same two values as the truth.
 """
 

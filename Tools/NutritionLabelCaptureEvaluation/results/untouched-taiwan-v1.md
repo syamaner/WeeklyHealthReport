@@ -2,7 +2,7 @@
 
 Status: **run once, 18 October 2026. No photo route (B or C) passed the pre-registered bars.** Route A on its untouched pasted-text cases passed every bar on route output but fails the arithmetic mutation-detection bar, which tests the shared arithmetic policy rather than the route (section 6). The 40 untouched Taiwan photos were unsealed under the contract rules and run through route B and three route C arms, each exactly once. There were no reruns, no tuning after results and no infrastructure failures. Machine-readable counts (case ids only, no model answers): [`untouched-taiwan-v1.json`](untouched-taiwan-v1.json).
 
-> **Truth caveat (owner decision, 18 October 2026).** Owner verification confirmed 811 drafted cells with no corrections, yet it missed at least one drafting error. That error was found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate. **Table-level conclusions stand; cell scores are approximate.**
+> **Truth caveat (owner decision, 18 October 2026).** Owner verification confirmed 811 drafted cells with no corrections, yet it missed at least one drafting error. (811 is the owner's count: 527 in round 1, 268 in round 2 and the 16 cells of `off-taiwan:3228022000311` reconfirmed in the round-4 re-check, including the three later corrected. 795 is rounds 1 and 2 only. The truth file holds 676 cells, 654 scored and 22 unscored. The review sheet snapshots show that rounds 1 and 2 counted review items, not only nutrient cells: 676 nutrient cells + 80 serving-size and servings-per-pack lines + 39 keep decisions = 795, with no unexplained remainder.) That error was found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate. **Table-level conclusions stand; cell scores are approximate.**
 
 - **Truth evidence:** model-drafted, owner-verified. The 40 usable tables were drafted by Qwen 3.5 and checked by the owner with no corrections, so anchoring on the draft cannot be ruled out.
 - **After the run:** the owner corrected three cells of `off-taiwan:3228022000311` (section 7), an owner-approved deviation.
@@ -53,9 +53,9 @@ Status: **run once, 18 October 2026. No photo route (B or C) passed the pre-regi
 
 Automatic persistence was 0 in every arm.
 
-## 3. Plain reading
+## 3. Plain reading (as run, before the truth correction; section 7 has the corrected figures)
 
-- **No route is promotable on this result.** Every route C arm fails strict cells, binding, conversions, servings per pack, bounds and the zero false-ready bar. The full-table bar is the only one any arm clears. Route B is safe (no false-ready) but declines 35 of 40 usable tables.
+- **No route is promotable on this result.** As run, every route C arm fails strict cells, binding, conversions, servings per pack, bounds and the zero false-ready bar. The full-table bar is the only one any arm clears. Route B is safe (no false-ready) but declines 35 of 40 usable tables.
 - **Development overstated Taiwan.** On the 15 usable development tables, Gemini 4 was exact on every cell. On the untouched 40 it is exact on 33 tables and 86.7% of cells.
   - Most of the cell loss comes from tables the models (or the gate) declined. A declined table loses all its cells: Gemini 4 declined 5 usable tables and Sol 4.
   - The rest is misreads in the remaining tables.
@@ -145,6 +145,16 @@ Every other cell of the record is unchanged.
 - The prepared tool (`rescore_untouched.py`) applied them to a copy and re-scored the saved, already gated outputs of every route and arm. There was no rerun and no API call: [`untouched-truth-correction-rescore-v1.json`](untouched-truth-correction-rescore-v1.json).
 - By owner decision the truth file was then updated with the same three cells (evidence label "3 owner corrections after the untouched run"). Only its hash was re-pinned, as a recorded deviation in the contract (`untouched_truth_deviations.applied`). The contract stays `frozen_for_untouched_run`.
 - Re-scoring with the updated file and no corrections gives the corrected figures below.
+- **To reproduce the before and after exactly** from the truth as run (commit `32f59aff`, SHA-256 `d40a56b7…`):
+
+  ```sh
+  git show 32f59aff:Tools/NutritionLabelCaptureEvaluation/fixtures/ground-truth-off-taiwan-untouched-v1.json > /tmp/truth-as-run.json
+  .venv/bin/python rescore_untouched.py --truth /tmp/truth-as-run.json \
+    --expected-sha256 d40a56b7b35aad65a26338ded755bb22475520ccf1dd6fc2a26150c64e5b57a3 \
+    --corrections fixtures/untouched-truth-corrections-v1.json --out results/untouched-truth-correction-rescore-v1.json
+  ```
+
+  Rerunning this after the PR #260 review gave identical arm results. The JSON's `truth_sha256` is the truth as run, marked superseded by the current pin.
 
 | Arm | Strict cells | Binding | Full table | Serving conv. | False-ready |
 |---|---|---|---|---|---|
@@ -168,18 +178,22 @@ Route A runs on a separate set and is not affected.
 - **Coverage:** 32 of the 40 records have both columns, giving 261 nutrient pairs. The other 8 have no per-100 g or per-100 ml column.
 - **On the corrected truth: no inconsistency.**
 - **On the truth as run:** it flags exactly the three corrected cells of `off-taiwan:3228022000311`, which is how the check was validated.
-- **Limits:** the check cannot see an error that keeps the two columns consistent, for example both columns misread, a single-column table, or a wrong serving size, so it bounds the error rate only partly. Nothing was corrected by it.
+- **Limits:**
+  - The check cannot see an error that keeps the two columns consistent, for example both columns misread, a single-column table, or a wrong serving size, so it bounds the error rate only partly.
+  - A comma is read as a decimal separator, so a thousands separator (`1,234`) would be misread. No untouched value uses one.
+  - A serving in ml compared with a per-100 g column, or the reverse, is compared without any density, so such a mixed pair is not a real check.
+  - Nothing was corrected by it.
 
 ## 8. Photo AI: conclusion, decision deferred
 
 **Conclusion:** no photo route passed the pre-registered bars on the untouched Taiwan set.
-- Route C fails strict cells, conversions, servings per pack, bounds and the zero false-ready bar in every arm.
+- Route C fails strict cells, binding, unit and basis, conversions, servings per pack and bounds in every arm. After the truth correction, Sol clears the zero false-ready bar (0 tables) but still fails those other bars; Gemini 4 (1) and Luna (4) fail it.
 - Route B fails on coverage, because it declines almost everything.
 
 Nothing here supports promoting a photo route under the plan's rules.
 
 **For information only (not a recommendation to ship): AI pre-fill with a mandatory Confirm.** Suppose the route C output were used only to pre-fill the shared Confirm screen beside the photo, with every cell requiring the user's explicit selection and the Log action as the only save.
-- **Effort:** the best arms would hand the user an exactly right table about four times in five (33 of 40 here). They would leave a wrong or missing cell to correct in most of the rest, and decline about one in eight usable tables, which the user would then enter by hand.
+- **Effort:** the best arms would hand the user an exactly right table about four times in five (34 of 40 for Gemini 4 and Sol after the truth correction; 33 as run). They would leave a wrong or missing cell to correct in most of the rest, and decline about one in eight usable tables, which the user would then enter by hand.
 - **Silent errors:** the risk the zero false-ready bar guards against is that a user accepts a wrong pre-filled table without noticing. On this set that would have been 0 to 4 tables in 40 per arm after the truth correction (Sol 0, Gemini 4 1, Luna 4), before any reduction from the user's own check, which is unmeasured.
   - Some errors are plausible-looking: a tenfold slip, or a missing 0% reference value.
   - The arithmetic check does not catch all of them.

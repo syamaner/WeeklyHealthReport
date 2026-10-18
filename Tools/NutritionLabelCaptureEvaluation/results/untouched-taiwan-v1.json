@@ -9,40 +9,45 @@
    "arm": "route-b",
    "started_at": "2026-10-18T05:29:38+00:00",
    "status": "complete",
-   "log_dir": "/Users/sertanyamaner/WHR-label-eval-private/runs/untouched-v1/route-b/untouched",
-   "finished_at": "2026-10-18T05:30:38+00:00"
+   "log_dir": "runs/untouched-v1/route-b/untouched",
+   "finished_at": "2026-10-18T05:30:38+00:00",
+   "log_dir_root": "~/WHR-label-eval-private"
   },
   {
    "route": "C",
    "arm": "luna-off",
    "started_at": "2026-10-18T05:31:05+00:00",
    "status": "complete",
-   "log_dir": "/Users/sertanyamaner/WHR-label-eval-private/runs/untouched-v1/luna-off/untouched",
-   "finished_at": "2026-10-18T05:32:15+00:00"
+   "log_dir": "runs/untouched-v1/luna-off/untouched",
+   "finished_at": "2026-10-18T05:32:15+00:00",
+   "log_dir_root": "~/WHR-label-eval-private"
   },
   {
    "route": "C",
    "arm": "gemini-on",
    "started_at": "2026-10-18T05:32:42+00:00",
    "status": "complete",
-   "log_dir": "/Users/sertanyamaner/WHR-label-eval-private/runs/untouched-v1/gemini-on/untouched",
-   "finished_at": "2026-10-18T05:34:44+00:00"
+   "log_dir": "runs/untouched-v1/gemini-on/untouched",
+   "finished_at": "2026-10-18T05:34:44+00:00",
+   "log_dir_root": "~/WHR-label-eval-private"
   },
   {
    "route": "C",
    "arm": "sol-on",
    "started_at": "2026-10-18T05:35:08+00:00",
    "status": "complete",
-   "log_dir": "/Users/sertanyamaner/WHR-label-eval-private/runs/untouched-v1/sol-on/untouched",
-   "finished_at": "2026-10-18T05:38:04+00:00"
+   "log_dir": "runs/untouched-v1/sol-on/untouched",
+   "finished_at": "2026-10-18T05:38:04+00:00",
+   "log_dir_root": "~/WHR-label-eval-private"
   },
   {
    "route": "A",
    "arm": "untouched-text",
    "started_at": "2026-10-18T06:12:15+00:00",
    "status": "complete",
-   "log_dir": "/Users/sertanyamaner/WHR-label-eval-private/runs/untouched-v1/route-a",
-   "finished_at": "2026-10-18T06:12:15+00:00"
+   "log_dir": "runs/untouched-v1/route-a",
+   "finished_at": "2026-10-18T06:12:15+00:00",
+   "log_dir_root": "~/WHR-label-eval-private"
   }
  ],
  "note": "Counts, call statistics and case ids only; no model answer, decline text or image. Inspect logs are outside the repository.",
@@ -853,12 +858,36 @@
    ]
   },
   "false_ready_ids": [],
-  "false_decline_ids": []
+  "false_decline_ids": [],
+  "provenance": {
+   "summary": "run once on 18 October 2026 by owner decision: the untouched FDA 188 and template pasted-text cases (107, 15 required declines) rendered with the frozen generator path (run_untouched_text.py; the same path reproduces the committed development cases byte for byte), the frozen parser binary, decline gate v2 and the frozen scorer; dataset SHA-256 9eace6511eee1a0defb1c251a772b152a9a13169a49d894ca67e7cf2cc09c3c4; every route-output bar passes; arithmetic mutation detection 110/116 fails its 100% bar (policy, not route)",
+   "runner": "Tools/NutritionLabelCaptureEvaluation/run_untouched_text.py",
+   "runner_sha256_as_run": "595513109db8aa750a0ff33b59bb76dba7f1b80f33bd79718cd1b9af9ef313b2",
+   "runner_commit_as_run": "6eadb4aa",
+   "provenance_label": "written after the photo freeze; mirrors build_cases logic",
+   "byte_for_byte_test_before_run": {
+    "test": "tests/test_phase5_text.py (local only; needs the FDA 188 CSV)",
+    "ran": "yes, locally with the CSV present, before the run",
+    "at": "2026-10-18T06:12:02Z (transcript time of the result)",
+    "result": "2 tests OK, including test_development_split_is_reproduced_byte_for_byte",
+    "run_started_at": "2026-10-18T06:12:15Z (run register)",
+    "evidence": "the agent transcript of this phase; the tested files are byte-identical to commit 6eadb4aa"
+   },
+   "byte_for_byte_test_recheck": {
+    "at": "2026-10-18T07:30:34Z",
+    "result": "2 tests OK",
+    "note": "separate re-run after the PR #260 review"
+   },
+   "post_run_edit": {
+    "runner_sha256_now": "fb0c7e718566c59265783827b75359ee08be2f147653e8247485fd1d0f9ba37b",
+    "change": "refuses a --register other than untouched_run.run_register (PR #260 review); no change to rendering, parsing or scoring"
+   }
+  }
  },
  "correction_path": {
   "status": "applied 18 October 2026 (owner-approved deviation); see untouched-truth-correction-rescore-v1.json"
  },
- "truth_caveat": "Owner verification confirmed 811 drafted cells with no corrections (owner's count, 18 October 2026) but missed at least one drafting error (off-taiwan:3228022000311), found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate: table-level conclusions stand, cell scores are approximate.",
+ "truth_caveat": "Owner verification confirmed 811 drafted cells with no corrections (owner's count, 18 October 2026) but missed at least one drafting error (off-taiwan:3228022000311), found only because two models disagreed with the truth and the per-serving and per-100 g columns were arithmetically inconsistent. The per-cell truth on the untouched set therefore has an unknown error rate: table-level conclusions stand, cell scores are approximate. Cell counts: 811 is the owner's count, 527 (round 1) + 268 (round 2) + 16 (the round-4 re-check of off-taiwan:3228022000311, in which the owner reconfirmed all 16 cells, including the three later corrected); 795 is rounds 1 and 2 only; 676 is the number of cells in the truth file (654 scored and 22 unscored). Verified from the review sheet snapshots: rounds 1 and 2 counted review items, not only nutrient cells. Round 1's 527 = 446 nutrient cells + 54 serving-size and servings-per-pack lines (27 kept tables) + 27 keep decisions; round 2's 268 = 230 nutrient cells + 26 serving lines (13 kept tables) + 12 keep decisions. So 795 = 676 nutrient cells + 80 serving lines + 39 keep decisions, with no unexplained remainder; the 14 exclusion decisions are not in either count.",
  "after_truth_correction": {
   "route-b": {
    "metrics": {

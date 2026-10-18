@@ -146,6 +146,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     contract = run_untouched.frozen_contract()
+    run_untouched.require_pinned_register(contract, args.register)
     for path in (args.out_dir, args.summary, args.register):
         if not run_untouched.run_route_c.outside_repository(path):
             raise SystemExit(f"refusing a path inside the repository: {path}")

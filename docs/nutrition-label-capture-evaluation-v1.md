@@ -367,11 +367,11 @@ Results: [`Tools/NutritionLabelCaptureEvaluation/results/phase-4-decline-gate-an
   - Every artefact is pinned, including the untouched truth, gate v2, scorer, mapping, client, loaders and the new single-run runner `run_untouched.py`.
   - The `untouched_run` block records the three arms (Gemini 4 Argon on, GPT-6.1 Sol on, GPT-6 Luna off, with their development pins and settings) and the route B binary hashes.
 - **The untouched Taiwan run.** It ran once, after free catalogue and credit checks and the qualification labels, with no reruns.
-  - **Route C:** the full-table bar is the only one any arm passes. Every arm fails strict cells (best 89.5%), conversions, servings per pack, bounds and the zero false-ready bar (Gemini 4: 2, Sol: 1, Luna: 4).
+  - **Route C (as run):** the full-table bar is the only one any arm passes. Every arm fails strict cells (best 89.5%), conversions, servings per pack, bounds and the zero false-ready bar (Gemini 4: 2, Sol: 1, Luna: 4).
   - **Route B:** no false-ready, but it declines 35 of 40 usable tables.
   - **Correct decline:** no denominator.
   - **Spend:** $1.42.
-  - **Possible truth error:** one owner-verified table (`off-taiwan:3228022000311`) looks wrong in three cells. It is reported for the owner, not changed.
+  - **Truth error:** one owner-verified table (`off-taiwan:3228022000311`) was wrong in three cells. The owner corrected it after the run; see the truth correction below.
   - **Route A** (owner decision, the same day): rendered once with the frozen generator path and run once on its 107 untouched pasted-text cases (FDA 188 and template, 15 required declines).
     - Every bar on route output passes: 1093/1093 strict cells, 92/92 tables, 599/599 conversions, 36/36 bounds, 15/15 declines, 0 false-ready.
     - Arithmetic mutation detection is 110/116, which fails its 100% bar. It tests the shared policy, not the parser; the owner decides how that bears on decision 11.

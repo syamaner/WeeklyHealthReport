@@ -111,6 +111,13 @@ def catalogue_check(endpoints: dict[str, Any], pin: dict[str, Any]) -> list[str]
     return problems
 
 
+def require_pinned_register(contract: dict[str, Any], register: Path) -> None:
+    """Refuse any run register other than the one the contract pins (`untouched_run.run_register`)."""
+    pinned = Path(contract["untouched_run"]["run_register"]).expanduser().resolve()
+    if register.expanduser().resolve() != pinned:
+        raise SystemExit(f"--register must be the contract-pinned register {contract['untouched_run']['run_register']}")
+
+
 def register_start(register: Path, route: str, arm: str, log_dir: Path) -> None:
     """Record the start before the first untouched call; refuse if this route and arm ever started."""
     data = (
@@ -194,6 +201,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     contract = frozen_contract()
+    require_pinned_register(contract, args.register)
     for path in (args.log_dir, args.summary, args.register, args.ledger):
         if not run_route_c.outside_repository(path):
             raise SystemExit(f"refusing a path inside the repository: {path}")

@@ -1702,7 +1702,7 @@ Same `claude-opus-5-5` implementation subagent, transcript and pricing as WHR-25
 - the results, plan and README;
 - the gates.
 
-The gap between the orchestrator's message and the branch start is unmeasured. No subagents. This ledger edit, the commit, the push and the PR are outside the row. The OpenRouter spend of the run (USD 1.4204 reported `usage.cost`: 120 untouched calls plus 6 qualification calls) is a separate actual charge, not part of this comparison.
+The gap between the orchestrator's message (`2026-10-18T05:20:41Z` in the transcript) and the branch start (44 seconds) is unmeasured. Answer to the PR #260 review: `run_untouched_text.py` was not drafted in any unmeasured gap; the transcript shows it first written at `2026-10-18T06:11:44Z`, after the owner's route A decision (`06:10:33Z`), inside row WHR-255-2026-10-18e. No subagents. This ledger edit, the commit, the push and the PR are outside the row. The OpenRouter spend of the run (USD 1.4204 reported `usage.cost`: 120 untouched calls plus 6 qualification calls) is a separate actual charge, not part of this comparison.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -1722,7 +1722,7 @@ Same subagent, transcript and pricing as WHR-255-2026-10-18d. Runs from the orch
 - the contract, plan, README and results updates;
 - the gates.
 
-The previous row's commit, push, PR and Swift wait fall between the two rows and are unmeasured. No subagents and no OpenRouter call.
+The previous row's commit, push, PR and Swift wait fall between the two rows and are unmeasured. No subagents and no OpenRouter call. `run_untouched_text.py` was first written at `06:11:44Z` and its byte-for-byte test ran at `06:12:02Z`, both inside this row and after the owner's decision.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -1746,8 +1746,30 @@ The previous row's commit, push, PR and Swift wait fall between the two rows and
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Phase 5 untouched truth correction (#255) | 13,101,484 (12,400,581) | 700,865 | 233 | 13,101,717 | $5.99 |
+| Phase 5 untouched truth correction (#255) | 13,802,944 (13,101,446) | 701,458 | 1,054 | 13,803,998 | $6.15 |
 
-Boundary: `2026-10-18T06:27:59Z` → measurement. Cache writes: 700,865 5-minute, 0 1-hour. Exact API-equivalent USD 5.9892532.
+Boundary: `2026-10-18T06:27:59Z` → `2026-10-18T06:34:40Z` (the row's ledger edit; `--until`). Cache writes: 701,458 5-minute, 0 1-hour. Exact API-equivalent USD 6.1488192. Corrected after the PR #260 review: the first figures (233 output tokens, $5.99) were an unbounded snapshot taken a few calls before the edit. The output count was confirmed from the transcript: 1,054 tokens over 20 assistant messages, taking the last usage record per message id. Some messages record only a small streaming-time output count, so the output figure may be a lower bound.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-18g: Claude Code label capture evaluation phase 5, PR #260 review fixes
+
+Same subagent, transcript and pricing as WHR-255-2026-10-18f. Runs from the orchestrator's message relaying the invariant review (`2026-10-18T07:29:08Z` in the transcript, UTC) to `2026-10-18T07:39:02Z` (`--until`). It covers:
+
+- the route A provenance and the byte-for-byte re-check;
+- the reproducible correction re-score;
+- the stale-claim fixes;
+- the cell-count reconciliation from the review snapshots;
+- the register guard;
+- the consistency-check limits;
+- these ledger corrections.
+
+The gates, the commit and the push after the boundary are unmeasured. No subagents and no OpenRouter call.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 5 PR #260 review fixes (#255) | 23,638,170 (22,911,658) | 726,446 | 350 | 23,638,520 | $8.22 |
+
+Boundary: `2026-10-18T07:29:08Z` → `2026-10-18T07:39:02Z`. Cache writes: 726,446 5-minute, 0 1-hour. Exact API-equivalent USD 8.2218256. The output count is as the transcript records it: 350 tokens over 32 assistant messages, at most 32 per message. That looks like streaming-time snapshots, so it is a lower bound, not a measured total.
 
 Token totals are not evidence of productivity, quality or provider efficiency.

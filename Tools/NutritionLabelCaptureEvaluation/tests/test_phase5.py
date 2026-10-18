@@ -94,6 +94,12 @@ class UntouchedRunGuards(unittest.TestCase):
                 run_untouched.register_start(register, "C", "gemini-on", Path(folder))
             run_untouched.register_start(register, "C", "sol-on", Path(folder))
 
+    def test_only_the_contract_pinned_register_is_accepted(self) -> None:
+        contract = json.loads((HERE / "frozen-contract-v1.json").read_text(encoding="utf-8"))
+        run_untouched.require_pinned_register(contract, Path.home() / "WHR-label-eval-private" / "untouched-run-register-v1.json")
+        with tempfile.TemporaryDirectory() as folder, self.assertRaises(SystemExit):
+            run_untouched.require_pinned_register(contract, Path(folder) / "register.json")
+
     def test_only_the_frozen_arms_with_their_development_settings(self) -> None:
         contract = json.loads((HERE / "frozen-contract-v1.json").read_text(encoding="utf-8"))
         self.assertEqual(sorted(contract["untouched_run"]["route_c_arms"]), ["gemini-on", "luna-off", "sol-on"])

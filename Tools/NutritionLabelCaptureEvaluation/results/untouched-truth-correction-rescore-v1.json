@@ -1,6 +1,7 @@
 {
- "note": "Offline re-score of the saved untouched outputs; no rerun and no API call. The frozen truth file is unchanged.",
+ "note": "Offline re-score of the saved untouched outputs; no rerun and no API call. frozen_truth is the truth file given; corrected_truth is that file with the corrections applied in memory.",
  "truth_sha256": "d40a56b7b35aad65a26338ded755bb22475520ccf1dd6fc2a26150c64e5b57a3",
+ "truth_sha256_note": "superseded: this is an earlier truth file; the contract now pins 8c871d2d0d866f1ba4af72072767294f55b39d901818cf7e569ac2fb62495c46",
  "corrections_applied": [
   {
    "case_id": "off-taiwan:3228022000311:nutrition_zh.12",
