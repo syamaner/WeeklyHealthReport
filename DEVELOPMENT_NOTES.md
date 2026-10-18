@@ -1810,3 +1810,23 @@ Pricing as in the previous sections (checked 11 October 2026): USD 4/M base inpu
 Boundary: `2026-10-18T08:24:43Z` → `2026-10-18T09:10:47Z` (`phase_usage.py --format claude --since …`). Cache writes: 578,742 5-minute, 0 1-hour. Exact API-equivalent USD 9.3964412.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-18b: Claude Code pasted nutrition label PR 1, owner decisions and review fixes
+
+Same subagent, transcript and pricing as WHR-93-2026-10-18a. Runs from the coordinator's message relaying the owner's decisions (`2026-10-18T10:05:33Z` in the transcript, UTC) to `2026-10-18T10:36:41Z`, just before this ledger edit. It covers:
+
+- the rebase onto `main` after #261;
+- the UK per-serving inference rule and contract section 5;
+- the committed untouched FDA vectors and the 110/116 parity;
+- the invariant review fixes (hard-decline split, fullwidth limit, Python 3.11 pin in CI, table self-checks, operand length, mutation-truth cross-check, locale run);
+- the gates.
+
+The previous row's commit, push and PR, and the gap before this message, are unmeasured. No subagents and no provider call. The rates are the ledger's documented ones (checked 11 October 2026); they were not re-checked on 18 October 2026, and the same applies to WHR-93-2026-10-18a.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label PR 1 decisions and review fixes (#93) | 22,986,640 (22,210,383) | 776,135 | 16,630 | 23,003,270 | $8.66 |
+
+Boundary: `2026-10-18T10:05:33Z` → `2026-10-18T10:36:41Z`. Cache writes: 776,135 5-minute, 0 1-hour. Exact API-equivalent USD 8.6558396. The output count is as the transcript records it and may be a lower bound where messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

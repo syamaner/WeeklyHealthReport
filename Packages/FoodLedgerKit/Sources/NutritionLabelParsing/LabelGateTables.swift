@@ -21,22 +21,24 @@ struct LabelGateTables: Sendable {
     /// The Python pattern the classes were generated for.
     let markerPattern: String
 
-    static let shared: LabelGateTables = {
-        do {
-            return try LabelGateTables(
-                simplifiedOnlyText: resourceText(LabelDeclineGate.simplifiedOnlyTableResource),
-                markerClassesText: resourceText(LabelDeclineGate.markerClassesTableResource)
-            )
-        } catch {
-            // The tables are bundled with the target; a missing or malformed table is a build defect.
-            fatalError("Decline gate v2 tables are unreadable: \(error)")
-        }
-    }()
+    /// The bundled tables, or the reason they cannot be used. The gate never runs without them:
+    /// `LabelDeclineGate.apply` reports `tables_unavailable`, a hard decline (`unreadable_table`).
+    static let loaded: Result<LabelGateTables, TableError> = Result {
+        try LabelGateTables(
+            simplifiedOnlyText: resourceText(LabelDeclineGate.simplifiedOnlyTableResource),
+            markerClassesText: resourceText(LabelDeclineGate.markerClassesTableResource)
+        )
+    }.mapError { $0 as? TableError ?? .malformed("\($0)") }
+
+    static var shared: LabelGateTables? { try? loaded.get() }
 
     enum TableError: Error, Equatable {
         case missingResource(String)
         case malformed(String)
     }
+
+    /// The simplified-only table's size under gate v2 (Python codecs over HAN_RANGES).
+    static let simplifiedOnlyCount = 2365
 
     static func resourceData(_ name: String) throws -> Data {
         let parts = name.split(separator: ".", maxSplits: 1).map(String.init)
@@ -56,9 +58,18 @@ struct LabelGateTables: Sendable {
 
     init(simplifiedOnlyText: String, markerClassesText: String) throws {
         var simplified = Set<UInt32>()
+        var previous: UInt32?
         for line in simplifiedOnlyText.split(separator: "\n", omittingEmptySubsequences: true) {
             guard let value = UInt32(line, radix: 16) else { throw TableError.malformed("simplified-only line \(line)") }
+            guard previous.map({ $0 < value }) ?? true else { throw TableError.malformed("simplified-only table is not sorted at \(line)") }
+            guard LabelDeclineGate.hanRanges.contains(where: { $0.contains(value) }) else {
+                throw TableError.malformed("simplified-only \(line) is outside HAN_RANGES")
+            }
+            previous = value
             simplified.insert(value)
+        }
+        guard simplified.count == Self.simplifiedOnlyCount else {
+            throw TableError.malformed("simplified-only table has \(simplified.count) entries, expected \(Self.simplifiedOnlyCount)")
         }
         var space = Set<UInt32>()
         var folds: [UInt32: [UInt32: [UInt32]]] = [:]
@@ -99,6 +110,21 @@ struct LabelGateTables: Sendable {
             }
         }
         guard let pattern, !space.isEmpty, !folds.isEmpty, !words.isEmpty else { throw TableError.malformed("marker classes are incomplete") }
+        guard pattern == SupplementMarkerMatcher.pattern else { throw TableError.malformed("marker classes were generated for another pattern") }
+        // Every literal and optional character of the matcher needs its case-insensitive equivalents.
+        for alternative in SupplementMarkerMatcher.alternatives {
+            for token in alternative {
+                let characters: [UInt32]
+                switch token {
+                case .literal(let values): characters = values
+                case .optional(let value): characters = [value]
+                case .boundary, .spaces: characters = []
+                }
+                for character in characters where folds[character]?[character] == nil {
+                    throw TableError.malformed(String(format: "no fold entry for %04X", character))
+                }
+            }
+        }
         self.simplifiedOnly = simplified
         self.space = space
         self.folds = folds

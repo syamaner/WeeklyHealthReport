@@ -34,8 +34,13 @@ public enum LabelGateReason: String, Codable, CaseIterable, Sendable {
 
 /// Why gate v2 did not evaluate a candidate.
 public enum LabelGateSkip: String, Codable, Sendable {
+    /// No candidate, or one that fails `validate_candidate` (gate v2's own skip).
     case failedCandidate = "failed_candidate"
+    /// The parser already declined it (gate v2's own skip); its reasons are the parser's.
     case alreadyDeclined = "already_declined"
+    /// The bundled tables could not be read or failed their self-checks (Swift only; gate v2
+    /// has codecs instead). The gate cannot run, so nothing may be shown as read.
+    case tablesUnavailable = "tables_unavailable"
 }
 
 /// Gate v2's report for one candidate. `declines`, `blocks` and `details` are the raw gate v2
@@ -50,8 +55,25 @@ public struct LabelGateReport: Equatable, Sendable {
 
     /// G1 and G2: the input cannot be used (section 3.1).
     public var hardDeclines: [LabelGateReason] { (declines + blocks).filter(\.isHardDecline) }
-    /// G3 to G6: shown on Confirm as exceptions, never a decline (section 3.2).
+    /// G3 to G6: shown on Confirm as exceptions, never a decline (section 3.2). Empty when the
+    /// gate did not evaluate the candidate.
     public var flags: [LabelGateReason] { (declines + blocks).filter { !$0.isHardDecline } }
+
+    /// The product's hard-decline codes for this report, in order. A schema-invalid candidate
+    /// (`failed_candidate`) and unreadable tables (`tables_unavailable`) are hard declines with the
+    /// fallback copy `unreadable_table` (section 3.1); `already_declined` keeps the parser's own
+    /// reasons, so it adds none here.
+    public var hardDeclineCodes: [String] {
+        switch skipped {
+        case .failedCandidate, .tablesUnavailable: ["unreadable_table"]
+        case .alreadyDeclined: []
+        case nil: hardDeclines.map(\.rawValue)
+        }
+    }
+
+    /// True only when the gate evaluated the candidate and found no hard decline: the reading may
+    /// go on to Confirm, with `flags` shown there.
+    public var isUsable: Bool { skipped == nil && hardDeclines.isEmpty }
 }
 
 /// Swift port of `label-capture-decline-gate-v2` (`Tools/NutritionLabelCaptureEvaluation/decline_gate.py`).
@@ -98,7 +120,7 @@ public enum LabelDeclineGate {
 
     public static func isSimplifiedOnly(_ scalar: Unicode.Scalar) -> Bool {
         // The frozen table already leaves out shared variants and anything outside HAN_RANGES.
-        LabelGateTables.shared.simplifiedOnly.contains(scalar.value)
+        LabelGateTables.shared?.simplifiedOnly.contains(scalar.value) ?? false
     }
 
     public static func isUnsupportedScript(_ scalar: Unicode.Scalar) -> Bool {
@@ -107,13 +129,16 @@ public enum LabelDeclineGate {
 
     /// Supplement markers in one printed string, lowered, in match order (Python `finditer`).
     public static func supplementMarkers(in text: String) -> [String] {
-        SupplementMarkerMatcher(tables: LabelGateTables.shared).loweredMatches(in: text)
+        LabelGateTables.shared.map { SupplementMarkerMatcher(tables: $0).loweredMatches(in: text) } ?? []
     }
 
     // MARK: Gate
 
     /// Gate v2's findings for one candidate, without changing it (Python `evaluate`).
     public static func evaluate(_ candidate: LabelCaptureCandidate, format: LabelGateFormat) -> LabelGateReport {
+        guard LabelGateTables.shared != nil else {
+            return LabelGateReport(gateVersion: version, labelFormat: format, declines: [], blocks: [], details: [], skipped: .tablesUnavailable)
+        }
         var declines: [LabelGateReason] = []
         var blocks: [LabelGateReason] = []
         var details: [String] = []
@@ -170,6 +195,11 @@ public enum LabelDeclineGate {
     /// one the parser already declined pass through untouched.
     public static func apply(_ candidate: LabelCaptureCandidate?, format: LabelGateFormat) -> (candidate: LabelCaptureCandidate?, report: LabelGateReport) {
         let skipped = LabelGateReport(gateVersion: version, labelFormat: format, declines: [], blocks: [], details: [], skipped: nil)
+        guard LabelGateTables.shared != nil else {
+            var report = skipped
+            report.skipped = .tablesUnavailable
+            return (candidate, report)
+        }
         guard let candidate, validationErrors(candidate).isEmpty else {
             var report = skipped
             report.skipped = .failedCandidate

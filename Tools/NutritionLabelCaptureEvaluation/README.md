@@ -287,12 +287,17 @@ changes no frozen artefact:
 
 The tables go to `Packages/FoodLedgerKit/Sources/NutritionLabelParsing/Resources/` and the
 vectors, with their SHA-256 list, to `Packages/FoodLedgerKit/Tests/NutritionLabelParsingTests/Fixtures/`.
-The vectors hold every committed development pasted-text case and the untouched closed-template
-cases, re-rendered with the frozen generator (synthetic, no source data), plus hand-built
-synthetic candidates for gate rules no rendered case reaches. The untouched FDA dataset 188
-cases need the CSV, which stays outside the repository, so they are left out unless
-`--untouched-fda-csv` names it; without them the evaluation's 6 mutation misses (all on FDA rows)
-are not in the vectors. The marker classes depend on Python's Unicode database, so `check`
+The vectors hold every committed development pasted-text case and every untouched pasted-text
+case route A ran on, re-rendered with the frozen generator, plus hand-built synthetic candidates
+for gate rules no rendered case reaches. The untouched FDA dataset 188 cases (75) are rendered
+synthetic text from the hash-checked CSV, which stays outside the repository; the owner approved
+committing them on 18 October 2026, after the untouched set's single use, so the Swift port
+reproduces the 6 mutation misses (110/116). `vectors --untouched-fda-csv` refuses to write unless
+the re-rendered set matches the dataset SHA-256 recorded for that run, and the vector metadata
+carries the dataset's Open Government Data License attribution. These re-rendered untouched cases
+are now exposed: they must never be reused as untouched (sealed) evidence for any later route,
+parser or gate version. Without the CSV, `vectors` leaves
+those cases out. The marker classes depend on Python's Unicode database, so `check`
 compares them only under the version recorded in the table (Python 3.11, Unicode 14.0.0).
 
 **UK images.** The v1 panel images are no longer on disk and the v2 public selection (60 tuning,

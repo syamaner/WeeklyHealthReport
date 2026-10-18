@@ -43,6 +43,19 @@ class ParityVectors(unittest.TestCase):
     def test_vectors_match_the_frozen_python(self) -> None:
         self.assertEqual(export.check(), [])
 
+    def test_untouched_fda_vectors_carry_attribution_and_the_six_misses(self) -> None:
+        meta = export.json.loads(export.jsonl_lines(export.CASES)[0])
+        self.assertIn(export.FDA_SET, meta["sets"])
+        self.assertEqual(meta["untouched_dataset_sha256"], export.untouched_dataset_sha256())
+        self.assertIn("Open Government Data License", meta["fda188_attribution"])
+        truths = [
+            json_line["truth"]
+            for json_line in map(export.json.loads, export.jsonl_lines(export.MUTATIONS))
+            if json_line["split"] == "untouched"
+        ]
+        outcome = export.arithmetic.mutation_detection(truths)
+        self.assertEqual(outcome["overall"], {"applicable": 116, "detected": 110})
+
     def test_vectors_cover_every_gate_rule_and_skip(self) -> None:
         reasons: set[str] = set()
         skips: set[str] = set()

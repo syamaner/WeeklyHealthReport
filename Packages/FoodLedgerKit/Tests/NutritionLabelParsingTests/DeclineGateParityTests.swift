@@ -64,7 +64,7 @@ import Testing
     let meta = try #require(lines.first)
     #expect(meta["gate_version"] as? String == LabelDeclineGate.version)
     #expect(meta["supplement_marker_pattern"] as? String == SupplementMarkerMatcher.pattern)
-    #expect(LabelGateTables.shared.markerPattern == SupplementMarkerMatcher.pattern)
+    #expect(LabelGateTables.shared?.markerPattern == SupplementMarkerMatcher.pattern)
 
     var compared = 0
     var problems: [String] = []

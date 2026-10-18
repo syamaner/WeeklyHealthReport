@@ -179,13 +179,20 @@ def code_point_runs() -> dict[str, Any]:
 
 
 def infer_format(candidate: dict[str, Any]) -> str:
-    """zh-Hant is Taiwan; English with a per 100 g or ml column is UK; other English is US; else ambiguous."""
+    """zh-Hant is Taiwan; English with a per 100 g or ml column, or else a salt or kJ row, is UK; other English is US; else ambiguous.
+
+    Owner decision of 18 October 2026: a UK table printed per serving only is inferred as UK (the gate then
+    flags the missing per 100 column, G5), not as US.
+    """
     language = candidate.get("language")
     if language == "zh-Hant":
         return decline_gate.TAIWAN
     if language == "en":
         bases = {h.get("basis") for h in candidate.get("headers") or []}
-        return decline_gate.UK if bases & {"per_100g", "per_100ml"} else "us_nutrition_facts"
+        if bases & {"per_100g", "per_100ml"}:
+            return decline_gate.UK
+        nutrients = {c.get("nutrient") for c in candidate.get("cells") or []}
+        return decline_gate.UK if nutrients & {"salt", "energy_kj"} else "us_nutrition_facts"
     return "format_ambiguous"
 
 
@@ -457,7 +464,11 @@ def text_cases(fda_csv: Path | None) -> tuple[list[dict[str, Any]], list[str]]:
         if case_loading.sha256_file(fda_csv) != expected:
             raise SystemExit("the FDA CSV does not match fixtures/fda-188-source-v1.json")
         untouched = run_untouched_text.fda_rows(fda_csv, "untouched") + untouched
-        sets.append("untouched fda188 (rendered from the hash-checked CSV)")
+        # The same cases as the single untouched route A run: its recorded dataset hash must match.
+        dataset = "\n".join(json.dumps(c, ensure_ascii=False, sort_keys=True) for c in untouched) + "\n"
+        if hashlib.sha256(dataset.encode("utf-8")).hexdigest() != untouched_dataset_sha256():
+            raise SystemExit("the re-rendered untouched set differs from the one route A ran on")
+        sets.append(FDA_SET)
     for case in untouched:
         if hashlib.sha256(case["input"]["text"].encode("utf-8")).hexdigest() != case["metadata"]["sha256"]:
             raise SystemExit(f"{case['id']} text does not match its hash")
@@ -474,8 +485,27 @@ def _line(record: dict[str, Any]) -> str:
     return json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
 
+FDA_SET = "untouched fda188 (rendered from the hash-checked CSV; owner decision 18 October 2026)"
+UNTOUCHED_RESULT = HERE / "results" / "untouched-taiwan-v1.json"
+
+
+def untouched_dataset_sha256() -> str:
+    return json.loads(UNTOUCHED_RESULT.read_text(encoding="utf-8"))["route_a_untouched_text"]["dataset_sha256"]
+
+
 def meta(sets: list[str], parser_version: str | None) -> dict[str, Any]:
+    extra: dict[str, Any] = {}
+    if FDA_SET in sets:
+        source = json.loads(FDA_SOURCE.read_text(encoding="utf-8"))
+        extra = {
+            "untouched_dataset_sha256": untouched_dataset_sha256(),
+            "fda188_licence": source["licence"],
+            "fda188_licence_url": source["licence_url"],
+            "fda188_attribution": source["attribution"],
+            "fda188_caveat": "Values are supplied by manufacturers and are not guaranteed by the FDA; cases are rendered synthetic text.",
+        }
     return {
+        **extra,
         "kind": "meta",
         "version": VECTORS_VERSION,
         "gate_version": decline_gate.GATE_VERSION,
@@ -582,10 +612,12 @@ def check() -> list[str]:
     if CODE_POINTS.read_text(encoding="utf-8") != code_points_text():
         problems.append("the code-point runs differ from gate v2")
     marker_lines = MARKER_TABLE.read_text(encoding="utf-8").split("\n", 2)
-    # The classes depend on Python's Unicode database; compare them only under the version they came from.
-    if marker_lines[1].endswith(f" unicodedata {unicodedata.unidata_version}"):
-        if marker_lines[2] != marker_classes_table().split("\n", 2)[2]:
-            problems.append("the marker classes differ from Python re")
+    # The classes depend on Python's Unicode database. Under any other version the comparison
+    # cannot be made, which is a failure, not a skip (CI pins Python 3.11).
+    if not marker_lines[1].endswith(f" unicodedata {unicodedata.unidata_version}"):
+        problems.append(f"the marker classes need Unicode {marker_lines[1].split()[-1]}; this Python has {unicodedata.unidata_version}")
+    elif marker_lines[2] != marker_classes_table().split("\n", 2)[2]:
+        problems.append("the marker classes differ from Python re")
     if SUMS.read_text(encoding="utf-8") != sums_text():
         problems.append("parity-sha256-v1.txt does not match the files")
     lines = [json.loads(line) for line in jsonl_lines(CASES)]
@@ -609,8 +641,20 @@ def check() -> list[str]:
             problems.append(f"{record['id']}: expected output differs from the frozen Python")
     if lines[0] != meta(lines[0]["sets"], lines[0]["parser_version"]):
         problems.append("vector metadata differs (reference hashes or pattern changed)")
+    fda_records = {r["id"] for r in lines[1:] if r.get("corpus") == "fda188" and r.get("split") == "untouched"}
+    muesli = render.muesli_truth(ZERO_HASH)
     for line in jsonl_lines(MUTATIONS):
         record = json.loads(line)
+        # Each truth is the committed or re-rendered case's own truth; untouched FDA truth (rendered from
+        # the private CSV) is tied to a committed text case and to the run's dataset hash at export.
+        if record["id"] in development:
+            if development[record["id"]]["truth"] != record["truth"]:
+                problems.append(f"{record['id']}: mutation truth differs from the committed or re-rendered case")
+        elif record["id"] == "synthetic:muesli":
+            if record["truth"] != muesli:
+                problems.append("synthetic:muesli: truth differs from the generator")
+        elif record["id"] not in fda_records:
+            problems.append(f"{record['id']}: mutation truth has no source case")
         if mutation_record(record["id"], record["truth"]) != {
             k: record[k] for k in ("id", "truth", "jurisdiction", "original", "mutations")
         }:

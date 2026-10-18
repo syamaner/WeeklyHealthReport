@@ -154,8 +154,14 @@ public enum PastedLabelConversions {
 
     // MARK: Arithmetic
 
+    /// Foundation `Decimal` holds at most 38 significant digits; a longer operand would be parsed
+    /// inexactly, so it is rejected (no conversion, the value stays unknown).
+    static let maximumOperandDigits = 38
+
     static func parseOperand(_ text: String) -> Decimal? {
         guard LabelDeclineGate.isPythonDecimalText(text), !text.hasSuffix("\n") else { return nil }
+        let significant = text.filter(\.isASCII).filter(\.isNumber).drop { $0 == "0" }
+        guard significant.count <= maximumOperandDigits else { return nil }
         return Decimal(string: text.replacingOccurrences(of: ",", with: "."), locale: posix)
     }
 
@@ -260,14 +266,18 @@ public enum LabelFormatInference {
         }
     }
 
-    /// `zh-Hant` is Taiwan; English with a per 100 g or per 100 ml column is UK; other English is
-    /// US (declined in v1); `mixed` and `unknown` are ambiguous.
+    /// `zh-Hant` is Taiwan. English is UK when it prints a per 100 g or per 100 ml column, or,
+    /// without one, a salt or kJ row (both mandatory on a UK declaration, neither printed on a US
+    /// Nutrition Facts panel); a UK table printed per serving only then reaches the gate, which
+    /// flags the missing per 100 column (G5). Other English is US (declined in v1). `mixed` and
+    /// `unknown` are ambiguous. Owner decision, 18 October 2026.
     public static func infer(_ candidate: LabelCaptureCandidate) -> Outcome {
         switch candidate.language {
         case .traditionalChinese:
             return .taiwan
         case .english:
-            return candidate.headers.contains { $0.basis == .per100g || $0.basis == .per100ml } ? .uk : .usNutritionFacts
+            if candidate.headers.contains(where: { $0.basis == .per100g || $0.basis == .per100ml }) { return .uk }
+            return candidate.cells.contains { $0.nutrient == "salt" || $0.nutrient == "energy_kj" } ? .uk : .usNutritionFacts
         case .mixed, .unknown:
             return .ambiguous
         }

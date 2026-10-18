@@ -519,7 +519,13 @@ enum PythonDecimalContext {
     static let precision = 28
 
     /// `a / b` correctly rounded half-even to 28 significant digits, by exact long division on the
-    /// operands' coefficients (Foundation's own division is not correctly rounded at 28 digits).
+    /// operands' coefficients. Foundation's `NSDecimalDivide` keeps up to 38 digits (fewer for some
+    /// quotients) and rounding that result again to 28 digits can differ from Python by double
+    /// rounding, so it is not used when the coefficients fit.
+    ///
+    /// Known gap: when either coefficient has more than 17 digits (the long division would overflow
+    /// `UInt64`), this falls back to `NSDecimalDivide` and is not guaranteed to equal Python. Printed
+    /// label values are far shorter; every exported vector stays on the exact path.
     static func divide(_ a: Decimal, _ b: Decimal) -> Decimal {
         guard let left = Coefficient(a), let right = Coefficient(b), right.value != 0 else {
             var result = Decimal()

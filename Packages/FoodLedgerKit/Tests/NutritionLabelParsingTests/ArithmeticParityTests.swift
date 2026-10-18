@@ -27,6 +27,7 @@ import Testing
     var problems: [String] = []
     var tables: [String: [LabelArithmeticTable]] = [:]
     var misses: [String] = []
+    var untouchedFound = Set<String>()
     for record in records {
         let id = record["id"] as? String ?? "?"
         let truth = try #require(record["truth"] as? [String: Any])
@@ -55,24 +56,40 @@ import Testing
             }
             let checks = LabelArithmeticChecks.check(mutated)
             problems += ParityFixtures.reportDifferences(checks, python["checks"] as? [String: Any] ?? [:]).map { "\(id) \(mutation): \($0)" }
-            if original.status != .fail, checks.status != .fail { misses.append("\(id) \(mutation)") }
+            if original.status != .fail, checks.status != .fail {
+                misses.append("\(id) \(mutation)")
+                if record["split"] as? String == "untouched" { untouchedFound.insert("\(id) \(mutation)") }
+            }
         }
     }
     #expect(problems.isEmpty, "\(problems.prefix(10))")
 
-    // The same detection counts and misses as the Python reference on the vectors' truth. The
-    // untouched FDA dataset 188 truth is not committed, so the evaluation's 110/116 (6 misses)
-    // cannot be recounted here; see the export script's `--untouched-fda-csv`.
+    // The same detection counts and misses as the Python reference. The untouched truth is the
+    // set route A ran on once (its dataset SHA-256 is checked at export), so this is the
+    // evaluation's 110/116: tenfold 69/72, transposition 32/35, bound 9/9.
     let development = LabelArithmeticChecks.mutationDetection(tables["development"] ?? [])
     #expect(development["tenfold_serving"]! == (111, 108))
     #expect(development["basis_transposition"]! == (22, 20))
     #expect(development["bound_replaced_by_exact"]! == (12, 5))
     let untouched = LabelArithmeticChecks.mutationDetection(tables["untouched"] ?? [])
-    #expect(untouched["tenfold_serving"]! == (27, 27))
-    #expect(untouched["basis_transposition"]! == (18, 18))
+    #expect(untouched["tenfold_serving"]! == (72, 69))
+    #expect(untouched["basis_transposition"]! == (35, 32))
     #expect(untouched["bound_replaced_by_exact"]! == (9, 9))
-    #expect(misses.count == 12, "\(misses)")
+    #expect(untouched.values.reduce(0) { $0 + $1.applicable } == 116)
+    #expect(untouched.values.reduce(0) { $0 + $1.detected } == 110)
+    #expect(untouchedFound == untouchedMisses)
+    #expect(misses.count == 18, "\(misses)")
 }
+
+/// The 6 planted mutations the frozen check misses on the untouched truth (contract section 1).
+private let untouchedMisses: Set<String> = [
+    "fda188:f97f36b40df0ebf8:single_column_serving:spaced_units tenfold_serving",
+    "fda188:d31492c546833c75:single_column_serving:tab tenfold_serving",
+    "fda188:736a033efaaedb29:single_column_serving:tab tenfold_serving",
+    "fda188:80ac6fd0e2cf227e:two_column:one_per_line basis_transposition",
+    "fda188:b141fe828520b587:two_column:spaced_units basis_transposition",
+    "fda188:64df18ee3e8ee5a2:two_column:tab basis_transposition",
+]
 
 @Test func test2MuesliEnergyUsesTheTaiwanFibreForm() throws {
     let candidate = NutritionLabelTextParser().parse(muesliText, inputSHA256: String(repeating: "0", count: 64))
