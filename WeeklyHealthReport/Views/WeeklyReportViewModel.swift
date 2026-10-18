@@ -89,6 +89,9 @@ final class WeeklyReportViewModel: ObservableObject {
     @Published private(set) var period: ReportPeriod
     @Published private var reportStates = ReportStates(commonState: .idle)
     @Published private(set) var lastRefreshed: Date?
+    /// Developer tools only: how the latest report's daily collections were
+    /// bucketed (docs/healthkit-day-bucketing-v1.md decision 5).
+    @Published private(set) var dailyBucketReads: [DailyBucketReadRecord] = []
     /// Food and water (#214). Kept apart from the HealthKit states: a food-log
     /// failure never changes them, and Apple Health being unavailable never
     /// hides the food log.
@@ -463,7 +466,7 @@ final class WeeklyReportViewModel: ObservableObject {
         }
 
         do {
-            let values = try await healthData.fetchDailySteps(for: period)
+            let values = try await healthData.fetchDailySteps(for: period, calendar: calendar)
             guard generation == refreshGeneration else { return }
             if let summary = StepSummary.aggregate(values) {
                 // The trend's previous read is separate, so its failure leaves
@@ -476,7 +479,10 @@ final class WeeklyReportViewModel: ObservableObject {
                     trend = .notRead
                 } else {
                     do {
-                        let previousValues = try await healthData.fetchDailySteps(for: previousPeriod)
+                        let previousValues = try await healthData.fetchDailySteps(
+                            for: previousPeriod,
+                            calendar: calendar
+                        )
                         trend = StepTrendSummary.calculate(
                             current: values,
                             previous: previousValues,
@@ -498,7 +504,10 @@ final class WeeklyReportViewModel: ObservableObject {
         guard generation == refreshGeneration else { return }
 
         do {
-            let dailyValues = try await healthData.fetchDailyBloodGlucose(for: period)
+            let dailyValues = try await healthData.fetchDailyBloodGlucose(
+                for: period,
+                calendar: calendar
+            )
             guard generation == refreshGeneration else { return }
             reportStates.glucose = GlucoseSummary.aggregate(dailyValues)
                 .map(MetricState.available) ?? .noDataOrAccess
@@ -527,8 +536,14 @@ final class WeeklyReportViewModel: ObservableObject {
         guard generation == refreshGeneration else { return }
 
         do {
-            let currentValues = try await healthData.fetchDailyRestingHeartRate(for: period)
-            let previousValues = try await healthData.fetchDailyRestingHeartRate(for: previousPeriod)
+            let currentValues = try await healthData.fetchDailyRestingHeartRate(
+                for: period,
+                calendar: calendar
+            )
+            let previousValues = try await healthData.fetchDailyRestingHeartRate(
+                for: previousPeriod,
+                calendar: calendar
+            )
             guard generation == refreshGeneration else { return }
             reportStates.restingHeartRate = HeartMetricTrendSummary.calculate(
                 currentValues: currentValues,
@@ -542,8 +557,11 @@ final class WeeklyReportViewModel: ObservableObject {
         guard generation == refreshGeneration else { return }
 
         do {
-            let currentValues = try await healthData.fetchDailyHRV(for: period)
-            let previousValues = try await healthData.fetchDailyHRV(for: previousPeriod)
+            let currentValues = try await healthData.fetchDailyHRV(for: period, calendar: calendar)
+            let previousValues = try await healthData.fetchDailyHRV(
+                for: previousPeriod,
+                calendar: calendar
+            )
             guard generation == refreshGeneration else { return }
             reportStates.hrv = HeartMetricTrendSummary.calculate(
                 currentValues: currentValues,
@@ -555,6 +573,10 @@ final class WeeklyReportViewModel: ObservableObject {
             reportStates.hrv = .failed(error.localizedDescription)
         }
         guard generation == refreshGeneration else { return }
+        let readIntervals = [period.interval, previousPeriod.interval]
+        dailyBucketReads = healthData.dailyBucketReadRecords.filter {
+            readIntervals.contains($0.interval)
+        }
 
         do {
             let sampleDates = try await healthData.fetchAppleWatchHeartRateSampleDates(for: period)

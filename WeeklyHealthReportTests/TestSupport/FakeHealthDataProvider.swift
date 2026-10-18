@@ -28,6 +28,8 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
     private let medicationResponses: [[MedicationDoseRecord]]
     private let control: FakeHealthDataControl
     private let stepsResponse: (@Sendable (ReportPeriod) throws -> [DailyStepTotal])?
+    private let receivedCalendars = FakeCalendarRecorder()
+    let dailyBucketReadRecords: [DailyBucketReadRecord]
 
     init(
         isHealthDataAvailable: Bool = true,
@@ -38,9 +40,11 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
         pauseFirstWeightFetch: Bool = false,
         medicationResponses: [[MedicationDoseRecord]] = [],
         pauseFirstMedicationFetch: Bool = false,
-        stepsResponse: (@Sendable (ReportPeriod) throws -> [DailyStepTotal])? = nil
+        stepsResponse: (@Sendable (ReportPeriod) throws -> [DailyStepTotal])? = nil,
+        dailyBucketReadRecords: [DailyBucketReadRecord] = []
     ) {
         self.stepsResponse = stepsResponse
+        self.dailyBucketReadRecords = dailyBucketReadRecords
         self.isHealthDataAvailable = isHealthDataAvailable
         self.supportsMedicationData = supportsMedicationData
         self.authorizationError = authorizationError
@@ -51,6 +55,15 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
             pauseFirstWeightFetch: pauseFirstWeightFetch,
             pauseFirstMedicationFetch: pauseFirstMedicationFetch
         )
+    }
+
+    /// Time zones of the calendars passed to the daily collection methods.
+    func dailyCollectionTimeZones() -> [String] {
+        receivedCalendars.timeZoneIdentifiers()
+    }
+
+    private func recordCalendar(_ calendar: Calendar) {
+        receivedCalendars.append(calendar)
     }
 
     func authorizationRequestCount() async -> Int {
@@ -80,7 +93,11 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
         }
     }
 
-    func fetchDailySteps(for period: ReportPeriod) async throws -> [DailyStepTotal] {
+    func fetchDailySteps(
+        for period: ReportPeriod,
+        calendar: Calendar
+    ) async throws -> [DailyStepTotal] {
+        recordCalendar(calendar)
         if let stepsResponse { return try stepsResponse(period) }
         return period.completedDays.enumerated().map { index, day in
             DailyStepTotal(
@@ -142,7 +159,11 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
         )]
     }
 
-    func fetchDailyBloodGlucose(for period: ReportPeriod) async throws -> [DailyGlucoseValue] {
+    func fetchDailyBloodGlucose(
+        for period: ReportPeriod,
+        calendar: Calendar
+    ) async throws -> [DailyGlucoseValue] {
+        recordCalendar(calendar)
         if let glucoseError {
             throw glucoseError
         }
@@ -158,13 +179,19 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
     }
 
     func fetchDailyRestingHeartRate(
-        for period: ReportPeriod
+        for period: ReportPeriod,
+        calendar: Calendar
     ) async throws -> [DailyHeartMetricValue] {
-        heartValues(for: period, value: 61)
+        recordCalendar(calendar)
+        return heartValues(for: period, value: 61)
     }
 
-    func fetchDailyHRV(for period: ReportPeriod) async throws -> [DailyHeartMetricValue] {
-        heartValues(for: period, value: 48)
+    func fetchDailyHRV(
+        for period: ReportPeriod,
+        calendar: Calendar
+    ) async throws -> [DailyHeartMetricValue] {
+        recordCalendar(calendar)
+        return heartValues(for: period, value: 48)
     }
 
     func fetchAppleWatchHeartRateSampleDates(for period: ReportPeriod) async throws -> [Date] {
@@ -319,5 +346,18 @@ actor FakeHealthDataControl {
         precondition(pausedMedicationFetch != nil)
         pausedMedicationFetch?.resume()
         pausedMedicationFetch = nil
+    }
+}
+
+private final class FakeCalendarRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var identifiers: [String] = []
+
+    func append(_ calendar: Calendar) {
+        lock.withLock { identifiers.append(calendar.timeZone.identifier) }
+    }
+
+    func timeZoneIdentifiers() -> [String] {
+        lock.withLock { identifiers }
     }
 }

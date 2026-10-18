@@ -61,7 +61,7 @@ Simulator runs prove software behaviour only. On a signed Debug build:
 1. In Settings on the iPhone, keep the automatic time zone. Pick a week that contains a DST change (for Europe/London, the week containing the last Sunday of October or March) and has visible step and heart data.
 2. In the app, choose **Last week** (or **Last 7 days** if the change fell in the last seven days). Open **Settings → Developer tools → Developer Diagnostics**.
 3. For each day, compare Developer Diagnostics' daily steps, glucose average, resting heart rate and HRV against Apple Health's day view (Health → Steps → D, and the equivalents). Values should match to the displayed precision, with the 23 or 25 hour day present and the days after it not missing.
-4. Confirm Developer Diagnostics reports no bucket fallback in the normal case.
+4. Confirm Developer Diagnostics reports no bucket fallback in the normal case: the **Daily buckets** section shows the policy identifier, "Per-day fallbacks: None" and "Collection aligned" for each steps, blood glucose, resting heart rate and HRV read of the current and previous period.
 5. Optional: change the device time zone manually to one without DST, refresh, and repeat for the same week. Days follow the new zone (README, "All dates use the iPhone's local calendar and time zone"), so day totals may legitimately differ from step 3, but no day should be missing where Apple Health shows data in that zone.
 6. Record the date, device time zone, iOS version and the per-day comparison in the PR, without personal values in the repository.
 

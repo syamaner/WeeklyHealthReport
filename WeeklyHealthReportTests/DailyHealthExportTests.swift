@@ -335,6 +335,124 @@ final class DailyHealthExportTests: XCTestCase {
         )
     }
 
+    /// docs/healthkit-day-bucketing-v1.md section 4: in the normal case every
+    /// bucket matches, so re-reading the fixture's daily values through the
+    /// alignment check must reproduce the golden bytes exactly.
+    func testAlignedDailyBucketReadsReproduceGoldenBytes() async throws {
+        let calendar = londonCalendar()
+        let cutoff = date(2026, 9, 6, 23, calendar: calendar)
+        let window = try DailyExportWindow.capture(at: cutoff, calendar: calendar)
+        let previous = try XCTUnwrap(window.context.precedingEquivalent(calendar: calendar))
+        let fixture = populatedInputs(window: window)
+
+        func reread<Value>(
+            _ days: [DateInterval],
+            interval: DateInterval,
+            _ values: [Value?]
+        ) async throws -> [Value?] {
+            let plan = try XCTUnwrap(DailyBucketPlan(interval: interval, days: days, calendar: calendar))
+            let buckets = zip(plan.days.indices, values).compactMap { index, value in
+                value.map {
+                    DailyBucket(
+                        start: calendar.date(byAdding: .day, value: index, to: plan.anchorDate)!,
+                        value: $0
+                    )
+                }
+            }
+            let result = try await DailyBucketReader.read(
+                days: plan.days,
+                plan: plan,
+                collection: { _ in buckets },
+                perDay: { _ in XCTFail("aligned buckets need no fallback"); return nil }
+            )
+            XCTAssertEqual(result.outcome, .aligned)
+            return result.values
+        }
+        func rereadPeriod<Value>(_ period: ReportPeriod, _ values: [Value?]) async throws -> [Value?] {
+            try await reread(period.completedDays, interval: period.interval, values)
+        }
+
+        let steps = try await rereadPeriod(window.context, fixture.contextSteps.map { total in
+            total.steps.map { (steps: $0, sources: total.sourceNames) }
+        })
+        let glucose = try await rereadPeriod(window.context, fixture.contextGlucose.map {
+            $0.averageMillimolesPerLiter == nil ? nil : $0
+        })
+        func heart(_ period: ReportPeriod, _ values: [DailyHeartMetricValue]) async throws
+            -> [DailyHeartMetricValue] {
+            let read = try await rereadPeriod(period, values.map { daily in
+                daily.value.map { (value: $0, sources: daily.sourceNames) }
+            })
+            return zip(period.completedDays, read).map {
+                DailyHeartMetricValue(day: $0, value: $1?.value, sourceNames: $1?.sources ?? [])
+            }
+        }
+        let rereadInputs = replacing(
+            fixture,
+            contextSteps: zip(window.context.completedDays, steps).map {
+                DailyStepTotal(day: $0, steps: $1?.steps, sourceNames: $1?.sources ?? [])
+            },
+            contextGlucose: zip(window.context.completedDays, glucose).map { day, value in
+                DailyGlucoseValue(
+                    day: day,
+                    averageMillimolesPerLiter: value?.averageMillimolesPerLiter,
+                    minimumMillimolesPerLiter: value?.minimumMillimolesPerLiter,
+                    maximumMillimolesPerLiter: value?.maximumMillimolesPerLiter,
+                    sourceNames: value?.sourceNames ?? []
+                )
+            },
+            contextRestingHeartRate: try await heart(window.context, fixture.contextRestingHeartRate),
+            previousRestingHeartRate: try await heart(previous, fixture.previousRestingHeartRate),
+            contextHRV: try await heart(window.context, fixture.contextHRV),
+            previousHRV: try await heart(previous, fixture.previousHRV)
+        )
+        let envelope = try DailyHealthExportBuilder.make(
+            window: window,
+            exportedAt: cutoff,
+            inputs: rereadInputs,
+            notes: ["Invented note"]
+        )
+        try assertGolden(
+            try DailyHealthExportSerializer.encode(envelope),
+            equals: DailyHealthExportGoldenSnapshots.populated
+        )
+
+        // Nutrition: values read through the aligned check equal the totals the
+        // previous start-of-day keying produced, so the bytes cannot move.
+        let expected = nutrition(
+            window: window,
+            key: "energy_consumed",
+            today: 1_750,
+            current: [1_400, nil, 1_600, 1_700, 1_800, 1_900, 2_000],
+            previous: [1_300, 1_400, 1_500, nil, 1_700, 1_800, 1_900]
+        )
+        let days = NutritionNutrientTotals.collectionDays(window: window, previous: previous)
+        let queryInterval = DateInterval(start: previous.interval.start, end: window.cutoff)
+        var nutrients: [NutritionNutrientTotals] = []
+        for totals in expected.nutrients {
+            let values = totals.previousDays.map(\.value) + totals.currentDays.map(\.value)
+                + [totals.today]
+            nutrients.append(NutritionNutrientTotals(
+                key: totals.key,
+                window: window,
+                previous: previous,
+                days: days,
+                values: try await reread(days, interval: queryInterval, values)
+            ))
+        }
+        let rebuilt = NutritionExportInput(source: expected.source, nutrients: nutrients)
+        XCTAssertEqual(rebuilt, expected)
+        func bytes(_ input: NutritionExportInput) throws -> Data {
+            try DailyHealthExportSerializer.encode(DailyHealthExportBuilder.make(
+                window: window,
+                exportedAt: cutoff,
+                inputs: replacing(fixture, nutrition: input),
+                notes: ["Invented note"]
+            ))
+        }
+        XCTAssertEqual(try bytes(rebuilt), try bytes(expected))
+    }
+
     func testEnvelopePreservesDailySemanticsAndExplicitAvailability() throws {
         let calendar = londonCalendar()
         let cutoff = date(2026, 9, 6, 23, calendar: calendar)
@@ -2786,6 +2904,11 @@ final class DailyHealthExportTests: XCTestCase {
         hourlyGlucose: [DailyGlucoseValue]? = nil,
         todaySteps: DailyStepTotal? = nil,
         contextSteps: [DailyStepTotal]? = nil,
+        contextGlucose: [DailyGlucoseValue]? = nil,
+        contextRestingHeartRate: [DailyHeartMetricValue]? = nil,
+        previousRestingHeartRate: [DailyHeartMetricValue]? = nil,
+        contextHRV: [DailyHeartMetricValue]? = nil,
+        previousHRV: [DailyHeartMetricValue]? = nil,
         supportsMedicationData: Bool? = nil,
         nutrition: NutritionExportInput? = nil
     ) -> DailyHealthExportInputs {
@@ -2809,11 +2932,11 @@ final class DailyHealthExportTests: XCTestCase {
             todayMedicationDoses: value.todayMedicationDoses,
             supportsMedicationData: supportsMedicationData ?? value.supportsMedicationData,
             contextSteps: contextSteps ?? value.contextSteps,
-            contextGlucose: value.contextGlucose,
-            contextRestingHeartRate: value.contextRestingHeartRate,
-            previousRestingHeartRate: value.previousRestingHeartRate,
-            contextHRV: value.contextHRV,
-            previousHRV: value.previousHRV,
+            contextGlucose: contextGlucose ?? value.contextGlucose,
+            contextRestingHeartRate: contextRestingHeartRate ?? value.contextRestingHeartRate,
+            previousRestingHeartRate: previousRestingHeartRate ?? value.previousRestingHeartRate,
+            contextHRV: contextHRV ?? value.contextHRV,
+            previousHRV: previousHRV ?? value.previousHRV,
             contextWatchSampleDates: value.contextWatchSampleDates,
             contextActiveEnergyKilocalories: value.contextActiveEnergyKilocalories,
             contextExerciseMinutes: value.contextExerciseMinutes,
