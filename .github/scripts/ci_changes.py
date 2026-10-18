@@ -49,6 +49,9 @@ CODE_READ_DOCS = {
     "docs/daily-export-included-summary-v1.md",
     # Cited by the label-capture evaluation harness, its contract and CI.
     "docs/nutrition-label-capture-evaluation-v1.md",
+    # Cited by the pasted-label parsing package, its parity tests and the day-bucketing code.
+    "docs/pasted-nutrition-label-v1.md",
+    "docs/healthkit-day-bucketing-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)
 # Never documentation, whatever the lists above say: CI, its scripts and this
