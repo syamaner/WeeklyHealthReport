@@ -98,9 +98,22 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
     private let store: HKHealthStore
     private let visibleNutritionSourcesByBundleIdentifier =
         AtomicSnapshotCache<String, Set<HKSource>>()
+    private let dailyBucketReadLog: DailyBucketReadLog
 
-    init(store: HKHealthStore = HealthStoreProvider.shared) {
+    init(
+        store: HKHealthStore = HealthStoreProvider.shared,
+        dailyBucketReadLog: DailyBucketReadLog = .shared
+    ) {
         self.store = store
+        self.dailyBucketReadLog = dailyBucketReadLog
+    }
+
+    var dailyBucketReadRecords: [DailyBucketReadRecord] {
+        dailyBucketReadLog.records()
+    }
+
+    func clearHealthReportDailyBucketReadRecords(for intervals: [DateInterval]) {
+        dailyBucketReadLog.removeRecords(for: intervals, reader: .healthReport)
     }
 
     var isHealthDataAvailable: Bool {
@@ -197,7 +210,10 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         })
     }
 
-    func fetchDailySteps(for period: ReportPeriod) async throws -> [DailyStepTotal] {
+    func fetchDailySteps(
+        for period: ReportPeriod,
+        calendar: Calendar
+    ) async throws -> [DailyStepTotal] {
         guard isHealthDataAvailable else {
             throw HealthDataError.unavailable
         }
@@ -208,39 +224,19 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
 
         // Do not manually sum source samples. HKStatistics merges sources before
         // applying cumulativeSum, matching HealthKit's resolved step semantics.
-        let datePredicate = HKQuery.predicateForSamples(
-            withStart: period.interval.start,
-            end: period.interval.end,
-            options: []
-        )
-        let samplePredicate = HKSamplePredicate.quantitySample(
-            type: stepType,
-            predicate: datePredicate
-        )
-        let descriptor = HKStatisticsCollectionQueryDescriptor(
-            predicate: samplePredicate,
-            options: .cumulativeSum,
-            anchorDate: period.interval.start,
-            intervalComponents: DateComponents(day: 1)
-        )
-
-        let collection = try await descriptor.result(for: store)
-        var statisticsByStart: [Date: HKStatistics] = [:]
-        collection.enumerateStatistics(
-            from: period.interval.start,
-            to: period.interval.end
-        ) { statistics, _ in
-            guard statistics.startDate >= period.interval.start,
-                  statistics.startDate < period.interval.end else { return }
-            statisticsByStart[statistics.startDate] = statistics
-        }
-
         let countUnit = HKUnit.count()
-        return period.completedDays.map { day in
-            let statistics = statisticsByStart[day.start]
-            let steps = statistics?.sumQuantity()?.doubleValue(for: countUnit)
-            let sources = statistics?.sources?.map(\.name).sorted() ?? []
-            return DailyStepTotal(day: day, steps: steps, sourceNames: sources)
+        let values = try await readDailyStatistics(
+            metric: "Steps",
+            type: stepType,
+            options: .cumulativeSum,
+            period: period,
+            calendar: calendar
+        ) { statistics -> (steps: Double, sources: [String])? in
+            guard let sum = statistics.sumQuantity() else { return nil }
+            return (sum.doubleValue(for: countUnit), Self.sourceNames(statistics))
+        }
+        return zip(period.completedDays, values).map { day, value in
+            DailyStepTotal(day: day, steps: value?.steps, sourceNames: value?.sources ?? [])
         }
     }
 
@@ -543,72 +539,82 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         }
     }
 
-    func fetchDailyBloodGlucose(for period: ReportPeriod) async throws -> [DailyGlucoseValue] {
+    func fetchDailyBloodGlucose(
+        for period: ReportPeriod,
+        calendar: Calendar
+    ) async throws -> [DailyGlucoseValue] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let type = HKObjectType.quantityType(forIdentifier: .bloodGlucose) else {
             throw HealthDataError.missingType("blood-glucose")
         }
         guard !period.completedDays.isEmpty else { return [] }
 
-        let datePredicate = HKQuery.predicateForSamples(
-            withStart: period.interval.start,
-            end: period.interval.end,
-            options: []
-        )
-        let descriptor = HKStatisticsCollectionQueryDescriptor(
-            predicate: .quantitySample(type: type, predicate: datePredicate),
-            options: [.discreteAverage, .discreteMin, .discreteMax],
-            anchorDate: period.interval.start,
-            intervalComponents: DateComponents(day: 1)
-        )
-        let collection = try await descriptor.result(for: store)
-        var statisticsByStart: [Date: HKStatistics] = [:]
-        collection.enumerateStatistics(from: period.interval.start, to: period.interval.end) {
-            statistics, _ in
-            guard statistics.startDate >= period.interval.start,
-                  statistics.startDate < period.interval.end else { return }
-            statisticsByStart[statistics.startDate] = statistics
-        }
-
         // HealthKit may store glucose as mg/dL or mmol/L. Converting with the
         // documented glucose molar mass normalises every source to mmol/L.
         let millimolesPerLiter = HKUnit
             .moleUnit(with: .milli, molarMass: HKUnitMolarMassBloodGlucose)
             .unitDivided(by: .liter())
-        return period.completedDays.map { day in
-            let statistics = statisticsByStart[day.start]
+        let values = try await readDailyStatistics(
+            metric: "Blood glucose",
+            type: type,
+            options: [.discreteAverage, .discreteMin, .discreteMax],
+            period: period,
+            calendar: calendar
+        ) { statistics -> DailyGlucoseValue? in
+            guard let average = statistics.averageQuantity() else { return nil }
             return DailyGlucoseValue(
+                day: DateInterval(start: statistics.startDate, end: statistics.endDate),
+                averageMillimolesPerLiter: average.doubleValue(for: millimolesPerLiter),
+                minimumMillimolesPerLiter: statistics.minimumQuantity()?.doubleValue(
+                    for: millimolesPerLiter
+                ),
+                maximumMillimolesPerLiter: statistics.maximumQuantity()?.doubleValue(
+                    for: millimolesPerLiter
+                ),
+                sourceNames: Self.sourceNames(statistics)
+            )
+        }
+        return zip(period.completedDays, values).map { day, value in
+            DailyGlucoseValue(
                 day: day,
-                averageMillimolesPerLiter: statistics?.averageQuantity()?.doubleValue(
-                    for: millimolesPerLiter
-                ),
-                minimumMillimolesPerLiter: statistics?.minimumQuantity()?.doubleValue(
-                    for: millimolesPerLiter
-                ),
-                maximumMillimolesPerLiter: statistics?.maximumQuantity()?.doubleValue(
-                    for: millimolesPerLiter
-                ),
-                sourceNames: statistics?.sources?.map(\.name).sorted() ?? []
+                averageMillimolesPerLiter: value?.averageMillimolesPerLiter,
+                minimumMillimolesPerLiter: value?.minimumMillimolesPerLiter,
+                maximumMillimolesPerLiter: value?.maximumMillimolesPerLiter,
+                sourceNames: value?.sourceNames ?? []
             )
         }
     }
 
-    func fetchDailyRestingHeartRate(for period: ReportPeriod) async throws -> [DailyHeartMetricValue] {
+    func fetchDailyRestingHeartRate(
+        for period: ReportPeriod,
+        calendar: Calendar
+    ) async throws -> [DailyHeartMetricValue] {
         guard let type = HKObjectType.quantityType(forIdentifier: .restingHeartRate) else {
             throw HealthDataError.missingType("resting-heart-rate")
         }
         let unit = HKUnit.count().unitDivided(by: .minute())
-        return try await fetchDailyDiscreteAverage(type: type, unit: unit, period: period)
+        return try await fetchDailyDiscreteAverage(
+            metric: "Resting heart rate",
+            type: type,
+            unit: unit,
+            period: period,
+            calendar: calendar
+        )
     }
 
-    func fetchDailyHRV(for period: ReportPeriod) async throws -> [DailyHeartMetricValue] {
+    func fetchDailyHRV(
+        for period: ReportPeriod,
+        calendar: Calendar
+    ) async throws -> [DailyHeartMetricValue] {
         guard let type = HKObjectType.quantityType(forIdentifier: .heartRateVariabilitySDNN) else {
             throw HealthDataError.missingType("HRV")
         }
         return try await fetchDailyDiscreteAverage(
+            metric: "HRV",
             type: type,
             unit: .secondUnit(with: .milli),
-            period: period
+            period: period,
+            calendar: calendar
         )
     }
 
@@ -745,6 +751,24 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         nutritionSourceBundleIdentifier: String,
         includeWorkoutEnrichment: Bool
     ) async throws -> DailyHealthExportInputs {
+        // Tag the export's daily reads, and tell Developer tools when they end.
+        defer {
+            NotificationCenter.default.post(name: .dailyBucketExportReadsDidChange, object: nil)
+        }
+        return try await DailyBucketReadLog.$currentReader.withValue(.dailyExport) {
+            try await readDailyHealthExportInputs(
+                for: window,
+                nutritionSourceBundleIdentifier: nutritionSourceBundleIdentifier,
+                includeWorkoutEnrichment: includeWorkoutEnrichment
+            )
+        }
+    }
+
+    private func readDailyHealthExportInputs(
+        for window: DailyExportWindow,
+        nutritionSourceBundleIdentifier: String,
+        includeWorkoutEnrichment: Bool
+    ) async throws -> DailyHealthExportInputs {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let previous = window.context.precedingEquivalent(
             calendar: window.calendar
@@ -827,12 +851,24 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
             ? try await fetchTakenMedicationDoses(in: window.day)
             : []
 
-        let contextSteps = try await fetchDailySteps(for: window.context)
-        let contextGlucose = try await fetchDailyBloodGlucose(for: window.context)
-        let contextRHR = try await fetchDailyRestingHeartRate(for: window.context)
-        let previousRHR = try await fetchDailyRestingHeartRate(for: previous)
-        let contextHRV = try await fetchDailyHRV(for: window.context)
-        let previousHRV = try await fetchDailyHRV(for: previous)
+        let contextSteps = try await fetchDailySteps(
+            for: window.context,
+            calendar: window.calendar
+        )
+        let contextGlucose = try await fetchDailyBloodGlucose(
+            for: window.context,
+            calendar: window.calendar
+        )
+        let contextRHR = try await fetchDailyRestingHeartRate(
+            for: window.context,
+            calendar: window.calendar
+        )
+        let previousRHR = try await fetchDailyRestingHeartRate(
+            for: previous,
+            calendar: window.calendar
+        )
+        let contextHRV = try await fetchDailyHRV(for: window.context, calendar: window.calendar)
+        let previousHRV = try await fetchDailyHRV(for: previous, calendar: window.calendar)
         let contextWatch = try await fetchAppleWatchHeartRateSampleDates(for: window.context)
         let contextActiveEnergy = try await fetchActiveEnergyKilocalories(for: window.context)
         let contextExercise = try await fetchExerciseMinutes(for: window.context)
@@ -912,47 +948,46 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
             end: window.cutoff
         )
         let sourcePredicate = HKQuery.predicateForObjects(from: sources)
-        let datePredicate = HKQuery.predicateForSamples(
-            withStart: queryInterval.start,
-            end: queryInterval.end,
-            options: .strictStartDate
-        )
-        let predicate = NSCompoundPredicate(
-            andPredicateWithSubpredicates: [datePredicate, sourcePredicate]
+        let days = NutritionNutrientTotals.collectionDays(window: window, previous: previous)
+        let plan = DailyBucketPlan(
+            interval: queryInterval,
+            days: days,
+            calendar: window.calendar
         )
 
         var nutrientValues: [NutritionNutrientTotals] = []
+        var outcomes: [DailyBucketReadOutcome] = []
         for (definition, type) in try nutritionQuantityTypes() {
-            let descriptor = HKStatisticsCollectionQueryDescriptor(
-                predicate: .quantitySample(type: type, predicate: predicate),
+            let unit = definition.unit.healthKitUnit
+            // Buckets are matched to days exactly; a bucket that starts at any
+            // other instant is never re-keyed onto a neighbouring day.
+            let result = try await readDailyStatistics(
+                type: type,
                 options: .cumulativeSum,
-                anchorDate: queryInterval.start,
-                intervalComponents: DateComponents(day: 1)
-            )
-            let collection = try await descriptor.result(for: store)
-            var valuesByDay: [Date: Double] = [:]
-            collection.enumerateStatistics(
-                from: queryInterval.start,
-                to: queryInterval.end
-            ) { statistics, _ in
-                let day = window.calendar.startOfDay(for: statistics.startDate)
-                if let value = statistics.sumQuantity()?.doubleValue(
-                    for: definition.unit.healthKitUnit
-                ) {
-                    valuesByDay[day] = value
-                }
+                queryInterval: queryInterval,
+                days: days,
+                plan: plan,
+                sampleOptions: .strictStartDate,
+                additionalPredicate: sourcePredicate
+            ) { statistics in
+                statistics.sumQuantity()?.doubleValue(for: unit)
             }
+            outcomes.append(result.outcome)
             nutrientValues.append(NutritionNutrientTotals(
                 key: definition.key,
-                today: valuesByDay[window.day.start],
-                currentDays: window.context.completedDays.map {
-                    NutritionDailyTotal(day: $0.start, value: valuesByDay[$0.start])
-                },
-                previousDays: previous.completedDays.map {
-                    NutritionDailyTotal(day: $0.start, value: valuesByDay[$0.start])
-                }
+                window: window,
+                previous: previous,
+                days: days,
+                values: result.values
             ))
         }
+        recordDailyBucketRead(
+            metric: "Nutrition context (\(outcomes.count) nutrients)",
+            interval: queryInterval,
+            calendar: window.calendar,
+            dayCount: days.count,
+            outcome: Self.combined(outcomes)
+        )
 
         return NutritionExportInput(
             source: NutritionSource(
@@ -1030,39 +1065,157 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
     }
 
     private func fetchDailyDiscreteAverage(
+        metric: String,
         type: HKQuantityType,
         unit: HKUnit,
-        period: ReportPeriod
+        period: ReportPeriod,
+        calendar: Calendar
     ) async throws -> [DailyHeartMetricValue] {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard !period.completedDays.isEmpty else { return [] }
-        let datePredicate = HKQuery.predicateForSamples(
-            withStart: period.interval.start,
-            end: period.interval.end,
-            options: []
-        )
-        let descriptor = HKStatisticsCollectionQueryDescriptor(
-            predicate: .quantitySample(type: type, predicate: datePredicate),
+        let values = try await readDailyStatistics(
+            metric: metric,
+            type: type,
             options: .discreteAverage,
-            anchorDate: period.interval.start,
-            intervalComponents: DateComponents(day: 1)
-        )
-        let collection = try await descriptor.result(for: store)
-        var statisticsByStart: [Date: HKStatistics] = [:]
-        collection.enumerateStatistics(from: period.interval.start, to: period.interval.end) {
-            statistics, _ in
-            guard statistics.startDate >= period.interval.start,
-                  statistics.startDate < period.interval.end else { return }
-            statisticsByStart[statistics.startDate] = statistics
+            period: period,
+            calendar: calendar
+        ) { statistics -> (value: Double, sources: [String])? in
+            guard let average = statistics.averageQuantity() else { return nil }
+            return (average.doubleValue(for: unit), Self.sourceNames(statistics))
         }
-        return period.completedDays.map { day in
-            let statistics = statisticsByStart[day.start]
-            return DailyHeartMetricValue(
+        return zip(period.completedDays, values).map { day, value in
+            DailyHeartMetricValue(
                 day: day,
-                value: statistics?.averageQuantity()?.doubleValue(for: unit),
-                sourceNames: statistics?.sources?.map(\.name).sorted() ?? []
+                value: value?.value,
+                sourceNames: value?.sources ?? []
             )
         }
+    }
+
+    /// One report period's daily statistics, bucketed by `calendar`'s days and
+    /// recorded for Developer tools.
+    private func readDailyStatistics<Value>(
+        metric: String,
+        type: HKQuantityType,
+        options: HKStatisticsOptions,
+        period: ReportPeriod,
+        calendar: Calendar,
+        value: (HKStatistics) -> Value?
+    ) async throws -> [Value?] {
+        let result = try await readDailyStatistics(
+            type: type,
+            options: options,
+            queryInterval: period.interval,
+            days: period.completedDays,
+            plan: DailyBucketPlan(period: period, calendar: calendar),
+            value: value
+        )
+        recordDailyBucketRead(
+            metric: metric,
+            interval: period.interval,
+            calendar: calendar,
+            dayCount: period.completedDays.count,
+            outcome: result.outcome
+        )
+        return result.values
+    }
+
+    /// Reads one statistics collection anchored and stepped by `plan`, keeps a
+    /// bucket only when it starts exactly at a report day, and otherwise re-reads
+    /// each day over its exact interval with the same options and predicate
+    /// (docs/healthkit-day-bucketing-v1.md section 2). A bucket without the
+    /// requested statistic is no data, not a mismatch.
+    private func readDailyStatistics<Value>(
+        type: HKQuantityType,
+        options: HKStatisticsOptions,
+        queryInterval: DateInterval,
+        days: [DateInterval],
+        plan: DailyBucketPlan?,
+        sampleOptions: HKQueryOptions = [],
+        additionalPredicate: NSPredicate? = nil,
+        value: (HKStatistics) -> Value?
+    ) async throws -> DailyBucketReader.Result<Value> {
+        func predicate(for interval: DateInterval) -> NSPredicate {
+            let datePredicate = HKQuery.predicateForSamples(
+                withStart: interval.start,
+                end: interval.end,
+                options: sampleOptions
+            )
+            guard let additionalPredicate else { return datePredicate }
+            return NSCompoundPredicate(
+                andPredicateWithSubpredicates: [datePredicate, additionalPredicate]
+            )
+        }
+
+        return try await DailyBucketReader.read(
+            days: days,
+            plan: plan,
+            collection: { plan in
+                let descriptor = HKStatisticsCollectionQueryDescriptor(
+                    predicate: .quantitySample(
+                        type: type,
+                        predicate: predicate(for: plan.queryInterval)
+                    ),
+                    options: options,
+                    anchorDate: plan.anchorDate,
+                    intervalComponents: plan.intervalComponents
+                )
+                let collection = try await descriptor.result(for: store)
+                var returned: [HKStatistics] = []
+                collection.enumerateStatistics(
+                    from: plan.queryInterval.start,
+                    to: plan.queryInterval.end
+                ) { statistics, _ in
+                    returned.append(statistics)
+                }
+                return returned.compactMap { statistics in
+                    value(statistics).map {
+                        DailyBucket(start: statistics.startDate, end: statistics.endDate, value: $0)
+                    }
+                }
+            },
+            perDay: { day in
+                let descriptor = HKStatisticsQueryDescriptor(
+                    predicate: .quantitySample(type: type, predicate: predicate(for: day)),
+                    options: options
+                )
+                return try await descriptor.result(for: store).flatMap(value)
+            }
+        )
+    }
+
+    private func recordDailyBucketRead(
+        metric: String,
+        interval: DateInterval,
+        calendar: Calendar,
+        dayCount: Int,
+        outcome: DailyBucketReadOutcome
+    ) {
+        dailyBucketReadLog.record(DailyBucketReadRecord(
+            reader: DailyBucketReadLog.currentReader,
+            metric: metric,
+            interval: interval,
+            timeZoneIdentifier: calendar.timeZone.identifier,
+            dayCount: dayCount,
+            outcome: outcome
+        ))
+    }
+
+    /// One Developer tools line for several reads: aligned only when all were.
+    private static func combined(_ outcomes: [DailyBucketReadOutcome]) -> DailyBucketReadOutcome {
+        var reason: DailyBucketFallbackReason?
+        var mismatched = 0
+        for case let .perDayFallback(fallbackReason, count) in outcomes {
+            reason = reason ?? fallbackReason
+            mismatched += count
+        }
+        return reason.map {
+            .perDayFallback(reason: $0, mismatchedBucketCount: mismatched)
+        } ?? .aligned
+    }
+
+    private static func sourceNames(_ statistics: HKStatistics) -> [String] {
+        statistics.sources?.map(\.name).sorted() ?? []
     }
 
     private func fetchStepTotal(in interval: DateInterval) async throws -> DailyStepTotal {

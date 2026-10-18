@@ -1830,3 +1830,27 @@ The previous row's commit, push and PR, and the gap before this message, are unm
 Boundary: `2026-10-18T10:05:33Z` → `2026-10-18T10:36:41Z`. Cache writes: 776,135 5-minute, 0 1-hour. Exact API-equivalent USD 8.6558396. The output count is as the transcript records it and may be a lower bound where messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-49-2026-10-18: Claude Code HealthKit day bucketing implementation
+
+One `claude-opus-5-5` implementation subagent (branch `fix/49-healthkit-day-bucketing`), transcript `subagents/agent-a5aff5a40eb7461b4.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. Covers the owner-approved implementation of `docs/healthkit-day-bucketing-v1.md` (#49): the reading, recording the decisions in the proposal, the daily bucket plan, alignment check and per-day fallback, the nutrition context fix, the Developer tools section, the contract and golden tests and the full gates, up to this measurement. No subagents were launched; the orchestrator's usage is outside the row. This ledger edit, the commit, the push and the PR are outside the row.
+
+Pricing as in the previous sections (checked 11 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| HealthKit day bucketing (#49), implementation subagent | 14,111,666 (13,891,203) | 220,283 | 17,181 | 14,128,847 | $4.22 |
+
+Boundary: `2026-10-18T10:04:59Z` (the transcript's first record) → `2026-10-18T10:31:37Z` (`phase_usage.py --format claude`, whole transcript). Cache writes: 220,283 5-minute, 0 1-hour. Exact API-equivalent USD 4.2239956. The output count is as the transcript records it and may be a lower bound where messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+Review fix passes, same subagent and transcript: the invariant-review fixes (bucket end check, export diagnostics, stale-record clearing, nutrition golden) and the re-review items (reader-tagged records, published export snapshot, spring fixture, log removal test), with their gates, up to this measurement. The commit, the push and the ready-for-review change after it are outside the row.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| HealthKit day bucketing (#49), review fix passes | 12,680,548 (12,307,185) | 373,261 | 631 | 12,681,179 | $4.34 |
+
+Boundary: `2026-10-18T10:31:37Z` (the first row's end) → `2026-10-18T11:09:37Z` (`phase_usage.py --format claude --since …`). Cache writes: 373,261 5-minute, 0 1-hour. Exact API-equivalent USD 4.34077. The output count is as the transcript records it: it looks like streaming-time snapshots, so it is a lower bound, not a measured total.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

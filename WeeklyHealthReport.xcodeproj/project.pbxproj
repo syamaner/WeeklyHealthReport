@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F04900000000000000000006 /* DailyBucketPlanTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F04900000000000000000005 /* DailyBucketPlanTests.swift */; };
+		F04900000000000000000004 /* DailyBucketReadLog.swift in Sources */ = {isa = PBXBuildFile; fileRef = F04900000000000000000003 /* DailyBucketReadLog.swift */; };
+		F04900000000000000000002 /* DailyBucketPlan.swift in Sources */ = {isa = PBXBuildFile; fileRef = F04900000000000000000001 /* DailyBucketPlan.swift */; };
 		F1940000000000000000001C /* IsolatedApplicationSupportFileManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1940000000000000000001B /* IsolatedApplicationSupportFileManager.swift */; };
 		F1940000000000000000001A /* SettingsContributionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000019 /* SettingsContributionTests.swift */; };
 		F19400000000000000000018 /* AppNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000017 /* AppNavigationTests.swift */; };
@@ -157,6 +160,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		F04900000000000000000005 /* DailyBucketPlanTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyBucketPlanTests.swift; sourceTree = "<group>"; };
+		F04900000000000000000003 /* DailyBucketReadLog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyBucketReadLog.swift; sourceTree = "<group>"; };
+		F04900000000000000000001 /* DailyBucketPlan.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyBucketPlan.swift; sourceTree = "<group>"; };
 		F1940000000000000000001B /* IsolatedApplicationSupportFileManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IsolatedApplicationSupportFileManager.swift; sourceTree = "<group>"; };
 		F19400000000000000000019 /* SettingsContributionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsContributionTests.swift; sourceTree = "<group>"; };
 		F19400000000000000000017 /* AppNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationTests.swift; sourceTree = "<group>"; };
@@ -362,6 +368,7 @@
 			isa = PBXGroup;
 			children = (
 				B00000000000000000000002 /* ReportPeriod.swift */,
+				F04900000000000000000001 /* DailyBucketPlan.swift */,
 				B0000000000000000000214A /* FoodLogPeriodSummary.swift */,
 				B00000000000000000000003 /* StepSummary.swift */,
 				F60000000000000000000001 /* TodaySoFarHealth.swift */,
@@ -390,6 +397,7 @@
 			children = (
 				B00000000000000000000004 /* HealthDataProviding.swift */,
 				B00000000000000000000005 /* HealthKitClient.swift */,
+				F04900000000000000000003 /* DailyBucketReadLog.swift */,
 				F11700000000000000000002 /* WorkoutHealthKitProjection.swift */,
 				B00000000000000000000049 /* NutritionQueryCatalogue.swift */,
 				B0000000000000000000002C /* DailyHealthExportService.swift */,
@@ -436,6 +444,7 @@
 			children = (
 				G0000000000000000000000C /* TestSupport */,
 				B00000000000000000000009 /* ReportPeriodTests.swift */,
+				F04900000000000000000005 /* DailyBucketPlanTests.swift */,
 				B0000000000000000000000A /* StepSummaryTests.swift */,
 				B00000000000000000000010 /* WeightMeasurementTests.swift */,
 				B00000000000000000000011 /* BodyCompositionTests.swift */,
@@ -690,10 +699,12 @@
 				A00000000000000000000072 /* PrivacyPolicyView.swift in Sources */,
 				A00000000000000000000071 /* LocalHealthStorageDirectory.swift in Sources */,
 				A00000000000000000000002 /* ReportPeriod.swift in Sources */,
+				F04900000000000000000002 /* DailyBucketPlan.swift in Sources */,
 				A00000000000000000000003 /* StepSummary.swift in Sources */,
 				F60000000000000000000002 /* TodaySoFarHealth.swift in Sources */,
 				A00000000000000000000004 /* HealthDataProviding.swift in Sources */,
 				A00000000000000000000005 /* HealthKitClient.swift in Sources */,
+				F04900000000000000000004 /* DailyBucketReadLog.swift in Sources */,
 				F11600000000000000000002 /* WorkoutHealthKitProjection.swift in Sources */,
 				A00000000000000000000043 /* NutritionQueryCatalogue.swift in Sources */,
 				A00000000000000000000006 /* WeeklyReportViewModel.swift in Sources */,
@@ -796,6 +807,7 @@
 				A00000000000000000000029 /* DailyHealthExportTests.swift in Sources */,
 				A0000000000000000000002F /* DailyDriveExportCoordinatorTests.swift in Sources */,
 				A00000000000000000000030 /* WeeklyReportViewModelTests.swift in Sources */,
+				F04900000000000000000006 /* DailyBucketPlanTests.swift in Sources */,
 				A00000000000000000000038 /* DailyNotesTests.swift in Sources */,
 				A00000000000000000000039 /* DailyNotesStoreTests.swift in Sources */,
 				F1940000000000000000001C /* IsolatedApplicationSupportFileManager.swift in Sources */,

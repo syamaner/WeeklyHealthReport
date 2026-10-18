@@ -794,3 +794,69 @@ struct TodaySoFarDiagnosticsSection: View {
         }
     }
 }
+
+/// How daily collections were bucketed: the latest report's reads, or the
+/// Daily JSON export's reads (its context and nutrition context)
+/// (docs/healthkit-day-bucketing-v1.md decision 5: Developer tools only).
+struct DailyBucketDiagnosticsSection: View {
+    let title: String
+    let records: [DailyBucketReadRecord]
+
+    var body: some View {
+        Section(title) {
+            ForEach(Array(DailyBucketDiagnostics.lines(records).enumerated()), id: \.offset) { _, line in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(line.title)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(line.detail)
+                        .textSelection(.enabled)
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+    }
+}
+
+enum DailyBucketDiagnostics {
+    struct Line: Equatable {
+        let title: String
+        let detail: String
+    }
+
+    static func lines(_ records: [DailyBucketReadRecord]) -> [Line] {
+        var lines = [Line(title: "Policy", detail: DailyBucketPlan.policyIdentifier)]
+        guard !records.isEmpty else {
+            lines.append(Line(title: "Daily reads", detail: "Not read yet"))
+            return lines
+        }
+        let fallbacks = records.filter { $0.outcome != .aligned }.count
+        lines.append(Line(
+            title: "Per-day fallbacks",
+            detail: fallbacks == 0 ? "None" : "\(fallbacks) of \(records.count) reads"
+        ))
+        lines += records.map { record in
+            Line(
+                title: "\(record.metric), \(HealthReportFormatter.dateAndTime(record.interval.start))"
+                    + " to \(HealthReportFormatter.dateAndTime(record.interval.end))"
+                    + " (\(record.timeZoneIdentifier))",
+                detail: detail(record)
+            )
+        }
+        return lines
+    }
+
+    private static func detail(_ record: DailyBucketReadRecord) -> String {
+        let days = record.dayCount == 1 ? "1 day" : "\(record.dayCount) days"
+        switch record.outcome {
+        case .aligned:
+            return "Collection aligned, \(days)"
+        case .perDayFallback(.bucketMismatch, let count):
+            let buckets = count == 1 ? "1 bucket" : "\(count) buckets"
+            return "Per-day fallback: \(buckets) did not span exactly one report day; \(days) re-read"
+        case .perDayFallback(.planRejected, _):
+            return "Per-day fallback: report days are not consecutive days of the calendar; "
+                + "\(days) re-read"
+        }
+    }
+}
