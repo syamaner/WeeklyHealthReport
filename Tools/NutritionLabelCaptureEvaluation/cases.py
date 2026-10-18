@@ -51,6 +51,8 @@ def load_development_photos(manifest_path: Path, image_root: Path, truth_path: P
         if photo["split"] != "development" or photo.get("excluded"):
             continue
         case_id = f"off-taiwan:{photo['barcode13']}:nutrition_zh.{photo['revision']}"
+        if (truths.get(case_id) or {}).get("excluded_from_scoring"):
+            continue  # round 3: a usable table whose truth is incomplete is not scored (never filled)
         path = image_root / "development" / f"{photo['order']:02d}-{photo['barcode13']}-nutrition_zh.{photo['revision']}.jpg"
         if sha256_file(path) != photo["sha256"]:
             raise ValueError(f"{case_id} bytes do not match the manifest")
@@ -100,6 +102,8 @@ def load_untouched_photos(
             continue
         case_id = f"off-taiwan:{photo['barcode13']}:nutrition_zh.{photo['revision']}"
         path = image_root / "sealed" / f"{photo['order']:02d}-{photo['barcode13']}-nutrition_zh.{photo['revision']}.jpg"
+        if sha256_file(path) != photo["sha256"]:
+            raise ValueError(f"{case_id} bytes do not match the sealed manifest")
         cases.append(
             {
                 "id": case_id,
@@ -107,7 +111,9 @@ def load_untouched_photos(
                 "truth": truths[case_id],
                 "metadata": {
                     "corpus": "off_taiwan",
+                    "stratum": "taiwan_zh_hant",
                     "split": "untouched",
+                    "unsealed_for_run": True,
                     "sha256": photo["sha256"],
                     "licence": manifest["licence"],
                     "attribution": photo["attribution"],

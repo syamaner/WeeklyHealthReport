@@ -1,0 +1,47 @@
+{
+ "round": 3,
+ "answered_on": "2026-10-18",
+ "source": "owner data, 18 October 2026, against the development images",
+ "changes": [
+  {
+   "case_id": "off-taiwan:4710228034096:nutrition_zh.7",
+   "truth_file": "fixtures/ground-truth-off-taiwan-development-v1.json",
+   "before": {
+    "requires_decline": true,
+    "decline_reason": "The bottom 鈉 row is partly cut off by the bottle edge; the per-100 ml sodium value is not legible."
+   },
+   "after": {
+    "requires_decline": false,
+    "excluded_from_scoring": true,
+    "truth_status": "usable table, truth incomplete (owner verified only 鈉 每100毫升 19毫克)",
+    "owner_verified_cells": [
+     {
+      "nutrient": "sodium",
+      "printed_label": "鈉",
+      "header_printed_text": "每100毫升",
+      "basis": "per_100ml",
+      "printed_text": "19毫克"
+     }
+    ]
+   },
+   "evidence": "Claude-drafted development truth; only the per-100 ml sodium cell is owner-verified, so no other cell is invented"
+  }
+ ],
+ "confirmed_unchanged": [
+  {
+   "case_id": "off:5010482793302:nutrition_en.5",
+   "truth": "UK v2 development review (frozen)",
+   "finding": "per-slice saturates 0.1g and sugars 1.7g are printed; the truth stands, and the models' misses are model errors"
+  }
+ ],
+ "not_reviewed": [
+  {
+   "case_id": "v1:off:5010525167350:nutrition_en.5",
+   "reason": "v1 image not on disk"
+  },
+  {
+   "case_id": "v1:off:5060457050039:nutrition_nl.5",
+   "reason": "v1 image not on disk"
+  }
+ ]
+}

@@ -1,0 +1,4647 @@
+{
+ "gate_version": "label-capture-decline-gate-v2",
+ "amendments": "S1, M1, M2, M3, T1 (contract amendments_2026_10_18), with the PR #259 review fixes",
+ "split": "development",
+ "note": "Offline re-score of saved development outputs; no API call. Counts and case ids only.",
+ "arms": {
+  "A": {
+   "log": "2026-10-17T13-48-00-00-00_label-capture-route-a-development_m8yUGUkDhUsyknfRW9V88q.eval",
+   "strata": {
+    "fda188": {
+     "before": {
+      "strict_cells": {
+       "numerator": 648,
+       "denominator": 648,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 648,
+       "denominator": 648,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 648,
+       "denominator": 648,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 60,
+       "denominator": 60,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 336,
+       "denominator": 336,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 60,
+       "denominator": 60,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 16,
+       "denominator": 16,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 60,
+      "cases": 76
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 648,
+       "denominator": 648,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 648,
+       "denominator": 648,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 648,
+       "denominator": 648,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 60,
+       "denominator": 60,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 336,
+       "denominator": 336,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 60,
+       "denominator": 60,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 16,
+       "denominator": 16,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 60,
+      "cases": 76
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "muesli_typed": {
+     "before": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "v1": {
+     "before": {
+      "strict_cells": {
+       "numerator": 1138,
+       "denominator": 1138,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 1200,
+       "denominator": 1200,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 1138,
+       "denominator": 1138,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 80,
+       "denominator": 80,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 150,
+       "denominator": 150,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 47,
+       "denominator": 47,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 68,
+      "cases": 80
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 1130,
+       "denominator": 1138,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 1192,
+       "denominator": 1200,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 1130,
+       "denominator": 1138,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 79,
+       "denominator": 80,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 150,
+       "denominator": 150,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 47,
+       "denominator": 47,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 1,
+      "would_mark_ready_after_arithmetic": 67,
+      "cases": 80
+     },
+     "gate_changes": [
+      {
+       "id": "v1:off:5060457050039:nutrition_nl.5:tab",
+       "requires_decline": false,
+       "gate_declines": [],
+       "gate_blocks": [
+        "required_basis_missing"
+       ],
+       "was_false_ready": 0,
+       "was_table_exact": 1
+      },
+      {
+       "id": "v1:off:5010525167350:nutrition_en.5:spaced",
+       "requires_decline": false,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 1
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "v2dev": {
+     "before": {
+      "strict_cells": {
+       "numerator": 311,
+       "denominator": 311,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 325,
+       "denominator": 325,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 311,
+       "denominator": 311,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 22,
+       "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 11,
+       "denominator": 11,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 16,
+      "cases": 22
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 311,
+       "denominator": 311,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 325,
+       "denominator": 325,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 311,
+       "denominator": 311,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 22,
+       "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 11,
+       "denominator": 11,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 16,
+      "cases": 22
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "zh_template": {
+     "before": {
+      "strict_cells": {
+       "numerator": 352,
+       "denominator": 352,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 394,
+       "denominator": 394,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 352,
+       "denominator": 352,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 28,
+       "denominator": 28,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 176,
+       "denominator": 176,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 28,
+       "denominator": 28,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 12,
+       "denominator": 12,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 28,
+      "cases": 28
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 352,
+       "denominator": 352,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 394,
+       "denominator": 394,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 352,
+       "denominator": 352,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 28,
+       "denominator": 28,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 176,
+       "denominator": 176,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 28,
+       "denominator": 28,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 12,
+       "denominator": 12,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 28,
+      "cases": 28
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    }
+   }
+  },
+  "B": {
+   "log": "2026-10-17T13-48-16-00-00_label-capture-route-b-development_JyVq9w8stGvSE5jAeyWKVg.eval",
+   "strata": {
+    "muesli": {
+     "before": {
+      "strict_cells": {
+       "numerator": 0,
+       "denominator": 18,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 0,
+       "denominator": 18,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 0,
+       "denominator": 18,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 0,
+       "denominator": 1,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 0,
+       "denominator": 9,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 1,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 1,
+      "would_mark_ready_after_arithmetic": 0,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 0,
+       "denominator": 18,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 0,
+       "denominator": 18,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 0,
+       "denominator": 18,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 0,
+       "denominator": 1,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 0,
+       "denominator": 9,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 1,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 1,
+      "would_mark_ready_after_arithmetic": 0,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "taiwan_zh_hant": {
+     "before": {
+      "strict_cells": {
+       "numerator": 84,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 95,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 94,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 3,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 55,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 7,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 8,
+      "would_mark_ready_after_arithmetic": 3,
+      "cases": 19
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 77,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 88,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 80,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 3,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 48,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 6,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 9,
+      "would_mark_ready_after_arithmetic": 3,
+      "cases": 19
+     },
+     "gate_changes": [
+      {
+       "id": "off-taiwan:4710090070222:nutrition_zh.17",
+       "requires_decline": false,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": [
+       "off-taiwan:1490274741355:nutrition_zh.11"
+      ]
+     }
+    },
+    "uk_en": {
+     "before": {
+      "strict_cells": {
+       "numerator": 8,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 8,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 8,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 0,
+       "denominator": 70,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 17,
+       "denominator": 17,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 21,
+      "would_mark_ready_after_arithmetic": 0,
+      "cases": 39
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 8,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 8,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 8,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 0,
+       "denominator": 70,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 17,
+       "denominator": 17,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 21,
+      "would_mark_ready_after_arithmetic": 0,
+      "cases": 39
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    }
+   }
+  },
+  "C:luna-off": {
+   "log": "2026-10-17T14-20-30-00-00_label-capture-route-c-development_68Kv7CyYjKNYjnwNViHeaz.eval",
+   "strata": {
+    "muesli": {
+     "before": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "taiwan_zh_hant": {
+     "before": {
+      "strict_cells": {
+       "numerator": 207,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 229,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 11,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 3,
+       "denominator": 4,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 4,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 207,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 229,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 11,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 4,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "gate_changes": [
+      {
+       "id": "off-taiwan:0022000035011:nutrition_zh.6",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": [
+       "off-taiwan:0000080177425:nutrition_zh.24",
+       "off-taiwan:4710018175107:nutrition_zh.10",
+       "off-taiwan:4710090070222:nutrition_zh.17",
+       "off-taiwan:1490274741355:nutrition_zh.11"
+      ]
+     }
+    },
+    "uk_en": {
+     "before": {
+      "strict_cells": {
+       "numerator": 301,
+       "denominator": 311,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 314,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 301,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 19,
+       "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 11,
+       "denominator": 11,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 5,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 6,
+       "verdict": "fail"
+      },
+      "false_declines": 1,
+      "would_mark_ready_after_arithmetic": 17,
+      "cases": 39
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 301,
+       "denominator": 311,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 314,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 301,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 19,
+       "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 11,
+       "denominator": 11,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 8,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 6,
+       "verdict": "fail"
+      },
+      "false_declines": 1,
+      "would_mark_ready_after_arithmetic": 17,
+      "cases": 39
+     },
+     "gate_changes": [
+      {
+       "id": "off:5010102243446:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing",
+        "column_count_mismatch"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5056169112905:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5000157071620:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [
+       "off:5060201623175:nutrition_en.8",
+       "off:5015696447201:nutrition_en.9",
+       "off:5057172978809:nutrition_en.10",
+       "off:5060026822371:nutrition_en.5",
+       "off:5052909355021:nutrition_en.9"
+      ],
+      "usable_wrong": [
+       "off:5053990185917:nutrition_en.9"
+      ]
+     }
+    }
+   }
+  },
+  "C:luna-on": {
+   "log": "2026-10-17T14-20-32-00-00_label-capture-route-c-development_X4hakT8Nk8Bb55ACojEhhG.eval",
+   "strata": {
+    "muesli": {
+     "before": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "taiwan_zh_hant": {
+     "before": {
+      "strict_cells": {
+       "numerator": 205,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 229,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 208,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 12,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 120,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 2,
+       "denominator": 4,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 12,
+      "cases": 19
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 205,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 229,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 208,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 12,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 120,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 12,
+      "cases": 19
+     },
+     "gate_changes": [
+      {
+       "id": "off-taiwan:4022679134738:nutrition_zh.11",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off-taiwan:0022000035011:nutrition_zh.6",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": [
+       "off-taiwan:1490274741355:nutrition_zh.11"
+      ]
+     }
+    },
+    "uk_en": {
+     "before": {
+      "strict_cells": {
+       "numerator": 280,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 293,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 281,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 14,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 69,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 10,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 6,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 8,
+       "verdict": "fail"
+      },
+      "false_declines": 3,
+      "would_mark_ready_after_arithmetic": 17,
+      "cases": 39
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 280,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 293,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 281,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 14,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 69,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 10,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 9,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 8,
+       "verdict": "fail"
+      },
+      "false_declines": 3,
+      "would_mark_ready_after_arithmetic": 17,
+      "cases": 39
+     },
+     "gate_changes": [
+      {
+       "id": "off:5000453123795:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5056169112905:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5000157078773:nutrition_en.45",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [
+       "off:5060131761954:nutrition_en.5",
+       "off:5060201623175:nutrition_en.8",
+       "off:5015696447201:nutrition_en.9",
+       "off:5057172978809:nutrition_en.10",
+       "off:5060026822371:nutrition_en.5",
+       "off:5052909355021:nutrition_en.9"
+      ],
+      "usable_wrong": [
+       "off:5060323902912:nutrition_en.18",
+       "off:5053990185917:nutrition_en.9"
+      ]
+     }
+    }
+   }
+  },
+  "C:luna_pro-off": {
+   "log": "2026-10-17T14-58-34-00-00_label-capture-route-c-development_Vj2E5X4w64EjuWC2p9ErMv.eval",
+   "strata": {
+    "muesli": {
+     "before": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "taiwan_zh_hant": {
+     "before": {
+      "strict_cells": {
+       "numerator": 200,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 223,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 208,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 10,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 120,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 4,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 200,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 223,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 208,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 10,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 120,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 4,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": [
+       "off-taiwan:0000080177425:nutrition_zh.24",
+       "off-taiwan:4713011031036:nutrition_zh.8",
+       "off-taiwan:4710090070222:nutrition_zh.17",
+       "off-taiwan:1490274741355:nutrition_zh.11"
+      ]
+     }
+    },
+    "uk_en": {
+     "before": {
+      "strict_cells": {
+       "numerator": 285,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 297,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 285,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 17,
+       "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 10,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 3,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 7,
+       "verdict": "fail"
+      },
+      "false_declines": 3,
+      "would_mark_ready_after_arithmetic": 18,
+      "cases": 39
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 285,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 297,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 285,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 17,
+       "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 10,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 6,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 7,
+       "verdict": "fail"
+      },
+      "false_declines": 3,
+      "would_mark_ready_after_arithmetic": 18,
+      "cases": 39
+     },
+     "gate_changes": [
+      {
+       "id": "off:5010102243446:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing",
+        "column_count_mismatch"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5056169112905:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5000157071620:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [
+       "off:5060201623175:nutrition_en.8",
+       "off:5015696447201:nutrition_en.9",
+       "off:5057172978809:nutrition_en.10",
+       "off:5060026822371:nutrition_en.5",
+       "off:5010292978418:nutrition_en.5",
+       "off:5052909355021:nutrition_en.9"
+      ],
+      "usable_wrong": [
+       "off:5053990185917:nutrition_en.9"
+      ]
+     }
+    }
+   }
+  },
+  "C:luna_pro-on": {
+   "log": "2026-10-17T14-58-42-00-00_label-capture-route-c-development_ETSjzSvVQ3ruTNQnSGyaSY.eval",
+   "strata": {
+    "muesli": {
+     "before": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "taiwan_zh_hant": {
+     "before": {
+      "strict_cells": {
+       "numerator": 209,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 233,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 13,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 2,
+       "denominator": 4,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 2,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 209,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 233,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 13,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 2,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "gate_changes": [
+      {
+       "id": "off-taiwan:4022679134738:nutrition_zh.11",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off-taiwan:0022000035011:nutrition_zh.6",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": [
+       "off-taiwan:4710090070222:nutrition_zh.17",
+       "off-taiwan:1490274741355:nutrition_zh.11"
+      ]
+     }
+    },
+    "uk_en": {
+     "before": {
+      "strict_cells": {
+       "numerator": 275,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 288,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 275,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 16,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 10,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 7,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 6,
+       "verdict": "fail"
+      },
+      "false_declines": 4,
+      "would_mark_ready_after_arithmetic": 18,
+      "cases": 39
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 275,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 288,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 275,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 16,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 10,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 8,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 5,
+       "verdict": "fail"
+      },
+      "false_declines": 4,
+      "would_mark_ready_after_arithmetic": 17,
+      "cases": 39
+     },
+     "gate_changes": [
+      {
+       "id": "off:5056169112905:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 1,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [
+       "off:5060201623175:nutrition_en.8",
+       "off:5015696447201:nutrition_en.9",
+       "off:5057172978809:nutrition_en.10",
+       "off:5060026822371:nutrition_en.5",
+       "off:5052909355021:nutrition_en.9"
+      ],
+      "usable_wrong": []
+     }
+    }
+   }
+  },
+  "C:grok-on": {
+   "log": "2026-10-17T14-40-10-00-00_label-capture-route-c-development_ffAReSz9n9t7TrfNveEcnM.eval",
+   "strata": {
+    "muesli": {
+     "before": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "taiwan_zh_hant": {
+     "before": {
+      "strict_cells": {
+       "numerator": 213,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 14,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 3,
+       "denominator": 4,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 14,
+      "cases": 19
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 213,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 14,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 14,
+      "cases": 19
+     },
+     "gate_changes": [
+      {
+       "id": "off-taiwan:0022000035011:nutrition_zh.6",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": [
+       "off-taiwan:4710088435767:nutrition_zh.6"
+      ]
+     }
+    },
+    "uk_en": {
+     "before": {
+      "strict_cells": {
+       "numerator": 273,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 286,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 274,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 15,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 10,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 5,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 6,
+       "verdict": "fail"
+      },
+      "false_declines": 4,
+      "would_mark_ready_after_arithmetic": 15,
+      "cases": 39
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 273,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 286,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 274,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 15,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 10,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 9,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 6,
+       "verdict": "fail"
+      },
+      "false_declines": 4,
+      "would_mark_ready_after_arithmetic": 15,
+      "cases": 39
+     },
+     "gate_changes": [
+      {
+       "id": "off:5000453123795:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5056169112905:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5000157071620:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5063089832110:nutrition_en.11",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [
+       "off:5060201623175:nutrition_en.8",
+       "off:5015696447201:nutrition_en.9",
+       "off:5057172978809:nutrition_en.10",
+       "off:5060026822371:nutrition_en.5",
+       "off:5052909355021:nutrition_en.9"
+      ],
+      "usable_wrong": [
+       "off:5053990185917:nutrition_en.9"
+      ]
+     }
+    }
+   }
+  },
+  "C:gemini-on": {
+   "log": "2026-10-17T15-04-19-00-00_label-capture-route-c-development_iEPEDK9yGbnVBqPDthezgP.eval",
+   "strata": {
+    "muesli": {
+     "before": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "taiwan_zh_hant": {
+     "before": {
+      "strict_cells": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 238,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 3,
+       "denominator": 4,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 238,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "gate_changes": [
+      {
+       "id": "off-taiwan:0022000035011:nutrition_zh.6",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "uk_en": {
+     "before": {
+      "strict_cells": {
+       "numerator": 299,
+       "denominator": 311,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 313,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 299,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 18,
+       "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 11,
+       "denominator": 11,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 3,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 7,
+       "verdict": "fail"
+      },
+      "false_declines": 1,
+      "would_mark_ready_after_arithmetic": 18,
+      "cases": 39
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 299,
+       "denominator": 311,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 313,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 299,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 18,
+       "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 11,
+       "denominator": 11,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 7,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 6,
+       "verdict": "fail"
+      },
+      "false_declines": 1,
+      "would_mark_ready_after_arithmetic": 17,
+      "cases": 39
+     },
+     "gate_changes": [
+      {
+       "id": "off:5000453123795:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5010102243842:nutrition_fr.18",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 1,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5056169112905:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5000157071620:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [
+       "off:5060201623175:nutrition_en.8",
+       "off:5015696447201:nutrition_en.9",
+       "off:5057172978809:nutrition_en.10",
+       "off:5060026822371:nutrition_en.5",
+       "off:5052909355021:nutrition_en.9"
+      ],
+      "usable_wrong": [
+       "off:5053990185917:nutrition_en.9"
+      ]
+     }
+    }
+   }
+  },
+  "C:sol-on": {
+   "log": "2026-10-17T15-22-06-00-00_label-capture-route-c-development_44U9BezEkHfKYtCaKjt5Lg.eval",
+   "strata": {
+    "muesli": {
+     "before": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "taiwan_zh_hant": {
+     "before": {
+      "strict_cells": {
+       "numerator": 213,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 14,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 3,
+       "denominator": 4,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 213,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 14,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "gate_changes": [
+      {
+       "id": "off-taiwan:0022000035011:nutrition_zh.6",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": [
+       "off-taiwan:1490274741355:nutrition_zh.11"
+      ]
+     }
+    },
+    "uk_en": {
+     "before": {
+      "strict_cells": {
+       "numerator": 254,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 269,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 255,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 14,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 9,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 8,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 7,
+       "verdict": "fail"
+      },
+      "false_declines": 5,
+      "would_mark_ready_after_arithmetic": 17,
+      "cases": 39
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 254,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 269,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 255,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 14,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 9,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 10,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 6,
+       "verdict": "fail"
+      },
+      "false_declines": 5,
+      "would_mark_ready_after_arithmetic": 16,
+      "cases": 39
+     },
+     "gate_changes": [
+      {
+       "id": "off:5056169112905:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 1,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5000157078773:nutrition_en.45",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [
+       "off:5060201623175:nutrition_en.8",
+       "off:5015696447201:nutrition_en.9",
+       "off:5057172978809:nutrition_en.10",
+       "off:5060026822371:nutrition_en.5",
+       "off:5052909355021:nutrition_en.9"
+      ],
+      "usable_wrong": [
+       "off:5031396074394:nutrition_en.5"
+      ]
+     }
+    }
+   }
+  },
+  "C:sol_pro-on": {
+   "log": "2026-10-17T15-26-42-00-00_label-capture-route-c-development_VivULHBdpFQ9gmTmU7XY5A.eval",
+   "strata": {
+    "muesli": {
+     "before": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "taiwan_zh_hant": {
+     "before": {
+      "strict_cells": {
+       "numerator": 213,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 14,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 3,
+       "denominator": 4,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 213,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 237,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 214,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 14,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 123,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 13,
+      "cases": 19
+     },
+     "gate_changes": [
+      {
+       "id": "off-taiwan:0022000035011:nutrition_zh.6",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": [
+       "off-taiwan:1490274741355:nutrition_zh.11"
+      ]
+     }
+    },
+    "uk_en": {
+     "before": {
+      "strict_cells": {
+       "numerator": 255,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 269,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 255,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 16,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 9,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 8,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 4,
+       "verdict": "fail"
+      },
+      "false_declines": 5,
+      "would_mark_ready_after_arithmetic": 15,
+      "cases": 39
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 255,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 269,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 255,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 16,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 9,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 10,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 4,
+       "verdict": "fail"
+      },
+      "false_declines": 5,
+      "would_mark_ready_after_arithmetic": 15,
+      "cases": 39
+     },
+     "gate_changes": [
+      {
+       "id": "off:5000453123795:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5056169112905:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [
+       "off:5060201623175:nutrition_en.8",
+       "off:5057172978809:nutrition_en.10",
+       "off:5060026822371:nutrition_en.5",
+       "off:5052909355021:nutrition_en.9"
+      ],
+      "usable_wrong": []
+     }
+    }
+   }
+  },
+  "C:opus-on": {
+   "log": "2026-10-17T15-32-31-00-00_label-capture-route-c-development_Fhf2ahk9mv6JJNcMCUDVwY.eval",
+   "strata": {
+    "muesli": {
+     "before": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "taiwan_zh_hant": {
+     "before": {
+      "strict_cells": {
+       "numerator": 202,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 226,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 202,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 13,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 114,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 3,
+       "denominator": 4,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 12,
+      "cases": 19
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 190,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 214,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 190,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 13,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 107,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 14,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 1,
+      "would_mark_ready_after_arithmetic": 12,
+      "cases": 19
+     },
+     "gate_changes": [
+      {
+       "id": "off-taiwan:4713011031036:nutrition_zh.8",
+       "requires_decline": false,
+       "gate_declines": [
+        "column_count_mismatch"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off-taiwan:0022000035011:nutrition_zh.6",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": [
+       "off-taiwan:0848570012982:nutrition_zh.5"
+      ]
+     }
+    },
+    "uk_en": {
+     "before": {
+      "strict_cells": {
+       "numerator": 238,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 252,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 238,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 13,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 62,
+       "denominator": 70,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 9,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 7,
+       "verdict": "fail"
+      },
+      "false_declines": 6,
+      "would_mark_ready_after_arithmetic": 15,
+      "cases": 39
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 238,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 252,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 238,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 13,
+       "denominator": 22,
+       "verdict": "fail"
+      },
+      "serving_conversions": {
+       "numerator": 62,
+       "denominator": 70,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 9,
+       "denominator": 11,
+       "verdict": "fail"
+      },
+      "correct_decline": {
+       "numerator": 8,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 6,
+       "verdict": "fail"
+      },
+      "false_declines": 6,
+      "would_mark_ready_after_arithmetic": 14,
+      "cases": 39
+     },
+     "gate_changes": [
+      {
+       "id": "off:5000453123795:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5010102243842:nutrition_fr.18",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 1,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5056169112905:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5000157071620:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [
+       "off:5060201623175:nutrition_en.8",
+       "off:5015696447201:nutrition_en.9",
+       "off:5057172978809:nutrition_en.10",
+       "off:5060026822371:nutrition_en.5",
+       "off:5052909355021:nutrition_en.9"
+      ],
+      "usable_wrong": [
+       "off:5053990185917:nutrition_en.9"
+      ]
+     }
+    }
+   }
+  },
+  "C:fable-on": {
+   "log": "2026-10-17T15-35-53-00-00_label-capture-route-c-development_L8Aw7SW95XyYmRAikQgtWA.eval",
+   "strata": {
+    "muesli": {
+     "before": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 18,
+       "denominator": 18,
+       "verdict": "pass"
+      },
+      "full_table": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 9,
+       "denominator": 9,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 1,
+       "denominator": 1,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "false_ready": {
+       "count": 0,
+       "verdict": "pass"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 1,
+      "cases": 1
+     },
+     "gate_changes": [],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": []
+     }
+    },
+    "taiwan_zh_hant": {
+     "before": {
+      "strict_cells": {
+       "numerator": 212,
+       "denominator": 214,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 236,
+       "denominator": 238,
+       "verdict": "pass"
+      },
+      "unit_and_basis": {
+       "numerator": 212,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 13,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 122,
+       "denominator": 123,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 15,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 3,
+       "denominator": 4,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 0,
+      "would_mark_ready_after_arithmetic": 12,
+      "cases": 19
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 198,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "binding": {
+       "numerator": 222,
+       "denominator": 238,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 198,
+       "denominator": 214,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 13,
+       "denominator": 15,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 115,
+       "denominator": 123,
+       "verdict": "fail"
+      },
+      "servings_per_pack": {
+       "numerator": 14,
+       "denominator": 15,
+       "verdict": "fail"
+      },
+      "bounds": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "correct_decline": {
+       "numerator": 4,
+       "denominator": 4,
+       "verdict": "pass"
+      },
+      "false_ready": {
+       "count": 1,
+       "verdict": "fail"
+      },
+      "false_declines": 1,
+      "would_mark_ready_after_arithmetic": 12,
+      "cases": 19
+     },
+     "gate_changes": [
+      {
+       "id": "off-taiwan:4710090070222:nutrition_zh.17",
+       "requires_decline": false,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off-taiwan:0022000035011:nutrition_zh.6",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [],
+      "usable_wrong": [
+       "off-taiwan:0848570012982:nutrition_zh.5"
+      ]
+     }
+    },
+    "uk_en": {
+     "before": {
+      "strict_cells": {
+       "numerator": 298,
+       "denominator": 311,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 312,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 298,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 17,
+       "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 11,
+       "denominator": 11,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 3,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 8,
+       "verdict": "fail"
+      },
+      "false_declines": 1,
+      "would_mark_ready_after_arithmetic": 18,
+      "cases": 39
+     },
+     "after": {
+      "strict_cells": {
+       "numerator": 298,
+       "denominator": 311,
+       "verdict": "pass"
+      },
+      "binding": {
+       "numerator": 312,
+       "denominator": 325,
+       "verdict": "fail"
+      },
+      "unit_and_basis": {
+       "numerator": 298,
+       "denominator": 311,
+       "verdict": "fail"
+      },
+      "full_table": {
+       "numerator": 17,
+       "denominator": 22,
+       "verdict": "pass"
+      },
+      "serving_conversions": {
+       "numerator": 70,
+       "denominator": 70,
+       "verdict": "pass"
+      },
+      "servings_per_pack": {
+       "numerator": 0,
+       "denominator": 0,
+       "verdict": "no_denominator"
+      },
+      "bounds": {
+       "numerator": 11,
+       "denominator": 11,
+       "verdict": "pass"
+      },
+      "correct_decline": {
+       "numerator": 7,
+       "denominator": 17,
+       "verdict": "fail"
+      },
+      "false_ready": {
+       "count": 7,
+       "verdict": "fail"
+      },
+      "false_declines": 1,
+      "would_mark_ready_after_arithmetic": 17,
+      "cases": 39
+     },
+     "gate_changes": [
+      {
+       "id": "off:5000453123795:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5010102243842:nutrition_fr.18",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 1,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5056169112905:nutrition_en.5",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      },
+      {
+       "id": "off:5000157071620:nutrition_en.7",
+       "requires_decline": true,
+       "gate_declines": [
+        "required_row_missing"
+       ],
+       "gate_blocks": [],
+       "was_false_ready": 0,
+       "was_table_exact": 0
+      }
+     ],
+     "false_ready_after_gate": {
+      "required_decline": [
+       "off:5060201623175:nutrition_en.8",
+       "off:5015696447201:nutrition_en.9",
+       "off:5057172978809:nutrition_en.10",
+       "off:5060026822371:nutrition_en.5",
+       "off:5052909355021:nutrition_en.9"
+      ],
+      "usable_wrong": [
+       "off:5060323902912:nutrition_en.18",
+       "off:5053990185917:nutrition_en.9"
+      ]
+     }
+    }
+   }
+  }
+ }
+}

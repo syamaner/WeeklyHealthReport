@@ -103,9 +103,14 @@ async def _run_json(binary: Path, payload: Any, what: str) -> Any:
 
 
 def route_b_input_allowed(metadata: dict[str, Any]) -> None:
-    """Route B runs on development images only in this phase; never on a sealed folder."""
+    """Route B runs on development images, or on the untouched photos only after the hash-bound unseal.
+
+    `unsealed_for_run` is set only by `cases.load_untouched_photos`, which refuses without the
+    unseal flag, the sealed manifest hash, a frozen contract and the pinned untouched truth.
+    """
     path = Path(str(metadata.get("image_path", "")))
-    if metadata.get("split") != "development" or "sealed" in path.parts:
+    untouched_run = metadata.get("split") == "untouched" and metadata.get("unsealed_for_run") is True
+    if not untouched_run and (metadata.get("split") != "development" or "sealed" in path.parts):
         raise case_loading.SealedSetError("route B may run on development images only")
     if metadata.get("corpus") == "owner" and metadata.get("consent_local_routes") is not True:
         raise PermissionError("the owner photo has no local_routes consent")
@@ -585,18 +590,35 @@ def label_capture_untouched_photos(
     unseal: bool = False,
     manifest_sha256: str | None = None,
     ledger: str | None = None,
+    label: str | None = None,
+    model: str | None = None,
+    endpoint: str | None = None,
+    provider_name: str | None = None,
+    reasoning: str = "off",
+    enabled: bool = False,
+    vision_binary: str | None = None,
+    parser_binary: str | None = None,
 ) -> Task:
-    """The sealed 40 Taiwan photos; refuses without an explicit, hash-bound unseal."""
+    """The 40 untouched Taiwan photos; refuses without an explicit, hash-bound unseal.
+
+    Run only through `run_untouched.py`, which checks the frozen contract, the run register
+    (each route and arm runs once) and, for route C, the credit and catalogue gates.
+    """
     loaded = case_loading.load_untouched_photos(
         Path(manifest), Path(image_root), unseal=unseal, manifest_sha256=manifest_sha256, truth_path=Path(truth)
     )
     if route == "C":
         if ledger is None:
             raise ValueError("route C needs the persistent spend ledger")
+        target = None
+        if label and model and endpoint and provider_name:
+            target = RouteCModel(label=label, model=model, endpoint=endpoint, provider_name=provider_name, reasoning=reasoning)
         contract = json.loads((HERE / "frozen-contract-v1.json").read_text(encoding="utf-8"))
-        chosen = route_c_openrouter(LedgerBudget(Path(ledger), sealed_run=True, limits=contract_limits(contract)), enabled=False)
+        chosen = route_c_openrouter(
+            LedgerBudget(Path(ledger), sealed_run=True, limits=contract_limits(contract)), enabled=enabled, target=target
+        )
     else:
-        chosen = route_b_vision()
+        chosen = route_b_vision(vision_binary, parser_binary)
     return Task(
         dataset=MemoryDataset([to_sample(c) for c in loaded], name="untouched-photos-v1"),
         solver=[chosen, decline_gate_solver()],
