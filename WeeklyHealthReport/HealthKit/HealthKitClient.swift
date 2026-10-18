@@ -112,8 +112,8 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         dailyBucketReadLog.records()
     }
 
-    func clearDailyBucketReadRecords(for intervals: [DateInterval]) {
-        dailyBucketReadLog.removeRecords(for: intervals)
+    func clearHealthReportDailyBucketReadRecords(for intervals: [DateInterval]) {
+        dailyBucketReadLog.removeRecords(for: intervals, reader: .healthReport)
     }
 
     var isHealthDataAvailable: Bool {
@@ -751,6 +751,24 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         nutritionSourceBundleIdentifier: String,
         includeWorkoutEnrichment: Bool
     ) async throws -> DailyHealthExportInputs {
+        // Tag the export's daily reads, and tell Developer tools when they end.
+        defer {
+            NotificationCenter.default.post(name: .dailyBucketExportReadsDidChange, object: nil)
+        }
+        return try await DailyBucketReadLog.$currentReader.withValue(.dailyExport) {
+            try await readDailyHealthExportInputs(
+                for: window,
+                nutritionSourceBundleIdentifier: nutritionSourceBundleIdentifier,
+                includeWorkoutEnrichment: includeWorkoutEnrichment
+            )
+        }
+    }
+
+    private func readDailyHealthExportInputs(
+        for window: DailyExportWindow,
+        nutritionSourceBundleIdentifier: String,
+        includeWorkoutEnrichment: Bool
+    ) async throws -> DailyHealthExportInputs {
         guard isHealthDataAvailable else { throw HealthDataError.unavailable }
         guard let previous = window.context.precedingEquivalent(
             calendar: window.calendar
@@ -1174,6 +1192,7 @@ final class HealthKitClient: HealthDataProviding, DailyHealthExportDataProviding
         outcome: DailyBucketReadOutcome
     ) {
         dailyBucketReadLog.record(DailyBucketReadRecord(
+            reader: DailyBucketReadLog.currentReader,
             metric: metric,
             interval: interval,
             timeZoneIdentifier: calendar.timeZone.identifier,

@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 
 /// The Health report's food-log port (docs/health-food-and-water-v1.md, section 6),
@@ -92,17 +93,12 @@ final class WeeklyReportViewModel: ObservableObject {
     /// Developer tools only: how the latest report's daily collections were
     /// bucketed (docs/healthkit-day-bucketing-v1.md decision 5).
     @Published private(set) var dailyBucketReads: [DailyBucketReadRecord] = []
-    /// The intervals the latest report read, so Developer tools can list every
-    /// other daily read (the Daily JSON export's context and nutrition) apart.
+    /// Developer tools only: the Daily JSON export's daily reads (context and
+    /// nutrition). Republished whenever an export's reads finish, so the
+    /// section updates while Developer Diagnostics is open.
+    @Published private(set) var exportDailyBucketReads: [DailyBucketReadRecord] = []
     private var dailyBucketReportIntervals: [DateInterval] = []
-
-    /// Developer tools only: daily reads outside the latest report, read live
-    /// because the Daily JSON export runs independently of report refreshes.
-    var otherDailyBucketReads: [DailyBucketReadRecord] {
-        healthData.dailyBucketReadRecords.filter {
-            !dailyBucketReportIntervals.contains($0.interval)
-        }
-    }
+    private var exportReadsObserver: AnyCancellable?
     /// Food and water (#214). Kept apart from the HealthKit states: a food-log
     /// failure never changes them, and Apple Health being unavailable never
     /// hides the food log.
@@ -166,6 +162,17 @@ final class WeeklyReportViewModel: ObservableObject {
             now: now(),
             calendar: calendar
         )
+        refreshExportDailyBucketReads()
+        exportReadsObserver = NotificationCenter.default
+            .publisher(for: .dailyBucketExportReadsDidChange)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.refreshExportDailyBucketReads() }
+    }
+
+    func refreshExportDailyBucketReads() {
+        exportDailyBucketReads = healthData.dailyBucketReadRecords.filter {
+            $0.reader == .dailyExport
+        }
     }
 
     var supportsMedicationData: Bool { healthData.supportsMedicationData }
@@ -474,7 +481,7 @@ final class WeeklyReportViewModel: ObservableObject {
         // fails or is skipped can never leave a stale line in Developer tools.
         let previousPeriodIfAny = period.precedingEquivalent(calendar: calendar)
         dailyBucketReportIntervals = [period.interval] + (previousPeriodIfAny.map { [$0.interval] } ?? [])
-        healthData.clearDailyBucketReadRecords(for: dailyBucketReportIntervals)
+        healthData.clearHealthReportDailyBucketReadRecords(for: dailyBucketReportIntervals)
         dailyBucketReads = []
         guard let previousPeriod = previousPeriodIfAny else {
             reportStates.restingHeartRate = .noDataOrAccess
@@ -591,7 +598,7 @@ final class WeeklyReportViewModel: ObservableObject {
         }
         guard generation == refreshGeneration else { return }
         dailyBucketReads = healthData.dailyBucketReadRecords.filter {
-            dailyBucketReportIntervals.contains($0.interval)
+            $0.reader == .healthReport && dailyBucketReportIntervals.contains($0.interval)
         }
 
         do {

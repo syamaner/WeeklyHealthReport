@@ -121,8 +121,16 @@ enum DailyBucketReadOutcome: Equatable, Sendable {
     case perDayFallback(reason: DailyBucketFallbackReason, mismatchedBucketCount: Int)
 }
 
+/// Who asked for a daily read, so the Health report's and the Daily JSON
+/// export's reads of the same metric and interval stay separate records.
+enum DailyBucketReadCaller: String, Equatable, Sendable {
+    case healthReport
+    case dailyExport
+}
+
 /// Developer tools record of one daily read (decision 5: shown nowhere else).
 struct DailyBucketReadRecord: Equatable, Sendable {
+    let reader: DailyBucketReadCaller
     let metric: String
     let interval: DateInterval
     let timeZoneIdentifier: String

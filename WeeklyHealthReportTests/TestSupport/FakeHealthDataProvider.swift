@@ -66,7 +66,7 @@ final class FakeHealthDataProvider: HealthDataProviding, Sendable {
         receivedCalendars.clearedIntervals()
     }
 
-    func clearDailyBucketReadRecords(for intervals: [DateInterval]) {
+    func clearHealthReportDailyBucketReadRecords(for intervals: [DateInterval]) {
         receivedCalendars.appendCleared(intervals)
     }
 

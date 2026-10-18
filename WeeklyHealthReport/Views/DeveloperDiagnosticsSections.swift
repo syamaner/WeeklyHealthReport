@@ -795,8 +795,8 @@ struct TodaySoFarDiagnosticsSection: View {
     }
 }
 
-/// How daily collections were bucketed: the latest report's reads, or every
-/// other read (the Daily JSON export's context and nutrition)
+/// How daily collections were bucketed: the latest report's reads, or the
+/// Daily JSON export's reads (its context and nutrition context)
 /// (docs/healthkit-day-bucketing-v1.md decision 5: Developer tools only).
 struct DailyBucketDiagnosticsSection: View {
     let title: String

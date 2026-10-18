@@ -1844,3 +1844,13 @@ Pricing as in the previous sections (checked 11 October 2026): USD 4/M base inpu
 Boundary: `2026-10-18T10:04:59Z` (the transcript's first record) → `2026-10-18T10:31:37Z` (`phase_usage.py --format claude`, whole transcript). Cache writes: 220,283 5-minute, 0 1-hour. Exact API-equivalent USD 4.2239956. The output count is as the transcript records it and may be a lower bound where messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+Review fix passes, same subagent and transcript: the invariant-review fixes (bucket end check, export diagnostics, stale-record clearing, nutrition golden) and the re-review items (reader-tagged records, published export snapshot, spring fixture, log removal test), with their gates, up to this measurement. The commit, the push and the ready-for-review change after it are outside the row.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| HealthKit day bucketing (#49), review fix passes | 12,680,548 (12,307,185) | 373,261 | 631 | 12,681,179 | $4.34 |
+
+Boundary: `2026-10-18T10:31:37Z` (the first row's end) → `2026-10-18T11:09:37Z` (`phase_usage.py --format claude --since …`). Cache writes: 373,261 5-minute, 0 1-hour. Exact API-equivalent USD 4.34077. The output count is as the transcript records it: it looks like streaming-time snapshots, so it is a lower bound, not a measured total.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

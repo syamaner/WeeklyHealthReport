@@ -179,14 +179,15 @@ final class DailyBucketPlanTests: XCTestCase {
         // bucket is empty (no statistic). A start-only check would file the
         // 30 March steps on 29 March and still report the read as aligned.
         let starts = (0..<7).map { plan.anchorDate.addingTimeInterval(Double($0) * day) }
+        // The short-day bucket carries the 30 March steps (250).
         let buckets = starts.prefix(shortDay + 1).map {
-            DailyBucket(start: $0, end: $0 + day, value: 1_000.0)
+            DailyBucket(start: $0, end: $0 + day, value: $0 == plan.days[shortDay].start ? 250 : 1_000.0)
         }
         XCTAssertEqual(buckets.last?.end, date(2026, 3, 30, 1, london))
 
         let match = DailyBucketAlignment.match(buckets, plan: plan)
         XCTAssertEqual(match.mismatchedBucketStarts, [plan.days[shortDay].start])
-        XCTAssertNil(match.values[shortDay])
+        XCTAssertNil(match.values[shortDay], "250 must not be filed on 29 March")
 
         let result = try await DailyBucketReader.read(
             days: plan.days,
@@ -401,14 +402,17 @@ final class DailyBucketPlanTests: XCTestCase {
         let london = calendar("Europe/London")
         let refreshDate = date(2026, 10, 29, 9, london)
         let period = ReportPeriod.make(selection: .lastSevenCompletedDays, now: refreshDate, calendar: london)
+        // An export read of the same metric and interval stays apart.
         let foreign = DailyBucketReadRecord(
-            metric: "Steps",
-            interval: DateInterval(start: refreshDate, duration: 60),
-            timeZoneIdentifier: "Asia/Tokyo",
-            dayCount: 1,
+            reader: .dailyExport,
+            metric: "HRV",
+            interval: period.interval,
+            timeZoneIdentifier: "Europe/London",
+            dayCount: 7,
             outcome: .aligned
         )
         let fallback = DailyBucketReadRecord(
+            reader: .healthReport,
             metric: "HRV",
             interval: period.interval,
             timeZoneIdentifier: "Europe/London",
@@ -429,7 +433,7 @@ final class DailyBucketPlanTests: XCTestCase {
         XCTAssertEqual(zones.count, 7)
         XCTAssertEqual(Set(zones), ["Europe/London"])
         XCTAssertEqual(viewModel.dailyBucketReads, [fallback])
-        XCTAssertEqual(viewModel.otherDailyBucketReads, [foreign])
+        XCTAssertEqual(viewModel.exportDailyBucketReads, [foreign])
         let previous = period.precedingEquivalent(calendar: london)!
         XCTAssertEqual(provider.clearedDailyBucketIntervals(), [[period.interval, previous.interval]])
         XCTAssertEqual(
@@ -449,6 +453,7 @@ final class DailyBucketPlanTests: XCTestCase {
     func testDiagnosticsReportNoFallbackInTheAlignedCase() {
         let lines = DailyBucketDiagnostics.lines([
             DailyBucketReadRecord(
+                reader: .healthReport,
                 metric: "Steps",
                 interval: DateInterval(start: Date(timeIntervalSince1970: 0), duration: 7 * day),
                 timeZoneIdentifier: "Europe/London",
@@ -470,6 +475,7 @@ final class DailyBucketPlanTests: XCTestCase {
         let interval = DateInterval(start: Date(timeIntervalSince1970: 0), duration: day)
         func record(_ metric: String, _ outcome: DailyBucketReadOutcome) -> DailyBucketReadRecord {
             DailyBucketReadRecord(
+                reader: .healthReport,
                 metric: metric,
                 interval: interval,
                 timeZoneIdentifier: "Europe/London",
@@ -483,6 +489,79 @@ final class DailyBucketPlanTests: XCTestCase {
         log.record(record("HRV", .aligned))
         log.record(record("Blood glucose", .aligned))
         XCTAssertEqual(log.records().map(\.metric), ["Blood glucose", "HRV"])
+    }
+
+    func testReadLogKeysOnReaderSoAnExportReadNeverReplacesAReportRecord() {
+        let log = DailyBucketReadLog()
+        let interval = DateInterval(start: Date(timeIntervalSince1970: 0), duration: 7 * day)
+        func record(_ reader: DailyBucketReadCaller, _ outcome: DailyBucketReadOutcome) -> DailyBucketReadRecord {
+            DailyBucketReadRecord(
+                reader: reader,
+                metric: "Steps",
+                interval: interval,
+                timeZoneIdentifier: "Europe/London",
+                dayCount: 7,
+                outcome: outcome
+            )
+        }
+        let report = record(.healthReport, .perDayFallback(reason: .bucketMismatch, mismatchedBucketCount: 2))
+        let export = record(.dailyExport, .aligned)
+        log.record(report)
+        log.record(export)
+        XCTAssertEqual(log.records(), [export, report])
+    }
+
+    func testReadLogRemovesOnlyTheGivenReadersRecordsForTheGivenIntervals() {
+        let log = DailyBucketReadLog()
+        let first = DateInterval(start: Date(timeIntervalSince1970: 0), duration: 7 * day)
+        let second = DateInterval(start: first.end, duration: 7 * day)
+        let other = DateInterval(start: second.end, duration: 7 * day)
+        func record(_ reader: DailyBucketReadCaller, _ interval: DateInterval) -> DailyBucketReadRecord {
+            DailyBucketReadRecord(
+                reader: reader,
+                metric: "Steps",
+                interval: interval,
+                timeZoneIdentifier: "Europe/London",
+                dayCount: 7,
+                outcome: .aligned
+            )
+        }
+        let kept = [record(.dailyExport, first), record(.healthReport, other)]
+        log.record(record(.healthReport, first))
+        log.record(kept[0])
+        log.record(record(.healthReport, second))
+        log.record(kept[1])
+
+        log.removeRecords(for: [first, second], reader: .healthReport)
+
+        XCTAssertEqual(log.records(), kept.reversed())
+        log.removeRecords(for: [], reader: .dailyExport)
+        XCTAssertEqual(log.records().count, 2)
+    }
+
+    @MainActor
+    func testExportSnapshotIsRepublishedWhenAnExportFinishes() async {
+        let interval = DateInterval(start: Date(timeIntervalSince1970: 0), duration: 7 * day)
+        let export = DailyBucketReadRecord(
+            reader: .dailyExport,
+            metric: "Nutrition context (39 nutrients)",
+            interval: interval,
+            timeZoneIdentifier: "Europe/London",
+            dayCount: 15,
+            outcome: .aligned
+        )
+        let source = MutableBucketRecords()
+        let viewModel = WeeklyReportViewModel(healthData: FakeBucketRecordsProvider(source: source))
+        XCTAssertEqual(viewModel.exportDailyBucketReads, [])
+
+        source.set([export])
+        let published = expectation(description: "export snapshot published")
+        let observer = viewModel.$exportDailyBucketReads
+            .dropFirst()
+            .sink { if $0 == [export] { published.fulfill() } }
+        NotificationCenter.default.post(name: .dailyBucketExportReadsDidChange, object: nil)
+        await fulfillment(of: [published], timeout: 2)
+        observer.cancel()
     }
 
     // MARK: 10. Nutrition
@@ -662,5 +741,81 @@ private struct MisalignedDailyStore {
                 return truth[interval.start] ?? nil
             }
         )
+    }
+}
+
+private final class MutableBucketRecords: @unchecked Sendable {
+    private let lock = NSLock()
+    private var records: [DailyBucketReadRecord] = []
+
+    func set(_ records: [DailyBucketReadRecord]) { lock.withLock { self.records = records } }
+    func get() -> [DailyBucketReadRecord] { lock.withLock { records } }
+}
+
+/// Forwards everything to the shared fake except the bucket records.
+private final class FakeBucketRecordsProvider: HealthDataProviding, Sendable {
+    private let base = FakeHealthDataProvider()
+    private let source: MutableBucketRecords
+
+    init(source: MutableBucketRecords) { self.source = source }
+
+    var isHealthDataAvailable: Bool { base.isHealthDataAvailable }
+    var supportsMedicationData: Bool { base.supportsMedicationData }
+    var dailyBucketReadRecords: [DailyBucketReadRecord] { source.get() }
+
+    func requestReadAuthorization() async throws { try await base.requestReadAuthorization() }
+    func fetchDailySteps(for period: ReportPeriod, calendar: Calendar) async throws -> [DailyStepTotal] {
+        try await base.fetchDailySteps(for: period, calendar: calendar)
+    }
+    func fetchWeightMeasurements(asOf date: Date) async throws -> [WeightMeasurement] {
+        try await base.fetchWeightMeasurements(asOf: date)
+    }
+    func fetchBodyFatMeasurements(asOf date: Date) async throws -> [BodyFatMeasurement] {
+        try await base.fetchBodyFatMeasurements(asOf: date)
+    }
+    func fetchWaistMeasurements(asOf date: Date) async throws -> [WaistMeasurement] {
+        try await base.fetchWaistMeasurements(asOf: date)
+    }
+    func fetchVO2MaxMeasurements(asOf date: Date) async throws -> [VO2MaxMeasurement] {
+        try await base.fetchVO2MaxMeasurements(asOf: date)
+    }
+    func fetchOxygenSaturationMeasurements(
+        for period: ReportPeriod,
+        asOf date: Date
+    ) async throws -> [OxygenSaturationMeasurement] {
+        try await base.fetchOxygenSaturationMeasurements(for: period, asOf: date)
+    }
+    func fetchBloodPressureReadings(for period: ReportPeriod, asOf date: Date) async throws -> [BloodPressureReading] {
+        try await base.fetchBloodPressureReadings(for: period, asOf: date)
+    }
+    func fetchDailyBloodGlucose(for period: ReportPeriod, calendar: Calendar) async throws -> [DailyGlucoseValue] {
+        try await base.fetchDailyBloodGlucose(for: period, calendar: calendar)
+    }
+    func fetchDailyRestingHeartRate(
+        for period: ReportPeriod,
+        calendar: Calendar
+    ) async throws -> [DailyHeartMetricValue] {
+        try await base.fetchDailyRestingHeartRate(for: period, calendar: calendar)
+    }
+    func fetchDailyHRV(for period: ReportPeriod, calendar: Calendar) async throws -> [DailyHeartMetricValue] {
+        try await base.fetchDailyHRV(for: period, calendar: calendar)
+    }
+    func fetchAppleWatchHeartRateSampleDates(for period: ReportPeriod) async throws -> [Date] {
+        try await base.fetchAppleWatchHeartRateSampleDates(for: period)
+    }
+    func fetchExerciseMinutes(for period: ReportPeriod) async throws -> Double? {
+        try await base.fetchExerciseMinutes(for: period)
+    }
+    func fetchActiveEnergyKilocalories(for period: ReportPeriod) async throws -> Double? {
+        try await base.fetchActiveEnergyKilocalories(for: period)
+    }
+    func fetchWorkouts(for period: ReportPeriod) async throws -> [WorkoutRecord] {
+        try await base.fetchWorkouts(for: period)
+    }
+    func fetchAsleepIntervals(for period: ReportPeriod, calendar: Calendar) async throws -> [AsleepInterval] {
+        try await base.fetchAsleepIntervals(for: period, calendar: calendar)
+    }
+    func fetchTakenMedicationDoses(for period: ReportPeriod) async throws -> [MedicationDoseRecord] {
+        try await base.fetchTakenMedicationDoses(for: period)
     }
 }

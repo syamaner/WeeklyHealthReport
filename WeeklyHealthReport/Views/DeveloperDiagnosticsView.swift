@@ -22,7 +22,7 @@ struct DeveloperDiagnosticsView: View {
             )
             DailyBucketDiagnosticsSection(
                 title: "Daily buckets, Daily JSON export",
-                records: viewModel.otherDailyBucketReads
+                records: viewModel.exportDailyBucketReads
             )
             BodyMeasurementsDiagnosticsSections(
                 weightState: viewModel.weightState,
