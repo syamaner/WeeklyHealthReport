@@ -991,6 +991,13 @@
       "parser_binary": "~/WHR-label-eval-private/bin/NutritionLabelTextParse-phase5, built from the pinned NutritionLabelParsing sources",
       "parser_binary_sha256": "95c259254a1a014c4163878f07b37db22f3222eb21580a3ff09a03c2c1ffd668"
     },
-    "route_a": "not run: the untouched pasted-text cases (FDA 188 and template, corpus.fda188.untouched_rendered_only_after_generator_freeze) have never been rendered; rendering and running them would consume that separate untouched set and needs its own owner decision"
+    "route_a": "run once on 18 October 2026 by owner decision: the untouched FDA 188 and template pasted-text cases (107, 15 required declines) rendered with the frozen generator path (run_untouched_text.py; the same path reproduces the committed development cases byte for byte), the frozen parser binary, decline gate v2 and the frozen scorer; dataset SHA-256 9eace6511eee1a0defb1c251a772b152a9a13169a49d894ca67e7cf2cc09c3c4; every route-output bar passes; arithmetic mutation detection 110/116 fails its 100% bar (policy, not route)"
+  },
+  "untouched_truth_deviations": {
+    "procedure": "an owner correction of the frozen untouched truth is never applied by editing the pinned file: the answers go in a separate corrections file, rescore_untouched.py applies them in memory to a copy (refusing ambiguous, stale or excluded targets) and re-scores the saved untouched outputs offline; the run is never repeated; each applied correction is recorded here with its answers, changed cells and the before and after numbers",
+    "pending": [
+      "off-taiwan:3228022000311:nutrition_zh.12: owner re-checking every cell against the photo (18 October 2026); not applied"
+    ],
+    "applied": []
   }
 }

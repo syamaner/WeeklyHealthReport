@@ -1711,3 +1711,23 @@ The gap between the orchestrator's message and the branch start is unmeasured. N
 Boundary: `2026-10-18T05:21:25Z` → this edit. Cache writes: 81,567 5-minute, 0 1-hour. Exact API-equivalent USD 6.109711.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-255-2026-10-18e: Claude Code label capture evaluation phase 5, route A untouched and the correction path
+
+Same subagent, transcript and pricing as WHR-255-2026-10-18d. Runs from the orchestrator's message relaying the owner decisions (`2026-10-18T06:10:33Z` in the transcript, UTC) to this ledger edit. It covers:
+
+- the route A untouched pasted-text runner, its tests and its single run;
+- the untouched-truth correction path and its tests;
+- the photo AI write-up;
+- the contract, plan, README and results updates;
+- the gates.
+
+The previous row's commit, push, PR and Swift wait fall between the two rows and are unmeasured. No subagents and no OpenRouter call.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Phase 5 route A untouched and correction path (#255) | 12,395,574 (11,728,538) | 666,996 | 4,646 | 12,400,220 | $5.77 |
+
+Boundary: `2026-10-18T06:10:33Z` → this edit. Cache writes: 666,996 5-minute, 0 1-hour. Exact API-equivalent USD 5.7737676.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

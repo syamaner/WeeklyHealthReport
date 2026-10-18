@@ -35,6 +35,14 @@
    "status": "complete",
    "log_dir": "/Users/sertanyamaner/WHR-label-eval-private/runs/untouched-v1/sol-on/untouched",
    "finished_at": "2026-10-18T05:38:04+00:00"
+  },
+  {
+   "route": "A",
+   "arm": "untouched-text",
+   "started_at": "2026-10-18T06:12:15+00:00",
+   "status": "complete",
+   "log_dir": "/Users/sertanyamaner/WHR-label-eval-private/runs/untouched-v1/route-a",
+   "finished_at": "2026-10-18T06:12:15+00:00"
   }
  ],
  "note": "Counts, call statistics and case ids only; no model answer, decline text or image. Inspect logs are outside the repository.",
@@ -561,5 +569,295 @@
    ],
    "failed_ids": []
   }
+ },
+ "route_a_untouched_text": {
+  "set": "untouched pasted-text cases: FDA dataset 188 untouched rows (with their hash-seeded decline variants) and the closed-template untouched candidates, rendered once with the frozen generator path",
+  "synthetic": true,
+  "generator_version": "label-pasted-text-renderer-v1",
+  "seed": "nutrition-label-capture-v1",
+  "dataset_sha256": "9eace6511eee1a0defb1c251a772b152a9a13169a49d894ca67e7cf2cc09c3c4",
+  "parser_version": "nutrition-label-text-parser-v2",
+  "gate_version": "label-capture-decline-gate-v2",
+  "cases": 107,
+  "required_declines": 15,
+  "by_corpus_cases": {
+   "fda188": 75,
+   "zh_template": 32
+  },
+  "overall": {
+   "cases": 107,
+   "failed": 0,
+   "false_declines": 0,
+   "extra_cells": 0,
+   "serving_size": {
+    "exact": 92,
+    "known": 92
+   },
+   "would_mark_ready_after_arithmetic": 92,
+   "energy_check_informing_only": {
+    "not_checkable": 15,
+    "pass": 92
+   },
+   "metrics": {
+    "strict_cells": {
+     "numerator": 1093,
+     "denominator": 1093,
+     "rate": 1.0,
+     "bar": 0.95,
+     "verdict": "pass"
+    },
+    "binding": {
+     "numerator": 1123,
+     "denominator": 1123,
+     "rate": 1.0,
+     "bar": 0.98,
+     "verdict": "pass"
+    },
+    "unit_and_basis": {
+     "numerator": 1093,
+     "denominator": 1093,
+     "rate": 1.0,
+     "bar": 1.0,
+     "verdict": "pass"
+    },
+    "full_table": {
+     "numerator": 92,
+     "denominator": 92,
+     "rate": 1.0,
+     "bar": 0.75,
+     "verdict": "pass"
+    },
+    "serving_conversions": {
+     "numerator": 599,
+     "denominator": 599,
+     "rate": 1.0,
+     "bar": 0.98,
+     "verdict": "pass"
+    },
+    "servings_per_pack": {
+     "numerator": 92,
+     "denominator": 92,
+     "rate": 1.0,
+     "bar": 0.98,
+     "verdict": "pass"
+    },
+    "bounds": {
+     "numerator": 36,
+     "denominator": 36,
+     "rate": 1.0,
+     "bar": 1.0,
+     "verdict": "pass"
+    },
+    "correct_decline": {
+     "numerator": 15,
+     "denominator": 15,
+     "rate": 1.0,
+     "bar": 0.95,
+     "verdict": "pass"
+    },
+    "false_ready": {
+     "count": 0,
+     "denominator": 107,
+     "bar": "<= 0",
+     "verdict": "pass"
+    },
+    "automatic_persistence": {
+     "count": 0,
+     "verdict": "pass"
+    }
+   }
+  },
+  "by_corpus": {
+   "fda188": {
+    "cases": 75,
+    "failed": 0,
+    "false_declines": 0,
+    "extra_cells": 0,
+    "serving_size": {
+     "exact": 60,
+     "known": 60
+    },
+    "would_mark_ready_after_arithmetic": 60,
+    "energy_check_informing_only": {
+     "not_checkable": 15,
+     "pass": 60
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 632,
+      "denominator": 632,
+      "rate": 1.0,
+      "bar": 0.95,
+      "verdict": "pass"
+     },
+     "binding": {
+      "numerator": 632,
+      "denominator": 632,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "unit_and_basis": {
+      "numerator": 632,
+      "denominator": 632,
+      "rate": 1.0,
+      "bar": 1.0,
+      "verdict": "pass"
+     },
+     "full_table": {
+      "numerator": 60,
+      "denominator": 60,
+      "rate": 1.0,
+      "bar": 0.75,
+      "verdict": "pass"
+     },
+     "serving_conversions": {
+      "numerator": 368,
+      "denominator": 368,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "servings_per_pack": {
+      "numerator": 60,
+      "denominator": 60,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "bounds": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 1.0,
+      "verdict": "no_denominator"
+     },
+     "correct_decline": {
+      "numerator": 15,
+      "denominator": 15,
+      "rate": 1.0,
+      "bar": 0.95,
+      "verdict": "pass"
+     },
+     "false_ready": {
+      "count": 0,
+      "denominator": 75,
+      "bar": "<= 0",
+      "verdict": "pass"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    }
+   },
+   "zh_template": {
+    "cases": 32,
+    "failed": 0,
+    "false_declines": 0,
+    "extra_cells": 0,
+    "serving_size": {
+     "exact": 32,
+     "known": 32
+    },
+    "would_mark_ready_after_arithmetic": 32,
+    "energy_check_informing_only": {
+     "pass": 32
+    },
+    "metrics": {
+     "strict_cells": {
+      "numerator": 461,
+      "denominator": 461,
+      "rate": 1.0,
+      "bar": 0.95,
+      "verdict": "pass"
+     },
+     "binding": {
+      "numerator": 491,
+      "denominator": 491,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "unit_and_basis": {
+      "numerator": 461,
+      "denominator": 461,
+      "rate": 1.0,
+      "bar": 1.0,
+      "verdict": "pass"
+     },
+     "full_table": {
+      "numerator": 32,
+      "denominator": 32,
+      "rate": 1.0,
+      "bar": 0.75,
+      "verdict": "pass"
+     },
+     "serving_conversions": {
+      "numerator": 231,
+      "denominator": 231,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "servings_per_pack": {
+      "numerator": 32,
+      "denominator": 32,
+      "rate": 1.0,
+      "bar": 0.98,
+      "verdict": "pass"
+     },
+     "bounds": {
+      "numerator": 36,
+      "denominator": 36,
+      "rate": 1.0,
+      "bar": 1.0,
+      "verdict": "pass"
+     },
+     "correct_decline": {
+      "numerator": 0,
+      "denominator": 0,
+      "rate": null,
+      "bar": 0.95,
+      "verdict": "no_denominator"
+     },
+     "false_ready": {
+      "count": 0,
+      "denominator": 32,
+      "bar": "<= 0",
+      "verdict": "pass"
+     },
+     "automatic_persistence": {
+      "count": 0,
+      "verdict": "pass"
+     }
+    }
+   }
+  },
+  "arithmetic_mutation_detection": {
+   "detected": 110,
+   "applicable": 116
+  },
+  "arithmetic_mutation_detection_by_kind": {
+   "tenfold_serving": [
+    69,
+    72
+   ],
+   "basis_transposition": [
+    32,
+    35
+   ],
+   "bound_replaced_by_exact": [
+    9,
+    9
+   ]
+  },
+  "false_ready_ids": [],
+  "false_decline_ids": []
+ },
+ "correction_path": {
+  "status": "prepared, not applied (owner re-checking off-taiwan:3228022000311:nutrition_zh.12)",
+  "tool": "rescore_untouched.py: corrections in a separate owner file, applied in memory to a copy of the frozen truth; saved untouched outputs re-scored offline; no rerun",
+  "verified": "with no corrections it reproduces every arm's run numbers"
  }
 }

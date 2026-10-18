@@ -255,6 +255,10 @@ checks. It ran on 18 October 2026:
   --log-dir ~/WHR-label-eval-private/runs/untouched-v1/gemini-on --summary ~/WHR-label-eval-private/runs/untouched-v1/gemini-on-summary.json
 ```
 
+Route A's untouched pasted-text cases ran the same day with `run_untouched_text.py` (frozen generator path, frozen parser binary,
+no network). `rescore_untouched.py` is the correction path for the untouched truth: owner corrections in a separate file,
+applied in memory, saved outputs re-scored offline, never a rerun.
+
 Results: [`results/untouched-taiwan-v1.md`](results/untouched-taiwan-v1.md). It cannot be rerun.
 
 **UK images.** The v1 panel images are no longer on disk and the v2 public selection (60 tuning,

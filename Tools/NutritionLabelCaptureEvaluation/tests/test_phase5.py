@@ -117,5 +117,51 @@ class UntouchedRunGuards(unittest.TestCase):
             inspect_task.route_b_input_allowed({**sealed, "unsealed_for_run": "yes"})
 
 
+class UntouchedCorrectionPath(unittest.TestCase):
+    def truths(self) -> dict:
+        cell = {
+            "nutrient": "fat",
+            "basis": "per_100g",
+            "printed_text": "8.2公克",
+            "comparator": "=",
+            "decimal_text": "8.2",
+            "unit": "公克",
+            "canonical_unit": "g",
+        }
+        return {"t:1": {"case_id": "t:1", "excluded": False, "cells": [cell]}, "t:2": {"case_id": "t:2", "excluded": True, "cells": []}}
+
+    def test_a_correction_changes_a_copy_and_is_logged(self) -> None:
+        import rescore_untouched
+
+        truths = self.truths()
+        change = {"nutrient": "fat", "basis": "per_100g", "was": "8.2公克", "now": {"printed_text": "82公克", "decimal_text": "82"}}
+        corrected, log = rescore_untouched.apply_corrections(truths, [{"case_id": "t:1", "cells": [change]}])
+        self.assertEqual(truths["t:1"]["cells"][0]["decimal_text"], "8.2")  # the frozen truth is untouched
+        self.assertEqual(corrected["t:1"]["cells"][0]["decimal_text"], "82")
+        self.assertEqual((log[0]["before"]["printed_text"], log[0]["after"]["printed_text"]), ("8.2公克", "82公克"))
+
+    def test_ambiguous_stale_or_excluded_corrections_are_refused(self) -> None:
+        import rescore_untouched
+
+        for correction in (
+            {"case_id": "t:1", "cells": [{"nutrient": "fat", "basis": "per_100g", "was": "9公克", "now": {"decimal_text": "9"}}]},
+            {"case_id": "t:1", "cells": [{"nutrient": "fat", "basis": "per_serving", "was": "8.2公克", "now": {}}]},
+            {"case_id": "t:2", "cells": []},
+            {"case_id": "t:3", "cells": []},
+        ):
+            with self.assertRaises(ValueError):
+                rescore_untouched.apply_corrections(self.truths(), [correction])
+
+    def test_the_frozen_truth_hash_is_enforced(self) -> None:
+        import rescore_untouched
+
+        with tempfile.TemporaryDirectory() as folder:
+            changed = Path(folder) / "truth.json"
+            changed.write_text('{"records": []}', encoding="utf-8")
+            with self.assertRaises(SystemExit):
+                rescore_untouched.frozen_truth(changed)
+        self.assertEqual(len([r for r in rescore_untouched.frozen_truth().values() if not r.get("excluded")]), 40)
+
+
 if __name__ == "__main__":
     unittest.main()
