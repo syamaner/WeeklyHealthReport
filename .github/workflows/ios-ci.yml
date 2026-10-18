@@ -223,6 +223,13 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Python 3.11 (Unicode 14.0.0): the Swift parity check compares the frozen gate v2 marker
+      # classes against Python `re` and fails under any other Unicode database (#93).
+      - name: Set up Python 3.11
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
       # Offline: scorers, arithmetic checks, sealed-set guard and contract hashes.
       # No model, provider or Vision call; the Inspect wiring test is skipped here.
       - name: Verify label-capture contract and pure unit tests
