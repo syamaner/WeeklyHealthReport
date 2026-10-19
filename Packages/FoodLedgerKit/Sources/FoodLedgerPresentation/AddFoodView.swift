@@ -11,7 +11,8 @@ public struct AddFoodRecentRowText: Equatable, Sendable {
     public init(_ recent: FoodRecentRelogItem, now: Date, calendar: Calendar) {
         title = recent.name
         let amount = recent.item.lastAmount
-        let unit = amount.unit == .grams ? "g" : amount.unit == .millilitres ? "mL" : (amount.value == 1 ? "piece" : "pieces")
+        let count = recent.item.lastAmountIsServings ? (amount.value == 1 ? "serving" : "servings") : (amount.value == 1 ? "piece" : "pieces")
+        let unit = amount.unit == .grams ? "g" : amount.unit == .millilitres ? "mL" : count
         let shownAmount = amount.unit == .count
             ? "\(FoodDisplayNumber.amount(amount.value)) \(unit)" : FoodDisplayNumber.quantity(amount.value, unit: unit)
         let day: String

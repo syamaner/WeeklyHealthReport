@@ -351,6 +351,15 @@ public enum PastedLabelSavedEntryText {
         }
     }
 
+    /// Where a servings amount's serving size came from: "Serving size 30 g · Printed",
+    /// "… · Corrected by you" or "… · Entered by you". Nil when the amount is not in servings
+    /// through a serving size.
+    public static func servingSizeLine(_ detail: SavedFoodEntryDetail) -> String? {
+        guard let size = detail.servingSize else { return nil }
+        let unit = size.quantity.unit == .millilitres ? "mL" : size.quantity.unit.rawValue
+        return "Serving size \(FoodDisplayNumber.amount(size.quantity.value, fraction: 0...2)) \(unit) · \(NutrientOriginText.tag(size.origin))"
+    }
+
     public static func sourceLine(_ detail: SavedFoodEntryDetail) -> String? {
         guard let manifest = detail.pastedLabel else { return nil }
         let basis = manifest.candidate.headers.first { $0.headerID == manifest.storedHeaderID }?.basis ?? ""

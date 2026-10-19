@@ -110,6 +110,29 @@ public enum PastedLabelServingPolicy {
             && stored.evidenceID == expected.evidenceID
     }
 
+    /// Whether a saved amount was entered in a pasted label's servings: a count recorded through
+    /// either method's conversion, or (v1 case 3) a count with no conversion on a pasted-label
+    /// release. A count on a pasted label with an ordinary measured conversion is not servings.
+    public static func isServingsAmount(enteredUnit: QuantityUnit, conversion: QuantityConversionVersion?, sourceID: String?) -> Bool {
+        guard enteredUnit == .count else { return false }
+        if let conversion { return admittedVersions.contains(conversion.methodVersion.value) }
+        return sourceID == PastedLabelSource.sourceID
+    }
+
+    /// The serving size a stored servings amount went through, and where it came from (printed,
+    /// corrected by you or entered by you). Nil when servings carry no weight or volume (v1 case 3).
+    public static func storedServingSize(_ manifest: PastedLabelManifest, basis: ResolutionBasis)
+        -> (quantity: PositiveQuantity, origin: NutrientValueOrigin)? {
+        let entry = manifest.corrections.first { $0.nutrient == PastedLabelManifest.Correction.servingSize }
+        let origin: NutrientValueOrigin = entry.map { $0.kind == .corrected ? .correctedByYou : .enteredByYou } ?? .printed
+        switch basis {
+        case let .perServing(quantity) where quantity.unit != .count: return (quantity, origin)
+        case .per100Grams: return per100Serving(manifest, unit: .grams).map { ($0, origin) }
+        case .per100Millilitres: return per100Serving(manifest, unit: .millilitres).map { ($0, origin) }
+        default: return nil
+        }
+    }
+
     /// The manifest bound to the candidate through its pasted-label evidence.
     static func manifest(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> PastedLabelManifest? {
         guard let evidence = input.evidence.first(where: { candidate.candidate.evidenceIDs.contains($0.evidenceID)

@@ -11,11 +11,14 @@ public struct FoodRecentItem: Equatable, Sendable {
     public let lastAmount: PositiveQuantity
     /// Energy of that entry, when known.
     public let energyKcal: Double?
+    /// The last amount is a pasted label's servings (#93), not pieces.
+    public let lastAmountIsServings: Bool
 
     public init(logItemID: LogItemID, sourceReleaseID: ExternalIdentifier, recordID: ExternalIdentifier,
-                occurredAt: Date, lastAmount: PositiveQuantity, energyKcal: Double?) {
+                occurredAt: Date, lastAmount: PositiveQuantity, energyKcal: Double?, lastAmountIsServings: Bool = false) {
         self.logItemID = logItemID; self.sourceReleaseID = sourceReleaseID; self.recordID = recordID
         self.occurredAt = occurredAt; self.lastAmount = lastAmount; self.energyKcal = energyKcal
+        self.lastAmountIsServings = lastAmountIsServings
     }
 }
 
@@ -51,9 +54,12 @@ public enum FoodRecentItemsProjection {
             let basis = records.resolutions.first { $0.resolutionID == resolution.resolutionID }?.basis ?? .unknown
             let total = FoodIntakeSummary(contributions: [.init(quantity: head.edibleQuantity, basis: basis, nutrients: resolution.nutrients)])
                 .totals.first { $0.key == .energyConsumed }
+            let sourceID = records.sourceReleases.first { $0.sourceReleaseID == decision.candidate.sourceReleaseID }?.sourceID.value
             let item = FoodRecentItem(logItemID: head.logItemID, sourceReleaseID: decision.candidate.sourceReleaseID,
                 recordID: decision.candidate.recordID, occurredAt: head.occurredAt, lastAmount: amount,
-                energyKcal: total?.incompleteContributions == 0 ? total?.knownAmount : nil)
+                energyKcal: total?.incompleteContributions == 0 ? total?.knownAmount : nil,
+                lastAmountIsServings: PastedLabelServingPolicy.isServingsAmount(enteredUnit: amount.unit, conversion: conversion,
+                                                                                sourceID: sourceID))
             let key = decision.candidate.sourceReleaseID.value + "\u{1F}" + decision.candidate.recordID.value
             if let existing = latest[key], !Self.isMoreRecent(item, than: existing) { continue }
             latest[key] = item

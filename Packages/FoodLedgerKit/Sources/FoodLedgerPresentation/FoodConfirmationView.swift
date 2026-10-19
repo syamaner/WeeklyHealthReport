@@ -81,7 +81,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     /// Why an "Add food details" answer was not carried into a rebuilt pasted-label source.
-    @Published public private(set) var sourceDetailsNotice: String?
+    @Published public internal(set) var sourceDetailsNotice: String?
     public static let sourceDetailsNotCarried = "Your food details could not be kept after this change. Add them again before logging."
 
     /// The whole-pack amount option for a pasted label (contract section 2.3), or nil.
@@ -415,6 +415,31 @@ public final class FoodConfirmationViewModel: ObservableObject {
         return value.first?.isNumber == true ? "about \(value) · Calculated" : "\(value) · Calculated"
     }
 
+    /// A nutrient as shown on Confirm, with a calculated value through the one calculated
+    /// formatter (section 3.5): whole kcal and mg with "about" for an exact amount, an outward
+    /// bound for a bound, and the "Calculated" tag. `consumed` is the amount eaten when the row
+    /// shows intake; `source` true shows the stored source value. Other values are unchanged.
+    public func displayValue(_ key: NutrientKey, _ value: String, consumed: Double? = nil, source: Bool = false) -> String {
+        let nutrients = state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients
+        guard let entry = nutrients.entries.first(where: { $0.key == key }), NutrientDerivation.isCalculated(entry.value) else { return value }
+        let tag = NutrientOriginText.tag(.calculated(rule: ""))
+        let exact: Bool = switch entry.value { case .measured, .augmented: true; default: false }
+        if exact, let consumed {
+            return "\(NutrientOriginText.calculatedAmount(consumed, unit: key.canonicalUnit.rawValue, comparator: "=")) · \(tag)"
+        }
+        if source {
+            let shown = NutrientOriginText.amount(entry.value, origin: .calculated(rule: ""))
+            return shown.hasSuffix(" · \(tag)") ? shown : "\(shown) · \(tag)"
+        }
+        return markingCalculated(key, value)
+    }
+
+    /// The consumed amount behind a compact nutrition row, when the row shows intake.
+    public func consumedAmount(_ key: NutrientKey, _ review: FoodNutritionReviewPresentation) -> Double? {
+        guard review.isConsumed else { return nil }
+        return consumedNutrition.first { $0.key == key }?.knownAmount
+    }
+
     /// The energy the Log button states for a new entry, or nil when it is not complete.
     private var logEnergy: Double? {
         Self.knownConsumedEnergy(state, quantityIsEstimate: state.quantity.directWeight?.basis == .estimated
@@ -475,6 +500,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
 
     public func send(_ action: FoodConfirmationAction) {
         FoodConfirmationReducer.reduce(state: &state, action: action)
+        // The user answered "Add food details" again: the not-carried notice no longer applies.
+        if case .applyCorrection = action { sourceDetailsNotice = nil }
     }
 
     public func save() {
@@ -1067,7 +1094,7 @@ public struct FoodConfirmationView: View {
         return Section(review.title) {
             Text(review.basis).font(.subheadline).foregroundStyle(.secondary)
             ForEach(review.mainRows, id: \.key.rawValue) { row in
-                let value = model.markingCalculated(row.key, row.value)
+                let value = model.displayValue(row.key, row.value, consumed: model.consumedAmount(row.key, review), source: !review.isConsumed)
                 LabeledContent(row.title, value: value)
                     .accessibilityLabel("\(row.title), \(value), \(review.basis)")
             }
@@ -1077,7 +1104,8 @@ public struct FoodConfirmationView: View {
             if !review.isConsumed { Text("Source values. Enter a compatible amount to see your intake.").font(.caption) }
             DisclosureGroup("More nutrients") {
                 ForEach(review.otherRows, id: \.key.rawValue) { row in
-                    LabeledContent(row.title, value: model.markingCalculated(row.key, row.value))
+                    LabeledContent(row.title, value: model.displayValue(row.key, row.value, consumed: model.consumedAmount(row.key, review),
+                                                                        source: !review.isConsumed))
                 }
             }
         }
@@ -1090,7 +1118,7 @@ public struct FoodConfirmationView: View {
                 Text("Source reference values, not the amount eaten. Provenance and bounds are preserved.")
                     .font(.caption)
                 ForEach(model.state.selectedCandidate.candidate.nutrients.entries, id: \.key.rawValue) { entry in
-                    let value = model.markingCalculated(entry.key, Self.nutrientValue(entry))
+                    let value = model.displayValue(entry.key, Self.nutrientValue(entry), source: true)
                     LabeledContent(Self.nutrientLabel(entry.key), value: value)
                         .accessibilityLabel("\(Self.nutrientLabel(entry.key)), \(value)")
                 }
@@ -1100,8 +1128,9 @@ public struct FoodConfirmationView: View {
                 ForEach(model.state.selectedCandidate.candidate.nutrients.entries, id: \.key.rawValue) { entry in
                     let total = totals.first { $0.key == entry.key }
                     LabeledContent(Self.nutrientLabel(entry.key), value: total?.knownAmount.map {
-                        model.markingCalculated(entry.key,
-                            "\(Self.number($0)) \(entry.key.canonicalUnit.rawValue)\(total?.includesEstimates == true ? " estimated" : "")")
+                        model.displayValue(entry.key,
+                            "\(Self.number($0)) \(entry.key.canonicalUnit.rawValue)\(total?.includesEstimates == true ? " estimated" : "")",
+                            consumed: $0)
                     } ?? "Unavailable")
                 }
                 Text("Unknown values remain unknown. Bounds remain intervals and are never shown as exact amounts. Unavailable consumed values require a supported amount conversion and an exact source value.")

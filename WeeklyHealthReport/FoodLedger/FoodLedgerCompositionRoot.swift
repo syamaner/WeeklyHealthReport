@@ -758,7 +758,7 @@ struct PastedLabelFlowView: View {
                     }
                     // Torn down while still pushed (Add food swiped away, or a finish that
                     // replaced the path): the flow has ended, so nothing is kept.
-                    .onDisappear { if showsConfirmation { model.dismissed() } }
+                    .onDisappear { model.confirmDisappeared(stillPushed: showsConfirmation) }
                 }
             }
             .navigationDestination(isPresented: $showsSearch) {
@@ -768,7 +768,7 @@ struct PastedLabelFlowView: View {
             .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root, finish: finish) }
             .onDisappear {
                 // Covered by Confirm, search or barcode: still open. Otherwise it closed.
-                if !showsConfirmation && !showsSearch && !showsBarcode { model.dismissed() }
+                model.labelScreenDisappeared(covered: showsConfirmation || showsSearch || showsBarcode)
             }
     }
 

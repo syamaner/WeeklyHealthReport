@@ -46,6 +46,11 @@ public struct SavedFoodEntryDetail: Sendable {
     /// A pasted label's stored values by key, so a bound can be shown as a bound ("Less than
     /// 0.5 g per 100 g") rather than as an unknown consumed amount. Empty for other routes.
     public let pastedLabelValues: [NutrientKey: NutrientValue]
+    /// The entered amount is a pasted label's servings (#93), not units.
+    public let amountIsServings: Bool
+    /// The serving size those servings went through and its origin; nil when they carry no
+    /// weight or volume, or the amount is not in servings.
+    public let servingSize: (quantity: PositiveQuantity, origin: NutrientValueOrigin)?
 
     public init(stored: StoredFoodConfirmation, isEstimate: Bool, history: [FoodEntryHistoryEvent]) {
         let log = stored.logItemVersion
@@ -79,6 +84,10 @@ public struct SavedFoodEntryDetail: Sendable {
         valueOrigins = manifest.map { PastedLabelValueOrigins.origins(stored.resolutionVersion.nutrients, manifest: $0) } ?? [:]
         pastedLabelValues = manifest == nil ? [:]
             : Dictionary(stored.resolutionVersion.nutrients.entries.map { ($0.key, $0.value) }, uniquingKeysWith: { first, _ in first })
+        amountIsServings = PastedLabelServingPolicy.isServingsAmount(enteredUnit: enteredAmount.unit, conversion: stored.quantityConversion,
+                                                                     sourceID: release?.sourceID.value)
+        servingSize = amountIsServings && stored.quantityConversion != nil
+            ? manifest.flatMap { PastedLabelServingPolicy.storedServingSize($0, basis: stored.resolution.basis) } : nil
     }
 
     /// One scaling rule: `FoodIntakeContribution.isScalable`, as the summary applies it.

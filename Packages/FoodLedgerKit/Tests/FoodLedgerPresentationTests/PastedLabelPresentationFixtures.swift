@@ -123,29 +123,31 @@ enum LabelFixtures {
         return review
     }
 
-    static func builder() -> PastedLabelConfirmation {
+    static func builder(conversions: any PastedLabelConversionChecking = Conversions()) -> PastedLabelConfirmation {
         PastedLabelConfirmation(ids: RandomLedgerIDGenerator(), clock: Clock(value: now), encoder: FoundationCanonicalJSONEncoder(),
-                                digester: SHA256Digester(), conversions: Conversions())
+                                digester: SHA256Digester(), conversions: conversions)
     }
 
     static let details = PastedLabelDetails(name: "Synthetic oat crackers", brand: "Synthetic Mill", fortification: .no)
     static let locale = try! LedgerText("zh_TW")
 
     @MainActor
-    static func source(_ reading: LabelReading = reading(), details: PastedLabelDetails = details) throws -> PastedLabelSourceModel {
-        try PastedLabelSourceModel(review: review(reading), details: details, builder: builder(), locale: locale)
+    static func source(_ reading: LabelReading = reading(), details: PastedLabelDetails = details,
+                       conversions: any PastedLabelConversionChecking = Conversions()) throws -> PastedLabelSourceModel {
+        try PastedLabelSourceModel(review: review(reading), details: details, builder: builder(conversions: conversions), locale: locale)
     }
 
     /// A Confirm wired like the app: an in-memory ledger, the pasted-label conversion checker on
     /// save, and each correction replacing Confirm's source input.
     @MainActor
-    static func confirm(_ source: PastedLabelSourceModel) throws -> (FoodConfirmationViewModel, InMemoryFoodLedgerStore) {
+    static func confirm(_ source: PastedLabelSourceModel,
+                        conversions: any PastedLabelConversionChecking = Conversions()) throws -> (FoodConfirmationViewModel, InMemoryFoodLedgerStore) {
         let store = InMemoryFoodLedgerStore()
         let ids = RandomLedgerIDGenerator()
         let ledger = FoodLedgerService(actorID: try LedgerID("00000000-0000-0000-0000-00000000a000"), committer: store,
             clock: Clock(value: now), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
         let service = FoodConfirmationService(ledger: ledger, reader: store, clock: Clock(value: now), ids: ids,
-            digester: SHA256Digester(), pastedLabelConversions: Conversions())
+            digester: SHA256Digester(), pastedLabelConversions: conversions)
         let input = try XCTUnwrapOrThrow(source.input)
         let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, prefillSourceQuantity: false),
                                               now: { now }) { state in

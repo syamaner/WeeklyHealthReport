@@ -65,7 +65,8 @@ public struct FoodIntakeSummary: Equatable, Sendable {
         }
     }
 
-    static func scale(quantity: PositiveQuantity, basis: ResolutionBasis) -> Double? {
+    /// The factor from the basis to the quantity, or nil when the units differ or the basis is unknown.
+    public static func scale(quantity: PositiveQuantity, basis: ResolutionBasis) -> Double? {
         let value: Double, unit: QuantityUnit
         switch basis {
         case .per100Grams: value = 100; unit = .grams

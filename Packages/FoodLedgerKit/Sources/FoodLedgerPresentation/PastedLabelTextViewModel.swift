@@ -150,6 +150,19 @@ public final class PastedLabelTextViewModel: ObservableObject {
         recordDiagnostics([])
     }
 
+    /// Confirm left the screen. `stillPushed` means the flow ended underneath it (Add food swiped
+    /// away, or a finish that replaced the path), so nothing is kept; otherwise it was Back or
+    /// Edit label text to this screen, which keeps the text, name and reading.
+    public func confirmDisappeared(stillPushed: Bool) {
+        if stillPushed { dismissed() }
+    }
+
+    /// This screen left view. `covered` when Confirm, Search or Barcode is pushed over it (still
+    /// open); otherwise it closed and nothing is kept.
+    public func labelScreenDisappeared(covered: Bool) {
+        if !covered { dismissed() }
+    }
+
     /// The screen closed ("Leave without saving", back, or after Log): nothing is kept.
     public func dismissed() {
         text = ""; name = ""; brand = ""; fortification = .unanswered
