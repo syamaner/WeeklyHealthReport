@@ -36,16 +36,29 @@ public enum PastedLabelServingPolicy {
     /// case-insensitively, the other marks as substrings, and a numeric range.
     public static let approximateWords: Set<String> = ["about", "approx", "approximately", "around", "circa", "roughly"]
     public static let approximateMarks = ["約", "约", "~", "～", "〜", "≈", "≒", "±"]
-    /// A numeric range within the segment: a digit, up to three non-space unit characters (so "30g-35g" and
-    /// "30公克至35公克" count), optional spaces, one of - – ~ ～ 〜 至, optional spaces, a digit.
-    static let rangePattern = try! NSRegularExpression(pattern: #"[0-9][^0-9\s]{0,3}\s*[-–~～〜至]\s*[0-9]"#)
-    /// A listed word or a non-range mark written straight after the quantity: optional spaces, an
-    /// optional opening bracket, optional spaces, then the word (whole, any case, an optional "."
-    /// and closing bracket after it) or one of 約 约 ≈ ≒. "30g approx.", "30g (about 2 biscuits)"
-    /// and "30公克（約2片）" are approximate under this rule.
-    static let trailingWordPattern = try! NSRegularExpression(
-        pattern: #"^\s*[(（]?\s*(?:(?:about|approx|approximately|around|circa|roughly)(?![A-Za-z])\.?\s*[)）]?|[約约≈≒])"#,
-        options: [.caseInsensitive])
+    /// A numeric range within the segment: a digit, optional spaces, up to three non-space unit
+    /// characters, optional spaces, one of - – ~ ～ 〜 至, optional spaces, a digit ("25-30g",
+    /// "30g-35g", "30 g - 35 g", "30公克至35公克").
+    static let rangePattern = try! NSRegularExpression(pattern: #"[0-9]\s*[^0-9\s]{0,3}\s*[-–~～〜至]\s*[0-9]"#)
+    /// Separators allowed before a trailing word or mark: spaces, `,` `，` `、` `/`.
+    static let separators = #"[\s,，、/]*"#
+    /// A listed word (whole, any case, an optional "." and closing bracket after it) or one of
+    /// 約 约 ≈ ≒.
+    static let marker = #"(?:(?:about|approx|approximately|around|circa|roughly)(?![A-Za-z])\.?\s*[)）]?|[約约≈≒])"#
+    /// A word or mark written straight after the quantity, after optional separators and an
+    /// optional opening bracket: "30g approx.", "30g, approx.", "30公克，約", "30g (approx.)".
+    /// Inside a bracket it is subject to the piece-count exception (`countsPieces`).
+    static let trailingWordPattern = try! NSRegularExpression(pattern: "^" + separators + #"[(（]?\s*"# + marker,
+                                                              options: [.caseInsensitive])
+    /// A word or mark straight after a bracket group that directly follows the quantity:
+    /// "30g (2 biscuits) approx.".
+    static let afterBracketWordPattern = try! NSRegularExpression(pattern: #"^\s*[(（][^)）]*[)）]"# + separators + marker,
+                                                                  options: [.caseInsensitive])
+    /// The closed weight and volume units, matched case-insensitively and not followed by a
+    /// letter: the grammar's g, ml, mL, 公克, 毫升, 克, plus gram(s), gramme(s), gm, gms,
+    /// millilitre(s), milliliter(s), mg, kg, oz, ounce(s), fl oz, fl. oz, l, litre(s), liter(s),
+    /// 毫克, 公斤, 公升, 升.
+    static let weightOrVolumeUnits = #"(?:g|ml|公克|毫升|克|grams?|grammes?|gms?|millilit(?:re|er)s?|mg|kg|oz|ounces?|fl\.?\s*oz|l|litres?|liters?|毫克|公斤|公升|升)(?![\p{L}])"#
 
     /// The serving quantity and the method that applies to the selection, or nil.
     public static func resolved(_ input: PopulatedFoodConfirmation,
@@ -200,40 +213,41 @@ public enum PastedLabelServingPolicy {
         guard let match = quantity, let range = Range(match.range, in: value),
               let number = Range(match.range(at: 1), in: value), let matchedUnit = Range(match.range(at: 2), in: value),
               String(value[number]) == decimal, String(value[matchedUnit]) == unit else { return nil }
+        let base = String(value[..<range.upperBound])
         let after = String(value[range.upperBound...])
         let afterRange = NSRange(after.startIndex..., in: after)
-        let tolerance = try? NSRegularExpression(pattern: #"^\s*[±\-–~～〜至]\s*[0-9][0-9.]*\s*(?:"#
-            + NSRegularExpression.escapedPattern(for: unit) + #"(?![\p{L}])|$)"#)
-        if let match = tolerance?.firstMatch(in: after, range: afterRange), let tail = Range(match.range, in: after) {
-            return String(value[..<range.upperBound]) + String(after[tail])
+        func matched(_ pattern: NSRegularExpression?) -> String? {
+            pattern?.firstMatch(in: after, range: afterRange).flatMap { Range($0.range, in: after) }.map { String(after[$0]) }
         }
-        guard let word = trailingWordPattern.firstMatch(in: after, range: afterRange), let tail = Range(word.range, in: after) else {
-            return String(value[..<range.upperBound])
-        }
+        // ± straight after the quantity always joins it: "30g ± 2%", "30 g ±".
+        if let tolerance = matched(plusMinusPattern) { return base + tolerance }
+        // A range mark joins it when its number is followed by the same unit, any listed weight or
+        // volume unit, or the end of the value: "30g-35g", "30g-35 grams", "30g~35".
+        let rangeTail = try? NSRegularExpression(pattern: #"^\s*[-–~～〜至]\s*[0-9][0-9.]*\s*(?:"#
+            + NSRegularExpression.escapedPattern(for: unit) + #"(?![\p{L}])|"# + weightOrVolumeUnits + "|$)", options: [.caseInsensitive])
+        if let tail = matched(rangeTail) { return base + tail }
+        if let tail = matched(afterBracketWordPattern) { return base + tail }
+        guard let tail = matched(trailingWordPattern) else { return base }
         // Inside a bracket, a marker followed by a count of something that is not a weight or
         // volume ("（約2片）", "(about 2 biscuits)") qualifies that count, not the serving size.
-        let marker = String(after[tail])
-        let rest = String(after[tail.upperBound...])
-        if marker.contains(where: { $0 == "(" || $0 == "（" }), countsPieces(rest) {
-            return String(value[..<range.upperBound])
-        }
-        return String(value[..<range.upperBound]) + marker
+        let rest = String(after.dropFirst(tail.count))
+        if tail.contains(where: { $0 == "(" || $0 == "（" }), countsPieces(rest) { return base }
+        return base + tail
     }
 
-    /// A number followed by a token that is not a weight or volume unit: optional spaces, a
-    /// number, optional spaces, a letter, where the number and token are not a weight or volume
-    /// (`weightOrVolumePattern`).
+    static let plusMinusPattern = try! NSRegularExpression(pattern: #"^\s*±"#)
+
+    /// A number followed by a token that is not a weight or volume: optional spaces, a number,
+    /// optional spaces, a letter, where the number and token are not a listed weight or volume
+    /// (`weightOrVolumeUnits`).
     static func countsPieces(_ text: String) -> Bool {
         let range = NSRange(text.startIndex..., in: text)
         return countPattern.firstMatch(in: text, range: range) != nil && weightOrVolumePattern.firstMatch(in: text, range: range) == nil
     }
 
     static let countPattern = try! NSRegularExpression(pattern: #"^\s*[0-9]+(?:\.[0-9]+)?\s*\p{L}"#)
-    /// The grammar's units (g, ml, mL, 公克, 毫升, 克, not followed by a letter), plus a closed
-    /// list of other weight and volume words that keep a bracketed marker approximate.
-    static let weightOrVolumePattern = try! NSRegularExpression(
-        pattern: #"^\s*[0-9]+(?:\.[0-9]+)?\s*(?:(?:g|ml|mL|公克|毫升|克)(?![\p{L}])|(?:grams?|gramme?s?|millilit(?:re|er)s?|mg|kg|oz|l|litres?|liters?|毫克|公斤|公升|升)(?![\p{L}]))"#,
-        options: [.caseInsensitive])
+    static let weightOrVolumePattern = try! NSRegularExpression(pattern: #"^\s*[0-9]+(?:\.[0-9]+)?\s*"# + weightOrVolumeUnits,
+                                                                options: [.caseInsensitive])
 
     /// Whether a serving-size segment is approximate: a listed mark, a listed whole English word,
     /// or a numeric range.

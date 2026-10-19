@@ -81,11 +81,22 @@ final class PastedLabelServingV2ContractTests: XCTestCase {
             ("approximately after the quantity", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30 g approximately", decimalText: "30", unit: "g", canonicalUnit: "g"))),
             ("約 after the quantity", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g 約", decimalText: "30", unit: "g", canonicalUnit: "g"))),
             ("約 and a weight inside the bracket", try F.per100Manifest(servingSize: .init(printedText: "每一份量 30 公克（約30公克）", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
-            ("approx. and a weight inside the bracket", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g (approx. 28g)", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("approx. and a weight inside the bracket", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g (approx. 28g)", decimalText: "28", unit: "g", canonicalUnit: "g"))),
             ("approx. and a weight word inside the bracket", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g (approx. 28 grams)", decimalText: "30", unit: "g", canonicalUnit: "g"))),
             ("約 and a bare number inside the bracket", try F.per100Manifest(servingSize: .init(printedText: "每一份量 30 公克（約2）", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
             ("tolerance with the same unit", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30 g ± 2 g", decimalText: "30", unit: "g", canonicalUnit: "g"))),
             ("tolerance ending the value", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g±2", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("± with a percentage", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g ± 2%", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("± with another weight word", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30 g ± 2 grams", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("± alone", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30 g ±", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("range to a listed weight word", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g-35 grams", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("spaced range", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30 g - 35 g", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("comma then approx.", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g, approx.", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("full-width comma then 約", try F.per100Manifest(servingSize: .init(printedText: "每一份量30公克，約", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
+            ("word after a bracket group", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g (2 biscuits) approx.", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("about and ounce in the bracket", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g (about 1 ounce)", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("approx. and gm in the bracket", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g (approx. 28 gm)", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("about and fl oz in the bracket", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g (about 2 fl oz)", decimalText: "30", unit: "g", canonicalUnit: "g"))),
             ("quantity not found", try F.per100Manifest(servingSize: .init(printedText: "每一份量三十公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
             ("ml against per 100 g", try F.per100Manifest(servingSize: Self.printed250ml)),
             ("g against per 100 ml", try F.per100Manifest(servingSize: Self.printed30g, basis: "per_100ml"))
@@ -125,7 +136,7 @@ final class PastedLabelServingV2ContractTests: XCTestCase {
         XCTAssertEqual(PastedLabelServingPolicy.servingSegment(.init(printedText: "每一份量30公克，本包裝含約10份", decimalText: "30",
                                                                      unit: "公克", canonicalUnit: "g")), "30公克")
         XCTAssertEqual(PastedLabelServingPolicy.servingSegment(.init(printedText: "Serving size 30g ± 2g", decimalText: "30",
-                                                                     unit: "g", canonicalUnit: "g")), "30g ± 2g")
+                                                                     unit: "g", canonicalUnit: "g")), "30g ±", "± always joins the quantity")
         XCTAssertEqual(PastedLabelServingPolicy.servingSegment(.init(printedText: "Serving size 3 gummies (approx. 3g)", decimalText: "3",
                                                                      unit: "g", canonicalUnit: "g")), "3 gummies (approx. 3g",
                        "the bracketed quantity, as the parser binds it")
