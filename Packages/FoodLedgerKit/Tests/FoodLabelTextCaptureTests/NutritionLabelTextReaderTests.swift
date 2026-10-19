@@ -19,9 +19,15 @@ final class NutritionLabelTextReaderTests: XCTestCase {
                                 conversions: NutritionLabelConversionChecker())
     }
 
+    private struct NotUsable: Error, CustomStringConvertible { let description: String }
+
+    /// The usable review of `text`. A decline is a test failure, never a skip, so a flag that
+    /// regresses into a decline fails here.
     private func review(_ text: String, file: StaticString = #filePath, line: UInt = #line) throws -> PastedLabelReview {
-        guard case let .usable(review) = reader.read(text) else {
-            throw XCTSkip("not usable: \(reader.read(text).declineCodes)")
+        let outcome = reader.read(text)
+        guard case let .usable(review) = outcome else {
+            XCTFail("Expected a usable reading, got a decline: \(outcome.declineCodes)", file: file, line: line)
+            throw NotUsable(description: "declined: \(outcome.declineCodes)")
         }
         return review
     }

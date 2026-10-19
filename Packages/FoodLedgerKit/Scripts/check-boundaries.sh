@@ -36,13 +36,32 @@ files_importing() {
     if [[ -d "$dir" ]]; then dirs+=("$dir"); fi
   done
   if [[ ${#dirs[@]} -eq 0 ]]; then return 0; fi
-  grep -rlE --include='*.swift' "${import_attributes}${module}([.[:space:]]|$)" "${dirs[@]}" || true
+  grep -rlE --include='*.swift' "${import_attributes}${module}([.;[:space:]]|$)" "${dirs[@]}" || true
 }
 
-# Each target declaration in Package.swift on one line, comments removed.
+# Each top-level target declaration of Package.swift's `targets:` argument on one line, comments
+# removed. Brackets are tracked, so a `.target(name:)` dependency inside a declaration never
+# starts a new one, and the `targets:` lists of products are not mistaken for the argument.
 package_targets() {
-  sed -e 's://.*$::' "$1" | tr '\n' ' ' \
-    | awk '{ gsub(/\.(testTarget|executableTarget|target)\(/, "\n&"); print }' | sed -n '2,$p'
+  # A comment starts a line or follows whitespace; `//` inside a URL string follows `:`.
+  sed -E 's:(^|[[:space:]])//.*$::' "$1" | tr '\n' ' ' | awk '
+    {
+      s = $0; n = length(s); depth = 0; inside = 0; started = 0; out = ""
+      for (k = 1; k <= n; k++) {
+        c = substr(s, k, 1)
+        if (!inside && depth == 1 && substr(s, k, 8) == "targets:") { inside = 1 }
+        if (inside && depth == 2 && c == "." && match(substr(s, k), /^\.(testTarget|executableTarget|target)\(/)) {
+          if (started) print out
+          out = ""; started = 1
+        }
+        if (c == "(" || c == "[") depth++
+        else if (c == ")" || c == "]") {
+          depth--
+          if (inside && depth == 1) { if (started) print out; exit }
+        }
+        if (started) out = out c
+      }
+    }'
 }
 
 # Pasted nutrition label (docs/pasted-nutrition-label-v1.md section 8.2, decision 10): only the
@@ -76,7 +95,14 @@ check_label_reader_edges() {
     violations+="FoodLedgerPresentation must not import FoodLabelTextCapture"$'\n'
   fi
 
+  local declarations
+  declarations="$(package_targets "$pkg/Package.swift")"
+  # Fail closed: a manifest the scan cannot split into target declarations is not "no edges".
+  if [[ -z "$declarations" || "$declarations" != *'name:'* ]]; then
+    violations+="Package.swift: no target declarations could be read"$'\n'
+  fi
   while IFS= read -r line; do
+    if [[ -z "$line" ]]; then continue; fi
     name="$(sed -nE 's/^[^"]*name:[[:space:]]*"([A-Za-z0-9_]+)".*/\1/p' <<< "$line")"
     rest="$(sed -E 's/name:[[:space:]]*"[A-Za-z0-9_]+"//' <<< "$line")"
     for dep in NutritionLabelParsing FoodLabelTextCapture; do
@@ -87,7 +113,7 @@ check_label_reader_edges() {
       esac
       if [[ ! "$name" =~ $allowed ]]; then violations+="Package.swift: $name depends on $dep"$'\n'; fi
     done
-  done < <(package_targets "$pkg/Package.swift")
+  done <<< "$declarations"
 
   for file in "$app"/*.xcodeproj/project.pbxproj; do
     if [[ -f "$file" ]] && grep -q 'productName = NutritionLabelParsing;' "$file"; then
@@ -115,6 +141,13 @@ self_test_label_reader_edges() {
   cat > "$pkg/Package.swift" <<'SWIFT'
 let package = Package(
     name: "FoodLedgerKit",
+    products: [
+        .library(name: "NutritionLabelParsing", targets: ["NutritionLabelParsing"]),
+        .library(name: "FoodLabelTextCapture", targets: ["FoodLabelTextCapture"])
+    ],
+    dependencies: [
+        .package(url: "https://example.invalid/fixture.git", exact: "1.0.0") // a URL and a trailing comment
+    ],
     targets: [
         .executableTarget(name: "NutritionLabelTextParse", dependencies: ["NutritionLabelParsing"], path: "Tools/NutritionLabelTextParse"),
         .target(name: "NutritionLabelParsing"),
@@ -142,7 +175,8 @@ SWIFT
   fi
 
   local fixture target fpkg
-  for fixture in testable struct_form implementation_only package_edge app_import presentation_adapter app_link; do
+  for fixture in testable struct_form implementation_only package_edge package_target_edge package_byname_edge \
+      package_product_edge package_adapter_edge package_unreadable app_import app_import_semicolon presentation_adapter app_link; do
     target="$scratch/$fixture"
     cp -R "$base" "$target"
     fpkg="$target/Packages/FoodLedgerKit"
@@ -153,7 +187,21 @@ SWIFT
       package_edge)
         sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", "NutritionLabelParsing"]/' \
           "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      package_target_edge)
+        sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", .target(name: "NutritionLabelParsing")]/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      package_byname_edge)
+        sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: [.byName(name: "NutritionLabelParsing"), "FoodLedgerDomain"]/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      package_product_edge)
+        sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", .product(name: "NutritionLabelParsing", package: "FoodLedgerKit")]/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
+      package_unreadable) echo 'let package = Package(name: "FoodLedgerKit")' > "$fpkg/Package.swift" ;;
+      package_adapter_edge)
+        sed 's/dependencies: \["FoodLedgerDomain"\]/dependencies: ["FoodLedgerDomain", .target(name: "FoodLabelTextCapture")]/' \
+          "$pkg/Package.swift" > "$fpkg/Package.swift" ;;
       app_import) echo 'import NutritionLabelParsing' > "$target/WeeklyHealthReport/Leak.swift" ;;
+      app_import_semicolon) echo 'import NutritionLabelParsing; import Foundation' > "$target/WeeklyHealthReport/Leak.swift" ;;
       presentation_adapter) echo 'import FoodLabelTextCapture' > "$fpkg/Sources/FoodLedgerPresentation/Leak.swift" ;;
       app_link) echo 'productName = NutritionLabelParsing;' >> "$target/WeeklyHealthReport.xcodeproj/project.pbxproj" ;;
     esac

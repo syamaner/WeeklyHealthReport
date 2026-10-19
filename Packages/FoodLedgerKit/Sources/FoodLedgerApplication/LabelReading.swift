@@ -133,16 +133,23 @@ public enum PastedLabelLaunchScope {
 /// 6.5). A header (or its serving wording) for the food as prepared or drained is an identity
 /// difference and declines `basis_state_not_supported`.
 public enum PastedLabelBasisState {
-    /// Lowercased substrings that mark an as-prepared or drained column (沖泡, 瀝乾, "as
-    /// prepared", "drained").
-    public static let markers: [String] = ["prepared", "drained", "沖泡", "瀝乾"]
+    /// English markers, matched as whole words, case-insensitively: "unprepared" and "undrained"
+    /// do not match (owner, 19 October 2026; contract section 8.8).
+    public static let wordMarkers: [String] = ["prepared", "drained"]
+    /// Traditional Chinese markers, matched as substrings.
+    public static let substringMarkers: [String] = ["沖泡", "瀝乾"]
 
     public static func isAsSold(_ candidate: PastedLabelManifest.Candidate) -> Bool {
         let texts = candidate.headers.flatMap { [$0.printedText, $0.servingConversion ?? ""] }
-        return !texts.contains { text in
-            let lowered = text.lowercased()
-            return markers.contains { lowered.contains($0) }
-        }
+        return !texts.contains(where: marks)
+    }
+
+    /// Whether one printed header or serving wording marks the as-prepared or drained state.
+    public static func marks(_ text: String) -> Bool {
+        if substringMarkers.contains(where: text.contains) { return true }
+        // A word is a maximal run of letters; anything else (space, digit, punctuation) ends it.
+        let words = text.lowercased().split { !$0.isLetter }
+        return words.contains { wordMarkers.contains(String($0)) }
     }
 }
 

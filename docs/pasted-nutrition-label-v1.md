@@ -510,7 +510,7 @@ Tests 45 to 48 ride with the PR that builds their code: 45 with PR 1 (conversion
 
 - **`flags_shown`** records the G3 to G6 flags still shown at Log. A flag whose row, cell or serving line the user has entered or corrected is no longer shown, so it is left out; the entry itself is in `corrections`.
 - **Warning codes** in `warnings_shown` take the form `<check>:<basis>[:<nutrient>][:<child>]` for each failed `label-arithmetic-checks-v1` check, for example `energy:per_100g` or `subrow_not_above_parent:per_100g:sugars`.
-- **Basis-state markers** for `basis_state_not_supported` (section 6.5) are "prepared", "drained", 沖泡 and 瀝乾, matched case-insensitively in a header's printed text or its serving wording.
+- **Basis-state markers** for `basis_state_not_supported` (section 6.5) are "prepared", "drained", 沖泡 and 瀝乾, looked for in a header's printed text and its serving wording. The English markers match whole words only, case-insensitively (a word is a run of letters), so "unprepared", "undrained" and "preparedness" do not match; 沖泡 and 瀝乾 match as substrings (owner, in session, 19 October 2026).
 
 ## 9. Measuring real pasted text without collecting user data
 

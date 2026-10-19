@@ -1914,7 +1914,7 @@ One `claude-opus-5-5` implementation subagent (branch `feat/93-pasted-label-pr3-
 
 No subagents were launched; the orchestrator's usage is outside the row. This ledger edit, the commit, the push and the PR are outside the row. No OpenRouter or other provider call was made.
 
-Pricing as in the previous sections (checked 11 October 2026, not re-checked on 18 October 2026): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+Pricing: the rates checked on 11 October 2026, as in the previous sections. They were not re-checked on the day of this phase (18 October 2026), so the figure below uses the 11 October rates: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |

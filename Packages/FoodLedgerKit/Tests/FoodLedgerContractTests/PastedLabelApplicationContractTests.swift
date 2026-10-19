@@ -310,6 +310,28 @@ final class PastedLabelApplicationContractTests: XCTestCase {
                        ["column_count_mismatch", "required_basis_missing", "required_row_missing", "required_serving_declaration_missing"])
     }
 
+    // MARK: 28. Basis-state markers (contract section 8.8)
+
+    func test28EnglishBasisStateMarkersMatchWholeWordsAndChineseMarkersMatchSubstrings() throws {
+        for text in ["Per 100ml as prepared", "PREPARED", "per serving (prepared)", "Drained weight", "100g drained,",
+                     "每100毫升（沖泡後）", "每100公克(瀝乾)", "沖泡"] {
+            XCTAssertTrue(PastedLabelBasisState.marks(text), text)
+        }
+        for text in ["Per 100g unprepared", "UNDRAINED", "preparedness", "Per 100g", "每100公克", "每份", "drainedx"] {
+            XCTAssertFalse(PastedLabelBasisState.marks(text), text)
+        }
+        let candidate = try F.candidate()
+        func with(header: String) -> PastedLabelManifest.Candidate {
+            .init(route: candidate.route, inputSHA256: candidate.inputSHA256, declined: false, declineReasons: [], wouldMarkReady: false,
+                  language: candidate.language, servingSize: candidate.servingSize, servingsPerPack: candidate.servingsPerPack,
+                  headers: [candidate.headers[0], .init(headerID: "h2", printedText: header, basis: "per_100g", servingConversion: nil)],
+                  cells: candidate.cells, warnings: [])
+        }
+        XCTAssertEqual(PastedLabelReader.classify(try R.reading(candidate: with(header: "Per 100g unprepared")), pastedText: F.pastedText).declineCodes, [])
+        XCTAssertEqual(PastedLabelReader.classify(try R.reading(candidate: with(header: "Per 100g as prepared")), pastedText: F.pastedText).declineCodes,
+                       ["basis_state_not_supported"])
+    }
+
     // MARK: 19. Reuse reads no text
 
     /// Test 19 (contract section 6.4): reuse in v1 is through Recent foods and Favourites, with
