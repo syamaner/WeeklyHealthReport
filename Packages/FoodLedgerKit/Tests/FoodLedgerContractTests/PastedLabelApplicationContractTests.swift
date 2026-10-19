@@ -310,6 +310,77 @@ final class PastedLabelApplicationContractTests: XCTestCase {
                        ["column_count_mismatch", "required_basis_missing", "required_row_missing", "required_serving_declaration_missing"])
     }
 
+    // MARK: G6 servings per pack, entered (contract section 3.2)
+
+    func testAMissingServingsPerPackIsEnteredAsEvidenceOnBothStoresAndReencodesUnchanged() throws {
+        let full = try F.candidate()
+        let noPack = PastedLabelManifest.Candidate(route: full.route, inputSHA256: full.inputSHA256, declined: false, declineReasons: [],
+            wouldMarkReady: false, language: full.language, servingSize: full.servingSize, servingsPerPack: nil,
+            headers: full.headers, cells: full.cells, warnings: [])
+        let g6 = LabelReading.Flag(code: "required_serving_declaration_missing", concerns: "servings_per_pack")
+        let review = try R.review(R.reading(candidate: noPack, gate: .init(format: "taiwan_nutrition_labelling", skipped: nil,
+                                                                         hardDeclines: [], flags: [g6])))
+        XCTAssertEqual(review.flags, [g6], "G6 is a flag, never a decline")
+        let clockTime = Date(timeIntervalSince1970: 1_700_000_700)
+        let entry = try R.builder(at: clockTime).correction("servings_per_pack",
+            value: .init(decimalText: "8", unit: "count", comparator: "="), in: review)
+        XCTAssertEqual(entry, .init(kind: .entered, nutrient: "servings_per_pack", rowID: nil, headerID: "h2", recognised: nil,
+                                    corrected: .init(decimalText: "8", unit: "count", comparator: "="), at: clockTime))
+        for bad in [PastedLabelManifest.Correction.Value(decimalText: "8", unit: "g", comparator: "="),
+                    .init(decimalText: "0", unit: "count", comparator: "="), .init(decimalText: "8", unit: "count", comparator: "<")] {
+            XCTAssertThrowsError(try R.builder().correction("servings_per_pack", value: bad, in: review), "\(bad)")
+        }
+        // A printed servings-per-pack line is never overwritten.
+        XCTAssertThrowsError(try R.builder().correction("servings_per_pack",
+            value: .init(decimalText: "8", unit: "count", comparator: "="), in: R.review(R.reading())))
+
+        let unfilled = try R.input(review)
+        let filled = try R.input(review, corrections: [entry])
+        let manifest = try R.manifest(filled)
+        XCTAssertEqual(manifest.corrections, [entry])
+        XCTAssertEqual(manifest.flagsShown, [], "The entered line resolves its flag")
+        XCTAssertEqual(try R.manifest(unfilled).flagsShown, [.init(code: "required_serving_declaration_missing", concerns: "servings_per_pack")])
+        // Evidence only: every nutrient value is the same (provenance differs only by the manifest hash).
+        func values(_ input: PopulatedFoodConfirmation) -> [String] {
+            input.candidates[0].candidate.nutrients.entries.map { entry in
+                switch entry.value {
+                case let .measured(exact): "\(entry.key.rawValue)=\(exact.amount)"
+                case let .bounded(bounds): "\(entry.key.rawValue)<\(String(describing: bounds.upper))"
+                default: "\(entry.key.rawValue):\(entry.value.provenance.isEmpty ? "unknown" : "other")"
+                }
+            }
+        }
+        XCTAssertEqual(values(filled), values(unfilled))
+        XCTAssertEqual(filled.candidates[0].candidate.identity.servingBasis, unfilled.candidates[0].candidate.identity.servingBasis)
+        // The stored bytes decode and re-encode unchanged.
+        guard case let .text(payload) = filled.evidence[0].originalPayload else { return XCTFail() }
+        let bytes = Data(payload.value.utf8)
+        XCTAssertEqual(try LedgerFixtures.encoder.encode(try XCTUnwrap(PastedLabelManifest.decode(bytes))), bytes)
+
+        // The verifier refuses an entered value beside a printed line, a second entry, or a corrected kind.
+        let printed = try F.manifest(corrections: [entry])
+        XCTAssertThrowsError(try F.input(printed), "The label prints servings per pack")
+        let twice = PastedLabelManifest(pastedText: manifest.pastedText, pastedTextSHA256: manifest.pastedTextSHA256,
+            parserVersion: manifest.parserVersion, gateVersion: manifest.gateVersion, arithmeticVersion: manifest.arithmeticVersion,
+            conversionVersion: manifest.conversionVersion, labelFormat: manifest.labelFormat, launchScope: manifest.launchScope,
+            identityMapping: manifest.identityMapping, candidate: manifest.candidate, storedHeaderID: manifest.storedHeaderID,
+            conversions: manifest.conversions, flagsShown: [], corrections: [entry, entry], warningsShown: [],
+            name: manifest.name, brand: manifest.brand)
+        XCTAssertThrowsError(try F.input(twice))
+
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let service = try F.service(harness)
+            let saved = try service.save(F.state(filled), operationID: LedgerFixtures.operationID(9_980))
+            XCTAssertEqual(saved.evidence, filled.evidence, harness.name)
+            let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID), harness.name)
+            XCTAssertEqual(reopened.input.candidates[0], filled.candidates[0], harness.name)
+            guard case let .text(stored) = try XCTUnwrap(harness.reader.evidence(id: filled.evidence[0].evidenceID), harness.name)
+                .originalPayload else { return XCTFail() }
+            XCTAssertEqual(Data(stored.value.utf8), bytes, "Stored verbatim (\(harness.name))")
+        }
+    }
+
     // MARK: 28. Basis-state markers (contract section 8.8)
 
     func test28EnglishBasisStateMarkersMatchWholeWordsAndChineseMarkersMatchSubstrings() throws {

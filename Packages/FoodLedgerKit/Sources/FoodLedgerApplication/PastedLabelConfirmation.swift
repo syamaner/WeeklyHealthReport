@@ -50,6 +50,14 @@ public struct PastedLabelConfirmation: Sendable {
                            in review: PastedLabelReview) throws -> PastedLabelManifest.Correction {
         let candidate = review.reading.candidate
         let stored = review.storedHeaderID
+        if nutrient == PastedLabelManifest.Correction.servingsPerPack {
+            // Fillable only when the label prints no servings-per-pack line (G6); never a correction.
+            guard candidate.servingsPerPack == nil else { throw PastedLabelConfirmationError.notCorrectable(nutrient) }
+            guard value.comparator == "=", value.unit == "count", let count = PastedLabelSource.amount(value.decimalText), count > 0 else {
+                throw PastedLabelConfirmationError.invalidValue(nutrient)
+            }
+            return .init(kind: .entered, nutrient: nutrient, rowID: nil, headerID: stored, recognised: nil, corrected: value, at: clock.now())
+        }
         if nutrient == PastedLabelManifest.Correction.servingSize {
             guard value.comparator == "=", ["g", "ml"].contains(value.unit),
                   PastedLabelSource.quantity(value.decimalText, unit: value.unit) != nil else {
@@ -105,8 +113,8 @@ public struct PastedLabelConfirmation: Sendable {
             if let nutrient = flag.nutrient {
                 return !(resolved.contains(nutrient) && (flag.headerID == nil || flag.headerID == review.storedHeaderID))
             }
-            return !(flag.code == PastedLabelCodes.requiredServingDeclarationMissing && flag.concerns == "serving_size"
-                     && resolved.contains(PastedLabelManifest.Correction.servingSize))
+            return !(flag.code == PastedLabelCodes.requiredServingDeclarationMissing && resolved.contains(flag.concerns)
+                     && [PastedLabelManifest.Correction.servingSize, PastedLabelManifest.Correction.servingsPerPack].contains(flag.concerns))
         }.map { PastedLabelManifest.Flag(code: $0.code, concerns: $0.concerns) }
     }
 
