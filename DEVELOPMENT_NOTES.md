@@ -1990,3 +1990,17 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-19T12:17:27Z` → `2026-10-19T14:29:55Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 2,591,215 5-minute, 0 1-hour. Exact API-equivalent USD 19.833822. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19e: Claude Code pasted nutrition label serving v2, invariant review fix round
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the invariant review of #275. Runs from the fix round's start (`2026-10-19T14:39:28Z`, captured with `date -u`) to `2026-10-19T15:20:44Z`, just before this ledger edit. It covers the closed v2 approximate serving-size rule (B1) with its contract text and tests, the Food Log bound row tests for other sources and the open zero bound (L-a), the Copy all and Developer tools check (L-b, no change), and every gate. The first PR's ledger edit, rebase, push and PR (between the two windows) and this round's ledger edit, commit, push and PR update are outside both rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 invariant review fix round (#93), implementation subagent | 11,942,514 (10,801,830) | 1,140,622 | 11,704 | 11,954,218 | $8.10 |
+
+Boundary: `2026-10-19T14:39:28Z` → `2026-10-19T15:20:44Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,140,622 5-minute, 0 1-hour. Exact API-equivalent USD 8.097804. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
