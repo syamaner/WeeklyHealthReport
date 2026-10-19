@@ -204,10 +204,36 @@ public enum PastedLabelServingPolicy {
         let afterRange = NSRange(after.startIndex..., in: after)
         let tolerance = try? NSRegularExpression(pattern: #"^\s*[±\-–~～〜至]\s*[0-9][0-9.]*\s*(?:"#
             + NSRegularExpression.escapedPattern(for: unit) + #"(?![\p{L}])|$)"#)
-        let tail = (tolerance?.firstMatch(in: after, range: afterRange) ?? trailingWordPattern.firstMatch(in: after, range: afterRange))
-            .flatMap { Range($0.range, in: after) }.map { String(after[$0]) } ?? ""
-        return String(value[..<range.upperBound]) + tail
+        if let match = tolerance?.firstMatch(in: after, range: afterRange), let tail = Range(match.range, in: after) {
+            return String(value[..<range.upperBound]) + String(after[tail])
+        }
+        guard let word = trailingWordPattern.firstMatch(in: after, range: afterRange), let tail = Range(word.range, in: after) else {
+            return String(value[..<range.upperBound])
+        }
+        // Inside a bracket, a marker followed by a count of something that is not a weight or
+        // volume ("（約2片）", "(about 2 biscuits)") qualifies that count, not the serving size.
+        let marker = String(after[tail])
+        let rest = String(after[tail.upperBound...])
+        if marker.contains(where: { $0 == "(" || $0 == "（" }), countsPieces(rest) {
+            return String(value[..<range.upperBound])
+        }
+        return String(value[..<range.upperBound]) + marker
     }
+
+    /// A number followed by a token that is not a weight or volume unit: optional spaces, a
+    /// number, optional spaces, a letter, where the number and token are not a weight or volume
+    /// (`weightOrVolumePattern`).
+    static func countsPieces(_ text: String) -> Bool {
+        let range = NSRange(text.startIndex..., in: text)
+        return countPattern.firstMatch(in: text, range: range) != nil && weightOrVolumePattern.firstMatch(in: text, range: range) == nil
+    }
+
+    static let countPattern = try! NSRegularExpression(pattern: #"^\s*[0-9]+(?:\.[0-9]+)?\s*\p{L}"#)
+    /// The grammar's units (g, ml, mL, 公克, 毫升, 克, not followed by a letter), plus a closed
+    /// list of other weight and volume words that keep a bracketed marker approximate.
+    static let weightOrVolumePattern = try! NSRegularExpression(
+        pattern: #"^\s*[0-9]+(?:\.[0-9]+)?\s*(?:(?:g|ml|mL|公克|毫升|克)(?![\p{L}])|(?:grams?|gramme?s?|millilit(?:re|er)s?|mg|kg|oz|l|litres?|liters?|毫克|公斤|公升|升)(?![\p{L}]))"#,
+        options: [.caseInsensitive])
 
     /// Whether a serving-size segment is approximate: a listed mark, a listed whole English word,
     /// or a numeric range.
