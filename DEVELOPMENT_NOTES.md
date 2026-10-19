@@ -2032,3 +2032,17 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-19T17:52:35Z` → `2026-10-19T20:13:11Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 5,785,056 5-minute, 0 1-hour (long gate waits expired the prompt cache). Exact API-equivalent USD 32.4728052. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19h: Claude Code pasted nutrition label serving v2, bracketed piece-count round
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the orchestrator's change to the v2 serving-size rule (a bracketed marker on a piece count stays exact). Runs from the round's start (`2026-10-19T20:14:50Z`, captured with `date -u`) to `2026-10-19T20:53:19Z`, just before this ledger edit. It covers the rule, contract and test changes and one full gate run. The previous round's ledger edit, push and PR update and this round's are outside the rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 bracketed piece-count round (#93), implementation subagent | 7,464,063 (5,840,070) | 1,623,965 | 1,282 | 7,465,345 | $9.31 |
+
+Boundary: `2026-10-19T20:14:50Z` → `2026-10-19T20:53:19Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,623,965 5-minute, 0 1-hour. Exact API-equivalent USD 9.313591. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
