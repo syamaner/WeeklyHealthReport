@@ -2018,3 +2018,17 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-19T16:32:38Z` → `2026-10-19T17:46:09Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 3,055,743 5-minute, 0 1-hour (the long gate waits expired the prompt cache, hence the high write share). Exact API-equivalent USD 16.5335826. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19g: Claude Code pasted nutrition label serving v2, final review and QA lows round
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the final review of #275 (the v2 serving-size segment bound to the parser's quantity, its closed tails, the grammar parity test) and the final journey QA lows (Recent row energy bound, mL default and hint, "mL" in copy). Runs from the round's start (`2026-10-19T17:52:35Z`, captured with `date -u`) to `2026-10-19T20:13:11Z`, just before this ledger edit. It covers the code, contract and test changes and two full gate runs (after the segment fix, then after the lows), including time lost to wait loops that matched their own command lines and were stopped. The previous round's ledger edit, push and PR update and this round's ledger edit, push and PR update are outside the rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 final review and QA lows round (#93), implementation subagent | 22,763,696 (16,978,546) | 5,785,056 | 7,572 | 22,771,268 | $32.47 |
+
+Boundary: `2026-10-19T17:52:35Z` → `2026-10-19T20:13:11Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 5,785,056 5-minute, 0 1-hour (long gate waits expired the prompt cache). Exact API-equivalent USD 32.4728052. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
