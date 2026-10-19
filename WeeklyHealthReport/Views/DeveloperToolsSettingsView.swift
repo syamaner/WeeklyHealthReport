@@ -44,7 +44,7 @@ private struct FoodSearchDiagnosticsSection: View {
     @ObservedObject var log: FoodSearchDiagnosticsLog
     var body: some View {
         Section {
-            if log.searchLines.isEmpty && log.webLookupLines.isEmpty {
+            if log.searchLines.isEmpty && log.webLookupLines.isEmpty && log.pastedLabelLines.isEmpty {
                 Text("No search in this session yet.").foregroundStyle(.secondary)
             }
             if !log.searchLines.isEmpty {
@@ -55,6 +55,12 @@ private struct FoodSearchDiagnosticsSection: View {
             if !log.webLookupLines.isEmpty {
                 DisclosureGroup("Last web lookup") {
                     ForEach(Array(log.webLookupLines.enumerated()), id: \.offset) { Text($0.element).font(.caption).textSelection(.enabled) }
+                }
+            }
+            if !log.pastedLabelLines.isEmpty {
+                // Only while the label text screen is open; cleared when it closes (#93).
+                DisclosureGroup("Pasted label reader") {
+                    ForEach(Array(log.pastedLabelLines.enumerated()), id: \.offset) { Text($0.element).font(.caption).textSelection(.enabled) }
                 }
             }
         } header: { Text("Search details") } footer: { Text("Kept in memory for this session only.") }

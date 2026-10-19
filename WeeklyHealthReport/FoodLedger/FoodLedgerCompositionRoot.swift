@@ -40,9 +40,9 @@ final class FoodLedgerCompositionRoot {
     private var activeInventory: LocalInventoryViewModel?
     private var inventoryService: LocalInventoryService?
     private var activeReresolution: FoodReresolutionViewModel?
-    /// Pasted nutrition label (#93, PR 3): the reader and the confirmation builder behind their
+    /// Pasted nutrition label (#93): the reader and the confirmation builder behind their
     /// application ports. The parser is reached only through the `FoodLabelTextCapture` adapter
-    /// wired here; the label text screen (PR 4) uses these.
+    /// wired here; the label text screen and Confirm reach them through `pastedLabelTextModel()`.
     let pastedLabelReader: PastedLabelReader
     let pastedLabelConfirmation: PastedLabelConfirmation
 
@@ -443,6 +443,26 @@ final class FoodLedgerCompositionRoot {
     /// removes through the Food Log port, with the Food Log's fixed removal reason.
     private(set) lazy var loggedBanner = FoodLoggedBannerModel(store: foodLogStore)
 
+    /// The label text screen's model (#93): reads on device through the application reader and
+    /// builds Confirm's pasted-label source through the application builder. Its Developer tools
+    /// lines live only while the screen is open.
+    func pastedLabelTextModel(locale: Locale = .current) -> PastedLabelTextViewModel {
+        let reader = pastedLabelReader, builder = pastedLabelConfirmation, diagnostics = searchDiagnostics
+        let identifier = locale.identifier.isEmpty ? "und" : locale.identifier
+        return PastedLabelTextViewModel(read: { reader.read($0) }, makeConfirm: { review, details in
+            try PastedLabelSourceModel(review: review, details: details, builder: builder, locale: LedgerText(identifier))
+        }, recordDiagnostics: { diagnostics.recordPastedLabel($0) })
+    }
+
+    /// Confirm for a pasted label: the same Confirm, Log and banner as every single-food route,
+    /// with the editable source section. Each correction replaces Confirm's source input.
+    func pastedLabelConfirmation(_ model: FoodConfirmationViewModel, source: PastedLabelSourceModel,
+                                 editLabelText: @escaping () -> Void, leave: @escaping () -> Void) -> FoodConfirmationView {
+        source.onInputChange = { [weak model] input in model?.replaceSourceInput(input) }
+        return FoodConfirmationView(model: model, pastedLabel: source, editLabelText: editLabelText,
+                                    logged: { [banner = loggedBanner] in banner.show($0) }, leave: leave)
+    }
+
     /// Confirm for a new single food: Log saves, leaves through `leave` (the exit Done uses) and
     /// shows the banner on the destination. List import and Edit build Confirm without it.
     func singleFoodConfirmation(_ model: FoodConfirmationViewModel, leave: @escaping () -> Void) -> FoodConfirmationView {
@@ -634,6 +654,7 @@ struct AddFoodFlowView: View {
     @State private var showsBarcode = false
     @State private var showsList = false
     @State private var showsFavourites = false
+    @State private var showsLabel = false
     @State private var confirmationModel: FoodConfirmationViewModel?
     @State private var showsConfirmation = false
     @State private var relogFailed = false
@@ -653,6 +674,7 @@ struct AddFoodFlowView: View {
                     search: { submittedQuery = $0; showsSearch = true },
                     scanBarcode: { showsBarcode = true },
                     pasteOrDictate: { showsList = true },
+                    pasteLabel: { showsLabel = true },
                     favourites: { showsFavourites = true },
                     favouriteItems: quickAddItems,
                     quickAdd: { quickAddRequest = $0 },
@@ -680,6 +702,11 @@ struct AddFoodFlowView: View {
             else { ContentUnavailableView("Food list unavailable", systemImage: "exclamationmark.triangle") }
         }
         .navigationDestination(isPresented: $showsFavourites) { favouritesFlow }
+        .navigationDestination(isPresented: $showsLabel) {
+            PastedLabelFlowView(root: root, finish: finish) {
+                showsLabel = false; now = root.confirmationNow; recents = root.recentFoods()
+            }
+        }
         .navigationDestination(isPresented: $showsConfirmation) {
             if let confirmationModel {
                 root.singleFoodConfirmation(confirmationModel) {
@@ -694,6 +721,69 @@ struct AddFoodFlowView: View {
     /// Favourites opened from Add food carries Add food's finish, so a favourite created there
     /// starts When on the Food Log day and Done finishes the Add food journey.
     var favouritesFlow: FavouritesFlowView { FavouritesFlowView(root: root, finish: finish) }
+}
+
+/// Paste nutrition label (#93): Label text, then the shared Confirm with one Log action. A hard
+/// decline stays on the label text screen with the text kept. Leaving, or logging, clears the
+/// text and the Developer tools lines; nothing is kept outside a logged entry's manifest.
+struct PastedLabelFlowView: View {
+    private let finish: FoodEntryFinish?
+    private let root: FoodLedgerCompositionRoot
+    /// Pops the flow after Log or Leave without saving when Add food carries no finish.
+    private let close: () -> Void
+    @StateObject private var model: PastedLabelTextViewModel
+    @State private var confirmationModel: FoodConfirmationViewModel?
+    @State private var sourceModel: PastedLabelSourceModel?
+    @State private var showsConfirmation = false
+    @State private var showsSearch = false
+    @State private var showsBarcode = false
+
+    init(root: FoodLedgerCompositionRoot, finish: FoodEntryFinish? = nil, close: @escaping () -> Void) {
+        self.root = root; self.finish = finish; self.close = close
+        _model = StateObject(wrappedValue: root.pastedLabelTextModel())
+    }
+
+    var body: some View {
+        PastedLabelTextView(model: model, openConfirm: open,
+                            search: { model.leaveForAnotherRoute(); showsSearch = true },
+                            scanBarcode: { model.leaveForAnotherRoute(); showsBarcode = true },
+                            leave: close)
+            .navigationDestination(isPresented: $showsConfirmation) {
+                if let confirmationModel, let sourceModel {
+                    root.pastedLabelConfirmation(confirmationModel, source: sourceModel,
+                                                 editLabelText: { showsConfirmation = false }) {
+                        guard let saved = confirmationModel.savedResult else { showsConfirmation = false; return }
+                        model.dismissed()
+                        if !FoodEntryFinish.complete(finish, saved: saved) { close() }
+                    }
+                    // Torn down while still pushed (Add food swiped away, or a finish that
+                    // replaced the path): the flow has ended, so nothing is kept.
+                    .onDisappear { if showsConfirmation { model.dismissed() } }
+                }
+            }
+            .navigationDestination(isPresented: $showsSearch) {
+                if let flow = GenericFoodSearchFlowView(root: root, finish: finish) { flow }
+                else { ContentUnavailableView("Food search unavailable", systemImage: "exclamationmark.triangle") }
+            }
+            .navigationDestination(isPresented: $showsBarcode) { BarcodeFoodFlowView(root: root, finish: finish) }
+            .onDisappear {
+                // Covered by Confirm, search or barcode: still open. Otherwise it closed.
+                if !showsConfirmation && !showsSearch && !showsBarcode { model.dismissed() }
+            }
+    }
+
+    /// Opens Confirm for a reading. "Back to Confirm" reuses the Confirm it left, so the amount
+    /// and time stay; a new reading starts a new Confirm.
+    private func open(_ source: PastedLabelSourceModel) {
+        guard let input = source.input else { return }
+        if source === sourceModel, let existing = confirmationModel, existing.savedResult == nil {
+            existing.replaceSourceInput(input)
+        } else {
+            confirmationModel = root.model(for: input, prefillSourceQuantity: false, entryDay: finish?.entryDay)
+        }
+        sourceModel = source
+        showsConfirmation = true
+    }
 }
 
 struct OpenRouterFoodReviewFlowView: View {

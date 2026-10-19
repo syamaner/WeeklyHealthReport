@@ -1933,3 +1933,39 @@ Same subagent and transcript as WHR-93-2026-10-18e. It covers the work after tha
 | Pasted label PR 3 follow-up (#93) | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
 
 Unmeasured: no start boundary was captured for this follow-up, so no figure is estimated.
+
+## WHR-93-2026-10-19b: Claude Code pasted nutrition label PR 4, presentation and wiring
+
+One `claude-opus-5-5` implementation subagent (branch `feat/93-pasted-label-pr4-ui`), transcript `subagents/agent-acf33c3f36ade20d3.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. Runs from the phase start (`2026-10-19T07:38:08Z`, captured with `date -u`) to `2026-10-19T09:53:39Z`, just before this ledger edit. It covers:
+
+- reading the contract, the UX revamp and privacy documents, PR 3's application code, Confirm, Add food and the composition root;
+- `NutrientValueOrigin`, the misread report builder and the saved entry's origins in the application layer;
+- the label text screen, Confirm's pasted-label source section with corrections, the origin formatter, the report preview, the Add food row, the flow wiring and the Developer tools lines;
+- the verbatim privacy wording and the comment fix in `PastedLabelSource.swift`;
+- presentation, contract and app tests, and every gate (the app test gate ran twice: the first run failed on a sub-millisecond `Date` comparison in a new test, fixed before the rerun).
+
+No subagents were launched; the orchestrator's usage is outside the row. This ledger edit, the commit, the rebase, the push and the PR are outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the rates checked on 11 October 2026, as in the previous sections. They were not re-checked on the day of this phase (19 October 2026), so the figure below uses the 11 October rates: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label PR 4 presentation and wiring (#93), implementation subagent | 35,099,413 (31,115,069) | 3,984,096 | 60,438 | 35,159,851 | $27.35 |
+
+Boundary: `2026-10-19T07:38:08Z` → `2026-10-19T09:53:39Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 3,984,096 5-minute, 0 1-hour. Exact API-equivalent USD 27.3532458. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19c: Claude Code pasted nutrition label PR 4, review and QA fix round
+
+Same subagent and transcript as WHR-93-2026-10-19b, resumed for the invariant review and journey QA findings on #271. Runs from the fix round's start (`2026-10-19T10:59:39Z`, captured with `date -u`) to `2026-10-19T12:13:27Z`, just before this ledger edit. It covers reading the findings, the code and test changes for R1 to R6, Q1 to Q3 and D2, the triage of D1, D3, D5 and R8 (no code), and every gate. The first PR's commit, push and PR (between the two windows) and this round's ledger edit, commit, push and PR update are outside both rows. The reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label PR 4 review and QA fix round (#93), implementation subagent | 20,834,860 (17,952,302) | 2,882,466 | 9,077 | 20,843,937 | $18.18 |
+
+Boundary: `2026-10-19T10:59:39Z` → `2026-10-19T12:13:27Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 2,882,466 5-minute, 0 1-hour. Exact API-equivalent USD 18.1846984. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

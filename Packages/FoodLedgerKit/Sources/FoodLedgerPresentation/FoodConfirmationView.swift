@@ -52,6 +52,66 @@ public final class FoodConfirmationViewModel: ObservableObject {
         self.saveAction = saveAction
     }
 
+    /// A pasted label's corrected input (#93): a value the user corrected or entered on Confirm
+    /// rebuilds the source from a new manifest. The amount and time are kept; a "Add food details"
+    /// correction is carried over with the new nutrients and basis, since it may only answer
+    /// identity details. Nothing is saved: Log is still the only save. A new entry only.
+    public func replaceSourceInput(_ input: PopulatedFoodConfirmation) {
+        guard state.reopened == nil, savedResult == nil, state.phase != .saving, let candidate = input.candidates.first else { return }
+        var next = FoodConfirmationState(input: input, prefillSourceQuantity: false)
+        next.quantity = state.quantity
+        next.occurredAt = state.occurredAt
+        sourceDetailsNotice = nil
+        if let correction = state.correction {
+            let source = candidate.candidate.identity
+            let previous = correction.identity
+            do {
+                let identity = try DecisiveIdentity(preparation: previous.preparation, bone: previous.bone, skin: previous.skin,
+                    drained: previous.drained, packingMedium: previous.packingMedium, fortification: previous.fortification,
+                    declaredFortificants: previous.declaredFortificants, servingBasis: source.servingBasis)
+                FoodConfirmationReducer.reduce(state: &next, action: .applyCorrection(FoodCorrection(name: correction.name,
+                    brand: correction.brand, variant: correction.variant, identity: identity, itemClass: correction.itemClass,
+                    nutrients: candidate.candidate.nutrients, reason: correction.reason)))
+            } catch {
+                // Never dropped silently: the details requirement shows again, with this reason.
+                sourceDetailsNotice = Self.sourceDetailsNotCarried
+            }
+        }
+        state = next
+    }
+
+    /// Why an "Add food details" answer was not carried into a rebuilt pasted-label source.
+    @Published public private(set) var sourceDetailsNotice: String?
+    public static let sourceDetailsNotCarried = "Your food details could not be kept after this change. Add them again before logging."
+
+    /// The whole-pack amount option for a pasted label (contract section 2.3), or nil.
+    public var pastedLabelWholePack: PastedLabelWholePack? {
+        guard state.reopened == nil else { return nil }
+        return PastedLabelServingPolicy.wholePack(state.input, candidate: state.selectedCandidate)
+    }
+
+    /// Whole pack: that many servings, through the same servings conversion as any servings amount.
+    public func chooseWholePack() {
+        guard let pack = pastedLabelWholePack else { return }
+        send(.setQuantity(pack.servings, .count))
+    }
+
+    /// Where the pasted label's serving size came from: printed, or corrected or entered by the
+    /// user on Confirm (its correction record). Whole pack's caption names it.
+    public var pastedLabelServingSizeOrigin: NutrientValueOrigin {
+        guard let manifest = PastedLabelValueOrigins.manifest(state.input, candidate: state.selectedCandidate),
+              let entry = manifest.corrections.first(where: { $0.nutrient == PastedLabelManifest.Correction.servingSize }) else {
+            return .printed
+        }
+        return entry.kind == .corrected ? .correctedByYou : .enteredByYou
+    }
+
+    /// Servings of a pasted label are the count unit's meaning on this Confirm.
+    public var countsPastedLabelServings: Bool { state.pastedLabelServing != nil }
+
+    /// A pasted label without a readable serving size can be logged in servings only.
+    public var pastedLabelServingsOnly: Bool { state.pastedLabelServing?.unit == .count }
+
     public var availableVolumeConversion: QuantityConversionDraft? {
         guard state.correction == nil, state.quantity.directWeight == nil,
               state.quantity.conversion == nil,
@@ -336,7 +396,23 @@ public final class FoodConfirmationViewModel: ObservableObject {
         }
         if savesAsFavourite { return "Log and save favourite" }
         guard let amount = logEnergy else { return "Log" }
-        return "Log \(FoodDisplayNumber.energy(amount))"
+        return "Log \(energyIsCalculated ? "about " : "")\(FoodDisplayNumber.energy(amount))"
+    }
+
+    /// The energy value is a calculated one (pasted label, kJ only; contract section 3.5), so
+    /// it shows "about" wherever it is stated, the Log button and banner included.
+    public var energyIsCalculated: Bool {
+        let nutrients = state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients
+        return nutrients.entries.first { $0.key == .energyConsumed }.map { NutrientDerivation.isCalculated($0.value) } ?? false
+    }
+
+    /// A value shown on Confirm with its calculated marking: "about 371 kcal · Calculated" for a
+    /// calculated nutrient (section 3.5), otherwise the value as given.
+    public func markingCalculated(_ key: NutrientKey, _ value: String) -> String {
+        let nutrients = state.correction?.nutrients ?? state.selectedCandidate.candidate.nutrients
+        guard let entry = nutrients.entries.first(where: { $0.key == key }), NutrientDerivation.isCalculated(entry.value) else { return value }
+        // An exact amount reads "about …"; a bound keeps its own wording and gains the tag.
+        return value.first?.isNumber == true ? "about \(value) · Calculated" : "\(value) · Calculated"
     }
 
     /// The energy the Log button states for a new entry, or nil when it is not complete.
@@ -356,7 +432,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
         let savedFavourite = favouriteOutcome == .saved
         if savesFavourite && offersFavourite && !savedFavourite { return nil }
         return FoodLoggedNotice(saved: saved,
-            message: FoodLoggedText.message(figure: logPress.energy.map { FoodDisplayNumber.energy($0) },
+            message: FoodLoggedText.message(figure: logPress.energy.map { (energyIsCalculated ? "about " : "") + FoodDisplayNumber.energy($0) },
                                              withoutNutrition: logPress.withoutNutrition, savedFavourite: savedFavourite),
             detail: FoodLoggedText.detail(savedFavourite: savedFavourite))
     }
@@ -494,13 +570,20 @@ public struct FoodConfirmationView: View {
     @State private var conversionText = ""
     @State private var conversionUnit = QuantityUnit.grams
     @State private var conversionMethod = ""
+    /// A pasted nutrition label's source section (#93): the live, editable model from the paste
+    /// route, or the read-only model of a stored label (Edit, Recent foods, a favourite).
+    @State private var pastedLabel: PastedLabelSourceModel?
+    private let editLabelText: (() -> Void)?
 
     public init(
         model: FoodConfirmationViewModel, context: String? = nil,
         completionTitle: String = "Done", showsCancelButton: Bool = true,
+        pastedLabel: PastedLabelSourceModel? = nil, editLabelText: (() -> Void)? = nil,
         logged: ((FoodLoggedNotice) -> Void)? = nil, leave: @escaping () -> Void
     ) {
         self.model = model
+        _pastedLabel = State(initialValue: pastedLabel ?? PastedLabelSourceModel.stored(model.state))
+        self.editLabelText = pastedLabel == nil ? nil : editLabelText
         self.logged = logged
         self.showsCancelButton = showsCancelButton
         self.context = context
@@ -545,6 +628,9 @@ public struct FoodConfirmationView: View {
             if let context { Section("From your list") { Text(context) } }
             Group {
                 foodSection
+                if let pastedLabel {
+                    PastedLabelSourceSections(model: pastedLabel, editLabelText: model.savedResult == nil ? editLabelText : nil)
+                }
                 decisionsSection
                 quantitySection
                 compactNutritionSection
@@ -659,6 +745,9 @@ public struct FoodConfirmationView: View {
                 ForEach(metadata.materialDifferences, id: \.value) { Text($0.value).font(.caption) }
             }
             if model.state.correction != nil { Text("Uses your food correction").font(.caption) }
+            if let notice = model.sourceDetailsNotice {
+                Label(notice, systemImage: "exclamationmark.triangle").font(.subheadline)
+            }
             if !model.missingSourceDetails.isEmpty {
                 Label(FoodLogRequirementText.text(.sourceIdentityMissing(model.missingSourceDetails)),
                       systemImage: "exclamationmark.triangle")
@@ -752,6 +841,15 @@ public struct FoodConfirmationView: View {
             .background(.bar)
         } else {
             VStack(spacing: 6) {
+                // Pasted label warnings (section 4): above Log, never blocking, never a pass badge.
+                if let warnings = pastedLabel?.warnings, !warnings.isEmpty {
+                    ForEach(warnings, id: \.self) { warning in
+                        Label(warning, systemImage: "exclamationmark.triangle")
+                            .font(.footnote)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .accessibilityLabel("Warning. \(warning)")
+                    }
+                }
                 // Secondary and next to Log, so the sourced estimate is not missed when Log
                 // would save without nutrition. It only applies the estimate; Log still saves.
                 if let estimate = model.volumeEstimateLogBarAction {
@@ -826,8 +924,23 @@ public struct FoodConfirmationView: View {
                 }
                 Text("Count only. Edible weight still needs confirmation.").font(.caption)
             }
+            if model.countsPastedLabelServings {
+                Text(model.pastedLabelServingsOnly
+                     ? "Values are per serving and the serving size was not read, so enter servings eaten, for example 1 or 0.5."
+                     : "Enter servings eaten, or grams or millilitres matching the label.").font(.caption)
+            }
+            if let pack = model.pastedLabelWholePack {
+                Button("Whole pack (\(FoodDisplayNumber.amount(pack.servings, fraction: 0...2)) servings)") {
+                    model.chooseWholePack()
+                    totalText = editableNumber(pack.servings)
+                }
+                .frame(minHeight: 44)
+                .accessibilityHint("Sets the amount to the servings in one pack")
+                Text((pack.origin == .printed ? "Servings per pack printed on the label. " : "Servings per pack entered by you. ")
+                     + PastedLabelText.wholePackNote(servingSize: model.pastedLabelServingSizeOrigin)).font(.caption)
+            }
             Button("Enter measured weight") { model.send(.beginDirectWeight); directWeightText = "" }
-                .disabled(model.state.quantity.directWeight != nil || model.state.usesSourceDeclaredServing)
+                .disabled(model.state.quantity.directWeight != nil || model.state.usesSourceDeclaredServing || model.pastedLabelServingsOnly)
             if model.state.quantity.directWeight != nil {
                 Text("Weigh the food as you ate it, for example peeled, boiled or fried. Leave out peel, shell, bone and anything you did not eat.").font(.caption)
                 TextField(usesPlate ? "Total food and plate weight (g)" : "Total edible weight (g)", text: $directWeightText)
@@ -858,7 +971,8 @@ public struct FoodConfirmationView: View {
             Picker("Unit", selection: quantityUnitBinding) {
                 Text("g").tag(QuantityUnit.grams)
                 Text("mL").tag(QuantityUnit.millilitres)
-                Text(model.state.isSourceRecipe ? "recipe servings" : model.state.usesSourceDeclaredServing ? "source servings" : "count").tag(QuantityUnit.count)
+                Text(model.state.isSourceRecipe ? "recipe servings" : model.state.usesSourceDeclaredServing ? "source servings"
+                     : model.countsPastedLabelServings ? "servings" : "count").tag(QuantityUnit.count)
             }
             if let requirement = model.originalAmountRequirement { Text(requirement).font(.caption) }
             whenRow
@@ -897,7 +1011,8 @@ public struct FoodConfirmationView: View {
                     Button("Remove volume estimate") { model.removeOfferedVolumeConversion() }
                 }
             }
-            if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil && !model.state.usesSourceDeclaredServing {
+            if model.state.quantity.unit == .count && model.state.quantity.directWeight == nil && !model.state.usesSourceDeclaredServing
+                && !model.countsPastedLabelServings {
                 Text("No source-backed size guide is available for this food. Enter the total edible weight, excluding shell, bone or other parts you did not eat.").font(.caption)
                 TextField("Converted edible amount", text: $conversionText)
                     .amountKeyboard($editingAmount, .confirmConversion)
@@ -952,8 +1067,9 @@ public struct FoodConfirmationView: View {
         return Section(review.title) {
             Text(review.basis).font(.subheadline).foregroundStyle(.secondary)
             ForEach(review.mainRows, id: \.key.rawValue) { row in
-                LabeledContent(row.title, value: row.value)
-                    .accessibilityLabel("\(row.title), \(row.value), \(review.basis)")
+                let value = model.markingCalculated(row.key, row.value)
+                LabeledContent(row.title, value: value)
+                    .accessibilityLabel("\(row.title), \(value), \(review.basis)")
             }
             if review.includesEstimates || model.state.isGenericEstimate || model.state.isSourceRecipe || model.state.reviewedWebProposalScope != nil {
                 Text("Estimated nutrition").font(.caption)
@@ -961,7 +1077,7 @@ public struct FoodConfirmationView: View {
             if !review.isConsumed { Text("Source values. Enter a compatible amount to see your intake.").font(.caption) }
             DisclosureGroup("More nutrients") {
                 ForEach(review.otherRows, id: \.key.rawValue) { row in
-                    LabeledContent(row.title, value: row.value)
+                    LabeledContent(row.title, value: model.markingCalculated(row.key, row.value))
                 }
             }
         }
@@ -974,8 +1090,9 @@ public struct FoodConfirmationView: View {
                 Text("Source reference values, not the amount eaten. Provenance and bounds are preserved.")
                     .font(.caption)
                 ForEach(model.state.selectedCandidate.candidate.nutrients.entries, id: \.key.rawValue) { entry in
-                    LabeledContent(Self.nutrientLabel(entry.key), value: Self.nutrientValue(entry))
-                        .accessibilityLabel("\(Self.nutrientLabel(entry.key)), \(Self.nutrientValue(entry))")
+                    let value = model.markingCalculated(entry.key, Self.nutrientValue(entry))
+                    LabeledContent(Self.nutrientLabel(entry.key), value: value)
+                        .accessibilityLabel("\(Self.nutrientLabel(entry.key)), \(value)")
                 }
             }
             Section("Consumed nutrition for the amount eaten") {
@@ -983,7 +1100,8 @@ public struct FoodConfirmationView: View {
                 ForEach(model.state.selectedCandidate.candidate.nutrients.entries, id: \.key.rawValue) { entry in
                     let total = totals.first { $0.key == entry.key }
                     LabeledContent(Self.nutrientLabel(entry.key), value: total?.knownAmount.map {
-                        "\(Self.number($0)) \(entry.key.canonicalUnit.rawValue)\(total?.includesEstimates == true ? " estimated" : "")"
+                        model.markingCalculated(entry.key,
+                            "\(Self.number($0)) \(entry.key.canonicalUnit.rawValue)\(total?.includesEstimates == true ? " estimated" : "")")
                     } ?? "Unavailable")
                 }
                 Text("Unknown values remain unknown. Bounds remain intervals and are never shown as exact amounts. Unavailable consumed values require a supported amount conversion and an exact source value.")

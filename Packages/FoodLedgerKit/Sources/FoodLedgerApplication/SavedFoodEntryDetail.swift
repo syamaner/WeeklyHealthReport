@@ -38,6 +38,14 @@ public struct SavedFoodEntryDetail: Sendable {
     public let history: [FoodEntryHistoryEvent]
     /// The app's plain water reference: not offered as a favourite (it has its own quick add item).
     public let isPlainWater: Bool
+    /// A pasted nutrition label's stored manifest (#93), for the per-value origins and Report a
+    /// misread; nil for every other route.
+    public let pastedLabel: PastedLabelManifest?
+    /// Each stored value's origin under `NutrientValueOrigin`, for a pasted label only.
+    public let valueOrigins: [NutrientKey: NutrientValueOrigin]
+    /// A pasted label's stored values by key, so a bound can be shown as a bound ("Less than
+    /// 0.5 g per 100 g") rather than as an unknown consumed amount. Empty for other routes.
+    public let pastedLabelValues: [NutrientKey: NutrientValue]
 
     public init(stored: StoredFoodConfirmation, isEstimate: Bool, history: [FoodEntryHistoryEvent]) {
         let log = stored.logItemVersion
@@ -65,6 +73,12 @@ public struct SavedFoodEntryDetail: Sendable {
                                                       recordID: stored.candidateDecision.candidate.recordID.value)
         decisions = stored.assertions.flatMap { $0.confirmation?.decisions ?? [] }
         self.history = history
+        let manifest = release?.sourceID.value == PastedLabelSource.sourceID
+            ? PastedLabelValueOrigins.manifest(evidence: stored.evidence, evidenceIDs: stored.candidateDecision.candidate.evidenceIDs) : nil
+        pastedLabel = manifest
+        valueOrigins = manifest.map { PastedLabelValueOrigins.origins(stored.resolutionVersion.nutrients, manifest: $0) } ?? [:]
+        pastedLabelValues = manifest == nil ? [:]
+            : Dictionary(stored.resolutionVersion.nutrients.entries.map { ($0.key, $0.value) }, uniquingKeysWith: { first, _ in first })
     }
 
     /// One scaling rule: `FoodIntakeContribution.isScalable`, as the summary applies it.
