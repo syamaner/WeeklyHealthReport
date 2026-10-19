@@ -32,7 +32,13 @@ final class ServingSizeGrammarParityTests: XCTestCase {
             ("Serving size 30 g ± 2 grams", true), ("Serving size 30 g ±", true), ("Serving size 30g-35 grams", true),
             ("Serving size 30 g - 35 g", true), ("Serving size 30g, approx.", true), ("每一份量30公克，約", true),
             ("Serving size 30g (2 biscuits) approx.", true), ("Serving size 30g (about 1 ounce)", true),
-            ("Serving size 30g (approx. 28 gm)", true), ("Serving size 30g (about 2 fl oz)", true)
+            ("Serving size 30g (approx. 28 gm)", true), ("Serving size 30g (about 2 fl oz)", true),
+            ("每一份量25－30公克", true), ("每一份量30公克－35公克", true), ("Serving size 25—30g", true), ("Serving size 25−30g", true),
+            ("Serving size 25‐30g", true), ("Serving size 25‑30g", true), ("Serving size 25 to 30 g", true), ("每一份量25到30公克", true),
+            ("Serving size 30g +/- 2g", true), ("每一份量30公克／約", true), ("Serving size 30g (2 biscuits) (approx.)", true),
+            ("每一份量30公克（2片）（約）", true), ("Serving size 2 biscuits (30g) approx.", true), ("每一份量2片（30公克）約", true),
+            ("每一份量30公克 左右", true), ("Serving size 30g (about 1/4 cup)", true), ("Serving size 30g (about 1 tbsp)", false),
+            ("Serving size 2 tomatoes 30g", false)
         ]
         for (line, approximate) in cases {
             let rest = try XCTUnwrap(Patterns.servingSize.firstMatch(in: line)?[1] ?? nil, line)
@@ -46,6 +52,16 @@ final class ServingSizeGrammarParityTests: XCTestCase {
     }
 
     /// An "about" pack line is read as printed and approximate, never dropped (final journey QA).
+    /// "30公克左右" (no space): the parser's letter lookahead rejects "公克左", so no quantity is
+    /// read and v2 never offers servings for it; with a space the 左右 tail makes it approximate.
+    func testZuoYouWithoutASpaceReadsNoQuantity() {
+        let parsed = ParseState.servingSize(printed: "每一份量30公克左右", quantityText: "30公克左右")
+        XCTAssertNil(parsed.decimalText)
+        let size = PastedLabelManifest.Candidate.ServingSize(printedText: parsed.printedText, decimalText: parsed.decimalText,
+                                                             unit: parsed.unit, canonicalUnit: parsed.canonicalUnit)
+        XCTAssertEqual(PastedLabelServingPolicy.exactness(size), .unmatched)
+    }
+
     func testAnApproximatePackLineIsReadAsApproximate() {
         for line in ["本包裝含約10份", "本包裝含 約 10 份"] {
             let text = "營養標示\n每一份量30公克\n\(line)\n每份 每100公克\n熱量 111大卡 370大卡\n"

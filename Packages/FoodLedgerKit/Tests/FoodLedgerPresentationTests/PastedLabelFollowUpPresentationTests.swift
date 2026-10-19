@@ -129,7 +129,7 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
 
     /// The per 100 g reading with its stored column, serving size or energy changed.
     private func variant(basis: String = "per_100g", servingSize: PastedLabelManifest.Candidate.ServingSize?? = .none,
-                         boundedEnergy: Bool = false) -> LabelReading {
+                         pack: PastedLabelManifest.Candidate.ServingsPerPack?? = .none, boundedEnergy: Bool = false) -> LabelReading {
         let reading = F.reading()
         let bound = PastedLabelManifest.Conversion(nutrient: "energy_kcal", rule: "kj_to_kcal_v1", ruleVersion: "pasted-label-conversions-v1",
             sourceHeaderID: "h2", sourceRowID: "熱量", operandText: "17", operandUnit: "kJ", factorText: "4.184",
@@ -144,7 +144,7 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
         }
         let candidate = PastedLabelManifest.Candidate(route: "A", inputSHA256: reading.candidate.inputSHA256, declined: false, declineReasons: [],
             wouldMarkReady: true, language: "zh-Hant", servingSize: servingSize ?? reading.candidate.servingSize,
-            servingsPerPack: reading.candidate.servingsPerPack, headers: headers, cells: cells, warnings: [])
+            servingsPerPack: pack ?? reading.candidate.servingsPerPack, headers: headers, cells: cells, warnings: [])
         return LabelReading(origin: .pastedText, textSHA256: reading.textSHA256, candidate: candidate, format: reading.format,
             gate: reading.gate, checks: [], conversions: [boundedEnergy ? bound : F.kcal, F.sodium], storedHeaderID: "h2", versions: F.versions)
     }
@@ -157,12 +157,20 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
     }
 
     func testAnApproximateServingSizeIsMarkedAndOffersNoServings() throws {
-        for printed in ["每一份量25-30公克", "每一份量約30公克", "Serving size 30g ± 2g"] {
+        let cases: [(String, String, String)] = [
+            ("每一份量25-30公克", "25–30 g", PastedLabelText.rangeServingSize),
+            ("每一份量25－30公克", "25–30 g", PastedLabelText.rangeServingSize),
+            ("Serving size 25 to 30 g", "25–30 g", PastedLabelText.rangeServingSize),
+            ("每一份量約30公克", "about 30 g", PastedLabelText.approximateServingSize),
+            ("Serving size 30g ± 2g", "about 30 g", PastedLabelText.approximateServingSize),
+            ("Serving size 30g +/- 2g", "about 30 g", PastedLabelText.approximateServingSize)
+        ]
+        for (printed, shown, note) in cases {
             let unit = printed.hasPrefix("Serving") ? "g" : "公克"
             let source = try F.source(variant(servingSize: .some(.init(printedText: printed, decimalText: "30", unit: unit, canonicalUnit: "g"))))
             let line = try XCTUnwrap(source.servingLines.first)
-            XCTAssertEqual(line.value, "about 30 g · Printed (printed: \(printed))", printed)
-            XCTAssertEqual(line.flag, "Approximate, so servings are not offered. Correct the serving size to log in servings.", printed)
+            XCTAssertEqual(line.value, "\(shown) · Printed (printed: \(printed))", printed)
+            XCTAssertEqual(line.flag, note, printed)
             XCTAssertEqual(line.actions, [.correct], "the user can still correct it")
             let (confirm, _) = try F.confirm(source)
             XCTAssertFalse(confirm.countsPastedLabelServings, printed)
@@ -174,6 +182,20 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
         // A per-serving column (v1) keeps accepting it: no exception there.
         let perServing = try F.source(F.perServingReading())
         XCTAssertNil(perServing.servingLines.first?.flag)
+        // A size whose recorded quantity cannot be matched is shown plainly, with its own reason.
+        let unmatched = try F.source(variant(servingSize: .some(.init(printedText: "每一份量三十公克", decimalText: "30", unit: "公克",
+                                                                       canonicalUnit: "g"))))
+        XCTAssertEqual(unmatched.servingLines.first?.value, "30 g · Printed (printed: 每一份量三十公克)")
+        XCTAssertEqual(unmatched.servingLines.first?.flag, PastedLabelText.unmatchedServingSize)
+    }
+
+    func testAPackPhraseOnTheServingSizeLineReadsNotReadNotNotStated() throws {
+        let combined = try F.source(variant(servingSize: .some(.init(printedText: "每一份量30公克，本包裝含約10份", decimalText: "30", unit: "公克",
+                                                                      canonicalUnit: "g")), pack: .some(nil)))
+        XCTAssertEqual(combined.servingLines.last?.value, "Not read")
+        XCTAssertNil(combined.servingLines.first?.flag, "the serving size itself stays exact")
+        let plain = try F.source(variant(pack: .some(nil)))
+        XCTAssertEqual(plain.servingLines.last?.value, "Not stated")
     }
 
     func testAnApproximatePackCountIsShownAsReadAndNotUsedForWholePack() throws {

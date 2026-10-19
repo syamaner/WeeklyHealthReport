@@ -96,6 +96,19 @@ public enum PastedLabelText {
     /// Shown beside a printed serving size that `pasted-label-serving-v2` cannot use because it is
     /// approximate (contract section 6.3): the exception is visible, never silent.
     public static let approximateServingSize = "Approximate, so servings are not offered. Correct the serving size to log in servings."
+    public static let rangeServingSize = "Range, so servings are not offered. Correct the serving size to log in servings."
+    public static let unmatchedServingSize = "The serving size could not be matched to the label text, so servings are not offered. Correct the serving size to log in servings."
+
+    /// The note beside a printed serving size that v2 cannot use, or nil when it is exact.
+    public static func servingSizeNote(_ exactness: PastedLabelServingPolicy.Exactness) -> String? {
+        switch exactness {
+        case .exact: nil
+        case .approximate: approximateServingSize
+        case .range: rangeServingSize
+        case .unmatched: unmatchedServingSize
+        }
+    }
+
     /// Shown beside a printed "about" servings-per-pack count: read, but never a whole pack (section 2.3).
     public static let approximatePack = "Approximate, so it is not used for Whole pack."
 
