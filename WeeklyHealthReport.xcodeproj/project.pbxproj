@@ -14,6 +14,7 @@
 		F1940000000000000000001A /* SettingsContributionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000019 /* SettingsContributionTests.swift */; };
 		F19400000000000000000018 /* AppNavigationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000017 /* AppNavigationTests.swift */; };
 		F19700000000000000000007 /* FoodLogAppTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19700000000000000000006 /* FoodLogAppTests.swift */; };
+		F09300000000000000000402 /* PastedLabelRouteTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F09300000000000000000401 /* PastedLabelRouteTests.swift */; };
 		F19400000000000000000016 /* FoodLedgerSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000015 /* FoodLedgerSettings.swift */; };
 		F19400000000000000000014 /* DeveloperToolsSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000013 /* DeveloperToolsSettingsView.swift */; };
 		F19400000000000000000012 /* SettingsContributions.swift in Sources */ = {isa = PBXBuildFile; fileRef = F19400000000000000000011 /* SettingsContributions.swift */; };
@@ -168,6 +169,7 @@
 		F19400000000000000000019 /* SettingsContributionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsContributionTests.swift; sourceTree = "<group>"; };
 		F19400000000000000000017 /* AppNavigationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppNavigationTests.swift; sourceTree = "<group>"; };
 		F19700000000000000000006 /* FoodLogAppTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLogAppTests.swift; sourceTree = "<group>"; };
+		F09300000000000000000401 /* PastedLabelRouteTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PastedLabelRouteTests.swift; sourceTree = "<group>"; };
 		F19400000000000000000015 /* FoodLedgerSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FoodLedgerSettings.swift; sourceTree = "<group>"; };
 		F19400000000000000000013 /* DeveloperToolsSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperToolsSettingsView.swift; sourceTree = "<group>"; };
 		F19400000000000000000011 /* SettingsContributions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsContributions.swift; sourceTree = "<group>"; };
@@ -472,6 +474,7 @@
 				F19400000000000000000019 /* SettingsContributionTests.swift */,
 				F19400000000000000000017 /* AppNavigationTests.swift */,
 				F19700000000000000000006 /* FoodLogAppTests.swift */,
+				F09300000000000000000401 /* PastedLabelRouteTests.swift */,
 				F20000000000000000000009 /* DailyExportPhaseTests.swift */,
 				F21700000000000000000003 /* DailyExportIncludedSummaryTests.swift */,
 				F60000000000000000000013 /* HomeCardsTests.swift */,
@@ -817,6 +820,7 @@
 				F1940000000000000000001A /* SettingsContributionTests.swift in Sources */,
 				F19400000000000000000018 /* AppNavigationTests.swift in Sources */,
 				F19700000000000000000007 /* FoodLogAppTests.swift in Sources */,
+				F09300000000000000000402 /* PastedLabelRouteTests.swift in Sources */,
 				F2000000000000000000000A /* DailyExportPhaseTests.swift in Sources */,
 				F21700000000000000000004 /* DailyExportIncludedSummaryTests.swift in Sources */,
 				F60000000000000000000014 /* HomeCardsTests.swift in Sources */,

@@ -38,6 +38,11 @@ public struct SavedFoodEntryDetail: Sendable {
     public let history: [FoodEntryHistoryEvent]
     /// The app's plain water reference: not offered as a favourite (it has its own quick add item).
     public let isPlainWater: Bool
+    /// A pasted nutrition label's stored manifest (#93), for the per-value origins and Report a
+    /// misread; nil for every other route.
+    public let pastedLabel: PastedLabelManifest?
+    /// Each stored value's origin under `NutrientValueOrigin`, for a pasted label only.
+    public let valueOrigins: [NutrientKey: NutrientValueOrigin]
 
     public init(stored: StoredFoodConfirmation, isEstimate: Bool, history: [FoodEntryHistoryEvent]) {
         let log = stored.logItemVersion
@@ -65,6 +70,10 @@ public struct SavedFoodEntryDetail: Sendable {
                                                       recordID: stored.candidateDecision.candidate.recordID.value)
         decisions = stored.assertions.flatMap { $0.confirmation?.decisions ?? [] }
         self.history = history
+        let manifest = release?.sourceID.value == PastedLabelSource.sourceID
+            ? PastedLabelValueOrigins.manifest(evidence: stored.evidence, evidenceIDs: stored.candidateDecision.candidate.evidenceIDs) : nil
+        pastedLabel = manifest
+        valueOrigins = manifest.map { PastedLabelValueOrigins.origins(stored.resolutionVersion.nutrients, manifest: $0) } ?? [:]
     }
 
     /// One scaling rule: `FoodIntakeContribution.isScalable`, as the summary applies it.

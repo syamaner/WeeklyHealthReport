@@ -326,8 +326,9 @@ public enum PastedLabelSource {
     }
 
     /// An entered servings-per-pack value (G6): at most one, only when the label prints none,
-    /// an exact positive number of servings in the stored column's record. It is evidence only:
-    /// no nutrient, basis or amount option is derived from it.
+    /// an exact positive number of servings in the stored column's record. It gives no nutrient
+    /// and no basis, but it may feed the whole-pack amount option (`PastedLabelServingPolicy.wholePack`,
+    /// contract section 2.3).
     static func checkServingsPerPack(_ manifest: PastedLabelManifest) throws {
         let entries = manifest.corrections.filter { $0.nutrient == PastedLabelManifest.Correction.servingsPerPack }
         guard entries.count <= 1 else { throw PastedLabelSourceError.invalidManifest("servings per pack entries") }

@@ -12,6 +12,7 @@ struct SavedFoodEntryView: View {
     private let calendar: Calendar
     private let now: () -> Date
     @State private var showsEdit = false
+    @State private var misreadReport: PastedLabelMisreadPreviewModel?
     @Environment(\.dismiss) private var dismiss
 
     init(model: @autoclosure @escaping () -> SavedFoodEntryViewModel,
@@ -102,6 +103,7 @@ struct SavedFoodEntryView: View {
                 }
             }
             nutrition(detail)
+            if detail.pastedLabel != nil { pastedLabel(detail) }
             if let saving = favourites.model, !detail.isPlainWater {
                 FavouriteSaveSection(model: saving, logItemVersionID: detail.logItemVersionID)
             }
@@ -125,6 +127,21 @@ struct SavedFoodEntryView: View {
         }
     }
 
+    /// A logged pasted label (#93): where its values came from, and Report a misread.
+    @ViewBuilder
+    private func pastedLabel(_ detail: SavedFoodEntryDetail) -> some View {
+        Section(PastedLabelSavedEntryText.sectionTitle) {
+            if let line = PastedLabelSavedEntryText.sourceLine(detail) { Text(line).font(.subheadline) }
+            ForEach(PastedLabelSavedEntryText.originLines(detail), id: \.self) { Text($0).font(.caption) }
+            if let report = PastedLabelSavedEntryText.reportText(detail) {
+                Button(PastedLabelText.reportMisread) { misreadReport = PastedLabelMisreadPreviewModel(report: report) }
+                    .frame(minHeight: 44)
+                    .accessibilityHint("Opens a preview you can edit, share or cancel. Nothing is sent automatically.")
+            }
+        }
+        .sheet(item: $misreadReport) { PastedLabelMisreadPreviewSheet(model: $0) { misreadReport = nil } }
+    }
+
     @ViewBuilder
     private func nutrition(_ detail: SavedFoodEntryDetail) -> some View {
         switch detail.nutrition {
@@ -132,12 +149,12 @@ struct SavedFoodEntryView: View {
             Section("Nutrition") {
                 ForEach(FoodLogDayContent.stripKeys, id: \.rawValue) { key in
                     if let total = totals.first(where: { $0.key == key }) {
-                        LabeledContent(FoodLogText.label(key), value: FoodLogText.nutrient(total, augmented: detail.augmentedKeys.contains(key)))
+                        LabeledContent(FoodLogText.label(key), value: PastedLabelSavedEntryText.value(total, detail: detail))
                     }
                 }
                 DisclosureGroup("All nutrients") {
                     ForEach(totals.filter { !FoodLogDayContent.stripKeys.contains($0.key) }, id: \.key.rawValue) { total in
-                        LabeledContent(FoodLogText.label(total.key), value: FoodLogText.nutrient(total, augmented: detail.augmentedKeys.contains(total.key)))
+                        LabeledContent(FoodLogText.label(total.key), value: PastedLabelSavedEntryText.value(total, detail: detail))
                     }
                 }
             }

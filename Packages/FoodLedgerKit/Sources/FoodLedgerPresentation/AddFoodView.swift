@@ -42,6 +42,8 @@ public struct AddFoodView: View {
     private let search: (String) -> Void
     private let scanBarcode: (() -> Void)?
     private let pasteOrDictate: (() -> Void)?
+    /// Paste nutrition label (#93): its own row, separate from the food list (decision 1).
+    private let pasteLabel: (() -> Void)?
     private let favourites: (() -> Void)?
     /// Nil when favourites cannot be read: shown as a failure with a way to Favourites, never as empty.
     private let favouriteItems: [QuickAddItem]?
@@ -56,6 +58,7 @@ public struct AddFoodView: View {
     public init(recents: [FoodRecentRelogItem], now: Date = Date(), calendar: Calendar = .current,
                 initialText: String = "",
                 search: @escaping (String) -> Void, scanBarcode: (() -> Void)?, pasteOrDictate: (() -> Void)?,
+                pasteLabel: (() -> Void)? = nil,
                 favourites: (() -> Void)?, favouriteItems: [QuickAddItem]? = [], quickAdd: ((QuickAddItem) -> Void)? = nil,
                 favouriteSaving: FavouriteSaveModel? = nil,
                 listImportNote: String? = nil,
@@ -63,7 +66,7 @@ public struct AddFoodView: View {
         self.listImportNote = listImportNote
         self.recents = recents; self.now = now; self.calendar = calendar
         self.favouriteSaving = favouriteSaving
-        self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate
+        self.search = search; self.scanBarcode = scanBarcode; self.pasteOrDictate = pasteOrDictate; self.pasteLabel = pasteLabel
         self.favourites = favourites; self.favouriteItems = favouriteItems; self.quickAdd = quickAdd; self.relog = relog
         _text = State(initialValue: initialText)
     }
@@ -91,6 +94,7 @@ public struct AddFoodView: View {
             Section {
                 if let scanBarcode { routeRow("Scan barcode", systemImage: "barcode.viewfinder", action: scanBarcode) }
                 if let pasteOrDictate { routeRow("Paste or dictate a list", systemImage: "list.bullet", action: pasteOrDictate) }
+                if let pasteLabel { routeRow(PastedLabelText.addFoodRow, systemImage: "doc.text.magnifyingglass", action: pasteLabel) }
                 if let favourites { routeRow("Favourites", systemImage: "star", action: favourites) }
             } footer: {
                 if pasteOrDictate != nil, let listImportNote { Text(listImportNote) }
@@ -299,9 +303,13 @@ struct RecentFavouriteActions: ViewModifier {
 public final class FoodSearchDiagnosticsLog: ObservableObject {
     @Published public private(set) var searchLines: [String] = []
     @Published public private(set) var webLookupLines: [String] = []
+    /// The open label text screen's reading (#93): reason codes, format, flags and warnings.
+    /// Set only while that screen is open and cleared when it closes; never the label text.
+    @Published public private(set) var pastedLabelLines: [String] = []
     public init() {}
     public func recordSearch(_ lines: [String]) { searchLines = lines }
     public func recordWebLookup(_ lines: [String]) { webLookupLines = lines }
+    public func recordPastedLabel(_ lines: [String]) { pastedLabelLines = lines }
 }
 
 /// What Add food's Favourites section shows (#198).
