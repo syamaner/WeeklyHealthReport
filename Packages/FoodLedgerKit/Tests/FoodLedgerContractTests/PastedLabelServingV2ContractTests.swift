@@ -75,6 +75,15 @@ final class PastedLabelServingV2ContractTests: XCTestCase {
             ("～ range", try F.per100Manifest(servingSize: .init(printedText: "每一份量25～30公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
             ("range after the unit", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g-35g", decimalText: "30", unit: "g", canonicalUnit: "g"))),
             ("至 range with units", try F.per100Manifest(servingSize: .init(printedText: "每一份量30公克至35公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
+            ("quantity in brackets after a count (review reproduction)", try F.per100Manifest(servingSize: .init(printedText: "Serving size 3 gummies (approx. 3g)", decimalText: "3", unit: "g", canonicalUnit: "g"))),
+            ("approx. after the quantity", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g approx.", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("(approx.) after the quantity", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g (approx.)", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("approximately after the quantity", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30 g approximately", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("約 after the quantity", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g 約", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("about inside the bracket after the quantity", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g (about 2 biscuits)", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("約 inside the bracket after the quantity", try F.per100Manifest(servingSize: .init(printedText: "每一份量 30 公克（約2片）", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
+            ("tolerance with the same unit", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30 g ± 2 g", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("tolerance ending the value", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g±2", decimalText: "30", unit: "g", canonicalUnit: "g"))),
             ("quantity not found", try F.per100Manifest(servingSize: .init(printedText: "每一份量三十公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
             ("ml against per 100 g", try F.per100Manifest(servingSize: Self.printed250ml)),
             ("g against per 100 ml", try F.per100Manifest(servingSize: Self.printed30g, basis: "per_100ml"))
@@ -96,21 +105,28 @@ final class PastedLabelServingV2ContractTests: XCTestCase {
     }
 
     /// Only the serving-size segment is scanned: an approximation elsewhere on the line (the pack
-    /// count, a piece count after the quantity) keeps an exact serving size, and each saves under
-    /// v2 and reopens on both stores.
+    /// count) or a range to another unit after the quantity keeps an exact serving size, and each
+    /// saves under v2 and reopens on both stores.
     func testExactServingSizesSaveAndReopenUnderV2() throws {
         let exact: [(String, String, String)] = [
             ("每一份量30公克", "30", "公克"),
             ("每一份量30公克，本包裝含約10份", "30", "公克"),
-            ("每一份量 30 公克（約2片）", "30", "公克"),
-            ("Serving size 30g (about 2 biscuits)", "30", "g"),
+            ("Serving size 30g – 2 biscuits", "30", "g"),
+            ("Serving size 30g ~ 2 pieces", "30", "g"),
             ("Serving size 1 bar (30g)", "30", "g"),
             ("Serving size 30g (surrounded)", "30", "g")
         ]
         XCTAssertEqual(PastedLabelServingPolicy.servingSegment(.init(printedText: "每一份量30公克，本包裝含約10份", decimalText: "30",
                                                                      unit: "公克", canonicalUnit: "g")), "30公克")
         XCTAssertEqual(PastedLabelServingPolicy.servingSegment(.init(printedText: "Serving size 30g ± 2g", decimalText: "30",
-                                                                     unit: "g", canonicalUnit: "g")), "30g ± 2")
+                                                                     unit: "g", canonicalUnit: "g")), "30g ± 2g")
+        XCTAssertEqual(PastedLabelServingPolicy.servingSegment(.init(printedText: "Serving size 3 gummies (approx. 3g)", decimalText: "3",
+                                                                     unit: "g", canonicalUnit: "g")), "3 gummies (approx. 3g",
+                       "the bracketed quantity, as the parser binds it")
+        XCTAssertEqual(PastedLabelServingPolicy.servingSegment(.init(printedText: "Serving size 30g ~ 2 pieces", decimalText: "30",
+                                                                     unit: "g", canonicalUnit: "g")), "30g", "a range to another unit is not a tolerance")
+        XCTAssertNil(PastedLabelServingPolicy.servingSegment(.init(printedText: "Serving size 3 gummies (approx. 3g)", decimalText: "30",
+                                                                   unit: "g", canonicalUnit: "g")), "not the recorded quantity")
         XCTAssertEqual(PastedLabelServingPolicy.approximateMarks, ["約", "约", "~", "～", "〜", "≈", "≒", "±"], "fixed for v2")
         XCTAssertEqual(PastedLabelServingPolicy.approximateWords, ["about", "approx", "approximately", "around", "circa", "roughly"])
         for harness in try LedgerFixtures.harnesses() {

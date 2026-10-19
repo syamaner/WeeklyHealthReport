@@ -36,13 +36,16 @@ public enum PastedLabelServingPolicy {
     /// case-insensitively, the other marks as substrings, and a numeric range.
     public static let approximateWords: Set<String> = ["about", "approx", "approximately", "around", "circa", "roughly"]
     public static let approximateMarks = ["約", "约", "~", "～", "〜", "≈", "≒", "±"]
-    /// A numeric range: a digit, up to three non-space unit characters (so "30g-35g" and
+    /// A numeric range within the segment: a digit, up to three non-space unit characters (so "30g-35g" and
     /// "30公克至35公克" count), optional spaces, one of - – ~ ～ 〜 至, optional spaces, a digit.
     static let rangePattern = try! NSRegularExpression(pattern: #"[0-9][^0-9\s]{0,3}\s*[-–~～〜至]\s*[0-9]"#)
-    /// The serving-size line's label, as `nutrition-label-text-parser-v2` matches it, so the
-    /// segment starts at the value (the application cannot import the parser; decision 10).
-    static let servingLabelPattern = try! NSRegularExpression(
-        pattern: #"^(?:serving\s+size|portion\s+size|每一?份量)\s*[:：]?\s*"#, options: [.caseInsensitive])
+    /// A listed word or a non-range mark written straight after the quantity: optional spaces, an
+    /// optional opening bracket, optional spaces, then the word (whole, any case, an optional "."
+    /// and closing bracket after it) or one of 約 约 ≈ ≒. "30g approx.", "30g (about 2 biscuits)"
+    /// and "30公克（約2片）" are approximate under this rule.
+    static let trailingWordPattern = try! NSRegularExpression(
+        pattern: #"^\s*[(（]?\s*(?:(?:about|approx|approximately|around|circa|roughly)(?![A-Za-z])\.?\s*[)）]?|[約约≈≒])"#,
+        options: [.caseInsensitive])
 
     /// The serving quantity and the method that applies to the selection, or nil.
     public static func resolved(_ input: PopulatedFoodConfirmation,
@@ -170,34 +173,41 @@ public enum PastedLabelServingPolicy {
         return size
     }
 
-    /// The serving-size segment of a printed serving-size line: from the start of its value (after
-    /// the "Serving size" / 每一份量 label, when present) to the end of the matched quantity, the
-    /// recorded `decimal_text` followed by optional spaces and the recorded `unit`, at its first
-    /// occurrence not preceded by a digit or point. Text after the quantity (for example
-    /// "，本包裝含約10份" on the same line) is not part of it. Nil when the quantity cannot be
-    /// found, which never offers servings.
+    /// The serving-size segment of a printed serving-size line (contract section 6.3), located
+    /// exactly as `nutrition-label-text-parser-v2` located the recorded quantity
+    /// (`PastedLabelServingSizeGrammar`, pinned to the parser by a parity test):
+    /// 1. the value is the label pattern's capture group;
+    /// 2. the quantity is the first quantity match inside the first bracketed group of the value,
+    ///    else the first quantity match in the value, and must be the recorded `decimal_text` and
+    ///    `unit` (otherwise nil, which never offers servings);
+    /// 3. the segment runs from the start of the value to the end of that quantity, plus a tail
+    ///    written straight after it: a tolerance or range whose number is followed by the same
+    ///    unit or ends the value ("30g-35g", "30 g ± 2 g", "30g±2"), or a listed word or
+    ///    non-range mark (`trailingWordPattern`). Anything else after the quantity is not scanned.
     public static func servingSegment(_ size: PastedLabelManifest.Candidate.ServingSize) -> String? {
         guard let decimal = size.decimalText, let unit = size.unit else { return nil }
         let text = size.printedText
-        var start = text.startIndex
-        if let label = servingLabelPattern.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
-           let range = Range(label.range, in: text) { start = range.upperBound }
-        let value = String(text[start...])
-        let pattern = "(?<![0-9.])" + NSRegularExpression.escapedPattern(for: decimal) + #"\s*"# + NSRegularExpression.escapedPattern(for: unit)
-        guard let quantity = try? NSRegularExpression(pattern: pattern),
-              let match = quantity.firstMatch(in: value, range: NSRange(value.startIndex..., in: value)),
-              let range = Range(match.range, in: value) else { return nil }
-        // A tolerance or range written straight after the quantity ("30g ± 2g", "30g-35g") is
-        // part of it; anything else after the quantity is not.
+        typealias G = PastedLabelServingSizeGrammar
+        guard let label = G.label.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+              let valueRange = Range(label.range(at: 1), in: text) else { return nil }
+        let value = String(text[valueRange])
+        let whole = NSRange(value.startIndex..., in: value)
+        var quantity: NSTextCheckingResult?
+        if let bracket = G.parenthesised.firstMatch(in: value, range: whole) {
+            quantity = G.quantity.firstMatch(in: value, range: bracket.range(at: 1))
+        }
+        quantity = quantity ?? G.quantity.firstMatch(in: value, range: whole)
+        guard let match = quantity, let range = Range(match.range, in: value),
+              let number = Range(match.range(at: 1), in: value), let matchedUnit = Range(match.range(at: 2), in: value),
+              String(value[number]) == decimal, String(value[matchedUnit]) == unit else { return nil }
         let after = String(value[range.upperBound...])
-        let tail = trailingTolerancePattern.firstMatch(in: after, range: NSRange(after.startIndex..., in: after))
+        let afterRange = NSRange(after.startIndex..., in: after)
+        let tolerance = try? NSRegularExpression(pattern: #"^\s*[±\-–~～〜至]\s*[0-9][0-9.]*\s*(?:"#
+            + NSRegularExpression.escapedPattern(for: unit) + #"(?![\p{L}])|$)"#)
+        let tail = (tolerance?.firstMatch(in: after, range: afterRange) ?? trailingWordPattern.firstMatch(in: after, range: afterRange))
             .flatMap { Range($0.range, in: after) }.map { String(after[$0]) } ?? ""
         return String(value[..<range.upperBound]) + tail
     }
-
-    /// A tolerance or range continuing the quantity: optional spaces, ± or one of - – ~ ～ 〜 至,
-    /// optional spaces, a number.
-    static let trailingTolerancePattern = try! NSRegularExpression(pattern: #"^\s*[±\-–~～〜至]\s*[0-9][0-9.]*"#)
 
     /// Whether a serving-size segment is approximate: a listed mark, a listed whole English word,
     /// or a numeric range.
