@@ -25,7 +25,15 @@ public struct AddFoodRecentRowText: Equatable, Sendable {
             day = recent.item.occurredAt.formatted(style)
         }
         detail = (recent.isEstimate ? "Estimate · " : "") + "Last: \(shownAmount) · \(day)"
-        energy = recent.item.energyKcal.map { "\(FoodDisplayNumber.kcal($0)) kcal" }
+        if let kcal = recent.item.energyKcal {
+            energy = "\(FoodDisplayNumber.kcal(kcal)) kcal"
+        } else if let bound = recent.item.energyUpperBound {
+            // The Food Log row's wording: the upper end rounded up, never an exact amount or zero.
+            let shown = FoodDisplayNumber.kcal(bound.kcal.rounded(.up))
+            energy = bound.closed ? "\(shown) kcal or less" : "Less than \(shown) kcal"
+        } else {
+            energy = nil
+        }
     }
 
     /// Accessibility text sizes stack the name, detail and energy (the Food Log row approach).

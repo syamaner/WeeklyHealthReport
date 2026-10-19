@@ -93,6 +93,9 @@ public enum PastedLabelText {
     public static let otherNutrientsNote = "The label does not state these. They stay unknown, never zero."
     public static let notStated = "Not stated"
     public static let notRead = "Not read"
+    /// A unit code as shown in the interface: "mL" for the stored code "ml"; others unchanged.
+    public static func unitLabel(_ code: String) -> String { code == "ml" ? "mL" : code }
+
     /// "Whole pack (1 serving)", "Whole pack (2.5 servings)".
     public static func wholePackTitle(_ servings: Double) -> String {
         "Whole pack (\(FoodDisplayNumber.amount(servings, fraction: 0...2)) \(servings == 1 ? "serving" : "servings"))"

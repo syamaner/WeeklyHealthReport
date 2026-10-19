@@ -13,12 +13,15 @@ public struct FoodRecentItem: Equatable, Sendable {
     public let energyKcal: Double?
     /// The last amount is a pasted label's servings (#93), not pieces.
     public let lastAmountIsServings: Bool
+    /// Energy stated only as an upper bound, when `energyKcal` is nil: the Food Log row's rule.
+    public let energyUpperBound: FoodEnergyUpperBound?
 
     public init(logItemID: LogItemID, sourceReleaseID: ExternalIdentifier, recordID: ExternalIdentifier,
-                occurredAt: Date, lastAmount: PositiveQuantity, energyKcal: Double?, lastAmountIsServings: Bool = false) {
+                occurredAt: Date, lastAmount: PositiveQuantity, energyKcal: Double?, lastAmountIsServings: Bool = false,
+                energyUpperBound: FoodEnergyUpperBound? = nil) {
         self.logItemID = logItemID; self.sourceReleaseID = sourceReleaseID; self.recordID = recordID
         self.occurredAt = occurredAt; self.lastAmount = lastAmount; self.energyKcal = energyKcal
-        self.lastAmountIsServings = lastAmountIsServings
+        self.lastAmountIsServings = lastAmountIsServings; self.energyUpperBound = energyUpperBound
     }
 }
 
@@ -52,14 +55,16 @@ public enum FoodRecentItemsProjection {
             let last = FoodConfirmationService.lastEnteredAmount(head, conversion: conversion)
             guard let amount = try? PositiveQuantity(value: last.value, unit: last.unit) else { continue }
             let basis = records.resolutions.first { $0.resolutionID == resolution.resolutionID }?.basis ?? .unknown
-            let total = FoodIntakeSummary(contributions: [.init(quantity: head.edibleQuantity, basis: basis, nutrients: resolution.nutrients)])
-                .totals.first { $0.key == .energyConsumed }
+            let contribution = FoodIntakeContribution(quantity: head.edibleQuantity, basis: basis, nutrients: resolution.nutrients)
+            let total = FoodIntakeSummary(contributions: [contribution]).totals.first { $0.key == .energyConsumed }
+            let energy = total?.incompleteContributions == 0 ? total?.knownAmount : nil
             let sourceID = records.sourceReleases.first { $0.sourceReleaseID == decision.candidate.sourceReleaseID }?.sourceID.value
             let item = FoodRecentItem(logItemID: head.logItemID, sourceReleaseID: decision.candidate.sourceReleaseID,
                 recordID: decision.candidate.recordID, occurredAt: head.occurredAt, lastAmount: amount,
-                energyKcal: total?.incompleteContributions == 0 ? total?.knownAmount : nil,
+                energyKcal: energy,
                 lastAmountIsServings: PastedLabelServingPolicy.isServingsAmount(enteredUnit: amount.unit, conversion: conversion,
-                                                                                sourceID: sourceID))
+                                                                                sourceID: sourceID),
+                energyUpperBound: energy == nil ? FoodEnergyUpperBound.of(contribution) : nil)
             let key = decision.candidate.sourceReleaseID.value + "\u{1F}" + decision.candidate.recordID.value
             if let existing = latest[key], !Self.isMoreRecent(item, than: existing) { continue }
             latest[key] = item
@@ -118,7 +123,8 @@ public struct FoodRecentItemsService: Sendable {
             let totals = FoodIntakeSummary(contributions: [.init(quantity: log.edibleQuantity, basis: saved.resolution.basis,
                 nutrients: saved.resolutionVersion.nutrients, quantityIsEstimate: log.weightDeclaration?.basis == .estimated)]).totals
             return FoodRecentRelogItem(item: item, name: input.candidates[0].name.value,
-                                       isEstimate: isEstimate || totals.contains { $0.includesEstimates },
+                                       isEstimate: isEstimate || totals.contains { $0.includesEstimates }
+                                           || item.energyUpperBound?.isCalculated == true,
                                        logItemVersionID: saved.logItemVersion.logItemVersionID,
                                        isPlainWater: PlainWaterReference.isPlainWater(saved.resolutionVersion))
         }.prefix(limit).map { $0 }

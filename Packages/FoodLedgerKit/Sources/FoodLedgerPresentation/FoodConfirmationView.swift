@@ -320,6 +320,9 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public var originalAmountRequirement: String? {
         if state.quantity.directWeight != nil, state.quantity.value == nil, state.quantity.invalidOriginalAmountText != true { return nil }
         guard let value = state.quantity.value, value.isFinite, value > 0 else {
+            if state.quantity.directWeight == nil && state.quantity.unit == .millilitres {
+                return "Enter the amount you had in mL, greater than zero."
+            }
             return state.quantity.directWeight == nil
                 ? "Enter an amount greater than zero, or use ‘Enter measured weight’ to give the weight you ate in grams."
                 : "Enter an original amount greater than zero, or clear this optional field. Your weight in grams is kept."

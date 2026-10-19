@@ -197,12 +197,12 @@ public final class PastedLabelSourceModel: ObservableObject {
         let sizeFlag = flags.first { $0.code == PastedLabelCodes.requiredServingDeclarationMissing && $0.concerns == PastedLabelManifest.Correction.servingSize }
         let sizeValue: String
         if let sizeCorrection {
-            let entered = "\(sizeCorrection.corrected.decimalText) \(sizeCorrection.corrected.unit)"
+            let entered = "\(sizeCorrection.corrected.decimalText) \(PastedLabelText.unitLabel(sizeCorrection.corrected.unit))"
             sizeValue = sizeCorrection.kind == .corrected
                 ? "\(entered) · \(NutrientOriginText.tag(.correctedByYou)) (read as: \(size?.printedText ?? ""))"
                 : "\(entered) · \(NutrientOriginText.tag(.enteredByYou))"
         } else if let size, let decimal = size.decimalText, let unit = size.canonicalUnit {
-            sizeValue = "\(decimal) \(unit) (printed: \(size.printedText))"
+            sizeValue = "\(decimal) \(PastedLabelText.unitLabel(unit)) (printed: \(size.printedText))"
         } else if let size {
             sizeValue = "Printed: \(size.printedText)"
         } else {

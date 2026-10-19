@@ -221,6 +221,12 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
             default: break
             }
         }
+        // A pasted label per 100 ml opens on millilitres, its basis unit (#93).
+        if reopened == nil, input.candidates[0].candidate.identity.servingBasis == .per100Millilitres,
+           input.sourceReleases.contains(where: { $0.sourceReleaseID == input.candidates[0].candidate.sourceReleaseID
+               && $0.sourceID.value == PastedLabelSource.sourceID }), quantity.value == nil {
+            quantity = FoodQuantityDraft(unit: .millilitres)
+        }
         if reopened == nil, FoodSourceServingPolicy.applies(input, candidate: input.candidates[0])
             || PastedLabelServingPolicy.servingsOnly(input, candidate: input.candidates[0]) {
             quantity = FoodQuantityDraft(unit: .count)

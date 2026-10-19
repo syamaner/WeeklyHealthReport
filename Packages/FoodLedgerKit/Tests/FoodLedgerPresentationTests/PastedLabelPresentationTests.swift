@@ -393,7 +393,7 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertEqual(source.servingLines.first?.flag, "Not read: serving size. Add it, or leave it unknown.")
         confirm.send(.setQuantity(2, .count))
         XCTAssertNil(source.setValue("serving_size", text: "25", unit: "ml"))
-        XCTAssertEqual(source.servingLines.first?.value, "25 ml · Entered by you")
+        XCTAssertEqual(source.servingLines.first?.value, "25 mL · Entered by you")
         XCTAssertFalse(confirm.pastedLabelServingsOnly)
         XCTAssertEqual(confirm.state.selectedCandidate.candidate.identity.servingBasis, .perServing(try PositiveQuantity(value: 25, unit: .millilitres)))
         XCTAssertEqual(confirm.state.quantity.value, 2, "the amount is kept across a correction")

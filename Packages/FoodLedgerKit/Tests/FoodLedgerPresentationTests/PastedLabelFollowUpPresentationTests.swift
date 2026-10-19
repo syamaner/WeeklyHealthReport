@@ -171,8 +171,16 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
         // Entered in ml on a per 100 ml label: servings are offered under v2.
         let (confirm, _) = try F.confirm(ml)
         XCTAssertFalse(confirm.countsPastedLabelServings)
+        // QA L2: the amount opens on the label's basis unit, with a hint in that unit.
+        XCTAssertEqual(confirm.state.quantity.unit, .millilitres)
+        XCTAssertEqual(confirm.originalAmountRequirement, "Enter the amount you had in mL, greater than zero.")
         XCTAssertNil(ml.setValue("serving_size", text: "250", unit: "ml"))
         XCTAssertEqual(ml.servingSizeUnits.first, "ml")
+        // QA L3: shown as "mL"; the stored unit code stays "ml".
+        XCTAssertEqual(ml.servingLines.first?.value, "250 mL · Entered by you")
+        XCTAssertEqual(PastedLabelText.unitLabel("ml"), "mL")
+        XCTAssertEqual(PastedLabelText.unitLabel("g"), "g")
+        XCTAssertEqual(ml.manifest.corrections.first?.corrected.unit, "ml")
         XCTAssertTrue(confirm.countsPastedLabelServings)
         confirm.send(.setQuantity(2, .count))
         confirm.log()
@@ -232,6 +240,34 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
         let total = try XCTUnwrap(content.totals?.first { $0.key == .energyConsumed })
         XCTAssertNil(total.knownAmount, "the day total is unchanged: the bound is not added")
         XCTAssertEqual(total.incompleteContributions, 1)
+
+        // QA L1: the Recent row shows the same bound, an estimate because it is calculated.
+        let recent = try XCTUnwrap(FoodRecentItemsProjection.items(records: records, now: F.now.addingTimeInterval(60),
+                                                                   calendar: Calendar(identifier: .gregorian)).first)
+        XCTAssertNil(recent.energyKcal)
+        XCTAssertEqual(try XCTUnwrap(recent.energyUpperBound?.kcal), 6.15, accuracy: 0.000_001)
+        let ledger = FoodLedgerService(actorID: try LedgerID("00000000-0000-0000-0000-00000000a000"), committer: store,
+            clock: F.Clock(value: F.now), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+        let confirmations = FoodConfirmationService(ledger: ledger, reader: store, clock: F.Clock(value: F.now), ids: RandomLedgerIDGenerator(),
+            digester: SHA256Digester(), pastedLabelConversions: BoundConversions())
+        let relog = try XCTUnwrap(FoodRecentItemsService(reader: store, confirmations: confirmations)
+            .items(records: records, now: F.now.addingTimeInterval(60), calendar: Calendar(identifier: .gregorian)).first)
+        XCTAssertTrue(relog.isEstimate)
+        let row = AddFoodRecentRowText(relog, now: F.now, calendar: Calendar(identifier: .gregorian))
+        XCTAssertEqual(row.energy, "Less than 7 kcal")
+        XCTAssertTrue(row.detail.hasPrefix("Estimate · "), row.detail)
+        // Other sources: an upper-bound-only energy shows as a bound with no Estimate; nothing else changes.
+        let other = FoodRecentItem(logItemID: recent.logItemID, sourceReleaseID: recent.sourceReleaseID, recordID: recent.recordID,
+            occurredAt: F.now, lastAmount: try PositiveQuantity(value: 250, unit: .millilitres), energyKcal: nil,
+            energyUpperBound: FoodEnergyUpperBound(kcal: 5, closed: true, isCalculated: false))
+        let otherRow = AddFoodRecentRowText(FoodRecentRelogItem(item: other, name: "Synthetic tea", isEstimate: false),
+                                            now: F.now, calendar: Calendar(identifier: .gregorian))
+        XCTAssertEqual(otherRow.energy, "5 kcal or less")
+        XCTAssertFalse(otherRow.detail.hasPrefix("Estimate"))
+        let none = FoodRecentItem(logItemID: recent.logItemID, sourceReleaseID: recent.sourceReleaseID, recordID: recent.recordID,
+            occurredAt: F.now, lastAmount: other.lastAmount, energyKcal: nil)
+        XCTAssertNil(AddFoodRecentRowText(FoodRecentRelogItem(item: none, name: "x", isEstimate: false), now: F.now,
+                                          calendar: Calendar(identifier: .gregorian)).energy)
     }
 
     /// The Food Log row's energy for bounds from any source (the formatter is shared): a closed
