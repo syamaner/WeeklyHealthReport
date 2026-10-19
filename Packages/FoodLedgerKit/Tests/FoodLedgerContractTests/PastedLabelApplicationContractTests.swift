@@ -381,6 +381,57 @@ final class PastedLabelApplicationContractTests: XCTestCase {
         }
     }
 
+    // MARK: Whole pack from an entered servings per pack (contract section 2.3)
+
+    private func perServing(packLine: PastedLabelManifest.Candidate.ServingsPerPack?, readableServingSize: Bool = true,
+                            corrections: [PastedLabelManifest.Correction] = []) throws -> PastedLabelManifest {
+        let base = try F.perServingManifest(readableServingSize: readableServingSize)
+        let c = base.candidate
+        let candidate = PastedLabelManifest.Candidate(route: c.route, inputSHA256: c.inputSHA256, declined: false, declineReasons: [],
+            wouldMarkReady: false, language: c.language, servingSize: c.servingSize, servingsPerPack: packLine, headers: c.headers,
+            cells: c.cells, warnings: [])
+        return PastedLabelManifest(pastedText: base.pastedText, pastedTextSHA256: base.pastedTextSHA256, parserVersion: base.parserVersion,
+            gateVersion: base.gateVersion, arithmeticVersion: base.arithmeticVersion, conversionVersion: base.conversionVersion,
+            labelFormat: base.labelFormat, launchScope: base.launchScope, identityMapping: base.identityMapping, candidate: candidate,
+            storedHeaderID: base.storedHeaderID, conversions: [], flagsShown: [], corrections: corrections, warningsShown: [],
+            name: base.name, brand: base.brand)
+    }
+
+    func testWholePackUsesAPrintedExactOrAnEnteredServingsPerPackAndLogsAsServingsOnBothStores() throws {
+        let entered = PastedLabelManifest.Correction(kind: .entered, nutrient: "servings_per_pack", rowID: nil, headerID: "h1",
+            recognised: nil, corrected: .init(decimalText: "8", unit: "count", comparator: "="), at: Date(timeIntervalSince1970: 1_700_000_800))
+        let input = try F.input(perServing(packLine: nil, corrections: [entered]))
+        XCTAssertEqual(PastedLabelServingPolicy.wholePack(input, candidate: input.candidates[0]),
+                       PastedLabelWholePack(servings: 8, origin: .enteredByYou(correctionIndex: 0)))
+        let printed = try F.input(perServing(packLine: .init(printedText: "本包裝含10份", decimalText: "10", approximate: false)))
+        XCTAssertEqual(PastedLabelServingPolicy.wholePack(printed, candidate: printed.candidates[0]), PastedLabelWholePack(servings: 10, origin: .printed))
+        let about = try F.input(perServing(packLine: .init(printedText: "本包裝含約10份", decimalText: "10", approximate: true)))
+        XCTAssertNil(PastedLabelServingPolicy.wholePack(about, candidate: about.candidates[0]), "About is never a whole pack")
+        let none = try F.input(perServing(packLine: nil))
+        XCTAssertNil(PastedLabelServingPolicy.wholePack(none, candidate: none.candidates[0]), "Nothing printed or entered")
+        let noSize = try F.input(perServing(packLine: nil, readableServingSize: false, corrections: [entered]))
+        XCTAssertNil(PastedLabelServingPolicy.wholePack(noSize, candidate: noSize.candidates[0]), "A serving with no weight or volume")
+        let per100 = try F.input(F.manifest())
+        XCTAssertNil(PastedLabelServingPolicy.wholePack(per100, candidate: per100.candidates[0]), "Not a per-serving column")
+
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let service = try F.service(harness)
+            var state = FoodConfirmationState(input: input, prefillSourceQuantity: false)
+            FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(8, .count))
+            state.answerPendingDifferences(); FoodConfirmationReducer.reduce(state: &state, action: .accept)
+            let saved = try service.save(state, operationID: LedgerFixtures.operationID(9_990))
+            XCTAssertEqual(saved.logItemVersion.edibleQuantity, try PositiveQuantity(value: 240, unit: .grams), harness.name)
+            let conversion = try XCTUnwrap(saved.quantityConversion, harness.name)
+            XCTAssertEqual(conversion.sourceQuantity, try PositiveQuantity(value: 8, unit: .count))
+            XCTAssertEqual(conversion.methodVersion.value, PastedLabelServingPolicy.version)
+            XCTAssertEqual(conversion.evidenceID, input.evidence[0].evidenceID, "Cites the manifest that holds the entered count")
+            let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID), harness.name)
+            XCTAssertEqual(PastedLabelServingPolicy.wholePack(reopened.input, candidate: reopened.input.candidates[0]),
+                           PastedLabelWholePack(servings: 8, origin: .enteredByYou(correctionIndex: 0)), harness.name)
+        }
+    }
+
     // MARK: 28. Basis-state markers (contract section 8.8)
 
     func test28EnglishBasisStateMarkersMatchWholeWordsAndChineseMarkersMatchSubstrings() throws {

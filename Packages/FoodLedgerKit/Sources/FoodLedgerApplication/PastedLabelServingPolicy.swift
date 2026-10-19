@@ -1,3 +1,4 @@
+import Foundation
 import FoodLedgerDomain
 
 /// Closed serving policy for pasted labels (`pasted-label-serving-v1`; contract section 6.3), a
@@ -32,6 +33,26 @@ public enum PastedLabelServingPolicy {
         serving(input, candidate: candidate)?.unit == .count
     }
 
+    /// The whole-pack amount option (contract section 2.3): the servings in one pack, from a
+    /// printed exact servings-per-pack line or, when none is printed, the value the user entered
+    /// (shown "Entered by you"). Offered only for a stored per-serving column with a serving
+    /// quantity in grams or millilitres; a whole pack is then logged as that many servings,
+    /// through the same conversion as any servings amount. "About" is never a whole pack.
+    public static func wholePack(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> PastedLabelWholePack? {
+        guard let serving = serving(input, candidate: candidate), serving.unit != .count,
+              let evidence = input.evidence.first(where: { candidate.candidate.evidenceIDs.contains($0.evidenceID)
+                  && $0.captureMethodVersion.value == PastedLabelManifest.version }),
+              case let .text(payload) = evidence.originalPayload,
+              let manifest = PastedLabelManifest.decode(Data(payload.value.utf8)) else { return nil }
+        if let printed = manifest.candidate.servingsPerPack {
+            guard !printed.approximate, let count = PastedLabelSource.amount(printed.decimalText), count > 0 else { return nil }
+            return PastedLabelWholePack(servings: count, origin: .printed)
+        }
+        guard let index = manifest.corrections.firstIndex(where: { $0.nutrient == PastedLabelManifest.Correction.servingsPerPack }),
+              let count = PastedLabelSource.amount(manifest.corrections[index].corrected.decimalText), count > 0 else { return nil }
+        return PastedLabelWholePack(servings: count, origin: .enteredByYou(correctionIndex: index))
+    }
+
     /// The conversion recorded for n servings in case 2: n × q in q's unit, citing the pasted
     /// release and its manifest evidence. Nil in case 3, where servings are stored as counted.
     public static func conversion(servings: PositiveQuantity, serving: PositiveQuantity,
@@ -41,6 +62,18 @@ public enum PastedLabelServingPolicy {
             methodVersion: try LedgerText(version), sourceReleaseID: candidate.candidate.sourceReleaseID,
             evidenceID: candidate.candidate.evidenceIDs.first)
     }
+}
+
+/// The servings in one pack and where that number came from.
+public struct PastedLabelWholePack: Equatable, Sendable {
+    public enum Origin: Equatable, Sendable {
+        case printed
+        /// Entered on Confirm, recorded as the manifest's correction at this index.
+        case enteredByYou(correctionIndex: Int)
+    }
+    public let servings: Double
+    public let origin: Origin
+    public init(servings: Double, origin: Origin) { self.servings = servings; self.origin = origin }
 }
 
 extension FoodConfirmationState {
