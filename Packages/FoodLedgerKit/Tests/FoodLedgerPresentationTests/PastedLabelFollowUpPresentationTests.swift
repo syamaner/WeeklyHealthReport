@@ -1,5 +1,5 @@
 import Foundation
-import FoodLedgerApplication
+@testable import FoodLedgerApplication
 import FoodLedgerDomain
 @testable import FoodLedgerPresentation
 import FoodLedgerTestSupport
@@ -158,6 +158,43 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
         let total = try XCTUnwrap(content.totals?.first { $0.key == .energyConsumed })
         XCTAssertNil(total.knownAmount, "the day total is unchanged: the bound is not added")
         XCTAssertEqual(total.incompleteContributions, 1)
+    }
+
+    /// The Food Log row's energy for bounds from any source (the formatter is shared): a closed
+    /// upper bound that is not calculated reads "N kcal or less" with no Estimate; a lower-only
+    /// bound, an open bound of 0 and an unscalable basis stay "Energy unknown".
+    func testEnergyBoundsFromOtherSourcesOnTheFoodLogRow() throws {
+        func entry(_ bounds: (lower: Double?, upper: Double?, closed: Bool), basis: ResolutionBasis = .per100Grams,
+                   quantity: PositiveQuantity) throws -> FoodLogDayContent.Entry {
+            let provenance = NutrientProvenance(sourceKind: .manualDeclaration, sourceID: try ExternalIdentifier("physical_package"),
+                sourceReleaseID: try ExternalIdentifier("package:fixture-v1"), evidenceID: try RandomLedgerIDGenerator().makeID(EvidenceTag.self),
+                capturedAt: F.now)
+            let value = try NutrientBounds(lower: bounds.lower, upper: bounds.upper, lowerClosed: bounds.lower != nil, upperClosed: bounds.closed,
+                origin: .measured, unit: .kilocalories, sourceValue: .bounded(SourceBoundedNutrientValue(lower: bounds.lower, upper: bounds.upper,
+                    lowerClosed: bounds.lower != nil, upperClosed: bounds.closed, unit: LedgerText("kcal"), basis: .per100Grams)), provenance: [provenance])
+            let nutrients = try NutrientSet(entries: NutrientKey.allCases.map {
+                try NutrientEntry(key: $0, value: $0 == .energyConsumed ? .bounded(value) : .unknown(.notDeclared))
+            })
+            let contribution = FoodIntakeContribution(quantity: quantity, basis: basis, nutrients: nutrients)
+            let bound = FoodEnergyUpperBound.of(contribution)
+            return FoodLogDayContent.Entry(logItemID: try RandomLedgerIDGenerator().makeID(LogItemTag.self),
+                logItemVersionID: try RandomLedgerIDGenerator().makeID(LogItemVersionTag.self), occurredAt: F.now, name: "Synthetic tea",
+                quantity: quantity, energyKcal: nil, isEstimate: bound?.isCalculated == true, unknownKeys: [.energyConsumed],
+                energyUpperBound: bound)
+        }
+        let en = Locale(identifier: "en_GB")
+        let grams = try PositiveQuantity(value: 250, unit: .grams)
+        let closed = try entry((nil, 2, true), quantity: grams)
+        XCTAssertEqual(FoodLogText.entryEnergy(closed, locale: en), "5 kcal or less", "2 kcal per 100 g × 250 g")
+        XCTAssertEqual(closed.energyUpperBound?.isCalculated, false)
+        XCTAssertEqual(FoodLogText.flags(closed), "", "not calculated: no Estimate")
+        XCTAssertEqual(FoodLogText.entryEnergy(try entry((nil, 2, false), quantity: grams), locale: en), "Less than 5 kcal")
+        XCTAssertEqual(FoodLogText.entryEnergy(try entry((1, nil, false), quantity: grams), locale: en), "Energy unknown", "lower-only bound")
+        XCTAssertEqual(FoodLogText.entryEnergy(try entry((nil, 0, false), quantity: grams), locale: en), "Energy unknown", "less than 0")
+        XCTAssertEqual(FoodLogText.entryEnergy(try entry((nil, 2, false), quantity: PositiveQuantity(value: 250, unit: .millilitres)),
+                                               locale: en), "Energy unknown", "per 100 g against millilitres cannot scale")
+        XCTAssertEqual(FoodLogText.entryEnergy(try entry((nil, 2, false), basis: .unknown, quantity: grams), locale: en), "Energy unknown",
+                       "unknown basis")
     }
 
     /// The presentation fixture's golden conversions plus the `<17 kJ` bound (17 ÷ 4.184 rounded up to 4.1).

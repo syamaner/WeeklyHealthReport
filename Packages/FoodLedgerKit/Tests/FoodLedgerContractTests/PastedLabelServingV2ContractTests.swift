@@ -64,6 +64,18 @@ final class PastedLabelServingV2ContractTests: XCTestCase {
             ("unreadable serving size", try F.per100Manifest(servingSize: .init(printedText: "每一份量一片", decimalText: nil, unit: nil, canonicalUnit: nil))),
             ("about (Chinese)", try F.per100Manifest(servingSize: .init(printedText: "每一份量約30公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
             ("about (English)", try F.per100Manifest(servingSize: .init(printedText: "Serving size about 30g", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("约 (simplified)", try F.per100Manifest(servingSize: .init(printedText: "每一份量约30公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
+            ("〜 (wave dash)", try F.per100Manifest(servingSize: .init(printedText: "每一份量〜30公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
+            ("≒", try F.per100Manifest(servingSize: .init(printedText: "每一份量≒30公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
+            ("±", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g ± 2g", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("± before", try F.per100Manifest(servingSize: .init(printedText: "Serving size ±30g", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("hyphen range", try F.per100Manifest(servingSize: .init(printedText: "Serving size 25-30g", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("en-dash range", try F.per100Manifest(servingSize: .init(printedText: "Serving size 25–30 g", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("至 range", try F.per100Manifest(servingSize: .init(printedText: "每一份量25至30公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
+            ("～ range", try F.per100Manifest(servingSize: .init(printedText: "每一份量25～30公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
+            ("range after the unit", try F.per100Manifest(servingSize: .init(printedText: "Serving size 30g-35g", decimalText: "30", unit: "g", canonicalUnit: "g"))),
+            ("至 range with units", try F.per100Manifest(servingSize: .init(printedText: "每一份量30公克至35公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
+            ("quantity not found", try F.per100Manifest(servingSize: .init(printedText: "每一份量三十公克", decimalText: "30", unit: "公克", canonicalUnit: "g"))),
             ("ml against per 100 g", try F.per100Manifest(servingSize: Self.printed250ml)),
             ("g against per 100 ml", try F.per100Manifest(servingSize: Self.printed30g, basis: "per_100ml"))
         ]
@@ -81,6 +93,41 @@ final class PastedLabelServingV2ContractTests: XCTestCase {
         let word = try F.input(F.per100Manifest(servingSize: .init(printedText: "Serving size 30g (surrounded)", decimalText: "30",
                                                                    unit: "g", canonicalUnit: "g")))
         XCTAssertEqual(PastedLabelServingPolicy.serving(word, candidate: word.candidates[0]), try PositiveQuantity(value: 30, unit: .grams))
+    }
+
+    /// Only the serving-size segment is scanned: an approximation elsewhere on the line (the pack
+    /// count, a piece count after the quantity) keeps an exact serving size, and each saves under
+    /// v2 and reopens on both stores.
+    func testExactServingSizesSaveAndReopenUnderV2() throws {
+        let exact: [(String, String, String)] = [
+            ("每一份量30公克", "30", "公克"),
+            ("每一份量30公克，本包裝含約10份", "30", "公克"),
+            ("每一份量 30 公克（約2片）", "30", "公克"),
+            ("Serving size 30g (about 2 biscuits)", "30", "g"),
+            ("Serving size 1 bar (30g)", "30", "g"),
+            ("Serving size 30g (surrounded)", "30", "g")
+        ]
+        XCTAssertEqual(PastedLabelServingPolicy.servingSegment(.init(printedText: "每一份量30公克，本包裝含約10份", decimalText: "30",
+                                                                     unit: "公克", canonicalUnit: "g")), "30公克")
+        XCTAssertEqual(PastedLabelServingPolicy.servingSegment(.init(printedText: "Serving size 30g ± 2g", decimalText: "30",
+                                                                     unit: "g", canonicalUnit: "g")), "30g ± 2")
+        XCTAssertEqual(PastedLabelServingPolicy.approximateMarks, ["約", "约", "~", "～", "〜", "≈", "≒", "±"], "fixed for v2")
+        XCTAssertEqual(PastedLabelServingPolicy.approximateWords, ["about", "approx", "approximately", "around", "circa", "roughly"])
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let service = try F.service(harness)
+            for (index, (printed, decimal, unit)) in exact.enumerated() {
+                let input = try F.input(F.per100Manifest(servingSize: .init(printedText: printed, decimalText: decimal, unit: unit,
+                                                                           canonicalUnit: "g")), evidence: 9_600 + index)
+                XCTAssertEqual(PastedLabelServingPolicy.serving(input, candidate: input.candidates[0]),
+                               try PositiveQuantity(value: 30, unit: .grams), printed)
+                let saved = try service.save(state(input, 2, .count), operationID: LedgerFixtures.operationID(9_600 + index))
+                XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v2", printed)
+                let reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID), "\(harness.name) \(printed)")
+                XCTAssertEqual(reopened.quantity.value, 2, printed)
+                XCTAssertEqual(reopened.quantity.unit, .count, printed)
+            }
+        }
     }
 
     // MARK: Save and reopen on both stores

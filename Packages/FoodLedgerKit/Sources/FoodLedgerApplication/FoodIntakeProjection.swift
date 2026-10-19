@@ -34,6 +34,8 @@ public struct FoodEnergyUpperBound: Equatable, Sendable {
     public static func of(_ contribution: FoodIntakeContribution) -> FoodEnergyUpperBound? {
         guard let entry = contribution.nutrients?.entries.first(where: { $0.key == .energyConsumed }),
               case let .bounded(bounds) = entry.value, bounds.lower == nil, let upper = bounds.upper,
+              // "Less than 0" admits no amount: shown as unknown, never as a bound or zero.
+              upper > 0 || bounds.upperClosed,
               let scale = FoodIntakeSummary.scale(quantity: contribution.quantity, basis: contribution.basis) else { return nil }
         let kcal = upper * scale
         guard kcal.isFinite else { return nil }
