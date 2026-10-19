@@ -2060,3 +2060,17 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-19T20:59:12Z` → `2026-10-19T22:32:53Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 4,544,010 5-minute, 0 1-hour (long gate waits expired the prompt cache). Exact API-equivalent USD 26.08428. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19j: Claude Code pasted nutrition label serving v2, range dashes round
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the final review's range dashes, word ranges, +/-, separators, bracket placements, 左右, the single exactness decision and the Confirm wording for ranges, unmatched sizes and pack phrases. Runs from the round's start (`2026-10-19T22:39:11Z`, captured with `date -u`) to `2026-10-19T23:50:08Z`, just before this ledger edit. It covers the code, contract and test changes and one full gate run. The previous round's ledger edit, push and PR update and this round's are outside the rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 range dashes round (#93), implementation subagent | 14,010,132 (9,459,987) | 4,550,101 | 1,597 | 14,011,729 | $24.67 |
+
+Boundary: `2026-10-19T22:39:11Z` → `2026-10-19T23:50:08Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 4,550,101 5-minute, 0 1-hour (long gate waits expired the prompt cache). Exact API-equivalent USD 24.6746184. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
