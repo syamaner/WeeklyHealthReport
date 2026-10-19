@@ -109,6 +109,10 @@ final class PastedLabelRouteTests: XCTestCase {
         let source = try XCTUnwrap(model.readLabel(), "\(model.declineMessages)")
         let energy = try XCTUnwrap(source.rows.first { $0.id == "energy_kcal" })
         XCTAssertEqual(energy.origin, .calculated(rule: "kj_to_kcal_v1"))
+        // Review Q1: the gate's G3 on the kcal row is satisfied by the calculated value.
+        XCTAssertNil(energy.flag)
+        XCTAssertFalse(source.review?.flags.contains { $0.concerns == "energy_kcal" } ?? true, "not in the review's flags")
+        XCTAssertFalse(source.manifest.flagsShown.contains { $0.concerns == "energy_kcal" }, "not in flags_shown")
         XCTAssertTrue(energy.value.hasPrefix("about "))
         XCTAssertTrue(energy.originText.hasPrefix("Calculated from 1754 kJ (printed)"))
         let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
@@ -122,6 +126,39 @@ final class PastedLabelRouteTests: XCTestCase {
         let day = try root.intakeProjection(for: saved.logItemVersion.occurredAt)
         XCTAssertEqual(day.summary.totals.first { $0.key == .energyConsumed }?.includesEstimates, true,
                        "a calculated contribution marks the day total as including estimates")
+    }
+
+    /// Review R2: after a decline the user takes Search foods instead and logs there; no
+    /// pasted-label Developer tools line outlives the label route.
+    func testADeclineThenSearchAndLogLeavesNoPastedLabelLines() throws {
+        let root = try makeRoot()
+        let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
+        model.name = "Synthetic oat crackers"
+        model.text = Self.supplement
+        XCTAssertNil(model.readLabel())
+        XCTAssertFalse(root.searchDiagnostics.pastedLabelLines.isEmpty)
+        // The flow's "Search foods instead" and "Scan barcode instead" actions call this first.
+        model.leaveForAnotherRoute()
+        XCTAssertTrue(root.searchDiagnostics.pastedLabelLines.isEmpty)
+        let search = try root.genericFoodSearchModel(locale: Locale(identifier: "en_GB"))
+        search.query = "clementine"
+        search.search()
+        guard case let .results(route) = search.phase else { throw XCTSkip("Expected offline fruit candidates") }
+        let candidate = try XCTUnwrap(route.confirmation.candidates.first)
+        let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence, sourceReleases: route.confirmation.sourceReleases,
+            candidates: [candidate], expectedIdentity: candidate.candidate.identity, expectedEdibleQuantity: candidate.candidate.edibleQuantity)
+        let confirm = root.model(for: input)
+        let identity = try DecisiveIdentity(preparation: PreparationState(kind: .raw), bone: .notApplicable, skin: .skinless,
+            drained: .notApplicable, packingMedium: .named(LedgerText("none — synthetic fixture")), fortification: .unfortified,
+            servingBasis: candidate.candidate.identity.servingBasis)
+        confirm.send(.applyCorrection(FoodCorrection(name: try LedgerText("Synthetic clementine flesh"), brand: nil, variant: nil,
+            identity: identity, nutrients: candidate.candidate.nutrients,
+            reason: try LedgerText("Explicit identity assertions for an isolated fixture"))))
+        confirm.send(.setQuantity(100, .grams))
+        confirm.save()
+        XCTAssertNotNil(confirm.savedResult)
+        XCTAssertTrue(root.searchDiagnostics.pastedLabelLines.isEmpty, "nothing reappears after logging elsewhere")
+        XCTAssertEqual(model.text, Self.supplement, "the text stays for a return to the label screen")
     }
 
     func testAddFoodOffersThePasteNutritionLabelRow() throws {

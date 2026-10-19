@@ -106,7 +106,13 @@ public struct FoodRecentItemsService: Sendable {
                   let isEstimate = try? confirmations.isEstimate(saved) else { return nil }
             // Only a current product version can be pinned; a removal head never reaches here.
             guard case .product = saved.logItemVersion.composition else { return nil }
-            return FoodRecentRelogItem(item: item, name: input.candidates[0].name.value, isEstimate: isEstimate,
+            // The Food Log row's rule (FoodLogDayContent): an estimated entry, or totals that
+            // include estimates (an augmented or calculated value, or an estimated weight).
+            let log = saved.logItemVersion
+            let totals = FoodIntakeSummary(contributions: [.init(quantity: log.edibleQuantity, basis: saved.resolution.basis,
+                nutrients: saved.resolutionVersion.nutrients, quantityIsEstimate: log.weightDeclaration?.basis == .estimated)]).totals
+            return FoodRecentRelogItem(item: item, name: input.candidates[0].name.value,
+                                       isEstimate: isEstimate || totals.contains { $0.includesEstimates },
                                        logItemVersionID: saved.logItemVersion.logItemVersionID,
                                        isPlainWater: PlainWaterReference.isPlainWater(saved.resolutionVersion))
         }.prefix(limit).map { $0 }

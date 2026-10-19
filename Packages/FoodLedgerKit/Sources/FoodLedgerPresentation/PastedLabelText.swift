@@ -93,7 +93,14 @@ public enum PastedLabelText {
     public static let otherNutrientsNote = "The label does not state these. They stay unknown, never zero."
     public static let notStated = "Not stated"
     public static let notRead = "Not read"
-    public static let wholePackNote = "Logged as that many servings, through the printed serving size."
+    /// Whole pack's caption, from the serving size's own origin (printed, corrected or entered).
+    public static func wholePackNote(servingSize origin: NutrientValueOrigin) -> String {
+        switch origin {
+        case .correctedByYou: "Logged as that many servings, through the serving size you corrected."
+        case .enteredByYou: "Logged as that many servings, through the serving size you entered."
+        default: "Logged as that many servings, through the printed serving size."
+        }
+    }
 
     public static func sourceLine(basis: String, format: String) -> String {
         "From pasted label · \(basisLabel(basis)) · \(languageLabel(format))"
@@ -236,31 +243,44 @@ public enum NutrientOriginText {
         return "Calculated from \(comparator)\(conversion.operandText) \(unit) (printed), \(rule(conversion.rule))"
     }
 
-    /// A stored value as shown beside its origin: "5.2 g", "Less than 0.5 g", "about 370 kcal".
-    /// Calculated kcal and mg are shown to a whole number (half away from zero); a calculated
-    /// bound keeps its stored decimal place so the bound still holds. Unknown is never zero.
+    /// A stored value as shown beside its origin: "5.2 g", "Less than 0.5 g", "about 371 kcal",
+    /// "Less than 40 mg · Calculated". Calculated kcal and mg are shown to a whole number: an exact
+    /// value half away from zero with "about"; a bound rounded outward (an upper end up) so the
+    /// shown bound still contains the printed one, tagged "Calculated". Unknown is never zero.
     public static func amount(_ value: NutrientValue, origin: NutrientValueOrigin) -> String {
         let calculated: Bool = if case .calculated = origin { true } else { false }
         switch value {
         case let .measured(exact), let .augmented(exact):
-            let unit = exact.unit.rawValue
-            let wholeNumber = calculated && (unit == "kcal" || unit == "mg")
-            let number = wholeNumber ? FoodDisplayNumber.amount(exact.amount.rounded(.toNearestOrAwayFromZero), fraction: 0...0)
-                : FoodDisplayNumber.amount(exact.amount, fraction: 0...3)
-            return (calculated ? "about " : "") + "\(number) \(unit)"
+            if calculated { return calculatedAmount(exact.amount, unit: exact.unit.rawValue, comparator: "=") }
+            return "\(FoodDisplayNumber.amount(exact.amount, fraction: 0...3)) \(exact.unit.rawValue)"
         case let .bounded(bounds):
             let unit = bounds.unit.rawValue
-            let about = calculated ? "about " : ""
             if let upper = bounds.upper, bounds.lower == nil {
+                if calculated { return calculatedAmount(upper, unit: unit, comparator: bounds.upperClosed ? "<=" : "<") }
                 let number = FoodDisplayNumber.amount(upper, fraction: 0...3)
-                return bounds.upperClosed ? "\(about)\(number) \(unit) or less" : "Less than \(about)\(number) \(unit)"
+                return bounds.upperClosed ? "\(number) \(unit) or less" : "Less than \(number) \(unit)"
             }
             let lower = bounds.lower.map { FoodDisplayNumber.amount($0, fraction: 0...3) } ?? "?"
             let upper = bounds.upper.map { FoodDisplayNumber.amount($0, fraction: 0...3) } ?? "?"
-            return "\(about)\(lower) to \(upper) \(unit)"
+            return "\(lower) to \(upper) \(unit)" + (calculated ? " · \(tag(origin))" : "")
         case .unknown:
             if case let .unknown(reason) = origin { return tag(.unknown(reason)) }
             return PastedLabelText.notStated
+        }
+    }
+
+    /// The one display of a calculated amount (section 3.5), shared by Confirm and the report.
+    public static func calculatedAmount(_ amount: Double, unit: String, comparator: String) -> String {
+        let whole = unit == "kcal" || unit == "mg"
+        switch comparator {
+        case "<", "<=":
+            let shown = whole ? FoodDisplayNumber.amount(amount.rounded(.up), fraction: 0...0) : FoodDisplayNumber.amount(amount, fraction: 0...3)
+            let text = comparator == "<" ? "Less than \(shown) \(unit)" : "\(shown) \(unit) or less"
+            return "\(text) · \(tag(.calculated(rule: "")))"
+        default:
+            let shown = whole ? FoodDisplayNumber.amount(amount.rounded(.toNearestOrAwayFromZero), fraction: 0...0)
+                : FoodDisplayNumber.amount(amount, fraction: 0...3)
+            return "about \(shown) \(unit)"
         }
     }
 
@@ -278,9 +298,12 @@ public enum NutrientOriginText {
     public static func reportValue(_ value: PastedLabelMisreadReport.Value) -> String {
         let basis = PastedLabelText.basisLabel(value.basis)
         let label = "\(FoodDisplayNumber.capitalisedFirst(PastedLabelText.nutrientName(value.nutrient))) (\(value.printedLabel)) \(basis)"
-        if case .calculated = value.origin, let conversion = value.conversion {
-            let comparator = conversion.comparator.map { $0 == "<" ? "less than " : "up to " } ?? ""
-            return "\(label): \(comparator)about \(value.decimalText) \(value.unit) · \(calculatedSource(conversion))"
+        if case .calculated = value.origin, let conversion = value.conversion, let amount = Double(value.decimalText) {
+            // Rounded exactly as on Confirm (section 3.5, Display).
+            var shown = calculatedAmount(amount, unit: value.unit, comparator: value.comparator)
+            let tagged = " · \(tag(value.origin))"
+            if shown.hasSuffix(tagged) { shown.removeLast(tagged.count) }  // the source line says "Calculated from"
+            return "\(label): \(shown) · \(calculatedSource(conversion))"
         }
         return "\(label): \(value.printedText) · \(tag(value.origin))"
     }
@@ -294,7 +317,19 @@ public enum PastedLabelSavedEntryText {
     /// "about 555 kcal · Calculated", "12 g · Corrected by you", or the plain value.
     public static func value(_ total: FoodIntakeTotal, detail: SavedFoodEntryDetail) -> String {
         let plain = FoodLogText.nutrient(total, augmented: detail.augmentedKeys.contains(total.key))
-        guard total.knownAmount != nil else { return plain }
+        guard total.knownAmount != nil else {
+            // Bounds stay bounds: a bound has no consumed amount, so it is shown as stored for
+            // the label's basis ("Less than 0.5 g per 100 g · Printed"), never as unknown or zero.
+            guard let value = detail.pastedLabelValues[total.key], case .bounded = value,
+                  let origin = detail.valueOrigins[total.key] else { return plain }
+            let basis = detail.pastedLabel.flatMap { manifest in
+                manifest.candidate.headers.first { $0.headerID == manifest.storedHeaderID }.map { PastedLabelText.basisLabel($0.basis) }
+            } ?? ""
+            let tag = " · \(NutrientOriginText.tag(origin))"
+            var amount = NutrientOriginText.amount(value, origin: origin)
+            if amount.hasSuffix(tag) { amount.removeLast(tag.count) }
+            return "\(amount) \(basis)\(tag)"
+        }
         return NutrientOriginText.consumed(plain, origin: detail.valueOrigins[total.key])
     }
 

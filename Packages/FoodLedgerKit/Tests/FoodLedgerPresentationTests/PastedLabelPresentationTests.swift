@@ -168,6 +168,13 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertTrue(PastedLabelSavedEntryText.value(energy, detail: detail).hasPrefix("about "))
         XCTAssertTrue(PastedLabelSavedEntryText.value(energy, detail: detail).hasSuffix(" · Calculated"))
         XCTAssertTrue(energy.includesEstimates, "a calculated contribution sets includesEstimates (food-intake-summary-v3)")
+        // QA D2: a printed bound is shown as a bound on the saved entry, never "Unknown".
+        let fat = try XCTUnwrap({ () -> FoodIntakeTotal? in
+            if case let .calculated(totals) = detail.nutrition { return totals.first { $0.key == .fatTotal } }
+            return nil
+        }())
+        XCTAssertNil(fat.knownAmount)
+        XCTAssertEqual(PastedLabelSavedEntryText.value(fat, detail: detail), "Less than 0.5 g per 100 g · Printed")
         let report = try XCTUnwrap(PastedLabelSavedEntryText.reportText(detail))
         XCTAssertTrue(report.contains("Calculated from 1550 kJ (printed), kcal = kJ ÷ 4.184"))
         XCTAssertEqual(try store.archiveState().records.evidence.count, 1)
@@ -334,6 +341,51 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertEqual(confirm.state.quantity.value, 2, "the amount is kept across a correction")
         XCTAssertEqual(confirm.pastedLabelWholePack, PastedLabelWholePack(servings: 10, origin: .printed),
                        "an entered size in ml makes the printed exact pack a whole-pack option")
+        // Review R1: the caption names the serving size's own origin.
+        XCTAssertEqual(confirm.pastedLabelServingSizeOrigin, .enteredByYou)
+        XCTAssertEqual(PastedLabelText.wholePackNote(servingSize: confirm.pastedLabelServingSizeOrigin),
+                       "Logged as that many servings, through the serving size you entered.")
+        confirm.chooseWholePack()
+        confirm.log()
+        XCTAssertEqual(try XCTUnwrap(confirm.savedResult).quantityConversion?.convertedQuantity.value, 250, "10 servings × 25 ml")
+    }
+
+    func testWholePackWithACorrectedServingSizeSaysSo() throws {
+        // Review R1: a printed serving size the user corrected.
+        let source = try F.source(F.perServingReading())
+        let (confirm, _) = try F.confirm(source)
+        XCTAssertEqual(PastedLabelText.wholePackNote(servingSize: confirm.pastedLabelServingSizeOrigin),
+                       "Logged as that many servings, through the printed serving size.")
+        XCTAssertNil(source.setValue("serving_size", text: "35", unit: "g"))
+        XCTAssertEqual(source.servingLines.first?.value, "35 g · Corrected by you (read as: 每一份量30公克)")
+        XCTAssertEqual(confirm.pastedLabelServingSizeOrigin, .correctedByYou)
+        XCTAssertEqual(PastedLabelText.wholePackNote(servingSize: confirm.pastedLabelServingSizeOrigin),
+                       "Logged as that many servings, through the serving size you corrected.")
+        XCTAssertEqual(confirm.pastedLabelWholePack, PastedLabelWholePack(servings: 10, origin: .printed))
+        confirm.chooseWholePack()
+        confirm.log()
+        XCTAssertEqual(try XCTUnwrap(confirm.savedResult).quantityConversion?.convertedQuantity.value, 350, "10 servings × 35 g")
+    }
+
+    // MARK: Review R4 and R5: "about" and the calculated tag wherever a calculated value is shown
+
+    func testCalculatedValuesAreMarkedInEveryConfirmSummary() throws {
+        let (confirm, _) = try F.confirm(try F.source())
+        confirm.send(.setQuantity(100, .grams))
+        XCTAssertTrue(confirm.energyIsCalculated)
+        XCTAssertTrue(confirm.logButtonTitle.hasPrefix("Log about "), confirm.logButtonTitle)
+        XCTAssertEqual(confirm.markingCalculated(.energyConsumed, "371 kcal"), "about 371 kcal · Calculated")
+        XCTAssertEqual(confirm.markingCalculated(.sodium, "240 mg"), "about 240 mg · Calculated")
+        XCTAssertEqual(confirm.markingCalculated(.protein, "5.2 g"), "5.2 g", "printed values are unchanged")
+        let printedOnly = try F.confirm(try F.source(F.perServingReading())).0
+        printedOnly.send(.setQuantity(1, .count))
+        XCTAssertFalse(printedOnly.energyIsCalculated)
+        XCTAssertFalse(printedOnly.logButtonTitle.contains("about"))
+        // Calculated bounds: "Less than 40 mg · Calculated", rounded outward.
+        XCTAssertEqual(NutrientOriginText.calculatedAmount(40.0, unit: "mg", comparator: "<"), "Less than 40 mg · Calculated")
+        XCTAssertEqual(NutrientOriginText.calculatedAmount(4.3, unit: "mg", comparator: "<"), "Less than 5 mg · Calculated")
+        XCTAssertEqual(NutrientOriginText.calculatedAmount(4.0, unit: "mg", comparator: "<="), "4 mg or less · Calculated")
+        XCTAssertEqual(NutrientOriginText.calculatedAmount(370.5, unit: "kcal", comparator: "="), "about 371 kcal")
     }
 
     // MARK: Tests 22 and 34: Report a misread
@@ -343,7 +395,10 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertNil(source.setValue("protein", text: "5.4", unit: "g"))
         let report = source.reportText
         XCTAssertTrue(report.contains(F.pastedText))
-        XCTAssertTrue(report.contains("Energy (kcal) (熱量) per 100 g: about 370.5 kcal · Calculated from 1550 kJ (printed), kcal = kJ ÷ 4.184"))
+        // Rounded exactly as on Confirm (review R3): whole kcal and mg, "about".
+        XCTAssertTrue(report.contains("Energy (kcal) (熱量) per 100 g: about 371 kcal · Calculated from 1550 kJ (printed), kcal = kJ ÷ 4.184"))
+        XCTAssertTrue(report.contains("Sodium (鹽) per 100 g: about 240 mg · Calculated from 0.6 g salt (printed), sodium = salt ÷ 2.5"))
+        XCTAssertFalse(report.contains("370.5"))
         XCTAssertTrue(report.contains("Protein (蛋白質) per 100 g: 5.2公克 · Printed"), "the values as read, not the correction")
         XCTAssertTrue(report.contains("Serving size: 每一份量30公克"))
         XCTAssertTrue(report.contains("nutrition-label-text-parser-v2, label-capture-decline-gate-v2, label-arithmetic-checks-v1, pasted-label-conversions-v1"))
@@ -360,6 +415,17 @@ final class PastedLabelPresentationTests: XCTestCase {
         let declined = try XCTUnwrap(model.declineReportText)
         XCTAssertTrue(declined.contains("(no_basis_header)"))
         XCTAssertFalse(declined.contains("Synthetic oat crackers"))
+        // Review R6: a decline shows no warnings, so its report lists none, even when the
+        // reading had a failed check (here a UK table the launch scope declines).
+        let usable = F.reading(checks: [.init(name: "energy", basis: "per_100g", nutrient: nil, child: nil, status: .fail)])
+        stub.set(LabelReading(origin: .pastedText, textSHA256: usable.textSHA256, candidate: usable.candidate,
+            format: "uk_nutrition_declaration", gate: .init(format: "uk_nutrition_declaration", skipped: nil, hardDeclines: [], flags: []),
+            checks: usable.checks, conversions: usable.conversions, storedHeaderID: usable.storedHeaderID, versions: usable.versions))
+        model.readLabel()
+        let scoped = try XCTUnwrap(model.declineReportText)
+        XCTAssertTrue(scoped.contains("(layout_not_supported)"))
+        XCTAssertFalse(scoped.contains("Warnings shown"))
+        XCTAssertFalse(scoped.contains("energy:per_100g"))
     }
 
     func testTheReportBuilderAndPresentationUseNoNetworkingOrStoredText() throws {

@@ -40,6 +40,11 @@ public enum NutrientValueOrigin: Equatable, Hashable, Sendable {
             if let index = correctionIndex(provenance.manifestReference?.value), manifest.corrections.indices.contains(index) {
                 return manifest.corrections[index].kind == .corrected ? .correctedByYou : .enteredByYou
             }
+            // A user declaration whose correction record cannot be found is still the user's
+            // value, never "Printed". Save and reopen verification reject such a value
+            // (`invalidPastedLabelSource`, `integrityFailure`), so it can only reach this
+            // projection from unverified input.
+            return .enteredByYou
         }
         for provenance in value.provenance {
             if let transform = provenance.transforms.first(where: NutrientDerivation.calculatedTransform) {

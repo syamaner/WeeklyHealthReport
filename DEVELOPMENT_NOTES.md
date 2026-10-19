@@ -1955,3 +1955,17 @@ Pricing: the rates checked on 11 October 2026, as in the previous sections. They
 Boundary: `2026-10-19T07:38:08Z` → `2026-10-19T09:53:39Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 3,984,096 5-minute, 0 1-hour. Exact API-equivalent USD 27.3532458. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19c: Claude Code pasted nutrition label PR 4, review and QA fix round
+
+Same subagent and transcript as WHR-93-2026-10-19b, resumed for the invariant review and journey QA findings on #271. Runs from the fix round's start (`2026-10-19T10:59:39Z`, captured with `date -u`) to `2026-10-19T12:13:27Z`, just before this ledger edit. It covers reading the findings, the code and test changes for R1 to R6, Q1 to Q3 and D2, the triage of D1, D3, D5 and R8 (no code), and every gate. The first PR's commit, push and PR (between the two windows) and this round's ledger edit, commit, push and PR update are outside both rows. The reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label PR 4 review and QA fix round (#93), implementation subagent | 20,834,860 (17,952,302) | 2,882,466 | 9,077 | 20,843,937 | $18.18 |
+
+Boundary: `2026-10-19T10:59:39Z` → `2026-10-19T12:13:27Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 2,882,466 5-minute, 0 1-hour. Exact API-equivalent USD 18.1846984. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

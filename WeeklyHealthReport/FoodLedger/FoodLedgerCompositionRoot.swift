@@ -745,7 +745,8 @@ struct PastedLabelFlowView: View {
 
     var body: some View {
         PastedLabelTextView(model: model, openConfirm: open,
-                            search: { showsSearch = true }, scanBarcode: { showsBarcode = true },
+                            search: { model.leaveForAnotherRoute(); showsSearch = true },
+                            scanBarcode: { model.leaveForAnotherRoute(); showsBarcode = true },
                             leave: close)
             .navigationDestination(isPresented: $showsConfirmation) {
                 if let confirmationModel, let sourceModel {
@@ -755,6 +756,9 @@ struct PastedLabelFlowView: View {
                         model.dismissed()
                         if !FoodEntryFinish.complete(finish, saved: saved) { close() }
                     }
+                    // Torn down while still pushed (Add food swiped away, or a finish that
+                    // replaced the path): the flow has ended, so nothing is kept.
+                    .onDisappear { if showsConfirmation { model.dismissed() } }
                 }
             }
             .navigationDestination(isPresented: $showsSearch) {

@@ -41,6 +41,31 @@ final class PastedLabelOriginContractTests: XCTestCase {
         XCTAssertNil(PastedLabelValueOrigins.manifest(evidence: [], evidenceIDs: candidate.candidate.evidenceIDs))
     }
 
+    /// Review Q3: a user declaration whose correction reference resolves to no record is never
+    /// "Printed", and save verification refuses it before policy.
+    func testAnUnresolvableCorrectionReferenceIsNeverPrintedAndIsRefusedAtSave() throws {
+        let manifest = try F.manifest()
+        let input = try F.input(manifest)
+        let protein = try XCTUnwrap(input.candidates[0].candidate.nutrients.entries.first { $0.key == .protein }?.value)
+        let declared = try XCTUnwrap(protein.provenance.first)
+        XCTAssertEqual(declared.sourceKind, .manualDeclaration)
+        let reference = try LedgerText((declared.manifestReference?.value ?? "").replacingOccurrences(of: "correction=0", with: "correction=99"))
+        let dangling = NutrientValue.measured(try ExactNutrientValue(amount: 5.4, unit: .grams,
+            sourceValue: .exact(SourceExactNutrientValue(amount: 5.4, unit: LedgerText("g"), basis: .per100Grams)),
+            provenance: [NutrientProvenance(sourceKind: .manualDeclaration, sourceID: declared.sourceID,
+                sourceReleaseID: declared.sourceReleaseID, evidenceID: declared.evidenceID, capturedAt: declared.capturedAt,
+                manifestReference: reference)]))
+        XCTAssertNotEqual(NutrientValueOrigin.project(dangling, key: .protein, manifest: manifest), .printed)
+        XCTAssertEqual(NutrientValueOrigin.project(dangling, key: .protein, manifest: manifest), .enteredByYou)
+        let tampered = try F.replacing(input, .protein, with: dangling)
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            XCTAssertThrowsError(try F.service(harness).save(F.state(tampered), operationID: LedgerFixtures.operationID(9_960))) {
+                XCTAssertEqual($0 as? FoodConfirmationSaveError, .invalidPastedLabelSource, harness.name)
+            }
+        }
+    }
+
     func testTheReportBuilderUsesOnlyItsAllowList() throws {
         let manifest = try F.manifest()
         let report = PastedLabelMisreadReport(manifest: manifest)

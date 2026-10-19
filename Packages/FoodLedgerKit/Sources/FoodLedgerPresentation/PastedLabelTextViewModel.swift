@@ -138,8 +138,16 @@ public final class PastedLabelTextViewModel: ObservableObject {
     /// The misread report for a decline (section 9.1): the pasted text, the reasons and versions.
     public var declineReportText: String? {
         guard case let .declined(codes, reading, read) = phase else { return nil }
-        return PastedLabelMisreadReport(pastedText: read, reading: reading, declineCodes: codes, warningCodes: reading?.warningCodes ?? [])
+        return PastedLabelMisreadReport(pastedText: read, reading: reading, declineCodes: codes, warningCodes: [])  // a decline shows no warnings (section 9.1)
             .text(wording: PastedLabelReportText())
+    }
+
+    /// The user left for Search or Barcode instead: this screen's reading is no longer what
+    /// the user is acting on, so its Developer tools lines are cleared (the text stays, in case
+    /// they come back). Whatever that route logs, no pasted-label line outlives it.
+    public func leaveForAnotherRoute() {
+        asksToReplaceCorrections = false
+        recordDiagnostics([])
     }
 
     /// The screen closed ("Leave without saving", back, or after Log): nothing is kept.
