@@ -2004,3 +2004,17 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-19T14:39:28Z` → `2026-10-19T15:20:44Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,140,622 5-minute, 0 1-hour. Exact API-equivalent USD 8.097804. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19f: Claude Code pasted nutrition label serving v2, decision 15 and journey QA round
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the owner's decision 15 wording and journey QA findings D1 to D3 on #275. Runs from the round's start (`2026-10-19T16:32:38Z`, captured with `date -u`) to `2026-10-19T17:46:09Z`, just before this ledger edit. It covers the contract wording, the code and test changes, and every gate. The previous round's ledger edit, push and PR update (between the windows) and this round's ledger edit, push and PR update are outside the rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 decision 15 and journey QA round (#93), implementation subagent | 9,019,683 (5,963,898) | 3,055,743 | 3,096 | 9,022,779 | $16.53 |
+
+Boundary: `2026-10-19T16:32:38Z` → `2026-10-19T17:46:09Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 3,055,743 5-minute, 0 1-hour (the long gate waits expired the prompt cache, hence the high write share). Exact API-equivalent USD 16.5335826. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
