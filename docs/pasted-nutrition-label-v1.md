@@ -278,7 +278,7 @@ Values in the other column are kept in the manifest and shown as evidence. They 
 
 ### 6.4 Reuse: library food and favourites
 
-- **Library food.** A first Log creates a local food with a `LibraryEntry` aliased by the entered name (and brand), as other exact saves do. Logging it again from search or recents reuses the stored product version and resolution; it does not re-read any text.
+- **Reuse in v1: Recent foods and Favourites (owner, in session, 19 October 2026).** A logged label is logged again through Recent foods, or through a favourite made from it, with today's re-log semantics: Confirm opens as a new entry built from the stored source candidate, which is re-verified against the stored manifest bytes (never re-read or re-parsed), and Log writes a new log item over the same evidence and source release with no new evidence. As for every route today, that save writes new product and resolution versions carrying the same nutrients. No `LibraryEntry` alias is written in v1, so Add food search does not find a pasted label by name; that is follow-up #269, which must settle the alias key for names the shared `food:name:` normaliser cannot key (it keeps ASCII letters and digits only), how search reuse carries the manifest evidence, and the reuse semantics.
 - **Favourite.** Only by the existing explicit favourite action after save ([food quick add v1](food-quick-add-contract-v1.md)); never automatic (decision 8).
 - **Re-reading.** Pasting a new label for the same name creates a new evidence record and a new product version through the ordinary correction path; earlier entries keep their versions.
 
@@ -410,7 +410,7 @@ Application (`FoodLedgerApplicationTests`, `FoodLedgerContractTests`):
 16. A pasted-label save writes no assertion and records `methodVersion = food_confirmation_v5`; a named label with Fortified? answered does not raise `sourceIdentityMissing`, and one left unanswered does, resolved by the existing details flow.
 17. `minimumContractVersion` returns 7 with pasted-label evidence and is unchanged without it.
 18. Golden fixtures: every existing v1 to v6 record and archive decodes and re-encodes byte for byte; a contract-7 archive round-trips byte for byte; a schema-6 opener throws `unknownSchema(7)`.
-19. A logged label reused from search creates a new log item against the stored resolution and reads no text.
+19. A logged label reused through Recent foods or a favourite creates a new log item over the same evidence and source release, writes no new evidence, re-verifies the stored manifest, keeps the nutrients, and makes no reader call (section 6.4; search reuse is #269).
 
 Presentation and UI:
 

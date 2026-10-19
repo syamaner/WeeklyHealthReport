@@ -1923,3 +1923,13 @@ Pricing as in the previous sections (checked 11 October 2026, not re-checked on 
 Boundary: `2026-10-18T18:28:13Z` → `2026-10-18T20:33:23Z` (`phase_usage.py --format claude --since …`). Cache writes: 2,637,643 5-minute, 0 1-hour. Exact API-equivalent USD 20.589477. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19a: Claude Code pasted nutrition label PR 3, follow-up
+
+Same subagent and transcript as WHR-93-2026-10-18e. It covers the work after that row: the commit, push and draft PR; the search-alias investigation (stopped and reported, no code); the contract record of the approved interpretations; the rebase onto `main` after #267 and the retarget; the re-run gates; and the section 6.4 and test 19 update to reuse through Recent foods and Favourites (search is #269).
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label PR 3 follow-up (#93) | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+Unmeasured: no start boundary was captured for this follow-up, so no figure is estimated.

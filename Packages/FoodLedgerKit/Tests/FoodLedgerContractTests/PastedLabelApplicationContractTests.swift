@@ -312,10 +312,9 @@ final class PastedLabelApplicationContractTests: XCTestCase {
 
     // MARK: 19. Reuse reads no text
 
-    /// Test 19 through the existing re-log (recent foods) path. Open: the pasted candidate carries
-    /// no library aliases, so no `LibraryEntry` is written and search cannot find it, and the
-    /// existing re-log writes new product and resolution versions over the same evidence and
-    /// release; see the PR's open questions on contract section 6.4.
+    /// Test 19 (contract section 6.4): reuse in v1 is through Recent foods and Favourites, with
+    /// today's re-log semantics (new log item over the same evidence and release, new product and
+    /// resolution versions with the same nutrients). Search by name is follow-up #269.
     func test19ALoggedLabelReusedFromRecentsCreatesANewLogItemAndReadsNoText() throws {
         let stub = StubLabelTextReader(try R.reading())
         guard case let .usable(review) = PastedLabelReader(reader: stub, digester: LedgerFixtures.digester).read(F.pastedText) else {
@@ -337,6 +336,12 @@ final class PastedLabelApplicationContractTests: XCTestCase {
             XCTAssertEqual(relogged.sourceReleases, saved.sourceReleases)
             XCTAssertEqual(relogged.resolutionVersion.nutrients, saved.resolutionVersion.nutrients)
             XCTAssertEqual(try harness.reader.counts().evidence, before.evidence, "No new evidence (\(harness.name))")
+            // A favourite's input is the same restore and re-verification of the stored manifest.
+            let favourite = try service.favouriteInput(saved)
+            XCTAssertEqual(favourite.evidence, saved.evidence, harness.name)
+            XCTAssertEqual(favourite.candidates[0].candidate.nutrients, saved.resolutionVersion.nutrients, harness.name)
+            XCTAssertThrowsError(try F.service(harness, conversions: nil).favouriteInput(saved),
+                                 "Without the conversion port the calculated values fail closed (\(harness.name))")
         }
         XCTAssertEqual(stub.calls, 1, "Reuse never reads text")
     }
