@@ -506,6 +506,12 @@ Tests 45 to 48 ride with the PR that builds their code: 45 with PR 1 (conversion
 | Policy wording | Verbatim wording and a new effective date checked by a test | 7, test 35 |
 | Owner principle | Assisted UX: correction on Confirm, partial tables as flags, disclaimer, per-value origin; tests 39 to 44 | 1.1, 1.2, 2.3, 3.1, 3.2, 6.1 |
 
+### 8.8 Interpretations settled in PR 3 (owner-approved, in session, 19 October 2026)
+
+- **`flags_shown`** records the G3 to G6 flags still shown at Log. A flag whose row, cell or serving line the user has entered or corrected is no longer shown, so it is left out; the entry itself is in `corrections`.
+- **Warning codes** in `warnings_shown` take the form `<check>:<basis>[:<nutrient>][:<child>]` for each failed `label-arithmetic-checks-v1` check, for example `energy:per_100g` or `subrow_not_above_parent:per_100g:sugars`.
+- **Basis-state markers** for `basis_state_not_supported` (section 6.5) are "prepared", "drained", 沖泡 and 瀝乾, matched case-insensitively in a header's printed text or its serving wording.
+
 ## 9. Measuring real pasted text without collecting user data
 
 Real pasted text is unmeasured, so v1 has a measurement plan that collects nothing from users automatically. **No telemetry.** The release gate below applies per shipped language: Taiwan first, then UK English (decision 3).
