@@ -127,6 +127,80 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
 
     // MARK: Q-D3
 
+    /// The per 100 g reading with its stored column, serving size or energy changed.
+    private func variant(basis: String = "per_100g", servingSize: PastedLabelManifest.Candidate.ServingSize?? = .none,
+                         boundedEnergy: Bool = false) -> LabelReading {
+        let reading = F.reading()
+        let bound = PastedLabelManifest.Conversion(nutrient: "energy_kcal", rule: "kj_to_kcal_v1", ruleVersion: "pasted-label-conversions-v1",
+            sourceHeaderID: "h2", sourceRowID: "熱量", operandText: "17", operandUnit: "kJ", factorText: "4.184",
+            intermediateText: "4.063098", storedText: "4.1", comparator: "<", rounding: "outward")
+        let cells = reading.candidate.cells.map { cell in
+            boundedEnergy && cell.headerID == "h2" && cell.nutrient == "energy_kj"
+                ? F.cell("熱量", "energy_kj", "h2", "<17 kJ", "17", "kJ", comparator: "<") : cell
+        }
+        let headers = reading.candidate.headers.map { header in
+            header.headerID == "h2" ? .init(headerID: "h2", printedText: basis == "per_100ml" ? "每100毫升" : "每100公克", basis: basis,
+                                            servingConversion: nil) : header
+        }
+        let candidate = PastedLabelManifest.Candidate(route: "A", inputSHA256: reading.candidate.inputSHA256, declined: false, declineReasons: [],
+            wouldMarkReady: true, language: "zh-Hant", servingSize: servingSize ?? reading.candidate.servingSize,
+            servingsPerPack: reading.candidate.servingsPerPack, headers: headers, cells: cells, warnings: [])
+        return LabelReading(origin: .pastedText, textSHA256: reading.textSHA256, candidate: candidate, format: reading.format,
+            gate: reading.gate, checks: [], conversions: [boundedEnergy ? bound : F.kcal, F.sodium], storedHeaderID: "h2", versions: F.versions)
+    }
+
+    // MARK: QA D1
+
+    func testWholePackSaysServingForOne() {
+        XCTAssertEqual(PastedLabelText.wholePackTitle(1), "Whole pack (1 serving)")
+        XCTAssertEqual(PastedLabelText.wholePackTitle(10), "Whole pack (10 servings)")
+        XCTAssertEqual(PastedLabelText.wholePackTitle(2.5), "Whole pack (2.5 servings)")
+    }
+
+    // MARK: QA D2
+
+    func testTheServingSizeEditDefaultsToThePrintedOrBasisUnit() throws {
+        XCTAssertEqual(try F.source().servingSizeUnits, ["g", "ml"], "printed 30 g")
+        XCTAssertEqual(try F.source(variant(servingSize: .some(nil))).servingSizeUnits.first, "g", "per 100 g, none printed")
+        XCTAssertEqual(try F.source(variant(servingSize: .some(.init(printedText: "每一份量250毫升", decimalText: "250", unit: "毫升",
+                                                                      canonicalUnit: "ml")))).servingSizeUnits.first, "ml", "printed in ml")
+        let ml = try F.source(variant(basis: "per_100ml", servingSize: .some(nil)))
+        XCTAssertEqual(ml.servingSizeUnits, ["ml", "g"], "per 100 ml, none printed")
+        XCTAssertEqual(ml.servingLines.first?.units, ["ml", "g"], "the sheet opens on the line's first unit")
+
+        // Entered in ml on a per 100 ml label: servings are offered under v2.
+        let (confirm, _) = try F.confirm(ml)
+        XCTAssertFalse(confirm.countsPastedLabelServings)
+        XCTAssertNil(ml.setValue("serving_size", text: "250", unit: "ml"))
+        XCTAssertEqual(ml.servingSizeUnits.first, "ml")
+        XCTAssertTrue(confirm.countsPastedLabelServings)
+        confirm.send(.setQuantity(2, .count))
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult, confirm.blockedReason ?? "")
+        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v2")
+        XCTAssertEqual(saved.logItemVersion.edibleQuantity, try PositiveQuantity(value: 500, unit: .millilitres))
+    }
+
+    // MARK: QA D3
+
+    func testACalculatedEnergyBoundShowsAsABoundForTheAmountOnConfirm() throws {
+        let source = try F.source(variant(boundedEnergy: true), conversions: BoundConversions())
+        let (confirm, _) = try F.confirm(source, conversions: BoundConversions())
+        confirm.send(.setQuantity(150, .grams))
+        let review = confirm.nutritionReview
+        XCTAssertTrue(review.isConsumed)
+        let row = try XCTUnwrap(review.mainRows.first { $0.key == .energyConsumed })
+        XCTAssertEqual(confirm.displayValue(.energyConsumed, row.value, consumed: confirm.consumedAmount(.energyConsumed, review),
+                                            source: false), "Less than 7 kcal · Calculated", "4.1 kcal per 100 g × 150 g, rounded up")
+        XCTAssertEqual(confirm.displayValue(.energyConsumed, "Unavailable"), "Less than 7 kcal · Calculated", "the consumed nutrition section")
+        XCTAssertEqual(confirm.displayValue(.energyConsumed, "Less than 4.1 kcal", source: true), "Less than 5 kcal · Calculated",
+                       "the source reference value")
+        XCTAssertEqual(confirm.logButtonTitle, "Log", "the Log button states only a complete, exact energy")
+        // An amount that cannot scale keeps its own wording and the tag; never zero.
+        confirm.send(.setQuantity(150, .millilitres))
+        XCTAssertEqual(confirm.displayValue(.energyConsumed, "Unavailable"), "Unavailable · Calculated")
+    }
+
     func testACalculatedEnergyBoundShowsAsABoundWithEstimateOnTheFoodLogRow() throws {
         // Energy printed only as "<17 kJ" per 100 g: kcal is a calculated bound, < 4.1 kcal.
         let bound = PastedLabelManifest.Conversion(nutrient: "energy_kcal", rule: "kj_to_kcal_v1", ruleVersion: "pasted-label-conversions-v1",

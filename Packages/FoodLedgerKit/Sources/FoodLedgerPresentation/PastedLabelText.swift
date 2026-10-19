@@ -93,6 +93,11 @@ public enum PastedLabelText {
     public static let otherNutrientsNote = "The label does not state these. They stay unknown, never zero."
     public static let notStated = "Not stated"
     public static let notRead = "Not read"
+    /// "Whole pack (1 serving)", "Whole pack (2.5 servings)".
+    public static func wholePackTitle(_ servings: Double) -> String {
+        "Whole pack (\(FoodDisplayNumber.amount(servings, fraction: 0...2)) \(servings == 1 ? "serving" : "servings"))"
+    }
+
     /// Whole pack's caption, from the serving size's own origin (printed, corrected or entered).
     public static func wholePackNote(servingSize origin: NutrientValueOrigin) -> String {
         switch origin {

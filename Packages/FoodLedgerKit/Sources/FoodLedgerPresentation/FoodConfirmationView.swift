@@ -431,6 +431,15 @@ public final class FoodConfirmationViewModel: ObservableObject {
             let shown = NutrientOriginText.amount(entry.value, origin: .calculated(rule: ""))
             return shown.hasSuffix(" · \(tag)") ? shown : "\(shown) · \(tag)"
         }
+        // A calculated upper bound for the amount eaten: the Food Log row's rule (an upper end
+        // and no lower end, scaled to the amount; "less than 0" stays unknown), shown as a bound
+        // with its end rounded up, never as unavailable, an exact amount or zero.
+        if case let .bounded(bounds) = entry.value, bounds.lower == nil, let upper = bounds.upper, upper > 0 || bounds.upperClosed,
+           let eaten = try? state.calculatedEdibleQuantity(),
+           let scale = FoodIntakeSummary.scale(quantity: eaten, basis: (state.correction?.identity ?? state.selectedCandidate.candidate.identity).servingBasis),
+           (upper * scale).isFinite {
+            return NutrientOriginText.calculatedAmount(upper * scale, unit: key.canonicalUnit.rawValue, comparator: bounds.upperClosed ? "<=" : "<")
+        }
         return markingCalculated(key, value)
     }
 
@@ -957,7 +966,7 @@ public struct FoodConfirmationView: View {
                      : "Enter servings eaten, or grams or millilitres matching the label.").font(.caption)
             }
             if let pack = model.pastedLabelWholePack {
-                Button("Whole pack (\(FoodDisplayNumber.amount(pack.servings, fraction: 0...2)) servings)") {
+                Button(PastedLabelText.wholePackTitle(pack.servings)) {
                     model.chooseWholePack()
                     totalText = editableNumber(pack.servings)
                 }
@@ -1131,7 +1140,7 @@ public struct FoodConfirmationView: View {
                         model.displayValue(entry.key,
                             "\(Self.number($0)) \(entry.key.canonicalUnit.rawValue)\(total?.includesEstimates == true ? " estimated" : "")",
                             consumed: $0)
-                    } ?? "Unavailable")
+                    } ?? model.displayValue(entry.key, "Unavailable"))
                 }
                 Text("Unknown values remain unknown. Bounds remain intervals and are never shown as exact amounts. Unavailable consumed values require a supported amount conversion and an exact source value.")
                     .font(.caption)

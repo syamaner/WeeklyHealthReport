@@ -181,6 +181,16 @@ public final class PastedLabelSourceModel: ObservableObject {
         }
     }
 
+    /// The serving size edit's units, the default first: the user's earlier value's unit, else
+    /// the printed serving size's, else the stored basis's (ml for per 100 ml), else grams.
+    public var servingSizeUnits: [String] {
+        let entered = corrections.first { $0.nutrient == PastedLabelManifest.Correction.servingSize }?.corrected.unit
+        let printed = manifest.candidate.servingSize?.canonicalUnit.map { $0 == "mL" ? "ml" : $0 }
+        let basis = storedHeader?.basis == "per_100ml" ? "ml" : "g"
+        let first = [entered, printed].compactMap { $0 }.first { ["g", "ml"].contains($0) } ?? basis
+        return [first] + ["g", "ml"].filter { $0 != first }
+    }
+
     public var servingLines: [Line] {
         let size = manifest.candidate.servingSize
         let sizeCorrection = corrections.first { $0.nutrient == PastedLabelManifest.Correction.servingSize }
@@ -217,7 +227,7 @@ public final class PastedLabelSourceModel: ObservableObject {
         return [
             Line(id: PastedLabelManifest.Correction.servingSize, title: "Serving size", value: sizeValue,
                  flag: sizeFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) },
-                 actions: sizeActions, units: ["g", "ml"]),
+                 actions: sizeActions, units: servingSizeUnits),
             Line(id: PastedLabelManifest.Correction.servingsPerPack, title: "Servings per pack", value: packValue,
                  flag: packFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) },
                  actions: packActions, units: ["count"])
