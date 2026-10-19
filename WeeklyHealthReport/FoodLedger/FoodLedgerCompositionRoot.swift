@@ -5,6 +5,7 @@ import FoodLedgerGRDB
 import FoodLedgerPresentation
 import FoodBarcodeCapture
 import FoodInventoryImport
+import FoodLabelTextCapture
 import Foundation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -39,6 +40,11 @@ final class FoodLedgerCompositionRoot {
     private var activeInventory: LocalInventoryViewModel?
     private var inventoryService: LocalInventoryService?
     private var activeReresolution: FoodReresolutionViewModel?
+    /// Pasted nutrition label (#93, PR 3): the reader and the confirmation builder behind their
+    /// application ports. The parser is reached only through the `FoodLabelTextCapture` adapter
+    /// wired here; the label text screen (PR 4) uses these.
+    let pastedLabelReader: PastedLabelReader
+    let pastedLabelConfirmation: PastedLabelConfirmation
 
     /// `confirmationClock` and `confirmationCalendar` are injectable so tests can fix the day
     /// rules (the backdating window) instead of racing the live clock.
@@ -88,13 +94,19 @@ final class FoodLedgerCompositionRoot {
             encoder: FoundationCanonicalJSONEncoder(),
             digester: SHA256Digester()
         )
+        // Save and reopen recompute pasted-label conversions through the adapter's checker.
+        let pastedLabelConversions = NutritionLabelConversionChecker()
+        pastedLabelReader = PastedLabelReader(reader: NutritionLabelTextReader(), digester: SHA256Digester())
+        pastedLabelConfirmation = PastedLabelConfirmation(ids: ids, clock: confirmationClock,
+            encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester(), conversions: pastedLabelConversions)
         confirmations = FoodConfirmationService(
             ledger: ledger,
             reader: store,
             clock: confirmationClock,
             ids: ids,
             digester: SHA256Digester(),
-            calendar: confirmationCalendar
+            calendar: confirmationCalendar,
+            pastedLabelConversions: pastedLabelConversions
         )
         favourites = try FavouritesService(ledger: ledger, reader: store, confirmations: confirmations,
             clock: confirmationClock, ids: ids, digester: SHA256Digester(), calendar: confirmationCalendar)

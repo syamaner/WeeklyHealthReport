@@ -88,7 +88,7 @@ The user picks the amount and taps Log. Amount options, built only from printed 
 
 - grams or millilitres, matching the stored basis (the existing per 100 g with mL notice still applies);
 - **servings**, only when a serving size with a quantity and unit is printed;
-- **whole pack**, only when servings per pack is printed as an exact number (not "about") and a serving size is printed.
+- **whole pack**, only when the stored column is per serving with a serving size in grams or millilitres, and servings per pack is either printed as an exact number (not "about") or, when the label prints none, entered by the user on Confirm (shown "Entered by you"; owner, in session, 19 October 2026). A whole pack is logged as that many servings, through the same `pasted-label-serving-v1` servings conversion as any servings amount; the conversion cites the pasted release and the manifest evidence, which holds the correction record for an entered count. `pasted-label-serving-v1` is not bumped: the recorded conversion for n servings is unchanged, and the whole-pack option only chooses n. A conversion cannot name the correction record itself, because the quantity conversion record has no field for it; citing it directly would be a store-format change.
 
 Log follows `food_confirmation_v5` exactly: it is the explicit acceptance of the food, amount, time and source shown at that moment, and it is the only save. A parse result, a warning, a passed check or the absence of a warning never saves and never enables Log by itself.
 
@@ -138,6 +138,8 @@ The gate stays a faithful port and still emits G3 to G6; the application turns t
 | G6 `required_serving_declaration_missing` (a Taiwan table without its serving lines) | "Not read: serving size" or "Not read: servings per pack. Add it, or leave it unknown." on that line |
 
 - The user can fill a flagged value ("Entered by you") or leave it unknown. Nothing is filled automatically.
+- **Servings per pack (G6, owner, in session, 19 October 2026).** When the label prints no servings-per-pack line, the user can enter it as an exact positive number of servings. It is recorded as an `entered` correction record (`nutrient` `servings_per_pack`, unit `count`, `row_id` and `recognised` null) and resolves its flag. It sets no nutrient and no basis, and a printed line is never overwritten. It does feed the whole-pack amount option (section 2.3).
+- **Trans fat (G3 on a Taiwan table).** The owner decided on 19 October 2026 that a missing 反式脂肪 row should be fillable. It is not fillable yet: the ledger's nutrient catalogue has no trans fat key, and adding one changes the closed catalogue (`NutrientSet` requires exactly the catalogue keys, so every stored record would stop decoding). It is follow-up work after pasted labels ship, under a versioned nutrient catalogue (#270); until then the flag is shown and the row stays unknown.
 - **Unknown is never zero, and totals stay known minimums.** An unknown row marks the affected day and report totals incomplete under the existing summary rules; the known subtotal stays labelled as a known minimum.
 - A flag never blocks Log. The existing `food_confirmation_v5` requirements still apply: for example, logging by servings needs a serving size, so an unread serving size limits the amount options until the user adds it.
 - Flags shown at Log are recorded in the manifest (`flags_shown`).
@@ -278,7 +280,7 @@ Values in the other column are kept in the manifest and shown as evidence. They 
 
 ### 6.4 Reuse: library food and favourites
 
-- **Library food.** A first Log creates a local food with a `LibraryEntry` aliased by the entered name (and brand), as other exact saves do. Logging it again from search or recents reuses the stored product version and resolution; it does not re-read any text.
+- **Reuse in v1: Recent foods and Favourites (owner, in session, 19 October 2026).** A logged label is logged again through Recent foods, or through a favourite made from it, with today's re-log semantics: Confirm opens as a new entry built from the stored source candidate, which is re-verified against the stored manifest bytes (never re-read or re-parsed), and Log writes a new log item over the same evidence and source release with no new evidence. As for every route today, that save writes new product and resolution versions carrying the same nutrients. No `LibraryEntry` alias is written in v1, so Add food search does not find a pasted label by name; that is follow-up #269, which must settle the alias key for names the shared `food:name:` normaliser cannot key (it keeps ASCII letters and digits only), how search reuse carries the manifest evidence, and the reuse semantics.
 - **Favourite.** Only by the existing explicit favourite action after save ([food quick add v1](food-quick-add-contract-v1.md)); never automatic (decision 8).
 - **Re-reading.** Pasting a new label for the same name creates a new evidence record and a new product version through the ordinary correction path; earlier entries keep their versions.
 
@@ -410,7 +412,7 @@ Application (`FoodLedgerApplicationTests`, `FoodLedgerContractTests`):
 16. A pasted-label save writes no assertion and records `methodVersion = food_confirmation_v5`; a named label with Fortified? answered does not raise `sourceIdentityMissing`, and one left unanswered does, resolved by the existing details flow.
 17. `minimumContractVersion` returns 7 with pasted-label evidence and is unchanged without it.
 18. Golden fixtures: every existing v1 to v6 record and archive decodes and re-encodes byte for byte; a contract-7 archive round-trips byte for byte; a schema-6 opener throws `unknownSchema(7)`.
-19. A logged label reused from search creates a new log item against the stored resolution and reads no text.
+19. A logged label reused through Recent foods or a favourite creates a new log item over the same evidence and source release, writes no new evidence, re-verifies the stored manifest, keeps the nutrients, and makes no reader call (section 6.4; search reuse is #269).
 
 Presentation and UI:
 
@@ -505,6 +507,12 @@ Tests 45 to 48 ride with the PR that builds their code: 45 with PR 1 (conversion
 | Migration and restore | v6 to v7 table-hash migration test; reopen after restore against the manifest | 6.6, tests 31 and 38 |
 | Policy wording | Verbatim wording and a new effective date checked by a test | 7, test 35 |
 | Owner principle | Assisted UX: correction on Confirm, partial tables as flags, disclaimer, per-value origin; tests 39 to 44 | 1.1, 1.2, 2.3, 3.1, 3.2, 6.1 |
+
+### 8.8 Interpretations settled in PR 3 (owner-approved, in session, 19 October 2026)
+
+- **`flags_shown`** records the G3 to G6 flags still shown at Log. A flag whose row, cell or serving line the user has entered or corrected is no longer shown, so it is left out; the entry itself is in `corrections`.
+- **Warning codes** in `warnings_shown` take the form `<check>:<basis>[:<nutrient>][:<child>]` for each failed `label-arithmetic-checks-v1` check, for example `energy:per_100g` or `subrow_not_above_parent:per_100g:sugars`.
+- **Basis-state markers** for `basis_state_not_supported` (section 6.5) are "prepared", "drained", 沖泡 and 瀝乾, looked for in a header's printed text and its serving wording. The English markers match whole words only, case-insensitively (a word is a run of letters), so "unprepared", "undrained" and "preparedness" do not match; 沖泡 and 瀝乾 match as substrings (owner, in session, 19 October 2026).
 
 ## 9. Measuring real pasted text without collecting user data
 

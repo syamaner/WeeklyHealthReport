@@ -1900,3 +1900,36 @@ The gap between the previous row's end and this message (the commit, push and PR
 Boundary: `2026-10-18T17:11:10Z` → `2026-10-18T18:25:54Z`. Cache writes: 3,378,332 5-minute, 0 1-hour. Exact API-equivalent USD 19.8494532. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-18e: Claude Code pasted nutrition label PR 3, application and adapter
+
+One `claude-opus-5-5` implementation subagent (branch `feat/93-pasted-label-pr3-application`), transcript `subagents/agent-abcacbb97a68e0dca.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. Runs from the phase start (`2026-10-18T18:28:13Z`, captured with `date -u`) to `2026-10-18T20:33:23Z`, just before this ledger edit. It covers:
+
+- reading the contract, PR 2's manifest and verification, PR 1's parity ports, the composition root and both boundary scripts;
+- the `LabelTextReading` port, the reader, the launch scope, the code classification and the confirmation builder;
+- the `FoodLabelTextCapture` adapter, the composition root wiring and the Xcode product link;
+- the boundary script's import scan, edge rules and self-test;
+- the contract tests and the frozen-case tally;
+- the gates (the package test gate ran twice because the first run's summary was lost to a `tail` pipe).
+
+No subagents were launched; the orchestrator's usage is outside the row. This ledger edit, the commit, the push and the PR are outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the rates checked on 11 October 2026, as in the previous sections. They were not re-checked on the day of this phase (18 October 2026), so the figure below uses the 11 October rates: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label PR 3 application and adapter (#93), implementation subagent | 35,404,571 (32,766,650) | 2,637,643 | 42,341 | 35,446,912 | $20.59 |
+
+Boundary: `2026-10-18T18:28:13Z` → `2026-10-18T20:33:23Z` (`phase_usage.py --format claude --since …`). Cache writes: 2,637,643 5-minute, 0 1-hour. Exact API-equivalent USD 20.589477. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19a: Claude Code pasted nutrition label PR 3, follow-up
+
+Same subagent and transcript as WHR-93-2026-10-18e. It covers the work after that row: the commit, push and draft PR; the search-alias investigation (stopped and reported, no code); the contract record of the approved interpretations; the rebase onto `main` after #267 and the retarget; the re-run gates; and the section 6.4 and test 19 update to reuse through Recent foods and Favourites (search is #269).
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label PR 3 follow-up (#93) | Unmeasured | Unmeasured | Unmeasured | Unmeasured | Unmeasured |
+
+Unmeasured: no start boundary was captured for this follow-up, so no figure is estimated.

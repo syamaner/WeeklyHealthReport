@@ -18,6 +18,7 @@ let package = Package(
         .library(name: "FoodGenericSearch", targets: ["FoodGenericSearch"]),
         .library(name: "FoodInventoryImport", targets: ["FoodInventoryImport"]),
         .library(name: "FoodBarcodeCapture", targets: ["FoodBarcodeCapture"]),
+        .library(name: "FoodLabelTextCapture", targets: ["FoodLabelTextCapture"]),
         .library(name: "FoodLedgerArchive", targets: ["FoodLedgerArchive"]),
         .library(name: "FoodLedgerGRDB", targets: ["FoodLedgerGRDB"]),
         .library(name: "FoodLedgerTestSupport", targets: ["FoodLedgerTestSupport"])
@@ -50,6 +51,12 @@ let package = Package(
             name: "FoodBarcodeCapture",
             dependencies: ["FoodLedgerDomain", "FoodLedgerApplication"]
         ),
+        // Pasted nutrition label reader (#93, decision 10): the only product target that may
+        // depend on NutritionLabelParsing; wired at the app's composition root.
+        .target(
+            name: "FoodLabelTextCapture",
+            dependencies: ["FoodLedgerDomain", "FoodLedgerApplication", "NutritionLabelParsing"]
+        ),
         .target(name: "FoodInventoryImport", dependencies: ["FoodLedgerApplication", "FoodLedgerDomain"]),
         .target(
             name: "FoodLedgerGRDB",
@@ -72,6 +79,16 @@ let package = Package(
             dependencies: ["NutritionLabelParsing"],
             // Parity vectors exported from the frozen Python reference (#93, pasted label PR 1).
             resources: [.copy("Fixtures")]
+        ),
+        .testTarget(
+            name: "FoodLabelTextCaptureTests",
+            dependencies: [
+                "FoodLabelTextCapture",
+                "FoodLedgerApplication",
+                "FoodLedgerDomain",
+                "FoodLedgerTestSupport",
+                "NutritionLabelParsing"
+            ]
         ),
         .testTarget(
             name: "FoodLedgerDomainTests",

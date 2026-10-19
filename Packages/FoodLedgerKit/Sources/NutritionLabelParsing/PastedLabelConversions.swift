@@ -50,6 +50,17 @@ public struct PastedLabelConversionRecord: Codable, Equatable, Sendable {
     public var comparator: PastedLabelConversionComparator?
     public var rounding: String?
 
+    /// Memberwise, for a stored record handed back for verification (the adapter's
+    /// `PastedLabelConversionChecking`). It computes nothing.
+    public init(nutrient: String, rule: PastedLabelConversionRule, ruleVersion: String, sourceHeaderID: String, sourceRowID: String,
+                operandText: String, operandUnit: String, factorText: String, intermediateText: String, storedText: String,
+                comparator: PastedLabelConversionComparator?, rounding: String?) {
+        self.nutrient = nutrient; self.rule = rule; self.ruleVersion = ruleVersion
+        self.sourceHeaderID = sourceHeaderID; self.sourceRowID = sourceRowID; self.operandText = operandText
+        self.operandUnit = operandUnit; self.factorText = factorText; self.intermediateText = intermediateText
+        self.storedText = storedText; self.comparator = comparator; self.rounding = rounding
+    }
+
     enum CodingKeys: String, CodingKey {
         case nutrient
         case rule

@@ -257,7 +257,9 @@ public enum PastedLabelSource {
         let column = manifest.candidate.cells.filter {
             $0.headerID == manifest.storedHeaderID && $0.basis != "reference_intake" && $0.canonicalUnit != "%"
         }
-        let corrections = manifest.corrections.enumerated().filter { $0.element.nutrient != PastedLabelManifest.Correction.servingSize }
+        try checkServingsPerPack(manifest)
+        let lines: Set<String> = [PastedLabelManifest.Correction.servingSize, PastedLabelManifest.Correction.servingsPerPack]
+        let corrections = manifest.corrections.enumerated().filter { !lines.contains($0.element.nutrient) }
         guard Set(corrections.map(\.element.nutrient)).count == corrections.count,
               Set(manifest.conversions.map(\.nutrient)).count == manifest.conversions.count,
               manifest.conversions.isEmpty || manifest.conversionVersion == conversionVersion else {
@@ -321,6 +323,20 @@ public enum PastedLabelSource {
             return try NutrientEntry(key: key, value: value(decimalText: cell.decimalText, comparator: cell.comparator, key: key,
                 basis: basis, sourceUnit: key.canonicalUnit.rawValue, sourceDecimalText: cell.decimalText, provenance: origin))
         })
+    }
+
+    /// An entered servings-per-pack value (G6): at most one, only when the label prints none,
+    /// an exact positive number of servings in the stored column's record. It is evidence only:
+    /// no nutrient, basis or amount option is derived from it.
+    static func checkServingsPerPack(_ manifest: PastedLabelManifest) throws {
+        let entries = manifest.corrections.filter { $0.nutrient == PastedLabelManifest.Correction.servingsPerPack }
+        guard entries.count <= 1 else { throw PastedLabelSourceError.invalidManifest("servings per pack entries") }
+        guard let entry = entries.first else { return }
+        guard entry.kind == .entered, entry.rowID == nil, entry.recognised == nil, manifest.candidate.servingsPerPack == nil,
+              entry.headerID == manifest.storedHeaderID, entry.corrected.unit == "count", entry.corrected.comparator == "=",
+              let value = amount(entry.corrected.decimalText), value > 0 else {
+            throw PastedLabelSourceError.invalidManifest("servings per pack entered")
+        }
     }
 
     /// A conversion carries the printed comparator only for a bound, with outward rounding.

@@ -130,6 +130,7 @@
 		P0000000000000000000000D /* FoodBarcodeCapture in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000D /* FoodBarcodeCapture */; };
 		P0000000000000000000000E /* FoodGenericSearch in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000E /* FoodGenericSearch */; };
 		P0000000000000000000000F /* FoodInventoryImport in Frameworks */ = {isa = PBXBuildFile; productRef = X0000000000000000000000F /* FoodInventoryImport */; };
+		P00000000000000000000010 /* FoodLabelTextCapture in Frameworks */ = {isa = PBXBuildFile; productRef = X00000000000000000000010 /* FoodLabelTextCapture */; };
 		A00000000000000000000071 /* LocalHealthStorageDirectory.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000071 /* LocalHealthStorageDirectory.swift */; };
 		A00000000000000000000072 /* PrivacyPolicyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000072 /* PrivacyPolicyView.swift */; };
 		A00000000000000000000073 /* privacy-policy.txt in Resources */ = {isa = PBXBuildFile; fileRef = B00000000000000000000073 /* privacy-policy.txt */; };
@@ -313,6 +314,7 @@
 				P0000000000000000000000D /* FoodBarcodeCapture in Frameworks */,
 				P0000000000000000000000E /* FoodGenericSearch in Frameworks */,
 				P0000000000000000000000F /* FoodInventoryImport in Frameworks */,
+				P00000000000000000000010 /* FoodLabelTextCapture in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -600,6 +602,7 @@
 				X0000000000000000000000D /* FoodBarcodeCapture */,
 				X0000000000000000000000E /* FoodGenericSearch */,
 				X0000000000000000000000F /* FoodInventoryImport */,
+				X00000000000000000000010 /* FoodLabelTextCapture */,
 			);
 			productName = WeeklyHealthReport;
 			productReference = B0000000000000000000000C /* WeeklyHealthReport.app */;
@@ -1068,6 +1071,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
 			productName = FoodInventoryImport;
+		};
+		X00000000000000000000010 /* FoodLabelTextCapture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = X00000000000000000000008 /* XCLocalSwiftPackageReference "Packages/FoodLedgerKit" */;
+			productName = FoodLabelTextCapture;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

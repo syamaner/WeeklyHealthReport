@@ -499,6 +499,9 @@ public struct PastedLabelManifest: Codable, Equatable, Sendable {
         public enum Kind: String, Codable, Sendable { case corrected, entered }
         /// The nutrient row the serving-size line uses (section 6.3, case 3).
         public static let servingSize = "serving_size"
+        /// The servings-per-pack line (G6), entered in `count` when the label does not print it.
+        /// Evidence only: it sets no nutrient and no basis (owner, 19 October 2026).
+        public static let servingsPerPack = "servings_per_pack"
 
         public let kind: Kind
         public let nutrient: String
