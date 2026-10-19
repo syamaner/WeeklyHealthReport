@@ -124,7 +124,8 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertEqual(rows["protein"]?.actions, [.correct])
 
         // Serving lines, read-but-not-used rows and the other column.
-        XCTAssertEqual(source.servingLines.map(\.value), ["30 g (printed: 每一份量30公克)", "10 (printed: 本包裝含10份)"])
+        XCTAssertEqual(source.servingLines.map(\.value), ["30 g · Printed (printed: 每一份量30公克)", "10 · Printed (printed: 本包裝含10份)"])
+        XCTAssertEqual(source.servingLines.map(\.flag), [nil, nil], "exact lines carry no exception")
         XCTAssertEqual(source.readButNotUsed.map(\.printedText), [], "kJ and salt feed calculated values")
         XCTAssertEqual(source.otherColumns.first?.title, "Other column: per serving (每份)")
         XCTAssertEqual(source.otherColumns.first?.cells.count, 5)

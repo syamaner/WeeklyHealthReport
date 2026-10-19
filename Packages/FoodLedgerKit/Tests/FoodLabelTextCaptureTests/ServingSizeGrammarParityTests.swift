@@ -45,6 +45,16 @@ final class ServingSizeGrammarParityTests: XCTestCase {
         }
     }
 
+    /// An "about" pack line is read as printed and approximate, never dropped (final journey QA).
+    func testAnApproximatePackLineIsReadAsApproximate() {
+        for line in ["本包裝含約10份", "本包裝含 約 10 份"] {
+            let text = "營養標示\n每一份量30公克\n\(line)\n每份 每100公克\n熱量 111大卡 370大卡\n"
+            let pack = NutritionLabelTextParser().parse(text, inputSHA256: "synthetic").servingsPerPack
+            XCTAssertEqual(pack?.decimalText, "10", line)
+            XCTAssertEqual(pack?.approximate, true, line)
+        }
+    }
+
     func testThePolicyBindsTheQuantityTheParserRecorded() throws {
         let lines = [
             "每一份量30公克", "每一份量 30 公克", "每份量250毫升", "每一份量30公克，本包裝含約10份", "每一份量 30 公克（約2片）",

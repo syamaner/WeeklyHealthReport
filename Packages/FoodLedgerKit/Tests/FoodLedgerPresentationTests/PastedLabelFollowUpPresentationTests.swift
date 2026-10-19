@@ -149,6 +149,42 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
             gate: reading.gate, checks: [], conversions: [boundedEnergy ? bound : F.kcal, F.sodium], storedHeaderID: "h2", versions: F.versions)
     }
 
+    // MARK: Final QA presentation lows
+
+    func testSourceLineSaysMillilitresAsmL() throws {
+        XCTAssertEqual(try F.source(variant(basis: "per_100ml")).sourceLine, "From pasted label · per 100 mL · Traditional Chinese, Taiwan layout")
+        XCTAssertEqual(PastedLabelText.basisLabel("per_100ml"), "per 100 mL")
+    }
+
+    func testAnApproximateServingSizeIsMarkedAndOffersNoServings() throws {
+        for printed in ["每一份量25-30公克", "每一份量約30公克", "Serving size 30g ± 2g"] {
+            let unit = printed.hasPrefix("Serving") ? "g" : "公克"
+            let source = try F.source(variant(servingSize: .some(.init(printedText: printed, decimalText: "30", unit: unit, canonicalUnit: "g"))))
+            let line = try XCTUnwrap(source.servingLines.first)
+            XCTAssertEqual(line.value, "about 30 g · Printed (printed: \(printed))", printed)
+            XCTAssertEqual(line.flag, "Approximate, so servings are not offered. Correct the serving size to log in servings.", printed)
+            XCTAssertEqual(line.actions, [.correct], "the user can still correct it")
+            let (confirm, _) = try F.confirm(source)
+            XCTAssertFalse(confirm.countsPastedLabelServings, printed)
+            // Corrected to an exact value: the exception goes, and servings are offered.
+            XCTAssertNil(source.setValue("serving_size", text: "30", unit: "g"))
+            XCTAssertNil(source.servingLines.first?.flag, printed)
+            XCTAssertTrue(confirm.countsPastedLabelServings, printed)
+        }
+        // A per-serving column (v1) keeps accepting it: no exception there.
+        let perServing = try F.source(F.perServingReading())
+        XCTAssertNil(perServing.servingLines.first?.flag)
+    }
+
+    func testAnApproximatePackCountIsShownAsReadAndNotUsedForWholePack() throws {
+        let source = try F.source(F.perServingReading(pack: .init(printedText: "本包裝含約10份", decimalText: "10", approximate: true)))
+        let line = try XCTUnwrap(source.servingLines.last)
+        XCTAssertEqual(line.value, "about 10 · Printed (printed: 本包裝含約10份)")
+        XCTAssertEqual(line.flag, "Approximate, so it is not used for Whole pack.")
+        XCTAssertEqual(line.actions, [], "a printed line is never overwritten (contract 2.3 allows an entry only when none is printed)")
+        XCTAssertNil(try F.confirm(source).0.pastedLabelWholePack)
+    }
+
     // MARK: QA D1
 
     func testWholePackSaysServingForOne() {

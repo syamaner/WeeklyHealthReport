@@ -191,6 +191,14 @@ public final class PastedLabelSourceModel: ObservableObject {
         return [first] + ["g", "ml"].filter { $0 != first }
     }
 
+    /// A printed serving size on a per 100 g or ml column that `pasted-label-serving-v2` refuses as
+    /// approximate (or whose quantity it cannot bind). A per-serving column (v1) is not affected.
+    func sizeIsApproximateForServings(_ size: PastedLabelManifest.Candidate.ServingSize) -> Bool {
+        guard ["per_100g", "per_100ml"].contains(storedHeader?.basis ?? ""), size.decimalText != nil else { return false }
+        guard let segment = PastedLabelServingPolicy.servingSegment(size) else { return true }
+        return PastedLabelServingPolicy.approximate(segment)
+    }
+
     public var servingLines: [Line] {
         let size = manifest.candidate.servingSize
         let sizeCorrection = corrections.first { $0.nutrient == PastedLabelManifest.Correction.servingSize }
@@ -202,7 +210,8 @@ public final class PastedLabelSourceModel: ObservableObject {
                 ? "\(entered) · \(NutrientOriginText.tag(.correctedByYou)) (read as: \(size?.printedText ?? ""))"
                 : "\(entered) · \(NutrientOriginText.tag(.enteredByYou))"
         } else if let size, let decimal = size.decimalText, let unit = size.canonicalUnit {
-            sizeValue = "\(decimal) \(PastedLabelText.unitLabel(unit)) (printed: \(size.printedText))"
+            let approximate = sizeIsApproximateForServings(size)
+            sizeValue = "\(approximate ? "about " : "")\(decimal) \(PastedLabelText.unitLabel(unit)) · \(NutrientOriginText.tag(.printed)) (printed: \(size.printedText))"
         } else if let size {
             sizeValue = "Printed: \(size.printedText)"
         } else {
@@ -217,7 +226,7 @@ public final class PastedLabelSourceModel: ObservableObject {
         let packFlag = flags.first { $0.code == PastedLabelCodes.requiredServingDeclarationMissing && $0.concerns == PastedLabelManifest.Correction.servingsPerPack }
         let packValue: String
         if let pack {
-            packValue = "\(pack.approximate ? "about " : "")\(pack.decimalText) (printed: \(pack.printedText))"
+            packValue = "\(pack.approximate ? "about " : "")\(pack.decimalText) · \(NutrientOriginText.tag(.printed)) (printed: \(pack.printedText))"
         } else if let packEntry {
             packValue = "\(packEntry.corrected.decimalText) · \(NutrientOriginText.tag(.enteredByYou))"
         } else {
@@ -226,10 +235,12 @@ public final class PastedLabelSourceModel: ObservableObject {
         let packActions: [Row.Action] = isEditable && pack == nil ? (packEntry == nil ? [.add] : [.correct, .remove]) : []
         return [
             Line(id: PastedLabelManifest.Correction.servingSize, title: "Serving size", value: sizeValue,
-                 flag: sizeFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) },
+                 flag: sizeFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) }
+                    ?? (sizeCorrection == nil && size.map(sizeIsApproximateForServings) == true ? PastedLabelText.approximateServingSize : nil),
                  actions: sizeActions, units: servingSizeUnits),
             Line(id: PastedLabelManifest.Correction.servingsPerPack, title: "Servings per pack", value: packValue,
-                 flag: packFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) },
+                 flag: packFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) }
+                    ?? (pack?.approximate == true ? PastedLabelText.approximatePack : nil),
                  actions: packActions, units: ["count"])
         ]
     }

@@ -93,6 +93,12 @@ public enum PastedLabelText {
     public static let otherNutrientsNote = "The label does not state these. They stay unknown, never zero."
     public static let notStated = "Not stated"
     public static let notRead = "Not read"
+    /// Shown beside a printed serving size that `pasted-label-serving-v2` cannot use because it is
+    /// approximate (contract section 6.3): the exception is visible, never silent.
+    public static let approximateServingSize = "Approximate, so servings are not offered. Correct the serving size to log in servings."
+    /// Shown beside a printed "about" servings-per-pack count: read, but never a whole pack (section 2.3).
+    public static let approximatePack = "Approximate, so it is not used for Whole pack."
+
     /// A unit code as shown in the interface: "mL" for the stored code "ml"; others unchanged.
     public static func unitLabel(_ code: String) -> String { code == "ml" ? "mL" : code }
 
@@ -117,7 +123,7 @@ public enum PastedLabelText {
     public static func basisLabel(_ basis: String) -> String {
         switch basis {
         case "per_100g": "per 100 g"
-        case "per_100ml": "per 100 ml"
+        case "per_100ml": "per 100 mL"
         case "per_serving": "per serving"
         case "reference_intake": "reference intake"
         default: basis.replacingOccurrences(of: "_", with: " ")
