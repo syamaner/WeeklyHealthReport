@@ -64,11 +64,16 @@ enum LabelFixtures {
         LabelReading.Flag(code: "required_row_missing", concerns: "sodium")
     ]
 
-    /// The per 100 g reading: Confirm stores h2.
-    static func reading(text: String = pastedText, checks: [LabelReading.Check] = []) -> LabelReading {
+    static let printedServingSize = PastedLabelManifest.Candidate.ServingSize(printedText: "每一份量30公克", decimalText: "30",
+                                                                              unit: "公克", canonicalUnit: "g")
+
+    /// The per 100 g reading: Confirm stores h2. Its printed 30 g serving size qualifies for
+    /// `pasted-label-serving-v2`; pass another (or nil) to test the cases that do not.
+    static func reading(text: String = pastedText, checks: [LabelReading.Check] = [],
+                        servingSize: PastedLabelManifest.Candidate.ServingSize? = printedServingSize) -> LabelReading {
         let candidate = PastedLabelManifest.Candidate(route: "A", inputSHA256: hash(text), declined: false, declineReasons: [],
             wouldMarkReady: true, language: "zh-Hant",
-            servingSize: .init(printedText: "每一份量30公克", decimalText: "30", unit: "公克", canonicalUnit: "g"),
+            servingSize: servingSize,
             servingsPerPack: .init(printedText: "本包裝含10份", decimalText: "10", approximate: false),
             headers: [.init(headerID: "h1", printedText: "每份", basis: "per_serving", servingConversion: "30公克"),
                       .init(headerID: "h2", printedText: "每100公克", basis: "per_100g", servingConversion: nil)],

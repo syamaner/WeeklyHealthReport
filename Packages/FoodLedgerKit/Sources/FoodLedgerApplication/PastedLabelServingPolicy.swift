@@ -1,27 +1,63 @@
 import Foundation
 import FoodLedgerDomain
 
-/// Closed serving policy for pasted labels (`pasted-label-serving-v1`; contract section 6.3), a
-/// sibling of `food-source-declared-serving-v1`. A pasted label whose stored column is per
-/// serving can be logged in servings:
+/// Closed serving policy for pasted labels (contract section 6.3), a sibling of
+/// `food-source-declared-serving-v1`. Two append-only method versions, chosen by the stored
+/// column and never by the user:
+///
+/// `pasted-label-serving-v1`, a stored per-serving column:
 /// - case 2, `perServing(q)` with q in grams or millilitres: servings are converted through the
 ///   printed serving size (n servings = n × q), recorded as a quantity conversion whose method
-///   is this policy's version; an amount in q's unit is also accepted, as for any basis;
+///   is v1; an amount in q's unit is also accepted, as for any basis;
 /// - case 3, `perServing(1 count)` (no readable serving size): servings only.
-/// Nothing is inferred: no weight is ever given to a case 3 serving. The source must be a
-/// pasted-label release; save verification of its manifest still runs before policy.
+///
+/// `pasted-label-serving-v2` (owner, in session, 19 October 2026), a stored per 100 g (per
+/// 100 ml) column with an exact serving size q in grams (millilitres), printed, or corrected or
+/// entered by the user on Confirm: n servings are the quantity n × q, scaled against the per-100
+/// basis, recorded exactly like a v1 conversion but under v2. A serving size in the other unit,
+/// or one printed as approximate ("about"), offers no servings. Grams or millilitres are
+/// accepted as for any per-100 basis.
+///
+/// Nothing is inferred: no weight is ever given to a case 3 serving, and no serving size is
+/// taken from the other column. The source must be a pasted-label release; save verification of
+/// its manifest still runs before policy. v1 is unchanged: its records keep their bytes and
+/// decode, reopen and re-save exactly as before.
 public enum PastedLabelServingPolicy {
+    /// The per-serving method (stored column per serving).
     public static let version = "pasted-label-serving-v1"
+    /// The per-100 method (stored column per 100 g or per 100 ml, with a qualifying serving size).
+    public static let per100Version = "pasted-label-serving-v2"
+    /// Append-only: every method a stored pasted-label servings conversion may name.
+    public static let admittedVersions = [version, per100Version]
 
-    /// The stored column's serving quantity when the policy applies.
-    public static func serving(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> PositiveQuantity? {
+    /// Printed approximation markers that disqualify a printed serving size under v2: English
+    /// words matched whole and case-insensitively, the other markers as substrings.
+    static let approximateWords: Set<String> = ["about", "approx", "approximately", "around", "circa", "roughly"]
+    static let approximateMarks = ["約", "~", "～", "≈"]
+
+    /// The serving quantity and the method that applies to the selection, or nil.
+    public static func resolved(_ input: PopulatedFoodConfirmation,
+                                candidate: PopulatedFoodCandidate) -> (serving: PositiveQuantity, method: String)? {
         let source = candidate.candidate
-        guard case let .perServing(serving) = source.identity.servingBasis,
-              input.sourceReleases.contains(where: { $0.sourceReleaseID == source.sourceReleaseID
+        guard input.sourceReleases.contains(where: { $0.sourceReleaseID == source.sourceReleaseID
                   && $0.sourceID.value == PastedLabelSource.sourceID }),
-              input.evidence.contains(where: { source.evidenceIDs.contains($0.evidenceID)
-                  && $0.captureMethodVersion.value == PastedLabelManifest.version }) else { return nil }
-        return serving
+              let manifest = manifest(input, candidate: candidate) else { return nil }
+        switch source.identity.servingBasis {
+        case let .perServing(serving): return (serving, version)
+        case .per100Grams: return per100Serving(manifest, unit: .grams).map { ($0, per100Version) }
+        case .per100Millilitres: return per100Serving(manifest, unit: .millilitres).map { ($0, per100Version) }
+        case .perUnit, .named, .unknown: return nil
+        }
+    }
+
+    /// The serving quantity when either method applies.
+    public static func serving(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> PositiveQuantity? {
+        resolved(input, candidate: candidate)?.serving
+    }
+
+    /// The method a servings amount is recorded under for this selection.
+    public static func method(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> String? {
+        resolved(input, candidate: candidate)?.method
     }
 
     public static func applies(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> Bool {
@@ -35,15 +71,13 @@ public enum PastedLabelServingPolicy {
 
     /// The whole-pack amount option (contract section 2.3): the servings in one pack, from a
     /// printed exact servings-per-pack line or, when none is printed, the value the user entered
-    /// (shown "Entered by you"). Offered only for a stored per-serving column with a serving
-    /// quantity in grams or millilitres; a whole pack is then logged as that many servings,
-    /// through the same conversion as any servings amount. "About" is never a whole pack.
+    /// (shown "Entered by you"). Offered whenever servings convert through a serving quantity in
+    /// grams or millilitres: a per-serving column under v1, or a per-100 column with a qualifying
+    /// serving size under v2. A whole pack is then logged as that many servings, through the same
+    /// conversion as any servings amount. "About" is never a whole pack.
     public static func wholePack(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> PastedLabelWholePack? {
         guard let serving = serving(input, candidate: candidate), serving.unit != .count,
-              let evidence = input.evidence.first(where: { candidate.candidate.evidenceIDs.contains($0.evidenceID)
-                  && $0.captureMethodVersion.value == PastedLabelManifest.version }),
-              case let .text(payload) = evidence.originalPayload,
-              let manifest = PastedLabelManifest.decode(Data(payload.value.utf8)) else { return nil }
+              let manifest = manifest(input, candidate: candidate) else { return nil }
         if let printed = manifest.candidate.servingsPerPack {
             guard !printed.approximate, let count = PastedLabelSource.amount(printed.decimalText), count > 0 else { return nil }
             return PastedLabelWholePack(servings: count, origin: .printed)
@@ -53,14 +87,61 @@ public enum PastedLabelServingPolicy {
         return PastedLabelWholePack(servings: count, origin: .enteredByYou(correctionIndex: index))
     }
 
-    /// The conversion recorded for n servings in case 2: n × q in q's unit, citing the pasted
-    /// release and its manifest evidence. Nil in case 3, where servings are stored as counted.
-    public static func conversion(servings: PositiveQuantity, serving: PositiveQuantity,
-                                  candidate: PopulatedFoodCandidate) throws -> QuantityConversionDraft? {
+    /// The conversion recorded for n servings through a serving quantity in grams or millilitres:
+    /// n × q in q's unit, citing the pasted release and its manifest evidence, under `method`
+    /// (v1 unless given). Nil for a case 3 serving, where servings are stored as counted.
+    public static func conversion(servings: PositiveQuantity, serving: PositiveQuantity, candidate: PopulatedFoodCandidate,
+                                  method: String = version) throws -> QuantityConversionDraft? {
         guard servings.unit == .count, serving.unit != .count else { return nil }
         return QuantityConversionDraft(convertedQuantity: try PositiveQuantity(value: servings.value * serving.value, unit: serving.unit),
-            methodVersion: try LedgerText(version), sourceReleaseID: candidate.candidate.sourceReleaseID,
+            methodVersion: try LedgerText(method), sourceReleaseID: candidate.candidate.sourceReleaseID,
             evidenceID: candidate.candidate.evidenceIDs.first)
+    }
+
+    /// Reopen verification of a stored conversion that names an admitted pasted-label method: it
+    /// must be exactly the conversion this policy records for its source quantity on this label,
+    /// under the method the stored column selects.
+    public static func verifies(_ stored: QuantityConversionVersion, input: PopulatedFoodConfirmation,
+                                candidate: PopulatedFoodCandidate) -> Bool {
+        guard let resolved = resolved(input, candidate: candidate), stored.methodVersion.value == resolved.method,
+              let expected = try? conversion(servings: stored.sourceQuantity, serving: resolved.serving, candidate: candidate,
+                                             method: resolved.method) else { return false }
+        return stored.convertedQuantity == expected.convertedQuantity && stored.sourceReleaseID == expected.sourceReleaseID
+            && stored.evidenceID == expected.evidenceID
+    }
+
+    /// The manifest bound to the candidate through its pasted-label evidence.
+    static func manifest(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> PastedLabelManifest? {
+        guard let evidence = input.evidence.first(where: { candidate.candidate.evidenceIDs.contains($0.evidenceID)
+                  && $0.captureMethodVersion.value == PastedLabelManifest.version }),
+              case let .text(payload) = evidence.originalPayload else { return nil }
+        return PastedLabelManifest.decode(Data(payload.value.utf8))
+    }
+
+    /// v2: the user's serving-size correction or entry when there is one (validated as for any
+    /// column), else the printed serving size unless it is printed as approximate; only in the
+    /// unit of the per-100 basis.
+    static func per100Serving(_ manifest: PastedLabelManifest, unit: QuantityUnit) -> PositiveQuantity? {
+        let size: PositiveQuantity?
+        do {
+            if let corrected = try PastedLabelSource.servingSizeCorrection(manifest) {
+                size = corrected
+            } else if let printed = manifest.candidate.servingSize, !approximate(printed.printedText) {
+                size = PastedLabelSource.servingQuantity(printed)
+            } else {
+                size = nil
+            }
+        } catch {
+            return nil
+        }
+        guard let size, size.unit == unit else { return nil }
+        return size
+    }
+
+    static func approximate(_ printed: String) -> Bool {
+        if approximateMarks.contains(where: { printed.contains($0) }) { return true }
+        let words = printed.lowercased().split { !($0.isASCII && $0.isLetter) }.map(String.init)
+        return words.contains { approximateWords.contains($0) }
     }
 }
 
@@ -77,29 +158,46 @@ public struct PastedLabelWholePack: Equatable, Sendable {
 }
 
 extension FoodConfirmationState {
-    /// The pasted-label serving quantity when `pasted-label-serving-v1` applies to the selection.
+    /// The pasted-label serving quantity when `pasted-label-serving-v1` or `-v2` applies to the selection.
     public var pastedLabelServing: PositiveQuantity? { PastedLabelServingPolicy.serving(input, candidate: selectedCandidate) }
 
-    /// Whether the entered amount is in servings under `pasted-label-serving-v1`.
+    /// The pasted-label serving method that applies to the selection, if any.
+    var pastedLabelServingMethod: String? { PastedLabelServingPolicy.method(input, candidate: selectedCandidate) }
+
+    /// Whether the entered amount is in servings under a pasted-label serving method.
     var logsPastedLabelServings: Bool { pastedLabelServing != nil && quantity.unit == .count }
 
     /// Servings must be a plain count: no direct weight, plate or conversion other than the
-    /// policy's own (kept on a reopened entry). Case 3 accepts nothing but servings.
+    /// applicable method's own (kept on a reopened entry). Case 3 accepts nothing but servings.
+    /// A conversion naming a pasted-label method the selection does not use is never accepted.
     var pastedLabelServingMisuse: Bool {
+        let method = pastedLabelServingMethod
+        if let named = quantity.conversion?.methodVersion.value, named != method,
+           PastedLabelServingPolicy.admittedVersions.contains(named) {
+            return true
+        }
         guard let serving = pastedLabelServing else { return false }
         if quantity.unit != .count { return serving.unit == .count }
         return quantity.directWeight != nil || quantity.plateChoice != .foodOnly
-            || (quantity.conversion.map { $0.methodVersion.value != PastedLabelServingPolicy.version } ?? false)
+            || (quantity.conversion.map { $0.methodVersion.value != method } ?? false)
     }
 
-    /// The quantity the save path records. Servings of a pasted label carry the policy's
-    /// conversion in case 2, recomputed from the count (never a stale draft), and none in case 3.
+    /// The quantity the save path records. Servings of a pasted label carry the method's
+    /// conversion through a weight or volume serving, recomputed from the count (never a stale
+    /// draft), and none in case 3. A conversion naming a pasted-label method that does not
+    /// apply is refused on any path.
     func policyQuantity() throws -> FoodQuantityDraft {
-        guard logsPastedLabelServings, let serving = pastedLabelServing else { return quantity }
+        guard logsPastedLabelServings, let serving = pastedLabelServing, let method = pastedLabelServingMethod else {
+            if let named = quantity.conversion?.methodVersion.value, named != pastedLabelServingMethod,
+               PastedLabelServingPolicy.admittedVersions.contains(named) {
+                throw FoodLedgerValidationError.invalidUnit
+            }
+            return quantity
+        }
         guard !pastedLabelServingMisuse else { throw FoodLedgerValidationError.invalidUnit }
         var draft = quantity
         draft.conversion = try PastedLabelServingPolicy.conversion(servings: quantity.calculationInput(), serving: serving,
-                                                                   candidate: selectedCandidate)
+                                                                   candidate: selectedCandidate, method: method)
         return draft
     }
 }

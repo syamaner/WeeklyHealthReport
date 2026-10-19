@@ -182,7 +182,6 @@ public final class PastedLabelSourceModel: ObservableObject {
     }
 
     public var servingLines: [Line] {
-        let perServing = storedHeader?.basis == "per_serving"
         let size = manifest.candidate.servingSize
         let sizeCorrection = corrections.first { $0.nutrient == PastedLabelManifest.Correction.servingSize }
         let sizeFlag = flags.first { $0.code == PastedLabelCodes.requiredServingDeclarationMissing && $0.concerns == PastedLabelManifest.Correction.servingSize }
@@ -200,7 +199,7 @@ public final class PastedLabelSourceModel: ObservableObject {
             sizeValue = PastedLabelText.notStated
         }
         var sizeActions: [Row.Action] = []
-        if isEditable && perServing {
+        if isEditable && storedHeader != nil {
             sizeActions = sizeCorrection != nil ? [.correct, .remove] : (size?.decimalText != nil ? [.correct] : [.add])
         }
         let pack = manifest.candidate.servingsPerPack

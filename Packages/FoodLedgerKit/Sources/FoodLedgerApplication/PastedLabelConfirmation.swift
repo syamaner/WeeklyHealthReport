@@ -63,7 +63,9 @@ public struct PastedLabelConfirmation: Sendable {
                   PastedLabelSource.quantity(value.decimalText, unit: value.unit) != nil else {
                 throw PastedLabelConfirmationError.invalidValue(nutrient)
             }
-            guard candidate.headers.first(where: { $0.headerID == stored })?.basis == "per_serving" else {
+            // Any stored column: per serving it sets the basis (section 6.3); per 100 g or ml it
+            // only feeds `pasted-label-serving-v2` servings and never changes a nutrient.
+            guard candidate.headers.contains(where: { $0.headerID == stored }) else {
                 throw PastedLabelConfirmationError.notCorrectable(nutrient)
             }
             if PastedLabelSource.servingQuantity(candidate.servingSize) != nil, let printed = candidate.servingSize,
