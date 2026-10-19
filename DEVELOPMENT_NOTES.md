@@ -2046,3 +2046,17 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-19T20:14:50Z` → `2026-10-19T20:53:19Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,623,965 5-minute, 0 1-hour. Exact API-equivalent USD 9.313591. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19i: Claude Code pasted nutrition label serving v2, remaining approximate forms and presentation lows
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the final review's remaining approximate serving-size forms (±, ranges to listed units, separators, words after a bracket group, more weight and volume words, parser-realistic fixtures) and the final journey QA presentation lows (per 100 mL copy, approximate serving size and pack count shown as read and explained). Runs from the round's start (`2026-10-19T20:59:12Z`, captured with `date -u`) to `2026-10-19T22:32:53Z`, just before this ledger edit. It covers the code, contract and test changes and two full gate runs (after the rule fixes, then after the presentation lows). The previous round's ledger edit, push and PR update and this round's are outside the rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 remaining approximate forms and presentation lows (#93), implementation subagent | 20,710,192 (16,166,110) | 4,544,010 | 6,536 | 20,716,728 | $26.08 |
+
+Boundary: `2026-10-19T20:59:12Z` → `2026-10-19T22:32:53Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 4,544,010 5-minute, 0 1-hour (long gate waits expired the prompt cache). Exact API-equivalent USD 26.08428. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
