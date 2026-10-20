@@ -221,6 +221,12 @@ public struct FoodConfirmationState: Codable, Equatable, Sendable {
             default: break
             }
         }
+        // A pasted label per 100 ml opens on millilitres, its basis unit (#93).
+        if reopened == nil, input.candidates[0].candidate.identity.servingBasis == .per100Millilitres,
+           input.sourceReleases.contains(where: { $0.sourceReleaseID == input.candidates[0].candidate.sourceReleaseID
+               && $0.sourceID.value == PastedLabelSource.sourceID }), quantity.value == nil {
+            quantity = FoodQuantityDraft(unit: .millilitres)
+        }
         if reopened == nil, FoodSourceServingPolicy.applies(input, candidate: input.candidates[0])
             || PastedLabelServingPolicy.servingsOnly(input, candidate: input.candidates[0]) {
             quantity = FoodQuantityDraft(unit: .count)
@@ -492,7 +498,7 @@ public final class FoodConfirmationService: @unchecked Sendable {
         } else {
             reportingDate = try LedgerText(FoodReportingDay.key(for: occurredAt, calendar: calendar))
         }
-        // pasted-label-serving-v1 supplies its own conversion for servings (case 2) or none (case 3).
+        // pasted-label-serving-v1 or -v2 supplies its own conversion for servings, or none (v1 case 3).
         let quantity = try state.policyQuantity()
         let declaration = try quantity.declaration()
         let entered = try quantity.calculationInput()
@@ -682,6 +688,13 @@ public final class FoodConfirmationService: @unchecked Sendable {
         guard let saved = try reader.foodConfirmation(logItemID: logItemID) else { return nil }
         try saved.logItemVersion.validateWeightDeclaration(emptyPlate: saved.plateWeightVersion)
         let input = try restoredConfirmationInput(saved)
+        // A stored conversion naming a pasted-label serving method must be exactly what that
+        // method records on this label (contract section 6.3), never another method's or a stale one.
+        if let conversion = saved.quantityConversion,
+           PastedLabelServingPolicy.admittedVersions.contains(conversion.methodVersion.value),
+           !PastedLabelServingPolicy.verifies(conversion, input: input, candidate: input.candidates[0]) {
+            throw FoodLedgerStoreError.integrityFailure("pasted label servings conversion does not match its label")
+        }
         var state = FoodConfirmationState(input: input, reopened: saved)
         state.decision = .accepted
         return state

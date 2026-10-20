@@ -27,8 +27,9 @@ final class PastedLabelReviewFixTests: XCTestCase {
 
     func testServingPolicyVersionAndApplicability() throws {
         XCTAssertEqual(PastedLabelServingPolicy.version, "pasted-label-serving-v1")
-        let per100 = try F.input(F.manifest())
-        XCTAssertFalse(PastedLabelServingPolicy.applies(per100, candidate: per100.candidates[0]), "Per 100 g is not a serving basis")
+        // Per 100 g with no serving size: no serving rule (v2 needs a serving size; see PastedLabelServingV2ContractTests).
+        let per100 = try F.input(F.per100Manifest(servingSize: nil))
+        XCTAssertFalse(PastedLabelServingPolicy.applies(per100, candidate: per100.candidates[0]), "No serving size, no servings")
         let case2 = try F.input(F.perServingManifest(readableServingSize: true))
         let case3 = try F.input(F.perServingManifest(readableServingSize: false))
         XCTAssertTrue(PastedLabelServingPolicy.applies(case2, candidate: case2.candidates[0]))
@@ -89,8 +90,8 @@ final class PastedLabelReviewFixTests: XCTestCase {
     }
 
     func testOrdinaryCountsStillNeedAMeasuredAmount() throws {
-        // The policy is closed: a pasted label per 100 g gains no serving rule.
-        let input = try F.input(F.manifest())
+        // The policy is closed: a pasted label per 100 g without a serving size gains no serving rule.
+        let input = try F.input(F.per100Manifest(servingSize: nil))
         var state = FoodConfirmationState(input: input, prefillSourceQuantity: false)
         FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(2, .count))
         XCTAssertTrue(FoodLogPolicy.requirements(state, now: LedgerFixtures.date, calendar: QuickAddFixtures.london)

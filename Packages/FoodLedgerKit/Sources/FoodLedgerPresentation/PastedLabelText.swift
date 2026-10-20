@@ -93,6 +93,33 @@ public enum PastedLabelText {
     public static let otherNutrientsNote = "The label does not state these. They stay unknown, never zero."
     public static let notStated = "Not stated"
     public static let notRead = "Not read"
+    /// Shown beside a printed serving size that `pasted-label-serving-v2` cannot use because it is
+    /// approximate (contract section 6.3): the exception is visible, never silent.
+    public static let approximateServingSize = "Approximate, so servings are not offered. Correct the serving size to log in servings."
+    public static let rangeServingSize = "Range, so servings are not offered. Correct the serving size to log in servings."
+    public static let unmatchedServingSize = "The serving size could not be matched to the label text, so servings are not offered. Correct the serving size to log in servings."
+
+    /// The note beside a printed serving size that v2 cannot use, or nil when it is exact.
+    public static func servingSizeNote(_ exactness: PastedLabelServingPolicy.Exactness) -> String? {
+        switch exactness {
+        case .exact: nil
+        case .approximate: approximateServingSize
+        case .range: rangeServingSize
+        case .unmatched: unmatchedServingSize
+        }
+    }
+
+    /// Shown beside a printed "about" servings-per-pack count: read, but never a whole pack (section 2.3).
+    public static let approximatePack = "Approximate, so it is not used for Whole pack."
+
+    /// A unit code as shown in the interface: "mL" for the stored code "ml"; others unchanged.
+    public static func unitLabel(_ code: String) -> String { code == "ml" ? "mL" : code }
+
+    /// "Whole pack (1 serving)", "Whole pack (2.5 servings)".
+    public static func wholePackTitle(_ servings: Double) -> String {
+        "Whole pack (\(FoodDisplayNumber.amount(servings, fraction: 0...2)) \(servings == 1 ? "serving" : "servings"))"
+    }
+
     /// Whole pack's caption, from the serving size's own origin (printed, corrected or entered).
     public static func wholePackNote(servingSize origin: NutrientValueOrigin) -> String {
         switch origin {
@@ -109,7 +136,7 @@ public enum PastedLabelText {
     public static func basisLabel(_ basis: String) -> String {
         switch basis {
         case "per_100g": "per 100 g"
-        case "per_100ml": "per 100 ml"
+        case "per_100ml": "per 100 mL"
         case "per_serving": "per serving"
         case "reference_intake": "reference intake"
         default: basis.replacingOccurrences(of: "_", with: " ")
@@ -349,6 +376,15 @@ public enum PastedLabelSavedEntryText {
                 return nil
             }
         }
+    }
+
+    /// Where a servings amount's serving size came from: "Serving size 30 g · Printed",
+    /// "… · Corrected by you" or "… · Entered by you". Nil when the amount is not in servings
+    /// through a serving size.
+    public static func servingSizeLine(_ detail: SavedFoodEntryDetail) -> String? {
+        guard let size = detail.servingSize else { return nil }
+        let unit = size.quantity.unit == .millilitres ? "mL" : size.quantity.unit.rawValue
+        return "Serving size \(FoodDisplayNumber.amount(size.quantity.value, fraction: 0...2)) \(unit) · \(NutrientOriginText.tag(size.origin))"
     }
 
     public static func sourceLine(_ detail: SavedFoodEntryDetail) -> String? {

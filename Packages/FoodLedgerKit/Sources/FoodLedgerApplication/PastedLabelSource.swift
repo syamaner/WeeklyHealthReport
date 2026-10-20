@@ -184,32 +184,41 @@ public enum PastedLabelSource {
               headers.filter({ $0.headerID == header.headerID }).count == 1 else {
             throw PastedLabelSourceError.invalidManifest("stored column")
         }
+        // A serving-size correction or entry is checked on every column: per serving it sets the
+        // basis; per 100 g or ml it can only feed `pasted-label-serving-v2` servings.
+        let corrected = try servingSizeCorrection(manifest)
         switch header.basis {
         case "per_100g": return .per100Grams
         case "per_100ml": return .per100Millilitres
         default: break
         }
+        if let corrected { return .perServing(corrected) }
+        return .perServing(try servingQuantity(manifest.candidate.servingSize) ?? PositiveQuantity(value: 1, unit: .count))
+    }
+
+    /// The serving size the user corrected or entered on Confirm, if any: at most one record, in
+    /// the stored column, exact, in grams or millilitres. A correction names the printed readable
+    /// serving size it replaces; an entry is allowed only when none was read.
+    public static func servingSizeCorrection(_ manifest: PastedLabelManifest) throws -> PositiveQuantity? {
         let entries = manifest.corrections.filter { $0.nutrient == PastedLabelManifest.Correction.servingSize }
         guard entries.count <= 1 else { throw PastedLabelSourceError.invalidManifest("serving size corrections") }
-        if let entry = entries.first {
-            let printed = manifest.candidate.servingSize
-            switch entry.kind {
-            case .corrected:
-                guard let printed, let recognised = entry.recognised, recognised.printedText == printed.printedText,
-                      recognised.decimalText == printed.decimalText, recognised.unit == printed.unit,
-                      recognised.comparator == "=" else { throw PastedLabelSourceError.invalidManifest("serving size recognised") }
-            case .entered:
-                guard entry.recognised == nil, servingQuantity(manifest.candidate.servingSize) == nil else {
-                    throw PastedLabelSourceError.invalidManifest("serving size entered")
-                }
+        guard let entry = entries.first else { return nil }
+        let printed = manifest.candidate.servingSize
+        switch entry.kind {
+        case .corrected:
+            guard let printed, let recognised = entry.recognised, recognised.printedText == printed.printedText,
+                  recognised.decimalText == printed.decimalText, recognised.unit == printed.unit,
+                  recognised.comparator == "=" else { throw PastedLabelSourceError.invalidManifest("serving size recognised") }
+        case .entered:
+            guard entry.recognised == nil, servingQuantity(printed) == nil else {
+                throw PastedLabelSourceError.invalidManifest("serving size entered")
             }
-            guard entry.rowID == nil, entry.headerID == manifest.storedHeaderID, entry.corrected.comparator == "=",
-                  let quantity = quantity(entry.corrected.decimalText, unit: entry.corrected.unit) else {
-                throw PastedLabelSourceError.invalidManifest("serving size value")
-            }
-            return .perServing(quantity)
         }
-        return .perServing(try servingQuantity(manifest.candidate.servingSize) ?? PositiveQuantity(value: 1, unit: .count))
+        guard entry.rowID == nil, entry.headerID == manifest.storedHeaderID, entry.corrected.comparator == "=",
+              let quantity = quantity(entry.corrected.decimalText, unit: entry.corrected.unit) else {
+            throw PastedLabelSourceError.invalidManifest("serving size value")
+        }
+        return quantity
     }
 
     /// The edible quantity is the stored column's basis quantity, as for the dataset routes

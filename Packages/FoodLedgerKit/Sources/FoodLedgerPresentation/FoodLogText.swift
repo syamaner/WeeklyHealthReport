@@ -129,9 +129,16 @@ public enum FoodLogText {
         }
     }
 
-    /// "248 kcal", or "Energy unknown" (never blank, never zero).
+    /// "248 kcal"; "Less than 5 kcal" (or "5 kcal or less") when the source states only an upper
+    /// bound, rounded up so the shown bound still contains it; or "Energy unknown" (never blank,
+    /// never zero).
     public static func entryEnergy(_ entry: FoodLogDayContent.Entry, locale: Locale = .current) -> String {
-        entry.energyKcal.map { "\(kcal($0, locale: locale)) kcal" } ?? "Energy unknown"
+        if let value = entry.energyKcal { return "\(kcal(value, locale: locale)) kcal" }
+        if let bound = entry.energyUpperBound {
+            let shown = kcal(bound.kcal.rounded(.up), locale: locale)
+            return bound.closed ? "\(shown) kcal or less" : "Less than \(shown) kcal"
+        }
+        return "Energy unknown"
     }
 
     /// One flags line: "Estimate" at most once, then "<Nutrient> unknown" for unknown strip
@@ -201,9 +208,16 @@ public enum FoodLogText {
 
     // MARK: Saved entry
 
-    /// "150 g", or "2 units · 240 g" when the edible amount differs from what was entered.
+    /// "150 g", or "2 units · 240 g" when the edible amount differs from what was entered; a
+    /// pasted label's servings read "2 servings · 60 g".
     public static func savedAmount(_ detail: SavedFoodEntryDetail, locale: Locale = .current) -> String {
-        let entered = amount(detail.enteredAmount, locale: locale)
+        let entered: String
+        if detail.amountIsServings {
+            let value = number(detail.enteredAmount.value, fraction: 0...2, locale: locale)
+            entered = detail.enteredAmount.value == 1 ? "1 serving" : "\(value) servings"
+        } else {
+            entered = amount(detail.enteredAmount, locale: locale)
+        }
         return detail.enteredAmount == detail.edibleQuantity ? entered : "\(entered) · \(amount(detail.edibleQuantity, locale: locale))"
     }
 

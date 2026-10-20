@@ -1969,3 +1969,108 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-19T10:59:39Z` → `2026-10-19T12:13:27Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 2,882,466 5-minute, 0 1-hour. Exact API-equivalent USD 18.1846984. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19d: Claude Code pasted nutrition label serving v2 and PR #271 follow-ups
+
+One `claude-opus-5-5` implementation subagent (branch `feat/93-pasted-label-serving-v2`), transcript `subagents/agent-ab1bd03d5f4af637c.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`. Runs from the phase start (`2026-10-19T12:17:27Z`, captured with `date -u`) to `2026-10-19T14:29:55Z`, just before this ledger edit. It covers:
+
+- reading the contract, the serving policy, verification and Confirm code on the #271 head;
+- `pasted-label-serving-v2` (decision 14): the policy, serving-size corrections on any stored column, save and reopen verification, contract, presentation and app tests, and the contract amendments;
+- the PR #271 review and journey QA follow-ups the coordinator added mid-phase (L1 to L5, Q-D1 to Q-D3), with their tests and the section 3.5 amendment (decision 15);
+- every gate, run twice (after serving v2, then after the follow-ups).
+
+No subagents were launched; the orchestrator's and any reviewers' usage is outside the row. This ledger edit, the commit, the rebase, the push and the PR are outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 and PR #271 follow-ups (#93), implementation subagent | 34,100,702 (31,509,195) | 2,591,215 | 28,737 | 34,129,439 | $19.83 |
+
+Boundary: `2026-10-19T12:17:27Z` → `2026-10-19T14:29:55Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 2,591,215 5-minute, 0 1-hour. Exact API-equivalent USD 19.833822. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19e: Claude Code pasted nutrition label serving v2, invariant review fix round
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the invariant review of #275. Runs from the fix round's start (`2026-10-19T14:39:28Z`, captured with `date -u`) to `2026-10-19T15:20:44Z`, just before this ledger edit. It covers the closed v2 approximate serving-size rule (B1) with its contract text and tests, the Food Log bound row tests for other sources and the open zero bound (L-a), the Copy all and Developer tools check (L-b, no change), and every gate. The first PR's ledger edit, rebase, push and PR (between the two windows) and this round's ledger edit, commit, push and PR update are outside both rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 invariant review fix round (#93), implementation subagent | 11,942,514 (10,801,830) | 1,140,622 | 11,704 | 11,954,218 | $8.10 |
+
+Boundary: `2026-10-19T14:39:28Z` → `2026-10-19T15:20:44Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,140,622 5-minute, 0 1-hour. Exact API-equivalent USD 8.097804. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19f: Claude Code pasted nutrition label serving v2, decision 15 and journey QA round
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the owner's decision 15 wording and journey QA findings D1 to D3 on #275. Runs from the round's start (`2026-10-19T16:32:38Z`, captured with `date -u`) to `2026-10-19T17:46:09Z`, just before this ledger edit. It covers the contract wording, the code and test changes, and every gate. The previous round's ledger edit, push and PR update (between the windows) and this round's ledger edit, push and PR update are outside the rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 decision 15 and journey QA round (#93), implementation subagent | 9,019,683 (5,963,898) | 3,055,743 | 3,096 | 9,022,779 | $16.53 |
+
+Boundary: `2026-10-19T16:32:38Z` → `2026-10-19T17:46:09Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 3,055,743 5-minute, 0 1-hour (the long gate waits expired the prompt cache, hence the high write share). Exact API-equivalent USD 16.5335826. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19g: Claude Code pasted nutrition label serving v2, final review and QA lows round
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the final review of #275 (the v2 serving-size segment bound to the parser's quantity, its closed tails, the grammar parity test) and the final journey QA lows (Recent row energy bound, mL default and hint, "mL" in copy). Runs from the round's start (`2026-10-19T17:52:35Z`, captured with `date -u`) to `2026-10-19T20:13:11Z`, just before this ledger edit. It covers the code, contract and test changes and two full gate runs (after the segment fix, then after the lows), including time lost to wait loops that matched their own command lines and were stopped. The previous round's ledger edit, push and PR update and this round's ledger edit, push and PR update are outside the rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 final review and QA lows round (#93), implementation subagent | 22,763,696 (16,978,546) | 5,785,056 | 7,572 | 22,771,268 | $32.47 |
+
+Boundary: `2026-10-19T17:52:35Z` → `2026-10-19T20:13:11Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 5,785,056 5-minute, 0 1-hour (long gate waits expired the prompt cache). Exact API-equivalent USD 32.4728052. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19h: Claude Code pasted nutrition label serving v2, bracketed piece-count round
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the orchestrator's change to the v2 serving-size rule (a bracketed marker on a piece count stays exact). Runs from the round's start (`2026-10-19T20:14:50Z`, captured with `date -u`) to `2026-10-19T20:53:19Z`, just before this ledger edit. It covers the rule, contract and test changes and one full gate run. The previous round's ledger edit, push and PR update and this round's are outside the rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 bracketed piece-count round (#93), implementation subagent | 7,464,063 (5,840,070) | 1,623,965 | 1,282 | 7,465,345 | $9.31 |
+
+Boundary: `2026-10-19T20:14:50Z` → `2026-10-19T20:53:19Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,623,965 5-minute, 0 1-hour. Exact API-equivalent USD 9.313591. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19i: Claude Code pasted nutrition label serving v2, remaining approximate forms and presentation lows
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the final review's remaining approximate serving-size forms (±, ranges to listed units, separators, words after a bracket group, more weight and volume words, parser-realistic fixtures) and the final journey QA presentation lows (per 100 mL copy, approximate serving size and pack count shown as read and explained). Runs from the round's start (`2026-10-19T20:59:12Z`, captured with `date -u`) to `2026-10-19T22:32:53Z`, just before this ledger edit. It covers the code, contract and test changes and two full gate runs (after the rule fixes, then after the presentation lows). The previous round's ledger edit, push and PR update and this round's are outside the rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 remaining approximate forms and presentation lows (#93), implementation subagent | 20,710,192 (16,166,110) | 4,544,010 | 6,536 | 20,716,728 | $26.08 |
+
+Boundary: `2026-10-19T20:59:12Z` → `2026-10-19T22:32:53Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 4,544,010 5-minute, 0 1-hour (long gate waits expired the prompt cache). Exact API-equivalent USD 26.08428. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-19j: Claude Code pasted nutrition label serving v2, range dashes round
+
+Same subagent and transcript as WHR-93-2026-10-19d, resumed for the final review's range dashes, word ranges, +/-, separators, bracket placements, 左右, the single exactness decision and the Confirm wording for ranges, unmatched sizes and pack phrases. Runs from the round's start (`2026-10-19T22:39:11Z`, captured with `date -u`) to `2026-10-19T23:50:08Z`, just before this ledger edit. It covers the code, contract and test changes and one full gate run. The previous round's ledger edit, push and PR update and this round's are outside the rows. Reviewers' and QA agents' usage is outside the row. No OpenRouter or other provider call was made.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label serving v2 range dashes round (#93), implementation subagent | 14,010,132 (9,459,987) | 4,550,101 | 1,597 | 14,011,729 | $24.67 |
+
+Boundary: `2026-10-19T22:39:11Z` → `2026-10-19T23:50:08Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 4,550,101 5-minute, 0 1-hour (long gate waits expired the prompt cache). Exact API-equivalent USD 24.6746184. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

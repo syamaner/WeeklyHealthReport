@@ -244,7 +244,7 @@ struct PastedLabelValueEditSheet: View {
                         .accessibilityLabel("\(edit.title) value")
                     if edit.units.count > 1 {
                         Picker("Unit", selection: $unit) {
-                            ForEach(edit.units, id: \.self) { Text($0).tag($0) }
+                            ForEach(edit.units, id: \.self) { Text(PastedLabelText.unitLabel($0)).tag($0) }
                         }
                     } else {
                         LabeledContent("Unit", value: edit.unit == "count" ? "servings" : edit.unit)

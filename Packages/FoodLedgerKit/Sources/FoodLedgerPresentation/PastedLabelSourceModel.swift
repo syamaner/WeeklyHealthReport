@@ -181,26 +181,53 @@ public final class PastedLabelSourceModel: ObservableObject {
         }
     }
 
+    /// The serving size edit's units, the default first: the user's earlier value's unit, else
+    /// the printed serving size's, else the stored basis's (ml for per 100 ml), else grams.
+    public var servingSizeUnits: [String] {
+        let entered = corrections.first { $0.nutrient == PastedLabelManifest.Correction.servingSize }?.corrected.unit
+        let printed = manifest.candidate.servingSize?.canonicalUnit.map { $0 == "mL" ? "ml" : $0 }
+        let basis = storedHeader?.basis == "per_100ml" ? "ml" : "g"
+        let first = [entered, printed].compactMap { $0 }.first { ["g", "ml"].contains($0) } ?? basis
+        return [first] + ["g", "ml"].filter { $0 != first }
+    }
+
+    /// A printed serving size on a per 100 g or ml column that `pasted-label-serving-v2` refuses as
+    /// approximate (or whose quantity it cannot bind). A per-serving column (v1) is not affected.
+    func servingSizeExactness(_ size: PastedLabelManifest.Candidate.ServingSize) -> PastedLabelServingPolicy.Exactness {
+        guard ["per_100g", "per_100ml"].contains(storedHeader?.basis ?? ""), size.decimalText != nil else { return .exact }
+        return PastedLabelServingPolicy.exactness(size)
+    }
+
+    /// The serving-size line's printed text names a servings-per-pack phrase on the same line, so
+    /// a pack count that was not read separately is "Not read", not "Not stated".
+    static let packPhrases = ["本包裝含", "servings per pack", "servings per container", "per container"]
+
     public var servingLines: [Line] {
-        let perServing = storedHeader?.basis == "per_serving"
         let size = manifest.candidate.servingSize
         let sizeCorrection = corrections.first { $0.nutrient == PastedLabelManifest.Correction.servingSize }
         let sizeFlag = flags.first { $0.code == PastedLabelCodes.requiredServingDeclarationMissing && $0.concerns == PastedLabelManifest.Correction.servingSize }
         let sizeValue: String
         if let sizeCorrection {
-            let entered = "\(sizeCorrection.corrected.decimalText) \(sizeCorrection.corrected.unit)"
+            let entered = "\(sizeCorrection.corrected.decimalText) \(PastedLabelText.unitLabel(sizeCorrection.corrected.unit))"
             sizeValue = sizeCorrection.kind == .corrected
                 ? "\(entered) · \(NutrientOriginText.tag(.correctedByYou)) (read as: \(size?.printedText ?? ""))"
                 : "\(entered) · \(NutrientOriginText.tag(.enteredByYou))"
         } else if let size, let decimal = size.decimalText, let unit = size.canonicalUnit {
-            sizeValue = "\(decimal) \(unit) (printed: \(size.printedText))"
+            let shownUnit = PastedLabelText.unitLabel(unit)
+            let amount: String
+            switch servingSizeExactness(size) {
+            case .approximate: amount = "about \(decimal) \(shownUnit)"
+            case let .range(low, high): amount = "\(low)–\(high) \(shownUnit)"
+            case .exact, .unmatched: amount = "\(decimal) \(shownUnit)"
+            }
+            sizeValue = "\(amount) · \(NutrientOriginText.tag(.printed)) (printed: \(size.printedText))"
         } else if let size {
             sizeValue = "Printed: \(size.printedText)"
         } else {
             sizeValue = PastedLabelText.notStated
         }
         var sizeActions: [Row.Action] = []
-        if isEditable && perServing {
+        if isEditable && storedHeader != nil {
             sizeActions = sizeCorrection != nil ? [.correct, .remove] : (size?.decimalText != nil ? [.correct] : [.add])
         }
         let pack = manifest.candidate.servingsPerPack
@@ -208,19 +235,23 @@ public final class PastedLabelSourceModel: ObservableObject {
         let packFlag = flags.first { $0.code == PastedLabelCodes.requiredServingDeclarationMissing && $0.concerns == PastedLabelManifest.Correction.servingsPerPack }
         let packValue: String
         if let pack {
-            packValue = "\(pack.approximate ? "about " : "")\(pack.decimalText) (printed: \(pack.printedText))"
+            packValue = "\(pack.approximate ? "about " : "")\(pack.decimalText) · \(NutrientOriginText.tag(.printed)) (printed: \(pack.printedText))"
         } else if let packEntry {
             packValue = "\(packEntry.corrected.decimalText) · \(NutrientOriginText.tag(.enteredByYou))"
+        } else if let size, Self.packPhrases.contains(where: { size.printedText.lowercased().contains($0) }) {
+            packValue = PastedLabelText.notRead
         } else {
             packValue = PastedLabelText.notStated
         }
         let packActions: [Row.Action] = isEditable && pack == nil ? (packEntry == nil ? [.add] : [.correct, .remove]) : []
         return [
             Line(id: PastedLabelManifest.Correction.servingSize, title: "Serving size", value: sizeValue,
-                 flag: sizeFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) },
-                 actions: sizeActions, units: ["g", "ml"]),
+                 flag: sizeFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) }
+                    ?? (sizeCorrection == nil ? size.flatMap { PastedLabelText.servingSizeNote(servingSizeExactness($0)) } : nil),
+                 actions: sizeActions, units: servingSizeUnits),
             Line(id: PastedLabelManifest.Correction.servingsPerPack, title: "Servings per pack", value: packValue,
-                 flag: packFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) },
+                 flag: packFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) }
+                    ?? (pack?.approximate == true ? PastedLabelText.approximatePack : nil),
                  actions: packActions, units: ["count"])
         ]
     }

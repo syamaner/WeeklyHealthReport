@@ -14,6 +14,33 @@ public struct FoodIntakeLogRow: Sendable {
     /// When the entry was removed (the removing version's creation time); nil for current entries.
     /// In memory only; nothing new is persisted.
     public let removedAt: Date?
+    /// Energy for the amount when the source states it only as an upper bound ("less than"):
+    /// shown as a bound on the Food Log row, never as an exact amount or zero. The day total
+    /// still counts it as incomplete, as before.
+    public var energyUpperBound: FoodEnergyUpperBound? = nil
+}
+
+/// An energy upper bound scaled to the amount eaten, with whether the stored value is calculated.
+public struct FoodEnergyUpperBound: Equatable, Sendable {
+    public let kcal: Double
+    public let closed: Bool
+    public let isCalculated: Bool
+    public init(kcal: Double, closed: Bool, isCalculated: Bool) {
+        self.kcal = kcal; self.closed = closed; self.isCalculated = isCalculated
+    }
+
+    /// The bound for one contribution: a bounded energy value with an upper end and no lower end,
+    /// on a basis the quantity scales against. Nil for anything else.
+    public static func of(_ contribution: FoodIntakeContribution) -> FoodEnergyUpperBound? {
+        guard let entry = contribution.nutrients?.entries.first(where: { $0.key == .energyConsumed }),
+              case let .bounded(bounds) = entry.value, bounds.lower == nil, let upper = bounds.upper,
+              // "Less than 0" admits no amount: shown as unknown, never as a bound or zero.
+              upper > 0 || bounds.upperClosed,
+              let scale = FoodIntakeSummary.scale(quantity: contribution.quantity, basis: contribution.basis) else { return nil }
+        let kcal = upper * scale
+        guard kcal.isFinite else { return nil }
+        return FoodEnergyUpperBound(kcal: kcal, closed: bounds.upperClosed, isCalculated: NutrientDerivation.isCalculated(entry.value))
+    }
 }
 
 public struct FoodIntakeProjection: Sendable {
@@ -53,7 +80,8 @@ public struct FoodIntakeProjection: Sendable {
             let row = FoodIntakeLogRow(logItemID: log.logItemID, logItemVersionID: head.logItemVersionID, occurredAt: log.occurredAt,
                                          name: product.name.value, quantity: log.edibleQuantity, sourceIDs: sources.sorted(),
                                          totals: FoodIntakeSummary(contributions: [contribution]).totals,
-                                         removedAt: removed ? head.createdAt : nil)
+                                         removedAt: removed ? head.createdAt : nil,
+                                         energyUpperBound: FoodEnergyUpperBound.of(contribution))
             if removed { removedRows.append(row) } else { rows.append(row) }
         }
         summary = FoodIntakeSummary(contributions: contributions)

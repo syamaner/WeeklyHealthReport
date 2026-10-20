@@ -411,8 +411,8 @@ final class PastedLabelApplicationContractTests: XCTestCase {
         XCTAssertNil(PastedLabelServingPolicy.wholePack(none, candidate: none.candidates[0]), "Nothing printed or entered")
         let noSize = try F.input(perServing(packLine: nil, readableServingSize: false, corrections: [entered]))
         XCTAssertNil(PastedLabelServingPolicy.wholePack(noSize, candidate: noSize.candidates[0]), "A serving with no weight or volume")
-        let per100 = try F.input(F.manifest())
-        XCTAssertNil(PastedLabelServingPolicy.wholePack(per100, candidate: per100.candidates[0]), "Not a per-serving column")
+        let per100 = try F.input(F.per100Manifest(servingSize: nil))
+        XCTAssertNil(PastedLabelServingPolicy.wholePack(per100, candidate: per100.candidates[0]), "Per 100 g with no serving size")
 
         for harness in try LedgerFixtures.harnesses() {
             defer { harness.cleanup() }

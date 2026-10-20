@@ -81,6 +81,52 @@ final class PastedLabelRouteTests: XCTestCase {
         XCTAssertEqual(relog.state.input.evidence.map(\.byteHash), saved.evidence.map(\.byteHash))
     }
 
+    /// pasted-label-serving-v2 (owner, 19 October 2026): the per 100 g label prints a 40 g
+    /// serving size and exactly 2 servings per pack, so Confirm offers servings and whole pack.
+    func testAPer100GramLabelOffersServingsAndWholePackThroughThePrintedServingSize() throws {
+        let root = try makeRoot()
+        let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
+        model.name = "Synthetic oat crackers"
+        model.fortification = .no
+        model.text = Self.base
+        let source = try XCTUnwrap(model.readLabel(), "\(model.declineMessages)")
+        XCTAssertEqual(source.sourceLine, "From pasted label · per 100 g · Traditional Chinese, Taiwan layout")
+        let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
+        let view = root.pastedLabelConfirmation(confirm, source: source, editLabelText: {}, leave: {})
+        XCTAssertTrue(confirm.countsPastedLabelServings)
+        XCTAssertEqual(confirm.pastedLabelWholePack, PastedLabelWholePack(servings: 2, origin: .printed))
+        confirm.chooseWholePack()
+        XCTAssertTrue(confirm.canLog, confirm.blockedReason ?? "")
+        render(NavigationStack { view }, "Pasted label - Confirm per 100 g whole pack")
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult, confirm.blockedReason ?? "\(confirm.state.phase)")
+        XCTAssertEqual(saved.logItemVersion.edibleQuantity.value, 80, "2 servings × 40 g")
+        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v2")
+        let reopened = try XCTUnwrap(try root.model(reopening: saved.logItem.logItemID))
+        XCTAssertEqual(reopened.state.quantity.value, 2)
+        XCTAssertEqual(reopened.state.quantity.unit, .count)
+    }
+
+    /// Final journey QA: through the real reader, an "about" pack count is shown as read and
+    /// explained, and an approximate serving size is marked, never "Not stated".
+    func testApproximateServingLinesAreShownAsReadThroughTheRealReader() throws {
+        let root = try makeRoot()
+        let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
+        model.name = "Synthetic oat crackers"
+        model.fortification = .no
+        model.text = (["營養標示", "每一份量 25-30 公克", "本包裝含約10份", "　　　　每份  每100公克"] + Self.rows).joined(separator: "\n") + "\n"
+        let source = try XCTUnwrap(model.readLabel(), "\(model.declineMessages)")
+        let size = try XCTUnwrap(source.servingLines.first)
+        XCTAssertEqual(size.value, "25–30 g · Printed (printed: 每一份量 25-30 公克)")
+        XCTAssertEqual(size.flag, PastedLabelText.rangeServingSize)
+        let pack = try XCTUnwrap(source.servingLines.last)
+        XCTAssertEqual(pack.value, "about 10 · Printed (printed: 本包裝含約10份)")
+        XCTAssertEqual(pack.flag, PastedLabelText.approximatePack)
+        let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
+        XCTAssertFalse(confirm.countsPastedLabelServings)
+        XCTAssertNil(confirm.pastedLabelWholePack)
+    }
+
     func testADeclinedPasteCanBeEditedAndReadAgain() throws {
         let root = try makeRoot()
         let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))

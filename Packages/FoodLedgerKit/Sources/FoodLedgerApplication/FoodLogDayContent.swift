@@ -22,6 +22,8 @@ public struct FoodLogDayContent: Sendable {
         public let isEstimate: Bool
         /// Strip nutrients this entry cannot contribute, in strip order.
         public let unknownKeys: [NutrientKey]
+        /// Energy stated only as an upper bound, shown as a bound when `energyKcal` is nil.
+        public var energyUpperBound: FoodEnergyUpperBound? = nil
     }
 
     public struct RemovedEntry: Sendable, Equatable {
@@ -62,8 +64,10 @@ public struct FoodLogDayContent: Sendable {
             return Entry(logItemID: row.logItemID, logItemVersionID: row.logItemVersionID, occurredAt: row.occurredAt,
                          name: row.name, quantity: row.quantity,
                          energyKcal: known[.energyConsumed] ?? nil,
-                         isEstimate: estimates.contains(row.logItemID) || row.totals.contains { $0.includesEstimates },
-                         unknownKeys: Self.stripKeys.filter { (known[$0] ?? nil) == nil })
+                         isEstimate: estimates.contains(row.logItemID) || row.totals.contains { $0.includesEstimates }
+                            || row.energyUpperBound?.isCalculated == true,
+                         unknownKeys: Self.stripKeys.filter { (known[$0] ?? nil) == nil },
+                         energyUpperBound: row.energyUpperBound)
         }
         removed = projection.removedRows.map { row in
             RemovedEntry(logItemID: row.logItemID, logItemVersionID: row.logItemVersionID, occurredAt: row.occurredAt,

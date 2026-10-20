@@ -88,6 +88,9 @@ struct SavedFoodEntryView: View {
                     Text(detail.name).font(.title3.weight(.semibold))
                     Text("\(FoodLogText.savedAmount(detail)) · \(FoodLogText.when(detail.occurredAt, now: now(), calendar: calendar))")
                         .foregroundStyle(.secondary)
+                    if let serving = PastedLabelSavedEntryText.servingSizeLine(detail) {
+                        Text(serving).font(.subheadline).foregroundStyle(.secondary)
+                    }
                     if let estimate = FoodLogText.headerEstimate(detail) {
                         Text(estimate).font(.subheadline).foregroundStyle(.secondary)
                     }

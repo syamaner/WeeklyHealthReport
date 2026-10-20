@@ -124,7 +124,8 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertEqual(rows["protein"]?.actions, [.correct])
 
         // Serving lines, read-but-not-used rows and the other column.
-        XCTAssertEqual(source.servingLines.map(\.value), ["30 g (printed: 每一份量30公克)", "10 (printed: 本包裝含10份)"])
+        XCTAssertEqual(source.servingLines.map(\.value), ["30 g · Printed (printed: 每一份量30公克)", "10 · Printed (printed: 本包裝含10份)"])
+        XCTAssertEqual(source.servingLines.map(\.flag), [nil, nil], "exact lines carry no exception")
         XCTAssertEqual(source.readButNotUsed.map(\.printedText), [], "kJ and salt feed calculated values")
         XCTAssertEqual(source.otherColumns.first?.title, "Other column: per serving (每份)")
         XCTAssertEqual(source.otherColumns.first?.cells.count, 5)
@@ -287,11 +288,16 @@ final class PastedLabelPresentationTests: XCTestCase {
 
     // MARK: Amount options (section 2.3; owner defaults for PR 4)
 
-    func testWholePackIsOfferedOnlyForAPerServingColumnWithAnExactCount() throws {
-        // Owner default: not offered for a per 100 g stored column in v1.
-        let per100 = try F.confirm(try F.source()).0
-        XCTAssertNil(per100.pastedLabelWholePack)
-        XCTAssertFalse(per100.countsPastedLabelServings)
+    func testWholePackIsOfferedOnlyWithAServingSizeInGramsOrMillilitresAndAnExactCount() throws {
+        // pasted-label-serving-v2 (owner, 19 October 2026): a per 100 g label with a printed
+        // serving size in grams offers servings and whole pack; see the per 100 g test below.
+        let noSize = try F.confirm(try F.source(F.reading(servingSize: nil))).0
+        XCTAssertNil(noSize.pastedLabelWholePack, "no serving size: no servings and no whole pack")
+        XCTAssertFalse(noSize.countsPastedLabelServings)
+        let mlOn100g = try F.confirm(try F.source(F.reading(servingSize: .init(printedText: "每一份量250毫升", decimalText: "250",
+                                                                                 unit: "毫升", canonicalUnit: "ml")))).0
+        XCTAssertNil(mlOn100g.pastedLabelWholePack, "a serving in ml never converts against per 100 g")
+        XCTAssertFalse(mlOn100g.countsPastedLabelServings)
 
         let printed = try F.source(F.perServingReading())
         let (confirm, _) = try F.confirm(printed)
@@ -307,6 +313,59 @@ final class PastedLabelPresentationTests: XCTestCase {
 
         let about = try F.confirm(try F.source(F.perServingReading(pack: .init(printedText: "本包裝含約8份", decimalText: "8", approximate: true)))).0
         XCTAssertNil(about.pastedLabelWholePack, "\"about\" is never a whole pack")
+    }
+
+    func testAPer100GramLabelWithAPrintedServingSizeOffersServingsAndWholePack() throws {
+        let source = try F.source()
+        XCTAssertEqual(source.sourceLine, "From pasted label · per 100 g · Traditional Chinese, Taiwan layout")
+        let (confirm, _) = try F.confirm(source)
+        XCTAssertTrue(confirm.countsPastedLabelServings, "the count unit reads as servings")
+        XCTAssertFalse(confirm.pastedLabelServingsOnly, "grams stay available")
+        XCTAssertEqual(confirm.pastedLabelWholePack, PastedLabelWholePack(servings: 10, origin: .printed))
+        XCTAssertEqual(PastedLabelText.wholePackNote(servingSize: confirm.pastedLabelServingSizeOrigin),
+                       "Logged as that many servings, through the printed serving size.")
+        XCTAssertEqual(source.servingLines.first?.actions, [.correct], "the printed serving size can be corrected")
+
+        confirm.send(.setQuantity(2, .count))
+        XCTAssertTrue(confirm.canLog, confirm.blockedReason ?? "")
+        confirm.chooseWholePack()
+        XCTAssertEqual(confirm.state.quantity.value, 10)
+        XCTAssertEqual(confirm.state.quantity.unit, .count)
+        XCTAssertTrue(confirm.canLog, confirm.blockedReason ?? "")
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult)
+        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v2")
+        XCTAssertEqual(saved.quantityConversion?.convertedQuantity, try PositiveQuantity(value: 300, unit: .grams), "10 servings × 30 g")
+        XCTAssertEqual(saved.productVersion.identity.servingBasis, .per100Grams)
+    }
+
+    func testAPer100GramLabelWithACorrectedServingSizeSaysSo() throws {
+        let source = try F.source()
+        let (confirm, _) = try F.confirm(source)
+        XCTAssertNil(source.setValue("serving_size", text: "35", unit: "g"))
+        XCTAssertEqual(source.servingLines.first?.value, "35 g · Corrected by you (read as: 每一份量30公克)")
+        XCTAssertEqual(confirm.state.selectedCandidate.candidate.identity.servingBasis, .per100Grams, "the basis is unchanged")
+        XCTAssertEqual(confirm.pastedLabelServingSizeOrigin, .correctedByYou)
+        XCTAssertEqual(PastedLabelText.wholePackNote(servingSize: confirm.pastedLabelServingSizeOrigin),
+                       "Logged as that many servings, through the serving size you corrected.")
+        confirm.chooseWholePack()
+        confirm.log()
+        XCTAssertEqual(try XCTUnwrap(confirm.savedResult).quantityConversion?.convertedQuantity.value, 350, "10 servings × 35 g")
+    }
+
+    func testAPer100GramLabelWithNoServingSizeCanHaveOneEntered() throws {
+        let source = try F.source(F.reading(servingSize: nil))
+        let (confirm, _) = try F.confirm(source)
+        XCTAssertFalse(confirm.countsPastedLabelServings)
+        XCTAssertEqual(source.servingLines.first?.actions, [.add])
+        XCTAssertNil(source.setValue("serving_size", text: "40", unit: "g"))
+        XCTAssertEqual(source.servingLines.first?.value, "40 g · Entered by you")
+        XCTAssertTrue(confirm.countsPastedLabelServings)
+        XCTAssertEqual(confirm.pastedLabelServingSizeOrigin, .enteredByYou)
+        XCTAssertEqual(confirm.pastedLabelWholePack, PastedLabelWholePack(servings: 10, origin: .printed))
+        XCTAssertNil(source.setValue("serving_size", text: "40", unit: "ml"))
+        XCTAssertFalse(confirm.countsPastedLabelServings, "an entered size in ml offers no servings on per 100 g")
+        XCTAssertNil(confirm.pastedLabelWholePack)
     }
 
     func testAnEnteredServingsPerPackFeedsWholePackShownEnteredByYou() throws {
@@ -335,7 +394,7 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertEqual(source.servingLines.first?.flag, "Not read: serving size. Add it, or leave it unknown.")
         confirm.send(.setQuantity(2, .count))
         XCTAssertNil(source.setValue("serving_size", text: "25", unit: "ml"))
-        XCTAssertEqual(source.servingLines.first?.value, "25 ml · Entered by you")
+        XCTAssertEqual(source.servingLines.first?.value, "25 mL · Entered by you")
         XCTAssertFalse(confirm.pastedLabelServingsOnly)
         XCTAssertEqual(confirm.state.selectedCandidate.candidate.identity.servingBasis, .perServing(try PositiveQuantity(value: 25, unit: .millilitres)))
         XCTAssertEqual(confirm.state.quantity.value, 2, "the amount is kept across a correction")
