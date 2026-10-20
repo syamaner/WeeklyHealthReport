@@ -226,6 +226,15 @@ private let template: [(String, String)] = [("energy_kcal", "121"), ("protein", 
     let table = "營養標示\n每一份量30公克\n本包裝含8份\n每份 每100公克\n熱量 120大卡 400大卡\n蛋白質 3.0公克 10.0公克\n脂肪 4.5公克 15.0公克\n"
         + "飽和脂肪 1.5公克 5.0公克\n反式脂肪 0公克 0公克\n碳水化合物 18.0公克 60.0公克\n糖 6.0公克 20.0公克\n鈉 60毫克 200毫克\n"
     #expect(parse(table + table).declineReasons == [NutritionLabelTextParserV3.multipleCompletePanelsCode])
+    // Journey QA of #283: heading lines (flavour names) before each multi-line panel's title.
+    let panel = "營養標示\n每100公克\n熱量 400大卡\n蛋白質 8公克\n脂肪 12公克\n飽和脂肪 4公克\n反式脂肪 0公克\n碳水化合物 62公克\n糖 20公克\n鈉 300毫克\n"
+    #expect(parse("原味\n" + panel + "辣味\n" + panel.replacingOccurrences(of: "400大卡", with: "410大卡")).declineReasons
+        == [NutritionLabelTextParserV3.multipleCompletePanelsCode])
+    #expect(NutritionLabelTextParserV3.headingStart(["原味", "營養標示", "熱量 1大卡", "辣味", "", "營養標示"], before: 5) == 3)
+    #expect(NutritionLabelTextParserV3.headingStart(["營養標示", "熱量 1大卡", "鈉", "營養標示"], before: 3) == 3, "a row label is never a heading")
+    // A heading line before a single panel's title does not start a panel.
+    let headed = parse("原味\n" + panel)
+    #expect(!headed.declined, "\(headed.declineReasons)")
     // A second header with no rows after it is not a complete panel: the plain decline stays.
     #expect(parse(table + "每份 每100公克\n").declineReasons == ["multiple_panels"])
     // Each panel alone reads.
@@ -268,6 +277,12 @@ private let template: [(String, String)] = [("energy_kcal", "121"), ("protein", 
 /// repeats it and the row reads; with another basis it declines.
 @Test func anEnergyBasisBracketInsideTheLabelNeverDropsTheEnergyRow() {
     let rest = "蛋白質 1.2公克\n脂肪 1.5公克\n飽和脂肪 0.9公克\n反式脂肪 0公克\n碳水化合物 6.4公克\n糖 6.1公克\n鈉 38毫克\n"
+    // Journey QA of #283: both bracket positions on a first energy row, without a title too.
+    for line in ["熱量(每100公克) 400大卡", "熱量 400大卡(每100公克)"] {
+        let qa = parse(line + "\n蛋白質 8公克\n脂肪 12公克\n飽和脂肪 4公克\n反式脂肪 0公克\n碳水化合物 62公克\n糖 20公克\n鈉 300毫克\n")
+        #expect(qa.declineReasons == ["no_basis_header"], "\(line)")
+        #expect(qa.warnings == ["basis_hint: energy_line: (每100公克)"], "\(line)")
+    }
     let first = parse("營養標示\n熱量(每100毫升) 45大卡\n" + rest)
     #expect(first.declineReasons == ["no_basis_header"])
     #expect(first.warnings == ["basis_hint: energy_line: (每100毫升)"])

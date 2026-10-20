@@ -49,12 +49,24 @@ public struct NutritionLabelTextParserV3: Sendable {
         // 3.7, decision 8: when the text holds two or more complete panels (each part before and
         // after the second panel's title, header or basis phrase reads on its own), the decline
         // gets its own copy asking the user to delete the ones they did not eat. Nothing is read.
-        if candidate.declineReasons == ["multiple_panels"], let split = state.panelBreak, split > 0,
+        if candidate.declineReasons == ["multiple_panels"], let found = state.panelBreak, case let split = Self.headingStart(lines, before: found), split > 0,
            Self.isCompletePanel(Array(lines[..<split]), route: route, inputSHA256: inputSHA256),
            Self.isCompletePanel(Array(lines[split...]), route: route, inputSHA256: inputSHA256) {
             return .declined(route: route, inputSHA256: inputSHA256, language: language, reasons: [Self.multipleCompletePanelsCode])
         }
         return candidate
+    }
+
+    /// A short heading line (Han only, no digit, not a row label, such as a flavour name) straight
+    /// before the second panel's title or header belongs to the second panel (journey QA of #283).
+    static func headingStart(_ lines: [String], before split: Int) -> Int {
+        var index = split - 1
+        while index >= 0, lines[index].trimmingCharacters(in: .whitespaces).isEmpty { index -= 1 }
+        guard index > 0 else { return split }
+        let heading = lines[index].trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}-–—=【】[]")))
+        guard !heading.isEmpty, heading.count <= 20, heading.allSatisfy(FlattenedLine.isHan), !RowClassifierV3.isRowLabel(heading),
+              !TaiwanRowAliases.isRecognisedChinese(heading) else { return split }
+        return index
     }
 
     /// 3.7 (decision 8): the decline when the text holds two or more complete panels.
@@ -236,6 +248,10 @@ struct ParseStateV3 {
     var extraWarnings: [String] = []
 
     var servingClaimed: Bool { servingSize != nil || servingJoin != nil }
+    /// A panel has started once a row carries values or names a recognised row; heading lines
+    /// before a title or header (a flavour name, unrecognised and without values) do not start
+    /// one (journey QA of #283).
+    var rowsWithValues: Bool { rows.contains { !$0.values.isEmpty || RowClassifierV3.isRowLabel($0.label) } }
     var packClaimed: Bool { servingsPerPack != nil || packJoin != nil }
 
     mutating func consume(_ rawLine: String) {
@@ -432,7 +448,9 @@ struct ParseStateV3 {
         }
         if Self.isTitle(content) {
             currentLineLatinAllowed = true
-            if rowsStarted, content.contains("營養標示") || content.lowercased().hasPrefix("nutrition") {
+            // Only rows with values make a later title a second panel: a heading line before the
+            // title (a flavour name, which binds nothing) does not (journey QA of #283).
+            if rowsWithValues, content.contains("營養標示") || content.lowercased().hasPrefix("nutrition") {
                 declineReasons.append("multiple_panels")
                 panelBreak = lineIndex
             }
@@ -639,7 +657,7 @@ struct ParseStateV3 {
             found.append(LabelHeader(headerID: "", printedText: segment, basis: basis, servingConversion: conversion))
         }
         guard !found.isEmpty else { return }
-        if rowsStarted {
+        if rowsWithValues {
             let referenceOnly = found.allSatisfy { $0.basis == .referenceIntake }
             if !(referenceOnly && !headers.contains { $0.basis == .referenceIntake }) {
                 declineReasons.append("multiple_panels")
