@@ -561,10 +561,11 @@ Written before any PR 4 production code, so the gate can check it. It makes 3.3,
 | `amountColumnCount` | 1 or 2: the number of amount columns (columns whose values carry an amount unit) |
 | `amountHeaderIDs` | the header IDs the asserted headers will take, in column order: `header_1`, then `header_2`. These are the parser's existing IDs (the gate's "h1, h2"); a printed `%` column takes the next ID (`header_2` or `header_3`) |
 | `referenceColumnPrinted` | whether a reference-intake (`%`) column was printed, as a header or as `%` values |
-| `servingSize` | the serving size's `decimal_text` and canonical unit (`g` or `ml`) when the candidate read one with a quantity; otherwise none |
+| `servingSize` | the serving size the parser read (its printed text, `decimal_text` and canonical unit), taken from the parser's side result, because a declined candidate carries no serving size, pack count, rows or cells; none when no serving size was read |
+| `servingsPerPack` | the pack count the parser read, from the side result, for the same reason |
 | `energyLineHint` | the `basis_hint: energy_line:` bracket as printed and the basis it names (`per_serving`, `per_100g`, `per_100ml`), when the parser carried one (decision 23) |
 
-**Who fills it.** The parser computes a parser-owned side result beside the candidate (`NutritionLabelTextParserV3.UnheadedShape`, never part of the candidate) and the adapter maps it to `UnheadedTable`; no parser type crosses the port. The candidate schema stays `label-capture-candidate-v1`; the side result is not stored. The frozen `NutritionLabelTextParse` CLI and parser v2 do not change.
+**Who fills it.** The parser computes a parser-owned side result beside the candidate (`NutritionLabelTextParserV3.UnheadedShape`, never part of the candidate) and the adapter maps it to `UnheadedTable`; no parser type crosses the port. A `no_basis_header` decline keeps today's shape exactly: no rows, cells, serving size or pack count, and warnings that are `[basis_hint: energy_line: <bracket>]` alone or empty (gate re-check, medium 1). The candidate schema stays `label-capture-candidate-v1`; the side result is not stored. The frozen `NutritionLabelTextParse` CLI and parser v2 do not change.
 
 **When it is filled (all must hold).**
 
@@ -592,7 +593,8 @@ public protocol LabelTextReading: Sendable {
 - **By type** it holds only `per_serving`, `per_100g` and `per_100ml`; `reference_intake` cannot be asserted.
 - **One requirement, no dropping default.** The protocol has the single requirement above; every conformer (the adapter and every test fake) implements it. A convenience `read(_:textSHA256:)` may exist only as an extension that passes `assertedBases: nil` explicitly; there is no default implementation that accepts `AssertedBases` and ignores it. A test fake that records the bases it received proves the application passes them.
 - **The adapter maps** `AssertedBases` to the parser's own basis type and the parser applies it. The parser **declines** `asserted_bases_mismatch` (a new candidate decline code, copied as `unreadable_table`, and listed in the code-to-copy table so v1 test 27 enumerates it) when any amount header was printed, when `UnheadedTable`'s conditions (8.4.1) do not hold, or when the number of asserted bases differs from the amount column count. The application never asserts bases on such a text, so this decline can only show a programming error, never a user's choice.
-- **What an asserted read returns.** The same text read again with the bases as an input: the amount headers are `header_1` (and `header_2`) with the asserted basis, **empty printed text** and no serving conversion; a printed `%` header keeps its printed text and takes the next ID. Rows, cells, the serving size, the pack count and every warning, including `basis_hint: energy_line: …` (decision 24), are those of the unasserted read; only the headers and the cells' header IDs and bases differ. A test pins, on every fixture of 8.4.13, that the serving size, pack count, rows and warnings of the asserted read equal those of the declined read.
+- **What an asserted read returns.** The candidate the parser builds with the asserted headers in place of the missing ones: the amount headers are `header_1` (and `header_2`) with the asserted basis, **empty printed text** and no serving conversion (encoded as `null`, as for any absent header conversion); a printed `%` header keeps its printed text and takes the next ID. Cells of an asserted per-serving column carry `serving_conversion` `unknown`, as for a printed per-serving header with no conversion; the verifier checks both. Its warnings are the parse's full warnings with `basis_hint: energy_line: <bracket>` **last** when the parser carried a hint (decision 24). Its serving size and pack count equal `UnheadedTable`'s.
+- **Pinned test (medium 1).** On each fixture, asserted reads under different options differ only in the headers' basis, the cells' `header_id` and `basis`, and the cells' `serving_conversion`; and the declined candidate's warnings stay `[basis_hint: …]` alone (or empty).
 
 #### 8.4.3 The options function and the `offered` encoding
 
@@ -610,6 +612,7 @@ public protocol LabelTextReading: Sendable {
 - **Arrangement identifiers.** An option is an arrangement: its column bases in column order, joined by `,` with no spaces (`per_100g`, `per_serving,per_100ml`). `offered` is the list of arrangement identifiers in the table's order. "I'm not sure" is never in `offered`; it is not a basis.
 - **Order rule.** Per serving first when offered, then the per 100 basis in the serving size's own unit family, then the other. The order follows the printed serving unit only; it never says which answer is likely, and the sheet's copy must not either (3.3 residual risks).
 - **The hint never changes the options, their order or a selection.** Nothing is preselected.
+- **One serving-unit function (medium 4).** `PastedLabelBasisOptions.servingUnit(_: Candidate.ServingSize?) -> none | g | ml` is the only mapping, used by the sheet (on `UnheadedTable.servingSize`) and by the verifier (on the stored candidate). A serving size with `decimal_text` and canonical unit `g` or `ml` maps to that unit **whether serving v3 reads it as exact, approximate or a range** (8.4.10); anything else is `none`. A contract test proves that the options from `UnheadedTable` equal the options from each asserted candidate on every 8.4.13 fixture.
 - Golden v2 manifests (8.4.6) pin `offered` for one and two columns; a table test pins every row above.
 
 #### 8.4.4 `label-arithmetic-checks-v2`
@@ -637,6 +640,8 @@ public protocol LabelTextReading: Sendable {
 *Tolerance* is the larger of 2% of the limit and an absolute floor (0.5 g for macronutrients, 5 kcal for energy, 20.92 kJ in kJ), so rounding to one decimal on three rows never fails a plausible label. Arithmetic is exact `Decimal`; the serving size is the candidate's `decimal_text`.
 
 **Missing rows.** If the present rows alone are over the limit, the result is `fail`. Otherwise, if any row is missing, it is `not_checkable`: **never `pass` on missing rows**. With all rows present and within the limit it is `pass`.
+
+**Order.** The checks are v1's checks in v1's order, then, for each amount basis in column order, `macronutrients` then `energy`.
 
 **Warning codes** follow v1's form (v1 section 8.8): `basis_plausibility:<basis>:macronutrients` and `basis_plausibility:<basis>:energy`. A failure is a warning, never a block and never a checked mark; a pass shows nothing.
 
@@ -669,9 +674,9 @@ public protocol LabelTextReading: Sendable {
 | `header_id` | the asserted header's ID |
 | `basis` | `per_serving`, `per_100g` or `per_100ml` |
 | `offered` | the arrangement identifiers shown, in order (8.4.3); the same list on every record |
-| `at` | milliseconds since 1970 from the injected clock at the moment of the choice; the same on every record |
+| `at` | a JSON **integer** of whole milliseconds since 1970 (`Int64`), from the injected clock at the moment of the choice, truncated at stamping; the same on every record. The decoder rejects a non-integer, and the verifier requires `at` no later than the evidence's `capturedAt` (gate re-check, medium 3) |
 
-**One dispatcher.** `PastedLabelEvidenceManifest` is an application enum, `.v1(PastedLabelManifest)` or `.v2(PastedLabelManifestV2)`. Its `decode(_:)` reads only the `version` member first (a probe that is not strict), then strictly decodes exactly the matching type; any other version is `nil`. It exposes the shared fields (`pastedText`, `candidate`, `storedHeaderID`, `corrections`, `conversions`, versions, `warningsShown`, `name`, `brand`, `identityMapping`, `labelFormat`), `version`, and `basisChoices` (empty for v1), and encodes the case it holds. `PastedLabelEvidenceManifest.versions` is exactly `[pasted-nutrition-label-v1, pasted-nutrition-label-v2]`. The shared rules (stored basis, expected nutrients, corrections, servings, origins, the misread report) take the dispatcher, so there is one derivation for both versions and no copy.
+**One dispatcher.** `PastedLabelEvidenceManifest` is an application enum, `.v1(PastedLabelManifest)` or `.v2(PastedLabelManifestV2)`. v2 reuses v1's nested types (identity mapping, candidate mirror, conversion, flag, correction); its `basis_choices` records decode strictly. A v2 release's `schema_version` is `pasted-nutrition-label-v2:<format>`, pinned in the goldens. Its `decode(_:)` reads only the `version` member first (a probe that is not strict), then strictly decodes exactly the matching type; any other version is `nil`. It exposes the shared fields (`pastedText`, `candidate`, `storedHeaderID`, `corrections`, `conversions`, versions, `warningsShown`, `name`, `brand`, `identityMapping`, `labelFormat`), `version`, and `basisChoices` (empty for v1), and encodes the case it holds. `PastedLabelEvidenceManifest.versions` is exactly `[pasted-nutrition-label-v1, pasted-nutrition-label-v2]`. The shared rules (stored basis, expected nutrients, corrections, servings, origins, the misread report) take the dispatcher, so there is one derivation for both versions and no copy.
 
 **Every site that hard-codes `PastedLabelManifest.version` or `.decode` today, and what it becomes:**
 
@@ -679,6 +684,8 @@ public protocol LabelTextReading: Sendable {
 |---|---|---|
 | `PastedLabelSource.admittedPipelines` | v1 key only | adds the v2 key with its one pipeline (5.2) |
 | `PastedLabelSource.schemaVersion` | `PastedLabelManifest.version + ":" + format` | the dispatcher's `version` |
+| `PastedLabelSource.pipeline(_:)` | takes `PastedLabelManifest` | takes the dispatcher |
+| `PastedLabelSource.checkCorrection(manifest:…)` | takes `PastedLabelManifest` | takes the dispatcher |
 | `PastedLabelSource.confirmation(manifest:…)` | encodes v1; evidence `captureMethodVersion` v1 | takes the dispatcher; `captureMethodVersion` is the case's version |
 | `PastedLabelSource.verify` | evidence version `== v1`; `PastedLabelManifest.decode` | evidence version in `versions`, decoded through the dispatcher, and the decoded `version` must equal the evidence's `captureMethodVersion` |
 | `PastedLabelSource.isCanonical` | v1 decode and re-encode | dispatcher decode and re-encode of the same case |
@@ -695,7 +702,7 @@ public protocol LabelTextReading: Sendable {
 | `ReviewedFoodProposalConfirmation`'s verifier | matches its own version only | unchanged; a cross-route test proves it rejects v2 pasted evidence |
 | `FoodLedgerMigrations` `v7_pasted_label` | comment names v1 | comment only; no migration (decision 26) |
 
-`PastedLabelTextViewModel`'s and `PastedLabelText`'s other uses (`maximumTextScalars`, `Correction`, `Candidate.Header`) name nested types, not the version, and stay. Stage 2 re-runs `rg 'PastedLabelManifest\.(version|decode)|captureMethodVersion'` and records any further site in this table before merging.
+`PastedLabelTextViewModel`'s and `PastedLabelText`'s other uses (`maximumTextScalars`, `Correction`, `Candidate.Header`) name nested types, not the version, and stay. Stage 2 re-runs `rg 'PastedLabelManifest\b'` (less nested-type uses such as `PastedLabelManifest.Candidate`) and `rg captureMethodVersion`, and records any further site in this table before merging.
 
 **v2 verification (at save `invalidPastedLabelSource`, at reopen `integrityFailure`), in addition to everything v1 checks:**
 
@@ -703,7 +710,9 @@ public protocol LabelTextReading: Sendable {
 2. `basis_choices` has exactly one record per amount header, in header order, with the same `header_id` and `basis`; no record names a `reference_intake` header or an unknown ID; a `%` header keeps its printed text.
 3. `offered` is identical on every record and equals `PastedLabelBasisOptions.options` recomputed from the stored candidate (8.4.3); the chosen arrangement (the records' bases in header order) is in `offered`; `at` is identical on every record.
 4. The pipeline is the v2 entry (checks v2).
-5. Values from a chosen-basis column keep `user_verified_panel` provenance (their numbers are printed); their **basis** is user-asserted, evidenced by the record. A changed basis, record, `offered` or header fails.
+5. `basis_hint:energy_line` may appear in `warnings_shown` only when the candidate has exactly one `basis_hint: energy_line:` warning, and only in its pinned position (8.4.12).
+6. `at` is an integer and no later than the evidence's `capturedAt`; asserted headers have a `null` serving conversion and their per-serving cells `unknown`.
+7. Values from a chosen-basis column keep `user_verified_panel` provenance (their numbers are printed); their **basis** is user-asserted, evidenced by the record. A changed basis, record, `offered` or header fails.
 
 **The v1 verifier tightens one check:** a v1 manifest with any amount header whose printed text is empty is rejected. Parser v2 and v3 never write one under v1.
 
@@ -715,7 +724,7 @@ public protocol LabelTextReading: Sendable {
 
 Before the sheet is shown, `PastedLabelReader` reads the text once per offered option with its `AssertedBases` and classifies each reading exactly as an ordinary reading is classified (the gate's hard declines, the launch scope, `PastedLabelBasisState.isAsSold`, a stored column, `too_little_read`). **If any option would hard-decline, there is no sheet:** the outcome is a decline with the first declining option's codes, in offered order. Only when every option is usable does the outcome become "needs a basis choice", carrying each option's usable review and plausibility warnings, so choosing an option never re-reads and never meets a decline after the sheet.
 
-This narrows 3.7's "declines only if it fails for every option" to "for any option". The two coincide under the options table: every arrangement stores the same column (the one column, or the per 100 column of two), so the count of mandatory rows read is the same for every option. The test pins both.
+The gate's G1 and G2, the launch scope and `isAsSold` do not depend on the asserted basis (they read the text, the language and the header and serving wording, which an asserted read leaves as they are), so in practice only G3 to G6 flags, `too_little_read` and the checks can differ between options. This narrows 3.7's "declines only if it fails for every option" to "for any option". The two coincide under the options table: every arrangement stores the same column (the one column, or the per 100 column of two), so the count of mandatory rows read is the same for every option. The test pins both.
 
 #### 8.4.8 The application step and the journey
 
@@ -729,7 +738,8 @@ This narrows 3.7's "declines only if it fails for every option" to "for any opti
 - **Edited text, or Read again**, clears the choice and shows the sheet again (on the new reading, if it still needs one).
 - **Return to Confirm with unchanged text** keeps the choice and every correction, as today.
 - **Change** on Confirm's basis line opens the sheet with **nothing preselected**; the current choice is labelled "Current choice", not selected. Choosing a different arrangement when the user has corrected or entered anything first asks "Changing what the values are for replaces your corrections.", as Read again does; Cancel keeps everything. Choosing the current arrangement again changes nothing.
-- **Dismissing the sheet** is "I'm not sure": it writes nothing and returns to the label text screen with the text kept. If a Confirm already exists for the unchanged text, Return to Confirm still reaches it with its choice.
+- **Dismissing the first sheet** (after Read label) is "I'm not sure": it writes nothing and returns to the label text screen with the text kept.
+- **From Change:** dismissing the sheet or Cancel keeps the current choice and stays on Confirm. "I'm not sure" returns to the label text screen and clears the choice: the Confirm is dropped and the text is kept.
 - View-model tests cover each bullet.
 
 #### 8.4.10 Servings under a chosen basis
@@ -739,13 +749,17 @@ The method table of 5.6 applies unchanged to the asserted basis: a stored per-se
 #### 8.4.11 One basis origin, one formatter
 
 - **Application:** `PastedLabelBasisOrigin` is derived in one place from a review or from the dispatcher manifest: `printed`, or `chosenByYou(hint:)` where the hint is the energy-line bracket and its basis when the candidate carries `basis_hint: energy_line: …`. v1 manifests are always `printed`.
-- **Presentation:** one formatter, `PastedLabelText.basisLine(basis:origin:)`, gives "Per 100 g" for printed and "Per 100 g · Chosen by you" for a choice, and, when the hint's basis differs from the stored column's chosen basis, the note "The label's energy line says 每100毫升." (decision 24; a visible note, never a block). Confirm's basis line, the saved entry's source line, the misread report and the Developer tools lines all use it.
+- **Presentation:** one formatter, `PastedLabelText.basisLine(basis:origin:)`, gives "Per 100 g" for printed and "Per 100 g · Chosen by you" for a choice, and, when the hint **differs** (the hint's basis is not one of the chosen arrangement's bases), the note "The label's energy line says 每100毫升." (decision 24; a visible note, never a block). Confirm's basis line, the saved entry's source line, the misread report and the Developer tools lines all use it.
 - **Empty header text.** Any copy that shows a header's printed text renders a header with empty printed text by its basis label instead (for example "Other column: per serving", never "per serving ()"), including flag copy.
 - A cross-surface test renders one v2 entry through all four surfaces and expects the same basis line.
 
+- **G5 under a chosen basis.** `required_basis_missing` copy names the chosen basis by its label, for example "Only per serving values; the label does not print per 100 g.", with a test.
+
 #### 8.4.12 Decision 24 on Confirm and in the record
 
-When the hint differs from the choice, Confirm shows the note on the basis line and records it in `warnings_shown` as `basis_hint:energy_line`, so the misread report and the stored entry show it too. When the hint agrees, nothing is shown or recorded. The candidate keeps the `basis_hint` warning either way.
+- **Differs** means the hint's basis is not one of the chosen arrangement's bases (the same wording as 8.4.11). It is computed once, at the choice, from `UnheadedTable.energyLineHint.basis`.
+- When it differs, Confirm shows the note on the basis line and records `basis_hint:energy_line` in `warnings_shown`, **after** the check codes and the serving-line codes. It is not repeated in the general warnings list, because the basis line shows it. When the hint agrees, nothing is shown or recorded. The candidate keeps the `basis_hint` warning either way.
+- The saved entry, the misread report and Developer tools show the note **only when** `warnings_shown` contains `basis_hint:energy_line`, taking the bracket text from the candidate's warning; they never re-derive "differs".
 
 #### 8.4.13 Layouts in scope, and fixtures
 
@@ -787,6 +801,17 @@ The 314 frozen cases and the pinned mutation tallies of 8.3 must not change; if 
 14. Serving method table under an asserted basis (8.4.10).
 15. View-model lifecycle (8.4.9).
 16. Simulator UI test: paste an unheaded table, see the sheet, choose, reach Confirm with "Chosen by you", Change, dismiss, and Log.
+
+Added by the gate re-check (20 October 2026):
+
+17. Asserted reads under different options differ only in header basis, cell `header_id` and `basis`, and `serving_conversion`; the declined candidate's warnings stay `[basis_hint: …]` alone (8.4.2).
+18. `UnheadedTable`'s serving size and pack count come from the side result and equal the asserted candidate's.
+19. Decision 24: "differs" by arrangement; the position of `basis_hint:energy_line` in `warnings_shown`, not repeated in the warnings list; the verifier rejects it without exactly one hint warning; saved surfaces show it only from `warnings_shown`.
+20. `at`: integer milliseconds, truncated from a sub-millisecond clock in a golden; a non-integer is rejected; a value later than `capturedAt` is rejected.
+21. `servingUnit` is the one mapping; options from `UnheadedTable` equal options from each asserted candidate on every 8.4.13 fixture, approximate and range serving sizes included.
+22. Asserted headers encode a `null` serving conversion and per-serving cells `unknown`; the verifier rejects anything else; the v2 `schema_version` is pinned.
+23. Checks v2 order: v1's checks, then per basis in column order `macronutrients` then `energy`.
+24. Change lifecycle: dismiss and Cancel stay on Confirm with the choice; "I'm not sure" from Change drops Confirm and clears the choice; G5 copy names the chosen basis.
 
 Every reader v3 test, the 314 non-regression cases and the mutation tallies stay unchanged. The dev set (7.3) is re-run outside the repository and reported as counts only.
 
