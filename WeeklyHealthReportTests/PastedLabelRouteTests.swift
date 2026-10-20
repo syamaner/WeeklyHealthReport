@@ -81,7 +81,8 @@ final class PastedLabelRouteTests: XCTestCase {
         XCTAssertEqual(relog.state.input.evidence.map(\.byteHash), saved.evidence.map(\.byteHash))
     }
 
-    /// pasted-label-serving-v2 (owner, 19 October 2026): the per 100 g label prints a 40 g
+    /// pasted-label-serving-v2 (owner, 19 October 2026), now v3 for a parser-v3 reading (reader v3
+    /// section 5.6): the per 100 g label prints a 40 g
     /// serving size and exactly 2 servings per pack, so Confirm offers servings and whole pack.
     func testAPer100GramLabelOffersServingsAndWholePackThroughThePrintedServingSize() throws {
         let root = try makeRoot()
@@ -101,7 +102,7 @@ final class PastedLabelRouteTests: XCTestCase {
         confirm.log()
         let saved = try XCTUnwrap(confirm.savedResult, confirm.blockedReason ?? "\(confirm.state.phase)")
         XCTAssertEqual(saved.logItemVersion.edibleQuantity.value, 80, "2 servings × 40 g")
-        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v2")
+        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v3")
         let reopened = try XCTUnwrap(try root.model(reopening: saved.logItem.logItemID))
         XCTAssertEqual(reopened.state.quantity.value, 2)
         XCTAssertEqual(reopened.state.quantity.unit, .count)
@@ -172,6 +173,26 @@ final class PastedLabelRouteTests: XCTestCase {
         let day = try root.intakeProjection(for: saved.logItemVersion.occurredAt)
         XCTAssertEqual(day.summary.totals.first { $0.key == .energyConsumed }?.includesEstimates, true,
                        "a calculated contribution marks the day total as including estimates")
+    }
+
+    /// Reader v3 section 3.1 rules 3 and 4: split serving and pack lines are joined, and Confirm
+    /// says so on each row and in the warnings; the joined serving size still offers servings.
+    func testSplitServingAndPackLinesAreReadAndShownAsReadFromTwoLines() throws {
+        let root = try makeRoot()
+        let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
+        model.name = "Synthetic oat crackers"
+        model.fortification = .no
+        model.text = Self.base.replacingOccurrences(of: "每一份量 40 公克", with: "每一份量\n40 公克")
+            .replacingOccurrences(of: "本包裝含 2 份", with: "本包裝含\n2 份")
+        let source = try XCTUnwrap(model.readLabel(), "\(model.declineMessages)")
+        XCTAssertEqual(source.manifest.warningsShown, ["serving_line_joined:serving_size", "serving_line_joined:servings_per_pack"])
+        XCTAssertEqual(source.servingLines.first { $0.id == "serving_size" }?.flag, "Read from two lines of the label. Check the serving size.")
+        XCTAssertEqual(source.servingLines.first { $0.id == "servings_per_pack" }?.flag,
+                       "Read from two lines of the label. Check the servings per pack.")
+        XCTAssertTrue(source.warnings.contains("Read from two lines of the label. Check the serving size."))
+        XCTAssertTrue(source.reportText.contains("(serving_line_joined:serving_size)"))
+        let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
+        XCTAssertEqual(confirm.pastedLabelWholePack, PastedLabelWholePack(servings: 2, origin: .printed))
     }
 
     /// Review R2: after a decline the user takes Search foods instead and logs there; no

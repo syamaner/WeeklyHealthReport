@@ -4,18 +4,19 @@ import FoodLedgerDomain
 import NutritionLabelParsing
 
 /// Adapter for the `LabelTextReading` port (`docs/pasted-nutrition-label-v1.md` sections 2.4
-/// and 8.1, decision 10). It runs, on device and in order: parser v2 on the exact text, format
-/// inference, the faithful gate v2 port, the `pasted-label-conversions-v1` conversions for the
-/// stored column and the `label-arithmetic-checks-v1` checks, and maps their output to the
+/// and 8.1, decision 10). It runs, on device and in order: parser v3
+/// (`docs/pasted-nutrition-label-reader-v3.md`) on the exact text, format inference, the faithful
+/// gate v2 port, the `pasted-label-conversions-v1` conversions for the stored column and the
+/// `label-arithmetic-checks-v1` checks, and maps their output to the
 /// application's `LabelReading`. It never persists, decides or presents, and never changes a
 /// value: G3 to G6 stay findings here (the application turns them into Confirm flags), so the
 /// parser's candidate is passed on as parsed, never the gate's withheld copy.
 public struct NutritionLabelTextReader: LabelTextReading {
-    private let parser = NutritionLabelTextParser()
+    private let parser = NutritionLabelTextParserV3()
 
     public init() {}
 
-    public static let versions = LabelReading.Versions(parser: NutritionLabelTextParser.version, gate: LabelDeclineGate.version,
+    public static let versions = LabelReading.Versions(parser: NutritionLabelTextParserV3.version, gate: LabelDeclineGate.version,
         arithmetic: LabelArithmeticChecks.version, conversion: PastedLabelConversions.version,
         formatInference: LabelFormatInference.version)
 

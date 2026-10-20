@@ -11,6 +11,24 @@ import XCTest
 /// Synthetic data only.
 @MainActor
 final class PastedLabelPresentationTests: XCTestCase {
+    /// Reader v3 section 3.1 rules 3 and 4: a serving or pack line read from two lines of the
+    /// label is a visible warning on its row and in the warnings, recorded as shown and in the
+    /// misread report (every exception is visible).
+    func testALineReadFromTwoLinesIsAVisibleWarningOnItsRowAndInTheReport() throws {
+        let both = try LabelFixtures.source(LabelFixtures.reading(
+            warnings: ["serving_line_joined", "serving_line_joined: servings_per_pack"]))
+        XCTAssertEqual(both.manifest.warningsShown, ["serving_line_joined:serving_size", "serving_line_joined:servings_per_pack"])
+        XCTAssertEqual(both.warnings, ["Read from two lines of the label. Check the serving size.",
+                                       "Read from two lines of the label. Check the servings per pack."])
+        XCTAssertEqual(both.servingLines.first { $0.id == "serving_size" }?.flag, PastedLabelText.joinedServingSize)
+        XCTAssertEqual(both.servingLines.first { $0.id == "servings_per_pack" }?.flag, PastedLabelText.joinedPack)
+        XCTAssertTrue(both.reportText.contains("Read from two lines of the label. Check the serving size. (serving_line_joined:serving_size)"))
+        let servingOnly = try LabelFixtures.source(LabelFixtures.reading(warnings: ["serving_line_joined"]))
+        XCTAssertEqual(servingOnly.warnings, [PastedLabelText.joinedServingSize])
+        XCTAssertNil(servingOnly.servingLines.first { $0.id == "servings_per_pack" }?.flag)
+        XCTAssertEqual(try LabelFixtures.source().warnings, [], "no join, no warning")
+    }
+
     private typealias F = LabelFixtures
 
     // MARK: Test 20: label text screen
@@ -334,7 +352,7 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertTrue(confirm.canLog, confirm.blockedReason ?? "")
         confirm.log()
         let saved = try XCTUnwrap(confirm.savedResult)
-        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v2")
+        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v3", "a new reading is parser v3, so its per 100 method is v3")
         XCTAssertEqual(saved.quantityConversion?.convertedQuantity, try PositiveQuantity(value: 300, unit: .grams), "10 servings × 30 g")
         XCTAssertEqual(saved.productVersion.identity.servingBasis, .per100Grams)
     }
@@ -460,7 +478,7 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertFalse(report.contains("370.5"))
         XCTAssertTrue(report.contains("Protein (蛋白質) per 100 g: 5.2公克 · Printed"), "the values as read, not the correction")
         XCTAssertTrue(report.contains("Serving size: 每一份量30公克"))
-        XCTAssertTrue(report.contains("nutrition-label-text-parser-v2, label-capture-decline-gate-v2, label-arithmetic-checks-v1, pasted-label-conversions-v1"))
+        XCTAssertTrue(report.contains("nutrition-label-text-parser-v3, label-capture-decline-gate-v2, label-arithmetic-checks-v1, pasted-label-conversions-v1"))
         for withheld in ["Synthetic oat crackers", "Synthetic Mill", "5.4"] { XCTAssertFalse(report.contains(withheld), withheld) }
         XCTAssertEqual(report, try F.source().reportText, "deterministic")
         let preview = PastedLabelMisreadPreviewModel(report: report)

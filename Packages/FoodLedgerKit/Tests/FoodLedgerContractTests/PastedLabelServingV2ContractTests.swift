@@ -44,7 +44,8 @@ final class PastedLabelServingV2ContractTests: XCTestCase {
     func testMethodVersionsAreAppendOnlyAndChosenByTheStoredColumn() throws {
         XCTAssertEqual(PastedLabelServingPolicy.version, "pasted-label-serving-v1", "v1 is unchanged")
         XCTAssertEqual(PastedLabelServingPolicy.per100Version, "pasted-label-serving-v2")
-        XCTAssertEqual(PastedLabelServingPolicy.admittedVersions, ["pasted-label-serving-v1", "pasted-label-serving-v2"])
+        XCTAssertEqual(PastedLabelServingPolicy.admittedVersions, ["pasted-label-serving-v1", "pasted-label-serving-v2", "pasted-label-serving-v3"],
+                       "append-only; v3 is reader v3 section 5.6")
 
         let per100 = try F.input(F.per100Manifest(servingSize: Self.printed30g))
         XCTAssertEqual(PastedLabelServingPolicy.method(per100, candidate: per100.candidates[0]), "pasted-label-serving-v2")

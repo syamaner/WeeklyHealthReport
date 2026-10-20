@@ -125,14 +125,19 @@ final class NutritionLabelTextReaderTests: XCTestCase {
 
     // MARK: 27. Every code maps to copy
 
-    /// Parser decline codes, read from the parser source so a new code cannot go unmapped.
+    /// Parser decline codes, read from the parser sources (v2, which the reader no longer runs but
+    /// whose codes v3 keeps, v3 and its layout precedence) so a new code cannot go unmapped.
     static func parserDeclineCodes() throws -> Set<String> {
-        let source = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("Sources/NutritionLabelParsing/NutritionLabelTextParser.swift")
-        let text = try String(contentsOf: source, encoding: .utf8)
+        let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/NutritionLabelParsing")
+        var text = ""
+        for file in ["NutritionLabelTextParser.swift", "NutritionLabelTextParserV3.swift", "LabelLayout.swift"] {
+            text += try String(contentsOf: sources.appendingPathComponent(file), encoding: .utf8) + "\n"
+        }
         let literal = try NSRegularExpression(pattern: #""([a-z]+(?:_[a-z]+)+)""#)
         var codes: Set<String> = []
-        for line in text.split(separator: "\n") where line.contains("decline(") || line.contains("declineReasons.append") || line.contains("reasons: [") {
+        for line in text.split(separator: "\n") where line.contains("decline(") || line.contains("declineReasons.append")
+            || line.contains("reasons: [") || line.contains("Decline = [") || line.contains("ambiguousCode = ") {
             let line = String(line)
             for match in literal.matches(in: line, range: NSRange(line.startIndex..., in: line)) {
                 codes.insert(String(line[Range(match.range(at: 1), in: line)!]))
@@ -144,7 +149,8 @@ final class NutritionLabelTextReaderTests: XCTestCase {
     func test27EveryParserGateAndRouteCodeMapsToCopyAndIsClassifiedOnce() throws {
         let parser = try Self.parserDeclineCodes()
         XCTAssertEqual(parser, ["unsupported_language", "multiple_panels", "values_without_row", "no_table", "no_basis_header",
-                                "duplicate_basis", "energy_without_unit", "value_without_unit", "unrecognised_unit", "count_mismatch"],
+                                "duplicate_basis", "energy_without_unit", "value_without_unit", "unrecognised_unit", "count_mismatch",
+                                "layout_ambiguous"],
                        "A new parser code needs its own mapping and copy")
         let gate = Set(LabelGateReason.allCases.map(\.rawValue))
         var skipped: Set<String> = []
@@ -162,12 +168,14 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         XCTAssertEqual(flags, ["required_row_missing", "column_count_mismatch", "required_basis_missing", "required_serving_declaration_missing"])
         let sectionThreeOne: Set<String> = ["not_a_food_nutrition_panel", "unsupported_language", "unsupported_script", "no_table",
             "layout_not_supported", "format_ambiguous", "basis_state_not_supported", "multiple_panels", "no_basis_header", "duplicate_basis",
-            "count_mismatch", "values_without_row", "energy_without_unit", "value_without_unit", "unrecognised_unit", "text_too_long", "unreadable_table"]
+            "count_mismatch", "values_without_row", "energy_without_unit", "value_without_unit", "unrecognised_unit", "text_too_long", "unreadable_table",
+            "layout_ambiguous"]
         for code in emitted {
             let classification = PastedLabelCodes.classify(code)
             XCTAssertEqual(classification.kind == .flag, flags.contains(code), code)
             XCTAssertEqual(classification.kind == .hardDecline, sectionThreeOne.contains(code), code)
-            XCTAssertEqual(classification.copy == .unreadableTable, code == "unreadable_table", "\(code) has its own copy")
+            // Reader v3 section 3.0: `layout_ambiguous` is copied as `unreadable_table` (decision 19).
+            XCTAssertEqual(classification.copy == .unreadableTable, ["unreadable_table", "layout_ambiguous"].contains(code), "\(code) has its own copy")
         }
         XCTAssertEqual(PastedLabelCodes.classify("gate:required_row_missing").copy, .unreadableTable, "Unmapped codes fall back")
     }
@@ -223,19 +231,59 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         XCTAssertEqual(reader.read(supplement).declineCodes, ["not_a_food_nutrition_panel"])
     }
 
+    /// Reader v3 section 3.9, consistent with v1 decision 6: energy is read in kcal or kJ. With
+    /// both printed, on one row or on two (the kJ line continuing the energy row), the kcal cell is
+    /// stored and the kJ cell is read but not used: nothing is calculated, never both.
+    func testKcalAndKjOnOneRowOrTwoStoreTheKcalAndKeepTheKjReadButNotUsed() throws {
+        for (name, energy) in [("one row", ["熱量  167.7 大卡  701.7 kJ  419.2 大卡  1754 kJ"]),
+                               ("two rows", ["熱量  167.7 大卡  419.2 大卡", "701.7 kJ  1754 kJ"])] {
+            let read = try review(SyntheticLabelTexts.taiwan(energy + SyntheticLabelTexts.rows.dropFirst()))
+            let candidate = read.reading.candidate
+            XCTAssertFalse(candidate.warnings.contains { $0.hasPrefix("row_not_read") }, name)
+            let stored = candidate.cells.filter { $0.headerID == read.storedHeaderID }
+            XCTAssertEqual(stored.filter { $0.nutrient == "energy_kcal" }.map(\.decimalText), ["419.2"], name)
+            XCTAssertEqual(stored.filter { $0.nutrient == "energy_kj" }.map(\.decimalText), ["1754"], name)
+            XCTAssertEqual(read.reading.conversions, [], "\(name): kcal is printed, so nothing is calculated")
+            XCTAssertEqual(read.flags, [], name)
+            let input = try builder().confirmation(read, details: .init(name: "Synthetic granola", fortification: .no),
+                                                   corrections: [], locale: LedgerText("zh_TW"))
+            let value = try XCTUnwrap(input.candidates[0].candidate.nutrients.entries.first { $0.key == .energyConsumed }).value
+            XCTAssertFalse(NutrientDerivation.isCalculated(value), name)
+        }
+    }
+
+    /// Bounds stay bounds through the reader (reader v3 PR 1 re-review): 以下 and ≦ reach
+    /// Confirm as "at most"; a duplicated row is not read and its flag is shown.
+    func testBoundWordsReachConfirmAsBoundsAndDuplicateRowsAreFlagged() throws {
+        let rows = SyntheticLabelTexts.rows.dropLast() + ["鈉  101 毫克 以下  252 毫克 以下"]
+        let read = try review(SyntheticLabelTexts.taiwan(Array(rows)))
+        let sodium = read.reading.candidate.cells.filter { $0.nutrient == "sodium" }
+        XCTAssertEqual(sodium.map(\.comparator), ["<=", "<="])
+        let input = try builder().confirmation(read, details: .init(name: "Synthetic granola", fortification: .no),
+                                               corrections: [], locale: LedgerText("zh_TW"))
+        let value = try XCTUnwrap(input.candidates[0].candidate.nutrients.entries.first { $0.key == .sodium }).value
+        guard case .bounded = value else { return XCTFail("sodium must stay a bound: \(value)") }
+
+        let duplicated = SyntheticLabelTexts.taiwan(["*鈉  50 毫克  120 毫克"] + Array(SyntheticLabelTexts.rows))
+        let flagged = try review(duplicated)
+        XCTAssertFalse(flagged.reading.candidate.cells.contains { $0.nutrient == "sodium" })
+        XCTAssertTrue(flagged.flags.contains(.init(code: "required_row_missing", concerns: "sodium")), "\(flagged.flags)")
+    }
+
     // MARK: Mapping across the port
 
     func testTheCandidateMirrorEncodesTheParserCandidateBytes() throws {
         let encoder = FoundationCanonicalJSONEncoder()
         for text in [SyntheticLabelTexts.base, SyntheticLabelTexts.kilojoulesOnly, SyntheticLabelTexts.perServingNoSize, SyntheticLabelTexts.japanese] {
             let hash = try SHA256Digester().sha256(Data(text.utf8)).value
-            let parsed = NutritionLabelTextParser().parse(text, inputSHA256: hash)
+            let parsed = NutritionLabelTextParserV3().parse(text, inputSHA256: hash) // the parser the reader runs
             let reading = NutritionLabelTextReader().read(text, textSHA256: hash)
             XCTAssertEqual(try encoder.encode(reading.candidate), try encoder.encode(parsed))
             XCTAssertEqual(reading.versions, NutritionLabelTextReader.versions)
             XCTAssertEqual(reading.origin, .pastedText)
         }
         XCTAssertEqual(NutritionLabelTextReader.versions.parser, PastedLabelSource.parserVersion)
+        XCTAssertEqual(NutritionLabelTextReader.versions.parser, "nutrition-label-text-parser-v3")
         XCTAssertEqual(NutritionLabelTextReader.versions.gate, PastedLabelSource.gateVersion)
         XCTAssertEqual(NutritionLabelTextReader.versions.arithmetic, PastedLabelSource.arithmeticVersion)
         XCTAssertEqual(NutritionLabelTextReader.versions.conversion, PastedLabelSource.conversionVersion)

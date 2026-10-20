@@ -279,7 +279,7 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
         confirm.send(.setQuantity(2, .count))
         confirm.log()
         let saved = try XCTUnwrap(confirm.savedResult, confirm.blockedReason ?? "")
-        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v2")
+        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v3", "a new reading is parser v3, so its per 100 method is v3")
         XCTAssertEqual(saved.logItemVersion.edibleQuantity, try PositiveQuantity(value: 500, unit: .millilitres))
     }
 

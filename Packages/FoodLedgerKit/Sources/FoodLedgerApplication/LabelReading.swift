@@ -112,10 +112,19 @@ public struct LabelReading: Equatable, Sendable {
         self.storedHeaderID = storedHeaderID; self.versions = versions
     }
 
-    /// Warning codes for every failed check, in check order, without repeats.
+    /// Warning codes for every failed check, in check order, then a serving or pack line read
+    /// from two lines of the label (reader v3 section 3.1 rules 3 and 4), without repeats. Every
+    /// exception is visible on Confirm and recorded as shown.
     public var warningCodes: [String] {
         var seen: Set<String> = []
-        return checks.compactMap(\.warningCode).filter { seen.insert($0).inserted }
+        var codes = checks.compactMap(\.warningCode)
+        if candidate.warnings.contains(PastedLabelCodes.servingLineJoined) {
+            codes.append(PastedLabelCodes.servingLineJoined + ":" + PastedLabelManifest.Correction.servingSize)
+        }
+        if candidate.warnings.contains(PastedLabelCodes.servingLineJoined + ": " + PastedLabelManifest.Correction.servingsPerPack) {
+            codes.append(PastedLabelCodes.servingLineJoined + ":" + PastedLabelManifest.Correction.servingsPerPack)
+        }
+        return codes.filter { seen.insert($0).inserted }
     }
 }
 
@@ -166,6 +175,10 @@ public enum PastedLabelCodes {
     public static let formatAmbiguous = "format_ambiguous"
     public static let noTable = "no_table"
     public static let unreadableTable = "unreadable_table"
+    public static let layoutAmbiguous = "layout_ambiguous"
+    /// Parser v3's warning for a serving line read from two lines (`serving_line_joined`, and
+    /// `serving_line_joined: servings_per_pack` for the pack line); a warning, never a flag.
+    public static let servingLineJoined = "serving_line_joined"
 
     public enum Kind: String, Sendable { case hardDecline = "hard_decline", flag }
 
@@ -214,6 +227,8 @@ public enum PastedLabelCodes {
             "energy_without_unit": decline(.valuesNotBound),
             "value_without_unit": decline(.valuesNotBound),
             "unrecognised_unit": decline(.valuesNotBound),
+            // Parser v3 (reader v3 section 3.0, decision 19): a body that is not exactly one layout.
+            layoutAmbiguous: decline(.unreadableTable),
             textTooLong: decline(.textTooLong),
             unreadableTable: decline(.unreadableTable),
             // Gate G3 to G6: flags on Confirm, never a decline.

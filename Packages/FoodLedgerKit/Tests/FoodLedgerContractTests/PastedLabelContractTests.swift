@@ -403,7 +403,8 @@ final class PastedLabelContractTests: XCTestCase {
         XCTAssertEqual(unanswered.candidates[0].itemClass, .food)
         let fortified = try F.input(F.manifest(answer: .yes))
         XCTAssertEqual(fortified.candidates[0].itemClass, .fortifiedFood)
-        XCTAssertThrowsError(try F.input(F.manifest(parserVersion: "nutrition-label-text-parser-v3")), "Not an admitted pipeline")
+        XCTAssertThrowsError(try F.input(F.manifest(parserVersion: "nutrition-label-text-parser-v4")), "Not an admitted pipeline")
+        XCTAssertNoThrow(try F.input(F.manifest(parserVersion: "nutrition-label-text-parser-v3")), "Parser v3 is admitted (reader v3 section 5.2)")
     }
 
     // MARK: 17 and 30. Contract version and precedence

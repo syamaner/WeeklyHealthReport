@@ -191,11 +191,12 @@ public final class PastedLabelSourceModel: ObservableObject {
         return [first] + ["g", "ml"].filter { $0 != first }
     }
 
-    /// A printed serving size on a per 100 g or ml column that `pasted-label-serving-v2` refuses as
-    /// approximate (or whose quantity it cannot bind). A per-serving column (v1) is not affected.
+    /// A printed serving size on a per 100 g or ml column that the manifest's per-100 method
+    /// (`pasted-label-serving-v2` or `-v3`, by parser version) refuses as approximate (or whose
+    /// quantity it cannot bind). A per-serving column (v1) is not affected.
     func servingSizeExactness(_ size: PastedLabelManifest.Candidate.ServingSize) -> PastedLabelServingPolicy.Exactness {
         guard ["per_100g", "per_100ml"].contains(storedHeader?.basis ?? ""), size.decimalText != nil else { return .exact }
-        return PastedLabelServingPolicy.exactness(size)
+        return PastedLabelServingPolicy.exactness(size, parserVersion: manifest.parserVersion)
     }
 
     /// The serving-size line's printed text names a servings-per-pack phrase on the same line, so
@@ -249,11 +250,14 @@ public final class PastedLabelSourceModel: ObservableObject {
         return [
             Line(id: PastedLabelManifest.Correction.servingSize, title: "Serving size", value: sizeValue,
                  flag: sizeFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) }
-                    ?? (sizeCorrection == nil ? size.flatMap { PastedLabelText.servingSizeNote(servingSizeExactness($0)) } : nil),
+                    ?? (sizeCorrection == nil ? size.flatMap { PastedLabelText.servingSizeNote(servingSizeExactness($0)) } : nil)
+                    ?? (joined(PastedLabelManifest.Correction.servingSize) ? PastedLabelText.joinedServingSize : nil),
                  actions: sizeActions, units: servingSizeUnits),
             Line(id: PastedLabelManifest.Correction.servingsPerPack, title: "Servings per pack", value: packValue,
                  flag: packFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) }
-                    ?? (pack?.approximate == true ? PastedLabelText.approximatePack : nil),
+                    ?? (pack?.approximate == true ? PastedLabelText.approximatePack
+                        : (pack.map { PastedLabelText.isPrintedZero($0.decimalText) } == true ? PastedLabelText.zeroPack
+                        : (joined(PastedLabelManifest.Correction.servingsPerPack) ? PastedLabelText.joinedPack : nil))),
                  actions: packActions, units: ["count"])
         ]
     }
@@ -286,6 +290,12 @@ public final class PastedLabelSourceModel: ObservableObject {
     }
 
     public var warnings: [String] { manifest.warningsShown.map(PastedLabelText.warningMessage) }
+
+    /// Whether the serving line (`serving_size`) or the pack line (`servings_per_pack`) was read
+    /// from two lines of the label and shown as such.
+    func joined(_ line: String) -> Bool {
+        manifest.warningsShown.contains(PastedLabelCodes.servingLineJoined + ":" + line)
+    }
 
     // MARK: Corrections (sections 2.3 and 3.2)
 

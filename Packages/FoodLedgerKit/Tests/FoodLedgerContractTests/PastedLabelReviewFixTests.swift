@@ -133,7 +133,9 @@ final class PastedLabelReviewFixTests: XCTestCase {
     func testAdmittedPipelinesGolden() {
         XCTAssertEqual(PastedLabelSource.admittedPipelines, [
             "pasted-nutrition-label-v1": [
-                "nutrition-label-text-parser-v2:label-capture-decline-gate-v2:label-arithmetic-checks-v1:pasted-label-conversions-v1"
+                "nutrition-label-text-parser-v2:label-capture-decline-gate-v2:label-arithmetic-checks-v1:pasted-label-conversions-v1",
+                // Appended by reader v3 PR 1 (section 5.2); the parser-v2 entry is never removed.
+                "nutrition-label-text-parser-v3:label-capture-decline-gate-v2:label-arithmetic-checks-v1:pasted-label-conversions-v1"
             ]
         ])
     }
