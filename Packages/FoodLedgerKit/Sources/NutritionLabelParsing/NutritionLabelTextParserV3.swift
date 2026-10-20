@@ -108,13 +108,18 @@ enum PatternsV3 {
     /// A number with a count word (pieces, not servings): never a pack count (PR 3 re-review).
     static let countQuantity = LabelPattern(
         #"(?<![\d.,，．\p{No}])\d+(?:[.．]\d+)?\s*(?:片|塊|顆|粒|包|條|枚|個|支|盒|袋|罐|瓶|杯|匙|(?i:bars?|pieces?|pcs|biscuits?|slices?|cookies?|crackers?|sticks?|tablets?|candies|candy|wafers?|rolls?|cakes?|sachets?|bags?)(?![A-Za-z]))"#)
-    /// A servings-per phrase ending a text: the number after it is a pack count.
+    /// A Chinese count of servings anywhere on a pack line (PR 4, reader v3 8.4.14).
+    static let chineseCount = LabelPattern(#"\d+(?:[.．]\d+)?(?=\s*份)"#)
+    /// A servings-per phrase ending a text: the number after it is a pack count. PR 4 (8.4.14,
+    /// from the final review of PR 3): any `servings per <word>` or `servings/<word>`, an optional
+    /// bracketed qualifier before the colon, and the approximation words of serving v3.
     static let packCountLead = LabelPattern(
-        #"(?i)(?:servings?\s+per\s+(?:container|package|pack)|portions?\s+per\s+(?:container|package|pack)|每包裝|本包裝包?含?)\s*[:：]?\s*(?:約\s*|about\s+|approx\.?\s*)?$"#)
-    /// A multiplier straight before or after a serving quantity (`2x15g`, `15g × 2`): the serving
-    /// size is then a product the reader does not compute, so it is not read.
+        #"(?i)(?:servings?\s*(?:per|/)\s*\p{L}+|portions?\s+per\s+(?:container|package|pack)|每包裝|本包裝包?含?)\s*(?:[(（][^)）]*[)）]\s*)?[:：]?\s*(?:約\s*|about\s+|approx\.?\s*|approximately\s+|around\s+|~\s*|ca\.?\s*)?$"#)
+    /// A multiplier straight before or after a serving quantity (`2x15g`, `15g × 2`, and from
+    /// PR 4 a bracketed `(x2)`): the serving size is then a product the reader does not compute,
+    /// so it is not read.
     static let multipliedQuantity = LabelPattern(
-        #"\d\s*[xX×*＊]\s*\d|(?<![A-Za-z])[xX×*＊]\s*\d+(?:\.\d+)?\s*(?:g|ml|mL|公克|毫升|克)(?![A-Za-z])|\d+(?:\.\d+)?\s*(?:g|ml|mL|公克|毫升|克)\s*[xX×*＊]\s*\d"#)
+        #"\d\s*[xX×*＊]\s*\d|(?<![A-Za-z])[xX×*＊]\s*\d+(?:\.\d+)?\s*(?:g|ml|mL|公克|毫升|克)(?![A-Za-z])|\d+(?:\.\d+)?\s*(?:g|ml|mL|公克|毫升|克)\s*[xX×*＊]\s*\d|[(（]\s*[xX×*＊]\s*\d+(?:\.\d+)?\s*[)）]"#)
     /// Weight and volume units other than grams and millilitres (a closed list).
     static let otherMeasureUnits: Set<String> = ["oz", "ounce", "ounces", "lb", "lbs", "pound", "pounds", "kg", "kgs", "kilogram", "kilograms",
                                                  "mg", "mcg", "l", "litre", "litres", "liter", "liters", "cl", "dl", "cup", "cups", "tbsp",
@@ -435,7 +440,7 @@ struct ParseStateV3 {
                     // approximation ("about" in either language makes the count approximate),
                     // and the Chinese phrase decides the count: a line whose numbers disagree
                     // is not read (PR 3 review).
-                    let approximate = groups[1] != nil || Self.bilingualApproximate(content)
+                    let approximate = groups[1] != nil || Self.packApproximate(Self.packRest(content))
                     // The same comparison as on a serving line: count words that do not follow a
                     // servings-per phrase (`本包裝含 6份 (12 pieces)`) are not pack counts.
                     switch Self.bilingualPackCount(Self.packRest(content)) {
@@ -599,6 +604,9 @@ struct ParseStateV3 {
         // A multiplied serving (`2x15g`, `2 x 15g`, `15g × 2`) is a product the reader does not
         // compute: not read, never the one factor (PR 3 re-review; parser v2 read 15 g).
         if PatternsV3.multipliedQuantity.contains(cut) { return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil) }
+        // A serving number in full-width or other digits is never bound, even beside an ASCII
+        // bracket that agrees with it (`每一份量 ３０公克 (30g)`; PR 4, 8.4.14).
+        if hasNonASCIIDigits(cut) { return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil) }
         // 3.6 rule 5 (and the PR 3 review): on a serving line holding Chinese and English text,
         // in either order and bracketed or not, the quantities printed must agree; when they do
         // not (`Serving size 25g 每一份量 30公克`, `每一份量30公克 (about 25g)`) the serving size is
@@ -689,7 +697,8 @@ struct ParseStateV3 {
         for pattern in [PatternsV3.chinesePackPhrase, PatternsV3.englishPackPhrase] {
             if let groups = pattern.firstMatch(in: phrase), let number = groups[2] {
                 if hasNonASCIIDigits(number) { return nil }
-                return LabelServingsPerPack(printedText: line, decimalText: number, approximate: groups[1] != nil || bilingualApproximate(phrase))
+                return LabelServingsPerPack(printedText: line, decimalText: number,
+                                            approximate: groups[1] != nil || packApproximate(packRest(phrase)))
             }
         }
         return nil
@@ -1081,10 +1090,11 @@ struct ParseStateV3 {
                     unbound.append(pack.printed)
                     extraWarnings.append(Self.bilingualConflictWarning + "servings_per_pack")
                 case let .some(.some(chinese)):
-                    let approximate = groups[1] != nil || Self.bilingualApproximate(Self.packRest(combined))
+                    let approximate = groups[1] != nil || Self.packApproximate(Self.packRest(combined))
                     servingsPerPack = LabelServingsPerPack(printedText: pack.printed, decimalText: chinese, approximate: approximate)
                 case .some(nil):
-                    servingsPerPack = LabelServingsPerPack(printedText: pack.printed, decimalText: number, approximate: groups[1] != nil)
+                    servingsPerPack = LabelServingsPerPack(printedText: pack.printed, decimalText: number,
+                                                           approximate: groups[1] != nil || Self.packApproximate(Self.packRest(combined)))
                 }
             } else {
                 unbound.append(pack.printed)
@@ -1338,13 +1348,26 @@ struct ParseStateV3 {
     /// Returns the Chinese count, or nil when the line is not read; `.some(nil)` when not bilingual.
     /// A number that cannot be parsed (after folding full-width digits) makes the line not read.
     static func bilingualPackCount(_ line: String) -> String?? {
-        guard line.contains(where: FlattenedLine.isHan), hasLatinWord(line) else { return .some(nil) }
+        guard line.contains(where: FlattenedLine.isHan), hasLatinWord(line) else {
+            // PR 4 (8.4.14): a second Chinese count on the line (`本包裝含 2份 (約3份)`,
+            // `(每包裝 3份)`) must equal the first, or the pack count is not read.
+            let counts = PatternsV3.chineseCount.matches(in: line).map { asciiDecimal($0) }
+            guard !counts.contains(nil), Set(counts.compactMap { $0 }).count <= 1 else { return nil }
+            return .some(nil)
+        }
         guard let chinese = PatternsV3.chinesePackAnywhere.firstMatch(in: line)?[2], !hasNonASCIIDigits(chinese),
               let count = asciiDecimal(chinese) else { return nil }
         for number in PatternsV3.number.matches(in: line) {
             guard let value = asciiDecimal(number), value == count else { return nil }
         }
         return .some(chinese)
+    }
+
+    /// PR 4 (8.4.14): approximation on a pack line, scanned the same way on stand-alone pack
+    /// lines, pack phrases and flattened lines, on the stripped text (count words and serving
+    /// quantities removed): 約 anywhere, or serving v3's English words and marks on a bilingual line.
+    static func packApproximate(_ stripped: String) -> Bool {
+        stripped.contains("約") || stripped.contains("约") || bilingualApproximate(stripped)
     }
 
     /// 3.6 rule 5: on a Chinese serving or pack line, the English words and marks of serving v3's
