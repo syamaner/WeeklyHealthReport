@@ -2439,3 +2439,99 @@ Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 21
 Boundary: `phase_usage.py --format claude --since 2026-10-20T17:32:44Z --until 2026-10-20T17:43:35Z`. Cache writes: 30,399 5-minute, 0 1-hour. Exact API-equivalent USD 3.695907 at the recorded counts. The output count is a lower bound: 41 of the 51 messages in this window record at most 32 output tokens, so the total and the API-equivalent figure are lower bounds too. The reviewers' and QA agents' usage is not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-21a: Claude Code pasted nutrition label reader v3 freeze (step 5a)
+
+One implementation subagent, its own transcript (`subagents/agent-a52730ba6529ab9db.jsonl`), for reader v3 step 5a (`docs/pasted-nutrition-label-reader-v3.md` section 12): the freeze of parser v3, `taiwan-row-aliases-v1`, checks v2, serving v3 and manifest v2 with `ReaderV3FreezeTests`, the fresh-set protocol (12.2), the carry-overs from the final review of #284 and one full gate run. No label was collected and nothing ran on real data.
+
+Runs from the phase's start (`2026-10-20T17:56:32Z`, captured with `date -u`) to `2026-10-20T18:30:35Z`, just before this ledger edit.
+
+Pricing: re-checked on 21 October 2026 (local date) against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output, unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 freeze (#93), implementation subagent | 19,905,582 (19,416,501) | 488,899 | ≥ 15,725 (lower bound) | ≥ 19,921,307 | $6.64 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-20T17:56:32Z --until 2026-10-20T18:30:35Z` on the subagent transcript alone. Cache writes: 488,899 5-minute, 0 1-hour. Exact API-equivalent USD 6.6430232 at the recorded counts. The output count is a lower bound: 133 of the 164 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The orchestrating session and any reviewers are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-21b: Claude Code pasted nutrition label reader v3 freeze, review round
+
+Same subagent and transcript as WHR-93-2026-10-21a, continued for the review of #286: the first round's ledger edit, commit, push and pull request (after that row's boundary), then the review fixes. Pin 2 filtered to the frozen versions; the re-pin rules (a new version beside a frozen one, a new parser file, comment-only changes); the harness's reading and binding files pinned; the run harness and scorer committed as opt-in steps (`FreshSet/`) with synthetic tests; the protocol's unit table, scoring, calculated values, seal-2 finality, reruns, the device basis rule, residual errors, `other` notes and a transcriber who never sees the pasted text; one full gate run.
+
+Runs from `2026-10-20T18:30:36Z` (one second after WHR-93-2026-10-21a's end) to `2026-10-20T18:54:46Z`, just before this ledger edit.
+
+Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 21 October 2026 (WHR-93-2026-10-21a), unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 freeze review round (#93), implementation subagent | 15,343,536 (14,901,321) | 442,117 | ≥ 20,139 (lower bound) | ≥ 15,363,675 | $5.59 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-20T18:30:36Z` on the subagent transcript alone, taken at `2026-10-20T18:54:46Z`. Cache writes: 442,117 5-minute, 0 1-hour. Exact API-equivalent USD 5.5940212 at the recorded counts. The output count is a lower bound: 79 of the 91 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The reviewers' usage is not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-21c: Claude Code pasted nutrition label reader v3 freeze, rebase and scorer round
+
+Same subagent and transcript as WHR-93-2026-10-21a, continued after #284 merged. Covers:
+- the end of the previous round (its ledger edit, commit and push);
+- the rebase of the freeze commits onto `main`, with the freeze tests rerun;
+- the scorer fixes from the re-review of #286: the salt operand in grams; unrecognised cells matched by normalised label; values outside the tables recorded verbatim; the serving size scored without a canonical unit; the run-log audit; the git-checkout test; `PastedLabelManifest.swift` pinned; the seal-2 hash on the review page; the burden filtered to the stored column; a calculated kcal or sodium compared with a printed but unread one; columns that share a basis;
+- one full gate run.
+
+Runs from `2026-10-20T18:54:47Z` to `2026-10-20T19:22:33Z`, just before this ledger edit.
+
+Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 21 October 2026 (WHR-93-2026-10-21a), unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 freeze rebase and scorer round (#93), implementation subagent | 14,529,670 (13,683,040) | 846,554 | ≥ 6,866 (lower bound) | ≥ 14,536,536 | $7.11 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-20T18:54:47Z` on the subagent transcript alone, taken at `2026-10-20T19:22:33Z`. Cache writes: 846,554 5-minute, 0 1-hour. Exact API-equivalent USD 7.107002 at the recorded counts. The output count is a lower bound: 62 of the 75 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The reviewers' usage is not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-21d: Claude Code pasted nutrition label reader v3 freeze, equivalence round
+
+Same subagent and transcript as WHR-93-2026-10-21a. This round covers the end of the previous round (ledger edit, commit, rebase push, retarget, PR body) and the coordinator's decisions on the re-review of #286 at `84dca9cf`:
+- closed comparator and unit equivalence tables in the scorer;
+- a calculated value gated only by its operand, with calculated vs printed reported as a discrepancy and the unread printed target counted in the burden;
+- printed targets marked `outside_table` never compared;
+- same-basis positional matching over amount columns only;
+- label normalisation for colons, row markers and unit groups;
+- the serving count and weight rule;
+- a decimal comma read as a point only off Taiwan rows;
+- one full gate run.
+
+Runs from `2026-10-20T19:22:34Z` to `2026-10-20T19:40:34Z`, just before this ledger edit.
+
+Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 21 October 2026 (WHR-93-2026-10-21a), unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 freeze equivalence round (#93), implementation subagent | 10,639,030 (10,168,070) | 470,910 | ≥ 1,050 (lower bound) | ≥ 10,640,080 | $4.41 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-20T19:22:34Z` on the subagent transcript alone, taken at `2026-10-20T19:40:34Z`. Cache writes: 470,910 5-minute, 0 1-hour. Exact API-equivalent USD 4.409364 at the recorded counts. The output count is a lower bound: 41 of the 48 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The reviewers' usage is not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-21e: Claude Code pasted nutrition label reader v3 freeze, comma round
+
+Same subagent and transcript as WHR-93-2026-10-21a. Covers the end of the previous round (ledger edit, commit, push, PR body and report) and the focused review of #286 at `56d8f2b3`:
+- the scorer reads printed and read numbers with the reader's own per-row comma rule (`ParseStateV3.isAmbiguousNumber`), with a parity test against the reader on synthetic rows;
+- a label that normalises to nothing never matches;
+- `Cal` maps to the reader's `cal`, after a probe showed the reader binds it on unrecognised rows in a table that reaches Confirm;
+- one full gate run.
+
+Runs from `2026-10-20T19:40:35Z` to `2026-10-20T19:56:18Z`, just before this ledger edit.
+
+Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 21 October 2026 (WHR-93-2026-10-21a), unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 freeze comma round (#93), implementation subagent | 14,200,475 (14,157,977) | 42,438 | ≥ 2,440 (lower bound) | ≥ 14,202,915 | $3.09 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-20T19:40:35Z` on the subagent transcript alone, taken at `2026-10-20T19:56:18Z`. Cache writes: 42,438 5-minute, 0 1-hour. Exact API-equivalent USD 3.0928254 at the recorded counts. The output count is a lower bound: 42 of the 55 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The reviewers' usage is not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

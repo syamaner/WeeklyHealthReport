@@ -695,7 +695,7 @@ public struct FoodConfirmationView: View {
             recoverySection
             // #282 and the journey QA of #284: when the pinned bar would crowd out the content,
             // its warnings, hint and estimate scroll here, beside the Log area; Log stays pinned.
-            if pinsOnlyLog && hasBeforeLogContent { beforeLogSection }
+            if showsBeforeLog { beforeLogSection }
         }
         .amountKeyboardDismissal($editingAmount)
         .navigationTitle(model.state.reopened == nil ? "Confirm food" : "Edit food")
@@ -933,8 +933,8 @@ public struct FoodConfirmationView: View {
         pinsOnlyLog && (warningCount > 0 || hasBlockedReason || hasEstimate)
     }
 
-    private var hasBeforeLogContent: Bool {
-        Self.showsBeforeLog(pinsOnlyLog: true, warningCount: pastedLabel?.warnings.count ?? 0,
+    private var showsBeforeLog: Bool {
+        Self.showsBeforeLog(pinsOnlyLog: pinsOnlyLog, warningCount: pastedLabel?.warnings.count ?? 0,
                             hasBlockedReason: model.blockedReason != nil, hasEstimate: model.volumeEstimateLogBarAction != nil)
     }
 

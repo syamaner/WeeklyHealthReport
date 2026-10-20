@@ -250,6 +250,8 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
         failNext = true
         confirm.changeBasis?()
         XCTAssertNil(model.chooseBasis(arrangement("per_serving")))
+        XCTAssertFalse(model.basisChangeFailed, "said once the sheet has gone, not while it dismisses")
+        model.basisSheetDidDisappear()
         XCTAssertTrue(model.basisChangeFailed)
         XCTAssertTrue(model.confirm === confirm, "the same Confirm: amount and time stay")
         XCTAssertEqual(confirm.currentArrangement, arrangement("per_100g"))
@@ -307,26 +309,85 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
         fail = true
         model.readLabel()
         XCTAssertNil(model.chooseBasis(arrangement("per_100g")))
+        // The sheet is cleared first; the alert waits until the sheet has gone, so its own
+        // dismissal cannot drop it (carried from the final review of #284).
+        XCTAssertNil(model.basisSheet)
+        XCTAssertFalse(model.basisChoiceFailed, "not while the sheet is still dismissing")
+        model.basisSheetDidDisappear()
         XCTAssertTrue(model.basisChoiceFailed)
         XCTAssertFalse(model.basisChangeFailed)
         XCTAssertNil(model.confirm)
         XCTAssertEqual(model.text, Self.text)
+        model.basisChoiceFailed = false
+        model.basisSheetDidDisappear()
+        XCTAssertFalse(model.basisChoiceFailed, "said once only")
         fail = false
         model.readLabel()
         let confirm = try XCTUnwrap(model.chooseBasis(arrangement("per_100g")))
+        model.basisSheetDidDisappear()
+        XCTAssertFalse(model.basisChoiceFailed, "a successful choice says nothing")
         fail = true
         confirm.changeBasis?()
         XCTAssertNil(model.chooseBasis(arrangement("per_serving")))
+        XCTAssertFalse(model.basisChangeFailed, "not while the sheet is still dismissing")
+        model.basisSheetDidDisappear()
         XCTAssertTrue(model.basisChangeFailed)
+        XCTAssertFalse(model.basisChoiceFailed)
         XCTAssertTrue(model.confirm === confirm)
         XCTAssertEqual(confirm.currentArrangement, arrangement("per_100g"))
         XCTAssertEqual(PastedLabelText.basisChoiceFailed, "This choice could not be applied. Nothing was saved, and your text is kept.")
+    }
+
+    /// A failure waiting for the sheet to go is dropped when the screen closes underneath it.
+    func testAPendingFailureIsDroppedWhenTheScreenCloses() {
+        struct Failure: Error {}
+        let reader = PastedLabelReader(reader: Reader(), digester: SHA256Digester())
+        let builder = F.builder()
+        let model = PastedLabelTextViewModel(read: { reader.read($0) }, makeConfirm: { review, details in
+            try PastedLabelSourceModel(review: review, details: details, builder: builder, locale: F.locale)
+        }, choose: { _, _ in throw Failure() })
+        model.name = "Synthetic chosen biscuits"
+        model.fortification = .no
+        model.text = Self.text
+        model.readLabel()
+        XCTAssertNil(model.chooseBasis(arrangement("per_100g")))
+        model.dismissed()
+        model.basisSheetDidDisappear()
+        XCTAssertFalse(model.basisChoiceFailed)
+        XCTAssertFalse(model.basisChangeFailed)
     }
 
     /// The Change sheet has no Search button, so its note does not mention Search.
     func testTheNotSureNoteNamesSearchOnlyWhereItIsOffered() {
         XCTAssertEqual(PastedLabelText.basisNotSureNote(offersSearch: true), "Go back to the label text. You can also use Search instead.")
         XCTAssertEqual(PastedLabelText.basisNotSureNote(offersSearch: false), "Go back to the label text.")
+    }
+
+    /// The view's one condition for Search on the sheet, used by both the button and the footer:
+    /// the first sheet with Search wired offers it; the Change sheet never does, even when the
+    /// screen has Search wired; a sheet with no Search wired never names it.
+    func testTheSheetOffersSearchAndNamesItOnlyOnTheFirstSheet() {
+        XCTAssertTrue(PastedLabelBasisSheetView.offersSearch(hasSearch: true, fromChange: false))
+        XCTAssertFalse(PastedLabelBasisSheetView.offersSearch(hasSearch: true, fromChange: true))
+        XCTAssertFalse(PastedLabelBasisSheetView.offersSearch(hasSearch: false, fromChange: false))
+        XCTAssertFalse(PastedLabelBasisSheetView.offersSearch(hasSearch: false, fromChange: true))
+        XCTAssertEqual(PastedLabelBasisSheetView.notSureNote(hasSearch: true, fromChange: false),
+                       "Go back to the label text. You can also use Search instead.")
+        XCTAssertEqual(PastedLabelBasisSheetView.notSureNote(hasSearch: true, fromChange: true), "Go back to the label text.")
+        XCTAssertEqual(PastedLabelBasisSheetView.notSureNote(hasSearch: false, fromChange: false), "Go back to the label text.")
+        // The same condition on the model's real sheets: after Read label, then from Change.
+        let model = model()
+        model.readLabel()
+        let first = try? XCTUnwrap(model.basisSheet)
+        XCTAssertEqual(first.map { PastedLabelBasisSheetView.notSureNote(hasSearch: true, fromChange: $0.fromChange) },
+                       "Go back to the label text. You can also use Search instead.")
+        let confirm = model.chooseBasis(arrangement("per_100g"))
+        XCTAssertNotNil(confirm)
+        confirm?.changeBasis?()
+        let change = try? XCTUnwrap(model.basisSheet)
+        XCTAssertEqual(change?.fromChange, true)
+        XCTAssertEqual(change.map { PastedLabelBasisSheetView.notSureNote(hasSearch: true, fromChange: $0.fromChange) },
+                       "Go back to the label text.")
     }
 
     /// "Before you log" is shown only when only Log is pinned and it has something to show; a

@@ -111,8 +111,10 @@ public struct PastedLabelTextView: View {
             Button("OK", role: .cancel) {}
         }
         // Reader v3 8.4.8: the basis sheet after Read label (Change presents it over Confirm).
+        // A failed choice is said once the sheet has gone (onDismiss), never dropped by it.
         .sheet(item: Binding(get: { model.basisSheet.flatMap { $0.fromChange ? nil : $0 } },
-                             set: { if $0 == nil { model.basisSheetDismissed() } })) { _ in
+                             set: { if $0 == nil { model.basisSheetDismissed() } }),
+               onDismiss: { model.basisSheetDidDisappear() }) { _ in
             PastedLabelBasisSheetView(model: model, open: openConfirm, search: search, closeConfirm: {})
         }
     }
@@ -132,6 +134,15 @@ public struct PastedLabelBasisSheetView: View {
     public init(model: PastedLabelTextViewModel, open: @escaping (PastedLabelSourceModel) -> Void,
                 search: (() -> Void)? = nil, closeConfirm: @escaping () -> Void) {
         self.model = model; self.open = open; self.search = search; self.closeConfirm = closeConfirm
+    }
+
+    /// Search is offered only on the first sheet (after Read label), never on the Change sheet.
+    /// The button and the footer's note use this one condition.
+    public static func offersSearch(hasSearch: Bool, fromChange: Bool) -> Bool { hasSearch && !fromChange }
+
+    /// The footer under "I'm not sure": it names Search only where Search is offered.
+    public static func notSureNote(hasSearch: Bool, fromChange: Bool) -> String {
+        PastedLabelText.basisNotSureNote(offersSearch: offersSearch(hasSearch: hasSearch, fromChange: fromChange))
     }
 
     public var body: some View {
@@ -175,14 +186,14 @@ public struct PastedLabelBasisSheetView: View {
                     }
                     .frame(minHeight: 44)
                     .accessibilityIdentifier("pastedLabel.basisNotSure")
-                    if let search, model.basisSheet?.fromChange != true {
+                    if let search, Self.offersSearch(hasSearch: true, fromChange: model.basisSheet?.fromChange == true) {
                         Button(PastedLabelText.searchInstead) {
                             model.basisSheetDismissed()
                             search()
                         }
                         .frame(minHeight: 44)
                     }
-                } footer: { Text(PastedLabelText.basisNotSureNote(offersSearch: search != nil && model.basisSheet?.fromChange != true)) }
+                } footer: { Text(Self.notSureNote(hasSearch: search != nil, fromChange: model.basisSheet?.fromChange == true)) }
             }
             .navigationTitle(PastedLabelText.basisSheetTitle)
             .pastedLabelInlineTitle()

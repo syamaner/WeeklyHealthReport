@@ -149,6 +149,13 @@ final class PastedLabelManifestV2ContractTests: XCTestCase {
         XCTAssertNil(PastedLabelEvidenceManifest.decode(fractional), "a non-integer at is rejected")
         XCTAssertEqual(PastedLabelBasisChoice.milliseconds(Date(timeIntervalSince1970: 1_700_000_000.123_9)), 1_700_000_000_123)
         XCTAssertEqual(PastedLabelBasisChoice.milliseconds(Date(timeIntervalSince1970: 1_700_000_000.999_9)), 1_700_000_000_999)
+        // The 1 µs tolerance, at a small magnitude where a Double holds microseconds exactly
+        // enough: less than 1 µs below a whole millisecond is that millisecond (the one case that
+        // rounds up); 1 µs or more below it, or any part above it, truncates.
+        XCTAssertEqual(PastedLabelBasisChoice.milliseconds(Date(timeIntervalSince1970: 1.000 - 0.000_000_5)), 1_000)
+        XCTAssertEqual(PastedLabelBasisChoice.milliseconds(Date(timeIntervalSince1970: 1.000 + 0.000_000_5)), 1_000)
+        XCTAssertEqual(PastedLabelBasisChoice.milliseconds(Date(timeIntervalSince1970: 1.000 - 0.000_002)), 999)
+        XCTAssertEqual(PastedLabelBasisChoice.milliseconds(Date(timeIntervalSince1970: 1.000 + 0.000_002)), 1_000)
         // Every whole millisecond survives the millisecondsSince1970 Double round trip unchanged.
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .millisecondsSince1970
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .millisecondsSince1970
