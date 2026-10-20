@@ -36,9 +36,11 @@ enum NonRegression {
         guard let start = lines.firstIndex(where: { $0.contains(label) }) else { return "" }
         var out = [lines[start]]
         for line in lines[(start + 1)...] {
-            let head = line.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}")))
-            let first = Patterns.value.matchDetails(in: head).first.map { String(head[..<$0.range.lowerBound]) } ?? head
-            if RowClassifierV3.isRowLabel(first.trimmingCharacters(in: .whitespaces)) { break }
+            // As the parser: only a line that is a recognised row label (markers removed) ends a span.
+            let trimmed = line.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}")))
+            let head = ParseStateV3.markedRow(trimmed) ?? trimmed
+            let first = ParseStateV3.valueMatches(head).first.map { String(head[..<$0.range.lowerBound]) } ?? head
+            if RowClassifierV3.isRowLabel(first.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•")))) { break }
             out.append(line)
         }
         return out.joined(separator: "\n")

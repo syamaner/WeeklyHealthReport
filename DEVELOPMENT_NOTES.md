@@ -2196,3 +2196,25 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-20T08:53:36Z` → `2026-10-20T09:10:20Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 607,291 5-minute, 0 1-hour. Exact API-equivalent USD 6.2999886. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. The reviewers' own sessions are not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-20f: Claude Code pasted nutrition label reader v3 PR 1, span round
+
+Same subagent and transcript as WHR-93-2026-10-20a, resumed for the fourth review of #280 at `8e4b88b3`:
+- spans end only at a recognised row label;
+- any line carrying an unexplained token that does not become a recognised row leaves the rows on both sides unread;
+- spans are tokenised joined;
+- a token line after a serving or pack line leaves it not read;
+- vocabulary additions;
+- one full gate run and dev-set run.
+
+Runs from `2026-10-20T09:10:20Z` (the end of WHR-93-2026-10-20e) to `2026-10-20T09:29:11Z`, just before this ledger edit.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 PR 1 span round (#93), implementation subagent | 17,918,076 (17,232,225) | 685,787 | 565 | 17,918,641 | $6.89 |
+
+Boundary: `2026-10-20T09:10:20Z` → `2026-10-20T09:29:11Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 685,787 5-minute, 0 1-hour. Exact API-equivalent USD 6.886936. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. The reviewers' own sessions are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

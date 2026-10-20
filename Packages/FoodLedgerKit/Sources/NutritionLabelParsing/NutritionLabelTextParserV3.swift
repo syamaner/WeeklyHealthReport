@@ -89,7 +89,7 @@ enum PatternsV3 {
     /// cannot hold, so the row is not read).
     static let boundSuffix = LabelPattern(#"^\s*(以下|以上)"#)
     /// A note line (註, 備註, 说明, Note): never a row, gate-scanned.
-    static let noteLine = LabelPattern(#"(?i)^(?:註|備註|説明|說明|note\b)"#)
+    static let noteLine = LabelPattern(#"(?i)^(?:註|備註|説明|說明|notes?\b)"#)
     /// A pack line with a "more than" mark before its count (never read as exact).
     static let packMoreThan = LabelPattern(#"(?i)^(?:本包裝包?含?|servings?\s+per\s+(?:container|pack|package))\s*[:：]?\s*(?:[>≥＞≧]|超過|大於|多於|more\s+than)"#)
     /// The same marks standing at the end of a label ("鈉 >", "超過").
@@ -147,9 +147,15 @@ struct ParseStateV3 {
     var pendingMoreThan = false
     /// A mark-only line was consumed since the last row label: the next row is not read.
     var pendingBound = false
+    /// The last row whose label is recognised (spans end only at such a row).
+    var lastRecognised: Int?
+    /// Whether the previous line read the serving size or the pack count.
+    var previousLineRead: Set<ReadLine> = []
     /// The text span of each row: its label line, value lines and every non-row line up to the
     /// next row label (the unexplained-bound rule).
-    var spans: [Int: [String]] = [:]
+    var spans: [Int: [(line: String, valueLine: Bool)]] = [:]
+    /// The line being consumed put values into a row (only such values can explain a bound).
+    var lineGaveValues = false
 
     var servingClaimed: Bool { servingSize != nil || servingJoin != nil }
     var packClaimed: Bool { servingsPerPack != nil || packJoin != nil }
@@ -157,9 +163,66 @@ struct ParseStateV3 {
     mutating func consume(_ rawLine: String) {
         let content = rawLine.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}")))
         guard !content.isEmpty else { return }
+        let before = rows.count
+        let servingBefore = (servingSize?.printedText, servingJoin)
+        let packBefore = (servingsPerPack?.printedText, packJoin?.join)
+        lineGaveValues = false
         consumeLine(rawLine)
-        // Every line consumed after a row label belongs to that row's span until the next label.
-        if let index = rows.indices.last { spans[index, default: []].append(content) }
+        // A span ends only at a recognised row label: every other line, including an unrecognised
+        // row, belongs to the span of the last recognised row (the unexplained-bound rule).
+        let recognisedRow = rows.count > before && RowClassifierV3.isRowLabel(rows[rows.count - 1].label)
+        if recognisedRow { lastRecognised = rows.count - 1 }
+        if let index = lastRecognised { spans[index, default: []].append((content, lineGaveValues)) }
+        // A line carrying a bound token that is not a recognised bound on its own cells, and that
+        // does not become a recognised row, leaves the rows on both sides unread, and a serving
+        // or pack line straight before it not read.
+        if !recognisedRow, Self.unexplainedTokens(content, valueLine: lineGaveValues) > 0 {
+            pendingBound = true
+            if rows.count > before { rows[rows.count - 1].orphanBound = true }
+            if previousLineRead.contains(.serving) { refuseServing() }
+            if previousLineRead.contains(.pack) { refusePack() }
+        }
+        previousLineRead = []
+        if servingSize?.printedText != servingBefore.0 || servingJoin != servingBefore.1 { previousLineRead.insert(.serving) }
+        if servingsPerPack?.printedText != packBefore.0 || packJoin?.join != packBefore.1 { previousLineRead.insert(.pack) }
+    }
+
+    enum ReadLine: Hashable { case serving, pack }
+
+    /// The serving size is not read: a joined line is dropped, a printed line keeps its text only.
+    mutating func refuseServing() {
+        if let join = servingJoin {
+            unbound += [join.label, join.quantity]
+            servingJoin = nil
+        } else if let size = servingSize {
+            servingSize = LabelServingSize(printedText: size.printedText, decimalText: nil, unit: nil, canonicalUnit: nil)
+        }
+    }
+
+    /// The pack count is not read.
+    mutating func refusePack() {
+        if let join = packJoin {
+            unbound += [join.join.label, join.join.quantity]
+            packJoin = nil
+        } else if let pack = servingsPerPack {
+            unbound.append(pack.printedText)
+            servingsPerPack = nil
+        }
+    }
+
+    /// Bound tokens on a line that are not recognised bounds on values the line gave a row (a
+    /// note's or footnote's values are never cells, so they explain nothing).
+    static func unexplainedTokens(_ line: String, valueLine: Bool) -> Int {
+        let text = markedRow(line) ?? line
+        return BoundVocabulary.tokens(text).count - (valueLine ? consumedTokens(text) : 0)
+    }
+
+    /// Bound tokens a line's values consume as recognised bounds (`<`, `≤`, `≦`, 未滿, 少於, "less
+    /// than" before a value; 以下 straight after it).
+    static func consumedTokens(_ text: String) -> Int {
+        valueMatches(text).filter { $0.groups[1] != nil || ($0.groups.count > 4 && $0.groups[4] == "以下") }
+            .map { BoundVocabulary.tokens(String(text[$0.range])).filter(BoundVocabulary.less.contains).count }
+            .reduce(0, +)
     }
 
     mutating func consumeLine(_ rawLine: String) {
@@ -512,11 +575,13 @@ struct ParseStateV3 {
                RowClassifierV3.classify(cleanedLabel) == nil || RowClassifierV3.classify(last.label + " " + cleanedLabel) != nil {
                 last.label += " " + cleanedLabel
                 last.values = values
+                lineGaveValues = !values.isEmpty
                 last.labelLineHadValues = !values.isEmpty
                 last.lines.append(original)
                 last.malformed = last.malformed || moreThan
                 rows[rows.count - 1] = last
             } else {
+                lineGaveValues = !values.isEmpty
                 rows.append(RowDraftV3(label: cleanedLabel, indented: indented, values: values, labelLineHadValues: !values.isEmpty,
                                        lines: [original], marked: marked, malformed: moreThan || pendingMoreThan, orphanBound: pendingBound))
                 pendingBound = false
@@ -536,6 +601,7 @@ struct ParseStateV3 {
                 last.attachedAfterValues = true
             }
             last.values += values
+            lineGaveValues = true
             last.lines.append(original)
             last.malformed = last.malformed || moreThan
             rows[rows.count - 1] = last
@@ -693,9 +759,11 @@ struct ParseStateV3 {
                 // Every bound token in the row's span must be a recognised bound on one of its
                 // cells (`<`, `≤`, `≦`, `以下`, `未滿` and the like); any other makes the row unread.
                 // A leading row marker (`>`, `>>`) is a marker, not a bound.
-                let spanTokens = (spans[index] ?? []).map { Self.markedRow($0) ?? $0 }.flatMap(BoundVocabulary.tokens).count
-                let consumed = row.values.filter { $0.comparator != .equal }
-                    .flatMap { BoundVocabulary.tokens($0.printedText).filter(BoundVocabulary.less.contains) }.count
+                // The span's lines are tokenised joined, so a mark split over lines (`以\n上`) counts.
+                let span = spans[index] ?? []
+                let spanLines = span.map { Self.markedRow($0.line) ?? $0.line }
+                let spanTokens = BoundVocabulary.tokens(spanLines.joined(separator: "\n")).count
+                let consumed = zip(spanLines, span).filter { $0.1.valueLine }.map { Self.consumedTokens($0.0) }.reduce(0, +)
                 if row.orphanBound || spanTokens > consumed {
                     warnings.append("row_not_read: unexplained_bound: \(row.label)")
                     unbound += row.lines
@@ -838,8 +906,8 @@ struct ParseStateV3 {
 /// `以 上`, `（以上）` and `( 以下 )` match. A token that is not a recognised bound on one cell makes
 /// its row (or serving or pack line) not read.
 enum BoundVocabulary {
-    static let english = LabelPattern(#"(?i)(?<![a-z])(more\s+than|less\s+than|at\s+least|up\s+to|over|under)(?![a-z])"#)
-    static let marks = LabelPattern(#"<=|>=|超過|大於|多於|以上|未滿|少於|以下|[<>≤≥＜＞≦≧]"#)
+    static let english = LabelPattern(#"(?i)(?<![a-z])(more\s+than|less\s+than|at\s+least|up\s+to|or\s+more|or\s+less|over|under)(?![a-z])"#)
+    static let marks = LabelPattern(#"<=|>=|超過|大於|多於|以上|未滿|少於|以下|[<>≤≥＜＞≦≧↑↓﹤﹥⩽⩾]"#)
     static let removable = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{3000}()（）[]【】"))
     static let less: Set<String> = ["less than", "up to", "under", "<", "<=", "≤", "＜", "≦", "未滿", "少於", "以下"]
 

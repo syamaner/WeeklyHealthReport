@@ -411,7 +411,9 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
         let candidate = parse(label("營養標示\n每一份量30公克\n\(line)\n"))
         #expect(!candidate.declined, "\(line): \(candidate.declineReasons)")
         #expect(candidate.servingsPerPack == nil, "\(line)")
-        #expect(candidate.cells.count == 16, "\(line)")
+        // The token line before the first row leaves that row (energy) unread too.
+        #expect(candidate.cells.count == 14, "\(line)")
+        #expect(cell(candidate, "energy_kcal") == nil, "\(line)")
     }
     #expect(parse(label("營養標示\n每一份量30公克，本包裝含8份以上\n")).servingsPerPack == nil)
 }
@@ -479,6 +481,75 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     #expect(BoundVocabulary.tokens("以 上（以下）( less  than ) overall") == ["less than", "以上", "以下"])
     #expect(BoundVocabulary.isMarkOnly(" ( 以 上 ) "))
     #expect(!BoundVocabulary.isMarkOnly("鈉 以上"))
+}
+
+/// Fourth review of #280: a span ends only at a recognised row label, so a junk line carrying a
+/// token belongs to the row above, and any line carrying an unexplained token that does not
+/// become a recognised row leaves the rows on both sides unread. Spans are tokenised joined.
+@Test func junkAndSplitTokenLinesLeaveTheRowsOnBothSidesUnread() {
+    let oneColumn = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n蛋白質 3.0公克\n"
+    for tail in ["鈉 1000毫克\n或以上", "鈉 1000毫克\n及以上", "鈉 1000毫克\n以上的", "鈉 1000毫克\n以上*", "鈉 1000毫克\n以上。",
+                 "鈉 1000毫克\n以上，", "鈉 1000毫克\n以上1)", "鈉 1000毫克\n以上 註", "鈉 1000毫克\n以\n上", "鈉 1000毫克\n↑",
+                 "鈉 1000毫克\n或更多 or more", "鈉 1000毫克\n⩾"] {
+        for (layout, text) in [("inline", oneColumn + tail),
+                               ("stacked", oneColumn.replacingOccurrences(of: "熱量 120大卡\n蛋白質 3.0公克", with: "熱量\n120大卡\n蛋白質\n3.0公克")
+                                + tail.replacingOccurrences(of: "鈉 ", with: "鈉\n"))] {
+            let candidate = parse(text + (layout == "stacked" ? "\n糖\n5公克" : "\n糖 5公克"))
+            #expect(!candidate.cells.contains { $0.nutrient == "sodium" }, "\(layout) \(tail): \(candidate.cells.map(\.printedText))")
+            // A mark split over lines is caught by the joined span; no single line carries it, so
+            // the next row is read.
+            if !tail.contains("以\n上") {
+                #expect(!candidate.cells.contains { $0.nutrient == "sugars" }, "\(layout) \(tail): the next row too")
+            }
+            #expect(cell(candidate, "protein", .perServing)?.decimalText == "3.0", "\(layout) \(tail)")
+        }
+    }
+    // Two columns: a junk line between two rows, a label after the mark, a mark split over lines.
+    for between in ["以上*", "以上 糖", "超過 X", "以上糖", "以\n上"] {
+        let body = rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: "鈉 50毫克 1000毫克\n\(between)\n糖 5.0公克 6.0公克")
+            .replacingOccurrences(of: "糖 6.0公克 20.0公克\n", with: "")
+        let candidate = parse(label(body: body))
+        #expect(!candidate.cells.contains { $0.nutrient == "sodium" }, "\(between): \(candidate.cells.map(\.printedText))")
+        // A line carrying a token leaves the next row unread too; a mark split over lines is
+        // caught by the joined span of the row above only.
+        if between != "以\n上" { #expect(!candidate.cells.contains { $0.nutrient == "sugars" }, "\(between)") }
+    }
+    let labelAfter = parse(label(body: rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: "鈉 60毫克 200毫克\n以上 糖 5公克 6公克")))
+    #expect(!labelAfter.cells.contains { $0.nutrient == "sodium" || $0.decimalText == "5" })
+    let splitAcross = parse(label(body: rows.replacingOccurrences(of: "糖 6.0公克 20.0公克", with: "鈉 60毫克 1000毫克 以\n上\n糖 6.0公克 20.0公克")
+        .replacingOccurrences(of: "\n鈉 60毫克 200毫克", with: "")))
+    #expect(!splitAcross.cells.contains { $0.nutrient == "sodium" })
+    for english in ["Typical values\tPer 100g\nEnergy\t1500kJ\nSalt 1g\nat least.\nProtein 2g\n",
+                    "Typical values\tPer 100g\nEnergy\t1500kJ\nSalt 0.1g\n2 or less\nProtein 2g\n"] {
+        let candidate = parse(english)
+        #expect(!candidate.cells.contains { $0.nutrient == "salt" }, "\(english): \(candidate.cells.map(\.nutrient))")
+        #expect(!candidate.cells.contains { $0.nutrient == "protein" }, "\(english): the next row too")
+    }
+    // A mark split over lines with no single line carrying it: the span, tokenised joined, catches it.
+    let split = parse("Typical values\tPer 100g\nEnergy\t1500kJ\nSalt 0.1g\n[…]\nMore\nthan\nProtein 2g\n")
+    #expect(!split.cells.contains { $0.nutrient == "salt" }, "\(split.cells.map(\.nutrient))")
+    for mark in ["↑", "↓", "﹤", "﹥", "⩽", "⩾"] {
+        #expect(BoundVocabulary.tokens("1000毫克\(mark)") == [mark], "\(mark)")
+    }
+    #expect(BoundVocabulary.tokens("5g or more, 3g or less") == ["or more", "or less"])
+    #expect(PatternsV3.noteLine.contains("Notes: values rounded"))
+}
+
+/// A token line straight after a serving or pack line (printed or joined) leaves that line not
+/// read, and the next row too.
+@Test func aTokenLineAfterAServingOrPackLineLeavesItNotRead() {
+    let sized = parse(label("營養標示\n每一份量30公克\n以上\n本包裝含8份\n"))
+    #expect(sized.servingSize?.decimalText == nil)
+    #expect(sized.servingsPerPack?.decimalText == "8")
+    #expect(cell(sized, "energy_kcal") == nil, "the next row too")
+    let packed = parse(label("營養標示\n每一份量30公克\n本包裝含8份\n以上\n"))
+    #expect(packed.servingsPerPack == nil)
+    #expect(packed.servingSize?.decimalText == "30")
+    let joined = parse(label("營養標示\n每一份量30公克\n本包裝含\n8份\n以上\n"))
+    #expect(joined.servingsPerPack == nil)
+    let english = parse("Serving size 30g\nmore than\nServings per container 8\nPer serving\nEnergy 120kcal\nProtein 2g\n")
+    #expect(english.servingSize?.decimalText == nil)
+    #expect(english.servingsPerPack?.decimalText == "8")
 }
 
 /// A note line (註, 備註, 說明, Note) never creates a cell; it is gate-scanned and, as a non-row
