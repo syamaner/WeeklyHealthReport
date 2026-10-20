@@ -2,6 +2,8 @@
 
 Status: **owner-approved, 20 October 2026.** The owner answered decisions 1 to 17 "yes to all", in session, on 20 October 2026, after the architecture gate, and approved decisions 18 to 22, which the gate revision added, in session the same day. It is a versioned amendment to the reader behind the pasted nutrition label route of [pasted nutrition label v1](pasted-nutrition-label-v1.md) so that it reads the common real Taiwan paste layouts that parser v2 declines today. It follows the owner's decision of 20 October 2026, in session: improve the reader against a real-text development set, then run the release check once on a **fresh** set of at least 20 real labels the reader has never seen.
 
+**PR 4 design (section 8.4), 20 October 2026:** written for its own architecture gate pass before any PR 4 production code; decisions 24 to 26 (section 9.4) were made by the owner in session the same day.
+
 **Architecture gate, 20 October 2026, on `3ccd9f24`: PASS WITH CHANGES.** Every finding is applied in this revision; section 11 maps each finding to where it is addressed, section 9.1 records the decided wording (marked "tightened" where the gate changed it) and section 9.2 records the decisions the revision added.
 
 ## 0. Why a separate document, and how it composes
@@ -125,7 +127,7 @@ Each subsection gives the real layout (described, not quoted), whether it can be
 **Proposal: an assisted basis choice instead of a decline.**
 
 1. Parser v3 reads such a table and marks each amount column as "basis not printed". A `%` column is still recognised by its unit as the reference-intake column and is **never** a basis choice. A table where **some** amount columns have a printed basis and others do not declines `no_basis_header` as today (gate finding 7): a partly printed header is evidence of a misaligned paste, not of a missing heading.
-2. The options and their order are computed in the application by one pure, tested function from the reading (number of unheaded amount columns, serving size read or not, its unit), not in presentation, which only renders them (gate finding 9). Before Confirm, a short sheet asks: "These values have no column heading. What are they for?" with **Per serving (printed serving size, for example 25 g)**, **Per 100 g**, **Per 100 ml**, and **I'm not sure**. For two amount columns it offers the official template's arrangements only: "Per serving, then per 100 g" and "Per serving, then per 100 ml"; any other arrangement is not offered. No option is preselected. "I'm not sure" returns to the label text screen with the text kept and a link to Search.
+2. The options and their order are computed in the application by one pure, tested function from the reading (number of unheaded amount columns, serving size read or not, its unit), not in presentation, which only renders them (gate finding 9). Before Confirm, a short sheet asks: "These values have no column heading. What are they for?" with **Per serving (printed serving size, for example 25 g)**, **Per 100 g**, **Per 100 ml**, and **I'm not sure**. For two amount columns it offers the official template's arrangements only: "Per serving, then per 100 g" and "Per serving, then per 100 ml"; any other arrangement is not offered. No option is preselected. "I'm not sure" returns to the label text screen with the text kept and a link to Search. (PR 4: the closed option table, the `offered` encoding and the lifecycle are in 8.4.3 and 8.4.9.)
 3. Per serving is offered only when a serving size was read (in grams or millilitres); otherwise only the per 100 options are offered, and "Per serving" says why it is missing.
 4. The choice is recorded in the manifest (section 5.3) and shown on Confirm as the basis line "Per 100 g · Chosen by you", with **Change**. Changing it rebuilds the reading and, if the user has corrected or entered anything, asks first, as **Read again** does today.
 5. Decision 5 (decided): a **basis plausibility warning** (`label-arithmetic-checks-v2`) beside an option that would imply more than 100 g of protein, fat and carbohydrate per 100 g, or more than 900 kcal per 100 g, beyond a stated tolerance. It is a warning, never a block and never a "checked" mark; a pass shows nothing.
@@ -211,7 +213,7 @@ Every case is a table flattened by the page's copy behaviour. The site templates
 **Proposal.**
 
 1. **Two panels: keep declining in v3, with better copy and a better next step.** New copy for `multiple_panels` when the parser found two or more complete panels: "This text has more than one nutrition table (for example two flavours). Delete the ones you did not eat, then read again." The text is kept and editable, so this costs the user one edit, and the stored text then is the panel they meant. A **panel chooser** (list each panel by its heading line and energy value, record the choice in the manifest) is possible later as its own persisted change; decision 8.
-2. **Too little read: decline.** New parser decline `too_little_read` when fewer than 5 of the 8 Taiwan mandatory rows are read (energy, protein, fat, saturated fat, trans fat, carbohydrate, sugars, sodium). A mandatory row counts as **read** only when it has a cell in the column that would be stored (v1 section 6.3); for an unheaded table that is evaluated for each basis the sheet would offer, and the table declines only if it fails for every option (gate finding 15). A calculated value does not count. Copy: "Only a few values could be read from this text. Try copying the table again, or use Search or Barcode." The threshold is "more than half"; decision 3.
+2. **Too little read: decline.** New parser decline `too_little_read` when fewer than 5 of the 8 Taiwan mandatory rows are read (energy, protein, fat, saturated fat, trans fat, carbohydrate, sugars, sodium). A mandatory row counts as **read** only when it has a cell in the column that would be stored (v1 section 6.3); for an unheaded table that is evaluated for each basis the sheet would offer, and the table declines only if it fails for every option (gate finding 15; PR 4 narrows this to "for any option", which coincides under the option table, 8.4.7). A calculated value does not count. Copy: "Only a few values could be read from this text. Try copying the table again, or use Search or Barcode." The threshold is "more than half"; decision 3.
 
 **Changes.** Copy only for two panels (parser v2 already declines it); parser only for `too_little_read` (a new code, mapped to copy).
 
@@ -315,7 +317,7 @@ A new reading writes the newest pipeline for its manifest version only. Existing
   - values from a chosen-basis column keep `user_verified_panel` provenance (their numbers are printed), and their **basis is user-asserted**, evidenced by the record (gate finding 8); verified at save (`invalidPastedLabelSource`) and at reopen (`integrityFailure`).
 - **The v1 verifier tightens one check:** a v1 manifest with any amount header whose printed text is empty is rejected. Parser v2 and v3 never produce one under v1, so no stored entry is affected; a contract test proves the rejection.
 - **Separate decode path (gate finding 10).** The v1 manifest type and its canonical encoding are unchanged and never gain a `basis_choices` key (golden bytes test); v2 is decoded by dispatching on `version`. `minimumContractVersion` treats both capture-method versions alike. Cross-route tests: the reviewed web verifier rejects v2 evidence; the pasted-label verifier rejects reviewed web evidence and a v1 manifest relabelled v2 (and the reverse).
-- **Developer tools** re-parse a v2 entry with its `basis_choices` passed as asserted bases, so the re-parse reproduces the stored candidate; a v1 entry is re-parsed with none.
+- **Developer tools** re-parse a v2 entry with its `basis_choices` passed as asserted bases, so the re-parse reproduces the stored candidate; a v1 entry is re-parsed with none. (Deferred to issue #273 by decision 25; PR 4 pins the reproduction at the adapter, 8.4.6.)
 - **Contract version (decision 13).** Contract 7 has not been distributed (it is in `docs/releases/unreleased.md`). If, when PR 4 merges, no distributed build (definition in 5.1) carries contract 7, contract 7 covers both manifest versions and the store stays `food-ledger-v7`. Otherwise manifest v2 needs contract 8, because a contract-7 binary would decode the entry but fail its verification. PR 4 records the check (TestFlight build list, release notes, the owner's statement about device installs) in its description.
 - A reading with printed bases keeps writing manifest v1, so the common case stays on the format already built and tested.
 
@@ -381,7 +383,7 @@ With "none", Confirm offers no servings and no whole pack; at save a pasted-labe
 ## 6. Architecture notes
 
 - Layers do not change: rules in `NutritionLabelParsing`; the basis choice as an application use-case step, with the options computed by a pure application function (gate finding 9) and the chosen bases passed through the `LabelTextReading` port as an application-owned `AssertedBases` value that the adapter maps; the sheet in presentation, rendering only; the manifest in application.
-- `LabelReading` gains `unreadRows` and a `basisNotPrinted` marker per column. No parser type crosses the port (v1 decision 10).
+- `LabelReading` gains `unreadRows` and (PR 4, 8.4.1) an optional `UnheadedTable` in place of the `basisNotPrinted` marker per column. No parser type crosses the port (v1 decision 10).
 - Layout precedence is a closed ordered list of pure predicates inside the parser, not a protocol per layout (3.0, gate finding 13).
 - New decline codes (`flattened_table_ambiguous`, `too_little_read`, `layout_ambiguous`) and the multi-panel copy go through the existing code-to-copy table and its exhaustive test (v1 test 27).
 
@@ -546,6 +548,248 @@ Recorded the same way. Every rule of 8.1 and 8.2 stays (the unexplained-bound sp
 - **Non-regression.** All 314 frozen cases are identical between parser v2 and parser v3; the allow-list is unchanged.
 - **Known limits, accepted.** A flattened line printing kJ and kcal for one row, or 每份 with its serving weight in a bracket (`每份(30公克)`), declines rather than guess. A bilingual table from another market reads as Taiwan when its rows are Taiwan rows (3.6 residual). A flattened bilingual line declines.
 
+### 8.4 PR 4 design: the basis choice and manifest v2 (for the architecture gate)
+
+Written before any PR 4 production code, so the gate can check it. It makes 3.3, 5.2 and 5.3 concrete and records the owner's decisions 24 to 26 (section 9.4). Where it narrows an earlier sentence, the earlier sentence carries a pointer here. Every rule of 8.1 to 8.3 stays.
+
+#### 8.4.1 What the reader hands the application: `UnheadedTable`
+
+`LabelReading` gains one optional, application-owned value, `unheadedTable: UnheadedTable?`. It replaces the "`basisNotPrinted` marker per column" of section 6, which was never built.
+
+| Field | Content |
+|---|---|
+| `amountColumnCount` | 1 or 2: the number of amount columns (columns whose values carry an amount unit) |
+| `amountHeaderIDs` | the header IDs the asserted headers will take, in column order: `header_1`, then `header_2`. These are the parser's existing IDs (the gate's "h1, h2"); a printed `%` column takes the next ID (`header_2` or `header_3`) |
+| `referenceColumnPrinted` | whether a reference-intake (`%`) column was printed, as a header or as `%` values |
+| `servingSize` | the serving size's `decimal_text` and canonical unit (`g` or `ml`) when the candidate read one with a quantity; otherwise none |
+| `energyLineHint` | the `basis_hint: energy_line:` bracket as printed and the basis it names (`per_serving`, `per_100g`, `per_100ml`), when the parser carried one (decision 23) |
+
+**Who fills it.** The parser computes a parser-owned side result beside the candidate (`NutritionLabelTextParserV3.UnheadedShape`, never part of the candidate) and the adapter maps it to `UnheadedTable`; no parser type crosses the port. The candidate schema stays `label-capture-candidate-v1`; the side result is not stored. The frozen `NutritionLabelTextParse` CLI and parser v2 do not change.
+
+**When it is filled (all must hold).**
+
+1. The candidate declined with decline codes **exactly** `[no_basis_header]`.
+2. **No amount header was printed** anywhere in the table (a printed `%` header is allowed). A table with some amount headers printed and others missing ("mixed", in any layout) keeps today's decline and gets no `UnheadedTable`, so no sheet (3.3 item 1).
+3. Every read row binds the same number of amount values, and that number is 1 or 2. Rows left unread (`row_not_read`) do not count; if no read row remains, there is nothing to choose and the table declines as today.
+4. When a `%` column is printed, it is the **last** column on every row that prints it (the Taiwan template's position). A `%` value anywhere else leaves `UnheadedTable` nil.
+5. The layout is inline, stacked, flattened or bilingual (8.4.13). A body that declines `layout_ambiguous`, `flattened_table_ambiguous` or `multiple_panels` never reaches `no_basis_header`, so it has no sheet.
+
+**The sheet is offered only when** the reading's decline codes are exactly `[no_basis_header]` **and** `unheadedTable` is non-nil **and** the options function (8.4.3) returns at least one option **and** every option passes 8.4.7. Otherwise the outcome is today's decline, unchanged.
+
+#### 8.4.2 The port: `AssertedBases`
+
+```swift
+public struct AssertedBases: Equatable, Sendable {
+    public enum Basis: String, Sendable { case perServing = "per_serving", per100g = "per_100g", per100ml = "per_100ml" }
+    public let columns: [Basis]   // column order, one entry per amount column
+}
+
+public protocol LabelTextReading: Sendable {
+    func read(_ text: String, textSHA256: String, assertedBases: AssertedBases?) -> LabelReading
+}
+```
+
+- **By type** it holds only `per_serving`, `per_100g` and `per_100ml`; `reference_intake` cannot be asserted.
+- **One requirement, no dropping default.** The protocol has the single requirement above; every conformer (the adapter and every test fake) implements it. A convenience `read(_:textSHA256:)` may exist only as an extension that passes `assertedBases: nil` explicitly; there is no default implementation that accepts `AssertedBases` and ignores it. A test fake that records the bases it received proves the application passes them.
+- **The adapter maps** `AssertedBases` to the parser's own basis type and the parser applies it. The parser **declines** `asserted_bases_mismatch` (a new candidate decline code, copied as `unreadable_table`, and listed in the code-to-copy table so v1 test 27 enumerates it) when any amount header was printed, when `UnheadedTable`'s conditions (8.4.1) do not hold, or when the number of asserted bases differs from the amount column count. The application never asserts bases on such a text, so this decline can only show a programming error, never a user's choice.
+- **What an asserted read returns.** The same text read again with the bases as an input: the amount headers are `header_1` (and `header_2`) with the asserted basis, **empty printed text** and no serving conversion; a printed `%` header keeps its printed text and takes the next ID. Rows, cells, the serving size, the pack count and every warning, including `basis_hint: energy_line: …` (decision 24), are those of the unasserted read; only the headers and the cells' header IDs and bases differ. A test pins, on every fixture of 8.4.13, that the serving size, pack count, rows and warnings of the asserted read equal those of the declined read.
+
+#### 8.4.3 The options function and the `offered` encoding
+
+`PastedLabelBasisOptions.options(amountColumnCount:servingUnit:)` is a pure application function. Its inputs can be derived both from `UnheadedTable` (before the choice) and from a stored v2 candidate (the number of amount headers, and the serving size's canonical unit when `decimal_text` and a `g` or `ml` unit are present), so the verifier recomputes it from the stored bytes alone. `servingUnit` is `none`, `g` or `ml`. The function returns the closed table below, or `nil` for "no sheet, decline".
+
+| Amount columns | Serving size | Options, in order |
+|---|---|---|
+| 1 | none | `per_100g`, `per_100ml` (Per serving is not offered, and the sheet says why) |
+| 1 | g | `per_serving`, `per_100g`, `per_100ml` |
+| 1 | ml | `per_serving`, `per_100ml`, `per_100g` |
+| 2 | none | `nil`: decline `no_basis_header`, no sheet (the template's first column is per serving, which needs a serving size) |
+| 2 | g | `per_serving,per_100g`, `per_serving,per_100ml` |
+| 2 | ml | `per_serving,per_100ml`, `per_serving,per_100g` |
+
+- **Arrangement identifiers.** An option is an arrangement: its column bases in column order, joined by `,` with no spaces (`per_100g`, `per_serving,per_100ml`). `offered` is the list of arrangement identifiers in the table's order. "I'm not sure" is never in `offered`; it is not a basis.
+- **Order rule.** Per serving first when offered, then the per 100 basis in the serving size's own unit family, then the other. The order follows the printed serving unit only; it never says which answer is likely, and the sheet's copy must not either (3.3 residual risks).
+- **The hint never changes the options, their order or a selection.** Nothing is preselected.
+- Golden v2 manifests (8.4.6) pin `offered` for one and two columns; a table test pins every row above.
+
+#### 8.4.4 `label-arithmetic-checks-v2`
+
+`label-arithmetic-checks-v2` is `label-arithmetic-checks-v1` unchanged, plus one check, `basis_plausibility`, run for **each amount basis present in the cells** (all of them are asserted, because v2 only runs on an asserted read). It is Swift only (`LabelArithmeticChecksV2` in `NutritionLabelParsing`, calling v1 and appending); v1's Python parity tests stay untouched.
+
+**Values.** For the basis being checked, a row's value is its single cell in that basis with the canonical unit named below. A cell with `=` gives its number; a cell with `<` or `<=` gives its **stated end** (the printed upper number), because the check looks for values that are too large and a bound's stated end is the largest it can be. A row with no such cell, more than one, another unit or an unparsable number is **missing**. Never zero.
+
+**Two results per basis**, each `pass`, `fail` or `not_checkable`:
+
+| Check (`nutrient` field) | Rows | Fails when |
+|---|---|---|
+| `macronutrients` | protein, fat, carbohydrate, each in `g` | the sum of the present rows is more than *limit* + *tolerance* |
+| `energy` | the `energy_kcal` row in `kcal`; if none, the `energy_kj` row in `kJ` | the value is more than *limit* + *tolerance* (in kJ: both multiplied by 4.184) |
+
+**Limits and tolerance, by asserted basis.**
+
+| Basis | Macronutrient limit | Energy limit |
+|---|---|---|
+| `per_100g` | 100 g | 900 kcal |
+| `per_100ml` | 150 g (syrups and honey weigh up to about 1.45 g per ml) | 900 kcal (oils, the densest energy, are about 830 kcal per 100 ml) |
+| `per_serving`, serving size in g (s) | s g | 9 × s kcal |
+| `per_serving`, serving size in ml, or no serving quantity | `not_checkable` | `not_checkable` |
+
+*Tolerance* is the larger of 2% of the limit and an absolute floor (0.5 g for macronutrients, 5 kcal for energy, 20.92 kJ in kJ), so rounding to one decimal on three rows never fails a plausible label. Arithmetic is exact `Decimal`; the serving size is the candidate's `decimal_text`.
+
+**Missing rows.** If the present rows alone are over the limit, the result is `fail`. Otherwise, if any row is missing, it is `not_checkable`: **never `pass` on missing rows**. With all rows present and within the limit it is `pass`.
+
+**Warning codes** follow v1's form (v1 section 8.8): `basis_plausibility:<basis>:macronutrients` and `basis_plausibility:<basis>:energy`. A failure is a warning, never a block and never a checked mark; a pass shows nothing.
+
+**Per option, through the port.** The application reads the text once per offered option with that option's `AssertedBases` (8.4.7), so each option's checks come back as part of an ordinary `LabelReading`. The sheet shows an option's plausibility warning beside it ("With this choice, protein, fat and carbohydrate add up to more than the food's weight." / "With this choice, the energy is higher than any food has."). **Confirm shows, and `warnings_shown` records, only the chosen option's warnings**, through the existing `LabelReading.warningCodes`.
+
+**Golden vectors (Swift).** A table of synthetic inputs and expected statuses, with the limit arithmetic worked in the test's comments, covers at least (per 100 g: macronutrients fail above 102 g, energy above 918 kcal or 3,840.912 kJ; per 100 ml: macronutrients above 153 g; per serving of 25 g: macronutrients above 25.5 g, energy above 230 kcal):
+
+- per 100 g, protein 30, fat 20, carbohydrate 40: pass; 60, 30, 20: fail;
+- per 100 g, fat 99.9 with protein `<0.5` and carbohydrate `<0.5` (stated ends, 100.9 in all): pass;
+- per 100 g, fat 99 and protein 2.5 with carbohydrate `<1` (102.5): fail, the stated end tips it;
+- per 100 g, fat 103 with protein and carbohydrate missing: fail on the partial sum; fat 40 with carbohydrate missing: `not_checkable`;
+- per 100 g energy 918 kcal: pass; 919 kcal: fail; no kcal row and 3,850 kJ: fail; 3,840 kJ: pass;
+- per 100 ml, carbohydrate 140 with protein and fat 0: pass; 160: fail;
+- per serving of 25 g, carbohydrate 30 with protein and fat 0: fail; 20: pass; energy 230 kcal: pass; 231 kcal: fail;
+- per serving with the serving size in ml: both `not_checkable`.
+
+#### 8.4.5 Versions per read
+
+- An **unasserted** read reports `label-arithmetic-checks-v1`; an **asserted** read reports `label-arithmetic-checks-v2`. The adapter sets `LabelReading.versions` per read from which checks it ran; there is no single static `versions` for both.
+- A usable unasserted reading writes manifest v1, an asserted one manifest v2, and each reading's pipeline string `<parser>:<gate>:<arithmetic>:<conversion>` must equal its 5.2 admitted entry **exactly**: `nutrition-label-text-parser-v3:label-capture-decline-gate-v2:label-arithmetic-checks-v1:pasted-label-conversions-v1` under v1, and `nutrition-label-text-parser-v3:label-capture-decline-gate-v2:label-arithmetic-checks-v2:pasted-label-conversions-v1` under v2. The confirmation builder throws rather than write a v2 manifest with checks v1 or the reverse, and the verifier's admitted-pipeline lookup (keyed by manifest version) rejects it at save and reopen. A contract test pins the full `admittedPipelines` map.
+
+#### 8.4.6 `PastedLabelManifestV2` and one dispatcher
+
+**Two strict types.** `PastedLabelManifest` (v1) and its canonical encoding are untouched: it never gains `basis_choices`, and a golden test pins its bytes for a parser-v2 and a parser-v3 entry. A new `PastedLabelManifestV2` has its own `CodingKeys` (v1's keys plus `basis_choices`), its own strict decoder (unknown or missing keys throw; `version` must be `pasted-nutrition-label-v2`; `basis_choices` must be non-empty) and its own encoder.
+
+`basis_choices` holds one record per asserted amount header, in header order:
+
+| Key | Content |
+|---|---|
+| `header_id` | the asserted header's ID |
+| `basis` | `per_serving`, `per_100g` or `per_100ml` |
+| `offered` | the arrangement identifiers shown, in order (8.4.3); the same list on every record |
+| `at` | milliseconds since 1970 from the injected clock at the moment of the choice; the same on every record |
+
+**One dispatcher.** `PastedLabelEvidenceManifest` is an application enum, `.v1(PastedLabelManifest)` or `.v2(PastedLabelManifestV2)`. Its `decode(_:)` reads only the `version` member first (a probe that is not strict), then strictly decodes exactly the matching type; any other version is `nil`. It exposes the shared fields (`pastedText`, `candidate`, `storedHeaderID`, `corrections`, `conversions`, versions, `warningsShown`, `name`, `brand`, `identityMapping`, `labelFormat`), `version`, and `basisChoices` (empty for v1), and encodes the case it holds. `PastedLabelEvidenceManifest.versions` is exactly `[pasted-nutrition-label-v1, pasted-nutrition-label-v2]`. The shared rules (stored basis, expected nutrients, corrections, servings, origins, the misread report) take the dispatcher, so there is one derivation for both versions and no copy.
+
+**Every site that hard-codes `PastedLabelManifest.version` or `.decode` today, and what it becomes:**
+
+| Site | Today | PR 4 |
+|---|---|---|
+| `PastedLabelSource.admittedPipelines` | v1 key only | adds the v2 key with its one pipeline (5.2) |
+| `PastedLabelSource.schemaVersion` | `PastedLabelManifest.version + ":" + format` | the dispatcher's `version` |
+| `PastedLabelSource.confirmation(manifest:…)` | encodes v1; evidence `captureMethodVersion` v1 | takes the dispatcher; `captureMethodVersion` is the case's version |
+| `PastedLabelSource.verify` | evidence version `== v1`; `PastedLabelManifest.decode` | evidence version in `versions`, decoded through the dispatcher, and the decoded `version` must equal the evidence's `captureMethodVersion` |
+| `PastedLabelSource.isCanonical` | v1 decode and re-encode | dispatcher decode and re-encode of the same case |
+| `PastedLabelSource.restoredSourceCandidate` | v1 decode | dispatcher decode |
+| `PastedLabelSource.expectedCandidate`, `storedBasis`, `servingSizeCorrection`, `expectedNutrients`, `checkServingsPerPack` | take `PastedLabelManifest` | take the dispatcher; v2 adds the checks of 8.4.6 below |
+| `PanelSourceAdmission.applies` (`PastedLabelSource.swift` about line 445) | evidence version `== v1` | evidence version in `versions` |
+| `PastedLabelServingPolicy.manifest` (about line 194) and `storedServingSize`, `per100Serving` | v1 version and decode | dispatcher |
+| `PastedLabelValueOrigins.manifest(evidence:…)` and `origins` (`NutrientValueOrigin.swift` about line 78), `NutrientValueOrigin.project` | v1 version and decode | dispatcher |
+| `CanonicalFoodArchive.minimumContractVersion` (about line 111) | evidence version `== v1` gives 7 | either version gives 7 (decision 26) |
+| `PastedLabelMisreadReport.init(manifest:)` | v1 | dispatcher; the report gains the basis line (8.4.12) |
+| `SavedFoodEntryDetail.pastedLabel` | `PastedLabelManifest?` | `PastedLabelEvidenceManifest?` |
+| `PastedLabelConfirmation.manifest` and `confirmation` | builds v1 | builds v1 without a choice, v2 with one (8.4.5) |
+| Presentation: `PastedLabelSourceModel` (`manifest`, `init(stored:)`, the evidence lists, about line 291's "Other column" text), `FoodConfirmationView` (about line 102), `PastedLabelSavedEntryText` in `PastedLabelText.swift` (about lines 388 to 433) | v1 | dispatcher |
+| `ReviewedFoodProposalConfirmation`'s verifier | matches its own version only | unchanged; a cross-route test proves it rejects v2 pasted evidence |
+| `FoodLedgerMigrations` `v7_pasted_label` | comment names v1 | comment only; no migration (decision 26) |
+
+`PastedLabelTextViewModel`'s and `PastedLabelText`'s other uses (`maximumTextScalars`, `Correction`, `Candidate.Header`) name nested types, not the version, and stay. Stage 2 re-runs `rg 'PastedLabelManifest\.(version|decode)|captureMethodVersion'` and records any further site in this table before merging.
+
+**v2 verification (at save `invalidPastedLabelSource`, at reopen `integrityFailure`), in addition to everything v1 checks:**
+
+1. The candidate has at least one amount header, and **every** amount header has empty printed text and no serving conversion: no mixed manifest.
+2. `basis_choices` has exactly one record per amount header, in header order, with the same `header_id` and `basis`; no record names a `reference_intake` header or an unknown ID; a `%` header keeps its printed text.
+3. `offered` is identical on every record and equals `PastedLabelBasisOptions.options` recomputed from the stored candidate (8.4.3); the chosen arrangement (the records' bases in header order) is in `offered`; `at` is identical on every record.
+4. The pipeline is the v2 entry (checks v2).
+5. Values from a chosen-basis column keep `user_verified_panel` provenance (their numbers are printed); their **basis** is user-asserted, evidenced by the record. A changed basis, record, `offered` or header fails.
+
+**The v1 verifier tightens one check:** a v1 manifest with any amount header whose printed text is empty is rejected. Parser v2 and v3 never write one under v1.
+
+**Cross-route and dispatch tests:** v1 evidence relabelled v2 and v2 relabelled v1 are rejected; the reviewed web verifier rejects both pasted versions; the pasted verifier rejects reviewed web evidence; `minimumContractVersion` is 7 for both.
+
+**Developer tools re-parse** stays deferred to issue #273 (decision 25). PR 4 pins the reproduction property at the adapter instead: for each v2 golden fixture, `read(pastedText, assertedBases: <from basis_choices>)` mapped to the candidate mirror encodes byte for byte to the stored candidate.
+
+#### 8.4.7 The same outcome across options
+
+Before the sheet is shown, `PastedLabelReader` reads the text once per offered option with its `AssertedBases` and classifies each reading exactly as an ordinary reading is classified (the gate's hard declines, the launch scope, `PastedLabelBasisState.isAsSold`, a stored column, `too_little_read`). **If any option would hard-decline, there is no sheet:** the outcome is a decline with the first declining option's codes, in offered order. Only when every option is usable does the outcome become "needs a basis choice", carrying each option's usable review and plausibility warnings, so choosing an option never re-reads and never meets a decline after the sheet.
+
+This narrows 3.7's "declines only if it fails for every option" to "for any option". The two coincide under the options table: every arrangement stores the same column (the one column, or the per 100 column of two), so the count of mandatory rows read is the same for every option. The test pins both.
+
+#### 8.4.8 The application step and the journey
+
+- `PastedLabelReadOutcome` gains `.needsBasisChoice(PastedLabelBasisChoiceRequest)`: the pasted text, its hash, the declined reading, the `UnheadedTable`, the options in order with each option's review and warning codes, and the hint.
+- Choosing is an application step that takes the request and an arrangement in its options, stamps `at` with the injected `LedgerClock`, and returns the option's `PastedLabelReview` with a `basisChoice` (arrangement, `offered`, `at`). The confirmation builder writes manifest v2 from it.
+- Presentation renders the request without logic: the question "These values have no column heading. What are they for?", the options in order ("Per serving (25 g)", "Per 100 g", "Per 100 ml"; for two columns "Per serving (25 g), then per 100 g"), each option's warning, the hint when present ("The label's energy line says 每100毫升."), "Per serving is not offered because the serving size was not read." when that row of the table applies, and "I'm not sure", which goes back to the text with a link to Search. Nothing is preselected. Native grouped style, Dynamic Type, VoiceOver labels and 44 pt targets.
+
+#### 8.4.9 The choice's lifecycle
+
+- **Bound to the text and the reading.** A choice belongs to the text hash and the reading it was made on.
+- **Edited text, or Read again**, clears the choice and shows the sheet again (on the new reading, if it still needs one).
+- **Return to Confirm with unchanged text** keeps the choice and every correction, as today.
+- **Change** on Confirm's basis line opens the sheet with **nothing preselected**; the current choice is labelled "Current choice", not selected. Choosing a different arrangement when the user has corrected or entered anything first asks "Changing what the values are for replaces your corrections.", as Read again does; Cancel keeps everything. Choosing the current arrangement again changes nothing.
+- **Dismissing the sheet** is "I'm not sure": it writes nothing and returns to the label text screen with the text kept. If a Confirm already exists for the unchanged text, Return to Confirm still reaches it with its choice.
+- View-model tests cover each bullet.
+
+#### 8.4.10 Servings under a chosen basis
+
+The method table of 5.6 applies unchanged to the asserted basis: a stored per-serving column uses `pasted-label-serving-v1`; a stored per 100 g or per 100 ml column uses `pasted-label-serving-v3` (the manifest's parser is v3); a serving size in the other unit family offers no servings (`per_100ml` with a serving in grams, or the reverse). **Per serving is offered whenever a serving size with a `g` or `ml` quantity was read, including when serving v3 would show it as approximate or a range,** because a per-serving column's basis quantity is the recorded quantity exactly as for a printed per-serving column (v1 section 6.3); approximation affects only servings against a per 100 column. A test pins one column chosen per serving with an approximate serving size (servings offered through v1) and the same text chosen per 100 g (no servings, as serving v3 reads it approximate).
+
+#### 8.4.11 One basis origin, one formatter
+
+- **Application:** `PastedLabelBasisOrigin` is derived in one place from a review or from the dispatcher manifest: `printed`, or `chosenByYou(hint:)` where the hint is the energy-line bracket and its basis when the candidate carries `basis_hint: energy_line: …`. v1 manifests are always `printed`.
+- **Presentation:** one formatter, `PastedLabelText.basisLine(basis:origin:)`, gives "Per 100 g" for printed and "Per 100 g · Chosen by you" for a choice, and, when the hint's basis differs from the stored column's chosen basis, the note "The label's energy line says 每100毫升." (decision 24; a visible note, never a block). Confirm's basis line, the saved entry's source line, the misread report and the Developer tools lines all use it.
+- **Empty header text.** Any copy that shows a header's printed text renders a header with empty printed text by its basis label instead (for example "Other column: per serving", never "per serving ()"), including flag copy.
+- A cross-surface test renders one v2 entry through all four surfaces and expects the same basis line.
+
+#### 8.4.12 Decision 24 on Confirm and in the record
+
+When the hint differs from the choice, Confirm shows the note on the basis line and records it in `warnings_shown` as `basis_hint:energy_line`, so the misread report and the stored entry show it too. When the hint agrees, nothing is shown or recorded. The candidate keeps the `basis_hint` warning either way.
+
+#### 8.4.13 Layouts in scope, and fixtures
+
+The sheet is offered for unheaded tables in the **inline**, **stacked**, **flattened** and **bilingual** layouts, and for the energy-line hint (3.5, decision 23). Synthetic fixtures (invented values and names), one per layout with one column and with two, plus:
+
+- a **printed `%` header with unheaded amount columns** (the reference header printed, the amount headers not): `UnheadedTable` with `referenceColumnPrinted` true, the `%` header keeping its text and the next ID;
+- a `%` value in a non-last position (no sheet);
+- a mixed table, one amount header printed and one not, in each layout (no sheet, today's decline);
+- two columns with no serving size (no sheet);
+- an option that declines `too_little_read` or fails the gate (no sheet).
+
+#### 8.4.14 Carried from the final review of PR 3 (parser v3, first code commit)
+
+Parser v3 is not frozen (5.1), so these narrow its serving and pack reading on the conservative side, each with a test:
+
+1. The servings-per lead widens to `servings?\s*(?:per|/)\s*\p{L}+`, with an optional bracketed qualifier before the `:`; "approximately", "around", `~` and `ca.` join the approximation words.
+2. A second Chinese count in a pack line (`本包裝含 2份 (約3份)`, `(每包裝 3份)`) is compared with the first: a different count leaves the pack count not read (`bilingual_quantity_conflict: servings_per_pack`), and 約 in it makes the count approximate.
+3. A bare ASCII bracket beside a full-width Chinese serving number (`每一份量 ３０公克 (30g)`) is not bound: the serving size is not read.
+4. Approximation is scanned the same way, on the stripped text, on stand-alone pack lines and on flattened lines.
+5. `Serving size 30g (x2)` is a multiplied serving and is not read.
+
+The 314 frozen cases and the pinned mutation tallies of 8.3 must not change; if one does, it is recorded here with its rule.
+
+#### 8.4.15 Contract tests for PR 4 (the gate's sixteen)
+
+1. Golden round-trips: manifest v1 with parser v2 and parser v3, manifest v2 with one and two columns, each byte for byte.
+2. Version dispatch: each version decodes only through its own type; unknown versions are `nil`; v1 bytes never gain `basis_choices`.
+3. v2 verifier: every rule of 8.4.6 at save and at reopen.
+4. v1 verifier rejects an empty-text amount header.
+5. Cross-route rejection both ways, and relabelled versions.
+6. `minimumContractVersion` is 7 for both versions.
+7. Admitted pipelines: the map is exactly 5.2.
+8. Options function: every row of the 8.4.3 table.
+9. Checks v2 golden vectors (8.4.4).
+10. `AssertedBases` at the adapter: the asserted read's headers, the `asserted_bases_mismatch` declines, and the byte-for-byte reproduction of decision 25.
+11. Same outcome across options (8.4.7).
+12. Mixed tables get no sheet, in every layout.
+13. Chosen-basis provenance across surfaces (8.4.11).
+14. Serving method table under an asserted basis (8.4.10).
+15. View-model lifecycle (8.4.9).
+16. Simulator UI test: paste an unheaded table, see the sheet, choose, reach Confirm with "Chosen by you", Change, dismiss, and Log.
+
+Every reader v3 test, the 314 non-regression cases and the mutation tallies stay unchanged. The dev set (7.3) is re-run outside the repository and reported as counts only.
+
 ## 9. Owner decisions
 
 The owner answered decisions 1 to 17 "yes to all", in session, on 20 October 2026, after the architecture gate. Where the gate tightened a decision's wording without changing its direction, the decision is recorded below in the revised wording and marked **(tightened)**. Parts of the revision that are genuinely new are split out as decisions 18 to 22; the owner approved them, in session, on 20 October 2026.
@@ -581,6 +825,12 @@ The owner answered decisions 1 to 17 "yes to all", in session, on 20 October 202
 ### 9.3 Added while building PR 3 (owner, in session, 20 October 2026)
 
 23. **Basis printed only in the energy line.** A basis phrase printed only in a bracket on the energy line is never read as the column's basis, because a per 100 g bracket over values that are really per serving passes every check. The table is treated as having no basis header: it declines `no_basis_header` (today's copy) until PR 4, then the user chooses the basis on the sheet of 3.3, where the bracket as printed may be shown as a hint ("The label's energy line says 每100公克"), never preselected. The parser carries it as the warning `basis_hint: energy_line: <bracket>`. This replaces the rule of 3.5 and the pinned warning fixture of 7.5 item 14. **Decided: ask the user (owner, 20 Oct 2026).**
+
+### 9.4 Added for PR 4 (owner, in session, 20 October 2026)
+
+24. **The energy-line hint after the choice.** The `basis_hint: energy_line: …` warning stays in the stored candidate. When the hint names a basis other than the one the user chose, Confirm shows it as a visible note on the basis line ("The label's energy line says 每100毫升.") and records `basis_hint:energy_line` in `warnings_shown`; it is never a block and never changes the choice (8.4.11, 8.4.12). **Decided: yes (owner, 20 Oct 2026).**
+25. **Developer tools re-parse deferred.** The Developer tools re-parse of a stored entry (5.3) stays deferred to issue #273. PR 4 pins the property it depends on at the adapter instead: `read(text, assertedBases: <from basis_choices>)` reproduces the stored candidate byte for byte (8.4.6). **Decided: yes (owner, 20 Oct 2026).**
+26. **Contract 7 stays, with no migration.** The owner has never used a build carrying the paste route with real food, and no TestFlight build carried it, so no distributed build (5.1) carries contract 7. Under decision 13, contract 7 covers both manifest versions and the store stays `food-ledger-v7`. PR 4 records this evidence in its description. **Decided: yes (owner, 20 Oct 2026).**
 
 ## 10. Not changing
 
