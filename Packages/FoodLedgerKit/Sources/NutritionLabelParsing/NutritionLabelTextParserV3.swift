@@ -14,7 +14,10 @@ import Foundation
 /// - layout precedence (3.0, `LabelLayout`) and gate input coverage on every consumed but
 ///   unbound line (3.0);
 /// - PR 2: partial reading (3.8), the stacked sequence rule and Taiwan template order (3.2),
-///   and `too_little_read` (3.7).
+///   and `too_little_read` (3.7);
+/// - PR 3: one-line tables (3.4, `FlattenedLine`), the basis printed only in the energy line
+///   (3.5), bilingual Chinese and English tables (3.6) and the complete-panels decline (3.7,
+///   decision 8). Section 8.3 records how they were built.
 ///
 /// The safety rule of v3 (section 2): it may leave a value, a row or the table unread; it never
 /// binds a value to the wrong row, column, basis or unit. Like v2 it has no network, clock,
@@ -35,12 +38,34 @@ public struct NutritionLabelTextParserV3: Sendable {
             || (language == .unknown && !normalised.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
             return .declined(route: route, inputSHA256: inputSHA256, language: language, reasons: ["unsupported_language"])
         }
+        let lines = normalised.components(separatedBy: "\n")
         var state = ParseStateV3()
-        for rawLine in normalised.components(separatedBy: "\n") {
+        for (index, rawLine) in lines.enumerated() {
+            state.lineIndex = index
             state.consume(rawLine)
             if !state.declineReasons.isEmpty { break }
         }
-        return state.finish(route: route, inputSHA256: inputSHA256, language: language)
+        let candidate = state.finish(route: route, inputSHA256: inputSHA256, language: language)
+        // 3.7, decision 8: when the text holds two or more complete panels (each part before and
+        // after the second panel's title, header or basis phrase reads on its own), the decline
+        // gets its own copy asking the user to delete the ones they did not eat. Nothing is read.
+        if candidate.declineReasons == ["multiple_panels"], let split = state.panelBreak, split > 0,
+           Self.isCompletePanel(Array(lines[..<split]), route: route, inputSHA256: inputSHA256),
+           Self.isCompletePanel(Array(lines[split...]), route: route, inputSHA256: inputSHA256) {
+            return .declined(route: route, inputSHA256: inputSHA256, language: language, reasons: [Self.multipleCompletePanelsCode])
+        }
+        return candidate
+    }
+
+    /// 3.7 (decision 8): the decline when the text holds two or more complete panels.
+    static let multipleCompletePanelsCode = "multiple_complete_panels"
+
+    /// A part of the text is a complete panel when it reads on its own with at least one stored
+    /// nutrient, or itself holds two or more complete panels.
+    static func isCompletePanel(_ lines: [String], route: String, inputSHA256: String) -> Bool {
+        let part = NutritionLabelTextParserV3().parse(lines.joined(separator: "\n"), route: route, inputSHA256: inputSHA256)
+        if part.declineReasons == [multipleCompletePanelsCode] { return true }
+        return !part.declined && part.cells.contains { $0.nutrient != "unrecognised" }
     }
 }
 
@@ -95,6 +120,16 @@ enum PatternsV3 {
     static let noteLine = LabelPattern(#"(?i)^(?:註|備註|説明|說明|notes?\b)"#)
     /// A pack line with a "more than" mark before its count (never read as exact).
     static let packMoreThan = LabelPattern(#"(?i)^(?:本包裝包?含?|servings?\s+per\s+(?:container|pack|package))\s*[:：]?\s*(?:[>≥＞≧]|超過|大於|多於|more\s+than)"#)
+    /// A leading Han run straight against a digit or a comparator (`熱量51大卡`).
+    static let stuckLabel = LabelPattern(#"^(\p{Han}+)(?=[0-9<≤≦＜])"#)
+    /// 3.6 rule 4: number, bracketed English unit, Chinese unit. Groups: number, bracket, English
+    /// unit, Chinese unit.
+    static let unitPair = LabelPattern(
+        #"(\d+(?:\.\d+)?)\s*([(（]\s*(kcal|Kcal|KCAL|kJ|kj|KJ|Cal|cal|mcg|mg|µg|μg|mL|ml|g)\s*[)）])\s*(大卡|千卡|公克|毫克|微克|毫升|克)"#)
+    /// Serving v3's approximation words (section 5.6, v2's closed list), scanned on a bilingual
+    /// serving or pack line (3.6 rule 5).
+    static let approximateWords: Set<String> = ["about", "approx", "approximate", "approximately", "around", "ca", "circa", "roughly"]
+    static let approximateMarks = ["約", "约", "~", "～", "〜", "≈", "≒", "±", "左右", "上下"]
     /// A reference-intake suffix printed after a percentage value (`5% DV`, `5% Daily Value`,
     /// `5% 每日參考值百分比`): it names the cell's column, never a row.
     static let referenceSuffix = LabelPattern(
@@ -120,6 +155,12 @@ struct RowDraftV3 {
     /// A number of the row could be read in more than one way (`1,203毫克`; a comma on a Taiwan
     /// row): the row is not read (`ambiguous_number`).
     var ambiguous = false
+    /// Bilingual (3.6 rule 3): the English gloss names a different nutrient (`gloss_conflict`).
+    var glossConflict = false
+    /// Bilingual (3.6 rule 4): a value printed with two units of different canonical units.
+    var unitPairMismatch = false
+    /// The row's label as printed when the label was reduced to its Chinese part (3.6).
+    var printedLabel: String?
     /// A bound mark stood on a line of its own just before this row (it qualifies both rows).
     var orphanBound = false
     /// The number of label lines merged into this row (a wrapped label has two).
@@ -174,6 +215,17 @@ struct ParseStateV3 {
     var lineGaveValues = false
     /// Labels printed after their values on a value-only line, never bound (printed but not read).
     var droppedLabels: [String] = []
+    /// The index of the line being consumed, and the line where a second panel's title, header or
+    /// basis phrase stood (3.7, decision 8: the complete-panels copy).
+    var lineIndex = 0
+    var panelBreak: Int?
+    /// The line being consumed was a flattened table (3.4): its rows carry their own segments.
+    var lineWasFlattened = false
+    /// 3.6 rule 2: the line being consumed may carry Latin words (a title, header, serving or
+    /// pack line, or a row whose Latin words are its gloss or bracketed), and whether any line
+    /// carried Latin words elsewhere (then a `mixed` text stays `mixed`).
+    var currentLineLatinAllowed = false
+    var latinOutsideAllowed = false
 
     var servingClaimed: Bool { servingSize != nil || servingJoin != nil }
     var packClaimed: Bool { servingsPerPack != nil || packJoin != nil }
@@ -186,7 +238,17 @@ struct ParseStateV3 {
         let servingBefore = (servingSize?.printedText, servingJoin)
         let packBefore = (servingsPerPack?.printedText, packJoin?.join)
         lineGaveValues = false
+        currentLineLatinAllowed = false
         consumeLine(rawLine)
+        if !currentLineLatinAllowed, Self.hasLatinWord(content) { latinOutsideAllowed = true }
+        if lineWasFlattened {
+            // A flattened line's rows carry their own segments (3.4); later lines join the last
+            // row's span, so a bound word after the table still leaves that row unread.
+            lineWasFlattened = false
+            if !rows.isEmpty { lastRecognised = rows.count - 1 }
+            previousLineRead = []
+            return
+        }
         // A span ends only at a recognised row label: every other line, including an unrecognised
         // row, belongs to the span of the last recognised row (the unexplained-bound rule).
         let newRecognised = rows.count > before && RowClassifierV3.isRowLabel(rows[rows.count - 1].label)
@@ -278,6 +340,7 @@ struct ParseStateV3 {
                 return
             }
         }
+        if consumeFlattened(content) { return }
         if PatternsV3.ruleLine.contains(content) {
             unbound.append(content)
             return
@@ -301,14 +364,19 @@ struct ParseStateV3 {
             // "More than N servings" is not a count the reader can hold: the pack count is not read.
             unbound.append(content)
             lastLineWasHeader = false
+            currentLineLatinAllowed = true
             return
         }
         for pattern in PatternsV3.servingsPerPack {
             if let groups = pattern.firstMatch(in: content), let number = groups[2] {
+                currentLineLatinAllowed = true
                 if !BoundVocabulary.tokens(content).isEmpty {
                     unbound.append(content)
                 } else if !packClaimed {
-                    servingsPerPack = LabelServingsPerPack(printedText: content, decimalText: number, approximate: groups[1] != nil)
+                    // 3.6 rule 5: on a Chinese pack line, an English bracket is scanned for
+                    // approximation ("about" in either language makes the count approximate).
+                    let approximate = groups[1] != nil || Self.bilingualApproximate(content)
+                    servingsPerPack = LabelServingsPerPack(printedText: content, decimalText: number, approximate: approximate)
                 } else {
                     unbound.append(content)
                 }
@@ -323,10 +391,12 @@ struct ParseStateV3 {
         }
         if PatternsV3.servingLabelAlone.contains(content) {
             lastLineWasHeader = false
+            currentLineLatinAllowed = true
             label(.servingLabel(content))
             return
         }
         if let groups = PatternsV3.servingSize.firstMatch(in: content), let rest = groups[1] {
+            currentLineLatinAllowed = true
             if !servingClaimed {
                 servingSize = Self.servingSize(printed: content, value: rest)
                 if !packClaimed, let pack = Self.packCount(inServingLine: content, value: rest) {
@@ -339,19 +409,27 @@ struct ParseStateV3 {
             return
         }
         if Self.isTitle(content) {
+            currentLineLatinAllowed = true
             if rowsStarted, content.contains("營養標示") || content.lowercased().hasPrefix("nutrition") {
                 declineReasons.append("multiple_panels")
+                panelBreak = lineIndex
             }
             unbound.append(content)
             return
         }
         if lastLineWasHeader, let groups = Patterns.parenthesised.firstMatch(in: content), groups[0] == content,
            let index = headers.lastIndex(where: { $0.basis == .perServing }) {
+            currentLineLatinAllowed = true
             headers[index].printedText += " " + content
             if headers[index].servingConversion == nil { headers[index].servingConversion = groups[1]?.trimmingCharacters(in: .whitespaces) }
             return
         }
+        if let brackets = Self.rowBasisBrackets(content) {
+            consumeEnergyLineBasis(content, brackets: brackets)
+            return
+        }
         if Patterns.headerPhrase.contains(content) {
+            currentLineLatinAllowed = true
             consumeHeader(content)
             return
         }
@@ -441,6 +519,23 @@ struct ParseStateV3 {
         let cut = cutAtPackPhrase(value)
         // A serving size printed as "more than" (`超過30公克`, `30公克以上`) is not read.
         if !BoundVocabulary.tokens(cut).isEmpty { return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil) }
+        // 3.6 rule 5: on a Chinese serving line, an English bracket is ignored for binding the
+        // number (serving v3 still scans it for approximation): the quantity is the Chinese one.
+        // When the bracket prints the same quantity (`30公克 (Serving size 30g)`), its printed
+        // form is recorded, as serving v3 binds the bracket first (5.6 step 4); when it prints
+        // another, the Chinese quantity is recorded and serving v3 finds no match (no servings).
+        if cut.contains(where: FlattenedLine.isHan), let bracket = Patterns.parenthesised.firstMatch(in: cut)?[1], hasLatinWord(bracket) {
+            let chinese = Patterns.parenthesised.split(cut).joined(separator: " ")
+            guard let groups = Patterns.servingQuantity.firstMatch(in: chinese), let number = groups[1], let unit = groups[2] else {
+                return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil)
+            }
+            if let english = Patterns.servingQuantity.firstMatch(in: bracket), let englishNumber = english[1], let englishUnit = english[2],
+               englishNumber == number, LabelVocabulary.canonicalUnit(englishUnit) == LabelVocabulary.canonicalUnit(unit) {
+                return LabelServingSize(printedText: printed, decimalText: englishNumber, unit: englishUnit,
+                                        canonicalUnit: LabelVocabulary.canonicalUnit(englishUnit))
+            }
+            return LabelServingSize(printedText: printed, decimalText: number, unit: unit, canonicalUnit: LabelVocabulary.canonicalUnit(unit))
+        }
         let source = Patterns.parenthesised.firstMatch(in: cut)?[1] ?? cut
         if let groups = Patterns.servingQuantity.firstMatch(in: source) ?? Patterns.servingQuantity.firstMatch(in: cut),
            let number = groups[1], let unit = groups[2] {
@@ -456,7 +551,7 @@ struct ParseStateV3 {
         if !BoundVocabulary.tokens(phrase).isEmpty { return nil }
         for pattern in [PatternsV3.chinesePackPhrase, PatternsV3.englishPackPhrase] {
             if let groups = pattern.firstMatch(in: phrase), let number = groups[2] {
-                return LabelServingsPerPack(printedText: line, decimalText: number, approximate: groups[1] != nil)
+                return LabelServingsPerPack(printedText: line, decimalText: number, approximate: groups[1] != nil || bilingualApproximate(phrase))
             }
         }
         return nil
@@ -487,7 +582,25 @@ struct ParseStateV3 {
         }
         var found: [LabelHeader] = []
         for segment in segments {
-            guard let basis = ParseState.basis(of: segment) else {
+            // 3.6 rule 1: in a bilingual header the Chinese phrase decides the column's basis. An
+            // English part naming a different basis is a misaligned paste and declines; an English
+            // part naming none is ignored. An English segment standing after a Chinese one is that
+            // column's English part.
+            if Self.hasLatinWord(segment), !segment.contains(where: FlattenedLine.isHan), let last = found.last,
+               last.printedText.contains(where: FlattenedLine.isHan), !Self.hasLatinWord(last.printedText) {
+                if let english = ParseState.basis(of: segment), english != last.basis {
+                    declineReasons.append("multiple_panels")
+                    return
+                }
+                found[found.count - 1].printedText += " " + segment
+                continue
+            }
+            let bilingual = Self.bilingualBasis(segment)
+            if bilingual.conflict {
+                declineReasons.append("multiple_panels")
+                return
+            }
+            guard let basis = bilingual.basis ?? ParseState.basis(of: segment) else {
                 unbound.append(segment)
                 continue
             }
@@ -506,6 +619,7 @@ struct ParseStateV3 {
             let referenceOnly = found.allSatisfy { $0.basis == .referenceIntake }
             if !(referenceOnly && !headers.contains { $0.basis == .referenceIntake }) {
                 declineReasons.append("multiple_panels")
+                panelBreak = lineIndex
                 return
             }
         }
@@ -561,6 +675,7 @@ struct ParseStateV3 {
             content = rest
             marked = true
         }
+        content = Self.spacedLabel(content)
         if BoundVocabulary.isMarkOnly(content) {
             // A line holding only bound marks qualifies the row above (through its span) and the
             // next row: both are not read.
@@ -569,19 +684,24 @@ struct ParseStateV3 {
             unbound.append(original)
             return
         }
-        let details = Self.valueMatches(content)
+        // 3.6 rule 4: a value printed as number, bracketed English unit, Chinese unit (`4.3(g)公克`)
+        // is one value only when both units have the same canonical unit; the English bracket is
+        // masked so the value reads with its Chinese unit, and its printed text stays as printed.
+        let pairs = Self.maskUnitPairs(content)
+        let masked = pairs.masked
+        let details = Self.valueMatches(masked)
         let label: String
         if let first = details.first {
-            label = String(content[content.startIndex..<first.range.lowerBound])
+            label = String(masked[masked.startIndex..<first.range.lowerBound])
         } else {
-            label = content
+            label = masked
         }
         var cleanedLabel = label
             .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•")))
         // "More than" is not a value the reader can hold: its marks never stay in a label, and the
         // row that receives such a value is not read (`row_not_read: malformed_value`), whether
         // the mark is on the value's line, after the label, or on a line of its own.
-        var moreThan = PatternsV3.greaterThan.contains(content) || details.contains { $0.groups.count > 4 && $0.groups[4] == "以上" }
+        var moreThan = PatternsV3.greaterThan.contains(masked) || details.contains { $0.groups.count > 4 && $0.groups[4] == "以上" }
         if let mark = PatternsV3.trailingGreaterThan.matchDetails(in: cleanedLabel).first {
             cleanedLabel = String(cleanedLabel[..<mark.range.lowerBound])
                 .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•")))
@@ -592,10 +712,27 @@ struct ParseStateV3 {
         // (`malformed_value`), and the rest of the number is never shown as a label. Numbers
         // separated by a space (`120 400`) keep parser v2's unit rules.
         let cutNumber = details.contains { match in
-            match.groups[3] == nil && content[..<match.range.upperBound].last.map { $0.isASCII && $0.isNumber } == true
-                && content[match.range.upperBound...].first.map { $0.isASCII && $0.isNumber } == true
+            match.groups[3] == nil && masked[..<match.range.upperBound].last.map { $0.isASCII && $0.isNumber } == true
+                && masked[match.range.upperBound...].first.map { $0.isASCII && $0.isNumber } == true
         }
         if cutNumber { moreThan = true }
+        // 3.6 rule 3: a bilingual label is read by its Chinese part; an English gloss naming a
+        // different nutrient leaves the row unread, and an unknown gloss is ignored.
+        var glossConflict = false
+        var printedLabel: String?
+        var gloss: String?
+        if let bilingual = Self.bilingualLabel(cleanedLabel) {
+            printedLabel = cleanedLabel
+            gloss = bilingual.gloss
+            cleanedLabel = bilingual.chinese
+            glossConflict = bilingual.conflict
+            unbound.append(bilingual.gloss)
+        }
+        // 3.6 rule 2: Latin words on a row are allowed in its gloss or inside a bracket.
+        var latinRest = masked
+        if let gloss { latinRest = latinRest.replacingOccurrences(of: gloss, with: " ") }
+        latinRest = Patterns.parenthesised.split(latinRest).joined(separator: " ")
+        if !Self.hasLatinWord(latinRest) { currentLineLatinAllowed = true }
         // A wrapped label (`碳水化` then `合物 1,5公克`) is checked under its merged label.
         let mergedLabel: String? = {
             guard !cleanedLabel.isEmpty, let last = rows.last, last.values.isEmpty, RowClassifierV3.classify(last.label) == nil,
@@ -620,7 +757,7 @@ struct ParseStateV3 {
             return
         }
         let values = details.map { match -> PrintedValue in
-            let printed = String(content[match.range]).trimmingCharacters(in: .whitespaces)
+            let printed = Self.slice(content, like: masked, match.range).trimmingCharacters(in: .whitespaces)
             let comparator: LabelComparator
             switch match.groups[1] {
             case "<=", "≤", "≦": comparator = .lessOrEqual
@@ -632,7 +769,7 @@ struct ParseStateV3 {
         let indented = rawLine.hasPrefix("\u{3000}") || rawLine.hasPrefix("  ") || rawLine.hasPrefix(" \t")
         if !cleanedLabel.isEmpty {
             rowsStarted = true
-            body.append(values.isEmpty ? .labelOnly : .labelWithValues(secondLabel: Self.hasSecondLabel(content, values: details)))
+            body.append(values.isEmpty ? .labelOnly : .labelWithValues(secondLabel: Self.hasSecondLabel(masked, values: details)))
             if mergedLabel != nil, var last = rows.last {
                 last.label += " " + cleanedLabel
                 last.labelLines += 1
@@ -642,12 +779,16 @@ struct ParseStateV3 {
                 last.lines.append(original)
                 last.malformed = last.malformed || moreThan
                 last.ambiguous = last.ambiguous || ambiguous
+                last.unitPairMismatch = last.unitPairMismatch || pairs.mismatch
                 rows[rows.count - 1] = last
             } else {
                 lineGaveValues = !values.isEmpty
                 var row = RowDraftV3(label: cleanedLabel, indented: indented, values: values, labelLineHadValues: !values.isEmpty,
                                      lines: [original], marked: marked, malformed: moreThan || pendingMoreThan, orphanBound: pendingBound)
                 row.ambiguous = ambiguous
+                row.glossConflict = glossConflict
+                row.unitPairMismatch = pairs.mismatch
+                row.printedLabel = printedLabel
                 rows.append(row)
                 pendingBound = false
                 pendingMoreThan = false
@@ -662,7 +803,7 @@ struct ParseStateV3 {
             // the values belong to that label, not to the row above, so the line is never
             // attached; the label is listed as printed but not read. A cut number (`502千焦`) is
             // not a label: the line is the row above's malformed value instead.
-            if !cutNumber, let dropped = Self.labelAfterValues(content, values: details) {
+            if !cutNumber, let dropped = Self.labelAfterValues(masked, values: details) {
                 droppedLabels.append(dropped)
                 unbound.append(original)
                 return
@@ -680,6 +821,7 @@ struct ParseStateV3 {
             last.lines.append(original)
             last.malformed = last.malformed || moreThan
             last.ambiguous = last.ambiguous || ambiguous
+            last.unitPairMismatch = last.unitPairMismatch || pairs.mismatch
             rows[rows.count - 1] = last
         } else {
             unbound.append(original)
@@ -743,6 +885,205 @@ struct ParseStateV3 {
         return gaps
     }
 
+    // MARK: 3.4: flattened lines
+
+    /// A whole table on one line (3.4, `FlattenedLine`). Returns false when the line is not a
+    /// flattened table, so the other rules read it.
+    mutating func consumeFlattened(_ content: String) -> Bool {
+        let outcome = FlattenedLine.read(content, existingHeaders: headers.map(\.basis))
+        let table: FlattenedLine.Table
+        switch outcome {
+        case .notFlattened:
+            return false
+        case .secondPanel:
+            unbound.append(content)
+            declineReasons.append("multiple_panels")
+            panelBreak = lineIndex
+            return true
+        case let .declined(code):
+            // Gate input coverage still applies to a declined line: a marker declines with the
+            // gate's own code first.
+            unbound.append(content)
+            declineReasons.append(code)
+            return true
+        case let .table(read):
+            table = read
+        }
+        // A basis phrase of its own after rows that carried values is a second panel.
+        if !table.headers.isEmpty, rows.contains(where: { !$0.values.isEmpty }) {
+            declineReasons.append("multiple_panels")
+            panelBreak = lineIndex
+            return true
+        }
+        lineWasFlattened = true
+        currentLineLatinAllowed = true
+        rowsStarted = true
+        lastLineWasHeader = false
+        // The whole line is gate-scanned (3.0): it is consumed by a rule the gate never sees.
+        unbound.append(content)
+        unbound += table.unbound
+        if let serving = table.serving {
+            if !servingClaimed, let value = PatternsV3.servingSize.firstMatch(in: serving.printed)?[1] {
+                servingSize = Self.servingSize(printed: serving.printed, value: value)
+            } else {
+                unbound.append(serving.printed)
+            }
+        }
+        if let pack = table.pack {
+            if !packClaimed, BoundVocabulary.tokens(pack.printed).isEmpty, let groups = PatternsV3.servingsPerPack[2].firstMatch(in: pack.printed),
+               let number = groups[2] {
+                servingsPerPack = LabelServingsPerPack(printedText: pack.printed, decimalText: number, approximate: groups[1] != nil)
+            } else {
+                unbound.append(pack.printed)
+            }
+        }
+        for header in table.headers {
+            headers.append(LabelHeader(headerID: "header_\(headers.count + 1)", printedText: header.printed, basis: header.basis, servingConversion: nil))
+        }
+        for row in table.rows {
+            // A malformed token is kept as a value with no unit so the row reaches the malformed
+            // check (it is never bound); a `*` reference mark binds nothing.
+            let values = row.cells.compactMap { cell -> PrintedValue? in
+                switch cell {
+                case let .value(decimal, unit, comparator, printed):
+                    PrintedValue(printedText: printed, comparator: comparator, decimalText: decimal, unit: unit)
+                case let .malformed(printed):
+                    PrintedValue(printedText: printed, comparator: .equal, decimalText: "", unit: nil)
+                case .star:
+                    nil
+                }
+            }
+            rows.append(RowDraftV3(label: row.label, indented: false, values: values, labelLineHadValues: true, lines: [row.printed],
+                                   marked: false, malformed: row.malformed, orphanBound: row.unexplained))
+        }
+        body.append(.flattened)
+        return true
+    }
+
+    /// A recognised Chinese row label printed straight against its number (`熱量51大卡`, the shape
+    /// of 3.5's layout): one space is put between them so the value reads as it would with a
+    /// space. Only a whole leading Han run that is a recognised row label qualifies (exact match,
+    /// never a prefix), so no other text is split.
+    static func spacedLabel(_ text: String) -> String {
+        guard let groups = PatternsV3.stuckLabel.firstMatch(in: text), let label = groups[1],
+              TaiwanRowAliases.isRecognisedChinese(label) else { return text }
+        return label + " " + String(text.dropFirst(label.count))
+    }
+
+    // MARK: 3.5: basis printed only in the energy line
+
+    /// The bracket groups of a row line (a label, then a value, then the bracket) whose content is
+    /// a basis phrase, or nil when the line is not such a row.
+    static func rowBasisBrackets(_ content: String) -> [(range: Range<String.Index>, printed: String, basis: LabelBasis)]? {
+        let text = spacedLabel(markedRow(content) ?? content)
+        guard startsWithLabel(text), let firstValue = valueMatches(text).first else { return nil }
+        let brackets = Patterns.parenthesised.matchDetails(in: text).compactMap { match -> (range: Range<String.Index>, printed: String, basis: LabelBasis)? in
+            guard match.range.lowerBound >= firstValue.range.upperBound, let inner = match.groups[1], let basis = ParseState.basis(of: inner) else { return nil }
+            return (match.range, String(text[match.range]), basis)
+        }
+        return brackets.isEmpty ? nil : brackets
+    }
+
+    /// 3.5: with no header line, exactly one amount column, the energy row first and exactly one
+    /// bracketed basis phrase on it, that phrase is the column's header (its printed text is the
+    /// bracket as printed). A basis phrase on any other row, on a first row that is not energy,
+    /// or more than one, declines `multiple_panels`.
+    mutating func consumeEnergyLineBasis(_ content: String, brackets: [(range: Range<String.Index>, printed: String, basis: LabelBasis)]) {
+        let text = Self.spacedLabel(Self.markedRow(content) ?? content)
+        let label = Self.valueMatches(text).first.map { String(text[..<$0.range.lowerBound]) }?
+            .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•"))) ?? ""
+        guard brackets.count == 1, let bracket = brackets.first, bracket.basis != .referenceIntake, headers.isEmpty,
+              !rows.contains(where: { !$0.values.isEmpty }), RowClassifierV3.classify(label)?.row == .energy else {
+            declineReasons.append("multiple_panels")
+            return
+        }
+        headers.append(LabelHeader(headerID: "header_1", printedText: bracket.printed, basis: bracket.basis, servingConversion: nil))
+        var row = text
+        if let range = row.range(of: bracket.printed, options: .backwards) { row.removeSubrange(range) }
+        consumeRow(rawLine: row, content: row.trimmingCharacters(in: .whitespaces))
+    }
+
+    // MARK: 3.6: bilingual tables
+
+    /// Latin words a language check counts: two or more letters that are not a unit.
+    static func hasLatinWord(_ text: String) -> Bool {
+        let unitWords: Set<String> = ["kj", "kcal", "cal", "mg", "mcg", "ml"]
+        return Patterns.latinWord.matches(in: text).contains { !unitWords.contains($0.lowercased()) }
+    }
+
+    /// 3.6 rule 3: a label made of a recognised Chinese row label and an English gloss after it
+    /// (`脂肪 Total Fat`, `脂肪(Total Fat)`). The Chinese part classifies the row; the gloss is a
+    /// conflict when the English row table names a different nutrient, and is ignored when it
+    /// names none.
+    static func bilingualLabel(_ label: String) -> (chinese: String, gloss: String, conflict: Bool)? {
+        guard let latin = label.firstIndex(where: { $0.isASCII && $0.isLetter }) else { return nil }
+        let chinese = String(label[..<latin]).trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}(（")))
+        let gloss = String(label[latin...]).trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: ")）")))
+        guard !chinese.isEmpty, TaiwanRowAliases.isRecognisedChinese(chinese), hasLatinWord(gloss),
+              !gloss.contains(where: { FlattenedLine.isHan($0) || $0.isNumber }) else { return nil }
+        let english = gloss.replacingOccurrences(of: "(", with: " ").replacingOccurrences(of: ")", with: " ")
+            .replacingOccurrences(of: "（", with: " ").replacingOccurrences(of: "）", with: " ")
+        let conflict: Bool
+        if let alias = TaiwanRowAliases.entry(chinese), let named = RowClassifier.classify(english) {
+            conflict = RowClassifier.key(for: named.row) != RowClassifier.key(for: alias.row)
+        } else {
+            conflict = false
+        }
+        return (chinese, gloss, conflict)
+    }
+
+    /// 3.6 rule 1: the basis of a header segment holding both a Chinese and an English phrase is
+    /// the Chinese phrase's; an English phrase naming a different basis is a conflict.
+    static func bilingualBasis(_ segment: String) -> (basis: LabelBasis?, conflict: Bool) {
+        guard segment.contains(where: FlattenedLine.isHan), hasLatinWord(segment) else { return (nil, false) }
+        let unitWords: Set<String> = ["kj", "kcal", "cal", "mg", "mcg", "ml"]
+        var chinese = segment
+        for word in Patterns.latinWord.matches(in: segment) where !unitWords.contains(word.lowercased()) {
+            chinese = chinese.replacingOccurrences(of: word, with: " ")
+        }
+        let english = String(segment.filter { !FlattenedLine.isHan($0) })
+        guard let chineseBasis = ParseState.basis(of: chinese) else { return (nil, false) }
+        if let englishBasis = ParseState.basis(of: english), englishBasis != chineseBasis { return (chineseBasis, true) }
+        return (chineseBasis, false)
+    }
+
+    /// 3.6 rule 4: number, bracketed English unit, Chinese unit (`4.3(g)公克`). The English bracket
+    /// is replaced by spaces (so the text keeps its length and every value its printed text), and
+    /// `mismatch` is true when any pair's canonical units differ.
+    static func maskUnitPairs(_ content: String) -> (masked: String, mismatch: Bool) {
+        let matches = PatternsV3.unitPair.matchDetails(in: content)
+        guard !matches.isEmpty else { return (content, false) }
+        var mismatch = false
+        var masked = ""
+        var cursor = content.startIndex
+        for match in matches {
+            guard let bracket = match.groups[2], let english = match.groups[3], let chinese = match.groups[4] else { continue }
+            if LabelVocabulary.canonicalUnit(english) != LabelVocabulary.canonicalUnit(chinese) { mismatch = true }
+            guard let start = content[match.range].range(of: bracket)?.lowerBound else { continue }
+            masked += content[cursor..<start] + String(repeating: " ", count: bracket.count)
+            cursor = content.index(start, offsetBy: bracket.count)
+        }
+        masked += content[cursor...]
+        return (masked, mismatch)
+    }
+
+    /// The text of `original` at the character offsets `range` has in `masked` (same length).
+    static func slice(_ original: String, like masked: String, _ range: Range<String.Index>) -> String {
+        guard original != masked else { return String(original[range]) }
+        let lower = masked.distance(from: masked.startIndex, to: range.lowerBound)
+        let upper = masked.distance(from: masked.startIndex, to: range.upperBound)
+        return String(original[original.index(original.startIndex, offsetBy: lower)..<original.index(original.startIndex, offsetBy: upper)])
+    }
+
+    /// 3.6 rule 5: on a Chinese serving or pack line, the English words and marks of serving v3's
+    /// approximation lists anywhere on the line make the count approximate (the conservative side).
+    static func bilingualApproximate(_ line: String) -> Bool {
+        guard line.contains(where: FlattenedLine.isHan), hasLatinWord(line) else { return false }
+        if PatternsV3.approximateMarks.contains(where: line.contains) { return true }
+        let words = line.lowercased().split { !($0.isASCII && $0.isLetter) }.map(String.init)
+        return words.contains { PatternsV3.approximateWords.contains($0) }
+    }
+
     /// Whether a line has Han text between two of its values (the non-regression allow-list).
     static func hasHanBetweenValues(_ line: String) -> Bool {
         gaps(line, values: valueMatches(line)).dropLast().contains { PatternsV3.hanRun.contains($0) }
@@ -764,7 +1105,12 @@ struct ParseStateV3 {
 
     // MARK: Binding
 
-    mutating func finish(route: String, inputSHA256: String, language: LabelLanguage) -> LabelCaptureCandidate {
+    mutating func finish(route: String, inputSHA256: String, language textLanguage: LabelLanguage) -> LabelCaptureCandidate {
+        // 3.6 rule 2: a text whose rows all start with a recognised Chinese row label is `zh-Hant`
+        // even with Latin words, when every Latin word is in a gloss, a bracket, or a title,
+        // header, serving or pack line.
+        let language: LabelLanguage = textLanguage == .mixed && !latinOutsideAllowed && !rows.isEmpty
+            && rows.allSatisfy { TaiwanRowAliases.isRecognisedChinese($0.label) } ? .traditionalChinese : textLanguage
         func decline(_ reasons: [String]) -> LabelCaptureCandidate {
             .declined(route: route, inputSHA256: inputSHA256, language: language, reasons: reasons)
         }
@@ -871,6 +1217,17 @@ struct ParseStateV3 {
                 }
                 if row.ambiguous {
                     warnings.append("row_not_read: ambiguous_number: \(row.label)")
+                    unbound += row.lines
+                    continue
+                }
+                // 3.6 rules 3 and 4: a gloss naming another nutrient, or two units that disagree.
+                if row.glossConflict {
+                    warnings.append("row_not_read: gloss_conflict: \(row.printedLabel ?? row.label)")
+                    unbound += row.lines
+                    continue
+                }
+                if row.unitPairMismatch {
+                    warnings.append("row_not_read: unit_pair_mismatch: \(row.printedLabel ?? row.label)")
                     unbound += row.lines
                     continue
                 }

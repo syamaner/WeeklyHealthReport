@@ -75,15 +75,33 @@ final class PastedLabelReaderV3PresentationTests: XCTestCase {
     /// the "more than" wording, quotes are typographic, and no sentence carries a code.
     func testEveryUnreadReasonHasItsOwnPlainCopy() {
         let reasons = ["stacked_sequence", "malformed_value", "ambiguous_number", "unexplained_bound", "unit_off_template", "duplicate_row",
-                       "value_before_label"]
+                       "value_before_label", "gloss_conflict", "unit_pair_mismatch"]
         let sentences = reasons.map(PastedLabelText.unreadReason)
         XCTAssertEqual(Set(sentences).count, reasons.count, "one sentence per reason")
         XCTAssertEqual(PastedLabelText.unreadReason("ambiguous_number"), "Not read: the number could be read in more than one way.")
         XCTAssertFalse(PastedLabelText.unreadReason("ambiguous_number").contains("“more than”"))
+        XCTAssertEqual(PastedLabelText.unreadReason("gloss_conflict"), "Not read: the English name beside this row names a different nutrient.")
+        XCTAssertEqual(PastedLabelText.unreadReason("unit_pair_mismatch"), "Not read: the two units printed for this value do not match.")
         for sentence in sentences {
             XCTAssertFalse(sentence.contains("\""), "typographic quotes only: \(sentence)")
             XCTAssertFalse(sentence.contains("_"), sentence)
             XCTAssertNotEqual(sentence, "Not read.", "every reason the parser emits has its own sentence")
         }
+    }
+
+    /// Decision 8: two or more complete panels decline with the "delete the ones you did not eat"
+    /// copy; a flattened line that cannot be segmented safely is copied as `count_mismatch`.
+    func testTwoCompletePanelsAndAnAmbiguousFlattenedLineDeclineWithTheirCopy() throws {
+        XCTAssertEqual(PastedLabelCodes.classify(PastedLabelCodes.multipleCompletePanels), .init(kind: .hardDecline, copy: .multiplePanels))
+        XCTAssertEqual(PastedLabelCodes.classify(PastedLabelCodes.flattenedTableAmbiguous), PastedLabelCodes.classify("count_mismatch"))
+        XCTAssertEqual(PastedLabelText.declineMessages([PastedLabelCodes.multipleCompletePanels]),
+                       ["This text has more than one nutrition table (for example two flavours). Delete the ones you did not eat, then read again."])
+        let stub = F.StubReader(F.declined([PastedLabelCodes.multipleCompletePanels]))
+        let model = F.textModel(stub) { _ in }
+        model.name = "Synthetic oat crackers"
+        model.text = F.pastedText
+        XCTAssertNil(model.readLabel(), "a hard decline never opens Confirm")
+        XCTAssertEqual(model.text, F.pastedText, "the text is kept so the user can delete the other panels")
+        XCTAssertEqual(model.declineMessages, PastedLabelText.declineMessages([PastedLabelCodes.multipleCompletePanels]))
     }
 }

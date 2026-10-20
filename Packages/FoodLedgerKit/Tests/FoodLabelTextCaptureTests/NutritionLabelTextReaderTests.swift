@@ -32,6 +32,24 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         return review
     }
 
+    // MARK: Reader v3 PR 3: the new layouts reach Confirm through the gate and the launch scope
+
+    func testFlattenedBilingualAndEnergyLineTablesAreUsableTaiwanReadings() throws {
+        let flattened = "營養標示\n每一份量30公克\n本包裝含8份\n每份 熱量 121大卡，蛋白質 3.1公克，脂肪 4.3公克，飽和脂肪 1.5公克，反式脂肪 0.1公克，"
+            + "碳水化合物 18.7公克，糖 6.8公克，鈉 61毫克\n"
+        let bilingual = "營養標示 Nutrition Facts\n每一份量 Serving Size 30公克\n本包裝含8份 (8 Servings Per Package)\n"
+            + "每份 Per Serving 每100公克 Per 100g\n熱量 Calories 121(kcal)大卡 403(kcal)大卡\n蛋白質 Protein 3.1(g)公克 10.2(g)公克\n"
+            + "脂肪 Total Fat 4.3(g)公克 14.4(g)公克\n飽和脂肪 Saturated Fat 1.5(g)公克 5.6(g)公克\n反式脂肪 Trans Fat 0.1(g)公克 0.3(g)公克\n"
+            + "碳水化合物 Total Carbohydrate 18.7(g)公克 62.3(g)公克\n糖 Sugars 6.8(g)公克 22.7(g)公克\n鈉 Sodium 61(mg)毫克 203(mg)毫克\n"
+        let energyLine = "營養標示\n熱量 45大卡(每100毫升)\n蛋白質 1.2公克\n脂肪 1.5公克\n飽和脂肪 0.9公克\n反式脂肪 0公克\n碳水化合物 6.4公克\n糖 6.1公克\n鈉 38毫克\n"
+        for (name, text) in [("flattened", flattened), ("bilingual", bilingual), ("energy line", energyLine)] {
+            let usable = try review(text)
+            XCTAssertEqual(usable.reading.versions.parser, NutritionLabelTextParserV3.version, name)
+            XCTAssertEqual(usable.reading.format, "taiwan_nutrition_labelling", name)
+            XCTAssertTrue(usable.reading.unreadRows.isEmpty, name)
+        }
+    }
+
     // MARK: 26. Launch scope after a faithful gate
 
     func test26LaunchScopeDeclinesUKAfterTheGateWhileUKGateParityStillPasses() throws {
@@ -131,14 +149,14 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         let sources = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
             .appendingPathComponent("Sources/NutritionLabelParsing")
         var text = ""
-        for file in ["NutritionLabelTextParser.swift", "NutritionLabelTextParserV3.swift", "LabelLayout.swift"] {
+        for file in ["NutritionLabelTextParser.swift", "NutritionLabelTextParserV3.swift", "LabelLayout.swift", "FlattenedLine.swift"] {
             text += try String(contentsOf: sources.appendingPathComponent(file), encoding: .utf8) + "\n"
         }
         let literal = try NSRegularExpression(pattern: #""([a-z]+(?:_[a-z]+)+)""#)
         var codes: Set<String> = []
         for line in text.split(separator: "\n") where line.contains("decline(") || line.contains("declineReasons.append")
             || line.contains("reasons: [") || line.contains("Decline = [") || line.contains("ambiguousCode = ")
-            || line.contains("tooLittleReadCode = ") {
+            || line.contains("tooLittleReadCode = ") || line.contains("CompletePanelsCode = ") {
             let line = String(line)
             for match in literal.matches(in: line, range: NSRange(line.startIndex..., in: line)) {
                 codes.insert(String(line[Range(match.range(at: 1), in: line)!]))
@@ -151,7 +169,7 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         let parser = try Self.parserDeclineCodes()
         XCTAssertEqual(parser, ["unsupported_language", "multiple_panels", "values_without_row", "no_table", "no_basis_header",
                                 "duplicate_basis", "energy_without_unit", "value_without_unit", "unrecognised_unit", "count_mismatch",
-                                "layout_ambiguous", "too_little_read"],
+                                "layout_ambiguous", "too_little_read", "flattened_table_ambiguous", "multiple_complete_panels"],
                        "A new parser code needs its own mapping and copy")
         let gate = Set(LabelGateReason.allCases.map(\.rawValue))
         var skipped: Set<String> = []
@@ -170,7 +188,7 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         let sectionThreeOne: Set<String> = ["not_a_food_nutrition_panel", "unsupported_language", "unsupported_script", "no_table",
             "layout_not_supported", "format_ambiguous", "basis_state_not_supported", "multiple_panels", "no_basis_header", "duplicate_basis",
             "count_mismatch", "values_without_row", "energy_without_unit", "value_without_unit", "unrecognised_unit", "text_too_long", "unreadable_table",
-            "layout_ambiguous", "too_little_read"]
+            "layout_ambiguous", "too_little_read", "flattened_table_ambiguous", "multiple_complete_panels"]
         for code in emitted {
             let classification = PastedLabelCodes.classify(code)
             XCTAssertEqual(classification.kind == .flag, flags.contains(code), code)
@@ -181,6 +199,10 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         XCTAssertEqual(PastedLabelCodes.classify("gate:required_row_missing").copy, .unreadableTable, "Unmapped codes fall back")
         // Reader v3 section 3.7: `too_little_read` has its own copy (decision 3).
         XCTAssertEqual(PastedLabelCodes.classify("too_little_read"), .init(kind: .hardDecline, copy: .tooLittleRead))
+        // Reader v3 PR 3: a flattened line that cannot be segmented safely is copied as
+        // `count_mismatch` (3.4); two or more complete panels have their own copy (decision 8).
+        XCTAssertEqual(PastedLabelCodes.classify("flattened_table_ambiguous"), PastedLabelCodes.classify("count_mismatch"))
+        XCTAssertEqual(PastedLabelCodes.classify("multiple_complete_panels"), .init(kind: .hardDecline, copy: .multiplePanels))
     }
 
     // MARK: 28. Identity mapping

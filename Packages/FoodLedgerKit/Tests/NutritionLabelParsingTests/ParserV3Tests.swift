@@ -294,7 +294,7 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
 
 @Test func test13LayoutPrecedenceIsAClosedOrderedListOfPredicates() {
     typealias L = LabelLayout.Line
-    #expect(LabelLayout.precedence == [.inline, .stacked])
+    #expect(LabelLayout.precedence == [.inline, .stacked, .flattened], "PR 3 appends the flattened layout (3.4)")
     let inline: [L] = [.labelWithValues(secondLabel: false), .labelWithValues(secondLabel: false), .valuesOnly, .labelOnly, .labelWithValues(secondLabel: false)]
     let stacked: [L] = [.labelOnly, .valuesOnly, .valuesOnly, .labelOnly, .valuesOnly]
     let mixed: [L] = [.labelWithValues(secondLabel: false), .labelOnly, .valuesOnly]

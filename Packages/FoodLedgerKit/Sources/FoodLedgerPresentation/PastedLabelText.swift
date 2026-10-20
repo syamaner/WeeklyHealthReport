@@ -64,6 +64,7 @@ public enum PastedLabelText {
         case .textTooLong: "This text is too long to be one nutrition table. Paste the table only."
         case .unreadableTable: "The app could not read this table. Check that it is one nutrition table, then try again."
         case .tooLittleRead: "Only a few values could be read from this text. Try copying the table again, or use Search or Barcode."
+        case .multiplePanels: "This text has more than one nutrition table (for example two flavours). Delete the ones you did not eat, then read again."
         case .rowNotRead, .cellNotRead, .noPer100Column, .servingLineNotRead:
             // A flag is never a decline; reaching here means the classification drifted.
             declineMessage(.unreadableTable)
@@ -102,6 +103,8 @@ public enum PastedLabelText {
         case "unit_off_template": "Not read: printed in a unit this label layout does not use for this row."
         case "duplicate_row": "Not read: this row is printed more than once."
         case "value_before_label": "Not read: a value is printed before this label instead of after it."
+        case "gloss_conflict": "Not read: the English name beside this row names a different nutrient."
+        case "unit_pair_mismatch": "Not read: the two units printed for this value do not match."
         default: "Not read."
         }
     }

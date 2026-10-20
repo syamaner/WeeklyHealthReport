@@ -6,18 +6,18 @@ import Foundation
 /// layout; a body that satisfies more than one predicate, or none, declines `layout_ambiguous`.
 /// There is no protocol or plug-in per layout, and adding a layout is a new parser version.
 ///
-/// Parser v3 accumulates across the PRs of section 8 until it is frozen (section 5.1). PR 1 lists
-/// inline and stacked; the flattened-line layout (3.4) is appended by the PR that builds its
-/// reader. A stacked body is read under the sequence rule and template order of 3.2 (PR 2,
+/// Parser v3 accumulates across the PRs of section 8 until it is frozen (section 5.1). PR 1 listed
+/// inline and stacked; PR 3 appends the flattened-line layout (3.4, `FlattenedLine`). A stacked body is read under the sequence rule and template order of 3.2 (PR 2,
 /// `ParseStateV3.firstStackedDeviation`): rows before the first deviation are bound as parser v2
 /// binds a row label standing alone with its values on the following lines; that row and every
 /// row after it are not read.
 enum LabelLayout: String, CaseIterable, Sendable {
     case inline
     case stacked
+    case flattened
 
     /// The closed precedence list, tested in this order.
-    static let precedence: [LabelLayout] = [.inline, .stacked]
+    static let precedence: [LabelLayout] = [.inline, .stacked, .flattened]
 
     static let ambiguousCode = "layout_ambiguous"
 
@@ -30,6 +30,8 @@ enum LabelLayout: String, CaseIterable, Sendable {
         case labelOnly
         /// Values with no label on their line.
         case valuesOnly
+        /// A whole table on one line (3.4): at least three alias labels, each followed by a value.
+        case flattened
     }
 
     /// Inline (parser v2's shape): each row label and its values on one line, possibly
@@ -50,6 +52,8 @@ enum LabelLayout: String, CaseIterable, Sendable {
                 lastLabel = line
             case .valuesOnly:
                 guard case .labelWithValues = lastLabel else { return false }
+            case .flattened:
+                return false
             }
         }
         return sawLabelWithValues
@@ -58,14 +62,21 @@ enum LabelLayout: String, CaseIterable, Sendable {
     /// Stacked (3.2): row labels stand on lines with no values and values stand on lines with
     /// no label.
     static func isStacked(_ lines: [Line]) -> Bool {
-        !lines.contains { if case .labelWithValues = $0 { true } else { false } }
+        !lines.contains { if case .labelWithValues = $0 { true } else { false } } && !lines.contains(.flattened)
             && lines.contains(.labelOnly) && lines.contains(.valuesOnly)
+    }
+
+    /// Flattened (3.4): exactly one flattened line; any other body line is a label with no values
+    /// (a heading such as a flavour name), which binds nothing.
+    static func isFlattened(_ lines: [Line]) -> Bool {
+        lines.filter { $0 == .flattened }.count == 1 && lines.allSatisfy { $0 == .flattened || $0 == .labelOnly }
     }
 
     static func matches(_ layout: LabelLayout, _ lines: [Line]) -> Bool {
         switch layout {
         case .inline: isInline(lines)
         case .stacked: isStacked(lines)
+        case .flattened: isFlattened(lines)
         }
     }
 
