@@ -2423,3 +2423,19 @@ Pricing: re-checked on 21 October 2026 (local date) against Anthropic's official
 Boundary: `phase_usage.py --format claude --since 2026-10-20T16:59:27Z --until 2026-10-20T17:12:50Z`. Cache writes: 57,784 5-minute, 0 1-hour. Exact API-equivalent USD 5.5650094 at the recorded counts. The output count is a lower bound: 64 of the 86 messages in this window record at most 32 output tokens, so the total and the API-equivalent figure are lower bounds too. The reviewers' and QA agents' usage is not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-20r: Claude Code pasted nutrition label reader v3 PR 4, final review round
+
+Same subagent and transcript as WHR-93-2026-10-20p, resumed for the final re-review and journey QA notes on #284: the choice time compared in whole milliseconds with a save-and-reopen test on both stores, the serving-size-not-in-g-or-ml copy, the short reason beside a disabled pinned Log, no empty "Before you log", the hint's styling, a failed choice never silent, the Change sheet's note, the doc, one full gate run and the dev-set run.
+
+Runs from the round's start (`2026-10-20T17:32:44Z`, captured with `date -u`) to `2026-10-20T17:43:35Z`, just before this ledger edit.
+
+Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 21 October 2026 (WHR-93-2026-10-20q), unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 PR 4 final review round (#93), implementation subagent | 17,321,609 (17,291,160) | 30,399 | ≥ 4,274 (lower bound) | ≥ 17,325,883 | $3.70 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-20T17:32:44Z --until 2026-10-20T17:43:35Z`. Cache writes: 30,399 5-minute, 0 1-hour. Exact API-equivalent USD 3.695907 at the recorded counts. The output count is a lower bound: 41 of the 51 messages in this window record at most 32 output tokens, so the total and the API-equivalent figure are lower bounds too. The reviewers' and QA agents' usage is not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
