@@ -2239,3 +2239,24 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-20T09:29:11Z` → `2026-10-20T09:45:42Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 715,973 5-minute, 0 1-hour. Exact API-equivalent USD 6.9859922 at the recorded counts. The output count is a lower bound: each transcript entry records a streaming-time snapshot, so the true output cannot be recovered from the transcript, and the total and the API-equivalent figure are lower bounds too. The reviewers' own sessions are not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-20h: Claude Code pasted nutrition label reader v3 PR 2
+
+One implementation subagent, its own transcript (`subagents/agent-a65d4df3d1dc56830.jsonl`), for reader v3 PR 2 (`docs/pasted-nutrition-label-reader-v3.md` section 8, item 2):
+- the carried-over fixes from the final review of #280 (duplicate rows counted over unread rows, values printed before their label, and the lower-bound marks on WHR-93-2026-10-20a to 20e);
+- the stacked sequence rule and template order, partial reading, `too_little_read` and the ambiguous-number rule;
+- "Printed but not read" on Confirm;
+- the mutation suite with the pinned residual risk, and the stacked and `too_little_read` tests;
+- the dev-set run outside the repository and one full gate run.
+
+Runs from the phase's start (`2026-10-20T10:00:13Z`, captured with `date -u`) to `2026-10-20T10:47:49Z`, just before this ledger edit.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 PR 2 (#93), implementation subagent | 32,782,513 (32,468,561) | 313,710 | ≥ 27,962 (lower bound) | ≥ 32,810,475 | $8.62 (lower bound) |
+
+Boundary: `2026-10-20T10:00:13Z` → `2026-10-20T10:47:49Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 313,710 5-minute, 0 1-hour. Exact API-equivalent USD 8.6224702 at the recorded counts. The output count is a lower bound: 105 of the 121 messages in this window record at most 32 output tokens, the sign of streaming-time snapshots, so the true output cannot be recovered from the transcript, and the total and the API-equivalent figure are lower bounds too. Reviews run after this point are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
