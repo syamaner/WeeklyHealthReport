@@ -405,7 +405,7 @@ private let bilingual = """
     for line in ["Serving size 30g 每一份量 30公克", "每一份量 30公克 (Serving size 30g)"] {
         let candidate = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: line))
         #expect(candidate.servingSize?.decimalText == "30", "\(line)")
-        #expect(!candidate.warnings.contains { $0.hasPrefix("bilingual_quantity_conflict") })
+        #expect(!candidate.warnings.contains { $0.hasPrefix("bilingual_quantity_conflict") }, "\(line): \(candidate.warnings)")
     }
     for line in ["Servings per package: 3 本包裝含 2份", "本包裝含2份 (3 Servings Per Package)", "本包裝含2份 Servings per package 3"] {
         let candidate = parse(bilingual.replacingOccurrences(of: "本包裝含8份 (8 Servings Per Package)", with: line))
@@ -485,6 +485,52 @@ private let bilingual = """
     }
     #expect(parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量 250毫升 (250 cc)")).servingSize?.decimalText == "250")
     #expect(parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量 250毫升 (200 cc)")).servingSize?.decimalText == nil)
+}
+
+/// Focused re-review of `e51f7940`: the flattened twin of the serving-line pack comparison, a
+/// multiplied serving is not read, count words are never pack counts, and a line not read for an
+/// unparsable English number says why.
+@Test func flattenedPackCountsMultipliedServingsAndCountWords() {
+    let rows = "每份 熱量 120大卡，蛋白質 3.0公克，脂肪 4.5公克，飽和脂肪 1.5公克，反式脂肪 0公克，碳水化合物 18.0公克，糖 6.0公克，鈉 60毫克\n"
+    for serving in ["每一份量 30公克 (Serving size 30g, 3 servings per container) 本包裝含 2份 ", "每一份量 30公克 (Serving size 30g, about 3 servings per container) 本包裝含 2份 "] {
+        let candidate = parse("營養標示\n" + serving + rows)
+        #expect(!candidate.declined, "\(candidate.declineReasons)")
+        #expect(candidate.servingsPerPack == nil, "\(serving): \(String(describing: candidate.servingsPerPack))")
+        #expect(candidate.warnings.contains("bilingual_quantity_conflict: servings_per_pack"))
+    }
+    let flatAbout = parse("營養標示\n每一份量 30公克 (Serving size 30g, about 2 servings per container) 本包裝含 2份 " + rows)
+    #expect(flatAbout.servingsPerPack?.decimalText == "2")
+    #expect(flatAbout.servingsPerPack?.approximate == true)
+    let plainFlat = parse("營養標示\n每一份量 30公克 本包裝含 2份 " + rows)
+    #expect(plainFlat.servingsPerPack?.decimalText == "2")
+    #expect(plainFlat.servingsPerPack?.approximate == false)
+    // A multiplied serving is a product the reader does not compute.
+    let table = "每份\n熱量 120大卡\n蛋白質 3.0公克\n脂肪 4.5公克\n飽和脂肪 1.5公克\n反式脂肪 0公克\n碳水化合物 18.0公克\n糖 6.0公克\n鈉 60毫克\n"
+    for line in ["每一份量 2x15公克", "每一份量 2 x 15公克", "每一份量 15公克×2", "每一份量 2＊15公克"] {
+        let candidate = parse("營養標示\n" + line + "\n" + table)
+        #expect(!candidate.declined)
+        #expect(candidate.servingSize?.decimalText == nil, "\(line): \(String(describing: candidate.servingSize))")
+    }
+    for line in ["Serving size 2x15g", "Serving size 2 x 15g"] {
+        #expect(parse(line + "\nPer serving\nEnergy 120kcal\nFat 3g\n").servingSize?.decimalText == nil, "\(line)")
+    }
+    #expect(parse("Serving size 30g (approx 2 pieces)\nPer serving\nEnergy 120kcal\nFat 3g\n").servingSize?.decimalText == "30", "approx is not a multiplier")
+    // Count words are never pack counts.
+    for (line, pack) in [("每一份量30公克 (Serving size 30g, 1 bar) 本包裝含2份", "2"), ("每一份量30公克 (1 piece) 本包裝含2份", "2"),
+                         ("每一份量30公克 (2 pieces) 本包裝含3份", "3"), ("每一份量30公克 (Serving size 30g, 2片) 本包裝含3份", "3")] {
+        let candidate = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克\n本包裝含8份 (8 Servings Per Package)", with: line))
+        #expect(candidate.servingsPerPack?.decimalText == pack, "\(line): \(String(describing: candidate.servingsPerPack))")
+    }
+    // A line not read for an unparsable or cut English number carries the warning.
+    let cutPack = parse(bilingual.replacingOccurrences(of: "本包裝含8份 (8 Servings Per Package)", with: "本包裝含 2份 (2．5 Servings Per Package)"))
+    #expect(cutPack.servingsPerPack == nil)
+    #expect(cutPack.warnings.contains("bilingual_quantity_conflict: servings_per_pack"))
+    let cutServing = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量 30公克 (Serving size 30，5g)"))
+    #expect(cutServing.servingSize?.decimalText == nil)
+    #expect(cutServing.warnings.contains("bilingual_quantity_conflict: serving_size"))
+    // Han numerals are words, not digits; full-width digits are digits.
+    #expect(!ParseStateV3.hasNonASCIIDigits("每一份量"))
+    #expect(ParseStateV3.hasNonASCIIDigits("３０"))
 }
 
 /// PR 3 re-review (block): a basis bracket on a row repeats the printed header only when it adds
