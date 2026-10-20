@@ -593,7 +593,7 @@ public protocol LabelTextReading: Sendable {
 - **By type** it holds only `per_serving`, `per_100g` and `per_100ml`; `reference_intake` cannot be asserted.
 - **One requirement, no dropping default.** The protocol has the single requirement above; every conformer (the adapter and every test fake) implements it. A convenience `read(_:textSHA256:)` may exist only as an extension that passes `assertedBases: nil` explicitly; there is no default implementation that accepts `AssertedBases` and ignores it. A test fake that records the bases it received proves the application passes them.
 - **The adapter maps** `AssertedBases` to the parser's own basis type and the parser applies it. The parser **declines** `asserted_bases_mismatch` (a new candidate decline code, copied as `unreadable_table`, and listed in the code-to-copy table so v1 test 27 enumerates it) when any amount header was printed, when `UnheadedTable`'s conditions (8.4.1) do not hold, or when the number of asserted bases differs from the amount column count. The application never asserts bases on such a text, so this decline can only show a programming error, never a user's choice.
-- **What an asserted read returns.** The candidate the parser builds with the asserted headers in place of the missing ones: the amount headers are `header_1` (and `header_2`) with the asserted basis, **empty printed text** and no serving conversion (encoded as `null`, as for any absent header conversion); a printed `%` header keeps its printed text and takes the next ID. Cells of an asserted per-serving column carry `serving_conversion` `unknown`, as for a printed per-serving header with no conversion; the verifier checks both. Its warnings are the parse's full warnings with `basis_hint: energy_line: <bracket>` **last** when the parser carried a hint (decision 24). Its serving size and pack count equal `UnheadedTable`'s.
+- **What an asserted read returns.** The candidate the parser builds with the asserted headers in place of the missing ones: the amount headers are `header_1` (and `header_2`) with the asserted basis, **empty printed text** and no serving conversion (encoded as `null`, as for any absent header conversion); a printed `%` header keeps its printed text and takes the next ID. Cells of an asserted per-serving column carry the serving conversion the parser writes for a printed per-serving header with no conversion of its own: the serving size's `decimal_text` and printed unit (`30公克`), or `unknown` when no serving size was read; the verifier recomputes it and checks both (as built: the gate's "always `unknown`" would have made an asserted column differ from a printed one). Its warnings are the parse's full warnings with `basis_hint: energy_line: <bracket>` **last** when the parser carried a hint (decision 24). Its serving size and pack count equal `UnheadedTable`'s.
 - **Pinned test (medium 1).** On each fixture, asserted reads under different options differ only in the headers' basis, the cells' `header_id` and `basis`, and the cells' `serving_conversion`; and the declined candidate's warnings stay `[basis_hint: …]` alone (or empty).
 
 #### 8.4.3 The options function and the `offered` encoding
@@ -809,11 +809,24 @@ Added by the gate re-check (20 October 2026):
 19. Decision 24: "differs" by arrangement; the position of `basis_hint:energy_line` in `warnings_shown`, not repeated in the warnings list; the verifier rejects it without exactly one hint warning; saved surfaces show it only from `warnings_shown`.
 20. `at`: integer milliseconds, truncated from a sub-millisecond clock in a golden; a non-integer is rejected; a value later than `capturedAt` is rejected.
 21. `servingUnit` is the one mapping; options from `UnheadedTable` equal options from each asserted candidate on every 8.4.13 fixture, approximate and range serving sizes included.
-22. Asserted headers encode a `null` serving conversion and per-serving cells `unknown`; the verifier rejects anything else; the v2 `schema_version` is pinned.
+22. Asserted headers encode a `null` serving conversion and per-serving cells the conversion of 8.4.2; the verifier rejects anything else; the v2 `schema_version` is pinned.
 23. Checks v2 order: v1's checks, then per basis in column order `macronutrients` then `energy`.
 24. Change lifecycle: dismiss and Cancel stay on Confirm with the choice; "I'm not sure" from Change drops Confirm and clears the choice; G5 copy names the chosen basis.
 
 Every reader v3 test, the 314 non-regression cases and the mutation tallies stay unchanged. The dev set (7.3) is re-run outside the repository and reported as counts only.
+
+#### 8.4.16 PR 4 as built
+
+Recorded the same way as 8.1 to 8.3. Each point follows from 8.4.1 to 8.4.15 or narrows them on the conservative side.
+
+- **How the parser finds the column count.** `unheadedShape` reads the text with placeholder bases for one and for two columns. The count is the one that reads; when neither reads, the one that declines only `too_little_read` (so the application can decline it, 8.4.7); otherwise there is no shape. A one-column stacked table read as two columns stops at its first row, so it never fits two.
+- **The asserted read** replaces the missing amount headers inside the parser before binding, in every layout; the flattened reader takes the asserted bases before any printed reference basis. An amount after a percentage on any row declines `asserted_bases_mismatch` (8.4.1 rule 4). The application asserts only after a shape exists, so the code never reaches a user.
+- **The hint's printed text** is the bracket as printed, brackets included (`(每100毫升)`), as PR 3 stores it; the copy shows it without its brackets ("The label’s energy line says 每100毫升.").
+- **An unheaded English table** has a shape, but every option declines `layout_not_supported` under the launch scope, so there is no sheet.
+- **Change** keeps Confirm's model: the new option's review replaces the old one and the corrections are cleared (after the question), so Confirm's amount and time stay. A choice is stamped by the confirmation builder's clock.
+- **Developer tools** show "Basis: <basis line>" with the hint note when shown, through the one formatter; the re-parse page stays with #273 (decision 25).
+- **The 8.4.14 lows as built:** the flattened line scans the serving and pack segments together on the stripped text, so a second count or a 約 in the serving bracket (`每一份量 30公克 (約3份) 本包裝含 2份`) reaches the pack count; a serving number in full-width digits is never bound, bilingual or not.
+- **Dev set (7.3), 21 October 2026, counts only:** 24 labels, 22 reach Confirm (4 of them after a basis choice, choosing the arrangement the label implies), 2 declined (`multiple_complete_panels` 1, `multiple_panels` 1); 275 values matched, 0 wrong; 10 rows printed but not read. The owner's value check of the development set is still outstanding (1.3).
 
 ## 9. Owner decisions
 
