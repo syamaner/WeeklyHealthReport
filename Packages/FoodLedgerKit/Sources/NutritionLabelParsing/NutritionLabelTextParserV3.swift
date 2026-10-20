@@ -108,10 +108,13 @@ enum PatternsV3 {
     /// A number with a count word (pieces, not servings): never a pack count (PR 3 re-review).
     static let countQuantity = LabelPattern(
         #"(?<![\d.,，．\p{No}])\d+(?:[.．]\d+)?\s*(?:片|塊|顆|粒|包|條|枚|個|支|盒|袋|罐|瓶|杯|匙|(?i:bars?|pieces?|pcs|biscuits?|slices?|cookies?|crackers?|sticks?|tablets?|candies|candy|wafers?|rolls?|cakes?|sachets?|bags?)(?![A-Za-z]))"#)
+    /// A servings-per phrase ending a text: the number after it is a pack count.
+    static let packCountLead = LabelPattern(
+        #"(?i)(?:servings?\s+per\s+(?:container|package|pack)|portions?\s+per\s+(?:container|package|pack)|每包裝|本包裝包?含?)\s*[:：]?\s*(?:約\s*|about\s+|approx\.?\s*)?$"#)
     /// A multiplier straight before or after a serving quantity (`2x15g`, `15g × 2`): the serving
     /// size is then a product the reader does not compute, so it is not read.
     static let multipliedQuantity = LabelPattern(
-        #"\d\s*[xX×*＊]\s*\d|(?<![A-Za-z])[xX×*＊]\s*\d+(?:\.\d+)?\s*(?:g|ml|mL|公克|毫升|克)(?![A-Za-z])|\d+(?:\.\d+)?\s*(?:g|ml|mL|公克|毫升|克)\s*[xX×*＊](?![A-Za-z])"#)
+        #"\d\s*[xX×*＊]\s*\d|(?<![A-Za-z])[xX×*＊]\s*\d+(?:\.\d+)?\s*(?:g|ml|mL|公克|毫升|克)(?![A-Za-z])|\d+(?:\.\d+)?\s*(?:g|ml|mL|公克|毫升|克)\s*[xX×*＊]\s*\d"#)
     /// Weight and volume units other than grams and millilitres (a closed list).
     static let otherMeasureUnits: Set<String> = ["oz", "ounce", "ounces", "lb", "lbs", "pound", "pounds", "kg", "kgs", "kilogram", "kilograms",
                                                  "mg", "mcg", "l", "litre", "litres", "liter", "liters", "cl", "dl", "cup", "cups", "tbsp",
@@ -433,7 +436,9 @@ struct ParseStateV3 {
                     // and the Chinese phrase decides the count: a line whose numbers disagree
                     // is not read (PR 3 review).
                     let approximate = groups[1] != nil || Self.bilingualApproximate(content)
-                    switch Self.bilingualPackCount(content) {
+                    // The same comparison as on a serving line: count words that do not follow a
+                    // servings-per phrase (`本包裝含 6份 (12 pieces)`) are not pack counts.
+                    switch Self.bilingualPackCount(Self.packRest(content)) {
                     case .some(nil):
                         servingsPerPack = LabelServingsPerPack(printedText: content, decimalText: number, approximate: approximate)
                     case let .some(.some(chinese)):
@@ -653,8 +658,11 @@ struct ParseStateV3 {
         where PatternsV3.servingUnitWords[(match.groups[2] ?? "").lowercased()] != nil {
             rest.replaceSubrange(match.range, with: " ")
         }
-        // A count word is not a pack count (`1 bar`, `2 pieces`, `2片`); servings and 份 stay.
-        for match in PatternsV3.countQuantity.matchDetails(in: rest).reversed() {
+        // A count word is not a pack count (`1 bar`, `2 pieces`, `2片`); servings and 份 stay. A
+        // number straight after a servings-per phrase is a pack count whatever word follows it
+        // (`Servings per container: 3 bars`), so it is never removed.
+        for match in PatternsV3.countQuantity.matchDetails(in: rest).reversed()
+        where !PatternsV3.packCountLead.contains(String(rest[..<match.range.lowerBound])) {
             rest.replaceSubrange(match.range, with: " ")
         }
         return rest
@@ -1289,7 +1297,10 @@ struct ParseStateV3 {
         // (`25 grams`, `1 oz`) is one too (PR 3 re-review).
         var quantities: Set<String> = []
         for match in PatternsV3.anyQuantity.matchDetails(in: cut) {
-            guard let number = match.groups[1], let unit = match.groups[2], let decimal = asciiDecimal(number) else { return true }
+            // A number in non-ASCII digits is never bound as a serving size, so a line holding one
+            // is not read even when it would fold to the same value (PR 3 re-review).
+            guard let number = match.groups[1], let unit = match.groups[2], !hasNonASCIIDigits(number), let decimal = asciiDecimal(number)
+            else { return true }
             let key = unit.lowercased()
             if let canonical = PatternsV3.servingUnitWords[key] {
                 quantities.insert("\(decimal)|\(canonical)")

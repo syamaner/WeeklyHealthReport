@@ -528,6 +528,32 @@ private let bilingual = """
     let cutServing = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量 30公克 (Serving size 30，5g)"))
     #expect(cutServing.servingSize?.decimalText == nil)
     #expect(cutServing.warnings.contains("bilingual_quantity_conflict: serving_size"))
+    // Focused re-review of `4ba790d5`: a number after a servings-per phrase is a pack count
+    // whatever word follows it; a count word anywhere else is not.
+    let lines = "每一份量 Serving Size 30公克\n本包裝含8份 (8 Servings Per Package)"
+    for line in ["每一份量 30公克 (Servings per container: 3 bars) 本包裝含 2份", "每一份量 1包(30公克) 本包裝含 2份 (Servings per package: 3 sachets)"] {
+        let candidate = parse(bilingual.replacingOccurrences(of: lines, with: line))
+        #expect(candidate.servingsPerPack == nil, "\(line): \(String(describing: candidate.servingsPerPack))")
+        #expect(candidate.warnings.contains("bilingual_quantity_conflict: servings_per_pack"), "\(line)")
+    }
+    let flatBars = parse("營養標示\n每一份量 30公克 (Servings per container: 3 bars) 本包裝含 2份 " + rows)
+    #expect(!flatBars.declined, "\(flatBars.declineReasons)")
+    #expect(flatBars.servingsPerPack == nil)
+    let pieces = parse(bilingual.replacingOccurrences(of: "本包裝含8份 (8 Servings Per Package)", with: "本包裝含 6份 (12 pieces)"))
+    #expect(pieces.servingsPerPack?.decimalText == "6", "\(String(describing: pieces.servingsPerPack))")
+    // A footnote asterisk is not a multiplier; a multiplier needs a number after it.
+    for line in ["每一份量 30公克*"] {
+        #expect(parse("營養標示\n" + line + "\n" + table).servingSize?.decimalText == "30", "\(line)")
+    }
+    for line in ["Serving size 30g*", "Serving size 30 g * Servings per container 2"] {
+        #expect(parse(line + "\nPer serving\nEnergy 120kcal\nFat 3g\n").servingSize?.decimalText == "30", "\(line)")
+    }
+    #expect(parse("Serving size 30g*2\nPer serving\nEnergy 120kcal\nFat 3g\n").servingSize?.decimalText == nil)
+    // A Chinese serving number in full-width digits is never bound, even when the English bracket
+    // agrees after folding: not read, with the warning.
+    let wideAgree = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量 ３０公克 (Serving size 30g)"))
+    #expect(wideAgree.servingSize?.decimalText == nil)
+    #expect(wideAgree.warnings.contains("bilingual_quantity_conflict: serving_size"))
     // Han numerals are words, not digits; full-width digits are digits.
     #expect(!ParseStateV3.hasNonASCIIDigits("每一份量"))
     #expect(ParseStateV3.hasNonASCIIDigits("３０"))
