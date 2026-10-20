@@ -63,6 +63,7 @@ public enum PastedLabelText {
         case .valuesNotBound: "The app could not match the values in this text to their rows and columns. Check that it is one table with each value on its row, then try again."
         case .textTooLong: "This text is too long to be one nutrition table. Paste the table only."
         case .unreadableTable: "The app could not read this table. Check that it is one nutrition table, then try again."
+        case .tooLittleRead: "Only a few values could be read from this text. Try copying the table again, or use Search or Barcode."
         case .rowNotRead, .cellNotRead, .noPer100Column, .servingLineNotRead:
             // A flag is never a decline; reaching here means the classification drifted.
             declineMessage(.unreadableTable)
@@ -86,6 +87,23 @@ public enum PastedLabelText {
     public static let sectionTitle = "From pasted label"
     public static let readButNotUsedTitle = "Read but not used"
     public static let notUsed = "Not used"
+    /// Rows the reader saw but could not bind (reader v3 sections 2 and 3.8): nothing printed
+    /// vanishes. An unread mandatory row also keeps its own "Not read" flag above.
+    public static let printedButNotReadTitle = "Printed but not read"
+    public static let printedButNotReadNote = "These rows are in your text but were not read. Where one of them is a value the app stores, its row above says Not read, and you can add it."
+
+    /// Why a printed row was not read, in plain words; codes stay in Developer tools.
+    public static func unreadReason(_ reason: String) -> String {
+        switch reason {
+        case "stacked_sequence": "Not read: from this row on, the lines are not in the order of a table."
+        case "malformed_value": "Not read: the value is printed in a form the app cannot use, such as \"more than\"."
+        case "unexplained_bound": "Not read: a word such as \"more than\" or \"at least\" is printed near this row."
+        case "unit_off_template": "Not read: printed in a unit this label layout does not use for this row."
+        case "duplicate_row": "Not read: this row is printed more than once."
+        case "value_before_label": "Not read: a value is printed before this label instead of after it."
+        default: "Not read."
+        }
+    }
     public static let pastedTextTitle = "Pasted text"
     public static let editLabelText = "Edit label text"
     public static let reportMisread = "Report a misread"

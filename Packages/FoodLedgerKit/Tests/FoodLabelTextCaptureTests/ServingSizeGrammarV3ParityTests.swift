@@ -56,8 +56,8 @@ final class ServingSizeGrammarV3ParityTests: XCTestCase {
     /// A joined serving line: the policy reads the candidate's stored printed text (label line,
     /// one ASCII space, quantity line) and never re-joins from the pasted text.
     func testAJoinedServingLineIsReadFromItsStoredPrintedText() throws {
-        for (text, printed) in [("營養標示\n每一份量\n30公克\n本包裝含8份\n每份\n熱量 120大卡\n", "每一份量 30公克"),
-                                ("營養標示\n每1份量：\n  250毫升 \n本包裝含4份\n每100毫升\n熱量 40大卡\n", "每1份量： 250毫升")] {
+        for (text, printed) in [("營養標示\n每一份量\n30公克\n本包裝含8份\n每份\n熱量 120大卡\n蛋白質 3公克\n脂肪 4公克\n碳水化合物 18公克\n鈉 60毫克\n", "每一份量 30公克"),
+                                ("營養標示\n每1份量：\n  250毫升 \n本包裝含4份\n每100毫升\n熱量 40大卡\n蛋白質 3公克\n脂肪 4公克\n碳水化合物 18公克\n鈉 60毫克\n", "每1份量： 250毫升")] {
             let candidate = NutritionLabelTextParserV3().parse(text, inputSHA256: "synthetic")
             let serving = try XCTUnwrap(candidate.servingSize, text)
             XCTAssertEqual(serving.printedText, printed)

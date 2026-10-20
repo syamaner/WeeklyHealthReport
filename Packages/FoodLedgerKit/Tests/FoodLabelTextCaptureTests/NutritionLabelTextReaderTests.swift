@@ -137,7 +137,8 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         let literal = try NSRegularExpression(pattern: #""([a-z]+(?:_[a-z]+)+)""#)
         var codes: Set<String> = []
         for line in text.split(separator: "\n") where line.contains("decline(") || line.contains("declineReasons.append")
-            || line.contains("reasons: [") || line.contains("Decline = [") || line.contains("ambiguousCode = ") {
+            || line.contains("reasons: [") || line.contains("Decline = [") || line.contains("ambiguousCode = ")
+            || line.contains("tooLittleReadCode = ") {
             let line = String(line)
             for match in literal.matches(in: line, range: NSRange(line.startIndex..., in: line)) {
                 codes.insert(String(line[Range(match.range(at: 1), in: line)!]))
@@ -150,7 +151,7 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         let parser = try Self.parserDeclineCodes()
         XCTAssertEqual(parser, ["unsupported_language", "multiple_panels", "values_without_row", "no_table", "no_basis_header",
                                 "duplicate_basis", "energy_without_unit", "value_without_unit", "unrecognised_unit", "count_mismatch",
-                                "layout_ambiguous"],
+                                "layout_ambiguous", "too_little_read"],
                        "A new parser code needs its own mapping and copy")
         let gate = Set(LabelGateReason.allCases.map(\.rawValue))
         var skipped: Set<String> = []
@@ -169,7 +170,7 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         let sectionThreeOne: Set<String> = ["not_a_food_nutrition_panel", "unsupported_language", "unsupported_script", "no_table",
             "layout_not_supported", "format_ambiguous", "basis_state_not_supported", "multiple_panels", "no_basis_header", "duplicate_basis",
             "count_mismatch", "values_without_row", "energy_without_unit", "value_without_unit", "unrecognised_unit", "text_too_long", "unreadable_table",
-            "layout_ambiguous"]
+            "layout_ambiguous", "too_little_read"]
         for code in emitted {
             let classification = PastedLabelCodes.classify(code)
             XCTAssertEqual(classification.kind == .flag, flags.contains(code), code)
@@ -178,6 +179,8 @@ final class NutritionLabelTextReaderTests: XCTestCase {
             XCTAssertEqual(classification.copy == .unreadableTable, ["unreadable_table", "layout_ambiguous"].contains(code), "\(code) has its own copy")
         }
         XCTAssertEqual(PastedLabelCodes.classify("gate:required_row_missing").copy, .unreadableTable, "Unmapped codes fall back")
+        // Reader v3 section 3.7: `too_little_read` has its own copy (decision 3).
+        XCTAssertEqual(PastedLabelCodes.classify("too_little_read"), .init(kind: .hardDecline, copy: .tooLittleRead))
     }
 
     // MARK: 28. Identity mapping

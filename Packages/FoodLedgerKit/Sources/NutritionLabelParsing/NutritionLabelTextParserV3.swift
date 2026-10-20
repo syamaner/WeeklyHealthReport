@@ -3,7 +3,7 @@ import Foundation
 /// `nutrition-label-text-parser-v3` (`docs/pasted-nutrition-label-reader-v3.md`), the reader
 /// behind the pasted nutrition label route. It is parser v2 (`NutritionLabelTextParser`, kept
 /// unchanged as the frozen evaluation reference and the non-regression baseline of section 5.5)
-/// plus, in this first PR of section 8:
+/// plus, from PRs 1 and 2 of section 8:
 ///
 /// - the lines before the table (3.1): decorated titles, rule lines, serving-label variants
 ///   (每1份量), split serving and pack lines joined under the conditions of rule 3, pack-line
@@ -12,7 +12,9 @@ import Foundation
 /// - the Taiwan unit rule (3.9): a mandatory Taiwan row printed in a unit other than the
 ///   template's is not read;
 /// - layout precedence (3.0, `LabelLayout`) and gate input coverage on every consumed but
-///   unbound line (3.0).
+///   unbound line (3.0);
+/// - PR 2: partial reading (3.8), the stacked sequence rule and Taiwan template order (3.2),
+///   and `too_little_read` (3.7).
 ///
 /// The safety rule of v3 (section 2): it may leave a value, a row or the table unread; it never
 /// binds a value to the wrong row, column, basis or unit. Like v2 it has no network, clock,
@@ -113,6 +115,12 @@ struct RowDraftV3 {
     var malformed = false
     /// A bound mark stood on a line of its own just before this row (it qualifies both rows).
     var orphanBound = false
+    /// The number of label lines merged into this row (a wrapped label has two).
+    var labelLines = 1
+    /// The canonical units of the values on each value-only line attached to this row, in order
+    /// (the stacked sequence rule of 3.2). A `*` line standing for a mandatory row's reference
+    /// intake is recorded as one `%` value; it binds nothing.
+    var valueLines: [[String?]] = []
 }
 
 struct ParseStateV3 {
@@ -273,6 +281,11 @@ struct ParseStateV3 {
         }
         if content.hasPrefix("*") || content.hasPrefix("＊") || content.hasPrefix("†") {
             if !(content.hasPrefix("*") && Self.markedRow(content) != nil && !repeatsReadRow(content)) {
+                // A lone `*` after a stacked row's values stands for its reference intake (3.2).
+                if content == "*" || content == "＊", let last = rows.indices.last, !rows[last].labelLineHadValues,
+                   !rows[last].valueLines.isEmpty {
+                    rows[last].valueLines.append(["%"])
+                }
                 unbound.append(content)
                 return
             }
@@ -567,6 +580,11 @@ struct ParseStateV3 {
                 .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•")))
             moreThan = true
         }
+        // A number whose comma may be a thousands separator (`1,203毫克`, which a decimal comma
+        // would make 1.203), or any comma on a Taiwan row (the template prints a decimal point),
+        // is not a value the reader can bind either: the row is not read (`malformed_value`).
+        let rowLabel = cleanedLabel.isEmpty ? (rows.last?.label ?? "") : cleanedLabel
+        if details.contains(where: { Self.isAmbiguousNumber($0.groups[2] ?? "", label: rowLabel) }) { moreThan = true }
         if moreThan, cleanedLabel.isEmpty, details.isEmpty {
             // A line holding only the mark: it qualifies the row above, or the next row.
             if rows.isEmpty {
@@ -596,6 +614,7 @@ struct ParseStateV3 {
                RowClassifierV3.classify(last.label) == nil,
                RowClassifierV3.classify(cleanedLabel) == nil || RowClassifierV3.classify(last.label + " " + cleanedLabel) != nil {
                 last.label += " " + cleanedLabel
+                last.labelLines += 1
                 last.values = values
                 lineGaveValues = !values.isEmpty
                 last.labelLineHadValues = !values.isEmpty
@@ -631,6 +650,7 @@ struct ParseStateV3 {
                 last.attachedAfterValues = true
             }
             last.values += values
+            last.valueLines.append(values.map { $0.unit.flatMap(LabelVocabulary.canonicalUnit) })
             lineGaveValues = true
             last.lines.append(original)
             last.malformed = last.malformed || moreThan
@@ -654,6 +674,13 @@ struct ParseStateV3 {
             if PatternsV3.hanRun.matches(in: text).contains(where: RowClassifierV3.isRowLabel) { return true }
         }
         return false
+    }
+
+    /// A printed number with a comma followed by exactly three digits (a thousands separator or
+    /// a decimal comma, which cannot be told apart), or any comma on a Taiwan alias row.
+    static func isAmbiguousNumber(_ number: String, label: String) -> Bool {
+        guard let comma = number.firstIndex(of: ",") else { return false }
+        return number[number.index(after: comma)...].count == 3 || RowClassifierV3.classify(label)?.isTaiwanAlias == true
     }
 
     /// The label text a value-only line carries after or between its values, once bound words
@@ -761,8 +788,17 @@ struct ParseStateV3 {
                 if texts.count < group.count { bindingDecline = ["duplicate_basis"] }
             }
         }
+        // 3.2: in a stacked table, the first deviation from the regular sequence (or from the
+        // Taiwan template order) and every row after it are not read.
+        let firstDeviation = layout == .stacked
+            ? Self.firstStackedDeviation(rows, amountColumns: amountHeaders.count, referenceColumns: referenceHeaders.count) : nil
         if declineReasons.isEmpty, bindingDecline == nil, !rows.isEmpty, !amountHeaders.isEmpty {
             rowLoop: for (index, row) in rows.enumerated() {
+                if let firstDeviation, index >= firstDeviation {
+                    warnings.append("row_not_read: stacked_sequence: \(row.label)")
+                    unbound += row.lines
+                    continue
+                }
                 let classified = RowClassifierV3.classify(row.label)
                 // Known top-level rows stay top-level however they are marked, as on the alias path.
                 let topLevel = classified.map { Self.topLevelKeys.contains($0.key) } ?? false
@@ -931,7 +967,16 @@ struct ParseStateV3 {
         if rows.isEmpty { return decline(["no_table"]) }
         if amountHeaders.isEmpty { return decline(["no_basis_header"]) }
         if let bindingDecline { return decline(bindingDecline) }
-        if cells.isEmpty { return decline(["no_table"]) }
+        if cells.isEmpty {
+            // A Taiwan table whose rows were all left unread is a table read too little, not a
+            // missing table.
+            let partly = language == .traditionalChinese && warnings.contains { $0.hasPrefix("row_not_read: ") }
+            return decline([partly ? Self.tooLittleReadCode : "no_table"])
+        }
+        // 3.7: fewer than 5 of the 8 Taiwan mandatory rows read in the stored column declines.
+        if language == .traditionalChinese, Self.mandatoryRowsRead(cells: cells, headers: headers) < Self.tooLittleReadMinimum {
+            return decline([Self.tooLittleReadCode])
+        }
         return LabelCaptureCandidate(
             route: route,
             inputSHA256: inputSHA256,
@@ -945,6 +990,62 @@ struct ParseStateV3 {
             cells: cells,
             warnings: warnings
         )
+    }
+
+    /// 3.2: the index of the first row of a stacked table that deviates from the regular sequence
+    /// (a label line, then one value per line, one per column, then the next label line) or from
+    /// the Taiwan template order, or nil when every row is regular. A label followed directly by
+    /// another label, a row with more or fewer values than columns, a line holding two values,
+    /// values after the last label and a label at the end with no values are all deviations; so
+    /// is a mandatory row that comes before a mandatory row it should follow, or repeats one.
+    /// Optional rows may stand between mandatory rows. A label wrapped over two lines counts as
+    /// one label line only when the merged label is a recognised row.
+    static func firstStackedDeviation(_ rows: [RowDraftV3], amountColumns: Int, referenceColumns: Int) -> Int? {
+        var lastTemplatePosition = -1
+        for (index, row) in rows.enumerated() {
+            if row.labelLines > 1, !RowClassifierV3.isRowLabel(row.label) { return index }
+            if row.labelLineHadValues || !stackedValuesAreRegular(row, amountColumns: amountColumns, referenceColumns: referenceColumns) {
+                return index
+            }
+            if let position = TaiwanRowAliases.templatePosition(row.label) {
+                if position <= lastTemplatePosition { return index }
+                lastTemplatePosition = position
+            }
+        }
+        return nil
+    }
+
+    /// One value per line, exactly one amount per amount column (energy: one per column in kJ,
+    /// in the other energy units, or in both, as parser v2 groups energy by unit), and either no reference-intake
+    /// value or one per reference column (a `*` line counts as one). Values are bound by unit, so
+    /// a `%` value can never be taken for an amount.
+    static func stackedValuesAreRegular(_ row: RowDraftV3, amountColumns: Int, referenceColumns: Int) -> Bool {
+        guard !row.valueLines.isEmpty, row.valueLines.allSatisfy({ $0.count == 1 }) else { return false }
+        let units = row.valueLines.map { $0[0] }
+        let percent = units.filter { $0 == "%" }.count
+        guard percent == 0 || percent == referenceColumns else { return false }
+        let amounts = units.filter { $0 != "%" }
+        if RowClassifierV3.classify(row.label)?.row == .energy {
+            // As parser v2 groups energy: kJ, and every other energy value (kcal, Cal) together.
+            let kilojoules = amounts.filter { $0 == "kJ" }.count
+            let kilocalories = amounts.count - kilojoules
+            return !amounts.isEmpty && [kilojoules, kilocalories].allSatisfy { $0 == 0 || $0 == amountColumns }
+        }
+        return amounts.count == amountColumns
+    }
+
+    /// 3.7 (decision 3): the decline when fewer than 5 of the 8 Taiwan mandatory rows are read.
+    static let tooLittleReadCode = "too_little_read"
+    static let tooLittleReadMinimum = 5
+
+    /// The Taiwan mandatory rows with a printed cell in the column that would be stored (v1
+    /// section 6.3: per 100 g or ml when printed, else per serving). A calculated value is never
+    /// a cell, so it does not count; energy counts in kcal or kJ.
+    static func mandatoryRowsRead(cells: [LabelCell], headers: [LabelHeader]) -> Int {
+        guard let stored = headers.first(where: { $0.basis == .per100g || $0.basis == .per100ml })?.headerID
+                ?? headers.first(where: { $0.basis == .perServing })?.headerID else { return 0 }
+        let read = Set(cells.filter { $0.headerID == stored }.map { $0.nutrient == "energy_kj" ? "energy_kcal" : $0.nutrient })
+        return TaiwanRowAliases.templateKeys.filter(read.contains).count
     }
 
     /// The nutrients a row names for the duplicate-row rule: its label, or when the whole label is

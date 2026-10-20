@@ -8,8 +8,10 @@ import Foundation
 ///
 /// Parser v3 accumulates across the PRs of section 8 until it is frozen (section 5.1). PR 1 lists
 /// inline and stacked; the flattened-line layout (3.4) is appended by the PR that builds its
-/// reader. Until PR 2 adds the stacked sequence rule (3.2), a stacked body is bound exactly as
-/// parser v2 binds a row label standing alone with its values on the following lines.
+/// reader. A stacked body is read under the sequence rule and template order of 3.2 (PR 2,
+/// `ParseStateV3.firstStackedDeviation`): rows before the first deviation are bound as parser v2
+/// binds a row label standing alone with its values on the following lines; that row and every
+/// row after it are not read.
 enum LabelLayout: String, CaseIterable, Sendable {
     case inline
     case stacked
