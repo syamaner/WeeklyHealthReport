@@ -124,12 +124,50 @@ final class FreshSetScorerTests: XCTestCase {
     }
 
     func testTheUnitTableIsFixed() {
-        XCTAssertEqual(FreshSet.units["大卡"], "kcal")
-        XCTAssertEqual(FreshSet.units["公克"], "g")
-        XCTAssertEqual(FreshSet.units["毫克"], "mg")
-        XCTAssertEqual(FreshSet.units["毫升"], "ml")
-        XCTAssertEqual(FreshSet.units["kJ"], "kJ")
-        XCTAssertEqual(FreshSet.units.count, 22)
+        XCTAssertEqual(FreshSet.unit("大卡"), "kcal")
+        XCTAssertEqual(FreshSet.unit("公克"), "g")
+        XCTAssertEqual(FreshSet.unit("毫克"), "mg")
+        XCTAssertEqual(FreshSet.unit("毫升"), "ml")
+        XCTAssertEqual(FreshSet.unit("kJ"), "kJ")
+        XCTAssertEqual(FreshSet.units.count, 20)
+        // Case-insensitive, and the listed equivalences.
+        for (printed, canonical) in [("kCal", "kcal"), ("KCAL", "kcal"), ("Kj", "kJ"), ("G", "g"), ("MG", "mg"), ("Ml", "ml"),
+                                     ("mL", "ml"), ("cc", "ml"), ("gr", "g"), ("gm", "g"), ("mcg", "µg"), ("微克", "µg")] {
+            XCTAssertEqual(FreshSet.unit(printed), canonical, printed)
+        }
+        XCTAssertNil(FreshSet.unit("ｇ"), "full-width forms stay outside the table")
+        XCTAssertNil(FreshSet.unit("公撮"))
+        for (printed, canonical) in [("=", "="), ("<", "<"), ("＜", "<"), ("未滿", "<"), ("少於", "<"),
+                                     ("<=", "<="), ("≦", "<="), ("≤", "<="), ("以下", "<=")] {
+            XCTAssertEqual(FreshSet.comparator(printed), canonical, printed)
+        }
+        XCTAssertNil(FreshSet.comparator(">"))
+    }
+
+    func testEquivalentPrintedFormsMatchTheReader() {
+        let t = Self.baseTranscription {
+            $0[0] = .init(label: "熱量", nutrient: "energy_kcal", values: [Self.v("167.7", "kCal"), Self.v("419.2", "KCAL")])
+            $0[4] = .init(label: "反式脂肪", nutrient: "trans_fat", values: [Self.v("0.1", "G", "未滿"), Self.v("0.1", "gm", "＜")])
+            $0[6] = .init(label: "糖", nutrient: "sugars", values: [Self.v("0.5", "公克", "少於"), Self.v("0.5", "g", "<")])
+        }
+        XCTAssertEqual(FreshSet.problems(t, expectedID: "S01"), [], "mapped forms need no outside_table")
+        XCTAssertEqual(FreshSet.score(run(SyntheticLabelTexts.base, t), t).wrong, [])
+        let atMost = Self.baseTranscription { $0[4] = .init(label: "反式脂肪", nutrient: "trans_fat", values: [Self.v("0.1", "公克", "以下"), Self.v("0.1", "公克", "<")]) }
+        XCTAssertEqual(FreshSet.score(run(SyntheticLabelTexts.base, atMost), atMost).wrong.count, 1, "以下 is <=, not <")
+    }
+
+    func testLabelNormalisation() {
+        XCTAssertEqual(FreshSet.normalisedLabel("  ＊膳食纖維（公克）："), FreshSet.normalisedLabel("膳食纖維"))
+        XCTAssertEqual(FreshSet.normalisedLabel(">> 維生素C (mg):"), "維生素c")
+        XCTAssertEqual(FreshSet.normalisedLabel("• 鈣(毫克) (自願標示者)"), "鈣")
+        XCTAssertEqual(FreshSet.normalisedLabel("Ｃａｌｃｉｕｍ"), "calcium")
+        XCTAssertNotEqual(FreshSet.normalisedLabel("鈣(每日)"), "鈣", "a bracket that is not a unit stays")
+    }
+
+    func testADecimalCommaIsADecimalPointOnlyOffTaiwanRows() {
+        XCTAssertEqual(FreshSet.readerDecimal("1,5", language: "en"), Decimal(string: "1.5"))
+        XCTAssertNil(FreshSet.readerDecimal("1,5", language: "zh-Hant"))
+        XCTAssertEqual(FreshSet.readerDecimal("1.5", language: "zh-Hant"), Decimal(string: "1.5"))
     }
 
     func testSealsAreOrderedAndAChangeAfterSeal2VoidsTheRun() throws {
@@ -225,9 +263,18 @@ final class FreshSetScorerTests: XCTestCase {
         XCTAssertEqual(FreshSet.score(salted, transcription(sodium: [nil, nil])).wrong, [], "operand 0.63 g of salt against 0.63 公克")
         XCTAssertEqual(FreshSet.score(salted, transcription(sodium: [nil, Self.v("252", "毫克")])).wrong, [],
                        "the calculated sodium agrees with the printed one within rounding")
-        XCTAssertEqual(FreshSet.score(salted, transcription(sodium: [nil, Self.v("300", "毫克")])).wrong.count, 1,
-                       "a calculated value beside a different printed value is wrong")
+        // Non-gating: a printed sodium the reader left unread, beside the calculated one, is a
+        // reported discrepancy and an entry in the burden, never a wrong value.
+        let differs = FreshSet.score(salted, transcription(sodium: [nil, Self.v("300", "毫克")]))
+        XCTAssertEqual(differs.wrong, [])
+        XCTAssertEqual(differs.calculatedDiscrepancies, ["sodium: calculated 252.0, printed =300 毫克, difference -48"])
+        XCTAssertEqual(differs.correctionBurden, 1)
         XCTAssertEqual(FreshSet.score(salted, transcription(sodium: [nil, nil])).correctionBurden, 0)
+        XCTAssertEqual(FreshSet.score(salted, transcription(sodium: [nil, nil])).calculatedDiscrepancies, [])
+        // A printed target recorded outside the tables is never compared.
+        let outside = FreshSet.score(salted, transcription(sodium: [nil, T.Value(comparator: "=", number: "２５２", unit: "毫克", outsideTable: true)]))
+        XCTAssertEqual(outside.wrong, [])
+        XCTAssertEqual(outside.calculatedDiscrepancies, [])
     }
 
     /// The reader calculates kcal from kJ when the kcal row is printed but left unread (the
@@ -239,11 +286,16 @@ final class FreshSetScorerTests: XCTestCase {
         let result = run(SyntheticLabelTexts.kilojoulesOnly, kjAndKcal)
         XCTAssertFalse(result.conversions.isEmpty)
         XCTAssertEqual(FreshSet.score(result, kjAndKcal).wrong, [], "419.2 calculated, 419.2 printed")
+        XCTAssertEqual(FreshSet.score(result, kjAndKcal).calculatedDiscrepancies, ["energy_kcal: calculated 419.2, printed =419.2 大卡, difference 0"])
         let differs = Self.baseTranscription {
             $0[0] = .init(label: "熱量", nutrient: "energy_kcal", values: [Self.v("167.7", "大卡"), Self.v("430", "大卡")])
             $0.insert(.init(label: "熱量", nutrient: "energy_kj", values: [Self.v("701.7", "kJ"), Self.v("1754", "kJ")]), at: 0)
         }
-        XCTAssertEqual(FreshSet.score(result, differs).wrong.count, 1)
+        let scored = FreshSet.score(result, differs)
+        XCTAssertEqual(scored.wrong, [], "labels using other factors never fail the check")
+        XCTAssertEqual(scored.calculatedDiscrepancies.count, 1)
+        XCTAssertEqual(scored.correctionBurden, 1, "the printed kcal left unread is an entry")
+        XCTAssertEqual(FreshSet.summary([scored]).calculatedVsPrintedDiscrepancies, 1)
     }
 
     func testAnUnrecognisedCellMatchesAnyRowByNormalisedLabel() throws {
@@ -308,6 +360,23 @@ final class FreshSetScorerTests: XCTestCase {
                       columns: base.columns + [.init(heading: "每100公克（沖泡後）", basis: "per_100g")],
                       rows: base.rows.map { .init(label: $0.label, nutrient: $0.nutrient, values: $0.values + [$0.values[1]]) }, notes: [])
         XCTAssertEqual(FreshSet.score(result, three).wrong.count, 9, "every per 100 g value is ambiguous, never firstIndex")
+        // Two per 100 g columns read in full, with a printed reference-intake column on the label
+        // only: positions are compared over amount columns, so the % column does not break the match.
+        let twoPer100 = T(schema: base.schema, labelID: "S01", servingSize: base.servingSize, servingsPerPack: base.servingsPerPack,
+                          columns: [.init(heading: "每100公克", basis: "per_100g"), .init(heading: "每100公克（沖泡後）", basis: "per_100g"),
+                                    .init(heading: "每日參考值百分比", basis: "reference_intake")],
+                          rows: base.rows.map { .init(label: $0.label, nutrient: $0.nutrient, values: [$0.values[0], $0.values[1], nil]) }, notes: [])
+        let asPer100 = try! mutate(result) { object in
+            var candidate = object["candidate"] as! [String: Any]
+            candidate["headers"] = (candidate["headers"] as! [[String: Any]]).map { header in
+                var header = header; header["basis"] = "per_100g"; return header
+            }
+            candidate["cells"] = (candidate["cells"] as! [[String: Any]]).map { cell in
+                var cell = cell; cell["basis"] = "per_100g"; return cell
+            }
+            object["candidate"] = candidate
+        }
+        XCTAssertEqual(FreshSet.score(asPer100, twoPer100).wrong, [])
     }
 
     func testTheSummaryStatesTheStatisticalLimit() {

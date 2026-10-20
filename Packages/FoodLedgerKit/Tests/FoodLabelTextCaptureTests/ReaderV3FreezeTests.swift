@@ -142,7 +142,7 @@ final class ReaderV3FreezeTests: XCTestCase {
         "Sources/FoodLedgerApplication/PastedLabelSource.swift": "fdb22210774a02783817b2fc76d8b4238929d4863da113a248e1a3e65a36afd4",
         "Sources/FoodLedgerApplication/PastedLabelConfirmation.swift": "4f62b0b53b8a3f2e3856375e9eab2828239838b0a178317dd25f00c820d8a677",
         "Sources/FoodLabelTextCapture/NutritionLabelTextReader.swift": "d442eef620f913c51434777f5a7db54f4caaf9e7c3a52f9c705a1c22aea471b6",
-        "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetProtocol.swift": "1de3e65c2d39f98f4174b217fb693a5ed0de499a35e0b0b6bc414cbb13558471",
+        "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetProtocol.swift": "3b92df097097170915003f430eab55cb66e031c35e0c33164701c73e23d696d5",
         "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetStepTests.swift": "42a5bf8d4c1bd2f96a3629f8a04c976ef7626027098b2f6ffef079dd2eaf4864",
         "Sources/FoodLedgerApplication/PastedLabelBasisChoice.swift": "4b36617823f0ab5236dc13587e1a0c62f73a77b4f826c891f844b85fccefc13f",
         "Sources/FoodLedgerApplication/PastedLabelManifestV2.swift": "dd2e1a7e6288efac802d7545716d781a15cec89c9b55d662591cd3448b95bdf5",

@@ -135,23 +135,42 @@ enum FreshSet {
     static let nutrients: Set<String> = ["energy_kcal", "energy_kj", "protein", "fat", "saturates", "trans_fat", "carbohydrate",
                                          "sugars", "added_sugars", "fibre", "sodium", "salt", "other"]
     static let bases: Set<String> = ["per_serving", "per_100g", "per_100ml", "reference_intake"]
-    static let comparators: Set<String> = ["=", "<", "<="]
+    /// The scorer's closed comparator equivalences (12.2.8): the printed comparator, as the
+    /// transcriber recorded it, to `=`, `<` or `<=`. Anything else has no mapping.
+    static let comparatorTable: [String: String] = [
+        "=": "=",
+        "<": "<", "＜": "<", "未滿": "<", "少於": "<",
+        "<=": "<=", "≦": "<=", "≤": "<=", "以下": "<=",
+    ]
+    static func comparator(_ printed: String) -> String? { comparatorTable[printed] }
 
-    /// The scorer's own unit table (12.2.8), fixed before collection. The printed unit, compared
-    /// exactly; a unit outside it is recorded verbatim with `outside_table` (12.2.5).
+    /// The scorer's closed unit equivalences (12.2.8), fixed before collection. Keys are lowercase
+    /// and a printed unit is looked up exactly or, failing that, lowercased (so kCal, Kj, G, MG,
+    /// Ml all map). A unit with no mapping is recorded verbatim with `outside_table` (12.2.5).
     static let units: [String: String] = [
-        "大卡": "kcal", "千卡": "kcal", "kcal": "kcal", "Kcal": "kcal", "KCAL": "kcal",
-        "kJ": "kJ", "KJ": "kJ", "kj": "kJ", "千焦": "kJ",
-        "公克": "g", "克": "g", "g": "g",
+        "大卡": "kcal", "千卡": "kcal", "kcal": "kcal",
+        "kj": "kJ", "千焦": "kJ",
+        "公克": "g", "克": "g", "g": "g", "gr": "g", "gm": "g",
         "毫克": "mg", "mg": "mg",
         "微克": "µg", "µg": "µg", "μg": "µg", "mcg": "µg",
-        "毫升": "ml", "ml": "ml", "mL": "ml",
+        "毫升": "ml", "ml": "ml", "cc": "ml",
         "%": "%",
     ]
+    static func unit(_ printed: String) -> String? { units[printed] ?? units[printed.lowercased()] }
 
     static func decimal(_ text: String) -> Decimal? {
         guard text.range(of: #"^[0-9]+(\.[0-9]+)?$"#, options: .regularExpression) != nil else { return nil }
         return Decimal(string: text, locale: Locale(identifier: "en_US_POSIX"))
+    }
+
+    /// A number the reader recorded (12.2.8, question d): a decimal comma (`1,5`) is read as a
+    /// decimal point only on a non-Taiwan candidate, where the reader's own rule treats it so;
+    /// on a Taiwan (`zh-Hant`) candidate it is unparsable, so a bound value carrying it is wrong.
+    static func readerDecimal(_ text: String, language: String) -> Decimal? {
+        if language != "zh-Hant", text.range(of: #"^[0-9]+,[0-9]+$"#, options: .regularExpression) != nil {
+            return decimal(text.replacingOccurrences(of: ",", with: "."))
+        }
+        return decimal(text)
     }
 
     static func transcription(_ data: Data) throws -> Transcription {
@@ -164,7 +183,7 @@ enum FreshSet {
         if t.schema != transcriptionSchema { out.append("schema") }
         if t.labelID != expectedID { out.append("label_id") }
         // Anything outside the closed lists is allowed, recorded verbatim, when it carries `outside_table`.
-        if let s = t.servingSize, s.outsideTable != true, decimal(s.number) == nil || units[s.unit] == nil {
+        if let s = t.servingSize, s.outsideTable != true, decimal(s.number) == nil || unit(s.unit) == nil {
             out.append("serving_size: outside the table without outside_table")
         }
         if let p = t.servingsPerPack, decimal(p.number) == nil { out.append("servings_per_pack") }
@@ -174,9 +193,9 @@ enum FreshSet {
             if !nutrients.contains(row.nutrient) { out.append("\(row.label): nutrient") }
             if row.values.count != t.columns.count { out.append("\(row.label): \(row.values.count) values for \(t.columns.count) columns") }
             for value in row.values.compactMap({ $0 }) where value.outsideTable != true {
-                if !comparators.contains(value.comparator) { out.append("\(row.label): comparator \(value.comparator) without outside_table") }
+                if comparator(value.comparator) == nil { out.append("\(row.label): comparator \(value.comparator) without outside_table") }
                 if decimal(value.number) == nil { out.append("\(row.label): number \(value.number) without outside_table") }
-                if units[value.unit] == nil { out.append("\(row.label): unit \(value.unit) without outside_table") }
+                if unit(value.unit) == nil { out.append("\(row.label): unit \(value.unit) without outside_table") }
             }
         }
         return out
@@ -315,29 +334,53 @@ enum FreshSet {
         let basisChoice: Bool
         let flags: [String]
         let warningCodes: [String]
+        /// Calculated values beside a printed target the reader left unread: the difference, reported
+        /// and never gating (12.2.8).
+        var calculatedDiscrepancies: [String] = []
 
         enum CodingKeys: String, CodingKey {
             case outcome, wrong, flags
             case labelID = "label_id", declineCodes = "decline_codes", valuesChecked = "values_checked"
             case correctionBurden = "correction_burden", unreadRows = "unread_rows", basisChoice = "basis_choice"
-            case warningCodes = "warning_codes"
+            case warningCodes = "warning_codes", calculatedDiscrepancies = "calculated_discrepancies"
         }
     }
 
     /// The ledger values whose absence from the stored column costs the user an entry.
     static let ledgerNutrients = ["energy_kcal", "protein", "fat", "saturates", "carbohydrate", "sugars", "fibre", "sodium"]
 
-    /// Label normalisation for matching a cell the reader did not recognise (12.2.8): Unicode
-    /// compatibility mapping (full-width letters, digits and brackets to their ASCII forms),
-    /// every whitespace character removed, one trailing (自願標示者) or (自願標示) group removed,
-    /// Latin letters lowercased. The transcriber's label comes from a screenshot and the reader's
-    /// from pasted text, so only these differences are forgiven.
+    /// Leading row markers removed before matching (as the reader's own marker rule, 3.1 rule 5).
+    static let rowMarkers = [">>", ">", "•", "·", "▲", "●", "*", "-"]
+
+    /// Label normalisation for matching a cell the reader did not recognise (12.2.8), applied to
+    /// the transcriber's label and the reader's alike: Unicode compatibility mapping (full-width
+    /// letters, digits, brackets and colons to their ASCII forms); every whitespace character
+    /// removed; leading row markers removed; one trailing colon removed; every bracket group whose
+    /// content is a unit of the unit table removed (`(毫克)`, `(g)`); one trailing (自願標示者) or
+    /// (自願標示) group removed; Latin letters lowercased. The transcriber's label comes from a
+    /// screenshot and the reader's from pasted text, so only these differences are forgiven.
     static func normalisedLabel(_ label: String) -> String {
         var text = label.precomposedStringWithCompatibilityMapping
         text = String(text.unicodeScalars.filter { !CharacterSet.whitespacesAndNewlines.contains($0) }.map(Character.init))
+        var trimmed = true
+        while trimmed {
+            trimmed = false
+            for marker in rowMarkers where text.hasPrefix(marker) {
+                text = String(text.dropFirst(marker.count)); trimmed = true; break
+            }
+        }
+        if text.hasSuffix(":") { text = String(text.dropLast()) }
+        if let pattern = try? NSRegularExpression(pattern: #"\(([^()]*)\)"#) {
+            for match in pattern.matches(in: text, range: NSRange(text.startIndex..., in: text)).reversed() {
+                guard let inner = Range(match.range(at: 1), in: text), unit(String(text[inner])) != nil,
+                      let whole = Range(match.range, in: text) else { continue }
+                text.removeSubrange(whole)
+            }
+        }
         for suffix in ["(自願標示者)", "(自願標示)"] where text.hasSuffix(suffix) {
             text = String(text.dropLast(suffix.count)); break
         }
+        if text.hasSuffix(":") { text = String(text.dropLast()) }
         return text.lowercased()
     }
 
@@ -345,20 +388,23 @@ enum FreshSet {
 
     /// The transcription column for a reader header (12.2.8): the one column with the header's
     /// basis. Two or more with that basis (for example as sold and as prepared, both per 100 g)
-    /// are matched by position only when the reader read exactly the transcription's columns,
-    /// in order, with that basis at that position; otherwise the match is ambiguous and every
-    /// value bound under that header is wrong.
+    /// are matched by position among the **amount** columns (reference-intake columns left out on
+    /// both sides) only when the reader read exactly the transcription's amount columns, in
+    /// order, with the same bases; otherwise the match is ambiguous and every value bound under
+    /// that header is wrong.
     static func column(_ headerID: String, _ candidate: PastedLabelManifest.Candidate, _ t: Transcription) -> ColumnMatch {
-        guard let position = candidate.headers.firstIndex(where: { $0.headerID == headerID }) else { return .ambiguous }
-        let basis = candidate.headers[position].basis
-        let same = t.columns.indices.filter { t.columns[$0].basis == basis }
+        guard let header = candidate.headers.first(where: { $0.headerID == headerID }) else { return .ambiguous }
+        let same = t.columns.indices.filter { t.columns[$0].basis == header.basis }
         switch same.count {
         case 0: return .notPrinted
         case 1: return .index(same[0])
         default:
-            let inOrder = candidate.headers.count == t.columns.count
-                && zip(candidate.headers, t.columns).allSatisfy { $0.basis == $1.basis }
-            return inOrder ? .index(position) : .ambiguous
+            let readerAmounts = candidate.headers.filter { $0.basis != "reference_intake" }
+            let printedAmounts = t.columns.indices.filter { t.columns[$0].basis != "reference_intake" }
+            guard header.basis != "reference_intake", readerAmounts.count == printedAmounts.count,
+                  zip(readerAmounts, printedAmounts).allSatisfy({ $0.basis == t.columns[$1].basis }),
+                  let position = readerAmounts.firstIndex(where: { $0.headerID == headerID }) else { return .ambiguous }
+            return .index(printedAmounts[position])
         }
     }
 
@@ -382,53 +428,44 @@ enum FreshSet {
         return rows[0].values[col].map(Expected.value) ?? .notPrinted
     }
 
-    /// Exact comparison (12.2.8): the same comparator, exact decimal equality of the numbers and
-    /// the same canonical unit after the unit table. A transcribed value outside the table can
-    /// only match when it maps through the table anyway.
-    static func same(comparator: String, number: String, unit: String, as value: Transcription.Value) -> Bool {
-        guard comparator == value.comparator, let read = decimal(number), let printed = decimal(value.number),
-              let canonical = units[value.unit] else { return false }
-        return read == printed && unit.lowercased() == canonical.lowercased()
-    }
-
-    /// Half a unit in the last printed decimal place ("419" gives 0.5, "1.30" gives 0.005).
-    static func halfUnit(_ text: String) -> Decimal {
-        let places = text.split(separator: ".").dropFirst().first?.count ?? 0
-        var half = Decimal(5)
-        for _ in 0...places { half /= 10 }
-        return half
-    }
-
-    /// A calculated kcal (or sodium) against the kcal (or sodium) the label also prints in that
-    /// column: the same comparator, and a difference no larger than the rounding of the stored
-    /// value (0.05), of the printed value (half its last place) and of the printed operand (half
-    /// its last place, times the conversion: 1/4.184 for kJ, 400 for grams of salt to mg sodium).
-    static func calculatedMatchesPrinted(_ conversion: PastedLabelManifest.Conversion, operand: Transcription.Value,
-                                         printed: Transcription.Value) -> Bool {
-        guard (conversion.comparator ?? "=") == printed.comparator, let stored = decimal(conversion.storedText),
-              let value = decimal(printed.number), let unit = units[printed.unit] else { return false }
-        let scale: Decimal
-        switch (conversion.nutrient, unit) {
-        case ("energy_kcal", "kcal"), ("sodium", "mg"): scale = 1
-        case ("sodium", "g"): scale = 1000
-        default: return false
-        }
-        let factor: Decimal = conversion.nutrient == "sodium" ? 400 : 1 / Decimal(string: "4.184", locale: Locale(identifier: "en_US_POSIX"))!
-        let tolerance = Decimal(string: "0.05", locale: Locale(identifier: "en_US_POSIX"))! + halfUnit(printed.number) * scale + halfUnit(operand.number) * factor
-        let difference = stored - value * scale
-        return (difference < 0 ? -difference : difference) <= tolerance
+    /// Exact comparison (12.2.8): the same comparator and canonical unit after the equivalence
+    /// tables, and exact decimal equality of the numbers. A printed form with no mapping never
+    /// matches, so a reader value bound to it is wrong.
+    static func same(comparator read: String, number: String, unit readUnit: String, language: String,
+                     as value: Transcription.Value) -> Bool {
+        guard let printedComparator = comparator(value.comparator), read == printedComparator,
+              let readNumber = readerDecimal(number, language: language), let printed = decimal(value.number),
+              let canonical = unit(value.unit) else { return false }
+        return readNumber == printed && readUnit.lowercased() == canonical.lowercased()
     }
 
     /// The canonical unit of a conversion's operand: `g_salt` is grams of salt.
     static func operandUnit(_ unit: String) -> String { unit == "g_salt" ? "g" : unit }
+
+    /// The difference between a calculated value and the target the label also prints (kcal, or
+    /// sodium in mg), in the target's canonical unit; nil when they cannot be compared (a printed
+    /// form outside the tables, another unit or comparator), which is reported as such.
+    static func calculatedDifference(_ conversion: PastedLabelManifest.Conversion, printed: Transcription.Value) -> Decimal? {
+        guard printed.outsideTable != true, let stored = decimal(conversion.storedText), let value = decimal(printed.number),
+              let printedUnit = unit(printed.unit), comparator(printed.comparator) == (conversion.comparator ?? "=") else { return nil }
+        let scale: Decimal
+        switch (conversion.nutrient, printedUnit) {
+        case ("energy_kcal", "kcal"), ("sodium", "mg"): scale = 1
+        case ("sodium", "g"): scale = 1000
+        default: return nil
+        }
+        return stored - value * scale
+    }
 
     static func score(_ r: RunResult, _ t: Transcription) -> Score {
         guard r.outcome == "usable", let candidate = r.candidate, let stored = r.storedHeaderID else {
             return Score(labelID: r.labelID, outcome: "declined", declineCodes: r.declineCodes, valuesChecked: 0, wrong: [],
                          correctionBurden: nil, unreadRows: 0, basisChoice: r.choice != nil, flags: [], warningCodes: [])
         }
+        let language = candidate.language
         var checked = 0
         var wrong: [String] = []
+        var discrepancies: [String] = []
         // Every bound cell, in every column.
         for cell in candidate.cells {
             checked += 1
@@ -437,60 +474,64 @@ enum FreshSet {
             case .ambiguous: wrong.append("\(where_): no single transcribed row and column")
             case .notPrinted: wrong.append("\(where_): bound, but not printed")
             case let .value(value):
-                if !same(comparator: cell.comparator, number: cell.decimalText, unit: cell.canonicalUnit, as: value) {
+                if !same(comparator: cell.comparator, number: cell.decimalText, unit: cell.canonicalUnit, language: language, as: value) {
                     wrong.append("\(where_): read \(cell.comparator)\(cell.decimalText) \(cell.canonicalUnit)")
                 }
             }
         }
-        // Calculated values (12.2.8): the operand against its printed source; and, when the label
-        // also prints the target nutrient in that column (printed but left unread, so the reader
-        // calculated it), the calculated value against the printed one within the rounding of both.
+        // Calculated values (12.2.8): gated only by the operand against its printed source (the
+        // conversion rule's arithmetic is fixed by its version). When the label also prints the
+        // target in that column, unread by the reader, the difference is reported, never gated.
         for conversion in r.conversions {
             checked += 1
             let source = candidate.cells.first { $0.rowID == conversion.sourceRowID && $0.headerID == conversion.sourceHeaderID }
             guard let source,
                   case let .value(value) = expected(t, candidate: candidate, headerID: source.headerID, nutrient: source.nutrient, label: source.printedLabel),
-                  same(comparator: source.comparator, number: conversion.operandText, unit: operandUnit(conversion.operandUnit), as: value)
+                  same(comparator: source.comparator, number: conversion.operandText, unit: operandUnit(conversion.operandUnit),
+                       language: language, as: value)
             else { wrong.append("calculated \(conversion.nutrient): operand does not match its printed source"); continue }
-            if case let .value(printed) = expected(t, candidate: candidate, headerID: conversion.sourceHeaderID, nutrient: conversion.nutrient, label: "") {
-                if !calculatedMatchesPrinted(conversion, operand: value, printed: printed) {
-                    wrong.append("calculated \(conversion.nutrient): \(conversion.storedText) differs from the printed value")
-                }
+            if case let .value(printed) = expected(t, candidate: candidate, headerID: conversion.sourceHeaderID, nutrient: conversion.nutrient, label: ""),
+               printed.outsideTable != true {
+                discrepancies.append("\(conversion.nutrient): calculated \(conversion.storedText), printed \(printed.comparator)\(printed.number) \(printed.unit), "
+                    + (calculatedDifference(conversion, printed: printed).map { "difference \($0)" } ?? "not comparable"))
             }
         }
         // Serving size (whenever a number was read) and pack count.
         if let size = candidate.servingSize, let number = size.decimalText {
             checked += 1
-            let unitMatches = size.canonicalUnit.map { unit in t.servingSize.flatMap { units[$0.unit] } == unit } ?? true
-            if let printed = t.servingSize, let n = decimal(number), n == decimal(printed.number), unitMatches {} else {
+            let unitMatches = size.canonicalUnit.map { readUnit in t.servingSize.flatMap { unit($0.unit) } == readUnit } ?? true
+            if let printed = t.servingSize, let n = readerDecimal(number, language: language), n == decimal(printed.number), unitMatches {} else {
                 wrong.append("serving size read \(number) \(size.canonicalUnit ?? "")")
             }
         }
         if let pack = candidate.servingsPerPack {
             checked += 1
-            if let printed = t.servingsPerPack, decimal(pack.decimalText) == decimal(printed.number), pack.approximate == printed.approximate {} else {
+            if let printed = t.servingsPerPack, readerDecimal(pack.decimalText, language: language) == decimal(printed.number),
+               pack.approximate == printed.approximate {} else {
                 wrong.append("servings per pack read \(pack.decimalText)")
             }
         }
         // Correction burden: printed ledger values the stored column leaves unread, plus a printed
-        // serving size or pack count not read. Only the stored column's conversions count.
+        // serving size or pack count not read. A calculated value counts as read only when the
+        // label does not print the target itself and its conversion reads the stored column; a
+        // printed target left unread is an entry the user makes, even beside a calculated value.
         var burden = 0
         if case let .index(col) = column(stored, candidate, t) {
             let storedConversions = r.conversions.filter { $0.sourceHeaderID == stored }
             for nutrient in ledgerNutrients {
-                let printed = t.rows.contains { $0.nutrient == nutrient && $0.values[col] != nil }
-                    || (nutrient == "energy_kcal" && t.rows.contains { $0.nutrient == "energy_kj" && $0.values[col] != nil })
+                let targetPrinted = t.rows.contains { $0.nutrient == nutrient && $0.values[col] != nil }
+                let sourcePrinted = (nutrient == "energy_kcal" && t.rows.contains { $0.nutrient == "energy_kj" && $0.values[col] != nil })
                     || (nutrient == "sodium" && t.rows.contains { $0.nutrient == "salt" && $0.values[col] != nil })
-                let read = candidate.cells.contains { $0.headerID == stored && $0.nutrient == nutrient }
-                    || storedConversions.contains { $0.nutrient == nutrient }
-                if printed && !read { burden += 1 }
+                let cell = candidate.cells.contains { $0.headerID == stored && $0.nutrient == nutrient }
+                let calculated = storedConversions.contains { $0.nutrient == nutrient }
+                if targetPrinted && !cell { burden += 1 } else if !targetPrinted && sourcePrinted && !cell && !calculated { burden += 1 }
             }
         }
         if t.servingSize != nil, candidate.servingSize?.decimalText == nil { burden += 1 }
         if t.servingsPerPack != nil, candidate.servingsPerPack == nil { burden += 1 }
         return Score(labelID: r.labelID, outcome: "usable", declineCodes: [], valuesChecked: checked, wrong: wrong,
                      correctionBurden: burden, unreadRows: r.unreadRows.count, basisChoice: r.choice != nil,
-                     flags: r.flags, warningCodes: r.warningCodes)
+                     flags: r.flags, warningCodes: r.warningCodes, calculatedDiscrepancies: discrepancies)
     }
 
     struct Summary: Codable, Equatable {
@@ -503,6 +544,7 @@ enum FreshSet {
         let tablesWithAWrongValue: Int
         let basisChoices: Int
         let rowsPrintedButNotRead: Int
+        let calculatedVsPrintedDiscrepancies: Int
         let burdenMean: String
         let burdenMedian: String
         let shareNeedingAny: String
@@ -525,6 +567,7 @@ enum FreshSet {
                        declinedByReason: reasons, valuesChecked: checked, wrongValues: wrong,
                        tablesWithAWrongValue: accepted.filter { !$0.wrong.isEmpty }.count,
                        basisChoices: scores.filter(\.basisChoice).count, rowsPrintedButNotRead: accepted.map(\.unreadRows).reduce(0, +),
+                       calculatedVsPrintedDiscrepancies: accepted.map(\.calculatedDiscrepancies.count).reduce(0, +),
                        burdenMean: ratio(burdens.reduce(0, +), burdens.count), burdenMedian: median,
                        shareNeedingAny: ratio(burdens.filter { $0 > 0 }.count, burdens.count),
                        perValueUpperBound95: ratio(3, checked), perTableUpperBound95: ratio(3, accepted.count), passes: wrong == 0)
