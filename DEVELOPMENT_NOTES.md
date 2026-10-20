@@ -2387,3 +2387,23 @@ Runs from `2026-10-20T14:39:20Z` to `2026-10-20T14:54:28Z`, just before this led
 Boundary: `phase_usage.py --format claude --since 2026-10-20T14:39:20Z`. Cache writes: 730,387 5-minute, 0 1-hour. Exact API-equivalent USD 6.138279 at the recorded counts. The output count is a lower bound: 40 of the 41 messages in this window record at most 32 output tokens, so the total and the API-equivalent figure are lower bounds too.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-20p: Claude Code pasted nutrition label reader v3 PR 4
+
+One implementation subagent, its own transcript (`subagents/agent-a5627c2aea40671fd.jsonl`), for reader v3 PR 4 (`docs/pasted-nutrition-label-reader-v3.md` section 8.4):
+- stage 1, the design amendment (section 8.4, decisions 24 to 26) and its architecture gate re-check changes;
+- the five lows carried from PR 3's final review;
+- the unheaded table, asserted bases, `label-arithmetic-checks-v2`, manifest v2 and its dispatcher, the basis sheet, Chosen by you and Change;
+- the gate's 24 contract tests, the app-level sheet journey, the dev-set run outside the repository and one full gate run.
+
+Runs from the phase's start (`2026-10-20T15:00:56Z`, captured with `date -u`) to `2026-10-20T16:26:49Z`, just before this ledger edit.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 PR 4 (#93), implementation subagent | 82,319,264 (80,192,558) | 2,126,280 | ≥ 74,507 (lower bound) | ≥ 82,393,771 | $28.16 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-20T15:00:56Z`, measured at `2026-10-20T16:26:49Z`. Cache writes: 2,126,280 5-minute, 0 1-hour. Exact API-equivalent USD 28.1617556 at the recorded counts. The output count is a lower bound: 364 of the 430 messages in this window record at most 32 output tokens, the sign of streaming-time snapshots, so the total and the API-equivalent figure are lower bounds too. The coordinator's usage and its architecture gate re-check, and any later review, are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
