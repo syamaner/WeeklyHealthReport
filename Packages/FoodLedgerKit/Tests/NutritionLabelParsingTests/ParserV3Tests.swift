@@ -435,6 +435,55 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     #expect(cell(candidate, "energy_kcal", .perServing)?.decimalText == "120")
 }
 
+/// Final review of #280: duplicates are counted over every row with a recognised label, read or
+/// not, so a row left unread (a bound, a malformed value, a value without a number) never lets a
+/// later row of the same nutrient be read in its place.
+@Test func duplicatesCountRowsThatAreNotRead() {
+    let header = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n"
+    for body in ["脂肪 10公克 以上\n脂肪 1公克\n糖 5公克", "脂肪 10公克 以\n上 飽和\n脂肪 1公克", "脂肪 abc公克\n脂肪 1公克",
+                 "脂肪 >10公克\n脂肪 1公克", "脂肪\n脂肪 1公克"] {
+        let candidate = parse(header + body)
+        #expect(cell(candidate, "fat", .perServing) == nil, "\(body): \(candidate.cells.map { ($0.nutrient, $0.printedText) })")
+        #expect(!candidate.cells.contains { $0.decimalText == "1" || $0.decimalText == "10" }, "\(body)")
+        if !candidate.declined {
+            #expect(candidate.warnings.contains("row_not_read: duplicate_row: 脂肪"), "\(body): \(candidate.warnings)")
+            #expect(cell(candidate, "energy_kcal", .perServing)?.decimalText == "120", "\(body)")
+        }
+    }
+    let english = parse("Per serving\nEnergy 120kcal\nFat 10g or more\nFat 1g\nProtein 3g\n")
+    #expect(cell(english, "fat", .perServing) == nil, "\(english.cells.map { ($0.nutrient, $0.printedText) })")
+    #expect(english.warnings.contains("row_not_read: duplicate_row: Fat"))
+    #expect(cell(english, "protein", .perServing)?.decimalText == "3")
+    // A substring is never a head: 不飽和脂肪 and 糖醇 do not name fat or sugars.
+    let traps = parse(header + "脂肪 10公克\n不飽和脂肪 abc\n碳水化合物 20公克\n糖 5公克\n糖醇 xyz")
+    #expect(cell(traps, "fat", .perServing)?.decimalText == "10")
+    #expect(cell(traps, "sugars", .perServing)?.decimalText == "5")
+    // kcal and kJ printed as two energy rows are not duplicates of each other.
+    #expect(ParseStateV3.duplicateKeys(RowDraftV3(label: "熱量", indented: false, values: [], labelLineHadValues: false, lines: []))
+            == ["energy_kcal", "energy_kj"])
+}
+
+/// Final review of #280: a value printed before its label on a value-only line (`>1公克 飽和脂肪`)
+/// belongs to that label, never to the row above; the label is listed as printed but not read.
+@Test func aValueBeforeItsLabelIsNeverAttachedToTheRowAbove() {
+    let header = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n"
+    for line in [">1公克 飽和脂肪", "1公克 飽和脂肪", "1公克 其中飽和脂肪"] {
+        let candidate = parse(header + "脂肪 10公克\n" + line + "\n糖 5公克")
+        #expect(!candidate.cells.contains { $0.decimalText == "1" }, "\(line): \(candidate.cells.map { ($0.nutrient, $0.printedText) })")
+        #expect(cell(candidate, "saturates", .perServing) == nil, "\(line)")
+        #expect(candidate.warnings.contains { $0.hasPrefix("row_not_read: value_before_label: ") && $0.contains("飽和脂肪") }, "\(line): \(candidate.warnings)")
+        #expect(!candidate.wouldMarkReady)
+    }
+    // Two columns: the stray value never becomes the per 100 g value of the row above.
+    let two = parse(label(body: rows.replacingOccurrences(of: "飽和脂肪 1.5公克 5.0公克", with: "1.5公克 5.0公克 飽和脂肪")))
+    #expect(!two.cells.contains { $0.nutrient == "fat" && $0.decimalText == "1.5" })
+    #expect(cell(two, "fat")?.decimalText == "15.0")
+    #expect(cell(two, "saturates") == nil)
+    // Bound words after a value are not a label.
+    #expect(ParseStateV3.labelAfterValues("2 or less", values: ParseStateV3.valueMatches("2 or less")) == nil)
+    #expect(ParseStateV3.labelAfterValues("1公克 以上", values: ParseStateV3.valueMatches("1公克 以上")) == nil)
+}
+
 /// The unexplained-bound rule (reader v3 section 8.1, PR 1 re-review): every bound-vocabulary
 /// token in a row's span (label line, value lines and every non-row line up to the next row label)
 /// must be a recognised bound on one of its cells; otherwise the whole row is not read. An orphan

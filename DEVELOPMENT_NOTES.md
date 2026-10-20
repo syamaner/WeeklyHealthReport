@@ -2111,7 +2111,7 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Pasted label reader v3 PR 1 (#93), implementation subagent | 47,089,345 (43,578,491) | 3,510,548 | 51,135 | 47,140,480 | $27.29 |
+| Pasted label reader v3 PR 1 (#93), implementation subagent | 47,089,345 (43,578,491) | 3,510,548 | ≥ 51,135 (lower bound) | ≥ 47,140,480 | $27.29 (lower bound) |
 
 Boundary: `2026-10-20T04:17:11Z` → `2026-10-20T07:22:59Z` (`phase_usage.py --format claude --since …`). Cache writes: 3,510,548 5-minute, 0 1-hour. Exact API-equivalent USD 27.2923622. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. Reviews run after this point are not included.
 
@@ -2125,7 +2125,7 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Pasted label reader v3 PR 1 energy units round (#93), implementation subagent | 14,134,147 (13,620,741) | 513,338 | 3,090 | 14,137,237 | $5.35 |
+| Pasted label reader v3 PR 1 energy units round (#93), implementation subagent | 14,134,147 (13,620,741) | 513,338 | ≥ 3,090 (lower bound) | ≥ 14,137,237 | $5.35 (lower bound) |
 
 Boundary: `2026-10-20T07:22:59Z` → `2026-10-20T07:49:25Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 513,338 5-minute, 0 1-hour. Exact API-equivalent USD 5.3529102. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
@@ -2148,7 +2148,7 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Pasted label reader v3 PR 1 review and QA round (#93), implementation subagent | 25,126,286 (23,572,313) | 1,553,863 | 4,055 | 25,130,341 | $12.57 |
+| Pasted label reader v3 PR 1 review and QA round (#93), implementation subagent | 25,126,286 (23,572,313) | 1,553,863 | ≥ 4,055 (lower bound) | ≥ 25,130,341 | $12.57 (lower bound) |
 
 Boundary: `2026-10-20T07:49:25Z` → `2026-10-20T08:24:53Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,553,863 5-minute, 0 1-hour. Exact API-equivalent USD 12.5653176. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. The reviewers' own sessions are not included.
 
@@ -2170,7 +2170,7 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Pasted label reader v3 PR 1 re-review round (#93), implementation subagent | 16,743,612 (16,695,684) | 47,864 | 1,873 | 16,745,485 | $3.62 |
+| Pasted label reader v3 PR 1 re-review round (#93), implementation subagent | 16,743,612 (16,695,684) | 47,864 | ≥ 1,873 (lower bound) | ≥ 16,745,485 | $3.62 (lower bound) |
 
 Boundary: `2026-10-20T08:24:53Z` → `2026-10-20T08:53:36Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 47,864 5-minute, 0 1-hour. Exact API-equivalent USD 3.6161728. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. The reviewers' own sessions are not included.
 
@@ -2191,7 +2191,7 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| Pasted label reader v3 PR 1 unexplained-bound round (#93), implementation subagent | 16,768,481 (16,161,128) | 607,291 | 1,553 | 16,770,034 | $6.30 |
+| Pasted label reader v3 PR 1 unexplained-bound round (#93), implementation subagent | 16,768,481 (16,161,128) | 607,291 | ≥ 1,553 (lower bound) | ≥ 16,770,034 | $6.30 (lower bound) |
 
 Boundary: `2026-10-20T08:53:36Z` → `2026-10-20T09:10:20Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 607,291 5-minute, 0 1-hour. Exact API-equivalent USD 6.2999886. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. The reviewers' own sessions are not included.
 

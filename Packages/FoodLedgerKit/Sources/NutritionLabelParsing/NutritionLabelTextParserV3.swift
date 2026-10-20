@@ -77,6 +77,7 @@ enum PatternsV3 {
     static let rowMarkers = [">>", ">", "•", "·", "▲", "●"]
     static let hanMarkers: [Character] = ["-", "*"]
     static let hanRun = LabelPattern(#"\p{Han}+"#)
+    static let leadingHan = LabelPattern(#"^(\p{Han}+)"#)
     /// "More than" before a number: the reader has no such comparator, so such a value is never
     /// read as exact (it makes its row unread).
     static let greaterThan = LabelPattern(#"(?i)(?:[>≥＞≧]|超過|大於|多於|more\s+than|greater\s+than)\s*\d"#)
@@ -156,6 +157,8 @@ struct ParseStateV3 {
     var spans: [Int: [(line: String, valueLine: Bool)]] = [:]
     /// The line being consumed put values into a row (only such values can explain a bound).
     var lineGaveValues = false
+    /// Labels printed after their values on a value-only line, never bound (printed but not read).
+    var droppedLabels: [String] = []
 
     var servingClaimed: Bool { servingSize != nil || servingJoin != nil }
     var packClaimed: Bool { servingsPerPack != nil || packJoin != nil }
@@ -612,6 +615,14 @@ struct ParseStateV3 {
                 return
             }
             body.append(.valuesOnly)
+            // A value line carrying label text after (or between) its values (`>1公克 飽和脂肪`):
+            // the values belong to that label, not to the row above, so the line is never
+            // attached; the label is listed as printed but not read.
+            if let dropped = Self.labelAfterValues(content, values: details) {
+                droppedLabels.append(dropped)
+                unbound.append(original)
+                return
+            }
             // As parser v2 (`ParseState.consumeRow`): a value-only line attaches to the last row;
             // after a label line that carried values it blocks ready unless it is the energy
             // row's kJ and kcal continuation.
@@ -643,6 +654,22 @@ struct ParseStateV3 {
             if PatternsV3.hanRun.matches(in: text).contains(where: RowClassifierV3.isRowLabel) { return true }
         }
         return false
+    }
+
+    /// The label text a value-only line carries after or between its values, once bound words
+    /// and marks are removed, or nil when it carries none.
+    static func labelAfterValues(_ content: String, values: [(range: Range<String.Index>, groups: [String?])]) -> String? {
+        let trim = CharacterSet.whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•/,，、;；|()（）*＊†<>＜＞▲●"))
+        let texts = gaps(content, values: values).compactMap { gap -> String? in
+            var text = gap
+            for word in BoundVocabulary.english.matches(in: text.lowercased()) {
+                text = text.replacingOccurrences(of: word, with: " ", options: .caseInsensitive)
+            }
+            for mark in BoundVocabulary.marks.matches(in: text) { text = text.replacingOccurrences(of: mark, with: " ") }
+            guard text.unicodeScalars.contains(where: { CharacterSet.letters.contains($0) }) else { return nil }
+            return gap.trimmingCharacters(in: trim)
+        }
+        return texts.isEmpty ? nil : texts.joined(separator: " ")
     }
 
     /// The texts after each value of a line (the last one runs to the end of the line).
@@ -863,17 +890,37 @@ struct ParseStateV3 {
 
         // Two rows binding the same nutrient in the same column: the reader never picks one, so
         // both rows are not read and the row's flag shows on Confirm (`row_not_read: duplicate_row`).
+        // Duplicates are counted over every row with a recognised label, read or not (a row left
+        // unread for a bound, a stacked deviation or a malformed value still names its nutrient),
+        // so an unread row never lets a later row of the same nutrient be read in its place.
         var rowsByCell: [String: Set<Int>] = [:]
+        var rowsByNutrient: [String: Set<Int>] = [:]
         for (cell, row) in zip(cells, cellRows) where cell.nutrient != "unrecognised" {
             rowsByCell[cell.nutrient + "@" + cell.headerID, default: []].insert(row)
+            rowsByNutrient[cell.nutrient, default: []].insert(row)
         }
-        let duplicated = Set(rowsByCell.values.filter { $0.count > 1 }.flatMap { $0 })
-        if !duplicated.isEmpty {
-            cells = zip(cells, cellRows).filter { !duplicated.contains($0.1) }.map(\.0)
-            for index in duplicated.sorted() {
+        let boundRows = Set(rowsByNutrient.values.flatMap { $0 })
+        var unboundByNutrient: [String: Set<Int>] = [:]
+        if bindingDecline == nil {
+            for (index, row) in rows.enumerated() where !boundRows.contains(index) {
+                for key in Self.duplicateKeys(row) { unboundByNutrient[key, default: []].insert(index) }
+            }
+        }
+        var duplicated = Set(rowsByCell.values.filter { $0.count > 1 }.flatMap { $0 })
+        for (key, unboundRows) in unboundByNutrient {
+            let all = unboundRows.union(rowsByNutrient[key] ?? [])
+            if all.count > 1 { duplicated.formUnion(all) }
+        }
+        let duplicatedBound = duplicated.intersection(Set(cellRows))
+        if !duplicatedBound.isEmpty {
+            cells = zip(cells, cellRows).filter { !duplicatedBound.contains($0.1) }.map(\.0)
+            for index in duplicatedBound.sorted() {
                 warnings.append("row_not_read: duplicate_row: \(rows[index].label)")
                 unbound += rows[index].lines
             }
+        }
+        for label in droppedLabels {
+            warnings.append("row_not_read: value_before_label: \(label)")
         }
 
         // 3.0, gate input coverage: the gate's own marker and script functions over every
@@ -898,6 +945,23 @@ struct ParseStateV3 {
             cells: cells,
             warnings: warnings
         )
+    }
+
+    /// The nutrients a row names for the duplicate-row rule: its label, or when the whole label is
+    /// not recognised, its first word or its leading Han run (exact matches only, never a
+    /// substring), so `脂肪 abc公克` still names fat. Energy names its kcal or kJ key by the units
+    /// printed, or both when neither is.
+    static func duplicateKeys(_ row: RowDraftV3) -> Set<String> {
+        let head = row.label.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? row.label
+        let hanHead = PatternsV3.leadingHan.firstMatch(in: row.label)?[0]
+        guard let match = RowClassifierV3.classify(row.label) ?? RowClassifierV3.classify(head)
+                ?? hanHead.flatMap({ RowClassifierV3.classify($0) }) else { return [] }
+        guard match.row == .energy else { return [match.key] }
+        let units = Set(row.values.compactMap { $0.unit.flatMap(LabelVocabulary.canonicalUnit) })
+        var keys: Set<String> = []
+        if units.contains("kJ") { keys.insert("energy_kj") }
+        if units.contains("kcal") { keys.insert("energy_kcal") }
+        return keys.isEmpty ? ["energy_kcal", "energy_kj"] : keys
     }
 
     /// One warning per joined line, each at most once: the serving line (3.1 rule 3, the string
