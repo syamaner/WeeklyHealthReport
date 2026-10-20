@@ -129,7 +129,7 @@ final class FreshSetScorerTests: XCTestCase {
         XCTAssertEqual(FreshSet.unit("毫克"), "mg")
         XCTAssertEqual(FreshSet.unit("毫升"), "ml")
         XCTAssertEqual(FreshSet.unit("kJ"), "kJ")
-        XCTAssertEqual(FreshSet.units.count, 20)
+        XCTAssertEqual(FreshSet.units.count, 21)
         // Case-insensitive, and the listed equivalences.
         for (printed, canonical) in [("kCal", "kcal"), ("KCAL", "kcal"), ("Kj", "kJ"), ("G", "g"), ("MG", "mg"), ("Ml", "ml"),
                                      ("mL", "ml"), ("cc", "ml"), ("gr", "g"), ("gm", "g"), ("mcg", "µg"), ("微克", "µg")] {
@@ -165,9 +165,67 @@ final class FreshSetScorerTests: XCTestCase {
     }
 
     func testADecimalCommaIsADecimalPointOnlyOffTaiwanRows() {
-        XCTAssertEqual(FreshSet.readerDecimal("1,5", language: "en"), Decimal(string: "1.5"))
-        XCTAssertNil(FreshSet.readerDecimal("1,5", language: "zh-Hant"))
-        XCTAssertEqual(FreshSet.readerDecimal("1.5", language: "zh-Hant"), Decimal(string: "1.5"))
+        XCTAssertEqual(FreshSet.rowNumber("1,5", rowLabel: "維生素C"), Decimal(string: "1.5"))
+        XCTAssertEqual(FreshSet.rowNumber("1,5", rowLabel: "Vitamin C"), Decimal(string: "1.5"))
+        XCTAssertNil(FreshSet.rowNumber("1,5", rowLabel: "脂肪"), "any comma on a Taiwan alias row")
+        XCTAssertNil(FreshSet.rowNumber("1,500", rowLabel: "維生素C"), "three digits after the comma")
+        XCTAssertNil(FreshSet.rowNumber("1,5,0", rowLabel: "維生素C"))
+        XCTAssertEqual(FreshSet.rowNumber("1.5", rowLabel: "脂肪"), Decimal(string: "1.5"))
+    }
+
+    /// Parity with the reader on synthetic rows: where the scorer's rule parses a comma, the
+    /// reader binds the cell with that `decimal_text`; where it does not, the reader leaves the
+    /// row unread. A correct verbatim `1,5` then scores as no wrong value.
+    func testTheCommaRuleMatchesTheReaderRowByRow() {
+        func text(_ extra: [String], replacing prefix: String? = nil) -> String {
+            let rows = SyntheticLabelTexts.rows.map { row in prefix.map { row.hasPrefix($0) } == true ? extra[0] : row }
+            return SyntheticLabelTexts.taiwan(prefix == nil ? rows + extra : rows)
+        }
+        // An unrecognised zh-Hant row: the reader keeps 1,5 and the scorer reads it as 1.5.
+        let vitamin = run(text(["維生素C  1,5 毫克  3,5 毫克"]), Self.baseTranscription())
+        let cell = vitamin.candidate?.cells.first { $0.printedLabel == "維生素C" }
+        XCTAssertEqual(cell?.decimalText, "1,5")
+        XCTAssertEqual(FreshSet.rowNumber("1,5", rowLabel: "維生素C"), Decimal(string: "1.5"))
+        let t = Self.baseTranscription { $0.append(.init(label: "維生素C", nutrient: "other",
+            values: [T.Value(comparator: "=", number: "1,5", unit: "毫克"), T.Value(comparator: "=", number: "3,5", unit: "毫克")])) }
+        XCTAssertEqual(FreshSet.problems(t, expectedID: "S01"), [], "a comma the rule reads needs no outside_table")
+        XCTAssertEqual(FreshSet.score(vitamin, t).wrong, [])
+        // A Taiwan alias row: the reader leaves it unread, and the scorer cannot parse it.
+        let fat = run(text(["脂肪  1,5 公克  9,6 公克"], replacing: "脂肪"), Self.baseTranscription())
+        XCTAssertFalse(fat.candidate?.cells.contains { $0.nutrient == "fat" } ?? true)
+        XCTAssertNil(FreshSet.rowNumber("1,5", rowLabel: "脂肪"))
+        // Three digits after the comma: ambiguous for both.
+        let thousands = run(text(["維生素C  1,500 毫克  3,5 毫克"]), Self.baseTranscription())
+        XCTAssertFalse(thousands.candidate?.cells.contains { $0.printedLabel == "維生素C" } ?? true)
+        XCTAssertNil(FreshSet.rowNumber("1,500", rowLabel: "維生素C"))
+    }
+
+    /// The reader binds `Cal` on a row it does not recognise, in a table that reaches Confirm; an
+    /// energy row in Cal is left unread (3.9). The scorer maps Cal to the reader's `cal`.
+    func testACalValueOnAnUnrecognisedRowMatches() {
+        let text = SyntheticLabelTexts.taiwan(SyntheticLabelTexts.rows + ["膽固醇  5 Cal  12 Cal"])
+        let t = Self.baseTranscription { $0.append(.init(label: "膽固醇", nutrient: "other", values: [Self.v("5", "Cal"), Self.v("12", "Cal")])) }
+        let result = run(text, t)
+        XCTAssertEqual(result.candidate?.cells.filter { $0.canonicalUnit == "cal" }.count, 2)
+        XCTAssertEqual(FreshSet.score(result, t).wrong, [])
+        let energyInCal = run(SyntheticLabelTexts.taiwan(["熱量  167.7 Cal  419.2 Cal"] + SyntheticLabelTexts.rows.dropFirst()), t)
+        XCTAssertEqual(energyInCal.candidate?.cells.filter { $0.canonicalUnit == "cal" }.count, 0)
+    }
+
+    func testALabelThatNormalisesToNothingNeverMatches() throws {
+        XCTAssertEqual(FreshSet.normalisedLabel(" ＊ ："), "")
+        let base = run(SyntheticLabelTexts.base, Self.baseTranscription())
+        let blank = try mutate(base) { object in
+            var candidate = object["candidate"] as! [String: Any]
+            candidate["cells"] = (candidate["cells"] as! [[String: Any]]).map { cell in
+                var cell = cell
+                if (cell["nutrient"] as? String) == "fibre" { cell["nutrient"] = "unrecognised"; cell["printed_label"] = "*" }
+                return cell
+            }
+            object["candidate"] = candidate
+        }
+        let t = Self.baseTranscription { $0.append(.init(label: "：", nutrient: "other", values: [Self.v("3.8", "公克"), Self.v("9.6", "公克")])) }
+        XCTAssertEqual(FreshSet.score(blank, t).wrong.count, 2, "an empty label is bound but matches nothing")
     }
 
     func testSealsAreOrderedAndAChangeAfterSeal2VoidsTheRun() throws {

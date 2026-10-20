@@ -2515,3 +2515,23 @@ Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 21
 Boundary: `phase_usage.py --format claude --since 2026-10-20T19:22:34Z` on the subagent transcript alone, taken at `2026-10-20T19:40:34Z`. Cache writes: 470,910 5-minute, 0 1-hour. Exact API-equivalent USD 4.409364 at the recorded counts. The output count is a lower bound: 41 of the 48 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The reviewers' usage is not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-21e: Claude Code pasted nutrition label reader v3 freeze, comma round
+
+Same subagent and transcript as WHR-93-2026-10-21a. Covers the end of the previous round (ledger edit, commit, push, PR body and report) and the focused review of #286 at `56d8f2b3`:
+- the scorer reads printed and read numbers with the reader's own per-row comma rule (`ParseStateV3.isAmbiguousNumber`), with a parity test against the reader on synthetic rows;
+- a label that normalises to nothing never matches;
+- `Cal` maps to the reader's `cal`, after a probe showed the reader binds it on unrecognised rows in a table that reaches Confirm;
+- one full gate run.
+
+Runs from `2026-10-20T19:40:35Z` to `2026-10-20T19:56:18Z`, just before this ledger edit.
+
+Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 21 October 2026 (WHR-93-2026-10-21a), unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 freeze comma round (#93), implementation subagent | 14,200,475 (14,157,977) | 42,438 | ≥ 2,440 (lower bound) | ≥ 14,202,915 | $3.09 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-20T19:40:35Z` on the subagent transcript alone, taken at `2026-10-20T19:56:18Z`. Cache writes: 42,438 5-minute, 0 1-hour. Exact API-equivalent USD 3.0928254 at the recorded counts. The output count is a lower bound: 42 of the 55 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The reviewers' usage is not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
