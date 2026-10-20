@@ -38,7 +38,26 @@ final class ServingSizeGrammarParityTests: XCTestCase {
             ("Serving size 30g +/- 2g", true), ("每一份量30公克／約", true), ("Serving size 30g (2 biscuits) (approx.)", true),
             ("每一份量30公克（2片）（約）", true), ("Serving size 2 biscuits (30g) approx.", true), ("每一份量2片（30公克）約", true),
             ("每一份量30公克 左右", true), ("Serving size 30g (about 1/4 cup)", true), ("Serving size 30g (about 1 tbsp)", false),
-            ("Serving size 2 tomatoes 30g", false)
+            ("Serving size 2 tomatoes 30g", false),
+            // #277: ranges elsewhere on the line, the remaining dashes, OCR 一 and ー between
+            // digits, and the remaining words and marks.
+            ("Serving size 2-3 biscuits (30g)", true), ("每一份量2-3片（30公克）", true), ("Serving size 1 bar - 30g", true),
+            ("Serving size 1 bar – 40g", true), ("Serving size 1 to 2 biscuits (30g)", true),
+            ("Serving size 25‒30g", true), ("Serving size 25―30g", true), ("每一份量25﹣30公克", true), ("Serving size 25⁓30g", true),
+            ("每一份量25﹏30公克", true), ("Serving size 25─30g", true), ("每一份量25一30公克", true), ("每一份量25ー30公克", true),
+            ("每一份量25 一 30公克", true), ("Serving size 30g‒35g", true), ("Serving size 30g ― 35 g", true), ("Serving size 25 TO 30 g", true),
+            ("Serving size 30g approximate", true), ("Serving size approximate 30g", true), ("Serving size ca. 30g", true),
+            ("Serving size ca 30g", true), ("Serving size 30g ca.", true), ("Serving size 30g (ca.)", true), ("Serving size c. 30g", true),
+            ("Serving size c.30g", true), ("Serving size 30g +- 2g", true), ("Serving size 30g+-2", true), ("每一份量30公克 上下", true),
+            ("每一份量 30 公克 上下", true),
+            ("Serving size 30g ~", true), ("Serving size 30g 〜", true), ("每一份量30公克 ～", true), ("Serving size c.a. 30g", true),
+            ("Serving size C.A.30g", true), ("Serving size 1 oz - 28g", true), ("Serving size 1 kg-30g", true),
+            ("Serving size 1 l - 250ml", true),
+            // Kept exact: whole-word "to", 一/ー not between digits, bare "c", "c." not before a number.
+            ("Serving size 1 potato 30g", false), ("Serving size 2 tortillas 60g", false), ("每一份量 30 公克（約2片）", false),
+            ("每一份量30公克（2片）", false), ("Serving size 30 g", false), ("每一份量40公克", false), ("Serving size 1 c (30g)", false),
+            ("Serving size 1 c. (30g)", false), ("Serving size 30g (ca. 2 biscuits)", false), ("Serving size 30g ― 2 biscuits", false),
+            ("Serving size 1 can (330ml)", false)
         ]
         for (line, approximate) in cases {
             let rest = try XCTUnwrap(Patterns.servingSize.firstMatch(in: line)?[1] ?? nil, line)
@@ -60,6 +79,38 @@ final class ServingSizeGrammarParityTests: XCTestCase {
         let size = PastedLabelManifest.Candidate.ServingSize(printedText: parsed.printedText, decimalText: parsed.decimalText,
                                                              unit: parsed.unit, canonicalUnit: parsed.canonicalUnit)
         XCTAssertEqual(PastedLabelServingPolicy.exactness(size), .unmatched)
+    }
+
+    /// "30公克上下" (no space): as for 左右, the parser's letter lookahead rejects "公克上", so no
+    /// quantity is read and v2 never offers servings; with a space the 上下 tail makes it approximate.
+    func testShangXiaWithoutASpaceReadsNoQuantity() {
+        let parsed = ParseState.servingSize(printed: "每一份量30公克上下", quantityText: "30公克上下")
+        XCTAssertNil(parsed.decimalText)
+        let size = PastedLabelManifest.Candidate.ServingSize(printedText: parsed.printedText, decimalText: parsed.decimalText,
+                                                             unit: parsed.unit, canonicalUnit: parsed.canonicalUnit)
+        XCTAssertEqual(PastedLabelServingPolicy.exactness(size), .unmatched)
+    }
+
+    /// The range Confirm shows is the serving size's own, from the parser's own reading (#277).
+    func testOnlyTheServingSizesOwnRangeIsReported() throws {
+        typealias R = PastedLabelServingPolicy.PrintedRange
+        let cases: [(String, R?)] = [
+            ("Serving size 2-3 biscuits (30g)", nil), ("每一份量2-3片（30公克）", nil), ("Serving size 1 bar - 30g", nil),
+            ("Serving size 1 bar – 40g", nil), ("Serving size 1 to 2 biscuits (30g)", nil),
+            ("Serving size 25-30g", R(low: "25", high: "30")), ("Serving size 25 g – 30 g", R(low: "25", high: "30")),
+            ("每一份量25公克至30公克", R(low: "25", high: "30")), ("Serving size 30g-35g", R(low: "30", high: "35")),
+            ("每一份量25一30公克", R(low: "25", high: "30")), ("Serving size 2-3 biscuits (25-30g)", R(low: "25", high: "30")),
+            ("Serving size 1 oz - 28g", nil), ("Serving size 1 kg-30g", nil), ("Serving size 1 l - 250ml", nil),
+            ("Serving size 30g - 1 kg", nil), ("Serving size 25g-30g", R(low: "25", high: "30")),
+            ("每一份量25公克-30克", R(low: "25", high: "30")), ("Serving size 30g-35 grams", R(low: "30", high: "35"))
+        ]
+        for (line, own) in cases {
+            let rest = try XCTUnwrap(Patterns.servingSize.firstMatch(in: line)?[1] ?? nil, line)
+            let parsed = ParseState.servingSize(printed: line, quantityText: rest)
+            let size = PastedLabelManifest.Candidate.ServingSize(printedText: parsed.printedText, decimalText: parsed.decimalText,
+                                                                 unit: parsed.unit, canonicalUnit: parsed.canonicalUnit)
+            XCTAssertEqual(PastedLabelServingPolicy.exactness(size), .range(own: own), line)
+        }
     }
 
     func testAnApproximatePackLineIsReadAsApproximate() {

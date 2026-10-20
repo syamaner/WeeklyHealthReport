@@ -144,8 +144,8 @@ final class PastedLabelServingV2ContractTests: XCTestCase {
                                                                      unit: "g", canonicalUnit: "g")), "30g", "a range to another unit is not a tolerance")
         XCTAssertNil(PastedLabelServingPolicy.servingSegment(.init(printedText: "Serving size 3 gummies (approx. 3g)", decimalText: "30",
                                                                    unit: "g", canonicalUnit: "g")), "not the recorded quantity")
-        XCTAssertEqual(PastedLabelServingPolicy.approximateMarks, ["約", "约", "~", "～", "〜", "≈", "≒", "±", "+/-", "左右"], "fixed for v2")
-        XCTAssertEqual(PastedLabelServingPolicy.approximateWords, ["about", "approx", "approximately", "around", "circa", "roughly"])
+        XCTAssertEqual(PastedLabelServingPolicy.approximateMarks, ["約", "约", "~", "～", "〜", "≈", "≒", "±", "+/-", "+-", "左右", "上下"], "fixed for v2")
+        XCTAssertEqual(PastedLabelServingPolicy.approximateWords, ["about", "approx", "approximate", "approximately", "around", "ca", "circa", "roughly"])
         for harness in try LedgerFixtures.harnesses() {
             defer { harness.cleanup() }
             let service = try F.service(harness)
