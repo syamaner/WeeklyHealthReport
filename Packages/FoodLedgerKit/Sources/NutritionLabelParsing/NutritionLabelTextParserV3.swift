@@ -91,6 +91,8 @@ enum PatternsV3 {
     static let packQuantityAlone = LabelPattern(#"^(約)?\s*(\d+(?:\.\d+)?)\s*份$"#)
     /// A pack phrase found inside a serving line: Chinese, or English with its number.
     static let chinesePackPhrase = LabelPattern(#"^本包裝包?含?\s*(約)?\s*(\d+(?:\.\d+)?)\s*份"#)
+    static let chinesePackAnywhere = LabelPattern(#"本包裝包?含?\s*(約)?\s*(\d+(?:\.\d+)?)\s*份"#)
+    static let number = LabelPattern(#"\d+(?:\.\d+)?"#)
     static let englishPackPhrase = LabelPattern(#"(?i)^servings?\s+per\s+(?:container|pack|package)\s*[:：]?\s*(about\s+)?(\d+(?:\.\d+)?)"#)
     /// The Chinese title, optionally followed by an English title from the existing title words
     /// or by one bracketed group (3.1 rule 1).
@@ -226,6 +228,12 @@ struct ParseStateV3 {
     /// carried Latin words elsewhere (then a `mixed` text stays `mixed`).
     var currentLineLatinAllowed = false
     var latinOutsideAllowed = false
+    /// 3.5, decision 23: the basis phrase printed in the energy line's bracket, kept only as a
+    /// hint for the user's basis choice (never a header).
+    var basisHint: String?
+    /// Warnings raised while consuming lines (a bilingual serving or pack line whose quantities
+    /// disagree), added to the candidate's warnings in order.
+    var extraWarnings: [String] = []
 
     var servingClaimed: Bool { servingSize != nil || servingJoin != nil }
     var packClaimed: Bool { servingsPerPack != nil || packJoin != nil }
@@ -374,9 +382,20 @@ struct ParseStateV3 {
                     unbound.append(content)
                 } else if !packClaimed {
                     // 3.6 rule 5: on a Chinese pack line, an English bracket is scanned for
-                    // approximation ("about" in either language makes the count approximate).
+                    // approximation ("about" in either language makes the count approximate),
+                    // and the Chinese phrase decides the count: a line whose numbers disagree
+                    // is not read (PR 3 review).
                     let approximate = groups[1] != nil || Self.bilingualApproximate(content)
-                    servingsPerPack = LabelServingsPerPack(printedText: content, decimalText: number, approximate: approximate)
+                    switch Self.bilingualPackCount(content) {
+                    case .some(nil):
+                        servingsPerPack = LabelServingsPerPack(printedText: content, decimalText: number, approximate: approximate)
+                    case let .some(.some(chinese)):
+                        let chineseApproximate = approximate || PatternsV3.chinesePackAnywhere.firstMatch(in: content)?[1] != nil
+                        servingsPerPack = LabelServingsPerPack(printedText: content, decimalText: chinese, approximate: chineseApproximate)
+                    case .none:
+                        unbound.append(content)
+                        extraWarnings.append(Self.bilingualConflictWarning + "servings_per_pack")
+                    }
                 } else {
                     unbound.append(content)
                 }
@@ -399,6 +418,9 @@ struct ParseStateV3 {
             currentLineLatinAllowed = true
             if !servingClaimed {
                 servingSize = Self.servingSize(printed: content, value: rest)
+                if Self.bilingualQuantitiesDisagree(serving: Self.cutAtPackPhrase(rest), line: content) {
+                    extraWarnings.append(Self.bilingualConflictWarning + "serving_size")
+                }
                 if !packClaimed, let pack = Self.packCount(inServingLine: content, value: rest) {
                     servingsPerPack = pack
                 }
@@ -519,22 +541,24 @@ struct ParseStateV3 {
         let cut = cutAtPackPhrase(value)
         // A serving size printed as "more than" (`超過30公克`, `30公克以上`) is not read.
         if !BoundVocabulary.tokens(cut).isEmpty { return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil) }
-        // 3.6 rule 5: on a Chinese serving line, an English bracket is ignored for binding the
-        // number (serving v3 still scans it for approximation): the quantity is the Chinese one.
-        // When the bracket prints the same quantity (`30公克 (Serving size 30g)`), its printed
-        // form is recorded, as serving v3 binds the bracket first (5.6 step 4); when it prints
-        // another, the Chinese quantity is recorded and serving v3 finds no match (no servings).
-        if cut.contains(where: FlattenedLine.isHan), let bracket = Patterns.parenthesised.firstMatch(in: cut)?[1], hasLatinWord(bracket) {
-            let chinese = Patterns.parenthesised.split(cut).joined(separator: " ")
-            guard let groups = Patterns.servingQuantity.firstMatch(in: chinese), let number = groups[1], let unit = groups[2] else {
+        // 3.6 rule 5 (and the PR 3 review): on a serving line holding Chinese and English text,
+        // in either order and bracketed or not, the quantities printed must agree; when they do
+        // not (`Serving size 25g 每一份量 30公克`, `每一份量30公克 (about 25g)`) the serving size is
+        // not read, never the English or the Chinese one picked. When they agree, the quantity
+        // is located as serving v3 locates it (5.6 step 4), so servings stay offered.
+        if bilingualQuantitiesDisagree(serving: cut, line: printed) {
+            return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil)
+        }
+        // An English bracket (one holding a Latin word) never supplies the number on its own
+        // (3.6 rule 5): `每一份量1包 (about 30g)` is not read.
+        if printed.contains(where: FlattenedLine.isHan), hasLatinWord(printed), Patterns.servingQuantity.contains(cut) {
+            var outside = cut
+            for bracket in Patterns.parenthesised.matches(in: cut) where hasLatinWord(bracket) {
+                outside = outside.replacingOccurrences(of: bracket, with: " ")
+            }
+            if !Patterns.servingQuantity.contains(outside) {
                 return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil)
             }
-            if let english = Patterns.servingQuantity.firstMatch(in: bracket), let englishNumber = english[1], let englishUnit = english[2],
-               englishNumber == number, LabelVocabulary.canonicalUnit(englishUnit) == LabelVocabulary.canonicalUnit(unit) {
-                return LabelServingSize(printedText: printed, decimalText: englishNumber, unit: englishUnit,
-                                        canonicalUnit: LabelVocabulary.canonicalUnit(englishUnit))
-            }
-            return LabelServingSize(printedText: printed, decimalText: number, unit: unit, canonicalUnit: LabelVocabulary.canonicalUnit(unit))
         }
         let source = Patterns.parenthesised.firstMatch(in: cut)?[1] ?? cut
         if let groups = Patterns.servingQuantity.firstMatch(in: source) ?? Patterns.servingQuantity.firstMatch(in: cut),
@@ -976,31 +1000,59 @@ struct ParseStateV3 {
     /// a basis phrase, or nil when the line is not such a row.
     static func rowBasisBrackets(_ content: String) -> [(range: Range<String.Index>, printed: String, basis: LabelBasis)]? {
         let text = spacedLabel(markedRow(content) ?? content)
-        guard startsWithLabel(text), let firstValue = valueMatches(text).first else { return nil }
+        // The bracket may stand after the value (`熱量 45大卡(每100毫升)`) or inside the label
+        // (`熱量(每100毫升) 45大卡`, PR 3 review): either way the line is a row with a value, never
+        // a header line, so its value is never dropped.
+        guard startsWithLabel(text), !valueMatches(text).isEmpty else { return nil }
         let brackets = Patterns.parenthesised.matchDetails(in: text).compactMap { match -> (range: Range<String.Index>, printed: String, basis: LabelBasis)? in
-            guard match.range.lowerBound >= firstValue.range.upperBound, let inner = match.groups[1], let basis = ParseState.basis(of: inner) else { return nil }
+            guard let inner = match.groups[1], let basis = ParseState.basis(of: inner) else { return nil }
             return (match.range, String(text[match.range]), basis)
         }
-        return brackets.isEmpty ? nil : brackets
+        guard !brackets.isEmpty else { return nil }
+        // Only a recognised row label with its brackets removed makes this a row: a header line
+        // with bracketed bases (`每份(Amount Per Serving) 每100公克(100g)`) stays a header line.
+        var row = text
+        for bracket in brackets { row = row.replacingOccurrences(of: bracket.printed, with: " ") }
+        row = spacedLabel(row.trimmingCharacters(in: .whitespaces))
+        guard let first = valueMatches(row).first else { return nil }
+        let label = String(row[..<first.range.lowerBound]).trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•")))
+        return RowClassifierV3.isRowLabel(label) || bilingualLabel(label) != nil ? brackets : nil
     }
 
-    /// 3.5: with no header line, exactly one amount column, the energy row first and exactly one
-    /// bracketed basis phrase on it, that phrase is the column's header (its printed text is the
-    /// bracket as printed). A basis phrase on any other row, on a first row that is not energy,
-    /// or more than one, declines `multiple_panels`.
+    /// 3.5 as decided (decision 23, owner, 20 October 2026: ask the user): with no header line, the
+    /// energy row first and exactly one bracketed basis phrase on it, the phrase is **not** taken
+    /// as the column's basis. The table has no basis header, so it declines `no_basis_header` as
+    /// today, and the candidate carries the phrase as printed in the warning
+    /// `basis_hint: energy_line: <bracket>` for the basis-choice sheet of PR 4, which may show it
+    /// as a hint and never preselects it. A basis phrase on any other row, on a first row that is
+    /// not energy, or more than one, declines `multiple_panels`.
     mutating func consumeEnergyLineBasis(_ content: String, brackets: [(range: Range<String.Index>, printed: String, basis: LabelBasis)]) {
         let text = Self.spacedLabel(Self.markedRow(content) ?? content)
-        let label = Self.valueMatches(text).first.map { String(text[..<$0.range.lowerBound]) }?
-            .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•"))) ?? ""
-        guard brackets.count == 1, let bracket = brackets.first, bracket.basis != .referenceIntake, headers.isEmpty,
-              !rows.contains(where: { !$0.values.isEmpty }), RowClassifierV3.classify(label)?.row == .energy else {
+        guard brackets.count == 1, let bracket = brackets.first, bracket.basis != .referenceIntake else {
             declineReasons.append("multiple_panels")
             return
         }
-        headers.append(LabelHeader(headerID: "header_1", printedText: bracket.printed, basis: bracket.basis, servingConversion: nil))
         var row = text
-        if let range = row.range(of: bracket.printed, options: .backwards) { row.removeSubrange(range) }
-        consumeRow(rawLine: row, content: row.trimmingCharacters(in: .whitespaces))
+        if let range = row.range(of: bracket.printed, options: .backwards) { row.replaceSubrange(range, with: " ") }
+        row = Self.spacedLabel(row.trimmingCharacters(in: .whitespaces))
+        let label = Self.valueMatches(row).first.map { String(row[..<$0.range.lowerBound]) }?
+            .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•"))) ?? ""
+        let amountHeaders = headers.filter { $0.basis != .referenceIntake }
+        if amountHeaders.count == 1, amountHeaders[0].basis == bracket.basis, basisHint == nil {
+            // A printed header line already names this basis: the bracket repeats it, and the row
+            // reads as a row (its value is never dropped).
+            unbound.append(bracket.printed)
+            consumeRow(rawLine: row, content: row)
+            return
+        }
+        guard headers.isEmpty, !rows.contains(where: { !$0.values.isEmpty }), RowClassifierV3.classify(label)?.row == .energy,
+              basisHint == nil else {
+            declineReasons.append("multiple_panels")
+            return
+        }
+        basisHint = bracket.printed
+        unbound.append(bracket.printed)
+        consumeRow(rawLine: row, content: row)
     }
 
     // MARK: 3.6: bilingual tables
@@ -1075,6 +1127,27 @@ struct ParseStateV3 {
         return String(original[original.index(original.startIndex, offsetBy: lower)..<original.index(original.startIndex, offsetBy: upper)])
     }
 
+    /// A bilingual serving line (Han and a Latin word) whose quantities disagree in number or
+    /// canonical unit.
+    static func bilingualQuantitiesDisagree(serving cut: String, line: String) -> Bool {
+        guard line.contains(where: FlattenedLine.isHan), hasLatinWord(line) else { return false }
+        let quantities = Patterns.servingQuantity.matchDetails(in: cut).compactMap { match -> String? in
+            guard let number = match.groups[1], let unit = match.groups[2], let decimal = Decimal(string: number) else { return nil }
+            return "\(decimal)|\(LabelVocabulary.canonicalUnit(unit) ?? unit)"
+        }
+        return Set(quantities).count > 1
+    }
+
+    /// A bilingual pack line (Han and a Latin word): the Chinese phrase decides the count, and
+    /// every number on the line must equal it (`Servings per package: 3 本包裝含 2份` is not read).
+    /// Returns the Chinese count, or nil when the line is not read; `.some(nil)` when not bilingual.
+    static func bilingualPackCount(_ line: String) -> String?? {
+        guard line.contains(where: FlattenedLine.isHan), hasLatinWord(line) else { return .some(nil) }
+        guard let chinese = PatternsV3.chinesePackAnywhere.firstMatch(in: line)?[2], let count = Decimal(string: chinese) else { return nil }
+        let numbers = PatternsV3.number.matches(in: line).compactMap { Decimal(string: $0) }
+        return numbers.allSatisfy { $0 == count } ? .some(chinese) : nil
+    }
+
     /// 3.6 rule 5: on a Chinese serving or pack line, the English words and marks of serving v3's
     /// approximation lists anywhere on the line make the count approximate (the conservative side).
     static func bilingualApproximate(_ line: String) -> Bool {
@@ -1125,7 +1198,7 @@ struct ParseStateV3 {
             if layout == nil { declineReasons.append(LabelLayout.ambiguousCode) }
         }
 
-        var warnings: [String] = []
+        var warnings: [String] = extraWarnings
         // 3.1 rules 3 and 4: a split serving or pack line is joined only outside stacked tables
         // and with no `stacked_sequence` unread row; otherwise it is not read. Such a row only
         // arises in a stacked table (3.2), so refusing every stacked table covers both conditions.
@@ -1358,7 +1431,13 @@ struct ParseStateV3 {
         if !coverage.isEmpty { return decline(coverage) }
         if !declineReasons.isEmpty { return decline(declineReasons) }
         if rows.isEmpty { return decline(["no_table"]) }
-        if amountHeaders.isEmpty { return decline(["no_basis_header"]) }
+        if amountHeaders.isEmpty {
+            // Decision 23: a basis printed only in the energy line is a hint for the user's
+            // choice, carried as a warning on the declined candidate, never a header.
+            var declined = decline(["no_basis_header"])
+            if let basisHint { declined.warnings = [Self.basisHintPrefix + basisHint] }
+            return declined
+        }
         if let bindingDecline { return decline(bindingDecline) }
         if cells.isEmpty {
             // A table whose rows were all left unread is a table read too little, not a missing
@@ -1429,6 +1508,12 @@ struct ParseStateV3 {
 
     /// 3.7 (decision 3): the decline when fewer than 5 of the 8 Taiwan mandatory rows are read.
     static let tooLittleReadCode = "too_little_read"
+    /// Decision 23: the warning a `no_basis_header` decline carries when the basis is printed only
+    /// inside the energy line: `basis_hint: energy_line: <bracket as printed>`.
+    static let basisHintPrefix = "basis_hint: energy_line: "
+    /// PR 3 review: a bilingual serving or pack line whose Chinese and English quantities
+    /// disagree is not read; the candidate says which line (`serving_size`, `servings_per_pack`).
+    static let bilingualConflictWarning = "bilingual_quantity_conflict: "
     static let tooLittleReadMinimum = 5
 
     /// The Taiwan mandatory rows with a printed cell in the column that would be stored (v1

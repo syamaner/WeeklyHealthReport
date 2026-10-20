@@ -113,6 +113,16 @@ enum FlattenedLine {
     static let titleBracket = LabelPattern(#"^\s*[(（][^)）0-9０-９]*[)）]"#)
     static let voluntaryBracket = LabelPattern(#"[(（](?:自願標示者|自願標示)[)）]"#)
 
+    /// Bound words of the closed vocabulary (8.1) written in Han, longest first.
+    static let stuckBoundWords = ["超過", "大於", "多於", "未滿", "少於", "以下", "以上"]
+
+    /// A label printed with a leading 其中 ("of which") names its row when the rest is an exact
+    /// alias (`其中飽和脂肪`); otherwise the label stays as printed. Exact match only.
+    static func normalisedLabel(_ run: String) -> String {
+        guard run.hasPrefix("其中"), TaiwanRowAliases.entry(String(run.dropFirst(2))) != nil else { return run }
+        return String(run.dropFirst(2))
+    }
+
     static func isHan(_ character: Character) -> Bool {
         character.unicodeScalars.allSatisfy { (0x4E00...0x9FFF).contains($0.value) || (0x3400...0x4DBF).contains($0.value) }
     }
@@ -239,8 +249,14 @@ enum FlattenedLine {
                 let marks = BoundVocabulary.tokens(run)
                 if !marks.isEmpty, BoundVocabulary.isMarkOnly(run) {
                     out.append(.bound(run))
+                } else if let mark = stuckBoundWords.first(where: { run.hasSuffix($0) && run.count > $0.count }) {
+                    // A bound word stuck to the label (`鈉超過50毫克`, `糖未滿0.5公克`) is never part
+                    // of the label: the label reads alone and the mark leaves the row unread.
+                    out.append(.label(normalisedLabel(String(run.dropLast(mark.count)))))
+                    out.append(.bound(mark))
+                    seenLabel = true
                 } else {
-                    out.append(.label(run))
+                    out.append(.label(normalisedLabel(run)))
                     seenLabel = true
                 }
                 index = cursor

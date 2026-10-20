@@ -99,6 +99,27 @@ private let template: [(String, String)] = [("energy_kcal", "121"), ("protein", 
     #expect(parse("營養標示(2)\t每份 熱量 160大卡 蛋白質 8.0公克 脂肪 9.0公克 碳水化合物 12.5公克 鈉 110毫克\n").declineReasons == ["flattened_table_ambiguous"])
 }
 
+/// PR 3 review (low): a bound word stuck to a flattened label is never part of the label, and its
+/// row is never read as exact; 其中 before an exact alias names the row.
+@Test func flattenedLabelsDropStuckBoundWordsAndTheOfWhichPrefix() {
+    let header = preamble + "每份 每100公克 "
+    let rows = ["熱量 121大卡 403大卡", "蛋白質 3.1公克 10.2公克", "脂肪 4.3公克 14.4公克", "飽和脂肪 1.5公克 5.0公克", "反式脂肪 0公克 0公克",
+                "碳水化合物 18.7公克 62.3公克", "糖 6.8公克 22.7公克", "鈉 50毫克 167毫克"]
+    for (original, stuck, label) in [("鈉 50毫克 167毫克", "鈉超過50毫克 167毫克", "鈉"), ("糖 6.8公克 22.7公克", "糖未滿0.5公克 1.7公克", "糖"),
+                                     ("鈉 50毫克 167毫克", "鈉以下50毫克 167毫克", "鈉")] {
+        let candidate = parse(header + rows.map { $0 == original ? stuck : $0 }.joined(separator: "，") + "\n")
+        #expect(!candidate.cells.contains { $0.printedLabel.contains(label) && $0.printedLabel != label }, "\(stuck)")
+        #expect(!candidate.cells.contains { $0.printedLabel == label }, "\(stuck): \(candidate.cells.map(\.printedText))")
+        #expect(unread(candidate, "unexplained_bound") == [label], "\(stuck): \(candidate.warnings)")
+    }
+    let ofWhich = parse(header + rows.map { $0.hasPrefix("飽和脂肪") ? "其中飽和脂肪 2公克 6.7公克" : $0 }.joined(separator: "，") + "\n")
+    #expect(value(ofWhich, "saturates") == "2")
+    #expect(value(ofWhich, "saturates", .per100g) == "6.7")
+    #expect(ofWhich.cells.first { $0.nutrient == "saturates" }?.parentRowID == "fat")
+    // Only an exact alias after 其中: anything else stays an unrecognised row.
+    #expect(FlattenedLine.normalisedLabel("其中不飽和脂肪") == "其中不飽和脂肪")
+}
+
 @Test func aRecognisedLabelPrintedAgainstItsNumberReadsAsIfSpaced() {
     #expect(ParseStateV3.spacedLabel("熱量51大卡") == "熱量 51大卡")
     #expect(ParseStateV3.spacedLabel("飽和脂肪0.3公克") == "飽和脂肪 0.3公克")
@@ -213,46 +234,64 @@ private let template: [(String, String)] = [("energy_kcal", "121"), ("protein", 
 
 // MARK: 3.5: basis printed only in the energy line (test 14)
 
-@Test func test14TheEnergyLineBasisNeedsEnergyAsTheFirstRow() {
+/// Decision 23 (owner, 20 October 2026: ask the user). A basis printed only inside the energy
+/// line is never read as the column's basis: the table has no basis header and declines
+/// `no_basis_header` as today, carrying the bracket as printed in a `basis_hint` warning for the
+/// basis-choice sheet of PR 4 (a hint, never preselected). Nothing is bound.
+@Test func test14ABasisPrintedOnlyInTheEnergyLineIsAHintNeverABasis() {
     let body = "熱量 45大卡(每100毫升)\n蛋白質 1.2公克\n脂肪 1.5公克\n>>飽和脂肪 0.9公克\n>>反式脂肪 0公克\n碳水化合物 6.4公克\n>>糖 6.1公克\n鈉 38毫克\n"
-    let read = parse("營養標示\n" + body)
-    #expect(!read.declined, "\(read.declineReasons)")
-    #expect(read.headers.map(\.printedText) == ["(每100毫升)"])
-    #expect(read.headers.map(\.basis) == [.per100ml])
-    #expect(value(read, "energy_kcal", .per100ml) == "45")
-    #expect(value(read, "saturates", .per100ml) == "0.9")
-    #expect(read.cells.first { $0.nutrient == "energy_kcal" }?.printedText == "45大卡")
-    // The label printed against its number, a bullet and `>>` sub-row markers.
+    let hinted = parse("營養標示\n" + body)
+    #expect(hinted.declineReasons == ["no_basis_header"])
+    #expect(hinted.cells.isEmpty)
+    #expect(hinted.headers.isEmpty)
+    #expect(hinted.warnings == ["basis_hint: energy_line: (每100毫升)"])
+    #expect(LabelDeclineGate.validationErrors(hinted).isEmpty, "a declined candidate may carry the hint")
+    // The label printed against its number, a bullet and `>>` sub-row markers: the same hint.
     let stuck = parse("營養標示\n\n▲熱量45大卡(每100毫升)\n蛋白質1.2公克\n脂肪1.5公克\n　>>飽和脂肪0.9公克\n　>>反式脂肪0公克\n碳水化合物6.4公克\n　>>糖6.1公克\n鈉38毫克")
-    #expect(!stuck.declined, "\(stuck.declineReasons)")
-    #expect(value(stuck, "energy_kcal", .per100ml) == "45")
-    #expect(value(stuck, "sugars", .per100ml) == "6.1")
-    #expect(stuck.cells.first { $0.nutrient == "sugars" }?.parentRowID == "carbohydrate")
+    #expect(stuck.declineReasons == ["no_basis_header"])
+    #expect(stuck.warnings == ["basis_hint: energy_line: (每100毫升)"])
+    // Without the bracket the table declines the same way, with no hint.
+    let plain = parse("營養標示\n" + body.replacingOccurrences(of: "(每100毫升)", with: ""))
+    #expect(plain.declineReasons == ["no_basis_header"])
+    #expect(plain.warnings.isEmpty)
     // A basis phrase on a later row, on a first row that is not energy, or more than one, declines.
     #expect(parse("營養標示\n" + body.replacingOccurrences(of: "鈉 38毫克", with: "鈉 38毫克(每份)")).declineReasons == ["multiple_panels"])
     #expect(parse("營養標示\n蛋白質 1.2公克(每100毫升)\n熱量 45大卡\n脂肪 1.5公克\n").declineReasons == ["multiple_panels"])
     #expect(parse("營養標示\n熱量 45大卡(每100毫升)(每份)\n蛋白質 1.2公克\n").declineReasons == ["multiple_panels"])
     // With a header line printed, a bracket on the energy row is a second basis.
     #expect(parse("營養標示\n每份\n熱量 45大卡(每100毫升)\n蛋白質 1.2公克\n").declineReasons == ["multiple_panels"])
-    // With two columns of values the one bracket cannot be both bases: the count check declines.
-    #expect(parse("營養標示\n熱量 45大卡 90大卡(每100毫升)\n蛋白質 1.2公克 2.4公克\n").declined)
 }
 
-/// The bracket says per 100 g, but the values are per serving. The parser cannot see this; the
-/// arithmetic checks can only warn, and only where the values disagree with each other. Pinned
-/// both ways: energy per 100 g with the rest per serving fails the energy check; every value per
-/// serving under a per 100 g bracket passes every check (the accepted residual of 3.5).
-@Test func test14APer100BracketOverPerServingValuesPinsAWarningNotADecline() {
-    func failed(_ candidate: LabelCaptureCandidate) -> Set<String> {
-        Set(LabelArithmeticChecks.check(LabelArithmeticTable(candidate, format: .taiwan)).checks.filter { $0.status == .fail }.map(\.name))
+/// PR 3 review: the bracket inside the energy label (`熱量(每100毫升) 45大卡`) is the same case. The
+/// line is a row, never a header line, so energy is never dropped silently: with no header line
+/// it is the hint and `no_basis_header`; with a header line naming the same basis the bracket
+/// repeats it and the row reads; with another basis it declines.
+@Test func anEnergyBasisBracketInsideTheLabelNeverDropsTheEnergyRow() {
+    let rest = "蛋白質 1.2公克\n脂肪 1.5公克\n飽和脂肪 0.9公克\n反式脂肪 0公克\n碳水化合物 6.4公克\n糖 6.1公克\n鈉 38毫克\n"
+    let first = parse("營養標示\n熱量(每100毫升) 45大卡\n" + rest)
+    #expect(first.declineReasons == ["no_basis_header"])
+    #expect(first.warnings == ["basis_hint: energy_line: (每100毫升)"])
+    let headed = parse("營養標示\n每100毫升\n熱量(每100毫升) 45大卡\n" + rest)
+    #expect(!headed.declined, "\(headed.declineReasons)")
+    #expect(value(headed, "energy_kcal", .per100ml) == "45")
+    #expect(headed.wouldMarkReady)
+    #expect(parse("營養標示\n每份\n熱量(每100毫升) 45大卡\n" + rest).declineReasons == ["multiple_panels"])
+    // Never ready with energy silently missing.
+    for text in [first, headed] where !text.declined {
+        #expect(text.cells.contains { $0.nutrient == "energy_kcal" })
     }
-    let energyPer100 = parse(preamble + "熱量 400大卡(每100公克)\n蛋白質 3.0公克\n脂肪 4.5公克\n飽和脂肪 1.5公克\n反式脂肪 0公克\n碳水化合物 18.0公克\n糖 6.0公克\n鈉 60毫克\n")
-    #expect(!energyPer100.declined, "\(energyPer100.declineReasons)")
-    #expect(failed(energyPer100).contains("energy"), "\(failed(energyPer100))")
-    let allPerServing = parse(preamble + "熱量 120大卡(每100公克)\n蛋白質 3.0公克\n脂肪 4.5公克\n飽和脂肪 1.5公克\n反式脂肪 0公克\n碳水化合物 18.0公克\n糖 6.0公克\n鈉 60毫克\n")
-    #expect(!allPerServing.declined)
-    #expect(value(allPerServing, "energy_kcal", .per100g) == "120")
-    #expect(failed(allPerServing).isEmpty, "\(failed(allPerServing))")
+}
+
+/// The case behind decision 23: a per 100 g bracket over values that are really per serving.
+/// Under the earlier wording of 3.5 it was read per 100 g with no check able to see it; now it is
+/// never read without the user's choice.
+@Test func test14APer100BracketOverPerServingValuesIsNeverReadWithoutTheUsersChoice() {
+    for energy in ["熱量 400大卡(每100公克)", "熱量 120大卡(每100公克)"] {
+        let candidate = parse(preamble + energy + "\n蛋白質 3.0公克\n脂肪 4.5公克\n飽和脂肪 1.5公克\n反式脂肪 0公克\n碳水化合物 18.0公克\n糖 6.0公克\n鈉 60毫克\n")
+        #expect(candidate.declineReasons == ["no_basis_header"], "\(energy)")
+        #expect(candidate.cells.isEmpty)
+        #expect(candidate.warnings == ["basis_hint: energy_line: (每100公克)"])
+    }
 }
 
 // MARK: 3.6: bilingual tables (test 16)
@@ -309,6 +348,10 @@ private let bilingual = """
         .declineReasons == ["multiple_panels"])
     #expect(parse(bilingual.replacingOccurrences(of: "每份 Per Serving 每100公克 Per 100g", with: "每份(Per 100ml)  每100公克(Per 100g)"))
         .declineReasons == ["multiple_panels"])
+    // A header with bracketed English bases and a bracketed weight is a header line, never a row.
+    let bracketed = parse(bilingual.replacingOccurrences(of: "每份 Per Serving 每100公克 Per 100g", with: "每份(Amount Per Serving)\t 每100公克(100g)"))
+    #expect(!bracketed.declined, "\(bracketed.declineReasons)")
+    #expect(bracketed.headers.map(\.basis) == [.perServing, .per100g])
     // An English part naming no basis is ignored.
     let plain = parse(bilingual.replacingOccurrences(of: "每份 Per Serving 每100公克 Per 100g", with: "每份 Amount  每100公克 Amount"))
     #expect(!plain.declined, "\(plain.declineReasons)")
@@ -323,14 +366,42 @@ private let bilingual = """
     #expect(chinese.servingsPerPack?.approximate == true)
     let exact = parse(bilingual.replacingOccurrences(of: "本包裝含8份 (8 Servings Per Package)", with: "本包裝含8份 (8 servings)"))
     #expect(exact.servingsPerPack?.approximate == false)
-    // The serving size is bound from the Chinese phrase; an English bracket never supplies it.
+    // An English bracket never supplies the serving size: when it prints another quantity the
+    // serving size is not read at all (PR 3 review: never pick one of two quantities).
     let bracket = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量30公克 (about 25g)"))
-    #expect(bracket.servingSize?.decimalText == "30")
-    #expect(bracket.servingSize?.unit == "公克")
+    #expect(bracket.servingSize?.decimalText == nil)
+    #expect(bracket.warnings.contains("bilingual_quantity_conflict: serving_size"))
     let agreeing = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量30公克 (Serving size 30g)"))
     #expect(agreeing.servingSize?.decimalText == "30")
     let onlyEnglish = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量1包 (about 30g)"))
     #expect(onlyEnglish.servingSize?.decimalText == nil)
+}
+
+/// PR 3 review (medium): a serving or pack line holding Chinese and English quantities that
+/// disagree, in either order and bracketed or not, is not read; the English quantity is never
+/// bound. Agreeing quantities read as before.
+@Test func aBilingualServingOrPackLineWithDisagreeingQuantitiesIsNotRead() {
+    for line in ["Serving size 25g 每一份量 30公克", "每一份量 30公克 Serving size 25g", "每一份量30公克 (Serving size 25g)", "Serving size 30g 每一份量 30毫升"] {
+        let candidate = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: line))
+        #expect(candidate.servingSize?.decimalText == nil, "\(line): \(String(describing: candidate.servingSize))")
+        #expect(candidate.warnings.contains("bilingual_quantity_conflict: serving_size"), "\(line)")
+        #expect(value(candidate, "fat", .per100g) == "14.4", "the table still reads")
+    }
+    for line in ["Serving size 30g 每一份量 30公克", "每一份量 30公克 (Serving size 30g)"] {
+        let candidate = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: line))
+        #expect(candidate.servingSize?.decimalText == "30", "\(line)")
+        #expect(!candidate.warnings.contains { $0.hasPrefix("bilingual_quantity_conflict") })
+    }
+    for line in ["Servings per package: 3 本包裝含 2份", "本包裝含2份 (3 Servings Per Package)", "本包裝含2份 Servings per package 3"] {
+        let candidate = parse(bilingual.replacingOccurrences(of: "本包裝含8份 (8 Servings Per Package)", with: line))
+        #expect(candidate.servingsPerPack == nil, "\(line): \(String(describing: candidate.servingsPerPack))")
+        #expect(candidate.warnings.contains("bilingual_quantity_conflict: servings_per_pack"), "\(line)")
+    }
+    let agreeing = parse(bilingual.replacingOccurrences(of: "本包裝含8份 (8 Servings Per Package)", with: "Servings per package: 8 本包裝含 8份"))
+    #expect(agreeing.servingsPerPack?.decimalText == "8")
+    // English with no Chinese count on a Chinese line: the Chinese phrase decides, so not read.
+    let englishOnly = parse(bilingual.replacingOccurrences(of: "本包裝含8份 (8 Servings Per Package)", with: "Servings per package: 8 本包裝"))
+    #expect(englishOnly.servingsPerPack == nil)
 }
 
 @Test func aBilingualTextWithLatinOutsideItsAllowedPlacesStaysMixed() {
@@ -348,7 +419,7 @@ private let bilingual = """
     })
     let energyLine = "營養標示\n熱量 45大卡(每100毫升)\n蛋白質 1.2公克\n脂肪 1.5公克\n飽和脂肪 0.9公克\n反式脂肪 0公克\n碳水化合物 6.4公克\n糖 6.1公克\n鈉 38毫克\n"
     for (layout, text) in [("flattened", flat("，")), ("bilingual", bilingual), ("energy line", energyLine)] {
-        #expect(!parse(text).declined, "\(layout): \(parse(text).declineReasons)")
+        #expect(parse(text).declineReasons == (layout == "energy line" ? ["no_basis_header"] : []), "\(layout): \(parse(text).declineReasons)")
         #expect(parse(text + "*本品為營養補充品\n").declineReasons == ["not_a_food_nutrition_panel"], "\(layout)")
         #expect(parse(text + "*\(simplified)項\n").declineReasons == ["unsupported_script"], "\(layout)")
     }

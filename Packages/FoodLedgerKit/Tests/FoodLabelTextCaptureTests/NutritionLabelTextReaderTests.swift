@@ -34,7 +34,7 @@ final class NutritionLabelTextReaderTests: XCTestCase {
 
     // MARK: Reader v3 PR 3: the new layouts reach Confirm through the gate and the launch scope
 
-    func testFlattenedBilingualAndEnergyLineTablesAreUsableTaiwanReadings() throws {
+    func testFlattenedAndBilingualTablesAreUsableAndAnEnergyLineBasisDeclines() throws {
         let flattened = "營養標示\n每一份量30公克\n本包裝含8份\n每份 熱量 121大卡，蛋白質 3.1公克，脂肪 4.3公克，飽和脂肪 1.5公克，反式脂肪 0.1公克，"
             + "碳水化合物 18.7公克，糖 6.8公克，鈉 61毫克\n"
         let bilingual = "營養標示 Nutrition Facts\n每一份量 Serving Size 30公克\n本包裝含8份 (8 Servings Per Package)\n"
@@ -42,12 +42,15 @@ final class NutritionLabelTextReaderTests: XCTestCase {
             + "脂肪 Total Fat 4.3(g)公克 14.4(g)公克\n飽和脂肪 Saturated Fat 1.5(g)公克 5.6(g)公克\n反式脂肪 Trans Fat 0.1(g)公克 0.3(g)公克\n"
             + "碳水化合物 Total Carbohydrate 18.7(g)公克 62.3(g)公克\n糖 Sugars 6.8(g)公克 22.7(g)公克\n鈉 Sodium 61(mg)毫克 203(mg)毫克\n"
         let energyLine = "營養標示\n熱量 45大卡(每100毫升)\n蛋白質 1.2公克\n脂肪 1.5公克\n飽和脂肪 0.9公克\n反式脂肪 0公克\n碳水化合物 6.4公克\n糖 6.1公克\n鈉 38毫克\n"
-        for (name, text) in [("flattened", flattened), ("bilingual", bilingual), ("energy line", energyLine)] {
+        for (name, text) in [("flattened", flattened), ("bilingual", bilingual)] {
             let usable = try review(text)
             XCTAssertEqual(usable.reading.versions.parser, NutritionLabelTextParserV3.version, name)
             XCTAssertEqual(usable.reading.format, "taiwan_nutrition_labelling", name)
             XCTAssertTrue(usable.reading.unreadRows.isEmpty, name)
         }
+        // Decision 23: a basis printed only in the energy line is the user's choice (PR 4), never
+        // read automatically; until then it declines with today's no-basis-header copy.
+        XCTAssertEqual(reader.read(energyLine).declineCodes, ["no_basis_header"])
     }
 
     // MARK: 26. Launch scope after a faithful gate
