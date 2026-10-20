@@ -19,6 +19,9 @@ enum NonRegression {
         case unitOffTemplate = "4 off-template unit left unread"
         case newWarnings = "5 new warnings"
         case otherDeclineCode = "6 different decline code"
+        /// Reader v3 PR 1 review: Han text between two values is two rows on one line (3.0), so a
+        /// table v2 read (and could misbind, `脂肪 10公克 其中飽和脂肪 3公克`) declines `layout_ambiguous`.
+        case hanBetweenValues = "7 Han text between values declines layout_ambiguous"
     }
 
     struct Verdict {
@@ -30,7 +33,7 @@ enum NonRegression {
 
     /// The allow-list items that explain every difference between parser v2's candidate and
     /// parser v3's, or the differences no item explains.
-    static func explain(v2: LabelCaptureCandidate, v3: LabelCaptureCandidate) -> Verdict {
+    static func explain(v2: LabelCaptureCandidate, v3: LabelCaptureCandidate, text: String? = nil) -> Verdict {
         var verdict = Verdict()
         if v2 == v3 { return verdict }
         switch (v2.declined, v3.declined) {
@@ -45,6 +48,11 @@ enum NonRegression {
             verdict.unexplained.append("v2 declined (\(v2.declineReasons)), v3 reads it: no truth oracle for this case")
             return verdict
         case (false, true):
+            if v3.declineReasons == ["layout_ambiguous"], let text,
+               text.components(separatedBy: "\n").contains(where: ParseStateV3.hasHanBetweenValues) {
+                verdict.items.insert(.hanBetweenValues)
+                return verdict
+            }
             verdict.unexplained.append("v2 read it, v3 declines \(v3.declineReasons)")
             return verdict
         case (false, false):
@@ -104,7 +112,7 @@ enum NonRegression {
         let hash = try #require(record["text_sha256"] as? String)
         let v2 = try #require(try ParityFixtures.candidate(record["candidate"]))
         let v3 = NutritionLabelTextParserV3().parse(text, inputSHA256: hash)
-        let verdict = NonRegression.explain(v2: v2, v3: v3)
+        let verdict = NonRegression.explain(v2: v2, v3: v3, text: text)
         checked += 1
         if verdict.items.isEmpty && verdict.unexplained.isEmpty { unchanged += 1 }
         for item in verdict.items {

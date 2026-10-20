@@ -90,7 +90,7 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     // The pack line too, with its own join.
     let pack = parse(label("營養標示\n每一份量30公克\n本包裝含\n8份\n"))
     #expect(pack.servingsPerPack == LabelServingsPerPack(printedText: "本包裝含 8份", decimalText: "8", approximate: false))
-    #expect(pack.warnings == ["serving_line_joined"])
+    #expect(pack.warnings == ["serving_line_joined: servings_per_pack"])
     let about = parse(label("營養標示\n每一份量30公克\n本包裝含\n約8份\n"))
     #expect(about.servingsPerPack?.approximate == true)
     // Trimmed and joined by exactly one ASCII space.
@@ -328,6 +328,82 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     #expect(parse(label(body: "每份 每100公克\n熱量\n蛋白質")).declineReasons == ["no_table"])
 }
 
+// MARK: Review of #280: "more than", repeated rows, bullets, Han between values, joins, pack lines
+
+/// Mutation fixtures (7.2). Class (b), content-changing: a value printed as "more than" (`>3公克`)
+/// is not a value the reader can hold, so its row is never bound (oracle: not read, or declined).
+/// Class (a), structure-only: a `>` marker before a row label is indentation and the row reads.
+@Test func aMoreThanValueIsNeverReadAsExact() {
+    for mark in [">", ">>", "≥", "＞", "> ", "超過", "大於"] {
+        let stacked = parse(label(body: "每份\n熱量\n120大卡\n蛋白質\n3.0公克\n脂肪\n\(mark)3公克\n鈉\n\(mark)1000毫克"))
+        #expect(cell(stacked, "fat", .perServing) == nil, "stacked \(mark): \(stacked.cells.map(\.printedText))")
+        #expect(cell(stacked, "sodium", .perServing) == nil, "stacked \(mark)")
+        #expect(!stacked.cells.contains { $0.decimalText == "3" || $0.decimalText == "1000" }, "stacked \(mark)")
+        for body in [rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: "鈉 60毫克\n\(mark)200毫克"),
+                     rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: "鈉 60毫克 \(mark)200毫克"),
+                     rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: "鈉 \(mark)60毫克 200毫克")] {
+            let inline = parse(label(body: body))
+            #expect(!inline.cells.contains { $0.nutrient == "sodium" }, "inline \(mark): \(inline.cells.filter { $0.nutrient == "sodium" })")
+            #expect(!inline.cells.contains { $0.decimalText == "200" && $0.comparator == .equal }, "inline \(mark)")
+        }
+    }
+    let warned = parse(label(body: rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: "鈉 60毫克 >200毫克")))
+    #expect(warned.warnings.contains("row_not_read: malformed_value: 鈉"))
+    #expect(warned.cells.count == 14)
+    // Class (a): `>` before a label is a row marker; the row reads as printed.
+    let marker = parse(label(body: rows.replacingOccurrences(of: "\n脂肪 ", with: "\n> 脂肪 ")))
+    #expect(cell(marker, "fat")?.decimalText == "15.0")
+    #expect(cell(marker, "fat")?.comparator == .equal)
+    #expect(ParseStateV3.markedRow(">3公克") == nil)
+    #expect(ParseStateV3.markedRow(">> 3公克") == nil)
+}
+
+@Test func aStarredLineRepeatingAReadRowIsAFootnote() {
+    for footnote in ["*鈉 2000毫克", "*鈉每日參考值2000毫克", "*熱量 2000大卡"] {
+        let candidate = parse(label(body: rows + "\n" + footnote))
+        #expect(!candidate.declined, "\(footnote): \(candidate.declineReasons)")
+        #expect(candidate.cells.count == 16, "\(footnote)")
+        #expect(cell(candidate, "sodium")?.decimalText == "200", "\(footnote)")
+        #expect(cell(candidate, "energy_kcal")?.decimalText == "400", "\(footnote)")
+    }
+}
+
+@Test func bulletsOnEnglishRowsNeverChainRowsUnderEachOther() {
+    let bulleted = parse("Typical values\tPer 100g\n• Energy\t1500kJ\n• Fat\t3g\n• Saturates\t1g\n• Carbohydrate\t10g\n• Sugars\t5g\n• Protein\t2g\n")
+    #expect(!bulleted.declined)
+    #expect(bulleted.cells.allSatisfy { $0.parentRowID == nil }, "\(bulleted.cells.map { ($0.nutrient, $0.parentRowID ?? "-") })")
+    // After a marker-free top-level row, a marker is indentation.
+    let mixed = parse("Typical values\tPer 100g\nFat\t3g\n• Saturates\t1g\nCarbohydrate\t10g\n• Sugars\t5g\n")
+    #expect(cell(mixed, "saturates")?.parentRowID == "fat")
+    #expect(cell(mixed, "sugars")?.parentRowID == "carbohydrate")
+}
+
+@Test func hanTextBetweenValuesIsTwoRowsAndDeclines() {
+    for gap in ["其中飽和脂肪", "不飽和脂肪", "飽和", "約"] {
+        let text = label(body: rows.replacingOccurrences(of: "脂肪 4.5公克 15.0公克", with: "脂肪 4.5公克 \(gap) 1.5公克"))
+        #expect(parse(text).declineReasons == ["layout_ambiguous"], "\(gap)")
+        #expect(ParseStateV3.hasHanBetweenValues("脂肪 4.5公克 \(gap) 1.5公克"))
+    }
+    // Parser v2 is unchanged: it binds the second value to the per 100 g column.
+    let v2 = NutritionLabelTextParser().parse(label(body: rows.replacingOccurrences(of: "脂肪 4.5公克 15.0公克",
+                                                                                    with: "脂肪 4.5公克 其中飽和脂肪 1.5公克")), inputSHA256: hash)
+    #expect(v2.cells.first { $0.nutrient == "fat" && $0.basis == .per100g }?.decimalText == "1.5")
+    // Han text after the last value is not a second row (a voluntary note).
+    #expect(!ParseStateV3.hasHanBetweenValues("鈉 60毫克 200毫克 自願"))
+}
+
+@Test func joinedServingAndPackLinesCarryOneWarning() {
+    let candidate = parse(label("營養標示\n每一份量\n30公克\n本包裝含\n8份\n"))
+    #expect(candidate.servingSize?.decimalText == "30")
+    #expect(candidate.servingsPerPack?.decimalText == "8")
+    #expect(candidate.warnings == ["serving_line_joined", "serving_line_joined: servings_per_pack"], "one warning per joined line")
+}
+
+@Test func boundServingAndPackLinesAreScannedForMarkers() {
+    #expect(parse(label("營養標示\n每一份量30公克\n本包裝含8份（營養補充品）\n")).declineReasons == ["not_a_food_nutrition_panel"])
+    #expect(parse(label("營養標示\n每一份量30公克（營養補充品）\n本包裝含8份\n")).declineReasons == ["not_a_food_nutrition_panel"])
+}
+
 // MARK: 3.0: gate input coverage (test 6)
 
 @Test func test6AMarkerOrScriptInAConsumedButUnboundLineDeclinesWithTheGatesCode() throws {
@@ -377,6 +453,10 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     let mixed = label(body: rows.replacingOccurrences(of: "蛋白質 3.0公克 10.0公克", with: "蛋白質\n3.0公克\n10.0公克"))
     let lost = NonRegression.explain(v2: NutritionLabelTextParser().parse(mixed, inputSHA256: hash), v3: parse(mixed))
     #expect(!lost.unexplained.isEmpty, "a table v2 read and v3 declines is never on the allow-list")
+    let gap = label(body: rows.replacingOccurrences(of: "脂肪 4.5公克 15.0公克", with: "脂肪 4.5公克 其中飽和脂肪 1.5公克"))
+    let twoRows = NonRegression.explain(v2: NutritionLabelTextParser().parse(gap, inputSHA256: hash), v3: parse(gap), text: gap)
+    #expect(twoRows.items == [.hanBetweenValues])
+    #expect(twoRows.unexplained.isEmpty)
     let titled = label("【營養標示】\n" + servingLines)
     let read = NonRegression.explain(v2: NutritionLabelTextParser().parse(titled, inputSHA256: hash), v3: parse(titled))
     #expect(!read.unexplained.isEmpty, "a case v2 declined and v3 reads needs the truth oracle")

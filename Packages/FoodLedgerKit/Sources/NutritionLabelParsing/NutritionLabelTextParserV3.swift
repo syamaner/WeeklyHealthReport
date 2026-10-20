@@ -77,6 +77,11 @@ enum PatternsV3 {
     static let rowMarkers = [">>", ">", "•", "·", "▲", "●"]
     static let hanMarkers: [Character] = ["-", "*"]
     static let hanRun = LabelPattern(#"\p{Han}+"#)
+    /// "More than" before a number: the reader has no such comparator, so such a value is never
+    /// read as exact (it makes its row unread).
+    static let greaterThan = LabelPattern(#"(?i)(?:[>≥＞≧]|超過|大於|多於|more\s+than|greater\s+than)\s*\d"#)
+    /// The same marks standing at the end of a label ("鈉 >", "超過").
+    static let trailingGreaterThan = LabelPattern(#"(?i)\s*(?:[>≥＞≧]+|超過|大於|多於|more\s+than|greater\s+than)$"#)
 }
 
 // MARK: - Parse state
@@ -89,6 +94,10 @@ struct RowDraftV3 {
     var attachedAfterValues = false
     /// The printed lines of the row, for gate input coverage when the row is not bound.
     var lines: [String]
+    /// The row's label line started with a row marker (3.1 rule 5).
+    var marked = false
+    /// A value of the row was printed as "more than" (`>3公克`): the row is not read.
+    var malformed = false
 }
 
 struct ParseStateV3 {
@@ -145,7 +154,7 @@ struct ParseStateV3 {
             return
         }
         if content.hasPrefix("*") || content.hasPrefix("＊") || content.hasPrefix("†") {
-            if !(content.hasPrefix("*") && Self.markedRow(content) != nil) {
+            if !(content.hasPrefix("*") && Self.markedRow(content) != nil && !repeatsReadRow(content)) {
                 unbound.append(content)
                 return
             }
@@ -349,7 +358,10 @@ struct ParseStateV3 {
     /// stays a footnote, as in parser v2).
     static func markedRow(_ content: String) -> String? {
         for marker in PatternsV3.rowMarkers where content.hasPrefix(marker) {
-            return String(content.dropFirst(marker.count)).trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}")))
+            let rest = String(content.dropFirst(marker.count)).trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}")))
+            // A marker is removed only when a row label follows it: `>` before a number is
+            // "more than", never a marker (`>3公克` stays as printed and is never read as exact).
+            return startsWithLabel(rest) ? rest : nil
         }
         guard let first = content.first, PatternsV3.hanMarkers.contains(first) else { return nil }
         let rest = String(content.dropFirst())
@@ -359,6 +371,22 @@ struct ParseStateV3 {
             guard RowClassifierV3.isRowLabel(label.trimmingCharacters(in: .whitespaces)) else { return nil }
         }
         return rest
+    }
+
+    /// Whether a text starts with a row label: a letter before its first value.
+    static func startsWithLabel(_ text: String) -> Bool {
+        let label = Patterns.value.matchDetails(in: text).first.map { String(text[..<$0.range.lowerBound]) } ?? text
+        return label.trimmingCharacters(in: .whitespaces).first?.isLetter == true
+    }
+
+    /// A `*` line naming a row that is already read (a reference footnote such as `*鈉 2000毫克`
+    /// after the table) is a footnote, never a second row.
+    func repeatsReadRow(_ content: String) -> Bool {
+        guard let rest = Self.markedRow(content) else { return false }
+        let label = (Patterns.value.matchDetails(in: rest).first.map { String(rest[..<$0.range.lowerBound]) } ?? rest)
+            .trimmingCharacters(in: .whitespaces)
+        guard let key = RowClassifierV3.classify(label)?.key else { return false }
+        return rows.contains { RowClassifierV3.classify($0.label)?.key == key }
     }
 
     mutating func consumeRow(rawLine: String, content original: String) {
@@ -375,8 +403,15 @@ struct ParseStateV3 {
         } else {
             label = content
         }
-        let cleanedLabel = label
+        var cleanedLabel = label
             .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•")))
+        // "More than" is not a value the reader can hold: its marks never stay in a label, and the
+        // row that receives such a value is not read (`row_not_read: malformed_value`).
+        let moreThan = PatternsV3.greaterThan.contains(content)
+        if let mark = PatternsV3.trailingGreaterThan.matchDetails(in: cleanedLabel).first {
+            cleanedLabel = String(cleanedLabel[..<mark.range.lowerBound])
+                .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•")))
+        }
         let values = details.map { match -> PrintedValue in
             let printed = String(content[match.range]).trimmingCharacters(in: .whitespaces)
             let comparator: LabelComparator
@@ -387,7 +422,7 @@ struct ParseStateV3 {
             }
             return PrintedValue(printedText: printed, comparator: comparator, decimalText: match.groups[2] ?? "", unit: match.groups[3])
         }
-        let indented = marked || rawLine.hasPrefix("\u{3000}") || rawLine.hasPrefix("  ") || rawLine.hasPrefix(" \t")
+        let indented = rawLine.hasPrefix("\u{3000}") || rawLine.hasPrefix("  ") || rawLine.hasPrefix(" \t")
         if !cleanedLabel.isEmpty {
             rowsStarted = true
             body.append(values.isEmpty ? .labelOnly : .labelWithValues(secondLabel: Self.hasSecondLabel(content, values: details)))
@@ -398,10 +433,11 @@ struct ParseStateV3 {
                 last.values = values
                 last.labelLineHadValues = !values.isEmpty
                 last.lines.append(original)
+                last.malformed = last.malformed || moreThan
                 rows[rows.count - 1] = last
             } else {
                 rows.append(RowDraftV3(label: cleanedLabel, indented: indented, values: values, labelLineHadValues: !values.isEmpty,
-                                       lines: [original]))
+                                       lines: [original], marked: marked, malformed: moreThan))
             }
         } else if !values.isEmpty {
             guard !rows.isEmpty else {
@@ -418,23 +454,19 @@ struct ParseStateV3 {
             }
             last.values += values
             last.lines.append(original)
+            last.malformed = last.malformed || moreThan
             rows[rows.count - 1] = last
         } else {
             unbound.append(original)
         }
     }
 
-    /// Whether a recognised row label stands after the first value of a line (two rows on one
-    /// line): a Han run, or a gap between values, that names a row in the alias or English table.
+    /// Whether a line holds two rows after its first value: any Han text between two values
+    /// (`脂肪 10公克 其中飽和脂肪 3公克`; no substring alias matching), or a gap that names a row in
+    /// the alias or English table.
     static func hasSecondLabel(_ content: String, values: [(range: Range<String.Index>, groups: [String?])]) -> Bool {
-        guard let first = values.first else { return false }
-        var gaps: [String] = []
-        var cursor = first.range.upperBound
-        for value in values.dropFirst() {
-            gaps.append(String(content[cursor..<value.range.lowerBound]))
-            cursor = value.range.upperBound
-        }
-        gaps.append(String(content[cursor...]))
+        let gaps = gaps(content, values: values)
+        if gaps.dropLast().contains(where: { PatternsV3.hanRun.contains($0) }) { return true }
         let trim = CharacterSet.whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•/,，、;；|()（）*＊†>▲●"))
         for gap in gaps {
             let text = gap.trimmingCharacters(in: trim)
@@ -443,6 +475,24 @@ struct ParseStateV3 {
             if PatternsV3.hanRun.matches(in: text).contains(where: RowClassifierV3.isRowLabel) { return true }
         }
         return false
+    }
+
+    /// The texts after each value of a line (the last one runs to the end of the line).
+    static func gaps(_ content: String, values: [(range: Range<String.Index>, groups: [String?])]) -> [String] {
+        guard let first = values.first else { return [] }
+        var gaps: [String] = []
+        var cursor = first.range.upperBound
+        for value in values.dropFirst() {
+            gaps.append(String(content[cursor..<value.range.lowerBound]))
+            cursor = value.range.upperBound
+        }
+        gaps.append(String(content[cursor...]))
+        return gaps
+    }
+
+    /// Whether a line has Han text between two of its values (the non-regression allow-list).
+    static func hasHanBetweenValues(_ line: String) -> Bool {
+        gaps(line, values: Patterns.value.matchDetails(in: line)).dropLast().contains { PatternsV3.hanRun.contains($0) }
     }
 
     static func isStackedEnergy(row: RowDraftV3, adding values: [PrintedValue]) -> Bool {
@@ -494,7 +544,7 @@ struct ParseStateV3 {
         if let (join, approximate, decimal) = packJoin {
             if joinAllowed {
                 servingsPerPack = LabelServingsPerPack(printedText: Self.joined(join), decimalText: decimal, approximate: approximate)
-                warnings.append(Self.joinedWarning)
+                warnings.append(Self.joinedPackWarning)
             } else {
                 unbound += [join.label, join.quantity]
             }
@@ -504,6 +554,9 @@ struct ParseStateV3 {
         let referenceHeaders = headers.filter { $0.basis == .referenceIntake }
         var cells: [LabelCell] = []
         var lastTopLevel: String?
+        // A marker counts as indentation only after a marker-free top-level row, so bullets on
+        // every row never chain one row under another (3.1 rule 5).
+        var lastTopLevelMarked = false
         var bindingDecline: [String]?
         if declineReasons.isEmpty, !rows.isEmpty, !amountHeaders.isEmpty {
             let byBasis = Dictionary(grouping: headers, by: \.basis)
@@ -515,6 +568,7 @@ struct ParseStateV3 {
         if declineReasons.isEmpty, bindingDecline == nil, !rows.isEmpty, !amountHeaders.isEmpty {
             rowLoop: for (index, row) in rows.enumerated() {
                 let classified = RowClassifierV3.classify(row.label)
+                let indented = row.indented || (row.marked && lastTopLevel != nil && !lastTopLevelMarked)
                 let rowKey: String
                 let parent: String?
                 switch classified {
@@ -526,19 +580,27 @@ struct ParseStateV3 {
                         // The alias table names every Taiwan row's parent (section 4): a top-level
                         // row stays top-level however it is indented or marked (3.1 rule 5).
                         parent = nil
-                    } else if match.ofWhich || row.indented {
+                    } else if match.ofWhich || indented {
                         parent = lastTopLevel
                     } else {
                         parent = nil
                     }
                 case nil:
                     rowKey = "row_\(index + 1)"
-                    parent = (RowClassifier.hasOfWhich(row.label) || row.indented) ? lastTopLevel : nil
+                    parent = (RowClassifier.hasOfWhich(row.label) || indented) ? lastTopLevel : nil
                     warnings.append("unrecognised_row: \(row.label)")
                 }
-                if parent == nil { lastTopLevel = rowKey == "energy" ? nil : rowKey }
+                if parent == nil {
+                    lastTopLevel = rowKey == "energy" ? nil : rowKey
+                    lastTopLevelMarked = row.marked
+                }
                 if row.values.isEmpty {
                     warnings.append("row_without_values: \(row.label)")
+                    unbound += row.lines
+                    continue
+                }
+                if row.malformed {
+                    warnings.append("row_not_read: malformed_value: \(row.label)")
                     unbound += row.lines
                     continue
                 }
@@ -615,7 +677,7 @@ struct ParseStateV3 {
 
         // 3.0, gate input coverage: the gate's own marker and script functions over every
         // consumed but unbound line; a hit declines with the gate's existing code.
-        let coverage = Self.coverageDeclines(unbound)
+        let coverage = Self.coverageDeclines(unbound + [servingSize?.printedText, servingsPerPack?.printedText].compactMap { $0 })
         if !coverage.isEmpty { return decline(coverage) }
         if !declineReasons.isEmpty { return decline(declineReasons) }
         if rows.isEmpty { return decline(["no_table"]) }
@@ -637,7 +699,10 @@ struct ParseStateV3 {
         )
     }
 
+    /// One warning per joined line, each at most once: the serving line (3.1 rule 3, the string
+    /// serving v3 relies on) and the pack line (rule 4).
     static let joinedWarning = "serving_line_joined"
+    static let joinedPackWarning = "serving_line_joined: servings_per_pack"
 
     /// `unsupported_script` (G1) and `not_a_food_nutrition_panel` (G2), in gate rule order, when
     /// the gate's own functions find a hit in a consumed but unbound line.

@@ -70,14 +70,15 @@ enum LabelFixtures {
     /// The per 100 g reading: Confirm stores h2. Its printed 30 g serving size qualifies for
     /// `pasted-label-serving-v3` (a parser-v3 reading); pass another (or nil) to test the cases that do not.
     static func reading(text: String = pastedText, checks: [LabelReading.Check] = [],
-                        servingSize: PastedLabelManifest.Candidate.ServingSize? = printedServingSize) -> LabelReading {
+                        servingSize: PastedLabelManifest.Candidate.ServingSize? = printedServingSize,
+                        warnings: [String] = []) -> LabelReading {
         let candidate = PastedLabelManifest.Candidate(route: "A", inputSHA256: hash(text), declined: false, declineReasons: [],
             wouldMarkReady: true, language: "zh-Hant",
             servingSize: servingSize,
             servingsPerPack: .init(printedText: "本包裝含10份", decimalText: "10", approximate: false),
             headers: [.init(headerID: "h1", printedText: "每份", basis: "per_serving", servingConversion: "30公克"),
                       .init(headerID: "h2", printedText: "每100公克", basis: "per_100g", servingConversion: nil)],
-            cells: cells, warnings: [])
+            cells: cells, warnings: warnings)
         return LabelReading(origin: .pastedText, textSHA256: hash(text), candidate: candidate, format: "taiwan_nutrition_labelling",
             gate: .init(format: "taiwan_nutrition_labelling", skipped: nil, hardDeclines: [], flags: gateFlags),
             checks: checks, conversions: [kcal, sodium], storedHeaderID: "h2", versions: versions)

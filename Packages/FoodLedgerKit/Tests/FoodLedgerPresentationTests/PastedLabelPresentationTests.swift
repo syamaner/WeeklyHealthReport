@@ -11,6 +11,24 @@ import XCTest
 /// Synthetic data only.
 @MainActor
 final class PastedLabelPresentationTests: XCTestCase {
+    /// Reader v3 section 3.1 rules 3 and 4: a serving or pack line read from two lines of the
+    /// label is a visible warning on its row and in the warnings, recorded as shown and in the
+    /// misread report (every exception is visible).
+    func testALineReadFromTwoLinesIsAVisibleWarningOnItsRowAndInTheReport() throws {
+        let both = try LabelFixtures.source(LabelFixtures.reading(
+            warnings: ["serving_line_joined", "serving_line_joined: servings_per_pack"]))
+        XCTAssertEqual(both.manifest.warningsShown, ["serving_line_joined:serving_size", "serving_line_joined:servings_per_pack"])
+        XCTAssertEqual(both.warnings, ["Read from two lines of the label. Check the serving size.",
+                                       "Read from two lines of the label. Check the servings per pack."])
+        XCTAssertEqual(both.servingLines.first { $0.id == "serving_size" }?.flag, PastedLabelText.joinedServingSize)
+        XCTAssertEqual(both.servingLines.first { $0.id == "servings_per_pack" }?.flag, PastedLabelText.joinedPack)
+        XCTAssertTrue(both.reportText.contains("Read from two lines of the label. Check the serving size. (serving_line_joined:serving_size)"))
+        let servingOnly = try LabelFixtures.source(LabelFixtures.reading(warnings: ["serving_line_joined"]))
+        XCTAssertEqual(servingOnly.warnings, [PastedLabelText.joinedServingSize])
+        XCTAssertNil(servingOnly.servingLines.first { $0.id == "servings_per_pack" }?.flag)
+        XCTAssertEqual(try LabelFixtures.source().warnings, [], "no join, no warning")
+    }
+
     private typealias F = LabelFixtures
 
     // MARK: Test 20: label text screen

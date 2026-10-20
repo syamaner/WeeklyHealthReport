@@ -175,6 +175,26 @@ final class PastedLabelRouteTests: XCTestCase {
                        "a calculated contribution marks the day total as including estimates")
     }
 
+    /// Reader v3 section 3.1 rules 3 and 4: split serving and pack lines are joined, and Confirm
+    /// says so on each row and in the warnings; the joined serving size still offers servings.
+    func testSplitServingAndPackLinesAreReadAndShownAsReadFromTwoLines() throws {
+        let root = try makeRoot()
+        let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
+        model.name = "Synthetic oat crackers"
+        model.fortification = .no
+        model.text = Self.base.replacingOccurrences(of: "每一份量 40 公克", with: "每一份量\n40 公克")
+            .replacingOccurrences(of: "本包裝含 2 份", with: "本包裝含\n2 份")
+        let source = try XCTUnwrap(model.readLabel(), "\(model.declineMessages)")
+        XCTAssertEqual(source.manifest.warningsShown, ["serving_line_joined:serving_size", "serving_line_joined:servings_per_pack"])
+        XCTAssertEqual(source.servingLines.first { $0.id == "serving_size" }?.flag, "Read from two lines of the label. Check the serving size.")
+        XCTAssertEqual(source.servingLines.first { $0.id == "servings_per_pack" }?.flag,
+                       "Read from two lines of the label. Check the servings per pack.")
+        XCTAssertTrue(source.warnings.contains("Read from two lines of the label. Check the serving size."))
+        XCTAssertTrue(source.reportText.contains("(serving_line_joined:serving_size)"))
+        let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
+        XCTAssertEqual(confirm.pastedLabelWholePack, PastedLabelWholePack(servings: 2, origin: .printed))
+    }
+
     /// Review R2: after a decline the user takes Search foods instead and logs there; no
     /// pasted-label Developer tools line outlives the label route.
     func testADeclineThenSearchAndLogLeavesNoPastedLabelLines() throws {

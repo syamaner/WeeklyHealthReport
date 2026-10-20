@@ -111,6 +111,10 @@ public enum PastedLabelText {
 
     /// Shown beside a printed "about" servings-per-pack count: read, but never a whole pack (section 2.3).
     public static let approximatePack = "Approximate, so it is not used for Whole pack."
+    /// Shown beside a serving or pack line read from two lines of the label (reader v3 section
+    /// 3.1 rules 3 and 4), on its row and in the warnings.
+    public static let joinedServingSize = "Read from two lines of the label. Check the serving size."
+    public static let joinedPack = "Read from two lines of the label. Check the servings per pack."
     /// Shown beside a printed pack count of zero: read as printed, never a whole pack (reader v3
     /// section 3.1 rule 6, decision 17).
     public static let zeroPack = "Printed as 0, so whole pack is not offered."
@@ -233,6 +237,8 @@ public enum PastedLabelText {
             return "A value is printed as a range in one column and exact in another. Check the label text."
         case "net_weight":
             return "The servings per pack do not match the pack weight. Check the label text."
+        case "serving_line_joined":
+            return parts.last == PastedLabelManifest.Correction.servingsPerPack ? joinedPack : joinedServingSize
         default:
             return "Some values do not add up. Check the label text."
         }

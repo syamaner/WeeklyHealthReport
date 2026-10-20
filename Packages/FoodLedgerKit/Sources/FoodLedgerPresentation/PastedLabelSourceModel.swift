@@ -250,12 +250,14 @@ public final class PastedLabelSourceModel: ObservableObject {
         return [
             Line(id: PastedLabelManifest.Correction.servingSize, title: "Serving size", value: sizeValue,
                  flag: sizeFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) }
-                    ?? (sizeCorrection == nil ? size.flatMap { PastedLabelText.servingSizeNote(servingSizeExactness($0)) } : nil),
+                    ?? (sizeCorrection == nil ? size.flatMap { PastedLabelText.servingSizeNote(servingSizeExactness($0)) } : nil)
+                    ?? (joined(PastedLabelManifest.Correction.servingSize) ? PastedLabelText.joinedServingSize : nil),
                  actions: sizeActions, units: servingSizeUnits),
             Line(id: PastedLabelManifest.Correction.servingsPerPack, title: "Servings per pack", value: packValue,
                  flag: packFlag.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) }
                     ?? (pack?.approximate == true ? PastedLabelText.approximatePack
-                        : (pack.map { PastedLabelText.isPrintedZero($0.decimalText) } == true ? PastedLabelText.zeroPack : nil)),
+                        : (pack.map { PastedLabelText.isPrintedZero($0.decimalText) } == true ? PastedLabelText.zeroPack
+                        : (joined(PastedLabelManifest.Correction.servingsPerPack) ? PastedLabelText.joinedPack : nil))),
                  actions: packActions, units: ["count"])
         ]
     }
@@ -288,6 +290,12 @@ public final class PastedLabelSourceModel: ObservableObject {
     }
 
     public var warnings: [String] { manifest.warningsShown.map(PastedLabelText.warningMessage) }
+
+    /// Whether the serving line (`serving_size`) or the pack line (`servings_per_pack`) was read
+    /// from two lines of the label and shown as such.
+    func joined(_ line: String) -> Bool {
+        manifest.warningsShown.contains(PastedLabelCodes.servingLineJoined + ":" + line)
+    }
 
     // MARK: Corrections (sections 2.3 and 3.2)
 

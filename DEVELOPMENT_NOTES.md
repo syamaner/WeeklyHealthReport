@@ -2130,3 +2130,26 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-20T07:22:59Z` → `2026-10-20T07:49:25Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 513,338 5-minute, 0 1-hour. Exact API-equivalent USD 5.3529102. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-20c: Claude Code pasted nutrition label reader v3 PR 1, invariant review and journey QA round
+
+Same subagent and transcript as WHR-93-2026-10-20a, resumed for the invariant review of #280 and journey QA finding D1:
+- a "more than" value (`>`, `≥`, `＞`, 超過 and the rest) makes its row unread, and `>` is a marker only before a label;
+- a `*` line repeating a read row is a footnote;
+- bullets never chain rows;
+- Han text between values declines `layout_ambiguous` (allow-list item 7);
+- one joined-line warning per line, shown on its Confirm row, in the warnings and in the misread report;
+- bound serving and pack lines are gate-scanned;
+- the doc's 5.6 item 1 now matches the test.
+
+The round also includes one full gate run and one dev-set run. It runs from `2026-10-20T07:49:25Z` (the end of WHR-93-2026-10-20b) to `2026-10-20T08:24:53Z`, just before this ledger edit.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 PR 1 review and QA round (#93), implementation subagent | 25,126,286 (23,572,313) | 1,553,863 | 4,055 | 25,130,341 | $12.57 |
+
+Boundary: `2026-10-20T07:49:25Z` → `2026-10-20T08:24:53Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,553,863 5-minute, 0 1-hour. Exact API-equivalent USD 12.5653176. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. The reviewers' own sessions are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
