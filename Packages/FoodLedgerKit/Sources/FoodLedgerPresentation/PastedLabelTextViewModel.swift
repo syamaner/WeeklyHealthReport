@@ -52,6 +52,8 @@ public final class PastedLabelTextViewModel: ObservableObject {
     @Published public var asksToReplaceCorrectionsOnBasisChange = false
     /// Change chose an option whose source could not be built: Confirm keeps the earlier choice.
     @Published public var basisChangeFailed = false
+    /// The first choice could not be applied: nothing was written and the text is kept.
+    @Published public var basisChoiceFailed = false
     private var pendingArrangement: PastedLabelBasisOptions.Arrangement?
     /// The request the current Confirm's choice was made on, bound to its text (8.4.9).
     private var confirmRequest: PastedLabelBasisChoiceRequest?
@@ -232,7 +234,12 @@ public final class PastedLabelTextViewModel: ObservableObject {
     private func apply(_ arrangement: PastedLabelBasisOptions.Arrangement, sheet: BasisSheet) -> PastedLabelSourceModel? {
         basisSheet = nil
         let request = sheet.request
-        guard let choose, let review = try? choose(arrangement, request) else { return nil }
+        guard let choose, let review = try? choose(arrangement, request) else {
+            // Never silent (final review of #284): from Change the earlier choice is kept and
+            // said so; after Read label nothing was written and the text stays.
+            if sheet.fromChange { basisChangeFailed = true } else { basisChoiceFailed = true }
+            return nil
+        }
         // From Change, Confirm keeps its model (amount and time stay) with the new review. If the
         // new source cannot be built, Confirm and its earlier choice stay and the user is told;
         // a new Confirm is never opened in its place (review of #284).

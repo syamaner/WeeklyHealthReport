@@ -247,6 +247,8 @@ public enum PastedLabelCodes {
     /// Reader v3 8.4.3 (journey QA of #284): two unheaded amount columns and no serving size, so
     /// the options table offers nothing; it has its own plain copy.
     public static let unheadedColumnsWithoutServingSize = "unheaded_columns_without_serving_size"
+    /// The same with a serving size printed but not in grams or millilitres (final review of #284).
+    public static let unheadedColumnsServingSizeNotInGramsOrMillilitres = "unheaded_columns_serving_size_not_in_g_or_ml"
     /// The candidate warning carrying the energy line's basis bracket (decision 23).
     public static let basisHintWarningPrefix = "basis_hint: energy_line: "
     /// Decision 24 (8.4.12): recorded in `warnings_shown` when the hint's basis is not one of
@@ -272,6 +274,7 @@ public enum PastedLabelCodes {
         case tooLittleRead = "too_little_read"
         case multiplePanels = "multiple_panels"
         case noHeadingsNoServingSize = "no_headings_no_serving_size"
+        case noHeadingsServingSizeNotInGramsOrMillilitres = "no_headings_serving_size_not_in_g_or_ml"
     }
 
     public struct Classification: Equatable, Sendable {
@@ -312,6 +315,7 @@ public enum PastedLabelCodes {
             multipleCompletePanels: decline(.multiplePanels),
             assertedBasesMismatch: decline(.unreadableTable),
             unheadedColumnsWithoutServingSize: decline(.noHeadingsNoServingSize),
+            unheadedColumnsServingSizeNotInGramsOrMillilitres: decline(.noHeadingsServingSizeNotInGramsOrMillilitres),
             textTooLong: decline(.textTooLong),
             unreadableTable: decline(.unreadableTable),
             // Gate G3 to G6: flags on Confirm, never a decline.
@@ -393,7 +397,8 @@ public struct PastedLabelReader: Sendable {
         guard outcome.declineCodes == [PastedLabelCodes.noBasisHeader], let unheaded = reading.unheadedTable else { return outcome }
         guard let arrangements = PastedLabelBasisOptions.options(for: unheaded) else {
             // Two unheaded columns and no serving size: say what is missing (journey QA of #284).
-            return .declined(codes: [PastedLabelCodes.unheadedColumnsWithoutServingSize], reading: reading)
+            return .declined(codes: [unheaded.servingSize == nil ? PastedLabelCodes.unheadedColumnsWithoutServingSize
+                                     : PastedLabelCodes.unheadedColumnsServingSizeNotInGramsOrMillilitres], reading: reading)
         }
         // 8.4.7: every offered option is read and classified first; if any would decline, there
         // is no sheet and the first declining option's codes stand, in offered order.

@@ -155,6 +155,10 @@ final class BasisChoiceReaderTests: XCTestCase {
         XCTAssertEqual(reader.read(U.tooLittle).declineCodes, ["too_little_read"], "every option reads too little")
         XCTAssertEqual(reader.read(U.twoColumnsNoServing).declineCodes, ["unheaded_columns_without_serving_size"], "two columns, no serving size")
         XCTAssertEqual(PastedLabelCodes.classify("unheaded_columns_without_serving_size"), .init(kind: .hardDecline, copy: .noHeadingsNoServingSize))
+        // A serving size printed, but not in grams or millilitres: its own copy says so.
+        let packOnly = "營養標示\n每一份量 1包\n" + U.rows2.joined(separator: "\n") + "\n"
+        XCTAssertEqual(reader.read(packOnly).declineCodes, ["unheaded_columns_serving_size_not_in_g_or_ml"])
+        XCTAssertEqual(PastedLabelCodes.classify("unheaded_columns_serving_size_not_in_g_or_ml").copy, .noHeadingsServingSizeNotInGramsOrMillilitres)
         // An unheaded English table reads, but the launch scope declines every option.
         let english = "Energy 120kcal\nFat 3g\nSaturates 1g\nCarbohydrate 20g\nSugars 5g\nProtein 3g\nSalt 0.1g\n"
         XCTAssertEqual(reader.read(english).declineCodes, ["layout_not_supported"])

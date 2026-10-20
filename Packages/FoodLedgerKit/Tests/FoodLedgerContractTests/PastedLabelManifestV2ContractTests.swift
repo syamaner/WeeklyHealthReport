@@ -148,7 +148,16 @@ final class PastedLabelManifestV2ContractTests: XCTestCase {
         let fractional = Data(String(decoding: bytes, as: UTF8.self).replacingOccurrences(of: #""at":1699999999999"#, with: #""at":1699999999999.5"#).utf8)
         XCTAssertNil(PastedLabelEvidenceManifest.decode(fractional), "a non-integer at is rejected")
         XCTAssertEqual(PastedLabelBasisChoice.milliseconds(Date(timeIntervalSince1970: 1_700_000_000.123_9)), 1_700_000_000_123)
-        XCTAssertEqual(PastedLabelBasisChoice.milliseconds(Date(timeIntervalSince1970: 1_700_000_000.999_99)), 1_700_000_000_999)
+        XCTAssertEqual(PastedLabelBasisChoice.milliseconds(Date(timeIntervalSince1970: 1_700_000_000.999_9)), 1_700_000_000_999)
+        // Every whole millisecond survives the millisecondsSince1970 Double round trip unchanged.
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .millisecondsSince1970
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .millisecondsSince1970
+        for k in stride(from: Int64(1_700_000_000_000), to: 1_700_000_020_000, by: 1) {
+            let date = Date(timeIntervalSince1970: Double(k) / 1000)
+            let back = try decoder.decode([Date].self, from: encoder.encode([date]))[0]
+            XCTAssertEqual(PastedLabelBasisChoice.milliseconds(date), k)
+            XCTAssertEqual(PastedLabelBasisChoice.milliseconds(back), k)
+        }
         XCTAssertTrue(Self.verifies(.v2(try Self.v2(at: 1_700_000_000_000))), "at equal to the capture")
         XCTAssertFalse(Self.verifies(.v2(try Self.v2(at: 1_700_000_000_001))), "at after the capture")
     }
@@ -356,6 +365,49 @@ final class PastedLabelManifestV2ContractTests: XCTestCase {
         let plain = ScriptedLabelTextReader(unasserted: try reading(candidate: declined.candidate, unheaded: nil), asserted: usable)
         XCTAssertEqual(PastedLabelReader(reader: plain, digester: LedgerFixtures.digester).read(Self.pastedText).declineCodes, ["no_basis_header"])
         XCTAssertEqual(plain.received, [nil])
+    }
+
+    // MARK: 20. A re-stamped at survives save and reopen on both stores
+
+    /// Final review of #284: when the clock moved backwards, `at` is the capture's whole
+    /// milliseconds; after the store's millisecondsSince1970 round trip the check `at <= capturedAt`
+    /// (whole milliseconds on both sides) still passes, on exact millisecond boundaries and with
+    /// sub-millisecond parts.
+    func test20AReStampedAtSavesAndReopensOnBothStores() throws {
+        struct Clock: LedgerClock { let date: Date; func now() -> Date { date } }
+        let unheaded = UnheadedTable(amountColumnCount: 1, referenceColumnPrinted: false,
+            servingSize: .init(printedText: "每一份量30公克", decimalText: "30", unit: "公克", canonicalUnit: "g"), servingsPerPack: nil, energyLineHint: nil)
+        let declined = try reading(candidate: .init(route: "A", inputSHA256: "", declined: true, declineReasons: ["no_basis_header"],
+            wouldMarkReady: false, language: "zh-Hant", servingSize: nil, servingsPerPack: nil, headers: [], cells: [], warnings: []),
+            unheaded: unheaded)
+        let asserted = Dictionary(uniqueKeysWithValues: try ["per_serving", "per_100g", "per_100ml"].map { id in
+            (id, try reading(candidate: Self.candidate(columns: [id]), stored: "header_1"))
+        })
+        let reader = PastedLabelReader(reader: ScriptedLabelTextReader(unasserted: declined, asserted: asserted),
+                                       digester: LedgerFixtures.digester)
+        guard case let .needsBasisChoice(request) = reader.read(Self.pastedText) else { return XCTFail("the sheet") }
+        let arrangement = try XCTUnwrap(PastedLabelBasisOptions.Arrangement(identifier: "per_100g"))
+        // Captures on exact millisecond boundaries and with sub-millisecond parts, each after a
+        // choice stamped later (the clock moved backwards).
+        let captures: [TimeInterval] = [1_700_000_050.5, 1_700_000_050.001, 1_700_000_050.007, 1_700_000_050.123,
+                                        1_700_000_050.123_456_7, 1_700_000_050.999_999, 1_791_800_000.3, 1_700_000_050]
+        for (offset, capture) in captures.enumerated() {
+            let builder = { (date: Date) in
+                PastedLabelConfirmation(ids: RandomLedgerIDGenerator(), clock: Clock(date: date), encoder: LedgerFixtures.encoder,
+                                        digester: LedgerFixtures.digester, conversions: GoldenPastedLabelConversions())
+            }
+            let review = try builder(Date(timeIntervalSince1970: capture + 60)).choose(arrangement, in: request)
+            let input = try builder(Date(timeIntervalSince1970: capture)).confirmation(review, details: .init(name: "Synthetic", fortification: .no),
+                                                                                       corrections: [], locale: LedgerText("zh_TW"))
+            let stored = try XCTUnwrap(PastedLabelValueOrigins.manifest(input, candidate: input.candidates[0]))
+            XCTAssertEqual(stored.basisChoices.first?.at, PastedLabelBasisChoice.milliseconds(Date(timeIntervalSince1970: capture)), "\(capture)")
+            for harness in try LedgerFixtures.harnesses() {
+                defer { harness.cleanup() }
+                let service = try F.service(harness)
+                let saved = try service.save(F.state(input), operationID: LedgerFixtures.operationID(9_970 + offset))
+                XCTAssertNotNil(try service.reopen(logItemID: saved.logItem.logItemID), "\(harness.name) \(capture)")
+            }
+        }
     }
 
     private func reading(candidate: PastedLabelManifest.Candidate, unheaded: UnheadedTable? = nil, stored: String? = nil,

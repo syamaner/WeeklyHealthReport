@@ -575,7 +575,7 @@ Written before any PR 4 production code, so the gate can check it. It makes 3.3,
 4. When a `%` column is printed, it is the **last** column on every row that prints it (the Taiwan template's position). A `%` value anywhere else leaves `UnheadedTable` nil.
 5. The layout is inline, stacked, flattened or bilingual (8.4.13). A body that declines `layout_ambiguous`, `flattened_table_ambiguous` or `multiple_panels` never reaches `no_basis_header`, so it has no sheet.
 
-**The sheet is offered only when** the reading's decline codes are exactly `[no_basis_header]` **and** `unheadedTable` is non-nil **and** the options function (8.4.3) returns at least one option **and** every option passes 8.4.7. Otherwise the outcome is today's decline, unchanged.
+**The sheet is offered only when** the reading's decline codes are exactly `[no_basis_header]` **and** `unheadedTable` is non-nil **and** the options function (8.4.3) returns at least one option **and** every option passes 8.4.7. When the options function returns nothing (two columns without a serving size in grams or millilitres) the table declines `unheaded_columns_without_serving_size`, or `unheaded_columns_serving_size_not_in_g_or_ml` when a serving size was printed in another form, each with its own copy (8.4.16). Otherwise the outcome is today's decline, unchanged.
 
 #### 8.4.2 The port: `AssertedBases`
 
@@ -605,7 +605,7 @@ public protocol LabelTextReading: Sendable {
 | 1 | none | `per_100g`, `per_100ml` (Per serving is not offered, and the sheet says why) |
 | 1 | g | `per_serving`, `per_100g`, `per_100ml` |
 | 1 | ml | `per_serving`, `per_100ml`, `per_100g` |
-| 2 | none | `nil`: decline `no_basis_header`, no sheet (the template's first column is per serving, which needs a serving size) |
+| 2 | none | `nil`: no sheet; declines `unheaded_columns_without_serving_size` (or `unheaded_columns_serving_size_not_in_g_or_ml` when a serving size is printed in another form), because the template's first column is per serving, which needs a serving size |
 | 2 | g | `per_serving,per_100g`, `per_serving,per_100ml` |
 | 2 | ml | `per_serving,per_100ml`, `per_serving,per_100g` |
 
@@ -835,6 +835,12 @@ Recorded the same way as 8.1 to 8.3. Each point follows from 8.4.1 to 8.4.15 or 
   - **`at` and the capture.** The confirmation builder reads its clock once; if the clock moved backwards since the choice, `at` is re-stamped to the capture, so a rebuilt source still verifies and a save is never refused for it.
   - **A failed Change.** If the new option's source cannot be built, Confirm keeps its model (amount and time), its earlier choice and its corrections, and says "The values could not be changed. Your earlier choice is kept."; no new Confirm opens in its place.
   - **Confirm's pinned bar (#282).** At accessibility text sizes, or when the bar would hold more than two warnings, hints or estimates, only Log stays pinned; the warnings, the hint beside Log and the volume estimate move to a "Before you log" section at the end of the content, and warning text is never truncated. The Fortified? picker on the label text screen lists its answers inline at accessibility sizes.
+- **From the final review of #284:**
+  - **`at` in whole milliseconds on both sides.** `PastedLabelBasisChoice.milliseconds` takes a value within a microsecond of a whole millisecond as that millisecond, so a capture that went through the store's millisecondsSince1970 Double round trip gives the same whole milliseconds as before it; a test saves and reopens re-stamped choices on both stores, on exact boundaries and with sub-millisecond parts.
+  - **A serving size printed in another form** (for example `1包`) with two unheaded columns declines `unheaded_columns_serving_size_not_in_g_or_ml`: "… there is no serving size in grams or millilitres …".
+  - **A disabled Log keeps one short line beside it** when only Log is pinned ("Not ready to log yet. See “Before you log” below."); the full hint, styled like the warnings (left-aligned, with an icon), is in "Before you log", which is never shown empty.
+  - **A failed choice is never silent:** from Change, "The values could not be changed. Your earlier choice is kept."; after Read label, "This choice could not be applied. Nothing was saved, and your text is kept."
+  - **The Change sheet's note** no longer mentions Search, which only the first sheet offers.
 
 ## 9. Owner decisions
 

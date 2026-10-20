@@ -115,8 +115,13 @@ public struct PastedLabelBasisChoice: Equatable, Sendable {
     }
 
     /// Truncation to whole milliseconds (gate re-check, medium 3).
+    /// A value within a microsecond of a whole millisecond is that millisecond, so a date that
+    /// went through a millisecondsSince1970 Double round trip (and may land a hair below its
+    /// millisecond) gives the same whole milliseconds on both sides of `at <= capturedAt`.
     public static func milliseconds(_ date: Date) -> Int64 {
-        Int64((date.timeIntervalSince1970 * 1000).rounded(.down))
+        let value = date.timeIntervalSince1970 * 1000
+        let nearest = value.rounded()
+        return Int64(abs(value - nearest) < 0.001 ? nearest : value.rounded(.down))
     }
 }
 

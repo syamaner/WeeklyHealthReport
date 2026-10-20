@@ -190,7 +190,7 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         XCTAssertEqual(skipped, ["unreadable_table"], "failed_candidate counts as unreadable")
         let inference = Set([LabelFormatInference.Outcome.taiwan, .uk, .usNutritionFacts, .ambiguous].compactMap(\.declineCode))
         let route: Set<String> = ["text_too_long", "layout_not_supported", PastedLabelIdentity.basisStateNotSupported, "no_table", "unreadable_table",
-                                  "unheaded_columns_without_serving_size"]
+                                  "unheaded_columns_without_serving_size", "unheaded_columns_serving_size_not_in_g_or_ml"]
         let emitted = parser.union(gate).union(skipped).union(inference).union(route)
         XCTAssertEqual(Set(PastedLabelCodes.mapping.keys), emitted, "Every emitted code has its own mapping, and nothing else is mapped")
         let flags = Set(LabelGateReason.allCases.filter { !$0.isHardDecline }.map(\.rawValue))
@@ -199,7 +199,7 @@ final class NutritionLabelTextReaderTests: XCTestCase {
             "layout_not_supported", "format_ambiguous", "basis_state_not_supported", "multiple_panels", "no_basis_header", "duplicate_basis",
             "count_mismatch", "values_without_row", "energy_without_unit", "value_without_unit", "unrecognised_unit", "text_too_long", "unreadable_table",
             "layout_ambiguous", "too_little_read", "flattened_table_ambiguous", "multiple_complete_panels", "asserted_bases_mismatch",
-            "unheaded_columns_without_serving_size"]
+            "unheaded_columns_without_serving_size", "unheaded_columns_serving_size_not_in_g_or_ml"]
         for code in emitted {
             let classification = PastedLabelCodes.classify(code)
             XCTAssertEqual(classification.kind == .flag, flags.contains(code), code)

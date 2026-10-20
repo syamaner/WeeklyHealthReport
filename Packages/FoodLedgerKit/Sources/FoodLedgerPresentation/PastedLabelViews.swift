@@ -107,6 +107,9 @@ public struct PastedLabelTextView: View {
             Button(PastedLabelText.cancel, role: .cancel) { model.cancelReadAgain() }
         }
         .sheet(item: $report) { PastedLabelMisreadPreviewSheet(model: $0) { report = nil } }
+        .alert(PastedLabelText.basisChoiceFailed, isPresented: $model.basisChoiceFailed) {
+            Button("OK", role: .cancel) {}
+        }
         // Reader v3 8.4.8: the basis sheet after Read label (Change presents it over Confirm).
         .sheet(item: Binding(get: { model.basisSheet.flatMap { $0.fromChange ? nil : $0 } },
                              set: { if $0 == nil { model.basisSheetDismissed() } })) { _ in
@@ -179,7 +182,7 @@ public struct PastedLabelBasisSheetView: View {
                         }
                         .frame(minHeight: 44)
                     }
-                } footer: { Text(PastedLabelText.basisNotSureNote) }
+                } footer: { Text(PastedLabelText.basisNotSureNote(offersSearch: search != nil && model.basisSheet?.fromChange != true)) }
             }
             .navigationTitle(PastedLabelText.basisSheetTitle)
             .pastedLabelInlineTitle()

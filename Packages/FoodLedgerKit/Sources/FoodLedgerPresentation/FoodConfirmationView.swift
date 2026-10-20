@@ -695,7 +695,7 @@ public struct FoodConfirmationView: View {
             recoverySection
             // #282 and the journey QA of #284: when the pinned bar would crowd out the content,
             // its warnings, hint and estimate scroll here, beside the Log area; Log stays pinned.
-            if pinsOnlyLog { beforeLogSection }
+            if pinsOnlyLog && hasBeforeLogContent { beforeLogSection }
         }
         .amountKeyboardDismissal($editingAmount)
         .navigationTitle(model.state.reopened == nil ? "Confirm food" : "Edit food")
@@ -925,12 +925,31 @@ public struct FoodConfirmationView: View {
         }
     }
 
+    /// The one line pinned beside a disabled Log when the full hint is in "Before you log".
+    public static let pinnedBlockedReason = "Not ready to log yet. See “Before you log” below."
+
+    /// Whether "Before you log" has anything to show; an empty section is never rendered.
+    public static func showsBeforeLog(pinsOnlyLog: Bool, warningCount: Int, hasBlockedReason: Bool, hasEstimate: Bool) -> Bool {
+        pinsOnlyLog && (warningCount > 0 || hasBlockedReason || hasEstimate)
+    }
+
+    private var hasBeforeLogContent: Bool {
+        Self.showsBeforeLog(pinsOnlyLog: true, warningCount: pastedLabel?.warnings.count ?? 0,
+                            hasBlockedReason: model.blockedReason != nil, hasEstimate: model.volumeEstimateLogBarAction != nil)
+    }
+
     /// The bar's warnings, hint and estimate as the last content section when only Log is pinned.
+    /// The hint is styled like the warnings: left-aligned, with an icon.
     private var beforeLogSection: some View {
         Section("Before you log") {
             logWarnings
             estimateButton
-            blockedReasonText
+            if let reason = model.blockedReason {
+                Label(reason, systemImage: "info.circle")
+                    .font(.footnote)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
     }
 
@@ -962,7 +981,13 @@ public struct FoodConfirmationView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canLog)
                 .accessibilityHint(model.blockedReason ?? (model.state.reopened == nil ? "Logs this food with the amount and time shown" : "Saves your changes and keeps the original as history"))
-                if !pinsOnlyLog { blockedReasonText }
+                if !pinsOnlyLog {
+                    blockedReasonText
+                } else if model.blockedReason != nil {
+                    // Beside the disabled Log, one short line (it may wrap); the full hint scrolls.
+                    Text(Self.pinnedBlockedReason).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             .padding(.horizontal)
             .padding(.vertical, 8)

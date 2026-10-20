@@ -272,6 +272,8 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
     func testTwoUnheadedColumnsWithoutAServingSizeSayWhatIsMissing() {
         XCTAssertEqual(PastedLabelText.declineMessages(["unheaded_columns_without_serving_size"]),
                        ["The columns have no headings and there is no serving size, so the app cannot tell what the values are for. Try copying the table with its headings."])
+        XCTAssertEqual(PastedLabelText.declineMessages(["unheaded_columns_serving_size_not_in_g_or_ml"]),
+                       ["The columns have no headings and there is no serving size in grams or millilitres, so the app cannot tell what the values are for. Try copying the table with its headings."])
     }
 
     /// Journey QA 1 and #282: only Log stays pinned at accessibility sizes, or when the bar would
@@ -282,6 +284,59 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
         XCTAssertTrue(FoodConfirmationView.pinsOnlyLog(isAccessibilitySize: false, warningCount: 3, hasBlockedReason: false, hasEstimate: false))
         XCTAssertFalse(FoodConfirmationView.pinsOnlyLog(isAccessibilitySize: false, warningCount: 1, hasBlockedReason: true, hasEstimate: false))
         XCTAssertFalse(FoodConfirmationView.pinsOnlyLog(isAccessibilitySize: false, warningCount: 0, hasBlockedReason: false, hasEstimate: false))
+    }
+
+    // MARK: Final review of #284
+
+    /// A failure inside the choice itself is never silent: from Change the earlier choice is kept
+    /// and said so; after Read label nothing is written, the text stays, and the user is told.
+    func testAFailedChoiceIsNeverSilent() throws {
+        struct Failure: Error {}
+        let reader = PastedLabelReader(reader: Reader(), digester: SHA256Digester())
+        let builder = F.builder()
+        var fail = false
+        let model = PastedLabelTextViewModel(read: { reader.read($0) }, makeConfirm: { review, details in
+            try PastedLabelSourceModel(review: review, details: details, builder: builder, locale: F.locale)
+        }, choose: { arrangement, request in
+            if fail { throw Failure() }
+            return try builder.choose(arrangement, in: request)
+        })
+        model.name = "Synthetic chosen biscuits"
+        model.fortification = .no
+        model.text = Self.text
+        fail = true
+        model.readLabel()
+        XCTAssertNil(model.chooseBasis(arrangement("per_100g")))
+        XCTAssertTrue(model.basisChoiceFailed)
+        XCTAssertFalse(model.basisChangeFailed)
+        XCTAssertNil(model.confirm)
+        XCTAssertEqual(model.text, Self.text)
+        fail = false
+        model.readLabel()
+        let confirm = try XCTUnwrap(model.chooseBasis(arrangement("per_100g")))
+        fail = true
+        confirm.changeBasis?()
+        XCTAssertNil(model.chooseBasis(arrangement("per_serving")))
+        XCTAssertTrue(model.basisChangeFailed)
+        XCTAssertTrue(model.confirm === confirm)
+        XCTAssertEqual(confirm.currentArrangement, arrangement("per_100g"))
+        XCTAssertEqual(PastedLabelText.basisChoiceFailed, "This choice could not be applied. Nothing was saved, and your text is kept.")
+    }
+
+    /// The Change sheet has no Search button, so its note does not mention Search.
+    func testTheNotSureNoteNamesSearchOnlyWhereItIsOffered() {
+        XCTAssertEqual(PastedLabelText.basisNotSureNote(offersSearch: true), "Go back to the label text. You can also use Search instead.")
+        XCTAssertEqual(PastedLabelText.basisNotSureNote(offersSearch: false), "Go back to the label text.")
+    }
+
+    /// "Before you log" is shown only when only Log is pinned and it has something to show; a
+    /// disabled Log keeps one short line beside it.
+    func testBeforeYouLogIsNeverEmptyAndADisabledLogKeepsAShortReason() {
+        XCTAssertFalse(FoodConfirmationView.showsBeforeLog(pinsOnlyLog: true, warningCount: 0, hasBlockedReason: false, hasEstimate: false))
+        XCTAssertTrue(FoodConfirmationView.showsBeforeLog(pinsOnlyLog: true, warningCount: 0, hasBlockedReason: true, hasEstimate: false))
+        XCTAssertTrue(FoodConfirmationView.showsBeforeLog(pinsOnlyLog: true, warningCount: 1, hasBlockedReason: false, hasEstimate: false))
+        XCTAssertFalse(FoodConfirmationView.showsBeforeLog(pinsOnlyLog: false, warningCount: 2, hasBlockedReason: true, hasEstimate: true))
+        XCTAssertEqual(FoodConfirmationView.pinnedBlockedReason, "Not ready to log yet. See “Before you log” below.")
     }
 
     func testAnEmptyTextHeaderIsNamedByItsBasisLabel() {

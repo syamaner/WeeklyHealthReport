@@ -66,6 +66,7 @@ public enum PastedLabelText {
         case .tooLittleRead: "Only a few values could be read from this text. Try copying the table again, or use Search or Barcode."
         case .multiplePanels: "This text has more than one nutrition table (for example two flavours). Delete the ones you did not eat, then read again."
         case .noHeadingsNoServingSize: "The columns have no headings and there is no serving size, so the app cannot tell what the values are for. Try copying the table with its headings."
+        case .noHeadingsServingSizeNotInGramsOrMillilitres: "The columns have no headings and there is no serving size in grams or millilitres, so the app cannot tell what the values are for. Try copying the table with its headings."
         case .rowNotRead, .cellNotRead, .noPer100Column, .servingLineNotRead:
             // A flag is never a decline; reaching here means the classification drifted.
             declineMessage(.unreadableTable)
@@ -193,13 +194,17 @@ public enum PastedLabelText {
     public static let basisQuestion = "These values have no column heading. What are they for?"
     public static let basisSheetTitle = "What are these values for?"
     public static let basisNotSure = "I’m not sure"
-    public static let basisNotSureNote = "Go back to the label text. You can also use Search instead."
+    /// Search is named only where the sheet offers it (not on the Change sheet).
+    public static func basisNotSureNote(offersSearch: Bool) -> String {
+        offersSearch ? "Go back to the label text. You can also use Search instead." : "Go back to the label text."
+    }
     public static let perServingUnavailable = "Per serving is not offered because the serving size was not read."
     public static let currentChoice = "Current choice"
     public static let changeBasis = "Change"
     public static let replaceCorrectionsOnBasisChange = "Changing what the values are for replaces your corrections."
     public static let changeBasisConfirm = "Change and replace"
     public static let basisChangeFailed = "The values could not be changed. Your earlier choice is kept."
+    public static let basisChoiceFailed = "This choice could not be applied. Nothing was saved, and your text is kept."
 
     /// "Per serving (25 g)", "Per 100 g", "Per serving (25 g), then per 100 g".
     public static func basisOptionTitle(_ arrangement: PastedLabelBasisOptions.Arrangement,
