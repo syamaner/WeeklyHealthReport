@@ -2281,3 +2281,24 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-20T11:20:27Z` onwards (`phase_usage.py --format claude --since …`), measured at `2026-10-20T12:14:07Z`. Cache writes: 414,621 5-minute, 0 1-hour. Exact API-equivalent USD 15.6844908 at the recorded counts. The output count is a lower bound: 314 of the 372 messages in this window record at most 32 output tokens, the sign of streaming-time snapshots. The true output cannot be recovered from the transcript, so the total and the API-equivalent figure are lower bounds too. The coordinator's usage, and any reviews run after this point, are not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-20j: Claude Code pasted nutrition label reader v3 PR 3, decision 23 and review round
+
+Same subagent and transcript as WHR-93-2026-10-20i, continued. It covers:
+- the first round's ledger edit, commits, push and PR (outside the first row);
+- decision 23 (a basis printed only in the energy line declines with a hint);
+- the four findings of the invariant review of #283;
+- the owner's transcription correction (outside the repository);
+- the dev-set rerun and one full gate run.
+
+Runs from `2026-10-20T12:14:07Z` (the end of the first row) to `2026-10-20T12:43:21Z`, just before this ledger edit. The reviewers' and QA agents' usage is outside the row.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 PR 3 decision 23 and review round (#93), implementation subagent | 36,796,070 (35,693,547) | 1,102,371 | ≥ 30,041 (lower bound) | ≥ 36,826,111 | $13.25 (lower bound) |
+
+Boundary: `2026-10-20T12:14:07Z` → `2026-10-20T12:43:21Z` (`phase_usage.py --format claude --since …`). Cache writes: 1,102,371 5-minute, 0 1-hour. Exact API-equivalent USD 13.2519924 at the recorded counts. The output count is a lower bound: 126 of the 161 messages in this window record at most 32 output tokens (streaming-time snapshots), so the total and the API-equivalent figure are lower bounds too.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
