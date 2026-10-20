@@ -22,13 +22,27 @@ enum NonRegression {
         /// Reader v3 PR 1 review: Han text between two values is two rows on one line (3.0), so a
         /// table v2 read (and could misbind, `脂肪 10公克 其中飽和脂肪 3公克`) declines `layout_ambiguous`.
         case hanBetweenValues = "7 Han text between values declines layout_ambiguous"
-        /// Reader v3 PR 1 re-review: bound words and "more than" marks (≦, 未滿, 以下 as bounds;
-        /// 以上, 超過, 大於, 多於, >, ＞, ≥, ≧, "more than" make a row, serving size or pack count not
-        /// read) and duplicate rows (both not read), where parser v2 read an exact value.
+        /// Reader v3 PR 1 re-review: only rows whose own span carries a bound-vocabulary token that is
+        /// not a recognised bound on one of its cells (unread), cells whose printed 以下, ≦ or 未滿 now
+        /// makes them a bound, serving and pack lines carrying a token (not read), and duplicate
+        /// rows (both unread), where parser v2 read an exact value.
         case boundsAndDuplicates = "8 bound words, more-than marks and duplicate rows"
     }
 
-    static let boundMarks = ["≦", "未滿", "以下", "以上", "超過", "大於", "多於", ">", "＞", "≥", "≧", "more than"]
+    /// The text span of a row label in a pasted text: its line and every following line up to the
+    /// next line that starts with a recognised row label (as the parser's unexplained-bound rule).
+    static func span(of label: String, in text: String) -> String {
+        let lines = text.components(separatedBy: "\n")
+        guard let start = lines.firstIndex(where: { $0.contains(label) }) else { return "" }
+        var out = [lines[start]]
+        for line in lines[(start + 1)...] {
+            let head = line.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}")))
+            let first = Patterns.value.matchDetails(in: head).first.map { String(head[..<$0.range.lowerBound]) } ?? head
+            if RowClassifierV3.isRowLabel(first.trimmingCharacters(in: .whitespaces)) { break }
+            out.append(line)
+        }
+        return out.joined(separator: "\n")
+    }
 
     struct Verdict {
         var items: Set<Item> = []
@@ -54,10 +68,6 @@ enum NonRegression {
             verdict.unexplained.append("v2 declined (\(v2.declineReasons)), v3 reads it: no truth oracle for this case")
             return verdict
         case (false, true):
-            if let text, boundMarks.contains(where: { text.lowercased().contains($0) }) {
-                verdict.items.insert(.boundsAndDuplicates)
-                return verdict
-            }
             if v3.declineReasons == ["layout_ambiguous"], let text,
                text.components(separatedBy: "\n").contains(where: ParseStateV3.hasHanBetweenValues) {
                 verdict.items.insert(.hanBetweenValues)
@@ -80,6 +90,39 @@ enum NonRegression {
             }
             expected.cells.removeAll { $0.printedLabel == label }
             verdict.items.insert(.unitOffTemplate)
+        }
+        // Item 8: rows left unread for a bound token in their own span, or as duplicates; cells whose
+        // printed bound (以下, ≦, 未滿) now makes them a bound; serving and pack lines with a bound token.
+        for warning in v3.warnings {
+            for reason in ["malformed_value", "unexplained_bound", "duplicate_row"] where warning.hasPrefix("row_not_read: \(reason): ") {
+                let label = String(warning.dropFirst("row_not_read: \(reason): ".count))
+                let carriesBound = text.map { !BoundVocabulary.tokens(span(of: label, in: $0)).isEmpty } ?? false
+                guard reason == "duplicate_row" || carriesBound else {
+                    verdict.unexplained.append("row \(label) unread with no bound token in its span")
+                    continue
+                }
+                expected.cells.removeAll { $0.printedLabel == label }
+                verdict.items.insert(.boundsAndDuplicates)
+            }
+        }
+        expected.cells = expected.cells.map { cell in
+            guard let bound = v3.cells.first(where: { $0.rowID == cell.rowID && $0.headerID == cell.headerID && $0.decimalText == cell.decimalText
+                      && $0.comparator != cell.comparator }),
+                  BoundVocabulary.tokens(bound.printedText).contains(where: BoundVocabulary.less.contains) else { return cell }
+            verdict.items.insert(.boundsAndDuplicates)
+            var changed = cell
+            changed.comparator = bound.comparator
+            changed.printedText = bound.printedText
+            return changed
+        }
+        if let size = v2.servingSize, size.decimalText != nil, v3.servingSize?.decimalText == nil,
+           !BoundVocabulary.tokens(size.printedText).isEmpty {
+            expected.servingSize = v3.servingSize
+            verdict.items.insert(.boundsAndDuplicates)
+        }
+        if let pack = v2.servingsPerPack, v3.servingsPerPack == nil, !BoundVocabulary.tokens(pack.printedText).isEmpty {
+            expected.servingsPerPack = nil
+            verdict.items.insert(.boundsAndDuplicates)
         }
         // Item 3: an unrecognised v2 row that an alias now names, with the same values.
         var renamed: [String: (key: String, parent: String?)] = [:]
@@ -106,11 +149,6 @@ enum NonRegression {
         if expected.cells != v3.cells { verdict.unexplained.append("cells differ beyond the allow-list") }
         expected.cells = v3.cells
         if expected != v3 { verdict.unexplained.append("serving lines or headers differ") }
-        if !verdict.unexplained.isEmpty, let text, boundMarks.contains(where: { text.lowercased().contains($0) })
-            || v3.warnings.contains(where: { $0.hasPrefix("row_not_read: duplicate_row: ") }) {
-            verdict.unexplained = []
-            verdict.items.insert(.boundsAndDuplicates)
-        }
         return verdict
     }
 }

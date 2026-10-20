@@ -2175,3 +2175,24 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-20T08:24:53Z` → `2026-10-20T08:53:36Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 47,864 5-minute, 0 1-hour. Exact API-equivalent USD 3.6161728. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. The reviewers' own sessions are not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-20e: Claude Code pasted nutrition label reader v3 PR 1, unexplained-bound round
+
+Same subagent and transcript as WHR-93-2026-10-20a, resumed for the re-review of #280 at `ec88a340`. The round adds:
+- the structural unexplained-bound rule (a closed bound vocabulary and per-row text spans, with orphan mark lines making both adjacent rows unread);
+- the same rule on serving and pack lines;
+- note lines as unbound;
+- the narrowed allow-list item 8;
+- one full gate run and dev-set run.
+
+Runs from `2026-10-20T08:53:36Z` (the end of WHR-93-2026-10-20d) to `2026-10-20T09:10:20Z`, just before this ledger edit.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 PR 1 unexplained-bound round (#93), implementation subagent | 16,768,481 (16,161,128) | 607,291 | 1,553 | 16,770,034 | $6.30 |
+
+Boundary: `2026-10-20T08:53:36Z` → `2026-10-20T09:10:20Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 607,291 5-minute, 0 1-hour. Exact API-equivalent USD 6.2999886. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. The reviewers' own sessions are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

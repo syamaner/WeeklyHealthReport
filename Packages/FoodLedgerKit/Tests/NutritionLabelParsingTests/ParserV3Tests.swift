@@ -367,7 +367,7 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
         #expect(!candidate.cells.contains { $0.nutrient == "sodium" }, "\(tail): \(candidate.cells.map(\.printedText))")
         #expect(!candidate.cells.contains { $0.decimalText == "1000" }, "\(tail)")
         #expect(!candidate.wouldMarkReady, "\(tail)")
-        if !candidate.declined { #expect(candidate.warnings.contains("row_not_read: malformed_value: 鈉"), "\(tail): \(candidate.warnings)") }
+        if !candidate.declined { #expect(candidate.warnings.contains { $0.hasPrefix("row_not_read: ") && $0.hasSuffix(": 鈉") }, "\(tail): \(candidate.warnings)") }
     }
     for tail in ["Sodium more than\n1000mg", "Sodium\nmore than\n1000mg", "Sodium >\n1000mg"] {
         let candidate = parse("Per 100g\nEnergy\n1500kJ\nProtein\n2g\n" + tail)
@@ -431,6 +431,67 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     #expect(!candidate.cells.contains { $0.nutrient == "sodium" })
     #expect(candidate.warnings.filter { $0.hasPrefix("row_not_read: duplicate_row: 鈉") }.count == 2)
     #expect(cell(candidate, "energy_kcal", .perServing)?.decimalText == "120")
+}
+
+/// The unexplained-bound rule (reader v3 section 8.1, PR 1 re-review): every bound-vocabulary
+/// token in a row's span (label line, value lines and every non-row line up to the next row label)
+/// must be a recognised bound on one of its cells; otherwise the whole row is not read. An orphan
+/// mark line makes both adjacent rows unread. Stacked and inline, one and two columns.
+@Test func anUnexplainedBoundAnywhereInARowsSpanLeavesTheRowUnread() {
+    let twoColumn = ["鈉 60毫克 200毫克\n以上", "鈉 60毫克 200 毫克\n 以上", "鈉 60毫克 200毫克\n以下", "鈉 60毫克 超過\n200毫克",
+                     "鈉 60毫克 >\n200毫克", "鈉 60毫克 200毫克 以 上", "鈉 60毫克 200毫克（以上）", "鈉 60毫克 200毫克 以 下",
+                     "鈉 60毫克 200毫克 ( 以下 )", "鈉 60毫克 200毫克 more than", "鈉 60毫克 200毫克\nat least"]
+    for tail in twoColumn {
+        let candidate = parse(label(body: rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: tail)))
+        #expect(!candidate.cells.contains { $0.nutrient == "sodium" }, "\(tail): \(candidate.cells.filter { $0.nutrient == "sodium" }.map(\.printedText))")
+        #expect(!candidate.wouldMarkReady, "\(tail)")
+        if !candidate.declined { #expect(candidate.cells.count == 14, "\(tail)") }
+    }
+    let oneColumnInline = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n蛋白質 3.0公克\n"
+    let oneColumnStacked = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量\n120大卡\n蛋白質\n3.0公克\n"
+    for tail in ["鈉 1000毫克\n以上", "鈉 1000 毫克\n 以上", "鈉 1000毫克\n以下", "鈉 1000毫克 以 上", "鈉 1000毫克（以上）", "鈉 5毫克 以 下"] {
+        let inline = parse(oneColumnInline + tail)
+        #expect(!inline.cells.contains { $0.nutrient == "sodium" }, "inline \(tail)")
+        #expect(cell(inline, "protein", .perServing)?.decimalText == "3.0", "inline \(tail)")
+        let stacked = parse(oneColumnStacked + tail.replacingOccurrences(of: "鈉 ", with: "鈉\n"))
+        #expect(!stacked.cells.contains { $0.nutrient == "sodium" }, "stacked \(tail): \(stacked.cells.map(\.printedText))")
+        #expect(cell(stacked, "protein", .perServing)?.decimalText == "3.0", "stacked \(tail)")
+    }
+    // An orphan mark line between two rows makes both rows unread.
+    let both = parse(label(body: rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: "超過\n鈉 60毫克 200毫克")))
+    #expect(!both.cells.contains { $0.nutrient == "sugars" || $0.nutrient == "sodium" })
+    #expect(both.warnings.contains("row_not_read: unexplained_bound: 糖"))
+    #expect(both.warnings.contains("row_not_read: unexplained_bound: 鈉"))
+    #expect(cell(both, "carbohydrate")?.decimalText == "60.0")
+    let english = parse("Typical values\tPer 100g\nEnergy\t1500kJ\nFibre 3g\n>\nSalt 1.5g\nProtein 2g\n")
+    #expect(!english.cells.contains { $0.nutrient == "fibre" || $0.nutrient == "salt" }, "\(english.cells.map(\.nutrient))")
+    #expect(cell(english, "protein")?.decimalText == "2")
+    // The pack line with a bound token is not read.
+    #expect(parse(label("營養標示\n每一份量30公克\n本包裝含8份以下\n")).servingsPerPack == nil)
+    // Recognised same-cell bounds keep working.
+    let recognised = parse(label(body: rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: "鈉 5毫克以下 200毫克")))
+    #expect(cell(recognised, "sodium", .perServing)?.comparator == .lessOrEqual)
+    #expect(cell(recognised, "sodium", .perServing)?.decimalText == "5")
+    #expect(cell(recognised, "sodium")?.comparator == .equal)
+    #expect(cell(recognised, "sodium")?.decimalText == "200")
+    let under = parse(label(body: rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: "鈉 未滿 5毫克 200毫克")))
+    #expect(cell(under, "sodium", .perServing)?.comparator == .less)
+    #expect(BoundVocabulary.tokens("以 上（以下）( less  than ) overall") == ["less than", "以上", "以下"])
+    #expect(BoundVocabulary.isMarkOnly(" ( 以 上 ) "))
+    #expect(!BoundVocabulary.isMarkOnly("鈉 以上"))
+}
+
+/// A note line (註, 備註, 說明, Note) never creates a cell; it is gate-scanned and, as a non-row
+/// line in the last row's span, its bound token leaves that row unread.
+@Test func aNoteLineNeverCreatesACell() {
+    for note in ["註：鈉 5毫克以下以0標示", "備註：糖 0.5公克以下以0標示", "Note: sodium under 5mg is shown as 0"] {
+        let candidate = parse(label(body: rows + "\n" + note))
+        #expect(!candidate.declined, "\(note): \(candidate.declineReasons)")
+        #expect(!candidate.cells.contains { $0.printedText.contains("5毫克") || $0.printedText.contains("0.5公克") || $0.decimalText == "5" }, "\(note)")
+        #expect(candidate.cells.count == 14, "\(note): the last row is unread, nothing is added")
+        #expect(candidate.warnings.contains("row_not_read: unexplained_bound: 鈉"), "\(note)")
+    }
+    #expect(parse(label(body: rows + "\n註：本品為營養補充品")).declineReasons == ["not_a_food_nutrition_panel"])
 }
 
 @Test func aStarredLineRepeatingAReadRowIsAFootnote() {

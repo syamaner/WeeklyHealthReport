@@ -88,6 +88,8 @@ enum PatternsV3 {
     /// A bound word printed after a value: 以下 (at most) or 以上 (at least, which the reader
     /// cannot hold, so the row is not read).
     static let boundSuffix = LabelPattern(#"^\s*(以下|以上)"#)
+    /// A note line (註, 備註, 说明, Note): never a row, gate-scanned.
+    static let noteLine = LabelPattern(#"(?i)^(?:註|備註|説明|說明|note\b)"#)
     /// A pack line with a "more than" mark before its count (never read as exact).
     static let packMoreThan = LabelPattern(#"(?i)^(?:本包裝包?含?|servings?\s+per\s+(?:container|pack|package))\s*[:：]?\s*(?:[>≥＞≧]|超過|大於|多於|more\s+than)"#)
     /// The same marks standing at the end of a label ("鈉 >", "超過").
@@ -108,6 +110,8 @@ struct RowDraftV3 {
     var marked = false
     /// A value of the row was printed as "more than" (`>3公克`): the row is not read.
     var malformed = false
+    /// A bound mark stood on a line of its own just before this row (it qualifies both rows).
+    var orphanBound = false
 }
 
 struct ParseStateV3 {
@@ -141,11 +145,24 @@ struct ParseStateV3 {
     var packJoin: (join: Join, approximate: Bool, decimal: String)?
     /// A "more than" mark on a line of its own before any row: the next row is not read.
     var pendingMoreThan = false
+    /// A mark-only line was consumed since the last row label: the next row is not read.
+    var pendingBound = false
+    /// The text span of each row: its label line, value lines and every non-row line up to the
+    /// next row label (the unexplained-bound rule).
+    var spans: [Int: [String]] = [:]
 
     var servingClaimed: Bool { servingSize != nil || servingJoin != nil }
     var packClaimed: Bool { servingsPerPack != nil || packJoin != nil }
 
     mutating func consume(_ rawLine: String) {
+        let content = rawLine.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}")))
+        guard !content.isEmpty else { return }
+        consumeLine(rawLine)
+        // Every line consumed after a row label belongs to that row's span until the next label.
+        if let index = rows.indices.last { spans[index, default: []].append(content) }
+    }
+
+    mutating func consumeLine(_ rawLine: String) {
         let content = rawLine.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}")))
         guard !content.isEmpty else { return }
 
@@ -165,6 +182,10 @@ struct ParseStateV3 {
             unbound.append(content)
             return
         }
+        if PatternsV3.noteLine.contains(content) {
+            unbound.append(content)
+            return
+        }
         if content.hasPrefix("*") || content.hasPrefix("＊") || content.hasPrefix("†") {
             if !(content.hasPrefix("*") && Self.markedRow(content) != nil && !repeatsReadRow(content)) {
                 unbound.append(content)
@@ -179,7 +200,7 @@ struct ParseStateV3 {
         }
         for pattern in PatternsV3.servingsPerPack {
             if let groups = pattern.firstMatch(in: content), let number = groups[2] {
-                if Self.hasMoreThan(content) {
+                if !BoundVocabulary.tokens(content).isEmpty {
                     unbound.append(content)
                 } else if !packClaimed {
                     servingsPerPack = LabelServingsPerPack(printedText: content, decimalText: number, approximate: groups[1] != nil)
@@ -314,7 +335,7 @@ struct ParseStateV3 {
     static func servingSize(printed: String, value: String) -> LabelServingSize {
         let cut = cutAtPackPhrase(value)
         // A serving size printed as "more than" (`超過30公克`, `30公克以上`) is not read.
-        if hasMoreThan(cut) { return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil) }
+        if !BoundVocabulary.tokens(cut).isEmpty { return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil) }
         let source = Patterns.parenthesised.firstMatch(in: cut)?[1] ?? cut
         if let groups = Patterns.servingQuantity.firstMatch(in: source) ?? Patterns.servingQuantity.firstMatch(in: cut),
            let number = groups[1], let unit = groups[2] {
@@ -327,7 +348,7 @@ struct ParseStateV3 {
     static func packCount(inServingLine line: String, value: String) -> LabelServingsPerPack? {
         guard let match = PatternsV3.packPhrase.matchDetails(in: value).first else { return nil }
         let phrase = String(value[match.range.lowerBound...])
-        if hasMoreThan(phrase) { return nil }
+        if !BoundVocabulary.tokens(phrase).isEmpty { return nil }
         for pattern in [PatternsV3.chinesePackPhrase, PatternsV3.englishPackPhrase] {
             if let groups = pattern.firstMatch(in: phrase), let number = groups[2] {
                 return LabelServingsPerPack(printedText: line, decimalText: number, approximate: groups[1] != nil)
@@ -435,6 +456,14 @@ struct ParseStateV3 {
             content = rest
             marked = true
         }
+        if BoundVocabulary.isMarkOnly(content) {
+            // A line holding only bound marks qualifies the row above (through its span) and the
+            // next row: both are not read.
+            if rows.isEmpty { pendingMoreThan = true }
+            pendingBound = true
+            unbound.append(original)
+            return
+        }
         let details = Self.valueMatches(content)
         let label: String
         if let first = details.first {
@@ -489,7 +518,8 @@ struct ParseStateV3 {
                 rows[rows.count - 1] = last
             } else {
                 rows.append(RowDraftV3(label: cleanedLabel, indented: indented, values: values, labelLineHadValues: !values.isEmpty,
-                                       lines: [original], marked: marked, malformed: moreThan || pendingMoreThan))
+                                       lines: [original], marked: marked, malformed: moreThan || pendingMoreThan, orphanBound: pendingBound))
+                pendingBound = false
                 pendingMoreThan = false
             }
         } else if !values.isEmpty {
@@ -660,6 +690,17 @@ struct ParseStateV3 {
                     unbound += row.lines
                     continue
                 }
+                // Every bound token in the row's span must be a recognised bound on one of its
+                // cells (`<`, `≤`, `≦`, `以下`, `未滿` and the like); any other makes the row unread.
+                // A leading row marker (`>`, `>>`) is a marker, not a bound.
+                let spanTokens = (spans[index] ?? []).map { Self.markedRow($0) ?? $0 }.flatMap(BoundVocabulary.tokens).count
+                let consumed = row.values.filter { $0.comparator != .equal }
+                    .flatMap { BoundVocabulary.tokens($0.printedText).filter(BoundVocabulary.less.contains) }.count
+                if row.orphanBound || spanTokens > consumed {
+                    warnings.append("row_not_read: unexplained_bound: \(row.label)")
+                    unbound += row.lines
+                    continue
+                }
                 if row.attachedAfterValues {
                     warnings.append("values_after_complete_row: \(row.label)")
                 }
@@ -788,5 +829,38 @@ struct ParseStateV3 {
             reasons.append(LabelGateReason.notAFoodNutritionPanel.rawValue)
         }
         return reasons
+    }
+}
+
+/// The closed bound vocabulary of reader v3 (section 8.1, PR 1 re-review): more-than marks
+/// (> ≥ ＞ ≧ 超過 大於 多於 以上 "more than" "over" "at least") and less-than marks (< ≤ ＜ ≦ 未滿
+/// 少於 以下 "less than" "under" "up to"), matched after whitespace and brackets are removed, so
+/// `以 上`, `（以上）` and `( 以下 )` match. A token that is not a recognised bound on one cell makes
+/// its row (or serving or pack line) not read.
+enum BoundVocabulary {
+    static let english = LabelPattern(#"(?i)(?<![a-z])(more\s+than|less\s+than|at\s+least|up\s+to|over|under)(?![a-z])"#)
+    static let marks = LabelPattern(#"<=|>=|超過|大於|多於|以上|未滿|少於|以下|[<>≤≥＜＞≦≧]"#)
+    static let removable = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\u{3000}()（）[]【】"))
+    static let less: Set<String> = ["less than", "up to", "under", "<", "<=", "≤", "＜", "≦", "未滿", "少於", "以下"]
+
+    /// The bound tokens of a text, English words first, then marks with whitespace and brackets removed.
+    static func tokens(_ text: String) -> [String] {
+        let lower = text.lowercased()
+        let words = english.matches(in: lower).map { $0.split(whereSeparator: \.isWhitespace).joined(separator: " ") }
+        var rest = lower
+        for word in english.matches(in: lower) { rest = rest.replacingOccurrences(of: word, with: " ") }
+        let compact = String(rest.unicodeScalars.filter { !removable.contains($0) }.map(Character.init))
+        return words + marks.matches(in: compact)
+    }
+
+    /// Whether a line holds bound marks and nothing else (apart from spaces, brackets and colons).
+    static func isMarkOnly(_ text: String) -> Bool {
+        let lower = text.lowercased()
+        guard !tokens(lower).isEmpty else { return false }
+        var rest = lower
+        for word in english.matches(in: lower) { rest = rest.replacingOccurrences(of: word, with: " ") }
+        var compact = String(rest.unicodeScalars.filter { !removable.contains($0) && !":：".unicodeScalars.contains($0) }.map(Character.init))
+        for mark in marks.matches(in: compact) { compact = compact.replacingOccurrences(of: mark, with: "") }
+        return compact.isEmpty
     }
 }
