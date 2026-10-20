@@ -519,12 +519,12 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     let splitAcross = parse(label(body: rows.replacingOccurrences(of: "糖 6.0公克 20.0公克", with: "鈉 60毫克 1000毫克 以\n上\n糖 6.0公克 20.0公克")
         .replacingOccurrences(of: "\n鈉 60毫克 200毫克", with: "")))
     #expect(!splitAcross.cells.contains { $0.nutrient == "sodium" })
-    for english in ["Typical values\tPer 100g\nEnergy\t1500kJ\nSalt 1g\nat least.\nProtein 2g\n",
-                    "Typical values\tPer 100g\nEnergy\t1500kJ\nSalt 0.1g\n2 or less\nProtein 2g\n"] {
-        let candidate = parse(english)
-        #expect(!candidate.cells.contains { $0.nutrient == "salt" }, "\(english): \(candidate.cells.map(\.nutrient))")
-        #expect(!candidate.cells.contains { $0.nutrient == "protein" }, "\(english): the next row too")
-    }
+    let atLeast = parse("Typical values\tPer 100g\nEnergy\t1500kJ\nSalt 1g\nat least.\nProtein 2g\n")
+    #expect(!atLeast.cells.contains { $0.nutrient == "salt" }, "\(atLeast.cells.map(\.nutrient))")
+    #expect(!atLeast.cells.contains { $0.nutrient == "protein" }, "the next row too")
+    // A value line carrying a mark is charged to its own row only (fifth review): the next row reads.
+    let orLess = parse("Typical values\tPer 100g\nEnergy\t1500kJ\nSalt 0.1g\n2 or less\nProtein 2g\n")
+    #expect(!orLess.cells.contains { $0.nutrient == "salt" }, "\(orLess.cells.map(\.nutrient))")
     // A mark split over lines with no single line carrying it: the span, tokenised joined, catches it.
     let split = parse("Typical values\tPer 100g\nEnergy\t1500kJ\nSalt 0.1g\n[…]\nMore\nthan\nProtein 2g\n")
     #expect(!split.cells.contains { $0.nutrient == "salt" }, "\(split.cells.map(\.nutrient))")
@@ -533,6 +533,44 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     }
     #expect(BoundVocabulary.tokens("5g or more, 3g or less") == ["or more", "or less"])
     #expect(PatternsV3.noteLine.contains("Notes: values rounded"))
+}
+
+/// Fifth review of #280: a row label wrapped over two lines and merged is a span boundary, so a
+/// token after it (or on its merged line) is charged to the wrapped row, never to the row above.
+@Test func aWrappedLabelStartsItsOwnSpan() {
+    let chinese = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n脂肪 10公克\n"
+    for tail in ["飽和\n脂肪 1公克\n以上\n糖 5公克", "飽和\n脂肪 1公克↑\n糖 5公克", "飽和\n脂肪 1公克 以上\n糖 5公克"] {
+        let candidate = parse(chinese + tail)
+        #expect(!candidate.cells.contains { $0.nutrient == "saturates" }, "\(tail): \(candidate.cells.map { ($0.nutrient, $0.printedText) })")
+        #expect(cell(candidate, "fat", .perServing)?.decimalText == "10", "\(tail): the row above is not blamed")
+    }
+    let english = "Per serving\nEnergy 120kcal\nFat 10g\n"
+    for tail in ["of which\nsaturates 1g\n以上\nProtein 3g", "of which\nsaturates 1g\nmore than\nProtein 3g",
+                 "of which\nsaturates 1g or more\nProtein 3g", "of which\nsaturates 1g ↑\nProtein 3g"] {
+        let candidate = parse(english + tail)
+        #expect(!candidate.cells.contains { $0.nutrient == "saturates" }, "\(tail): \(candidate.cells.map { ($0.nutrient, $0.printedText) })")
+        #expect(cell(candidate, "fat", .perServing)?.decimalText == "10", "\(tail): the row above is not blamed")
+    }
+    // A plain wrapped label still reads.
+    let plain = parse(chinese + "飽和\n脂肪 1公克\n糖 5公克")
+    #expect(cell(plain, "saturates", .perServing)?.decimalText == "1")
+    #expect(cell(plain, "saturates", .perServing)?.printedLabel == "飽和 脂肪")
+    // The non-regression span helper agrees with the parser.
+    #expect(NonRegression.span(of: "飽和 脂肪", in: chinese + "飽和\n脂肪 1公克\n以上\n糖 5公克") == "飽和\n脂肪 1公克\n以上")
+    #expect(NonRegression.span(of: "脂肪", in: chinese + "飽和\n脂肪 1公克\n以上\n糖 5公克") == "脂肪 10公克")
+    #expect(NonRegression.span(of: "of which saturates", in: english + "of which\nsaturates 1g\nmore than\nProtein 3g")
+            == "of which\nsaturates 1g\nmore than")
+}
+
+/// A stacked value line whose mark already makes its own row unread is charged to that row only:
+/// the next plain row still reads.
+@Test func aMarkOnAValueLineIsChargedToItsOwnRowOnly() {
+    let candidate = parse("營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量\n120大卡\n脂肪\n>3公克\n飽和脂肪\n1.2 公克\n")
+    #expect(cell(candidate, "fat", .perServing) == nil)
+    #expect(cell(candidate, "saturates", .perServing)?.decimalText == "1.2")
+    let english = parse("Per serving\nEnergy\n120kcal\nFat\n>3g\nProtein\n2g\n")
+    #expect(cell(english, "fat", .perServing) == nil)
+    #expect(cell(english, "protein", .perServing)?.decimalText == "2")
 }
 
 /// A token line straight after a serving or pack line (printed or joined) leaves that line not

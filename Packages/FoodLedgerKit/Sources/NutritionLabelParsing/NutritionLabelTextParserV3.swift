@@ -164,19 +164,38 @@ struct ParseStateV3 {
         let content = rawLine.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}")))
         guard !content.isEmpty else { return }
         let before = rows.count
+        let labelBefore = rows.last?.label
         let servingBefore = (servingSize?.printedText, servingJoin)
         let packBefore = (servingsPerPack?.printedText, packJoin?.join)
         lineGaveValues = false
         consumeLine(rawLine)
         // A span ends only at a recognised row label: every other line, including an unrecognised
         // row, belongs to the span of the last recognised row (the unexplained-bound rule).
-        let recognisedRow = rows.count > before && RowClassifierV3.isRowLabel(rows[rows.count - 1].label)
+        let newRecognised = rows.count > before && RowClassifierV3.isRowLabel(rows[rows.count - 1].label)
+        // A label wrapped over two lines and merged here (`飽和` then `脂肪 1公克`, `of which` then
+        // `saturates 1g`) is a span boundary too: the row's span starts at its label lines.
+        let mergedRecognised = rows.count == before && !rows.isEmpty && rows[rows.count - 1].label != labelBefore
+            && labelBefore.map { !RowClassifierV3.isRowLabel($0) } == true && RowClassifierV3.isRowLabel(rows[rows.count - 1].label)
+        let recognisedRow = newRecognised || mergedRecognised
+        if mergedRecognised, let previous = lastRecognised, previous != rows.count - 1 {
+            // Move the earlier label line(s) out of the previous row's span into this row's.
+            let earlier = rows[rows.count - 1].lines.dropLast()
+            var moved: [(line: String, valueLine: Bool)] = []
+            for line in earlier.reversed() {
+                guard let last = spans[previous]?.last, last.line == line.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}"))) else { break }
+                spans[previous]?.removeLast()
+                moved.insert(last, at: 0)
+            }
+            spans[rows.count - 1] = moved
+        }
         if recognisedRow { lastRecognised = rows.count - 1 }
         if let index = lastRecognised { spans[index, default: []].append((content, lineGaveValues)) }
         // A line carrying a bound token that is not a recognised bound on its own cells, and that
         // does not become a recognised row, leaves the rows on both sides unread, and a serving
-        // or pack line straight before it not read.
-        if !recognisedRow, Self.unexplainedTokens(content, valueLine: lineGaveValues) > 0 {
+        // or pack line straight before it not read. A value line of a recognised row is charged to
+        // that row only (its span), never to the next row.
+        let valuesForRecognisedRow = lineGaveValues && rows.count == before && rows.last.map { RowClassifierV3.isRowLabel($0.label) } == true
+        if !recognisedRow, !valuesForRecognisedRow, Self.unexplainedTokens(content, valueLine: lineGaveValues) > 0 {
             pendingBound = true
             if rows.count > before { rows[rows.count - 1].orphanBound = true }
             if previousLineRead.contains(.serving) { refuseServing() }

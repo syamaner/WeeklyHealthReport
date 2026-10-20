@@ -32,16 +32,31 @@ enum NonRegression {
     /// The text span of a row label in a pasted text: its line and every following line up to the
     /// next line that starts with a recognised row label (as the parser's unexplained-bound rule).
     static func span(of label: String, in text: String) -> String {
-        let lines = text.components(separatedBy: "\n")
-        guard let start = lines.firstIndex(where: { $0.contains(label) }) else { return "" }
-        var out = [lines[start]]
-        for line in lines[(start + 1)...] {
-            // As the parser: only a line that is a recognised row label (markers removed) ends a span.
-            let trimmed = line.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}")))
-            let head = ParseStateV3.markedRow(trimmed) ?? trimmed
+        let ws = CharacterSet.whitespaces.union(CharacterSet(charactersIn: "\u{3000}"))
+        let lines = text.components(separatedBy: "\n").map { $0.trimmingCharacters(in: ws) }
+        // The label part of a line, as the parser reads it (markers removed, text before the first value).
+        let heads = lines.map { line -> String in
+            let head = ParseStateV3.markedRow(line) ?? line
             let first = ParseStateV3.valueMatches(head).first.map { String(head[..<$0.range.lowerBound]) } ?? head
-            if RowClassifierV3.isRowLabel(first.trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•")))) { break }
-            out.append(line)
+            return first.trimmingCharacters(in: ws.union(CharacterSet(charactersIn: "\t:：-–·•")))
+        }
+        func compact(_ text: String) -> String { text.filter { !$0.isWhitespace } }
+        // A wrapped label: a label-only line the parser merges with the next line's label.
+        func wrapped(_ j: Int) -> Bool {
+            j + 1 < lines.count && !heads[j].isEmpty && ParseStateV3.valueMatches(lines[j]).isEmpty
+                && !RowClassifierV3.isRowLabel(heads[j]) && RowClassifierV3.classify(heads[j] + " " + heads[j + 1]) != nil
+        }
+        // As the parser: a span ends only at a recognised row label, a wrapped one included.
+        func boundary(_ j: Int) -> Bool { RowClassifierV3.isRowLabel(heads[j]) || wrapped(j) }
+        let target = compact(label)
+        guard let start = lines.indices.first(where: { compact(heads[$0]) == target
+            || ($0 + 1 < lines.count && wrapped($0) && compact(heads[$0] + heads[$0 + 1]) == target) }) else { return "" }
+        var out = [lines[start]]
+        var next = start + 1
+        if wrapped(start), compact(heads[start]) != target { out.append(lines[start + 1]); next = start + 2 }
+        while next < lines.count, !boundary(next) {
+            out.append(lines[next])
+            next += 1
         }
         return out.joined(separator: "\n")
     }
