@@ -211,6 +211,12 @@ public enum PastedLabelCodes {
     /// Parser v3's decline when fewer than 5 of the 8 Taiwan mandatory rows are read (reader v3
     /// section 3.7, decision 3).
     public static let tooLittleRead = "too_little_read"
+    /// Parser v3's decline for a one-line table whose segmentation is not unambiguous (reader v3
+    /// section 3.4, decision 6); copied as `count_mismatch`.
+    public static let flattenedTableAmbiguous = "flattened_table_ambiguous"
+    /// Parser v3's decline when the text holds two or more complete panels (reader v3 section
+    /// 3.7, decision 8); it has its own copy.
+    public static let multipleCompletePanels = "multiple_complete_panels"
     /// Parser v3's warning for a serving line read from two lines (`serving_line_joined`, and
     /// `serving_line_joined: servings_per_pack` for the pack line); a warning, never a flag.
     public static let servingLineJoined = "serving_line_joined"
@@ -232,6 +238,7 @@ public enum PastedLabelCodes {
         case noPer100Column = "no_per_100_column"
         case servingLineNotRead = "serving_line_not_read"
         case tooLittleRead = "too_little_read"
+        case multiplePanels = "multiple_panels"
     }
 
     public struct Classification: Equatable, Sendable {
@@ -266,6 +273,10 @@ public enum PastedLabelCodes {
             // Parser v3 (reader v3 section 3.0, decision 19): a body that is not exactly one layout.
             layoutAmbiguous: decline(.unreadableTable),
             tooLittleRead: decline(.tooLittleRead),
+            // Parser v3, PR 3: a one-line table that cannot be segmented safely (3.4), copied as
+            // `count_mismatch`; two or more complete panels (3.7, decision 8), with their own copy.
+            flattenedTableAmbiguous: decline(.valuesNotBound),
+            multipleCompletePanels: decline(.multiplePanels),
             textTooLong: decline(.textTooLong),
             unreadableTable: decline(.unreadableTable),
             // Gate G3 to G6: flags on Confirm, never a decline.

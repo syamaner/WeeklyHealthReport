@@ -55,6 +55,11 @@ public enum TaiwanRowAliases {
 
     static func entry(_ label: String) -> Entry? { table[normalised(label)] }
 
+    /// A row label from the alias table or the recognised-but-not-stored list (3.6 rule 2).
+    static func isRecognisedChinese(_ label: String) -> Bool {
+        entry(label) != nil || recognisedNotStored.contains(normalised(label))
+    }
+
     /// The official Taiwan template order of the eight mandatory rows (3.2 rule 2, decision 2),
     /// as stored nutrient keys (energy as its kcal key).
     static let templateKeys = ["energy_kcal", "protein", "fat", "saturates", "trans_fat", "carbohydrate", "sugars", "sodium"]

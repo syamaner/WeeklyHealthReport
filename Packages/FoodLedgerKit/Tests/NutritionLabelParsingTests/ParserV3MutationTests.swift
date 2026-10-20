@@ -272,10 +272,210 @@ enum MutationSuite {
             rows[r] = Row(label: trap, key: key, values: rows[r].values)
             add("\(original) replaced by \(trap)", rows)
         }
-        // An English gloss naming another nutrient: a careful reader cannot tell which is meant
-        // (until the bilingual rule of PR 3 reads the Chinese and checks the gloss), so the row
-        // binds nothing.
+        // An English gloss naming another nutrient: a careful reader cannot tell which is meant,
+        // so the row binds nothing (PR 3: `row_not_read: gloss_conflict`, 3.6 rule 3).
         for (original, gloss) in [("脂肪", "Protein"), ("糖", "Sodium"), ("蛋白質", "Total Fat")] {
+            guard let r = fixture.rows.firstIndex(where: { $0.label == original }) else { continue }
+            var rows = fixture.rows
+            rows[r] = Row(label: original + " " + gloss, key: nil, values: rows[r].values)
+            add("\(original) glossed \(gloss)", rows)
+        }
+        return out
+    }
+
+    // MARK: PR 3: the flattened and bilingual layouts (3.4, 3.6)
+
+    /// The layouts PR 3 adds to the suite: the whole table on one line (rows separated by `，`,
+    /// the basis phrases before the first row), and the bilingual template (an English gloss after
+    /// each Chinese label, every value printed with a bracketed English unit and its Chinese unit).
+    enum NewLayout: String, CaseIterable { case flattened, bilingual }
+
+    static let glosses = ["熱量": "Calories", "蛋白質": "Protein", "脂肪": "Total Fat", "飽和脂肪": "Saturated Fat", "反式脂肪": "Trans Fat",
+                          "碳水化合物": "Total Carbohydrate", "糖": "Sugars", "膳食纖維": "Dietary Fiber", "鈉": "Sodium", "膽固醇": "Cholesterol"]
+    static let englishUnits = ["大卡": "kcal", "公克": "g", "毫克": "mg", "kJ": "kJ"]
+    static let englishHeaders = ["每份": "Per Serving", "每100公克": "Per 100g"]
+
+    static func valueText(_ value: Value, _ layout: NewLayout) -> String {
+        switch layout {
+        case .flattened: value.printed
+        case .bilingual: value.unit == "kJ" ? value.printed : "\(value.decimal)(\(englishUnits[value.unit] ?? "g"))\(value.unit)"
+        }
+    }
+
+    /// A row's tokens: its printed label (with its gloss when bilingual), then one text per value.
+    static func tokens(_ row: Row, _ layout: NewLayout) -> [String] {
+        let label = layout == .bilingual ? glosses[row.label].map { "\(row.label) \($0)" } ?? row.label : row.label
+        return [label] + row.values.map { valueText($0, layout) }
+    }
+
+    static func header(_ fixture: Fixture, _ layout: NewLayout) -> String {
+        switch layout {
+        case .flattened: fixture.header
+        case .bilingual: fixture.header.split(separator: " ").map { "\($0) \(englishHeaders[String($0)] ?? "")" }.joined(separator: " ")
+        }
+    }
+
+    static func head(_ layout: NewLayout) -> [String] {
+        switch layout {
+        case .flattened: preamble
+        case .bilingual: ["營養標示 Nutrition Facts", "每一份量 Serving Size 30公克", "本包裝含8份 (8 Servings Per Package)"]
+        }
+    }
+
+    /// Renders rows of tokens: one line for the flattened layout, one line per row for bilingual.
+    /// `extraLines` are inserted after the line of row index `at` (bilingual) or as tokens after the
+    /// row (flattened).
+    static func render(_ fixture: Fixture, _ layout: NewLayout, head: [String]? = nil, header headerText: String? = nil,
+                       rows: [[String]]) -> String {
+        let top = head ?? Self.head(layout)
+        let headerLine = headerText ?? header(fixture, layout)
+        switch layout {
+        case .flattened: return text(top + [headerLine + " " + rows.map { $0.joined(separator: " ") }.joined(separator: "，")])
+        case .bilingual: return text(top + [headerLine] + rows.map { $0.joined(separator: " ") })
+        }
+    }
+
+    static func newStructureMutations(_ fixture: Fixture, _ layout: NewLayout) -> [Mutation] {
+        var out: [Mutation] = []
+        let base = fixture.rows.map { tokens($0, layout) }
+        let all = Set(fixture.rows.compactMap(\.key))
+        func add(_ name: String, _ text: String, touched: Set<String>, servingMustNotBeRead: Bool = false) {
+            out.append(Mutation(name: "\(fixture.name) \(layout.rawValue) \(name)", kind: .structure, text: text, touched: touched,
+                                servingMustNotBeRead: servingMustNotBeRead))
+        }
+        func fullWidth(_ text: String) -> String {
+            String(text.unicodeScalars.map { ("0"..."9").contains(Character($0)) ? Character(UnicodeScalar($0.value + 0xFEE0)!) : Character($0) })
+        }
+        for (r, row) in fixture.rows.enumerated() {
+            let key: Set<String> = row.key.map { [$0] } ?? []
+            var dropped = base; dropped[r].removeLast()
+            add("drop a value of \(row.label)", render(fixture, layout, rows: dropped), touched: key)
+            var duplicated = base; duplicated[r].append(base[r].last!)
+            add("duplicate a value of \(row.label)", render(fixture, layout, rows: duplicated), touched: key)
+            let first = row.values[0]
+            let doubledDecimal = first.decimal.contains(".") ? first.decimal + ".5" : first.decimal + ".5.5"
+            var doubled = base; doubled[r][1] = valueText(Value(decimal: doubledDecimal, unit: first.unit), layout)
+            add("double a decimal point in \(row.label)", render(fixture, layout, rows: doubled), touched: key)
+            var wide = base; wide[r][1] = fullWidth(base[r][1])
+            add("full-width digits in \(row.label)", render(fixture, layout, rows: wide), touched: key)
+            if row.values.count > 1 {
+                var joined = base; joined[r] = [base[r][0], base[r].dropFirst().joined()]
+                add("no separator between the values of \(row.label)", render(fixture, layout, rows: joined), touched: key)
+            }
+            // An unrelated row with a number and a unit after the row (read but not used, or the
+            // segmentation fails).
+            var unrelated = base
+            unrelated.insert(layout == .bilingual ? ["淨重 Net Weight", "500(g)公克"] : ["淨重", "500公克"], at: r + 1)
+            add("unrelated row after \(row.label)", render(fixture, layout, rows: unrelated), touched: [])
+            // A second basis phrase before the row.
+            if r > 0 {
+                var second = base
+                second[r][0] = (layout == .bilingual ? "每100毫升 Per 100ml\n" : "每100毫升 ") + second[r][0]
+                add("second basis before \(row.label)", render(fixture, layout, rows: second), touched: all)
+            }
+            // The serving quantity moved after the row; the serving label stands alone.
+            var moved = base
+            moved[r].append(layout == .bilingual ? "\n30公克" : "30公克")
+            var servingHead = head(layout)
+            servingHead[1] = layout == .bilingual ? "每一份量 Serving Size" : "每一份量"
+            add("serving quantity after \(row.label)", render(fixture, layout, head: servingHead, rows: moved), touched: key,
+                servingMustNotBeRead: true)
+            // A percentage on this row only (no reference column is printed).
+            var percent = base; percent[r].append("5%")
+            add("percentage on \(row.label) only", render(fixture, layout, rows: percent), touched: [])
+            if layout == .flattened {
+                // A stray number after the row.
+                var stray = base; stray[r].append("，7")
+                add("stray number after \(row.label)", render(fixture, layout, rows: stray), touched: [])
+                // No separator between this row and the next: a unit followed by a label is well-formed.
+                if r + 1 < base.count {
+                    var glued = base
+                    glued[r] = [glued[r].joined(separator: " ") + glued[r + 1].joined(separator: " ")]
+                    glued.remove(at: r + 1)
+                    add("no separator after \(row.label)", render(fixture, layout, rows: glued), touched: [])
+                }
+            }
+            // The label after its values.
+            if r > 0 {
+                var after = base; after[r] = Array(base[r].dropFirst()) + [base[r][0]]
+                add("label after its values: \(row.label)", render(fixture, layout, rows: after),
+                    touched: layout == .flattened ? Set([fixture.rows[r - 1].key, row.key].compactMap { $0 }) : key)
+            }
+        }
+        // Thousands separators in the four-digit sodium value.
+        if let r = fixture.rows.firstIndex(where: { $0.key == "sodium" }), let value = fixture.rows[r].values.last {
+            for separator in [",", "，", " "] {
+                var separated = base
+                let digits = value.decimal
+                separated[r][separated[r].count - 1] = valueText(Value(decimal: String(digits.prefix(1)) + separator + String(digits.dropFirst()),
+                                                                        unit: value.unit), layout)
+                add("thousands separator \(separator)", render(fixture, layout, rows: separated), touched: ["sodium"])
+            }
+        }
+        // A row on a line of its own beside the flattened line, or one row stacked in a bilingual table.
+        switch layout {
+        case .flattened:
+            var rest = base
+            let moved = rest.remove(at: 1)
+            add("one row inline beside the flattened line", render(fixture, layout, rows: rest) + moved.joined(separator: " ") + "\n", touched: all)
+            // The basis phrases on a line of their own before the flattened line read the same.
+            let separate = text(head(layout) + [fixture.header, base.map { $0.joined(separator: " ") }.joined(separator: "，")])
+            add("header on its own line", separate, touched: [])
+        case .bilingual:
+            var stacked = base
+            stacked[2] = [stacked[2].joined(separator: "\n")]
+            add("one row stacked in a bilingual table", render(fixture, layout, rows: stacked), touched: all)
+            // A conflicting English header: the Chinese basis and the English one disagree.
+            let conflicting = fixture.header.split(separator: " ").map { "\($0) \($0 == "每份" ? "Per 100g" : "Per Serving")" }.joined(separator: " ")
+            add("conflicting English header", render(fixture, layout, header: conflicting, rows: base), touched: all)
+            // A value printed with its Chinese unit only reads the same.
+            var single = base; single[1][1] = fixture.rows[1].values[0].printed
+            add("Chinese unit only on one value", render(fixture, layout, rows: single), touched: [])
+        }
+        return out
+    }
+
+    static func newContentMutations(_ fixture: Fixture, _ layout: NewLayout) -> [Mutation] {
+        var out: [Mutation] = []
+        func add(_ name: String, _ rows: [Row], text override: String? = nil) {
+            out.append(Mutation(name: "\(fixture.name) \(layout.rawValue) \(name)", kind: .content,
+                                text: override ?? render(fixture, layout, rows: rows.map { tokens($0, layout) }), mutatedTruth: truth(fixture, rows: rows)))
+        }
+        for (r, row) in fixture.rows.enumerated() {
+            // Two labels exchanged: the text now states the other row's values for each.
+            if r + 1 < fixture.rows.count {
+                var rows = fixture.rows
+                let other = rows[r + 1]
+                rows[r] = Row(label: other.label, key: other.key, values: row.values)
+                rows[r + 1] = Row(label: row.label, key: row.key, values: other.values)
+                add("labels of \(row.label) and \(other.label) exchanged", rows)
+            }
+            for (from, to) in [("公克", "毫克"), ("毫克", "公克"), ("大卡", "kJ")] where row.values.contains(where: { $0.unit == from }) {
+                var rows = fixture.rows
+                rows[r].values = row.values.map { Value(decimal: $0.decimal, unit: $0.unit == from ? to : $0.unit) }
+                if to == "kJ" { rows[r].key = "energy_kj" }
+                add("\(row.label) in \(to)", rows)
+            }
+            // Bilingual: the bracketed English unit disagrees with the Chinese unit, so the text
+            // states two units for the value; a careful reader records nothing for the row.
+            if layout == .bilingual, row.values.contains(where: { $0.unit == "公克" }) {
+                var rows = fixture.rows
+                rows[r].key = nil
+                var tokens = fixture.rows.map { Self.tokens($0, layout) }
+                tokens[r][1] = tokens[r][1].replacingOccurrences(of: "(g)", with: "(mg)")
+                add("\(row.label) printed in (mg)公克", rows, text: render(fixture, layout, rows: tokens))
+            }
+        }
+        let traps: [(String, String, String?)] = [("飽和脂肪", "不飽和脂肪", nil), ("飽和脂肪", "單元不飽和脂肪酸", nil), ("脂肪", "不飽和脂肪", nil),
+                                                  ("糖", "添加糖", "added_sugars"), ("鈉", "鈉鹽", nil), ("蛋白質", "植物蛋白質", nil)]
+        for (original, trap, key) in traps {
+            guard let r = fixture.rows.firstIndex(where: { $0.label == original }) else { continue }
+            var rows = fixture.rows
+            rows[r] = Row(label: trap, key: key, values: rows[r].values)
+            add("\(original) replaced by \(trap)", rows)
+        }
+        // An English gloss naming another nutrient: the row binds nothing.
+        for (original, gloss) in [("脂肪", "Protein"), ("糖", "Sodium"), ("蛋白質", "Total Fat"), ("鈉", "Sugars")] {
             guard let r = fixture.rows.firstIndex(where: { $0.label == original }) else { continue }
             var rows = fixture.rows
             rows[r] = Row(label: original + " " + gloss, key: nil, values: rows[r].values)
@@ -339,30 +539,74 @@ enum MutationSuite {
     }
 }
 
+@Test func test2EveryUnmutatedFixtureReadsItsTruthInTheFlattenedAndBilingualLayouts() {
+    for fixture in MutationSuite.fixtures {
+        for layout in MutationSuite.NewLayout.allCases {
+            let text = MutationSuite.render(fixture, layout, rows: fixture.rows.map { MutationSuite.tokens($0, layout) })
+            let candidate = NutritionLabelTextParserV3().parse(text, inputSHA256: String(repeating: "0", count: 64))
+            #expect(!candidate.declined, "\(fixture.name) \(layout): \(candidate.declineReasons)")
+            let expected = MutationSuite.truth(fixture).values.map(\.count).reduce(0, +)
+            #expect(candidate.cells.filter { $0.nutrient != "unrecognised" }.count == expected, "\(fixture.name) \(layout)")
+            let outcome = MutationSuite.check(MutationSuite.Mutation(name: "\(fixture.name) \(layout)", kind: .structure, text: text),
+                                              truth: MutationSuite.truth(fixture))
+            #expect(outcome.failures.isEmpty, "\(outcome.failures)")
+            #expect(candidate.warnings.filter { $0.hasPrefix("row_not_read") }.isEmpty, "\(candidate.warnings)")
+            #expect(candidate.servingSize?.decimalText == "30")
+            #expect(candidate.language == .traditionalChinese, "\(fixture.name) \(layout)")
+        }
+    }
+}
+
+/// The suite's tallies, pinned exactly (PR 2 review): any change in either direction is deliberate
+/// and is recorded in sections 8.2 and 8.3 of the design. Keys: class, then the layouts PR 2 built
+/// (inline and stacked) and those PR 3 adds (flattened and bilingual).
+enum MutationTally {
+    struct Entry: Equatable, CustomStringConvertible {
+        var count = 0, declined = 0, withUnread = 0
+        var readInFull: Int { count - declined - withUnread }
+        var description: String { "\(count) mutations, \(declined) declined, \(withUnread) read with rows not read, \(readInFull) read with every row read" }
+    }
+
+    static let pinned: [String: Entry] = [
+        "(a) structure-breaking, inline and stacked": Entry(count: 324, declined: 234, withUnread: 70),
+        "(b) content-changing, inline and stacked": Entry(count: 95, declined: 2, withUnread: 42),
+        "(a) structure-breaking, flattened and bilingual": Entry(count: 410, declined: 291, withUnread: 68),
+        "(b) content-changing, flattened and bilingual": Entry(count: 126, declined: 12, withUnread: 54),
+    ]
+}
+
 @Test func test2MutationSuiteBindsNoWrongValue() {
     var failures: [String] = []
-    var tally: [String: (count: Int, declined: Int, withUnread: Int)] = [:]
+    var tally: [String: MutationTally.Entry] = [:]
+    func record(_ mutation: MutationSuite.Mutation, _ family: String, truth: [String: [LabelBasis: MutationSuite.Value]]) {
+        let outcome = MutationSuite.check(mutation, truth: truth)
+        failures += outcome.failures
+        let name = (mutation.kind == .structure ? "(a) structure-breaking, " : "(b) content-changing, ") + family
+        var entry = tally[name] ?? MutationTally.Entry()
+        entry.count += 1
+        if outcome.declined { entry.declined += 1 } else if outcome.unread > 0 { entry.withUnread += 1 }
+        tally[name] = entry
+    }
     for fixture in MutationSuite.fixtures {
         let truth = MutationSuite.truth(fixture)
         for layout in MutationSuite.Layout.allCases {
-            let mutations = MutationSuite.structureMutations(fixture, layout) + MutationSuite.contentMutations(fixture, layout)
-            for mutation in mutations {
-                let outcome = MutationSuite.check(mutation, truth: truth)
-                failures += outcome.failures
-                let name = mutation.kind == .structure ? "(a) structure-breaking" : "(b) content-changing"
-                var entry = tally[name] ?? (0, 0, 0)
-                entry.count += 1
-                if outcome.declined { entry.declined += 1 } else if outcome.unread > 0 { entry.withUnread += 1 }
-                tally[name] = entry
+            for mutation in MutationSuite.structureMutations(fixture, layout) + MutationSuite.contentMutations(fixture, layout) {
+                record(mutation, "inline and stacked", truth: truth)
+            }
+        }
+        for layout in MutationSuite.NewLayout.allCases {
+            for mutation in MutationSuite.newStructureMutations(fixture, layout) + MutationSuite.newContentMutations(fixture, layout) {
+                record(mutation, "flattened and bilingual", truth: truth)
             }
         }
     }
     for (name, entry) in tally.sorted(by: { $0.key < $1.key }) {
-        print("mutation suite \(name): \(entry.count) mutations, \(entry.declined) declined, \(entry.withUnread) read with rows not read, "
-              + "\(entry.count - entry.declined - entry.withUnread) read with every row read")
+        print("mutation suite \(name): \(entry)")
     }
-    #expect(tally.values.map(\.count).reduce(0, +) > 200, "the suite covers both classes on both fixtures and layouts")
     #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
+    for (name, pinned) in MutationTally.pinned {
+        #expect(tally[name] == pinned, "\(name): \(tally[name].map(\.description) ?? "none"), pinned \(pinned)")
+    }
 }
 
 /// Decision 18, the accepted residual risk, pinned: in a stacked table, an exchange of the value
