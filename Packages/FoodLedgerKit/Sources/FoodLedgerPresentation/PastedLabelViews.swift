@@ -147,6 +147,19 @@ struct PastedLabelSourceSections: View {
             }
         }
 
+        if !model.printedButNotRead.isEmpty {
+            Section {
+                ForEach(model.printedButNotRead) { item in
+                    VStack(alignment: .leading, spacing: 4) {
+                        LabeledContent(item.title, value: item.printedText)
+                        Text(item.note).font(.caption).foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("\(item.title), \(item.printedText). \(item.note)")
+                }
+            } header: { Text(PastedLabelText.printedButNotReadTitle) } footer: { Text(PastedLabelText.printedButNotReadNote) }
+        }
+
         Section {
             ForEach(Array(model.otherColumns.enumerated()), id: \.offset) { _, column in
                 DisclosureGroup(column.title) {

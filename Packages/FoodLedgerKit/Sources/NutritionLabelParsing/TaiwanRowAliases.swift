@@ -55,6 +55,18 @@ public enum TaiwanRowAliases {
 
     static func entry(_ label: String) -> Entry? { table[normalised(label)] }
 
+    /// The official Taiwan template order of the eight mandatory rows (3.2 rule 2, decision 2),
+    /// as stored nutrient keys (energy as its kcal key).
+    static let templateKeys = ["energy_kcal", "protein", "fat", "saturates", "trans_fat", "carbohydrate", "sugars", "sodium"]
+
+    /// The template position of a mandatory row matched in the alias table, else nil (optional
+    /// rows, unrecognised rows and English rows have no position).
+    static func templatePosition(_ label: String) -> Int? {
+        guard let entry = entry(label), entry.templateUnit != nil else { return nil }
+        let key = entry.row == .energy ? "energy_kcal" : RowClassifier.key(for: entry.row)
+        return templateKeys.firstIndex(of: key)
+    }
+
     /// The units the Taiwan unit rule (3.9) reads for a mandatory row's template unit. Energy is
     /// read in kcal or kJ: kJ is an accepted energy unit with the versioned `kj_to_kcal_v1`
     /// conversion (v1 decision 6), so it is never a wrong-unit binding; with both printed the kcal

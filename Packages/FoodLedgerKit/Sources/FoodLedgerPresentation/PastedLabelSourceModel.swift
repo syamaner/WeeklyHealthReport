@@ -273,6 +273,15 @@ public final class PastedLabelSourceModel: ObservableObject {
         }
     }
 
+    /// Printed rows the reader saw but did not read (reader v3 section 3.8), from the stored
+    /// candidate's warnings, so a stored entry shows the same list. Nothing printed vanishes.
+    public var printedButNotRead: [Evidence] {
+        LabelUnreadRow.rows(in: manifest.candidate.warnings).enumerated().map { index, row in
+            Evidence(id: "unread-\(index)", title: row.printedLabel, printedText: PastedLabelText.notRead,
+                     note: PastedLabelText.unreadReason(row.reason))
+        }
+    }
+
     /// The other printed column, read-only evidence; never merged into the stored column.
     public var otherColumns: [(title: String, cells: [Evidence])] {
         manifest.candidate.headers.filter { $0.headerID != manifest.storedHeaderID }.map { header in

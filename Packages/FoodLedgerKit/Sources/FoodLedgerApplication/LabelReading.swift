@@ -112,6 +112,11 @@ public struct LabelReading: Equatable, Sendable {
         self.storedHeaderID = storedHeaderID; self.versions = versions
     }
 
+    /// Printed rows the reader saw but did not read (reader v3 section 3.8), in candidate order,
+    /// for the "Printed but not read" list on Confirm. Derived from the candidate's
+    /// `row_not_read: <reason>: <label>` warnings, so a stored manifest yields the same list.
+    public var unreadRows: [LabelUnreadRow] { LabelUnreadRow.rows(in: candidate.warnings) }
+
     /// Warning codes for every failed check, in check order, then a serving or pack line read
     /// from two lines of the label (reader v3 section 3.1 rules 3 and 4), without repeats. Every
     /// exception is visible on Confirm and recorded as shown.
@@ -125,6 +130,33 @@ public struct LabelReading: Equatable, Sendable {
             codes.append(PastedLabelCodes.servingLineJoined + ":" + PastedLabelManifest.Correction.servingsPerPack)
         }
         return codes.filter { seen.insert($0).inserted }
+    }
+}
+
+/// A printed row the reader did not read (reader v3 section 3.8): its printed label and the
+/// parser's reason (`stacked_sequence`, `malformed_value`, `unexplained_bound`, `unit_off_template`,
+/// `duplicate_row`, `value_before_label`, and the later reasons of section 3.8). An unread
+/// mandatory row also keeps its gate flag (G3 or G4); this list only makes sure nothing printed
+/// vanishes.
+public struct LabelUnreadRow: Equatable, Hashable, Sendable {
+    public static let warningPrefix = "row_not_read: "
+    public let reason: String
+    public let printedLabel: String
+
+    public init(reason: String, printedLabel: String) {
+        self.reason = reason; self.printedLabel = printedLabel
+    }
+
+    /// The unread rows named by `row_not_read: <reason>: <label>` warnings, in order, without repeats.
+    public static func rows(in warnings: [String]) -> [LabelUnreadRow] {
+        var seen: Set<LabelUnreadRow> = []
+        return warnings.compactMap { warning -> LabelUnreadRow? in
+            guard warning.hasPrefix(warningPrefix) else { return nil }
+            let rest = warning.dropFirst(warningPrefix.count)
+            guard let separator = rest.range(of: ": ") else { return nil }
+            let row = LabelUnreadRow(reason: String(rest[..<separator.lowerBound]), printedLabel: String(rest[separator.upperBound...]))
+            return seen.insert(row).inserted ? row : nil
+        }
     }
 }
 
@@ -176,6 +208,9 @@ public enum PastedLabelCodes {
     public static let noTable = "no_table"
     public static let unreadableTable = "unreadable_table"
     public static let layoutAmbiguous = "layout_ambiguous"
+    /// Parser v3's decline when fewer than 5 of the 8 Taiwan mandatory rows are read (reader v3
+    /// section 3.7, decision 3).
+    public static let tooLittleRead = "too_little_read"
     /// Parser v3's warning for a serving line read from two lines (`serving_line_joined`, and
     /// `serving_line_joined: servings_per_pack` for the pack line); a warning, never a flag.
     public static let servingLineJoined = "serving_line_joined"
@@ -196,6 +231,7 @@ public enum PastedLabelCodes {
         case cellNotRead = "cell_not_read"
         case noPer100Column = "no_per_100_column"
         case servingLineNotRead = "serving_line_not_read"
+        case tooLittleRead = "too_little_read"
     }
 
     public struct Classification: Equatable, Sendable {
@@ -229,6 +265,7 @@ public enum PastedLabelCodes {
             "unrecognised_unit": decline(.valuesNotBound),
             // Parser v3 (reader v3 section 3.0, decision 19): a body that is not exactly one layout.
             layoutAmbiguous: decline(.unreadableTable),
+            tooLittleRead: decline(.tooLittleRead),
             textTooLong: decline(.textTooLong),
             unreadableTable: decline(.unreadableTable),
             // Gate G3 to G6: flags on Confirm, never a decline.

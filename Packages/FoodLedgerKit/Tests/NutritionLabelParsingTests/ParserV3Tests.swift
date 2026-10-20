@@ -101,11 +101,12 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
 
 @Test func test4ASplitServingLineIsNotJoinedAfterTheFirstRowInAStackedTableOrBeforeOtherText() {
     // After the first row: the serving size is not read and its quantity is never bound to a row.
-    let afterRow = parse("營養標示\n本包裝含8份\n每份 每100公克\n熱量 120大卡 400大卡\n每一份量\n30公克\n蛋白質 3.0公克 10.0公克\n")
+    let afterRow = parse("營養標示\n本包裝含8份\n每份 每100公克\n熱量 120大卡 400大卡\n每一份量\n30公克\n蛋白質 3.0公克 10.0公克\n"
+                         + "脂肪 4.5公克 15.0公克\n碳水化合物 18.0公克 60.0公克\n鈉 60毫克 200毫克\n")
     #expect(!afterRow.declined)
     #expect(afterRow.servingSize == nil)
     #expect(!afterRow.cells.contains { $0.decimalText == "30" }, "the moved quantity is not a value")
-    #expect(afterRow.cells.count == 4)
+    #expect(afterRow.cells.count == 10)
     // The quantity line is not the next non-empty line.
     let interrupted = parse(label("營養標示\n每一份量\n本包裝含8份\n30公克\n"))
     #expect(interrupted.servingSize == nil)
@@ -113,7 +114,8 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     let notAlone = parse(label("營養標示\n每一份量\n30公克（約2片）\n本包裝含8份\n"))
     #expect(notAlone.servingSize == nil)
     // A stacked table: the join is refused and the serving size is not read.
-    let stacked = parse("營養標示\n每一份量\n30公克\n本包裝含8份\n每100公克\n熱量\n400大卡\n蛋白質\n10.0公克\n脂肪\n15.0公克\n")
+    let stacked = parse("營養標示\n每一份量\n30公克\n本包裝含8份\n每100公克\n熱量\n400大卡\n蛋白質\n10.0公克\n脂肪\n15.0公克\n"
+                        + "碳水化合物\n60.0公克\n鈉\n200毫克\n")
     #expect(!stacked.declined)
     #expect(stacked.servingSize == nil)
     #expect(!stacked.warnings.contains("serving_line_joined"))
@@ -321,9 +323,9 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     let continued = parse("Typical values\tPer 100g\nEnergy\t1500kJ\n355kcal\nFat\t3g\n")
     #expect(!continued.declined)
     #expect(continued.cells.count == 3)
-    let stacked = parse(label(body: "每份\n熱量\n120大卡\n蛋白質\n3.0公克\n鈉\n60毫克"))
+    let stacked = parse(label(body: "每份\n熱量\n120大卡\n蛋白質\n3.0公克\n脂肪\n4.5公克\n碳水化合物\n18.0公克\n鈉\n60毫克"))
     #expect(!stacked.declined)
-    #expect(stacked.cells.map(\.decimalText) == ["120", "3.0", "60"])
+    #expect(stacked.cells.map(\.decimalText) == ["120", "3.0", "4.5", "18.0", "60"])
     // A body with no values at all has no table, as in v2.
     #expect(parse(label(body: "每份 每100公克\n熱量\n蛋白質")).declineReasons == ["no_table"])
 }
@@ -428,11 +430,60 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
 /// Two rows binding the same nutrient and column (a `*` row before the real one): the reader
 /// never picks one; both are not read, so the row is flagged on Confirm (G3).
 @Test func duplicateRowsAreBothUnread() {
-    let candidate = parse(label("營養標示\n每一份量30公克\n本包裝含8份\n", body: "每份\n熱量 120大卡\n*鈉 50毫克\n鈉 2000毫克"))
+    let candidate = parse(label("營養標示\n每一份量30公克\n本包裝含8份\n", body: "每份\n熱量 120大卡\n蛋白質 3.0公克\n脂肪 4.5公克\n碳水化合物 18.0公克\n糖 6.0公克\n*鈉 50毫克\n鈉 2000毫克"))
     #expect(!candidate.declined, "\(candidate.declineReasons)")
     #expect(!candidate.cells.contains { $0.nutrient == "sodium" })
     #expect(candidate.warnings.filter { $0.hasPrefix("row_not_read: duplicate_row: 鈉") }.count == 2)
     #expect(cell(candidate, "energy_kcal", .perServing)?.decimalText == "120")
+}
+
+/// Final review of #280: duplicates are counted over every row with a recognised label, read or
+/// not, so a row left unread (a bound, a malformed value, a value without a number) never lets a
+/// later row of the same nutrient be read in its place.
+@Test func duplicatesCountRowsThatAreNotRead() {
+    let header = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n蛋白質 3.0公克\n碳水化合物 18.0公克\n反式脂肪 0公克\n鈉 60毫克\n"
+    for body in ["脂肪 10公克 以上\n脂肪 1公克\n糖 5公克", "脂肪 10公克 以\n上 飽和\n脂肪 1公克", "脂肪 abc公克\n脂肪 1公克",
+                 "脂肪 >10公克\n脂肪 1公克", "脂肪\n脂肪 1公克"] {
+        let candidate = parse(header + body)
+        #expect(cell(candidate, "fat", .perServing) == nil, "\(body): \(candidate.cells.map { ($0.nutrient, $0.printedText) })")
+        #expect(!candidate.cells.contains { $0.decimalText == "1" || $0.decimalText == "10" }, "\(body)")
+        #expect(!candidate.declined, "\(body): \(candidate.declineReasons)")
+        #expect(candidate.warnings.contains("row_not_read: duplicate_row: 脂肪"), "\(body): \(candidate.warnings)")
+        #expect(cell(candidate, "energy_kcal", .perServing)?.decimalText == "120", "\(body)")
+    }
+    let english = parse("Per serving\nEnergy 120kcal\nFat 10g or more\nFat 1g\nProtein 3g\n")
+    #expect(cell(english, "fat", .perServing) == nil, "\(english.cells.map { ($0.nutrient, $0.printedText) })")
+    #expect(english.warnings.contains("row_not_read: duplicate_row: Fat"))
+    #expect(cell(english, "protein", .perServing)?.decimalText == "3")
+    // A substring is never a head: 不飽和脂肪 and 糖醇 do not name fat or sugars.
+    let traps = parse(header + "脂肪 10公克\n不飽和脂肪 abc\n糖 5公克\n糖醇 xyz")
+    #expect(cell(traps, "fat", .perServing)?.decimalText == "10")
+    #expect(cell(traps, "sugars", .perServing)?.decimalText == "5")
+    // kcal and kJ printed as two energy rows are not duplicates of each other.
+    #expect(ParseStateV3.duplicateKeys(RowDraftV3(label: "熱量", indented: false, values: [], labelLineHadValues: false, lines: []))
+            == ["energy_kcal", "energy_kj"])
+}
+
+/// Final review of #280: a value printed before its label on a value-only line (`>1公克 飽和脂肪`)
+/// belongs to that label, never to the row above; the label is listed as printed but not read.
+@Test func aValueBeforeItsLabelIsNeverAttachedToTheRowAbove() {
+    let header = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n蛋白質 3.0公克\n碳水化合物 18.0公克\n反式脂肪 0公克\n鈉 60毫克\n"
+    for line in [">1公克 飽和脂肪", "1公克 飽和脂肪", "1公克 其中飽和脂肪"] {
+        let candidate = parse(header + "脂肪 10公克\n" + line + "\n糖 5公克")
+        #expect(!candidate.declined, "\(line): \(candidate.declineReasons)")
+        #expect(!candidate.cells.contains { $0.decimalText == "1" }, "\(line): \(candidate.cells.map { ($0.nutrient, $0.printedText) })")
+        #expect(cell(candidate, "saturates", .perServing) == nil, "\(line)")
+        #expect(candidate.warnings.contains { $0.hasPrefix("row_not_read: value_before_label: ") && $0.contains("飽和脂肪") }, "\(line): \(candidate.warnings)")
+        #expect(!candidate.wouldMarkReady)
+    }
+    // Two columns: the stray value never becomes the per 100 g value of the row above.
+    let two = parse(label(body: rows.replacingOccurrences(of: "飽和脂肪 1.5公克 5.0公克", with: "1.5公克 5.0公克 飽和脂肪")))
+    #expect(!two.cells.contains { $0.nutrient == "fat" && $0.decimalText == "1.5" })
+    #expect(cell(two, "fat")?.decimalText == "15.0")
+    #expect(cell(two, "saturates") == nil)
+    // Bound words after a value are not a label.
+    #expect(ParseStateV3.labelAfterValues("2 or less", values: ParseStateV3.valueMatches("2 or less")) == nil)
+    #expect(ParseStateV3.labelAfterValues("1公克 以上", values: ParseStateV3.valueMatches("1公克 以上")) == nil)
 }
 
 /// The unexplained-bound rule (reader v3 section 8.1, PR 1 re-review): every bound-vocabulary
@@ -449,8 +500,8 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
         #expect(!candidate.wouldMarkReady, "\(tail)")
         if !candidate.declined { #expect(candidate.cells.count == 14, "\(tail)") }
     }
-    let oneColumnInline = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n蛋白質 3.0公克\n"
-    let oneColumnStacked = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量\n120大卡\n蛋白質\n3.0公克\n"
+    let oneColumnInline = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n蛋白質 3.0公克\n脂肪 4.5公克\n碳水化合物 18.0公克\n糖 6.0公克\n"
+    let oneColumnStacked = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量\n120大卡\n蛋白質\n3.0公克\n脂肪\n4.5公克\n碳水化合物\n18.0公克\n糖\n6.0公克\n"
     for tail in ["鈉 1000毫克\n以上", "鈉 1000 毫克\n 以上", "鈉 1000毫克\n以下", "鈉 1000毫克 以 上", "鈉 1000毫克（以上）", "鈉 5毫克 以 下"] {
         let inline = parse(oneColumnInline + tail)
         #expect(!inline.cells.contains { $0.nutrient == "sodium" }, "inline \(tail)")
@@ -487,19 +538,20 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
 /// token belongs to the row above, and any line carrying an unexplained token that does not
 /// become a recognised row leaves the rows on both sides unread. Spans are tokenised joined.
 @Test func junkAndSplitTokenLinesLeaveTheRowsOnBothSidesUnread() {
-    let oneColumn = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n蛋白質 3.0公克\n"
+    let oneColumn = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n蛋白質 3.0公克\n脂肪 4.5公克\n飽和脂肪 1.5公克\n碳水化合物 18.0公克\n"
     for tail in ["鈉 1000毫克\n或以上", "鈉 1000毫克\n及以上", "鈉 1000毫克\n以上的", "鈉 1000毫克\n以上*", "鈉 1000毫克\n以上。",
                  "鈉 1000毫克\n以上，", "鈉 1000毫克\n以上1)", "鈉 1000毫克\n以上 註", "鈉 1000毫克\n以\n上", "鈉 1000毫克\n↑",
                  "鈉 1000毫克\n或更多 or more", "鈉 1000毫克\n⩾"] {
         for (layout, text) in [("inline", oneColumn + tail),
-                               ("stacked", oneColumn.replacingOccurrences(of: "熱量 120大卡\n蛋白質 3.0公克", with: "熱量\n120大卡\n蛋白質\n3.0公克")
+                               ("stacked", oneColumn.replacingOccurrences(of: "熱量 120大卡\n蛋白質 3.0公克\n脂肪 4.5公克\n飽和脂肪 1.5公克\n碳水化合物 18.0公克",
+                                                                          with: "熱量\n120大卡\n蛋白質\n3.0公克\n脂肪\n4.5公克\n飽和脂肪\n1.5公克\n碳水化合物\n18.0公克")
                                 + tail.replacingOccurrences(of: "鈉 ", with: "鈉\n"))] {
-            let candidate = parse(text + (layout == "stacked" ? "\n糖\n5公克" : "\n糖 5公克"))
+            let candidate = parse(text + (layout == "stacked" ? "\n膳食纖維\n5公克" : "\n膳食纖維 5公克"))
             #expect(!candidate.cells.contains { $0.nutrient == "sodium" }, "\(layout) \(tail): \(candidate.cells.map(\.printedText))")
             // A mark split over lines is caught by the joined span; no single line carries it, so
             // the next row is read.
             if !tail.contains("以\n上") {
-                #expect(!candidate.cells.contains { $0.nutrient == "sugars" }, "\(layout) \(tail): the next row too")
+                #expect(!candidate.cells.contains { $0.nutrient == "fibre" }, "\(layout) \(tail): the next row too")
             }
             #expect(cell(candidate, "protein", .perServing)?.decimalText == "3.0", "\(layout) \(tail)")
         }
@@ -538,7 +590,7 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
 /// Fifth review of #280: a row label wrapped over two lines and merged is a span boundary, so a
 /// token after it (or on its merged line) is charged to the wrapped row, never to the row above.
 @Test func aWrappedLabelStartsItsOwnSpan() {
-    let chinese = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n脂肪 10公克\n"
+    let chinese = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量 120大卡\n蛋白質 3.0公克\n碳水化合物 18.0公克\n鈉 60毫克\n脂肪 10公克\n"
     for tail in ["飽和\n脂肪 1公克\n以上\n糖 5公克", "飽和\n脂肪 1公克↑\n糖 5公克", "飽和\n脂肪 1公克 以上\n糖 5公克"] {
         let candidate = parse(chinese + tail)
         #expect(!candidate.cells.contains { $0.nutrient == "saturates" }, "\(tail): \(candidate.cells.map { ($0.nutrient, $0.printedText) })")
@@ -565,7 +617,8 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
 /// A stacked value line whose mark already makes its own row unread is charged to that row only:
 /// the next plain row still reads.
 @Test func aMarkOnAValueLineIsChargedToItsOwnRowOnly() {
-    let candidate = parse("營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量\n120大卡\n脂肪\n>3公克\n飽和脂肪\n1.2 公克\n")
+    let candidate = parse("營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量\n120大卡\n蛋白質\n3.0公克\n脂肪\n>3公克\n飽和脂肪\n1.2 公克\n"
+                          + "碳水化合物\n18.0公克\n鈉\n60毫克\n")
     #expect(cell(candidate, "fat", .perServing) == nil)
     #expect(cell(candidate, "saturates", .perServing)?.decimalText == "1.2")
     let english = parse("Per serving\nEnergy\n120kcal\nFat\n>3g\nProtein\n2g\n")
@@ -656,7 +709,7 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
         character.unicodeScalars.allSatisfy(LabelDeclineGate.isSimplifiedOnly) && !NutritionLabelTextParser.hasUnsupportedScript(character)
     })
     let inline = label()
-    let stacked = label(body: "每份\n熱量\n120大卡\n蛋白質\n3.0公克\n鈉\n60毫克")
+    let stacked = label(body: "每份\n熱量\n120大卡\n蛋白質\n3.0公克\n脂肪\n4.5公克\n碳水化合物\n18.0公克\n鈉\n60毫克")
     for (layout, text) in [("inline", inline), ("stacked", stacked)] {
         #expect(!parse(text).declined, "\(layout)")
         let unboundLines = [
