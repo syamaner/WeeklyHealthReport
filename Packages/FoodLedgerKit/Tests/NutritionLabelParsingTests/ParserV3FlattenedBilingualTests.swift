@@ -419,6 +419,50 @@ private let bilingual = """
     #expect(englishOnly.servingsPerPack == nil)
 }
 
+/// PR 3 re-review (block): full-width digits never defeat the conflict check, an English quantity
+/// in any unit counts, a number that cannot be parsed makes the line not read, and the bilingual
+/// pack rule applies to a pack phrase inside a serving line.
+@Test func fullWidthDigitsAndEnglishUnitsNeverLetTheEnglishQuantityBind() {
+    for line in ["每一份量 ３０公克 (Serving size 25g)", "每一份量 ３０公克 (about 25g)", "每一份量 30公克 (Serving size ２５g)",
+                 "Serving size 25g 每一份量 ３０公克", "每一份量 30公克 (Serving size 25 grams)", "每一份量 30公克 (Serving size 1 oz)",
+                 "每一份量 ３０公克 (Serving size ３０g)"] {
+        let candidate = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: line))
+        #expect(candidate.servingSize?.decimalText == nil, "\(line): \(String(describing: candidate.servingSize))")
+    }
+    // Agreeing spellings of grams still read.
+    let grams = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量 30公克 (Serving size 30 grams)"))
+    #expect(grams.servingSize?.decimalText == "30")
+    // Full-width digits are never bound as a serving size or pack count, bilingual or not.
+    #expect(parse(preamble.replacingOccurrences(of: "每一份量30公克", with: "每一份量３０公克") + "每份\n熱量 120大卡\n").servingSize?.decimalText == nil)
+    #expect(parse(preamble.replacingOccurrences(of: "本包裝含8份", with: "本包裝含８份") + "每份\n熱量 120大卡\n").servingsPerPack == nil)
+    for line in ["本包裝含2份 (３ Servings Per Package)", "本包裝含２份 (2 Servings Per Package)"] {
+        #expect(parse(bilingual.replacingOccurrences(of: "本包裝含8份 (8 Servings Per Package)", with: line)).servingsPerPack == nil, "\(line)")
+    }
+    // A pack phrase inside a bilingual serving line follows the same rule.
+    let inServing = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克\n本包裝含8份 (8 Servings Per Package)",
+                                                       with: "每一份量 30公克 Serving size 30g 本包裝含 2份 Servings per package 3"))
+    #expect(inServing.servingSize?.decimalText == "30")
+    #expect(inServing.servingsPerPack == nil)
+    #expect(inServing.warnings.contains("bilingual_quantity_conflict: servings_per_pack"))
+    #expect(ParseStateV3.asciiDecimal("３０") == 30)
+    #expect(ParseStateV3.asciiDecimal("3,0") == nil)
+}
+
+/// PR 3 re-review (block): a basis bracket on a row repeats the printed header only when it adds
+/// no quantity, or a quantity equal to the header's serving conversion and the serving size.
+@Test func aRowBasisBracketWithAnotherServingQuantityDeclines() {
+    let rest = "蛋白質 3.0公克\n脂肪 4.5公克\n飽和脂肪 1.5公克\n反式脂肪 0公克\n碳水化合物 18.0公克\n糖 6.0公克\n鈉 60毫克\n"
+    #expect(parse("營養標示\n每份(30公克)\n熱量 120大卡(每份25公克)\n" + rest).declineReasons == ["multiple_panels"])
+    #expect(parse("營養標示\n每一份量30公克\n每份\n熱量 120大卡(每份25公克)\n" + rest).declineReasons == ["multiple_panels"])
+    let same = parse("營養標示\n每一份量30公克\n每份(30公克)\n熱量 120大卡(每份30公克)\n" + rest)
+    #expect(!same.declined, "\(same.declineReasons)")
+    #expect(value(same, "energy_kcal") == "120")
+    // Without a printed serving quantity to compare with, the bracket's quantity is not trusted.
+    #expect(parse("營養標示\n每份\n熱量 120大卡(每份30公克)\n" + rest).declineReasons == ["multiple_panels"])
+    let plain = parse("營養標示\n每份\n熱量 120大卡(每份)\n" + rest)
+    #expect(!plain.declined, "\(plain.declineReasons)")
+}
+
 @Test func aBilingualTextWithLatinOutsideItsAllowedPlacesStaysMixed() {
     let note = parse(bilingual + "Made in a factory that also handles milk\n")
     #expect(note.language == .mixed)
