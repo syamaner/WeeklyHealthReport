@@ -19,7 +19,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Today-so-far health projection v1](today-so-far-projection-v1.md) (Home provisional health highlights, separate from report and export) and the [phase 6 Home plan](ux-revamp-phase-6-home.md)
 - Health follow-up drafts awaiting owner approval: [steps trend v1](health-steps-trend-v1.md) (#215), [food and water section v1](health-food-and-water-v1.md) (#214), [section groups v1](health-report-section-groups-v1.md) (#216), [Export included summary v1](daily-export-included-summary-v1.md) (#217)
 - [Pasted nutrition label v1](pasted-nutrition-label-v1.md) (#93): pasted or typed label text read on device to Confirm (owner-approved 18 October 2026; awaiting architecture-gate review)
-- [Pasted nutrition label reader v3](pasted-nutrition-label-reader-v3.md) (#93): parser v3 for the real Taiwan paste layouts v2 declines, with an assisted basis choice and a fresh-set release check (draft, 20 October 2026; not approved)
+- [Pasted nutrition label reader v3](pasted-nutrition-label-reader-v3.md) (#93): parser v3 for the real Taiwan paste layouts v2 declines, with an assisted basis choice and a fresh-set release check (owner-approved 20 October 2026, five decisions pending)
 - [HealthKit day bucketing v1](healthkit-day-bucketing-v1.md) (#49): daily collection queries honour the injected calendar, with an alignment check and a per-day fallback (owner-approved 18 October 2026)
 - [Food drafts and common foods](food-drafts-and-common-foods.md), [food list import](food-list-import.md)
 - [Food list lexical v4](food-list-lexical-v4.md) (locale-aware list amount grammar) and [v5](food-list-lexical-v5.md) (vague portions such as "a handful" need an amount)
