@@ -118,8 +118,8 @@ final class FreshSetScorerTests: XCTestCase {
         let bad = Self.baseTranscription { $0[1] = .init(label: "蛋白質", nutrient: "proteins", values: [Self.v("6,0", "grams")]) }
         let problems = FreshSet.problems(bad, expectedID: "S01")
         XCTAssertTrue(problems.contains("蛋白質: nutrient"))
-        XCTAssertTrue(problems.contains("蛋白質: number"))
-        XCTAssertTrue(problems.contains("蛋白質: unit grams"))
+        XCTAssertTrue(problems.contains("蛋白質: number 6,0 without outside_table"))
+        XCTAssertTrue(problems.contains("蛋白質: unit grams without outside_table"))
         XCTAssertTrue(problems.contains("蛋白質: 1 values for 2 columns"))
     }
 
@@ -142,13 +142,17 @@ final class FreshSetScorerTests: XCTestCase {
         let encoder = JSONEncoder()
         try encoder.encode(Self.baseTranscription()).write(to: folder.appendingPathComponent("transcription/S01.json"))
         XCTAssertThrowsError(try FreshSet.seal(.seal1, folder), "the text seal comes first")
-        XCTAssertThrowsError(try FreshSet.runAll(folder), "no run before seal 2")
+        XCTAssertThrowsError(try FreshSet.runAll(folder, commit: "c"), "no run before seal 2")
         _ = try FreshSet.seal(.text, folder)
         XCTAssertThrowsError(try FreshSet.seal(.text, folder), "a seal is never replaced")
         _ = try FreshSet.seal(.seal1, folder)
         _ = try FreshSet.seal(.seal2, folder)
-        XCTAssertEqual(try FreshSet.runAll(folder), 1)
-        XCTAssertEqual(try FreshSet.runAll(folder), 0, "a rerun covers only labels with no output")
+        XCTAssertEqual(try FreshSet.runAll(folder, commit: "c"), 1)
+        XCTAssertEqual(try FreshSet.runAll(folder, commit: "c"), 0, "the one rerun covers only labels with no output")
+        XCTAssertThrowsError(try FreshSet.runAll(folder, commit: "c"), "a third attempt is refused")
+        let log = try String(contentsOf: folder.appendingPathComponent("run-log.txt"), encoding: .utf8)
+        XCTAssertTrue(log.contains("commit=c attempt=1 pending=S01\nwrote S01\n"), log)
+        XCTAssertTrue(log.contains("attempt=2 pending=\n"), log)
         let summary = try FreshSet.scoreAll(folder)
         XCTAssertEqual(summary.wrongValues, 0)
         XCTAssertTrue(summary.passes)
@@ -158,10 +162,152 @@ final class FreshSetScorerTests: XCTestCase {
         XCTAssertThrowsError(try FreshSet.scoreAll(folder))
     }
 
-    func testAFolderInsideAGitCheckoutIsRefused() {
-        let inside = URL(fileURLWithPath: #filePath).deletingLastPathComponent().path
-        XCTAssertThrowsError(try FreshSet.privateFolder(inside))
+    func testAFolderInsideAGitCheckoutIsRefused() throws {
+        let checkout = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("checkout-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: checkout) }
+        try FileManager.default.createDirectory(at: checkout.appendingPathComponent(".git"), withIntermediateDirectories: true)
+        let inside = checkout.appendingPathComponent("fresh/set")
+        try FileManager.default.createDirectory(at: inside, withIntermediateDirectories: true)
+        XCTAssertThrowsError(try FreshSet.privateFolder(inside.path))
+        XCTAssertThrowsError(try FreshSet.privateFolder(checkout.path))
         XCTAssertThrowsError(try FreshSet.privateFolder("relative/path"))
+        let outside = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("outside-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: outside) }
+        try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+        XCTAssertNoThrow(try FreshSet.privateFolder(outside.path))
+    }
+
+    func testRunOutputsTheLogDoesNotAccountForAreRefused() throws {
+        let root = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("fresh-set-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        for folder in ["texts", "transcription", "run"] {
+            try FileManager.default.createDirectory(at: root.appendingPathComponent(folder), withIntermediateDirectories: true)
+        }
+        try Data(SyntheticLabelTexts.base.utf8).write(to: root.appendingPathComponent("texts/S01.txt"))
+        try JSONEncoder().encode(Self.baseTranscription()).write(to: root.appendingPathComponent("transcription/S01.json"))
+        for seal in FreshSet.Seal.allCases { _ = try FreshSet.seal(seal, root) }
+        try Data("{}".utf8).write(to: root.appendingPathComponent("run/S01.json"))
+        XCTAssertThrowsError(try FreshSet.runAll(root, commit: "c"))
+    }
+
+    // MARK: Review of #286 at 5340a966
+
+    /// Re-encodes a run result with a change to its JSON, for scorer cases the Taiwan reader
+    /// cannot produce from a synthetic text (a salt row).
+    private func mutate(_ r: FreshSet.RunResult, _ change: (inout [String: Any]) -> Void) throws -> FreshSet.RunResult {
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(r)) as? [String: Any])
+        change(&object)
+        return try JSONDecoder().decode(FreshSet.RunResult.self, from: JSONSerialization.data(withJSONObject: object))
+    }
+
+    func testSaltToSodiumIsScoredByItsOperandInGrams() throws {
+        let base = run(SyntheticLabelTexts.base, Self.baseTranscription())
+        let stored = try XCTUnwrap(base.storedHeaderID)
+        let salted = try mutate(base) { object in
+            var candidate = object["candidate"] as! [String: Any]
+            var cells = (candidate["cells"] as! [[String: Any]]).filter { ($0["nutrient"] as? String) != "sodium" }
+            var salt = (candidate["cells"] as! [[String: Any]]).first { ($0["nutrient"] as? String) == "sodium" && ($0["header_id"] as? String) == stored }!
+            salt["row_id"] = "row_salt"; salt["nutrient"] = "salt"; salt["printed_label"] = "鹽"
+            salt["decimal_text"] = "0.63"; salt["unit"] = "公克"; salt["canonical_unit"] = "g"; salt["printed_text"] = "0.63 公克"
+            cells.append(salt)
+            candidate["cells"] = cells
+            object["candidate"] = candidate
+            object["conversions"] = [["nutrient": "sodium", "rule": "salt_to_sodium_v1", "rule_version": "pasted-label-conversions-v1",
+                                      "source_header_id": stored, "source_row_id": "row_salt", "operand_text": "0.63", "operand_unit": "g_salt",
+                                      "factor_text": "2.5", "intermediate_text": "252.000000", "stored_text": "252.0"]]
+        }
+        func transcription(sodium: [T.Value?]) -> T {
+            Self.baseTranscription { rows in
+                rows[8] = .init(label: "鈉", nutrient: "sodium", values: sodium)
+                rows.append(.init(label: "鹽", nutrient: "salt", values: [nil, Self.v("0.63", "公克")]))
+            }
+        }
+        XCTAssertEqual(FreshSet.score(salted, transcription(sodium: [nil, nil])).wrong, [], "operand 0.63 g of salt against 0.63 公克")
+        XCTAssertEqual(FreshSet.score(salted, transcription(sodium: [nil, Self.v("252", "毫克")])).wrong, [],
+                       "the calculated sodium agrees with the printed one within rounding")
+        XCTAssertEqual(FreshSet.score(salted, transcription(sodium: [nil, Self.v("300", "毫克")])).wrong.count, 1,
+                       "a calculated value beside a different printed value is wrong")
+        XCTAssertEqual(FreshSet.score(salted, transcription(sodium: [nil, nil])).correctionBurden, 0)
+    }
+
+    /// The reader calculates kcal from kJ when the kcal row is printed but left unread (the
+    /// conversion reads the candidate, which has no kcal cell then). The scorer compares it with
+    /// the printed kcal.
+    func testACalculatedKcalBesideAnUnreadPrintedKcalIsComparedWithIt() {
+        let kjAndKcal = Self.baseTranscription { $0.insert(.init(label: "熱量", nutrient: "energy_kj",
+            values: [Self.v("701.7", "kJ"), Self.v("1754", "kJ")]), at: 0) }
+        let result = run(SyntheticLabelTexts.kilojoulesOnly, kjAndKcal)
+        XCTAssertFalse(result.conversions.isEmpty)
+        XCTAssertEqual(FreshSet.score(result, kjAndKcal).wrong, [], "419.2 calculated, 419.2 printed")
+        let differs = Self.baseTranscription {
+            $0[0] = .init(label: "熱量", nutrient: "energy_kcal", values: [Self.v("167.7", "大卡"), Self.v("430", "大卡")])
+            $0.insert(.init(label: "熱量", nutrient: "energy_kj", values: [Self.v("701.7", "kJ"), Self.v("1754", "kJ")]), at: 0)
+        }
+        XCTAssertEqual(FreshSet.score(result, differs).wrong.count, 1)
+    }
+
+    func testAnUnrecognisedCellMatchesAnyRowByNormalisedLabel() throws {
+        let base = run(SyntheticLabelTexts.base, Self.baseTranscription())
+        let renamed = try mutate(base) { object in
+            var candidate = object["candidate"] as! [String: Any]
+            candidate["cells"] = (candidate["cells"] as! [[String: Any]]).map { cell in
+                var cell = cell
+                if (cell["nutrient"] as? String) == "fibre" { cell["nutrient"] = "unrecognised"; cell["printed_label"] = "膳食纖維 (自願標示者)" }
+                return cell
+            }
+            object["candidate"] = candidate
+        }
+        // The transcriber wrote the label from the screenshot, with a full-width space and bracket.
+        let t = Self.baseTranscription { $0[7] = .init(label: "膳食纖維　（自願標示者）", nutrient: "fibre",
+            values: [Self.v("3.8", "公克"), Self.v("9.6", "公克")]) }
+        let score = FreshSet.score(renamed, t)
+        XCTAssertEqual(score.wrong, [], "matched by label against a row of any nutrient, with the same numbers")
+        XCTAssertEqual(score.correctionBurden, 1, "an unrecognised cell never counts as reading fibre")
+        XCTAssertEqual(FreshSet.normalisedLabel("Ｆｉｂｒｅ （自願標示）"), "fibre")
+    }
+
+    func testValuesOutsideTheTablesAreAcceptedAndNeverMatchByAccident() {
+        let outside = Self.baseTranscription {
+            $0[1] = .init(label: "蛋白質", nutrient: "protein", values: [T.Value(comparator: "=", number: "６.0", unit: "ｇ", outsideTable: true),
+                                                                       T.Value(comparator: ">", number: "15.1", unit: "公克", outsideTable: true)])
+        }
+        XCTAssertEqual(FreshSet.problems(outside, expectedID: "S01"), [], "validate does not refuse values recorded verbatim")
+        let unmarked = Self.baseTranscription { $0[1] = .init(label: "蛋白質", nutrient: "protein", values: [Self.v("6.0", "ｇ"), Self.v("15.1", "公克")]) }
+        XCTAssertEqual(FreshSet.problems(unmarked, expectedID: "S01"), ["蛋白質: unit ｇ without outside_table"])
+        // The reader bound 6.0 g and 15.1 g: both differ from what is printed, so both are wrong.
+        XCTAssertEqual(FreshSet.score(run(SyntheticLabelTexts.base, Self.baseTranscription()), outside).wrong.count, 2)
+        // A row not read is never wrong, whatever is printed.
+        let noProtein = FreshSet.score(run(SyntheticLabelTexts.taiwan(SyntheticLabelTexts.rows.filter { !$0.hasPrefix("蛋白質") }), outside), outside)
+        XCTAssertEqual(noProtein.wrong, [])
+        let serving = Self.baseTranscription()
+        let pieces = T(schema: serving.schema, labelID: "S01", servingSize: .init(number: "2", unit: "片", outsideTable: true),
+                       servingsPerPack: serving.servingsPerPack, columns: serving.columns, rows: serving.rows, notes: [])
+        XCTAssertEqual(FreshSet.problems(pieces, expectedID: "S01"), [])
+    }
+
+    func testAServingSizeNumberIsScoredWithoutACanonicalUnit() throws {
+        let base = run(SyntheticLabelTexts.base, Self.baseTranscription())
+        let noUnit = try mutate(base) { object in
+            var candidate = object["candidate"] as! [String: Any]
+            candidate["serving_size"] = ["printed_text": "每一份量 40 包", "decimal_text": "40", "unit": "包"]
+            object["candidate"] = candidate
+        }
+        XCTAssertEqual(FreshSet.score(noUnit, Self.baseTranscription()).wrong, [])
+        let other = Self.baseTranscription()
+        let fifty = T(schema: other.schema, labelID: "S01", servingSize: .init(number: "50", unit: "公克"), servingsPerPack: other.servingsPerPack,
+                      columns: other.columns, rows: other.rows, notes: [])
+        XCTAssertEqual(FreshSet.score(noUnit, fifty).wrong, ["serving size read 40 "])
+    }
+
+    func testTwoColumnsWithTheSameBasisAreMatchedByPositionOrAreAmbiguous() {
+        let base = Self.baseTranscription()
+        let result = run(SyntheticLabelTexts.base, base)
+        // The transcription prints three columns, two of them per 100 g: the reader's two columns
+        // are not the transcription's three, so its per 100 g values cannot be placed.
+        let three = T(schema: base.schema, labelID: "S01", servingSize: base.servingSize, servingsPerPack: base.servingsPerPack,
+                      columns: base.columns + [.init(heading: "每100公克（沖泡後）", basis: "per_100g")],
+                      rows: base.rows.map { .init(label: $0.label, nutrient: $0.nutrient, values: $0.values + [$0.values[1]]) }, notes: [])
+        XCTAssertEqual(FreshSet.score(result, three).wrong.count, 9, "every per 100 g value is ambiguous, never firstIndex")
     }
 
     func testTheSummaryStatesTheStatisticalLimit() {

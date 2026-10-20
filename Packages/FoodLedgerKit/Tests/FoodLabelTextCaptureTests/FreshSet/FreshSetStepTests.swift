@@ -21,11 +21,31 @@ final class FreshSetStepTests: XCTestCase {
         case "validate": try FreshSet.validateTranscriptions(root); print("transcriptions valid")
         case "seal-1": _ = try FreshSet.seal(.seal1, root); print("seal 1 recorded in seals.txt")
         case "seal-2": _ = try FreshSet.seal(.seal2, root); print("seal 2 recorded in seals.txt")
-        case "run": print("run wrote \(try FreshSet.runAll(root)) outputs")
+        case "run":
+            // The commit this checkout is at, with no local change, goes into the run log (12.2.7 item 1).
+            let checkout = URL(fileURLWithPath: #filePath).deletingLastPathComponent().path
+            guard try Self.git(["-C", checkout, "status", "--porcelain"]).isEmpty else {
+                throw FreshSet.Failure("refused: the checkout has local changes; run from a clean checkout of the freeze reference")
+            }
+            let commit = try Self.git(["-C", checkout, "rev-parse", "HEAD"]).trimmingCharacters(in: .whitespacesAndNewlines)
+            print("run wrote \(try FreshSet.runAll(root, commit: commit)) outputs")
         case "score":
             let summary = try FreshSet.scoreAll(root)
             print("scored \(summary.labels) labels; written to results/summary.json; passes: \(summary.passes)")
         default: XCTFail("unknown step \(step)")
         }
+    }
+
+    private static func git(_ arguments: [String]) throws -> String {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
+        process.arguments = arguments
+        let pipe = Pipe()
+        process.standardOutput = pipe
+        try process.run()
+        let data = pipe.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+        guard process.terminationStatus == 0 else { throw FreshSet.Failure("git \(arguments.joined(separator: " ")) failed") }
+        return String(decoding: data, as: UTF8.self)
     }
 }
