@@ -34,11 +34,15 @@ public enum PastedLabelServingPolicy {
     /// section 6.3; fixed for v2). They are looked for only in the serving-size segment
     /// (`servingSegment`): English words matched whole and case-insensitively, the other marks as
     /// substrings, and a numeric range (`rangePattern`).
-    public static let approximateWords: Set<String> = ["about", "approx", "approximately", "around", "circa", "roughly"]
-    public static let approximateMarks = ["約", "约", "~", "～", "〜", "≈", "≒", "±", "+/-", "左右"]
-    /// The range marks: hyphen-minus, en dash, em dash, minus sign, hyphen, non-breaking hyphen,
-    /// full-width hyphen-minus, the tildes and wave dash, 至 and 到; plus the whole word "to".
-    static let rangeMarks = #"(?:[\-–—−‐‑－~～〜至到]|to(?![A-Za-z]))"#
+    public static let approximateWords: Set<String> = ["about", "approx", "approximate", "approximately", "around", "ca", "circa",
+                                                       "roughly"]
+    public static let approximateMarks = ["約", "约", "~", "～", "〜", "≈", "≒", "±", "+/-", "+-", "左右", "上下"]
+    /// The range marks: every dash punctuation character (`\p{Pd}`: hyphen-minus, hyphen,
+    /// non-breaking hyphen, figure dash, en dash, em dash, horizontal bar, small and full-width
+    /// hyphen-minus, wave dash and the rest), the minus sign −, box-drawing ─, swung dash ⁓, wavy
+    /// low line ﹏, the tildes ~ ～, 至 and 到; 一 and ー only between digits (OCR); and the whole
+    /// word "to" (any case).
+    static let rangeMarks = #"(?:[\p{Pd}−─⁓﹏~～〜至到]|(?<=[0-9]\s{0,2})[一ー](?=\s{0,2}[0-9])|(?<![A-Za-z])to(?![A-Za-z]))"#
     /// A numeric range within the segment: a digit, optional spaces, up to three non-space unit
     /// characters, optional spaces, a range mark, optional spaces, a digit ("25-30g", "30g-35g",
     /// "30 g - 35 g", "25 to 30 g", "30公克至35公克"). Groups 1 and 2 are the two numbers.
@@ -48,7 +52,7 @@ public enum PastedLabelServingPolicy {
     static let separators = #"[\s,，、/／]*"#
     /// A listed word (whole, any case, an optional "." and closing bracket after it) or one of
     /// 約 约 ≈ ≒ 左右.
-    static let marker = #"(?:(?:about|approx|approximately|around|circa|roughly)(?![A-Za-z])\.?\s*[)）]?|[約约≈≒]|左右)"#
+    static let marker = #"(?:(?:about|approx|approximate|approximately|around|ca|circa|roughly)(?![A-Za-z])\.?\s*[)）]?|[約约≈≒]|左右|上下)"#
     /// A word or mark written straight after the quantity, after optional separators and an
     /// optional opening bracket: "30g approx.", "30g, approx.", "30公克，約", "30公克 左右",
     /// "30g (approx.)". Inside a bracket it is subject to the piece-count exception (`countsPieces`).
@@ -206,6 +210,12 @@ public enum PastedLabelServingPolicy {
     ///    straight after the quantity (`trailingWordPattern`), except a bracketed marker on a piece
     ///    count (`countsPieces`). Anything else after the quantity is not scanned.
     public static func servingSegment(_ size: PastedLabelManifest.Candidate.ServingSize) -> String? {
+        located(size)?.segment
+    }
+
+    /// The segment and the position of the recorded quantity's number in it (the segment is a
+    /// prefix of the value, so positions are shared).
+    static func located(_ size: PastedLabelManifest.Candidate.ServingSize) -> (segment: String, number: NSRange)? {
         guard let decimal = size.decimalText, let unit = size.unit else { return nil }
         let text = size.printedText
         typealias G = PastedLabelServingSizeGrammar
@@ -221,6 +231,7 @@ public enum PastedLabelServingPolicy {
         guard let match = quantity, let range = Range(match.range, in: value),
               let number = Range(match.range(at: 1), in: value), let matchedUnit = Range(match.range(at: 2), in: value),
               String(value[number]) == decimal, String(value[matchedUnit]) == unit else { return nil }
+        let numberRange = match.range(at: 1)
         let base = String(value[..<range.upperBound])
         let after = String(value[range.upperBound...])
         let afterRange = NSRange(after.startIndex..., in: after)
@@ -228,22 +239,25 @@ public enum PastedLabelServingPolicy {
             pattern?.firstMatch(in: after, range: afterRange).flatMap { Range($0.range, in: after) }.map { String(after[$0]) }
         }
         // ± straight after the quantity always joins it: "30g ± 2%", "30 g ±".
-        if let tolerance = matched(plusMinusPattern) { return base + tolerance }
+        if let tolerance = matched(plusMinusPattern) { return (base + tolerance, numberRange) }
         // A range mark joins it when its number is followed by the same unit, any listed weight or
         // volume unit, or the end of the value: "30g-35g", "30g-35 grams", "30g~35".
         let rangeTail = try? NSRegularExpression(pattern: #"^\s*"# + rangeMarks + #"\s*[0-9][0-9.]*\s*(?:"#
             + NSRegularExpression.escapedPattern(for: unit) + #"(?![\p{L}])|"# + weightOrVolumeUnits + "|$)", options: [.caseInsensitive])
-        if let tail = matched(rangeTail) { return base + tail }
-        if let tail = matched(afterBracketWordPattern) { return base + tail }
-        guard let tail = matched(trailingWordPattern) else { return base }
+        if let tail = matched(rangeTail) { return (base + tail, numberRange) }
+        if let tail = matched(afterBracketWordPattern) { return (base + tail, numberRange) }
+        guard let tail = matched(trailingWordPattern) else { return (base, numberRange) }
         // Inside a bracket, a marker followed by a count of something that is not a weight or
         // volume ("（約2片）", "(about 2 biscuits)") qualifies that count, not the serving size.
         let rest = String(after.dropFirst(tail.count))
-        if tail.contains(where: { $0 == "(" || $0 == "（" }), countsPieces(rest) { return base }
-        return base + tail
+        if tail.contains(where: { $0 == "(" || $0 == "（" }), countsPieces(rest) { return (base, numberRange) }
+        return (base + tail, numberRange)
     }
 
-    static let plusMinusPattern = try! NSRegularExpression(pattern: #"^\s*(?:±|\+/-)"#)
+    static let plusMinusPattern = try! NSRegularExpression(pattern: #"^\s*(?:±|\+/-|\+-)"#)
+    /// "c." directly before a number (at most one space between): "c. 30g", "c.30g". A bare "c"
+    /// is not a marker (it may be a cup), nor is "c." before anything else.
+    static let circaAbbreviationPattern = try! NSRegularExpression(pattern: #"(?<![A-Za-z])c\.\s?[0-9]"#, options: [.caseInsensitive])
 
     /// A number followed by a token that is not a weight or volume: optional spaces, a number,
     /// optional spaces, a letter, where the number and token are not a listed weight or volume
@@ -263,26 +277,59 @@ public enum PastedLabelServingPolicy {
         case exact
         /// A listed word or mark, ± or +/-.
         case approximate
-        /// A numeric range, with its two printed numbers.
-        case range(low: String, high: String)
+        /// A numeric range. `own` is the serving size's own range, shown on Confirm; nil when the
+        /// range is elsewhere in the segment ("2-3 biscuits (30g)", "1 bar - 30g"). Either way no
+        /// servings are offered.
+        case range(own: PrintedRange?)
         /// The recorded quantity cannot be found in the printed line (or none was read).
         case unmatched
     }
 
-    public static func exactness(_ size: PastedLabelManifest.Candidate.ServingSize) -> Exactness {
-        guard let segment = servingSegment(size) else { return .unmatched }
-        if let match = rangePattern.firstMatch(in: segment, range: NSRange(segment.startIndex..., in: segment)),
-           let low = Range(match.range(at: 1), in: segment), let high = Range(match.range(at: 2), in: segment) {
-            return .range(low: String(segment[low]), high: String(segment[high]))
-        }
-        return approximate(segment) ? .approximate : .exact
+    /// The two printed numbers of a serving size's own range.
+    public struct PrintedRange: Equatable, Sendable {
+        public let low: String
+        public let high: String
+        public init(low: String, high: String) { self.low = low; self.high = high }
     }
+
+    public static func exactness(_ size: PastedLabelManifest.Candidate.ServingSize) -> Exactness {
+        guard let (segment, number) = located(size) else { return .unmatched }
+        let matches = rangePattern.matches(in: segment, range: NSRange(segment.startIndex..., in: segment))
+        guard !matches.isEmpty else { return approximate(segment) ? .approximate : .exact }
+        return .range(own: matches.lazy.compactMap { ownRange($0, in: segment, number: number) }.first)
+    }
+
+    /// Whether a range is the serving size's own (what Confirm shows; any range refuses
+    /// servings): its low number is the recorded quantity (the range tail after it, "30g-35g"),
+    /// or its high number is the recorded quantity and nothing but spaces and a listed weight or
+    /// volume unit stands between the low number and the mark ("25-30g", "25 g - 30 g",
+    /// "25公克至30公克"; not "1 bar - 30g").
+    static func ownRange(_ match: NSTextCheckingResult, in segment: String, number: NSRange) -> PrintedRange? {
+        guard let low = Range(match.range(at: 1), in: segment), let high = Range(match.range(at: 2), in: segment) else { return nil }
+        let range = PrintedRange(low: String(segment[low]), high: String(segment[high]))
+        if match.range(at: 1).location == number.location { return range }
+        guard match.range(at: 2).location == number.location else { return nil }
+        let start = match.range(at: 1).location + match.range(at: 1).length
+        let rest = NSRange(location: start, length: (segment as NSString).length - start)
+        guard let between = lowUnitPattern.firstMatch(in: segment, options: [.anchored, .withTransparentBounds], range: rest),
+              let unit = Range(between.range(at: 1), in: segment) else { return nil }
+        let text = String(segment[unit])
+        guard text.isEmpty || unitOnlyPattern.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil else { return nil }
+        return range
+    }
+
+    /// The characters between a range's low number and its mark (group 1).
+    static let lowUnitPattern = try! NSRegularExpression(pattern: #"\s*([^0-9\s]{0,3}?)\s*"# + rangeMarks + #"\s*[0-9]"#,
+                                                         options: [.caseInsensitive])
+    static let unitOnlyPattern = try! NSRegularExpression(pattern: "^" + weightOrVolumeUnits + "$", options: [.caseInsensitive])
 
     /// Whether a serving-size segment is approximate: a listed mark, a listed whole English word,
     /// or a numeric range.
     public static func approximate(_ segment: String) -> Bool {
         if approximateMarks.contains(where: { segment.contains($0) }) { return true }
-        if rangePattern.firstMatch(in: segment, range: NSRange(segment.startIndex..., in: segment)) != nil { return true }
+        let whole = NSRange(segment.startIndex..., in: segment)
+        if rangePattern.firstMatch(in: segment, range: whole) != nil { return true }
+        if circaAbbreviationPattern.firstMatch(in: segment, range: whole) != nil { return true }
         let words = segment.lowercased().split { !($0.isASCII && $0.isLetter) }.map(String.init)
         return words.contains { approximateWords.contains($0) }
     }

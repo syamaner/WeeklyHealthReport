@@ -217,8 +217,10 @@ public final class PastedLabelSourceModel: ObservableObject {
             let amount: String
             switch servingSizeExactness(size) {
             case .approximate: amount = "about \(decimal) \(shownUnit)"
-            case let .range(low, high): amount = "\(low)–\(high) \(shownUnit)"
-            case .exact, .unmatched: amount = "\(decimal) \(shownUnit)"
+            // Only the serving size's own range is shown as a range; a range elsewhere on the line
+            // ("2-3 biscuits (30g)", "1 bar - 30g") shows the recorded quantity, with the range note.
+            case let .range(own?): amount = "\(own.low)–\(own.high) \(shownUnit)"
+            case .range(nil), .exact, .unmatched: amount = "\(decimal) \(shownUnit)"
             }
             sizeValue = "\(amount) · \(NutrientOriginText.tag(.printed)) (printed: \(size.printedText))"
         } else if let size {
