@@ -433,8 +433,13 @@ private let bilingual = """
     let grams = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量 30公克 (Serving size 30 grams)"))
     #expect(grams.servingSize?.decimalText == "30")
     // Full-width digits are never bound as a serving size or pack count, bilingual or not.
-    #expect(parse(preamble.replacingOccurrences(of: "每一份量30公克", with: "每一份量３０公克") + "每份\n熱量 120大卡\n").servingSize?.decimalText == nil)
-    #expect(parse(preamble.replacingOccurrences(of: "本包裝含8份", with: "本包裝含８份") + "每份\n熱量 120大卡\n").servingsPerPack == nil)
+    let full = "每份\n熱量 120大卡\n蛋白質 3.0公克\n脂肪 4.5公克\n飽和脂肪 1.5公克\n反式脂肪 0公克\n碳水化合物 18.0公克\n糖 6.0公克\n鈉 60毫克\n"
+    let wideServing = parse(preamble.replacingOccurrences(of: "每一份量30公克", with: "每一份量３０公克") + full)
+    #expect(!wideServing.declined)
+    #expect(wideServing.servingSize?.decimalText == nil)
+    let widePack = parse(preamble.replacingOccurrences(of: "本包裝含8份", with: "本包裝含８份") + full)
+    #expect(!widePack.declined)
+    #expect(widePack.servingsPerPack == nil)
     for line in ["本包裝含2份 (３ Servings Per Package)", "本包裝含２份 (2 Servings Per Package)"] {
         #expect(parse(bilingual.replacingOccurrences(of: "本包裝含8份 (8 Servings Per Package)", with: line)).servingsPerPack == nil, "\(line)")
     }
@@ -446,6 +451,40 @@ private let bilingual = """
     #expect(inServing.warnings.contains("bilingual_quantity_conflict: servings_per_pack"))
     #expect(ParseStateV3.asciiDecimal("３０") == 30)
     #expect(ParseStateV3.asciiDecimal("3,0") == nil)
+}
+
+/// PR 3 re-review of `089fdf36`: a serving quantity is never cut down to the digits after a
+/// separator or another numeral; an English pack count before the Chinese phrase on a serving
+/// line is compared, and its "about" is kept; gr, grs and cc are grams and millilitres.
+@Test func aServingOrPackNumberIsNeverCutAndEveryCountOnTheServingLineIsCompared() {
+    let table = "每份\n熱量 120大卡\n蛋白質 3.0公克\n脂肪 4.5公克\n飽和脂肪 1.5公克\n反式脂肪 0公克\n碳水化合物 18.0公克\n糖 6.0公克\n鈉 60毫克\n"
+    for line in ["每一份量 2．5公克", "每一份量30．5公克", "Serving size 30,5g", "每一份量30，5公克", "Portion size 37,5g", "每一份量3²0公克"] {
+        let candidate = parse("營養標示\n" + line + "\n" + table)
+        #expect(!candidate.declined, "\(line): \(candidate.declineReasons)")
+        #expect(candidate.servingSize?.decimalText == nil, "\(line): \(String(describing: candidate.servingSize))")
+        #expect(!candidate.cells.contains { $0.servingConversion.hasPrefix("5") || $0.servingConversion.hasPrefix("0") }, "\(line)")
+    }
+    #expect(parse("營養標示\n每一份量30.5公克\n" + table).servingSize?.decimalText == "30.5", "an ASCII decimal point still reads")
+    let oddPack = parse("營養標示\n本包裝含2，5份\n" + table)
+    #expect(!oddPack.declined)
+    #expect(oddPack.servingsPerPack == nil)
+    let englishPack = parse("Serving size 30g\nServings per container 2,5\nPer serving\nEnergy 120kcal\n")
+    #expect(!englishPack.declined)
+    #expect(englishPack.servingsPerPack == nil)
+    for line in ["每一份量30公克 (Serving size 30g, about 3 servings per container) 本包裝含2份", "每一份量 30公克，3 servings per container，本包裝含 2份"] {
+        let candidate = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克\n本包裝含8份 (8 Servings Per Package)", with: line))
+        #expect(candidate.servingsPerPack == nil, "\(line): \(String(describing: candidate.servingsPerPack))")
+        #expect(candidate.warnings.contains("bilingual_quantity_conflict: servings_per_pack"), "\(line)")
+    }
+    let about = parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克\n本包裝含8份 (8 Servings Per Package)",
+                                                    with: "每一份量30公克 (Serving size 30g, about 2 servings per container) 本包裝含2份"))
+    #expect(about.servingsPerPack?.decimalText == "2")
+    #expect(about.servingsPerPack?.approximate == true)
+    for line in ["每一份量 30公克 (Serving size 30 gr)", "每一份量 30公克 (Serving size 30 grs)"] {
+        #expect(parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: line)).servingSize?.decimalText == "30", "\(line)")
+    }
+    #expect(parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量 250毫升 (250 cc)")).servingSize?.decimalText == "250")
+    #expect(parse(bilingual.replacingOccurrences(of: "每一份量 Serving Size 30公克", with: "每一份量 250毫升 (200 cc)")).servingSize?.decimalText == nil)
 }
 
 /// PR 3 re-review (block): a basis bracket on a row repeats the printed header only when it adds

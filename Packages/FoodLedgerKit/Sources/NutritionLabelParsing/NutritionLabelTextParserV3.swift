@@ -112,11 +112,17 @@ enum PatternsV3 {
     /// The per 100 basis phrase inside a bracket (its 100 is not a quantity).
     static let per100Phrase = LabelPattern(#"(?i)每\s*100\s*(?:公克|克|毫升)|per\s*100\s*(?:g|ml)\b"#)
     /// Any number followed by a unit word, Chinese or English (PR 3 re-review: `25 grams`, `1 oz`).
-    static let anyQuantity = LabelPattern(#"(\d+(?:[.．]\d+)?)\s*(公克|毫升|克|[A-Za-z]+)"#)
+    static let anyQuantity = LabelPattern(#"(?<![\d.,，．\p{No}])(\d+(?:[.．]\d+)?)\s*(公克|毫升|克|[A-Za-z]+)"#)
+    /// Parser v2's serving quantity with a left boundary (PR 3 re-review): a number touching a
+    /// digit, a separator or another numeral (`2．5公克`, `30,5g`, `3²0公克`) is never taken.
+    static let servingQuantity = LabelPattern(#"(?<![\d.,，．\p{No}])(\d+(?:\.\d+)?)\s*(g|ml|mL|公克|毫升|克)(?![\p{L}])"#)
+    /// A number written in a form the reader cannot hold: a comma, full-width point or another
+    /// numeral between digits. A serving or pack line holding one is not read.
+    static let oddNumber = LabelPattern(#"\d[,，．]\d|\d\p{No}|\p{No}\d"#)
     /// Serving unit words of a bilingual line: grams and millilitres in their spellings; any
     /// other unit word (oz, cup) has no canonical serving unit, so it is a conflict.
     static let servingUnitWords: [String: String] = [
-        "g": "g", "gm": "g", "gms": "g", "gram": "g", "grams": "g", "gramme": "g", "grammes": "g", "公克": "g", "克": "g",
+        "g": "g", "gm": "g", "gms": "g", "gr": "g", "grs": "g", "cc": "ml", "gram": "g", "grams": "g", "gramme": "g", "grammes": "g", "公克": "g", "克": "g",
         "ml": "ml", "millilitre": "ml", "millilitres": "ml", "milliliter": "ml", "milliliters": "ml", "毫升": "ml",
     ]
     static let englishPackPhrase = LabelPattern(#"(?i)^servings?\s+per\s+(?:container|pack|package)\s*[:：]?\s*(about\s+)?(\d+(?:\.\d+)?)"#)
@@ -408,7 +414,7 @@ struct ParseStateV3 {
         for pattern in PatternsV3.servingsPerPack {
             if let groups = pattern.firstMatch(in: content), let number = groups[2] {
                 currentLineLatinAllowed = true
-                if !BoundVocabulary.tokens(content).isEmpty || Self.hasNonASCIIDigits(number) {
+                if !BoundVocabulary.tokens(content).isEmpty || Self.hasNonASCIIDigits(number) || PatternsV3.oddNumber.contains(content) {
                     // A bound word, or a count in full-width or other digits: not read.
                     unbound.append(content)
                 } else if !packClaimed {
@@ -452,8 +458,7 @@ struct ParseStateV3 {
                 if Self.bilingualQuantitiesDisagree(serving: Self.cutAtPackPhrase(rest), line: content) {
                     extraWarnings.append(Self.bilingualConflictWarning + "serving_size")
                 }
-                if let match = PatternsV3.packPhrase.matchDetails(in: rest).first,
-                   case .none = Self.bilingualPackCount(String(rest[match.range.lowerBound...])) {
+                if PatternsV3.packPhrase.contains(rest), case .none = Self.bilingualPackCount(Self.packRest(rest)) {
                     extraWarnings.append(Self.bilingualConflictWarning + "servings_per_pack")
                 }
                 if !packClaimed, let pack = Self.packCount(inServingLine: content, value: rest) {
@@ -578,6 +583,9 @@ struct ParseStateV3 {
         let cut = cutAtPackPhrase(value)
         // A serving size printed as "more than" (`超過30公克`, `30公克以上`) is not read.
         if !BoundVocabulary.tokens(cut).isEmpty { return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil) }
+        // A number the reader cannot hold (`2．5公克`, `30,5g`, `3²0公克`) is never cut down to the
+        // digits after the separator: the serving size is not read (PR 3 re-review).
+        if PatternsV3.oddNumber.contains(cut) { return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil) }
         // 3.6 rule 5 (and the PR 3 review): on a serving line holding Chinese and English text,
         // in either order and bracketed or not, the quantities printed must agree; when they do
         // not (`Serving size 25g 每一份量 30公克`, `每一份量30公克 (about 25g)`) the serving size is
@@ -588,17 +596,17 @@ struct ParseStateV3 {
         }
         // An English bracket (one holding a Latin word) never supplies the number on its own
         // (3.6 rule 5): `每一份量1包 (about 30g)` is not read.
-        if printed.contains(where: FlattenedLine.isHan), hasLatinWord(printed), Patterns.servingQuantity.contains(cut) {
+        if printed.contains(where: FlattenedLine.isHan), hasLatinWord(printed), PatternsV3.servingQuantity.contains(cut) {
             var outside = cut
             for bracket in Patterns.parenthesised.matches(in: cut) where hasLatinWord(bracket) {
                 outside = outside.replacingOccurrences(of: bracket, with: " ")
             }
-            if !Patterns.servingQuantity.contains(outside) {
+            if !PatternsV3.servingQuantity.contains(outside) {
                 return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil)
             }
         }
         let source = Patterns.parenthesised.firstMatch(in: cut)?[1] ?? cut
-        if let groups = Patterns.servingQuantity.firstMatch(in: source) ?? Patterns.servingQuantity.firstMatch(in: cut),
+        if let groups = PatternsV3.servingQuantity.firstMatch(in: source) ?? PatternsV3.servingQuantity.firstMatch(in: cut),
            let number = groups[1], let unit = groups[2], !hasNonASCIIDigits(number) {
             // A number in full-width or other digits is never bound (PR 3 re-review).
             return LabelServingSize(printedText: printed, decimalText: number, unit: unit, canonicalUnit: LabelVocabulary.canonicalUnit(unit))
@@ -606,17 +614,31 @@ struct ParseStateV3 {
         return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil)
     }
 
+    /// A serving value with its weight and volume quantities removed (the text the pack rule
+    /// compares on a serving line holding a pack phrase).
+    static func packRest(_ value: String) -> String {
+        var rest = value
+        for match in PatternsV3.anyQuantity.matchDetails(in: value).reversed()
+        where PatternsV3.servingUnitWords[(match.groups[2] ?? "").lowercased()] != nil {
+            rest.replaceSubrange(match.range, with: " ")
+        }
+        return rest
+    }
+
     /// 3.1 rule 4: the pack count from a pack phrase on the serving line, read as printed.
     static func packCount(inServingLine line: String, value: String) -> LabelServingsPerPack? {
         guard let match = PatternsV3.packPhrase.matchDetails(in: value).first else { return nil }
         let phrase = String(value[match.range.lowerBound...])
-        if !BoundVocabulary.tokens(phrase).isEmpty { return nil }
-        // PR 3 re-review: the bilingual pack rule applies to a pack phrase inside a serving line.
-        switch bilingualPackCount(phrase) {
+        if !BoundVocabulary.tokens(phrase).isEmpty || PatternsV3.oddNumber.contains(phrase) { return nil }
+        // PR 3 re-review: the bilingual pack rule applies to a pack phrase inside a serving line,
+        // compared and scanned for approximation over the whole serving value with its serving
+        // quantities removed, so an English count before the Chinese phrase is never missed.
+        switch bilingualPackCount(packRest(value)) {
         case .none:
             return nil
         case let .some(.some(chinese)):
-            let approximate = bilingualApproximate(phrase) || PatternsV3.chinesePackAnywhere.firstMatch(in: phrase)?[1] != nil
+            let rest = packRest(value)
+            let approximate = bilingualApproximate(rest) || PatternsV3.chinesePackAnywhere.firstMatch(in: rest)?[1] != nil
             return LabelServingsPerPack(printedText: line, decimalText: chinese, approximate: approximate)
         case .some(nil):
             break
@@ -1121,14 +1143,14 @@ struct ParseStateV3 {
         }
         var references: [String?] = []
         if let conversion = header.servingConversion {
-            if let groups = Patterns.servingQuantity.firstMatch(in: conversion), let number = groups[1], let unit = groups[2] {
+            if let groups = PatternsV3.servingQuantity.firstMatch(in: conversion), let number = groups[1], let unit = groups[2] {
                 references.append(key(number, unit))
             } else {
                 references.append(nil)
             }
         }
         if let size = servingSize, let number = size.decimalText, let unit = size.unit { references.append(key(number, unit)) }
-        if let join = servingJoin, let groups = Patterns.servingQuantity.firstMatch(in: join.quantity), let number = groups[1], let unit = groups[2] {
+        if let join = servingJoin, let groups = PatternsV3.servingQuantity.firstMatch(in: join.quantity), let number = groups[1], let unit = groups[2] {
             references.append(key(number, unit))
         }
         guard !references.isEmpty, references.allSatisfy({ $0 != nil }) else { return false }
