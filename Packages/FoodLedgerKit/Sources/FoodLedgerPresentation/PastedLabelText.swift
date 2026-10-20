@@ -163,8 +163,55 @@ public enum PastedLabelText {
         }
     }
 
-    public static func sourceLine(basis: String, format: String) -> String {
-        "From pasted label · \(basisLabel(basis)) · \(languageLabel(format))"
+    public static func sourceLine(basis: String, format: String, origin: PastedLabelBasisOrigin = .printed) -> String {
+        "From pasted label · \(basisLine(basis: basis, origin: origin)) · \(languageLabel(format))"
+    }
+
+    // MARK: The basis choice (reader v3 sections 3.3 and 8.4)
+
+    /// The one basis formatter (8.4.11): "per 100 g" for a printed basis, "per 100 g · Chosen by
+    /// you" for a chosen one. Confirm, the saved entry, the misread report and Developer tools use it.
+    public static func basisLine(basis: String, origin: PastedLabelBasisOrigin) -> String {
+        origin.isChosen ? "\(basisLabel(basis)) · \(chosenByYou)" : basisLabel(basis)
+    }
+
+    public static let chosenByYou = "Chosen by you"
+
+    /// Decision 24: the energy line's hint, shown as a note on the basis line only when the
+    /// recorded warnings say it differed from the choice. Never a block.
+    public static func basisHintNote(_ origin: PastedLabelBasisOrigin) -> String? {
+        guard case let .chosenByYou(hint?) = origin else { return nil }
+        return energyLineSays(hint)
+    }
+
+    /// "The label’s energy line says 每100毫升." The bracket's own brackets are not repeated.
+    public static func energyLineSays(_ bracket: String) -> String {
+        "The label’s energy line says \(bracket.trimmingCharacters(in: CharacterSet(charactersIn: "()（） ")))."
+    }
+
+    public static let basisQuestion = "These values have no column heading. What are they for?"
+    public static let basisSheetTitle = "What are these values for?"
+    public static let basisNotSure = "I’m not sure"
+    public static let basisNotSureNote = "Go back to the label text. You can also use Search instead."
+    public static let perServingUnavailable = "Per serving is not offered because the serving size was not read."
+    public static let currentChoice = "Current choice"
+    public static let changeBasis = "Change"
+    public static let replaceCorrectionsOnBasisChange = "Changing what the values are for replaces your corrections."
+    public static let changeBasisConfirm = "Change and replace"
+
+    /// "Per serving (25 g)", "Per 100 g", "Per serving (25 g), then per 100 g".
+    public static func basisOptionTitle(_ arrangement: PastedLabelBasisOptions.Arrangement,
+                                        servingSize: PastedLabelManifest.Candidate.ServingSize?) -> String {
+        let parts = arrangement.bases.map { basis -> String in
+            switch basis {
+            case .perServing:
+                let quantity = servingSize.flatMap { size in size.decimalText.flatMap { decimal in size.canonicalUnit.map { "\(decimal) \(unitLabel($0))" } } }
+                return quantity.map { "per serving (\($0))" } ?? "per serving"
+            case .per100g: return "per 100 g"
+            case .per100ml: return "per 100 mL"
+            }
+        }
+        return FoodDisplayNumber.capitalisedFirst(parts.joined(separator: ", then "))
     }
 
     public static func basisLabel(_ basis: String) -> String {
@@ -221,6 +268,10 @@ public enum PastedLabelText {
             let column = flag.headerID.flatMap { id in headers.first { $0.headerID == id } }.map { basisLabel($0.basis) } ?? "another column"
             return "Not read: \(nutrientName(flag.nutrient ?? flag.concerns)), \(column). Add it, or leave it unknown."
         case .noPer100Column:
+            // 8.4.11: under a chosen basis the copy names it by its label.
+            if let chosen = headers.first(where: { $0.basis != "reference_intake" && $0.printedText.isEmpty }) {
+                return "Only \(basisLabel(chosen.basis)) values; the label does not print per 100 g."
+            }
             return "No per 100 g or per 100 ml values were read."
         case .servingLineNotRead:
             return "Not read: \(nutrientName(flag.concerns)). Add it, or leave it unknown."
@@ -261,10 +312,18 @@ public enum PastedLabelText {
             return "The servings per pack do not match the pack weight. Check the label text."
         case "serving_line_joined":
             return parts.last == PastedLabelManifest.Correction.servingsPerPack ? joinedPack : joinedServingSize
+        case "basis_plausibility":
+            return parts.last == "energy" ? plausibilityEnergy : plausibilityMacronutrients
+        case "basis_hint":
+            return "The basis you chose is not the one the label’s energy line names. Check the label."
         default:
             return "Some values do not add up. Check the label text."
         }
     }
+
+    /// Checks v2 (8.4.4), beside an option on the sheet and in Confirm's warnings when chosen.
+    public static let plausibilityMacronutrients = "With this choice, protein, fat and carbohydrate add up to more than the food’s weight."
+    public static let plausibilityEnergy = "With this choice, the energy is higher than any food has."
 
     // MARK: Misread report preview (section 9.1)
 
@@ -426,7 +485,12 @@ public enum PastedLabelSavedEntryText {
     public static func sourceLine(_ detail: SavedFoodEntryDetail) -> String? {
         guard let manifest = detail.pastedLabel else { return nil }
         let basis = manifest.candidate.headers.first { $0.headerID == manifest.storedHeaderID }?.basis ?? ""
-        return PastedLabelText.sourceLine(basis: basis, format: manifest.labelFormat)
+        return PastedLabelText.sourceLine(basis: basis, format: manifest.labelFormat, origin: manifest.basisOrigin)
+    }
+
+    /// Decision 24: the energy line's note, only when the stored warnings recorded it.
+    public static func basisHintNote(_ detail: SavedFoodEntryDetail) -> String? {
+        detail.pastedLabel.flatMap { PastedLabelText.basisHintNote($0.basisOrigin) }
     }
 
     public static func reportText(_ detail: SavedFoodEntryDetail) -> String? {
@@ -463,5 +527,10 @@ public struct PastedLabelReportText: PastedLabelReportWording {
 
     public func versions(_ versions: PastedLabelMisreadReport.Versions) -> String {
         [versions.parser, versions.gate, versions.arithmetic, versions.conversion].joined(separator: ", ")
+    }
+
+    public func basis(_ basis: String, origin: PastedLabelBasisOrigin) -> String {
+        (["Basis: " + PastedLabelText.basisLine(basis: basis, origin: origin)] + [PastedLabelText.basisHintNote(origin)].compactMap { $0 })
+            .joined(separator: " ")
     }
 }

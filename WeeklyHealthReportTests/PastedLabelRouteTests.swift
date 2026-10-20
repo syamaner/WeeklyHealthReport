@@ -245,6 +245,57 @@ final class PastedLabelRouteTests: XCTestCase {
 
     // MARK: Helpers
 
+    // MARK: Reader v3 PR 4: the basis sheet journey (section 8.4, contract test 16)
+
+    /// A synthetic one-column table whose column heading did not copy, with its energy line
+    /// naming per 100 ml (decision 23's hint).
+    private static let unheaded = (["營養標示", "每一份量 40 公克", "本包裝含 2 份", "熱量  167.7 大卡(每100毫升)"]
+        + ["蛋白質  6.0 公克", "脂肪  3.8 公克", "　飽和脂肪  0.5 公克", "　反式脂肪  0 公克", "碳水化合物  29.2 公克", "　糖  2.0 公克",
+           "鈉  101 毫克"]).joined(separator: "\n") + "\n"
+
+    func testAnUnheadedTableAsksForItsBasisThenConfirmsChangesAndLogs() throws {
+        let root = try makeRoot()
+        let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
+        model.name = "Synthetic chosen crackers"
+        model.fortification = .no
+        model.text = Self.unheaded
+        XCTAssertNil(model.readLabel(), "the basis sheet comes first")
+        let sheet = try XCTUnwrap(model.basisSheet, "\(model.declineMessages)")
+        XCTAssertEqual(sheet.request.offered, ["per_serving", "per_100g", "per_100ml"])
+        XCTAssertEqual(model.basisOptions.map(\.title), ["Per serving (40 g)", "Per 100 g", "Per 100 mL"])
+        XCTAssertEqual(model.basisHint, "The label’s energy line says 每100毫升.")
+        for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility3, "accessibility3")] {
+            render(PastedLabelBasisSheetView(model: model, open: { _ in }, closeConfirm: {}).environment(\.dynamicTypeSize, size),
+                   "Pasted label - basis sheet \(name)")
+        }
+        let perServing = try XCTUnwrap(sheet.request.options.first { $0.arrangement.identifier == "per_serving" }?.arrangement)
+        let source = try XCTUnwrap(model.chooseBasis(perServing))
+        XCTAssertEqual(source.sourceLine, "From pasted label · per serving · Chosen by you · Traditional Chinese, Taiwan layout")
+        XCTAssertEqual(source.basisHintNote, "The label’s energy line says 每100毫升.")
+        XCTAssertTrue(source.canChangeBasis)
+        XCTAssertTrue(root.searchDiagnostics.pastedLabelLines.contains { $0.hasPrefix("Basis: per serving · Chosen by you") })
+        let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
+        let view = root.pastedLabelConfirmation(confirm, source: source, editLabelText: {}, leave: {})
+        render(NavigationStack { view }, "Pasted label - Confirm chosen basis")
+        // Change: the current choice is labelled, dismissing keeps it.
+        source.changeBasis?()
+        XCTAssertEqual(model.basisOptions.filter(\.isCurrent).map(\.id), ["per_serving"])
+        render(PastedLabelBasisSheetView(model: model, open: { _ in }, closeConfirm: {}), "Pasted label - basis sheet from Change")
+        model.basisSheetDismissed()
+        XCTAssertEqual(source.currentArrangement?.identifier, "per_serving")
+        confirm.send(.setQuantity(1, .count))
+        XCTAssertTrue(confirm.canLog, confirm.blockedReason ?? "")
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult, confirm.blockedReason ?? "\(confirm.state.phase)")
+        XCTAssertEqual(saved.evidence.first?.captureMethodVersion.value, "pasted-nutrition-label-v2")
+        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v1")
+        XCTAssertEqual(saved.logItemVersion.edibleQuantity.value, 40, "1 serving × 40 g")
+        let detail = try XCTUnwrap(try root.foodLogService.savedEntry(saved.logItem.logItemID))
+        XCTAssertEqual(PastedLabelSavedEntryText.sourceLine(detail), source.sourceLine)
+        XCTAssertEqual(PastedLabelSavedEntryText.basisHintNote(detail), source.basisHintNote)
+        XCTAssertNotNil(try root.model(reopening: saved.logItem.logItemID), "a manifest v2 entry reopens")
+    }
+
     private func makeRoot() throws -> FoodLedgerCompositionRoot {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }

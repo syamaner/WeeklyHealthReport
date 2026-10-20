@@ -27,15 +27,44 @@ public final class PastedLabelTextViewModel: ObservableObject {
     /// The "Reading the text again replaces your corrections." question is showing.
     @Published public var asksToReplaceCorrections = false
 
+    /// The basis sheet (reader v3 sections 3.3 and 8.4.9): after Read label for an unheaded
+    /// table, or from Change on Confirm. Nil when it is not showing.
+    public struct BasisSheet: Identifiable, Equatable {
+        public let id = UUID()
+        public let request: PastedLabelBasisChoiceRequest
+        /// Opened from Change on Confirm: nothing is preselected and the current choice is
+        /// labelled; dismissing keeps it.
+        public let fromChange: Bool
+        public let current: PastedLabelBasisOptions.Arrangement?
+    }
+
+    /// One option as the sheet renders it, in the application's order, with no logic of its own.
+    public struct BasisOption: Identifiable, Equatable {
+        public var id: String { arrangement.identifier }
+        public let arrangement: PastedLabelBasisOptions.Arrangement
+        public let title: String
+        public let warnings: [String]
+        public let isCurrent: Bool
+    }
+
+    @Published public var basisSheet: BasisSheet?
+    /// "Changing what the values are for replaces your corrections." is showing (from Change).
+    @Published public var asksToReplaceCorrectionsOnBasisChange = false
+    private var pendingArrangement: PastedLabelBasisOptions.Arrangement?
+    /// The request the current Confirm's choice was made on, bound to its text (8.4.9).
+    private var confirmRequest: PastedLabelBasisChoiceRequest?
+
     private let read: (String) -> PastedLabelReadOutcome
     private let makeConfirm: (PastedLabelReview, PastedLabelDetails) throws -> PastedLabelSourceModel
+    private let choose: ((PastedLabelBasisOptions.Arrangement, PastedLabelBasisChoiceRequest) throws -> PastedLabelReview)?
     /// Developer tools lines for this screen's reading, cleared when it closes (test 36).
     private let recordDiagnostics: ([String]) -> Void
 
     public init(read: @escaping (String) -> PastedLabelReadOutcome,
                 makeConfirm: @escaping (PastedLabelReview, PastedLabelDetails) throws -> PastedLabelSourceModel,
+                choose: ((PastedLabelBasisOptions.Arrangement, PastedLabelBasisChoiceRequest) throws -> PastedLabelReview)? = nil,
                 recordDiagnostics: @escaping ([String]) -> Void = { _ in }) {
-        self.read = read; self.makeConfirm = makeConfirm; self.recordDiagnostics = recordDiagnostics
+        self.read = read; self.makeConfirm = makeConfirm; self.choose = choose; self.recordDiagnostics = recordDiagnostics
     }
 
     public var details: PastedLabelDetails {
@@ -85,6 +114,7 @@ public final class PastedLabelTextViewModel: ObservableObject {
         asksToReplaceCorrections = false
         guard canRead else { return nil }
         confirm = nil
+        confirmRequest = nil
         return performRead()
     }
 
@@ -108,21 +138,136 @@ public final class PastedLabelTextViewModel: ObservableObject {
                 + (reading.map { ["Format: \($0.format)"] } ?? []))
             return nil
         case let .usable(review):
-            do {
-                let model = try makeConfirm(review, details)
-                phase = .editing
-                confirm = model
-                recordDiagnostics(["Pasted label read: \(review.reading.format), stored column \(review.storedHeaderID)",
-                                   "Flags: " + (review.flags.isEmpty ? "none" : review.flags.map { "\($0.code):\($0.concerns)" }.joined(separator: ", ")),
-                                   "Warnings: " + (review.warningCodes.isEmpty ? "none" : review.warningCodes.joined(separator: ", "))])
-                return model
-            } catch {
-                phase = .declined(codes: [PastedLabelCodes.unreadableTable], reading: review.reading, text: snapshot)
-                confirm = nil
-                recordDiagnostics(["Pasted label declined: \(PastedLabelCodes.unreadableTable) (confirmation could not be built)"])
+            confirmRequest = nil
+            return openConfirm(review, text: snapshot)
+        case let .needsBasisChoice(request):
+            // 8.4.9: a new reading clears any earlier choice and shows the sheet again.
+            phase = .editing
+            confirm = nil
+            confirmRequest = nil
+            basisSheet = BasisSheet(request: request, fromChange: false, current: nil)
+            recordDiagnostics(["Pasted label needs a basis choice: offered " + request.offered.joined(separator: " | ")])
+            return nil
+        }
+    }
+
+    private func openConfirm(_ review: PastedLabelReview, text snapshot: String) -> PastedLabelSourceModel? {
+        do {
+            let model = try makeConfirm(review, details)
+            phase = .editing
+            confirm = model
+            if review.basisChoice != nil { model.changeBasis = { [weak self] in self?.changeBasis() } }
+            let basis = review.reading.candidate.headers.first { $0.headerID == review.storedHeaderID }?.basis ?? ""
+            recordDiagnostics(["Pasted label read: \(review.reading.format), stored column \(review.storedHeaderID)",
+                               "Basis: " + PastedLabelText.basisLine(basis: basis, origin: review.basisOrigin)
+                                + (PastedLabelText.basisHintNote(review.basisOrigin).map { " " + $0 } ?? ""),
+                               "Flags: " + (review.flags.isEmpty ? "none" : review.flags.map { "\($0.code):\($0.concerns)" }.joined(separator: ", ")),
+                               "Warnings: " + (review.warningCodes.isEmpty ? "none" : review.warningCodes.joined(separator: ", "))])
+            return model
+        } catch {
+            phase = .declined(codes: [PastedLabelCodes.unreadableTable], reading: review.reading, text: snapshot)
+            confirm = nil
+            confirmRequest = nil
+            recordDiagnostics(["Pasted label declined: \(PastedLabelCodes.unreadableTable) (confirmation could not be built)"])
+            return nil
+        }
+    }
+
+    // MARK: The basis sheet (reader v3 sections 3.3 and 8.4.9)
+
+    /// The sheet's options in order, each with its plausibility warnings; on the Change sheet
+    /// the current choice is labelled, never selected.
+    public var basisOptions: [BasisOption] {
+        guard let sheet = basisSheet else { return [] }
+        return sheet.request.options.map { option in
+            BasisOption(arrangement: option.arrangement,
+                        title: PastedLabelText.basisOptionTitle(option.arrangement, servingSize: sheet.request.unheaded.servingSize),
+                        warnings: option.plausibilityWarnings.map(PastedLabelText.warningMessage),
+                        isCurrent: sheet.fromChange && sheet.current == option.arrangement)
+        }
+    }
+
+    /// The energy line's hint on the sheet: shown, never preselected, never reordering.
+    public var basisHint: String? { basisSheet?.request.unheaded.energyLineHint.map { PastedLabelText.energyLineSays($0.printedText) } }
+
+    public var perServingUnavailable: Bool { basisSheet?.request.perServingUnavailable ?? false }
+
+    /// The user chose an option. Returns the Confirm to open, or nil while the corrections
+    /// question is showing (a different arrangement from Change with corrections) or when
+    /// nothing changes (the current arrangement again).
+    @discardableResult
+    public func chooseBasis(_ arrangement: PastedLabelBasisOptions.Arrangement) -> PastedLabelSourceModel? {
+        guard let sheet = basisSheet else { return nil }
+        if sheet.fromChange {
+            if arrangement == sheet.current {
+                basisSheet = nil
+                return nil
+            }
+            if confirm?.hasCorrections == true {
+                pendingArrangement = arrangement
+                asksToReplaceCorrectionsOnBasisChange = true
                 return nil
             }
         }
+        return apply(arrangement, sheet: sheet)
+    }
+
+    /// "Change and replace" on the question: the corrections go with the old choice.
+    @discardableResult
+    public func confirmBasisChange() -> PastedLabelSourceModel? {
+        asksToReplaceCorrectionsOnBasisChange = false
+        guard let arrangement = pendingArrangement, let sheet = basisSheet else { return nil }
+        pendingArrangement = nil
+        return apply(arrangement, sheet: sheet)
+    }
+
+    /// Cancel on the question: the choice and every correction are kept.
+    public func cancelBasisChange() {
+        asksToReplaceCorrectionsOnBasisChange = false
+        pendingArrangement = nil
+    }
+
+    private func apply(_ arrangement: PastedLabelBasisOptions.Arrangement, sheet: BasisSheet) -> PastedLabelSourceModel? {
+        basisSheet = nil
+        let request = sheet.request
+        guard let choose, let review = try? choose(arrangement, request) else { return nil }
+        // From Change, Confirm keeps its model (amount and time stay) with the new review.
+        if sheet.fromChange, let confirm, (try? confirm.replace(review: review)) != nil {
+            recordDiagnostics(["Pasted label basis changed: " + arrangement.identifier])
+            return confirm
+        }
+        let model = openConfirm(review, text: request.pastedText)
+        confirmRequest = model == nil ? nil : request
+        return model
+    }
+
+    /// "I'm not sure" (8.4.9). After Read label: nothing is written and the text screen stays
+    /// with the text kept. From Change: the choice is cleared, Confirm is dropped and the text
+    /// is kept. Returns true when Confirm must close.
+    @discardableResult
+    public func basisNotSure() -> Bool {
+        let fromChange = basisSheet?.fromChange == true
+        basisSheet = nil
+        pendingArrangement = nil
+        guard fromChange else { return false }
+        confirm = nil
+        confirmRequest = nil
+        return true
+    }
+
+    /// The sheet was swiped away: after Read label it is "I'm not sure" (nothing written, text
+    /// kept); from Change the current choice stays and Confirm stays.
+    public func basisSheetDismissed() {
+        basisSheet = nil
+        pendingArrangement = nil
+        asksToReplaceCorrectionsOnBasisChange = false
+    }
+
+    /// Change on Confirm's basis line: the sheet with nothing preselected and the current choice
+    /// labelled. Only for the Confirm of the unchanged text it was chosen on.
+    public func changeBasis() {
+        guard let request = confirmRequest, let confirm, confirm.pastedText == request.pastedText else { return }
+        basisSheet = BasisSheet(request: request, fromChange: true, current: confirm.currentArrangement)
     }
 
     // MARK: After a decline (section 3.3)
@@ -132,6 +277,7 @@ public final class PastedLabelTextViewModel: ObservableObject {
         text = ""
         phase = .editing
         confirm = nil
+        confirmRequest = nil
         recordDiagnostics([])
     }
 
@@ -168,7 +314,11 @@ public final class PastedLabelTextViewModel: ObservableObject {
         text = ""; name = ""; brand = ""; fortification = .unanswered
         phase = .editing
         confirm = nil
+        confirmRequest = nil
+        basisSheet = nil
+        pendingArrangement = nil
         asksToReplaceCorrections = false
+        asksToReplaceCorrectionsOnBasisChange = false
         recordDiagnostics([])
     }
 }

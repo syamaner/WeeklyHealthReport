@@ -135,6 +135,7 @@ struct SavedFoodEntryView: View {
     private func pastedLabel(_ detail: SavedFoodEntryDetail) -> some View {
         Section(PastedLabelSavedEntryText.sectionTitle) {
             if let line = PastedLabelSavedEntryText.sourceLine(detail) { Text(line).font(.subheadline) }
+            if let note = PastedLabelSavedEntryText.basisHintNote(detail) { Text(note).font(.caption) }
             ForEach(PastedLabelSavedEntryText.originLines(detail), id: \.self) { Text($0).font(.caption) }
             if let report = PastedLabelSavedEntryText.reportText(detail) {
                 Button(PastedLabelText.reportMisread) { misreadReport = PastedLabelMisreadPreviewModel(report: report) }

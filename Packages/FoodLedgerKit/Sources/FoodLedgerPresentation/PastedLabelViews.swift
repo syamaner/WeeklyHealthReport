@@ -96,6 +96,88 @@ public struct PastedLabelTextView: View {
             Button(PastedLabelText.cancel, role: .cancel) { model.cancelReadAgain() }
         }
         .sheet(item: $report) { PastedLabelMisreadPreviewSheet(model: $0) { report = nil } }
+        // Reader v3 8.4.8: the basis sheet after Read label (Change presents it over Confirm).
+        .sheet(item: Binding(get: { model.basisSheet.flatMap { $0.fromChange ? nil : $0 } },
+                             set: { if $0 == nil { model.basisSheetDismissed() } })) { _ in
+            PastedLabelBasisSheetView(model: model, open: openConfirm, search: search, closeConfirm: {})
+        }
+    }
+}
+
+/// The basis sheet (reader v3 sections 3.3 and 8.4.8): "These values have no column heading.
+/// What are they for?" It renders the application's options in order, each with its warning,
+/// with nothing preselected; the hint is shown and never chosen. "I'm not sure" goes back to the
+/// label text. Native grouped style, 44 pt targets, VoiceOver labels.
+public struct PastedLabelBasisSheetView: View {
+    @ObservedObject private var model: PastedLabelTextViewModel
+    private let open: (PastedLabelSourceModel) -> Void
+    private let search: (() -> Void)?
+    /// Closes Confirm when "I'm not sure" from Change drops it.
+    private let closeConfirm: () -> Void
+
+    public init(model: PastedLabelTextViewModel, open: @escaping (PastedLabelSourceModel) -> Void,
+                search: (() -> Void)? = nil, closeConfirm: @escaping () -> Void) {
+        self.model = model; self.open = open; self.search = search; self.closeConfirm = closeConfirm
+    }
+
+    public var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(PastedLabelText.basisQuestion)
+                    if let hint = model.basisHint {
+                        Label(hint, systemImage: "info.circle").font(.subheadline)
+                            .accessibilityIdentifier("pastedLabel.basisHint")
+                    }
+                }
+                Section {
+                    ForEach(model.basisOptions) { option in
+                        Button {
+                            if let confirm = model.chooseBasis(option.arrangement) { open(confirm) }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(option.title)
+                                if option.isCurrent {
+                                    Text(PastedLabelText.currentChoice).font(.caption).foregroundStyle(.secondary)
+                                }
+                                ForEach(option.warnings, id: \.self) { warning in
+                                    Label(warning, systemImage: "exclamationmark.triangle").font(.caption)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        }
+                        .accessibilityLabel(([option.title] + (option.isCurrent ? [PastedLabelText.currentChoice] : []) + option.warnings)
+                            .joined(separator: ", "))
+                        .accessibilityIdentifier("pastedLabel.basis." + option.id)
+                    }
+                    if model.perServingUnavailable {
+                        Text(PastedLabelText.perServingUnavailable).font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+                Section {
+                    Button(PastedLabelText.basisNotSure) {
+                        if model.basisNotSure() { closeConfirm() }
+                    }
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("pastedLabel.basisNotSure")
+                    if let search, model.basisSheet?.fromChange != true {
+                        Button(PastedLabelText.searchInstead) {
+                            model.basisSheetDismissed()
+                            search()
+                        }
+                        .frame(minHeight: 44)
+                    }
+                } footer: { Text(PastedLabelText.basisNotSureNote) }
+            }
+            .navigationTitle(PastedLabelText.basisSheetTitle)
+            .pastedLabelInlineTitle()
+            .alert(PastedLabelText.replaceCorrectionsOnBasisChange, isPresented: $model.asksToReplaceCorrectionsOnBasisChange) {
+                Button(PastedLabelText.changeBasisConfirm, role: .destructive) {
+                    if let confirm = model.confirmBasisChange() { open(confirm) }
+                }
+                Button(PastedLabelText.cancel, role: .cancel) { model.cancelBasisChange() }
+            }
+        }
     }
 }
 
@@ -114,6 +196,18 @@ struct PastedLabelSourceSections: View {
                 .font(.subheadline)
                 .accessibilityLabel(PastedLabelText.disclaimer)
             Text(model.sourceLine).font(.subheadline).foregroundStyle(.secondary)
+                .accessibilityIdentifier("pastedLabel.sourceLine")
+            // Reader v3 8.4.11 and decision 24: the energy line's note when it differed from the
+            // choice, never a block; Change reopens the basis sheet.
+            if let note = model.basisHintNote {
+                Label(note, systemImage: "info.circle").font(.caption)
+            }
+            if model.canChangeBasis, let changeBasis = model.changeBasis, editLabelText != nil {
+                Button(PastedLabelText.changeBasis, action: changeBasis)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel("Change what the values are for")
+                    .accessibilityIdentifier("pastedLabel.changeBasis")
+            }
             if let basisFlag = model.basisFlag {
                 Label(basisFlag, systemImage: "exclamationmark.triangle").font(.subheadline)
             }

@@ -171,7 +171,7 @@ enum LabelFixtures {
         private(set) var hashes: [String] = []
         init(_ reading: LabelReading) { self.reading = reading }
         func set(_ reading: LabelReading) { lock.withLock { self.reading = reading } }
-        func read(_ text: String, textSHA256: String) -> LabelReading {
+        func read(_ text: String, textSHA256: String, assertedBases: AssertedBases?) -> LabelReading {
             lock.withLock { texts.append(text); hashes.append(textSHA256); return reading }
         }
     }

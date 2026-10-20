@@ -451,6 +451,9 @@ final class FoodLedgerCompositionRoot {
         let identifier = locale.identifier.isEmpty ? "und" : locale.identifier
         return PastedLabelTextViewModel(read: { reader.read($0) }, makeConfirm: { review, details in
             try PastedLabelSourceModel(review: review, details: details, builder: builder, locale: LedgerText(identifier))
+        }, choose: { arrangement, request in
+            // Reader v3 8.4.8: the choice is stamped by the confirmation clock.
+            try builder.choose(arrangement, in: request)
         }, recordDiagnostics: { diagnostics.recordPastedLabel($0) })
     }
 
@@ -759,6 +762,12 @@ struct PastedLabelFlowView: View {
                     // Torn down while still pushed (Add food swiped away, or a finish that
                     // replaced the path): the flow has ended, so nothing is kept.
                     .onDisappear { model.confirmDisappeared(stillPushed: showsConfirmation) }
+                    // Reader v3 8.4.9: Change on Confirm's basis line. Dismissing keeps the
+                    // choice on Confirm; "I'm not sure" drops Confirm and keeps the text.
+                    .sheet(item: Binding(get: { model.basisSheet.flatMap { $0.fromChange ? $0 : nil } },
+                                         set: { if $0 == nil { model.basisSheetDismissed() } })) { _ in
+                        PastedLabelBasisSheetView(model: model, open: open, closeConfirm: { showsConfirmation = false })
+                    }
                 }
             }
             .navigationDestination(isPresented: $showsSearch) {
