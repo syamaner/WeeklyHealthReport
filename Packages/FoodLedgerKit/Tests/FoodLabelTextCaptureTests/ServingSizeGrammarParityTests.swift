@@ -50,6 +50,9 @@ final class ServingSizeGrammarParityTests: XCTestCase {
             ("Serving size ca 30g", true), ("Serving size 30g ca.", true), ("Serving size 30g (ca.)", true), ("Serving size c. 30g", true),
             ("Serving size c.30g", true), ("Serving size 30g +- 2g", true), ("Serving size 30g+-2", true), ("每一份量30公克 上下", true),
             ("每一份量 30 公克 上下", true),
+            ("Serving size 30g ~", true), ("Serving size 30g 〜", true), ("每一份量30公克 ～", true), ("Serving size c.a. 30g", true),
+            ("Serving size C.A.30g", true), ("Serving size 1 oz - 28g", true), ("Serving size 1 kg-30g", true),
+            ("Serving size 1 l - 250ml", true),
             // Kept exact: whole-word "to", 一/ー not between digits, bare "c", "c." not before a number.
             ("Serving size 1 potato 30g", false), ("Serving size 2 tortillas 60g", false), ("每一份量 30 公克（約2片）", false),
             ("每一份量30公克（2片）", false), ("Serving size 30 g", false), ("每一份量40公克", false), ("Serving size 1 c (30g)", false),
@@ -96,7 +99,10 @@ final class ServingSizeGrammarParityTests: XCTestCase {
             ("Serving size 1 bar – 40g", nil), ("Serving size 1 to 2 biscuits (30g)", nil),
             ("Serving size 25-30g", R(low: "25", high: "30")), ("Serving size 25 g – 30 g", R(low: "25", high: "30")),
             ("每一份量25公克至30公克", R(low: "25", high: "30")), ("Serving size 30g-35g", R(low: "30", high: "35")),
-            ("每一份量25一30公克", R(low: "25", high: "30")), ("Serving size 2-3 biscuits (25-30g)", R(low: "25", high: "30"))
+            ("每一份量25一30公克", R(low: "25", high: "30")), ("Serving size 2-3 biscuits (25-30g)", R(low: "25", high: "30")),
+            ("Serving size 1 oz - 28g", nil), ("Serving size 1 kg-30g", nil), ("Serving size 1 l - 250ml", nil),
+            ("Serving size 30g - 1 kg", nil), ("Serving size 25g-30g", R(low: "25", high: "30")),
+            ("每一份量25公克-30克", R(low: "25", high: "30")), ("Serving size 30g-35 grams", R(low: "30", high: "35"))
         ]
         for (line, own) in cases {
             let rest = try XCTUnwrap(Patterns.servingSize.firstMatch(in: line)?[1] ?? nil, line)

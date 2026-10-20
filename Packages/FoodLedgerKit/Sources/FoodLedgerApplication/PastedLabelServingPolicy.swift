@@ -240,6 +240,8 @@ public enum PastedLabelServingPolicy {
         }
         // ± straight after the quantity always joins it: "30g ± 2%", "30 g ±".
         if let tolerance = matched(plusMinusPattern) { return (base + tolerance, numberRange) }
+        // A tilde or wave dash with no number after it joins it: "30g ~", "30g 〜" (not "30g ~ 2 pieces").
+        if let tilde = matched(trailingTildePattern) { return (base + tilde, numberRange) }
         // A range mark joins it when its number is followed by the same unit, any listed weight or
         // volume unit, or the end of the value: "30g-35g", "30g-35 grams", "30g~35".
         let rangeTail = try? NSRegularExpression(pattern: #"^\s*"# + rangeMarks + #"\s*[0-9][0-9.]*\s*(?:"#
@@ -255,9 +257,12 @@ public enum PastedLabelServingPolicy {
     }
 
     static let plusMinusPattern = try! NSRegularExpression(pattern: #"^\s*(?:±|\+/-|\+-)"#)
-    /// "c." directly before a number (at most one space between): "c. 30g", "c.30g". A bare "c"
-    /// is not a marker (it may be a cup), nor is "c." before anything else.
-    static let circaAbbreviationPattern = try! NSRegularExpression(pattern: #"(?<![A-Za-z])c\.\s?[0-9]"#, options: [.caseInsensitive])
+    /// A tilde ~, full-width tilde ～ or wave dash 〜 after the quantity with no number after it.
+    static let trailingTildePattern = try! NSRegularExpression(pattern: #"^\s*+[~～〜]\s*+(?![0-9])"#)
+    /// "c." or "c.a." directly before a number (at most one space between): "c. 30g", "c.30g",
+    /// "c.a. 30g". A bare "c" is not a marker (it may be a cup), nor is "c." before anything else.
+    static let circaAbbreviationPattern = try! NSRegularExpression(pattern: #"(?<![A-Za-z])c\.(?:a\.)?\s?[0-9]"#,
+                                                                   options: [.caseInsensitive])
 
     /// A number followed by a token that is not a weight or volume: optional spaces, a number,
     /// optional spaces, a letter, where the number and token are not a listed weight or volume
@@ -296,32 +301,47 @@ public enum PastedLabelServingPolicy {
         guard let (segment, number) = located(size) else { return .unmatched }
         let matches = rangePattern.matches(in: segment, range: NSRange(segment.startIndex..., in: segment))
         guard !matches.isEmpty else { return approximate(segment) ? .approximate : .exact }
-        return .range(own: matches.lazy.compactMap { ownRange($0, in: segment, number: number) }.first)
+        let recorded = size.unit.flatMap(unitFamily)
+        return .range(own: matches.lazy.compactMap { ownRange($0, in: segment, number: number, recordedUnit: recorded) }.first)
     }
 
     /// Whether a range is the serving size's own (what Confirm shows; any range refuses
-    /// servings): its low number is the recorded quantity (the range tail after it, "30g-35g"),
-    /// or its high number is the recorded quantity and nothing but spaces and a listed weight or
-    /// volume unit stands between the low number and the mark ("25-30g", "25 g - 30 g",
-    /// "25公克至30公克"; not "1 bar - 30g").
-    static func ownRange(_ match: NSTextCheckingResult, in segment: String, number: NSRange) -> PrintedRange? {
-        guard let low = Range(match.range(at: 1), in: segment), let high = Range(match.range(at: 2), in: segment) else { return nil }
+    /// servings), so both numbers are in the recorded unit: its low number is the recorded
+    /// quantity (the range tail after it, "30g-35g") and the high number has no unit or the same
+    /// unit; or its high number is the recorded quantity and nothing but spaces and no unit or the
+    /// same unit stands between the low number and the mark ("25-30g", "25 g - 30 g", "25g-30g",
+    /// "25公克-30克"; not "1 bar - 30g", "1 oz - 28g", "1 kg-30g" or "1 l - 250ml"). Same unit
+    /// means the same unit family: g, 公克, 克, gram(s), gramme(s); or ml, mL, 毫升, millilitre(s),
+    /// milliliter(s).
+    static func ownRange(_ match: NSTextCheckingResult, in segment: String, number: NSRange, recordedUnit: String?) -> PrintedRange? {
+        guard let recordedUnit, let low = Range(match.range(at: 1), in: segment),
+              let high = Range(match.range(at: 2), in: segment) else { return nil }
+        func sameUnit(_ text: Substring) -> Bool { text.isEmpty || unitFamily(String(text)) == recordedUnit }
         let range = PrintedRange(low: String(segment[low]), high: String(segment[high]))
-        if match.range(at: 1).location == number.location { return range }
+        if match.range(at: 1).location == number.location {
+            let afterHigh = segment[high.upperBound...].drop { $0.isWhitespace }.prefix { $0.isLetter }
+            return sameUnit(afterHigh) ? range : nil
+        }
         guard match.range(at: 2).location == number.location else { return nil }
         let start = match.range(at: 1).location + match.range(at: 1).length
         let rest = NSRange(location: start, length: (segment as NSString).length - start)
         guard let between = lowUnitPattern.firstMatch(in: segment, options: [.anchored, .withTransparentBounds], range: rest),
               let unit = Range(between.range(at: 1), in: segment) else { return nil }
-        let text = String(segment[unit])
-        guard text.isEmpty || unitOnlyPattern.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil else { return nil }
-        return range
+        return sameUnit(segment[unit]) ? range : nil
+    }
+
+    /// The unit family of a printed unit: "g" or "ml", else nil.
+    static func unitFamily(_ unit: String) -> String? {
+        switch unit.lowercased() {
+        case "g", "公克", "克", "gram", "grams", "gramme", "grammes": "g"
+        case "ml", "毫升", "millilitre", "millilitres", "milliliter", "milliliters": "ml"
+        default: nil
+        }
     }
 
     /// The characters between a range's low number and its mark (group 1).
     static let lowUnitPattern = try! NSRegularExpression(pattern: #"\s*([^0-9\s]{0,3}?)\s*"# + rangeMarks + #"\s*[0-9]"#,
                                                          options: [.caseInsensitive])
-    static let unitOnlyPattern = try! NSRegularExpression(pattern: "^" + weightOrVolumeUnits + "$", options: [.caseInsensitive])
 
     /// Whether a serving-size segment is approximate: a listed mark, a listed whole English word,
     /// or a numeric range.
