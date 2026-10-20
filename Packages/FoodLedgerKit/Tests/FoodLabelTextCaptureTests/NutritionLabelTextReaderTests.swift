@@ -48,9 +48,11 @@ final class NutritionLabelTextReaderTests: XCTestCase {
             XCTAssertEqual(usable.reading.format, "taiwan_nutrition_labelling", name)
             XCTAssertTrue(usable.reading.unreadRows.isEmpty, name)
         }
-        // Decision 23: a basis printed only in the energy line is the user's choice (PR 4), never
-        // read automatically; until then it declines with today's no-basis-header copy.
-        XCTAssertEqual(reader.read(energyLine).declineCodes, ["no_basis_header"])
+        // Decision 23: a basis printed only in the energy line is the user's choice, never read
+        // automatically. From PR 4 it opens the basis sheet with the bracket as a hint only.
+        guard case let .needsBasisChoice(request) = reader.read(energyLine) else { return XCTFail("the basis sheet") }
+        XCTAssertEqual(request.unheaded.energyLineHint, .init(printedText: "(每100毫升)", basis: .per100ml))
+        XCTAssertEqual(request.offered, ["per_100g", "per_100ml"], "the hint never reorders; no serving size, so no per serving")
     }
 
     // MARK: 26. Launch scope after a faithful gate
@@ -100,6 +102,9 @@ final class NutritionLabelTextReaderTests: XCTestCase {
                 XCTAssertEqual(outcome.declineCodes.isEmpty, !item.parserDeclined, item.id)
             }
             switch outcome {
+            case .needsBasisChoice:
+                // No frozen case is an unheaded table (none declines `no_basis_header`).
+                XCTFail("\(item.id): no frozen case needs a basis choice")
             case let .declined(codes, reading):
                 tally["\(format) \(item.split) declined", default: 0] += 1
                 for code in codes { declinesByCode[code, default: 0] += 1 }
@@ -172,7 +177,8 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         let parser = try Self.parserDeclineCodes()
         XCTAssertEqual(parser, ["unsupported_language", "multiple_panels", "values_without_row", "no_table", "no_basis_header",
                                 "duplicate_basis", "energy_without_unit", "value_without_unit", "unrecognised_unit", "count_mismatch",
-                                "layout_ambiguous", "too_little_read", "flattened_table_ambiguous", "multiple_complete_panels"],
+                                "layout_ambiguous", "too_little_read", "flattened_table_ambiguous", "multiple_complete_panels",
+                                "asserted_bases_mismatch"],
                        "A new parser code needs its own mapping and copy")
         let gate = Set(LabelGateReason.allCases.map(\.rawValue))
         var skipped: Set<String> = []
@@ -191,13 +197,15 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         let sectionThreeOne: Set<String> = ["not_a_food_nutrition_panel", "unsupported_language", "unsupported_script", "no_table",
             "layout_not_supported", "format_ambiguous", "basis_state_not_supported", "multiple_panels", "no_basis_header", "duplicate_basis",
             "count_mismatch", "values_without_row", "energy_without_unit", "value_without_unit", "unrecognised_unit", "text_too_long", "unreadable_table",
-            "layout_ambiguous", "too_little_read", "flattened_table_ambiguous", "multiple_complete_panels"]
+            "layout_ambiguous", "too_little_read", "flattened_table_ambiguous", "multiple_complete_panels", "asserted_bases_mismatch"]
         for code in emitted {
             let classification = PastedLabelCodes.classify(code)
             XCTAssertEqual(classification.kind == .flag, flags.contains(code), code)
             XCTAssertEqual(classification.kind == .hardDecline, sectionThreeOne.contains(code), code)
             // Reader v3 section 3.0: `layout_ambiguous` is copied as `unreadable_table` (decision 19).
-            XCTAssertEqual(classification.copy == .unreadableTable, ["unreadable_table", "layout_ambiguous"].contains(code), "\(code) has its own copy")
+            // Reader v3 8.4.2: `asserted_bases_mismatch` (a programming error, never a choice) too.
+            XCTAssertEqual(classification.copy == .unreadableTable, ["unreadable_table", "layout_ambiguous", "asserted_bases_mismatch"].contains(code),
+                           "\(code) has its own copy")
         }
         XCTAssertEqual(PastedLabelCodes.classify("gate:required_row_missing").copy, .unreadableTable, "Unmapped codes fall back")
         // Reader v3 section 3.7: `too_little_read` has its own copy (decision 3).

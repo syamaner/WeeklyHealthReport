@@ -8,6 +8,10 @@ public enum PastedLabelConfirmationError: Error, Equatable, Sendable {
     case notCorrectable(String)
     /// The value is not plain decimal text in the nutrient's ledger unit with `=`, `<` or `<=`.
     case invalidValue(String)
+    /// The reading's pipeline is not the admitted one for its manifest version (reader v3 8.4.5).
+    case pipelineMismatch(String)
+    /// The arrangement was not offered on the basis sheet.
+    case notOffered(String)
 }
 
 /// The identity fields the user enters on the label text screen (section 2.2).
@@ -120,27 +124,56 @@ public struct PastedLabelConfirmation: Sendable {
         }.map { PastedLabelManifest.Flag(code: $0.code, concerns: $0.concerns) }
     }
 
-    /// The manifest the user is logging, built from the reading as shown, never re-read.
+    /// The manifest the user is logging, built from the reading as shown, never re-read: v1 for
+    /// printed bases, v2 when the user chose them (reader v3 section 8.4.5). Each reading's
+    /// pipeline must be the admitted one for its manifest version, or nothing is built.
     public func manifest(_ review: PastedLabelReview, details: PastedLabelDetails,
-                         corrections: [PastedLabelManifest.Correction]) throws -> PastedLabelManifest {
+                         corrections: [PastedLabelManifest.Correction]) throws -> PastedLabelEvidenceManifest {
         let name = details.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw PastedLabelConfirmationError.nameMissing }
         let brand = details.brand?.trimmingCharacters(in: .whitespacesAndNewlines)
         let reading = review.reading
-        func build(_ identity: PastedLabelManifest.IdentityMapping) -> PastedLabelManifest {
-            PastedLabelManifest(pastedText: review.pastedText, pastedTextSHA256: reading.textSHA256,
+        let version = review.basisChoice == nil ? PastedLabelManifest.version : PastedLabelManifestV2.version
+        guard PastedLabelSource.admittedPipelines[version]?.contains(reading.pipeline) == true else {
+            throw PastedLabelConfirmationError.pipelineMismatch(reading.pipeline)
+        }
+        func build(_ identity: PastedLabelManifest.IdentityMapping) -> PastedLabelEvidenceManifest {
+            let flags = Self.flagsShown(review, corrections: corrections)
+            guard let choice = review.basisChoice else {
+                return .v1(PastedLabelManifest(pastedText: review.pastedText, pastedTextSHA256: reading.textSHA256,
+                    parserVersion: reading.versions.parser, gateVersion: reading.versions.gate,
+                    arithmeticVersion: reading.versions.arithmetic, conversionVersion: reading.versions.conversion,
+                    labelFormat: reading.format, launchScope: PastedLabelLaunchScope.enabledFormats, identityMapping: identity,
+                    candidate: reading.candidate, storedHeaderID: review.storedHeaderID, conversions: reading.conversions,
+                    flagsShown: flags, corrections: corrections, warningsShown: review.warningCodes, name: name, brand: brand))
+            }
+            let amountHeaders = reading.candidate.headers.filter { $0.basis != "reference_intake" }
+            let records = amountHeaders.map {
+                PastedLabelManifestV2.BasisChoice(headerID: $0.headerID, basis: $0.basis, offered: choice.offered, at: choice.at)
+            }
+            return .v2(PastedLabelManifestV2(pastedText: review.pastedText, pastedTextSHA256: reading.textSHA256,
                 parserVersion: reading.versions.parser, gateVersion: reading.versions.gate,
                 arithmeticVersion: reading.versions.arithmetic, conversionVersion: reading.versions.conversion,
                 labelFormat: reading.format, launchScope: PastedLabelLaunchScope.enabledFormats, identityMapping: identity,
                 candidate: reading.candidate, storedHeaderID: review.storedHeaderID, conversions: reading.conversions,
-                flagsShown: Self.flagsShown(review, corrections: corrections), corrections: corrections,
-                warningsShown: review.warningCodes, name: name, brand: brand)
+                flagsShown: flags, corrections: corrections, warningsShown: review.warningCodes, name: name, brand: brand,
+                basisChoices: records))
         }
         // The identity's serving basis is the stored column's basis, which a serving-size entry
         // can settle (section 6.3); the basis rule reads only headers and corrections.
         let provisional = build(try .init(fortificationAnswer: details.fortification, servingBasis: .per100Grams))
         let basis = try PastedLabelSource.storedBasis(provisional)
         return build(try .init(fortificationAnswer: details.fortification, servingBasis: basis))
+    }
+
+    /// Reader v3 section 8.4.8: the review of the option the user chose on the basis sheet, with
+    /// the choice stamped now by the injected clock, truncated to whole milliseconds.
+    public func choose(_ arrangement: PastedLabelBasisOptions.Arrangement,
+                       in request: PastedLabelBasisChoiceRequest) throws -> PastedLabelReview {
+        guard let review = request.review(choosing: arrangement, at: PastedLabelBasisChoice.milliseconds(clock.now())) else {
+            throw PastedLabelConfirmationError.notOffered(arrangement.identifier)
+        }
+        return review
     }
 
     /// The shared Confirm input for the manifest, with fresh evidence captured now.

@@ -29,17 +29,87 @@ public struct NutritionLabelTextParserV3: Sendable {
     public init() {}
 
     public func parse(_ text: String, route: String = "A", inputSHA256: String) -> LabelCaptureCandidate {
-        let normalised = text
-            .replacingOccurrences(of: "\r\n", with: "\n")
+        run(text, route: route, inputSHA256: inputSHA256, asserted: nil).candidate
+    }
+
+    // MARK: Reader v3 8.4: unheaded tables and asserted bases
+
+    /// The decline code of an asserted read on a text the bases do not fit (8.4.2): an amount
+    /// header was printed, the table is not an unheaded table (8.4.1), or the number of bases
+    /// differs from its amount columns. The application never asserts on such a text.
+    public static let assertedBasesMismatchCode = "asserted_bases_mismatch"
+
+    /// The parser-owned side result of a `no_basis_header` decline (8.4.1): what the basis-choice
+    /// sheet needs, never part of the candidate and never stored. The declined candidate itself
+    /// keeps its shape (no rows, cells, serving size or pack count).
+    public struct UnheadedShape: Equatable, Sendable {
+        public struct EnergyLineHint: Equatable, Sendable {
+            public let printedText: String
+            public let basis: LabelBasis
+        }
+        public let amountColumnCount: Int
+        public let referenceColumnPrinted: Bool
+        public let servingSize: LabelServingSize?
+        public let servingsPerPack: LabelServingsPerPack?
+        public let energyLineHint: EnergyLineHint?
+    }
+
+    /// The unheaded table's shape, when the text declines with exactly `no_basis_header`, no amount
+    /// header was printed, and exactly one amount column count (1 or 2) binds every read row
+    /// (8.4.1). The count is found by reading with placeholder bases: a count that reads, or (when
+    /// neither reads) the one count that declines only `too_little_read`.
+    public func unheadedShape(_ text: String, route: String = "A", inputSHA256: String) -> UnheadedShape? {
+        let declined = run(text, route: route, inputSHA256: inputSHA256, asserted: nil)
+        guard declined.candidate.declineReasons == ["no_basis_header"], let base = declined.state,
+              !base.headers.contains(where: { $0.basis != .referenceIntake }) else { return nil }
+        let trials = [1, 2].map { count -> (count: Int, candidate: LabelCaptureCandidate, state: ParseStateV3?) in
+            let reading = run(text, route: route, inputSHA256: inputSHA256, asserted: Self.placeholderBases(count))
+            return (count, reading.candidate, reading.state)
+        }
+        let read = trials.filter { !$0.candidate.declined }
+        let tooLittle = trials.filter { $0.candidate.declineReasons == [ParseStateV3.tooLittleReadCode] }
+        guard let fit = read.count == 1 ? read.first : (read.isEmpty && tooLittle.count == 1 ? tooLittle.first : nil),
+              let state = fit.state else { return nil }
+        var hint: UnheadedShape.EnergyLineHint?
+        if let printed = state.basisHint, let basis = state.basisHintBasis {
+            hint = UnheadedShape.EnergyLineHint(printedText: printed, basis: basis)
+        }
+        return UnheadedShape(amountColumnCount: fit.count, referenceColumnPrinted: state.headers.contains { $0.basis == .referenceIntake },
+                             servingSize: state.servingSize, servingsPerPack: state.servingsPerPack, energyLineHint: hint)
+    }
+
+    /// The text read again with the user's bases for its unheaded amount columns, in column order
+    /// (8.4.2). It declines `asserted_bases_mismatch` unless the text is an unheaded table whose
+    /// amount column count equals the number of bases, and no basis is reference intake.
+    public func parse(_ text: String, route: String = "A", inputSHA256: String, assertedBases: [LabelBasis]) -> LabelCaptureCandidate {
+        let language = NutritionLabelTextParser.language(of: Self.normalised(text))
+        guard !assertedBases.contains(.referenceIntake),
+              let shape = unheadedShape(text, route: route, inputSHA256: inputSHA256), shape.amountColumnCount == assertedBases.count else {
+            return .declined(route: route, inputSHA256: inputSHA256, language: language, reasons: [Self.assertedBasesMismatchCode])
+        }
+        return run(text, route: route, inputSHA256: inputSHA256, asserted: assertedBases).candidate
+    }
+
+    static func placeholderBases(_ count: Int) -> [LabelBasis] {
+        count == 1 ? [.per100g] : [.perServing, .per100g]
+    }
+
+    static func normalised(_ text: String) -> String {
+        text.replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
             .replacingOccurrences(of: "\u{00A0}", with: " ")
+    }
+
+    func run(_ text: String, route: String, inputSHA256: String, asserted: [LabelBasis]?) -> (candidate: LabelCaptureCandidate, state: ParseStateV3?) {
+        let normalised = Self.normalised(text)
         let language = NutritionLabelTextParser.language(of: normalised)
         if NutritionLabelTextParser.hasUnsupportedScript(normalised)
             || (language == .unknown && !normalised.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty) {
-            return .declined(route: route, inputSHA256: inputSHA256, language: language, reasons: ["unsupported_language"])
+            return (.declined(route: route, inputSHA256: inputSHA256, language: language, reasons: ["unsupported_language"]), nil)
         }
         let lines = normalised.components(separatedBy: "\n")
         var state = ParseStateV3()
+        state.assertedBases = asserted
         for (index, rawLine) in lines.enumerated() {
             state.lineIndex = index
             state.consume(rawLine)
@@ -52,9 +122,9 @@ public struct NutritionLabelTextParserV3: Sendable {
         if candidate.declineReasons == ["multiple_panels"], let found = state.panelBreak, case let split = Self.headingStart(lines, before: found), split > 0,
            Self.isCompletePanel(Array(lines[..<split]), route: route, inputSHA256: inputSHA256),
            Self.isCompletePanel(Array(lines[split...]), route: route, inputSHA256: inputSHA256) {
-            return .declined(route: route, inputSHA256: inputSHA256, language: language, reasons: [Self.multipleCompletePanelsCode])
+            return (.declined(route: route, inputSHA256: inputSHA256, language: language, reasons: [Self.multipleCompletePanelsCode]), state)
         }
-        return candidate
+        return (candidate, state)
     }
 
     /// A short heading line (Han only, no digit, not a row label, such as a flavour name) straight
@@ -278,6 +348,11 @@ struct ParseStateV3 {
     /// 3.5, decision 23: the basis phrase printed in the energy line's bracket, kept only as a
     /// hint for the user's basis choice (never a header).
     var basisHint: String?
+    /// The basis the hint's bracket names (reader v3 8.4.1, the sheet's hint).
+    var basisHintBasis: LabelBasis?
+    /// Reader v3 8.4.2: the user's bases for amount columns printed with no basis header, in
+    /// column order; nil for an ordinary read.
+    var assertedBases: [LabelBasis]?
     /// Warnings raised while consuming lines (a bilingual serving or pack line whose quantities
     /// disagree), added to the candidate's warnings in order.
     var extraWarnings: [String] = []
@@ -1037,7 +1112,7 @@ struct ParseStateV3 {
     /// A whole table on one line (3.4, `FlattenedLine`). Returns false when the line is not a
     /// flattened table, so the other rules read it.
     mutating func consumeFlattened(_ content: String) -> Bool {
-        let outcome = FlattenedLine.read(content, existingHeaders: headers.map(\.basis))
+        let outcome = FlattenedLine.read(content, existingHeaders: headers.map(\.basis), asserted: assertedBases)
         let table: FlattenedLine.Table
         switch outcome {
         case .notFlattened:
@@ -1191,6 +1266,7 @@ struct ParseStateV3 {
             return
         }
         basisHint = bracket.printed
+        basisHintBasis = bracket.basis
         unbound.append(bracket.printed)
         consumeRow(rawLine: row, content: row)
     }
@@ -1444,6 +1520,24 @@ struct ParseStateV3 {
             }
         }
 
+        // Reader v3 8.4.2: asserted bases stand in for amount headers that were never printed:
+        // `header_1` (and `header_2`) in column order with empty printed text and no serving
+        // conversion, before any printed reference-intake header, which takes the next ID. A
+        // printed amount header, or a reference-only basis, is a mismatch.
+        if let asserted = assertedBases, declineReasons.isEmpty {
+            if asserted.isEmpty || asserted.contains(.referenceIntake) || headers.contains(where: { $0.basis != .referenceIntake }) {
+                declineReasons.append("asserted_bases_mismatch")
+            } else {
+                let printedReference = headers
+                headers = asserted.enumerated().map {
+                    LabelHeader(headerID: "header_\($0.offset + 1)", printedText: "", basis: $0.element, servingConversion: nil)
+                }
+                for var header in printedReference {
+                    header.headerID = "header_\(headers.count + 1)"
+                    headers.append(header)
+                }
+            }
+        }
         let amountHeaders = headers.filter { $0.basis != .referenceIntake }
         let referenceHeaders = headers.filter { $0.basis == .referenceIntake }
         var cells: [LabelCell] = []
@@ -1553,6 +1647,12 @@ struct ParseStateV3 {
                     }
                     guard let canonical = LabelVocabulary.canonicalUnit(unit) else { bindingDecline = ["unrecognised_unit"]; break rowLoop }
                     if canonical == "%" { percentages.append(value) } else { amounts.append(value) }
+                    // 8.4.1 rule 4: under asserted bases the reference-intake column is the last
+                    // column, so an amount after a percentage is a mismatch.
+                    if assertedBases != nil, canonical != "%", !percentages.isEmpty {
+                        bindingDecline = [NutritionLabelTextParserV3.assertedBasesMismatchCode]
+                        break rowLoop
+                    }
                 }
                 if let match = classified {
                     for value in amounts {
@@ -1671,6 +1771,8 @@ struct ParseStateV3 {
         if language == .traditionalChinese, Self.mandatoryRowsRead(cells: cells, headers: headers) < Self.tooLittleReadMinimum {
             return decline([Self.tooLittleReadCode])
         }
+        // Decision 24 (8.4.2): an asserted read keeps the energy line's hint, last.
+        if assertedBases != nil, let basisHint { warnings.append(Self.basisHintPrefix + basisHint) }
         return LabelCaptureCandidate(
             route: route,
             inputSHA256: inputSHA256,

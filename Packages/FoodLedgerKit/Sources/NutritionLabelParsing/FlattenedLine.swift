@@ -285,7 +285,9 @@ enum FlattenedLine {
 
     /// Reads one line under 3.4. `existingHeaders` are the basis headers printed on lines before
     /// it; a line with basis phrases of its own after printed headers is a second panel.
-    static func read(_ line: String, existingHeaders: [LabelBasis]) -> Outcome {
+    /// `asserted` are the user's bases for amount columns printed with no basis header (reader v3
+    /// section 8.4.2): they stand before any printed reference-intake basis, in column order.
+    static func read(_ line: String, existingHeaders: [LabelBasis], asserted: [LabelBasis]? = nil) -> Outcome {
         guard line.contains(where: isHan) else { return .notFlattened }
         let tokens = tokens(line)
         // Detection: at least three alias labels, each followed directly by a value with a unit.
@@ -344,7 +346,8 @@ enum FlattenedLine {
         if let row = current { table.rows.append(row) }
 
         if !table.headers.isEmpty, !existingHeaders.isEmpty { return .secondPanel }
-        let bases = table.headers.isEmpty ? existingHeaders : table.headers.map(\.basis)
+        var bases = table.headers.isEmpty ? existingHeaders : table.headers.map(\.basis)
+        if let asserted, !bases.contains(where: { $0 != .referenceIntake }) { bases = asserted + bases }
         guard bases.contains(where: { $0 != .referenceIntake }) else { return .declined("no_basis_header") }
         let referencePositions = Set(bases.indices.filter { bases[$0] == .referenceIntake })
         for row in table.rows {

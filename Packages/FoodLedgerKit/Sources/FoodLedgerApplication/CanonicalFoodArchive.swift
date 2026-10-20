@@ -108,7 +108,7 @@ public struct CanonicalFoodProjection: Codable, Equatable, Sendable {
     /// and a pasted label is never reported as contract 6. Then contract 6: any favourite
     /// record, app reference provenance or reference definition evidence.
     public static func minimumContractVersion(for records: LedgerMutation, favourites: FavouriteMutation = FavouriteMutation()) -> Int {
-        if records.evidence.contains(where: { $0.captureMethodVersion.value == PastedLabelManifest.version }) { return 7 }
+        if records.evidence.contains(where: { PastedLabelEvidenceManifest.isVersion($0.captureMethodVersion.value) }) { return 7 }
         if !favourites.isEmpty { return 6 }
         if records.evidence.contains(where: { $0.kind == .referenceDefinition }) { return 6 }
         let provenance = records.resolutionVersions.flatMap { $0.nutrients.entries }

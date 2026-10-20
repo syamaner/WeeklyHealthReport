@@ -136,6 +136,10 @@ final class PastedLabelReviewFixTests: XCTestCase {
                 "nutrition-label-text-parser-v2:label-capture-decline-gate-v2:label-arithmetic-checks-v1:pasted-label-conversions-v1",
                 // Appended by reader v3 PR 1 (section 5.2); the parser-v2 entry is never removed.
                 "nutrition-label-text-parser-v3:label-capture-decline-gate-v2:label-arithmetic-checks-v1:pasted-label-conversions-v1"
+            ],
+            // Appended by reader v3 PR 4 (section 8.4.5): manifest v2, checks v2.
+            "pasted-nutrition-label-v2": [
+                "nutrition-label-text-parser-v3:label-capture-decline-gate-v2:label-arithmetic-checks-v2:pasted-label-conversions-v1"
             ]
         ])
     }

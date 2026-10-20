@@ -40,7 +40,7 @@ public struct SavedFoodEntryDetail: Sendable {
     public let isPlainWater: Bool
     /// A pasted nutrition label's stored manifest (#93), for the per-value origins and Report a
     /// misread; nil for every other route.
-    public let pastedLabel: PastedLabelManifest?
+    public let pastedLabel: PastedLabelEvidenceManifest?
     /// Each stored value's origin under `NutrientValueOrigin`, for a pasted label only.
     public let valueOrigins: [NutrientKey: NutrientValueOrigin]
     /// A pasted label's stored values by key, so a bound can be shown as a bound ("Less than

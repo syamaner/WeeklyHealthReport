@@ -8,8 +8,19 @@ import FoodLedgerDomain
 ///
 /// Reading is pure and on device: no network, clock, randomness or hashing. The caller supplies
 /// the SHA-256 of the text's UTF-8 bytes.
+///
+/// Reader v3 section 8.4.2: one requirement. `assertedBases` are the user's bases for amount
+/// columns printed with no basis header; every conformer applies them (there is no default that
+/// drops them), and the adapter declines `asserted_bases_mismatch` when they do not fit the text.
 public protocol LabelTextReading: Sendable {
-    func read(_ text: String, textSHA256: String) -> LabelReading
+    func read(_ text: String, textSHA256: String, assertedBases: AssertedBases?) -> LabelReading
+}
+
+extension LabelTextReading {
+    /// An ordinary read: no asserted bases, passed explicitly.
+    public func read(_ text: String, textSHA256: String) -> LabelReading {
+        read(text, textSHA256: textSHA256, assertedBases: nil)
+    }
 }
 
 /// What the reader found, origin-neutral so a later photo route can reuse it (section 8.5).
@@ -103,14 +114,23 @@ public struct LabelReading: Equatable, Sendable {
     public let conversions: [PastedLabelManifest.Conversion]
     /// The stored column under the fixed rule of section 6.3, when there is one.
     public let storedHeaderID: String?
+    /// The versions of this read: checks v1 for an ordinary read, checks v2 for an asserted one
+    /// (reader v3 section 8.4.5).
     public let versions: Versions
+    /// Reader v3 section 8.4.1: the shape of a table whose amount columns printed no basis
+    /// header, filled only for a `no_basis_header` decline with no amount header printed.
+    public let unheadedTable: UnheadedTable?
 
     public init(origin: Origin, textSHA256: String, candidate: PastedLabelManifest.Candidate, format: String, gate: Gate?,
-                checks: [Check], conversions: [PastedLabelManifest.Conversion], storedHeaderID: String?, versions: Versions) {
+                checks: [Check], conversions: [PastedLabelManifest.Conversion], storedHeaderID: String?, versions: Versions,
+                unheadedTable: UnheadedTable? = nil) {
         self.origin = origin; self.textSHA256 = textSHA256; self.candidate = candidate; self.format = format
         self.gate = gate; self.checks = checks; self.conversions = conversions
-        self.storedHeaderID = storedHeaderID; self.versions = versions
+        self.storedHeaderID = storedHeaderID; self.versions = versions; self.unheadedTable = unheadedTable
     }
+
+    /// The `<parser>:<gate>:<arithmetic>:<conversion>` pipeline of this read (section 5.2).
+    public var pipeline: String { [versions.parser, versions.gate, versions.arithmetic, versions.conversion].joined(separator: ":") }
 
     /// Printed rows the reader saw but did not read (reader v3 section 3.8), in candidate order,
     /// for the "Printed but not read" list on Confirm. Derived from the candidate's
@@ -220,6 +240,15 @@ public enum PastedLabelCodes {
     /// Parser v3's warning for a serving line read from two lines (`serving_line_joined`, and
     /// `serving_line_joined: servings_per_pack` for the pack line); a warning, never a flag.
     public static let servingLineJoined = "serving_line_joined"
+    /// Reader v3 8.4.2: an asserted read on a text the bases do not fit (a programming error,
+    /// never a user's choice); copied as `unreadable_table`.
+    public static let assertedBasesMismatch = "asserted_bases_mismatch"
+    public static let noBasisHeader = "no_basis_header"
+    /// The candidate warning carrying the energy line's basis bracket (decision 23).
+    public static let basisHintWarningPrefix = "basis_hint: energy_line: "
+    /// Decision 24 (8.4.12): recorded in `warnings_shown` when the hint's basis is not one of
+    /// the chosen arrangement's bases.
+    public static let basisHintShown = "basis_hint:energy_line"
 
     public enum Kind: String, Sendable { case hardDecline = "hard_decline", flag }
 
@@ -277,6 +306,7 @@ public enum PastedLabelCodes {
             // `count_mismatch`; two or more complete panels (3.7, decision 8), with their own copy.
             flattenedTableAmbiguous: decline(.valuesNotBound),
             multipleCompletePanels: decline(.multiplePanels),
+            assertedBasesMismatch: decline(.unreadableTable),
             textTooLong: decline(.textTooLong),
             unreadableTable: decline(.unreadableTable),
             // Gate G3 to G6: flags on Confirm, never a decline.
@@ -299,6 +329,9 @@ public enum PastedLabelCodes {
 public enum PastedLabelReadOutcome: Equatable, Sendable {
     case declined(codes: [String], reading: LabelReading?)
     case usable(PastedLabelReview)
+    /// Reader v3 section 8.4.8: the amount columns printed no basis header and every offered
+    /// option reads; the user chooses on the basis sheet before Confirm.
+    case needsBasisChoice(PastedLabelBasisChoiceRequest)
 
     public var declineCodes: [String] {
         if case let .declined(codes, _) = self { return codes }
@@ -307,13 +340,26 @@ public enum PastedLabelReadOutcome: Equatable, Sendable {
 }
 
 /// A usable reading on its way to Confirm (section 3.2): the flags still shown after calculated
-/// values satisfy their rows, and the warning codes of failed checks.
+/// values satisfy their rows, and the warning codes of failed checks. A reading of a table
+/// whose bases the user chose carries the choice (reader v3 section 8.4.8).
 public struct PastedLabelReview: Equatable, Sendable {
     public let pastedText: String
     public let reading: LabelReading
     public let storedHeaderID: String
     public let flags: [LabelReading.Flag]
     public let warningCodes: [String]
+    public let basisChoice: PastedLabelBasisChoice?
+
+    public init(pastedText: String, reading: LabelReading, storedHeaderID: String, flags: [LabelReading.Flag],
+                warningCodes: [String], basisChoice: PastedLabelBasisChoice? = nil) {
+        self.pastedText = pastedText; self.reading = reading; self.storedHeaderID = storedHeaderID
+        self.flags = flags; self.warningCodes = warningCodes; self.basisChoice = basisChoice
+    }
+
+    /// Where the stored column's basis came from (8.4.11).
+    public var basisOrigin: PastedLabelBasisOrigin {
+        PastedLabelBasisOrigin(chosen: basisChoice != nil, candidate: reading.candidate, warningCodes: warningCodes)
+    }
 }
 
 /// Read label (section 2.4): the length limit, the injected digest, the reader, then the
@@ -335,8 +381,28 @@ public struct PastedLabelReader: Sendable {
         guard let hash = try? digester.sha256(Data(text.utf8)) else {
             return .declined(codes: [PastedLabelCodes.unreadableTable], reading: nil)
         }
-        let reading = reader.read(text, textSHA256: hash.value)
-        return Self.classify(reading, pastedText: text)
+        let reading = reader.read(text, textSHA256: hash.value, assertedBases: nil)
+        let outcome = Self.classify(reading, pastedText: text)
+        // Reader v3 8.4.1: the sheet is offered only for exactly `no_basis_header` with an
+        // unheaded table and at least one option; otherwise today's decline stands.
+        guard outcome.declineCodes == [PastedLabelCodes.noBasisHeader], let unheaded = reading.unheadedTable,
+              let arrangements = PastedLabelBasisOptions.options(for: unheaded) else { return outcome }
+        // 8.4.7: every offered option is read and classified first; if any would decline, there
+        // is no sheet and the first declining option's codes stand, in offered order.
+        var options: [PastedLabelBasisChoiceRequest.Option] = []
+        for arrangement in arrangements {
+            let asserted = reader.read(text, textSHA256: hash.value, assertedBases: arrangement.assertedBases)
+            switch Self.classify(asserted, pastedText: text) {
+            case let .usable(review):
+                options.append(.init(arrangement: arrangement, review: review))
+            case let .declined(codes, declinedReading):
+                return .declined(codes: codes, reading: declinedReading)
+            case .needsBasisChoice:
+                return .declined(codes: [PastedLabelCodes.assertedBasesMismatch], reading: asserted)
+            }
+        }
+        return .needsBasisChoice(PastedLabelBasisChoiceRequest(pastedText: text, declinedReading: reading, unheaded: unheaded,
+                                                               options: options))
     }
 
     /// The product's decision on a reading, in the section 2.4 order.

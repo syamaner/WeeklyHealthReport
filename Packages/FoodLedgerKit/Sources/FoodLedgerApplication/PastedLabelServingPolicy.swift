@@ -177,7 +177,7 @@ public enum PastedLabelServingPolicy {
 
     /// The serving size a stored servings amount went through, and where it came from (printed,
     /// corrected by you or entered by you). Nil when servings carry no weight or volume (v1 case 3).
-    public static func storedServingSize(_ manifest: PastedLabelManifest, basis: ResolutionBasis)
+    public static func storedServingSize(_ manifest: PastedLabelEvidenceManifest, basis: ResolutionBasis)
         -> (quantity: PositiveQuantity, origin: NutrientValueOrigin)? {
         let entry = manifest.corrections.first { $0.nutrient == PastedLabelManifest.Correction.servingSize }
         let origin: NutrientValueOrigin = entry.map { $0.kind == .corrected ? .correctedByYou : .enteredByYou } ?? .printed
@@ -191,17 +191,17 @@ public enum PastedLabelServingPolicy {
     }
 
     /// The manifest bound to the candidate through its pasted-label evidence.
-    static func manifest(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> PastedLabelManifest? {
+    static func manifest(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> PastedLabelEvidenceManifest? {
         guard let evidence = input.evidence.first(where: { candidate.candidate.evidenceIDs.contains($0.evidenceID)
-                  && $0.captureMethodVersion.value == PastedLabelManifest.version }),
+                  && PastedLabelEvidenceManifest.isVersion($0.captureMethodVersion.value) }),
               case let .text(payload) = evidence.originalPayload else { return nil }
-        return PastedLabelManifest.decode(Data(payload.value.utf8))
+        return PastedLabelEvidenceManifest.decode(Data(payload.value.utf8))
     }
 
     /// v2 and v3: the user's serving-size correction or entry when there is one (validated as for
     /// any column), else the printed serving size if the manifest's method reads it as exact; only
     /// in the unit of the per-100 basis.
-    static func per100Serving(_ manifest: PastedLabelManifest, unit: QuantityUnit) -> PositiveQuantity? {
+    static func per100Serving(_ manifest: PastedLabelEvidenceManifest, unit: QuantityUnit) -> PositiveQuantity? {
         let size: PositiveQuantity?
         do {
             if let corrected = try PastedLabelSource.servingSizeCorrection(manifest) {
