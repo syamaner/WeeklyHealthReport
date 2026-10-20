@@ -244,6 +244,9 @@ public enum PastedLabelCodes {
     /// never a user's choice); copied as `unreadable_table`.
     public static let assertedBasesMismatch = "asserted_bases_mismatch"
     public static let noBasisHeader = "no_basis_header"
+    /// Reader v3 8.4.3 (journey QA of #284): two unheaded amount columns and no serving size, so
+    /// the options table offers nothing; it has its own plain copy.
+    public static let unheadedColumnsWithoutServingSize = "unheaded_columns_without_serving_size"
     /// The candidate warning carrying the energy line's basis bracket (decision 23).
     public static let basisHintWarningPrefix = "basis_hint: energy_line: "
     /// Decision 24 (8.4.12): recorded in `warnings_shown` when the hint's basis is not one of
@@ -268,6 +271,7 @@ public enum PastedLabelCodes {
         case servingLineNotRead = "serving_line_not_read"
         case tooLittleRead = "too_little_read"
         case multiplePanels = "multiple_panels"
+        case noHeadingsNoServingSize = "no_headings_no_serving_size"
     }
 
     public struct Classification: Equatable, Sendable {
@@ -307,6 +311,7 @@ public enum PastedLabelCodes {
             flattenedTableAmbiguous: decline(.valuesNotBound),
             multipleCompletePanels: decline(.multiplePanels),
             assertedBasesMismatch: decline(.unreadableTable),
+            unheadedColumnsWithoutServingSize: decline(.noHeadingsNoServingSize),
             textTooLong: decline(.textTooLong),
             unreadableTable: decline(.unreadableTable),
             // Gate G3 to G6: flags on Confirm, never a decline.
@@ -385,8 +390,11 @@ public struct PastedLabelReader: Sendable {
         let outcome = Self.classify(reading, pastedText: text)
         // Reader v3 8.4.1: the sheet is offered only for exactly `no_basis_header` with an
         // unheaded table and at least one option; otherwise today's decline stands.
-        guard outcome.declineCodes == [PastedLabelCodes.noBasisHeader], let unheaded = reading.unheadedTable,
-              let arrangements = PastedLabelBasisOptions.options(for: unheaded) else { return outcome }
+        guard outcome.declineCodes == [PastedLabelCodes.noBasisHeader], let unheaded = reading.unheadedTable else { return outcome }
+        guard let arrangements = PastedLabelBasisOptions.options(for: unheaded) else {
+            // Two unheaded columns and no serving size: say what is missing (journey QA of #284).
+            return .declined(codes: [PastedLabelCodes.unheadedColumnsWithoutServingSize], reading: reading)
+        }
         // 8.4.7: every offered option is read and classified first; if any would decline, there
         // is no sheet and the first declining option's codes stand, in offered order.
         var options: [PastedLabelBasisChoiceRequest.Option] = []

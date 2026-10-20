@@ -296,6 +296,31 @@ final class PastedLabelRouteTests: XCTestCase {
         XCTAssertNotNil(try root.model(reopening: saved.logItem.logItemID), "a manifest v2 entry reopens")
     }
 
+    /// Journey QA 1 of #284 and #282: at accessibility-extra-extra-extra-large, with the chosen
+    /// option's plausibility warnings and Fortified? not answered, only Log stays pinned; the
+    /// warnings and hint scroll with the content, and the Fortified? answers show in full.
+    func testAtTheLargestTextSizeOnlyLogIsPinnedAndNothingIsTruncated() throws {
+        let root = try makeRoot()
+        let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
+        model.name = "Synthetic heavy crackers"
+        model.text = (["營養標示", "每一份量 250 公克", "本包裝含 1 份"] + ["熱量  950 大卡", "蛋白質  30.0 公克", "脂肪  45.0 公克",
+            "　飽和脂肪  15.0 公克", "　反式脂肪  0 公克", "碳水化合物  110.0 公克", "　糖  60.0 公克", "鈉  600 毫克"]).joined(separator: "\n") + "\n"
+        render(NavigationStack { PastedLabelTextView(model: model, openConfirm: { _ in }, search: {}, scanBarcode: {}, leave: {}) }
+            .environment(\.dynamicTypeSize, .accessibility5), "Pasted label - label text accessibility5")
+        XCTAssertNil(model.readLabel())
+        let option = try XCTUnwrap(model.basisSheet?.request.options.first { $0.arrangement.identifier == "per_100g" })
+        XCTAssertEqual(option.plausibilityWarnings.count, 2)
+        let source = try XCTUnwrap(model.chooseBasis(option.arrangement))
+        XCTAssertEqual(source.warnings.count, 2)
+        let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
+        XCTAssertNotNil(confirm.blockedReason, "Fortified? not answered and no amount: a hint beside Log")
+        XCTAssertTrue(FoodConfirmationView.pinsOnlyLog(isAccessibilitySize: true, warningCount: source.warnings.count,
+                                                       hasBlockedReason: true, hasEstimate: false))
+        let view = root.pastedLabelConfirmation(confirm, source: source, editLabelText: {}, leave: {})
+        render(NavigationStack { view }.environment(\.dynamicTypeSize, .accessibility5), "Pasted label - Confirm warnings accessibility5")
+        render(NavigationStack { view }, "Pasted label - Confirm warnings standard")
+    }
+
     private func makeRoot() throws -> FoodLedgerCompositionRoot {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }

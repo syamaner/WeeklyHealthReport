@@ -711,7 +711,7 @@ public protocol LabelTextReading: Sendable {
 3. `offered` is identical on every record and equals `PastedLabelBasisOptions.options` recomputed from the stored candidate (8.4.3); the chosen arrangement (the records' bases in header order) is in `offered`; `at` is identical on every record.
 4. The pipeline is the v2 entry (checks v2).
 5. `basis_hint:energy_line` may appear in `warnings_shown` only when the candidate has exactly one `basis_hint: energy_line:` warning, and only in its pinned position (8.4.12).
-6. `at` is an integer and no later than the evidence's `capturedAt`; asserted headers have a `null` serving conversion and their per-serving cells `unknown`.
+6. `at` is an integer and no later than the evidence's `capturedAt`; asserted headers have a `null` serving conversion and their per-serving cells the conversion of 8.4.2 (the serving size's `decimal_text` and printed unit, or `unknown` when no serving size was read).
 7. Values from a chosen-basis column keep `user_verified_panel` provenance (their numbers are printed); their **basis** is user-asserted, evidenced by the record. A changed basis, record, `offered` or header fails.
 
 **The v1 verifier tightens one check:** a v1 manifest with any amount header whose printed text is empty is rejected. Parser v2 and v3 never write one under v1.
@@ -827,6 +827,14 @@ Recorded the same way as 8.1 to 8.3. Each point follows from 8.4.1 to 8.4.15 or 
 - **Developer tools** show "Basis: <basis line>" with the hint note when shown, through the one formatter; the re-parse page stays with #273 (decision 25).
 - **The 8.4.14 lows as built:** the flattened line scans the serving and pack segments together on the stripped text, so a second count or a 約 in the serving bracket (`每一份量 30公克 (約3份) 本包裝含 2份`) reaches the pack count; a serving number in full-width digits is never bound, bilingual or not.
 - **Dev set (7.3), 21 October 2026, counts only:** 24 labels, 22 reach Confirm (4 of them after a basis choice, choosing the arrangement the label implies), 2 declined (`multiple_complete_panels` 1, `multiple_panels` 1); 275 values matched, 0 wrong; 10 rows printed but not read. The owner's value check of the development set is still outstanding (1.3).
+- **From the invariant review and journey QA of #284:**
+  - **Two unheaded columns and no serving size** decline `unheaded_columns_without_serving_size` with their own copy ("The columns have no headings and there is no serving size, so the app cannot tell what the values are for. Try copying the table with its headings."), through the code-to-copy table.
+  - **Percentages with no printed reference header (narrowing of 8.4.1 rule 4).** Such percentages bind to no column, so the table has no shape and keeps today's `no_basis_header` decline. Supporting them would need a reference header with no printed text, which the v2 verifier forbids; a test pins the narrowing.
+  - **G5 under a chosen basis** ("Only per serving values; the label does not print per 100 g", or per 100 mL for a serving in millilitres) applies only if a future layout raises G5 for a chosen basis: the Taiwan gate never raises it (G5 is UK only). The copy and its tests stay for that case.
+  - **A bare `~` or `～`** (any mark of serving v3's list) on a Chinese-only pack line makes the count approximate.
+  - **`at` and the capture.** The confirmation builder reads its clock once; if the clock moved backwards since the choice, `at` is re-stamped to the capture, so a rebuilt source still verifies and a save is never refused for it.
+  - **A failed Change.** If the new option's source cannot be built, Confirm keeps its model (amount and time), its earlier choice and its corrections, and says "The values could not be changed. Your earlier choice is kept."; no new Confirm opens in its place.
+  - **Confirm's pinned bar (#282).** At accessibility text sizes, or when the bar would hold more than two warnings, hints or estimates, only Log stays pinned; the warnings, the hint beside Log and the volume estimate move to a "Before you log" section at the end of the content, and warning text is never truncated. The Fortified? picker on the label text screen lists its answers inline at accessibility sizes.
 
 ## 9. Owner decisions
 

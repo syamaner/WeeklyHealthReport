@@ -768,6 +768,9 @@ struct PastedLabelFlowView: View {
                                          set: { if $0 == nil { model.basisSheetDismissed() } })) { _ in
                         PastedLabelBasisSheetView(model: model, open: open, closeConfirm: { showsConfirmation = false })
                     }
+                    .alert(PastedLabelText.basisChangeFailed, isPresented: $model.basisChangeFailed) {
+                        Button("OK", role: .cancel) {}
+                    }
                 }
             }
             .navigationDestination(isPresented: $showsSearch) {

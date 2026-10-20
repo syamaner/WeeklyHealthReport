@@ -138,7 +138,9 @@ public final class PastedLabelSourceModel: ObservableObject {
 
     /// G5: no per 100 g or ml column was read; shown above the values.
     public var basisFlag: String? {
-        flags.first { $0.code == PastedLabelCodes.requiredBasisMissing }.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) }
+        flags.first { $0.code == PastedLabelCodes.requiredBasisMissing }.map {
+            PastedLabelText.flagMessage($0, headers: manifest.candidate.headers, servingUnit: manifest.candidate.servingSize?.canonicalUnit)
+        }
     }
 
     /// The stored label nutrients, in the reader's fixed order.

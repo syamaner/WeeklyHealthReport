@@ -153,7 +153,8 @@ final class BasisChoiceReaderTests: XCTestCase {
 
     func test11AnyDecliningOptionMeansNoSheet() throws {
         XCTAssertEqual(reader.read(U.tooLittle).declineCodes, ["too_little_read"], "every option reads too little")
-        XCTAssertEqual(reader.read(U.twoColumnsNoServing).declineCodes, ["no_basis_header"], "two columns, no serving size")
+        XCTAssertEqual(reader.read(U.twoColumnsNoServing).declineCodes, ["unheaded_columns_without_serving_size"], "two columns, no serving size")
+        XCTAssertEqual(PastedLabelCodes.classify("unheaded_columns_without_serving_size"), .init(kind: .hardDecline, copy: .noHeadingsNoServingSize))
         // An unheaded English table reads, but the launch scope declines every option.
         let english = "Energy 120kcal\nFat 3g\nSaturates 1g\nCarbohydrate 20g\nSugars 5g\nProtein 3g\nSalt 0.1g\n"
         XCTAssertEqual(reader.read(english).declineCodes, ["layout_not_supported"])
@@ -203,6 +204,20 @@ final class BasisChoiceReaderTests: XCTestCase {
         XCTAssertEqual(serving.offered, ["per_serving", "per_100ml", "per_100g"])
         XCTAssertTrue(try builder().choose(arrangement("per_serving"), in: serving).warningCodes.contains("basis_hint:energy_line"))
         XCTAssertFalse(try builder().choose(arrangement("per_100ml"), in: serving).warningCodes.contains("basis_hint:energy_line"))
+    }
+
+    /// Review low 9: if the clock moved backwards between the choice and a rebuild of the source,
+    /// `at` is re-stamped to the capture, so the source still builds and verifies; it is never
+    /// refused silently.
+    func test20AChoiceIsReStampedWhenTheClockMovedBackwards() throws {
+        let request = try request(U.inline1)
+        let review = try builder(Date(timeIntervalSince1970: 1_700_000_100)).choose(arrangement("per_100g"), in: request)
+        XCTAssertEqual(review.basisChoice?.at, 1_700_000_100_000)
+        let earlier = builder(Date(timeIntervalSince1970: 1_700_000_050.5))
+        let input = try earlier.confirmation(review, details: .init(name: "Synthetic biscuits", fortification: .no), corrections: [],
+                                             locale: LedgerText("zh_TW"))
+        XCTAssertTrue(verifies(input))
+        XCTAssertEqual(try manifest(input).basisChoices.map(\.at), [1_700_000_050_500])
     }
 
     // MARK: 14. Servings under a chosen basis: the 5.6 method table unchanged

@@ -171,7 +171,8 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
         XCTAssertEqual(confirm.currentArrangement, arrangement("per_serving"))
         XCTAssertFalse(confirm.hasCorrections)
         XCTAssertEqual(confirm.basisLine, "per serving · Chosen by you")
-        // G5 under a chosen basis names the basis by its label.
+        // The synthetic reading raises G5 by hand: the Taiwan gate never raises it (it applies to UK
+        // only), so this copy is shown only if a future layout raises G5 for a chosen basis.
         XCTAssertEqual(confirm.basisFlag, "Only per serving values; the label does not print per 100 g.")
     }
 
@@ -218,6 +219,70 @@ final class PastedLabelBasisChoicePresentationTests: XCTestCase {
     }
 
     // MARK: Empty header text is named by its basis label
+
+    // MARK: The fix round of #284
+
+    /// Review question: if Change's new source cannot be built, Confirm keeps its model, amount,
+    /// time and earlier choice, and the user is told; no new Confirm opens in its place.
+    func testAFailedChangeKeepsConfirmAndItsChoiceAndSaysSo() throws {
+        let reader = PastedLabelReader(reader: Reader(), digester: SHA256Digester())
+        let builder = F.builder()
+        var failNext = false
+        let model = PastedLabelTextViewModel(read: { reader.read($0) }, makeConfirm: { review, details in
+            try PastedLabelSourceModel(review: review, details: details, builder: builder, locale: F.locale)
+        }, choose: { arrangement, request in
+            let review = try builder.choose(arrangement, in: request)
+            guard failNext else { return review }
+            // A reading whose pipeline is not admitted under manifest v2: the source cannot be built.
+            let reading = review.reading
+            let broken = LabelReading(origin: reading.origin, textSHA256: reading.textSHA256, candidate: reading.candidate, format: reading.format,
+                gate: reading.gate, checks: reading.checks, conversions: reading.conversions, storedHeaderID: reading.storedHeaderID,
+                versions: F.versions)
+            return PastedLabelReview(pastedText: review.pastedText, reading: broken, storedHeaderID: review.storedHeaderID, flags: review.flags,
+                                     warningCodes: review.warningCodes, basisChoice: review.basisChoice)
+        })
+        model.name = "Synthetic chosen biscuits"
+        model.fortification = .no
+        model.text = Self.text
+        model.readLabel()
+        let confirm = try XCTUnwrap(model.chooseBasis(arrangement("per_100g")))
+        let input = confirm.input
+        failNext = true
+        confirm.changeBasis?()
+        XCTAssertNil(model.chooseBasis(arrangement("per_serving")))
+        XCTAssertTrue(model.basisChangeFailed)
+        XCTAssertTrue(model.confirm === confirm, "the same Confirm: amount and time stay")
+        XCTAssertEqual(confirm.currentArrangement, arrangement("per_100g"))
+        XCTAssertEqual(confirm.input, input)
+        XCTAssertEqual(PastedLabelText.basisChangeFailed, "The values could not be changed. Your earlier choice is kept.")
+    }
+
+    /// Review lows 7 and 4: the copy names per 100 mL for a serving in millilitres. It applies only
+    /// if a future layout raises G5 for a chosen basis; the Taiwan gate does not.
+    func testG5CopyForAChosenBasisAppliesOnlyIfAFutureLayoutRaisesIt() {
+        let headers: [PastedLabelManifest.Candidate.Header] = [.init(headerID: "header_1", printedText: "", basis: "per_serving", servingConversion: nil)]
+        let flag = LabelReading.Flag(code: "required_basis_missing", concerns: "per_100")
+        XCTAssertEqual(PastedLabelText.flagMessage(flag, headers: headers, servingUnit: "ml"),
+                       "Only per serving values; the label does not print per 100 mL.")
+        XCTAssertEqual(PastedLabelText.flagMessage(flag, headers: headers, servingUnit: "g"),
+                       "Only per serving values; the label does not print per 100 g.")
+    }
+
+    /// Journey QA 2: two unheaded columns and no serving size have their own plain copy.
+    func testTwoUnheadedColumnsWithoutAServingSizeSayWhatIsMissing() {
+        XCTAssertEqual(PastedLabelText.declineMessages(["unheaded_columns_without_serving_size"]),
+                       ["The columns have no headings and there is no serving size, so the app cannot tell what the values are for. Try copying the table with its headings."])
+    }
+
+    /// Journey QA 1 and #282: only Log stays pinned at accessibility sizes, or when the bar would
+    /// hold more than two warnings, hints or estimates.
+    func testOnlyLogIsPinnedAtAccessibilitySizesOrWhenTheBarWouldCrowdTheContent() {
+        XCTAssertTrue(FoodConfirmationView.pinsOnlyLog(isAccessibilitySize: true, warningCount: 0, hasBlockedReason: false, hasEstimate: false))
+        XCTAssertTrue(FoodConfirmationView.pinsOnlyLog(isAccessibilitySize: false, warningCount: 2, hasBlockedReason: true, hasEstimate: false))
+        XCTAssertTrue(FoodConfirmationView.pinsOnlyLog(isAccessibilitySize: false, warningCount: 3, hasBlockedReason: false, hasEstimate: false))
+        XCTAssertFalse(FoodConfirmationView.pinsOnlyLog(isAccessibilitySize: false, warningCount: 1, hasBlockedReason: true, hasEstimate: false))
+        XCTAssertFalse(FoodConfirmationView.pinsOnlyLog(isAccessibilitySize: false, warningCount: 0, hasBlockedReason: false, hasEstimate: false))
+    }
 
     func testAnEmptyTextHeaderIsNamedByItsBasisLabel() {
         let headers: [PastedLabelManifest.Candidate.Header] = [.init(headerID: "header_1", printedText: "", basis: "per_serving", servingConversion: nil)]

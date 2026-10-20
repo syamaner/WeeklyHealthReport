@@ -12,6 +12,17 @@ public struct PastedLabelTextView: View {
     private let scanBarcode: (() -> Void)?
     private let leave: () -> Void
     @State private var report: PastedLabelMisreadPreviewModel?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var fortifiedPicker: some View {
+        Picker(PastedLabelText.fortifiedQuestion, selection: $model.fortification) {
+            Text("Not answered").tag(PastedLabelIdentity.FortificationAnswer.unanswered)
+            Text("Yes").tag(PastedLabelIdentity.FortificationAnswer.yes)
+            Text("No").tag(PastedLabelIdentity.FortificationAnswer.no)
+        }
+        .frame(minHeight: 44)
+        .accessibilityHint(PastedLabelText.fortifiedHelp)
+    }
 
     public init(model: PastedLabelTextViewModel, openConfirm: @escaping (PastedLabelSourceModel) -> Void,
                 search: (() -> Void)? = nil, scanBarcode: (() -> Void)? = nil, leave: @escaping () -> Void) {
@@ -28,13 +39,13 @@ public struct PastedLabelTextView: View {
                 TextField(PastedLabelText.brandField, text: $model.brand)
                     .accessibilityLabel("Brand, optional")
                     .frame(minHeight: 44)
-                Picker(PastedLabelText.fortifiedQuestion, selection: $model.fortification) {
-                    Text("Not answered").tag(PastedLabelIdentity.FortificationAnswer.unanswered)
-                    Text("Yes").tag(PastedLabelIdentity.FortificationAnswer.yes)
-                    Text("No").tag(PastedLabelIdentity.FortificationAnswer.no)
+                // #282: at accessibility sizes the menu picker truncated its value ("Not a…ered");
+                // the inline style lists every answer in full on its own row.
+                if dynamicTypeSize.isAccessibilitySize {
+                    fortifiedPicker.pickerStyle(.inline)
+                } else {
+                    fortifiedPicker
                 }
-                .frame(minHeight: 44)
-                .accessibilityHint(PastedLabelText.fortifiedHelp)
             } header: { Text("Food") } footer: { Text(PastedLabelText.fortifiedHelp) }
 
             if !model.declineMessages.isEmpty {
@@ -138,7 +149,8 @@ public struct PastedLabelBasisSheetView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(option.title)
                                 if option.isCurrent {
-                                    Text(PastedLabelText.currentChoice).font(.caption).foregroundStyle(.secondary)
+                                    // Primary, not the button's tint or secondary: readable in light and dark mode.
+                                    Text(PastedLabelText.currentChoice).font(.caption.weight(.semibold)).foregroundStyle(Color.primary)
                                 }
                                 ForEach(option.warnings, id: \.self) { warning in
                                     Label(warning, systemImage: "exclamationmark.triangle").font(.caption)

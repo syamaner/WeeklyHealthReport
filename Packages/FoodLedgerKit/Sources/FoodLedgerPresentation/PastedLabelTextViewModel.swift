@@ -50,6 +50,8 @@ public final class PastedLabelTextViewModel: ObservableObject {
     @Published public var basisSheet: BasisSheet?
     /// "Changing what the values are for replaces your corrections." is showing (from Change).
     @Published public var asksToReplaceCorrectionsOnBasisChange = false
+    /// Change chose an option whose source could not be built: Confirm keeps the earlier choice.
+    @Published public var basisChangeFailed = false
     private var pendingArrangement: PastedLabelBasisOptions.Arrangement?
     /// The request the current Confirm's choice was made on, bound to its text (8.4.9).
     private var confirmRequest: PastedLabelBasisChoiceRequest?
@@ -231,8 +233,16 @@ public final class PastedLabelTextViewModel: ObservableObject {
         basisSheet = nil
         let request = sheet.request
         guard let choose, let review = try? choose(arrangement, request) else { return nil }
-        // From Change, Confirm keeps its model (amount and time stay) with the new review.
-        if sheet.fromChange, let confirm, (try? confirm.replace(review: review)) != nil {
+        // From Change, Confirm keeps its model (amount and time stay) with the new review. If the
+        // new source cannot be built, Confirm and its earlier choice stay and the user is told;
+        // a new Confirm is never opened in its place (review of #284).
+        if sheet.fromChange, let confirm {
+            do {
+                try confirm.replace(review: review)
+            } catch {
+                basisChangeFailed = true
+                return nil
+            }
             recordDiagnostics(["Pasted label basis changed: " + arrangement.identifier])
             return confirm
         }

@@ -1443,7 +1443,8 @@ struct ParseStateV3 {
     /// lines, pack phrases and flattened lines, on the stripped text (count words and serving
     /// quantities removed): 約 anywhere, or serving v3's English words and marks on a bilingual line.
     static func packApproximate(_ stripped: String) -> Bool {
-        stripped.contains("約") || stripped.contains("约") || bilingualApproximate(stripped)
+        // Any mark of serving v3's list (約, a bare `~` or `～`, ≈, 左右 …), on Chinese-only lines too.
+        PatternsV3.approximateMarks.contains(where: stripped.contains) || bilingualApproximate(stripped)
     }
 
     /// 3.6 rule 5: on a Chinese serving or pack line, the English words and marks of serving v3's

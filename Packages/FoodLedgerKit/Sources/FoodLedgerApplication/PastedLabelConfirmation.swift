@@ -128,7 +128,7 @@ public struct PastedLabelConfirmation: Sendable {
     /// printed bases, v2 when the user chose them (reader v3 section 8.4.5). Each reading's
     /// pipeline must be the admitted one for its manifest version, or nothing is built.
     public func manifest(_ review: PastedLabelReview, details: PastedLabelDetails,
-                         corrections: [PastedLabelManifest.Correction]) throws -> PastedLabelEvidenceManifest {
+                         corrections: [PastedLabelManifest.Correction], capturedAt: Date? = nil) throws -> PastedLabelEvidenceManifest {
         let name = details.name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { throw PastedLabelConfirmationError.nameMissing }
         let brand = details.brand?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -149,7 +149,8 @@ public struct PastedLabelConfirmation: Sendable {
             }
             let amountHeaders = reading.candidate.headers.filter { $0.basis != "reference_intake" }
             let records = amountHeaders.map {
-                PastedLabelManifestV2.BasisChoice(headerID: $0.headerID, basis: $0.basis, offered: choice.offered, at: choice.at)
+                PastedLabelManifestV2.BasisChoice(headerID: $0.headerID, basis: $0.basis, offered: choice.offered,
+                                                  at: capturedAt.map { min(choice.at, PastedLabelBasisChoice.milliseconds($0)) } ?? choice.at)
             }
             return .v2(PastedLabelManifestV2(pastedText: review.pastedText, pastedTextSHA256: reading.textSHA256,
                 parserVersion: reading.versions.parser, gateVersion: reading.versions.gate,
@@ -179,8 +180,11 @@ public struct PastedLabelConfirmation: Sendable {
     /// The shared Confirm input for the manifest, with fresh evidence captured now.
     public func confirmation(_ review: PastedLabelReview, details: PastedLabelDetails,
                              corrections: [PastedLabelManifest.Correction], locale: LedgerText) throws -> PopulatedFoodConfirmation {
-        let manifest = try manifest(review, details: details, corrections: corrections)
+        // One clock read: if the clock moved backwards since the choice, `at` is re-stamped to the
+        // capture so the record is never later than its evidence (review of #284).
+        let now = clock.now()
+        let manifest = try manifest(review, details: details, corrections: corrections, capturedAt: now)
         return try PastedLabelSource.confirmation(manifest: manifest, evidenceID: ids.makeID(EvidenceTag.self),
-            capturedAt: clock.now(), locale: locale, encoder: encoder, digester: digester, conversions: conversions)
+            capturedAt: now, locale: locale, encoder: encoder, digester: digester, conversions: conversions)
     }
 }

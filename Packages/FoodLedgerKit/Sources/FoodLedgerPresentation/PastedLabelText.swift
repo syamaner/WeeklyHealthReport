@@ -65,6 +65,7 @@ public enum PastedLabelText {
         case .unreadableTable: "The app could not read this table. Check that it is one nutrition table, then try again."
         case .tooLittleRead: "Only a few values could be read from this text. Try copying the table again, or use Search or Barcode."
         case .multiplePanels: "This text has more than one nutrition table (for example two flavours). Delete the ones you did not eat, then read again."
+        case .noHeadingsNoServingSize: "The columns have no headings and there is no serving size, so the app cannot tell what the values are for. Try copying the table with its headings."
         case .rowNotRead, .cellNotRead, .noPer100Column, .servingLineNotRead:
             // A flag is never a decline; reaching here means the classification drifted.
             declineMessage(.unreadableTable)
@@ -198,6 +199,7 @@ public enum PastedLabelText {
     public static let changeBasis = "Change"
     public static let replaceCorrectionsOnBasisChange = "Changing what the values are for replaces your corrections."
     public static let changeBasisConfirm = "Change and replace"
+    public static let basisChangeFailed = "The values could not be changed. Your earlier choice is kept."
 
     /// "Per serving (25 g)", "Per 100 g", "Per serving (25 g), then per 100 g".
     public static func basisOptionTitle(_ arrangement: PastedLabelBasisOptions.Arrangement,
@@ -256,7 +258,9 @@ public enum PastedLabelText {
     // MARK: Flags G3 to G6 (section 3.2), never blocking
 
     /// The exception copy for one flag, on the row, cell or line it concerns.
-    public static func flagMessage(_ flag: LabelReading.Flag, headers: [PastedLabelManifest.Candidate.Header]) -> String {
+    /// `servingUnit` (`g` or `ml`) names the per 100 basis a chosen per-serving column lacks.
+    public static func flagMessage(_ flag: LabelReading.Flag, headers: [PastedLabelManifest.Candidate.Header],
+                                   servingUnit: String? = nil) -> String {
         switch PastedLabelCodes.classify(flag.code).copy {
         case .rowNotRead:
             let name = nutrientName(flag.nutrient ?? flag.concerns)
@@ -270,7 +274,8 @@ public enum PastedLabelText {
         case .noPer100Column:
             // 8.4.11: under a chosen basis the copy names it by its label.
             if let chosen = headers.first(where: { $0.basis != "reference_intake" && $0.printedText.isEmpty }) {
-                return "Only \(basisLabel(chosen.basis)) values; the label does not print per 100 g."
+                let per100 = ["ml", "mL"].contains(servingUnit ?? "") ? "per 100 mL" : "per 100 g"
+                return "Only \(basisLabel(chosen.basis)) values; the label does not print \(per100)."
             }
             return "No per 100 g or per 100 ml values were read."
         case .servingLineNotRead:

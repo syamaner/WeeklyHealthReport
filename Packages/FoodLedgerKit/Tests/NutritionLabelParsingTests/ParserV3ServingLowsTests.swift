@@ -80,6 +80,14 @@ private let flatRows = "每份 熱量 120大卡 蛋白質 3.0公克 脂肪 4.5�
     #expect(flattenedDiffers.servingsPerPack == nil)
     let plain = parse("營養標示\n每一份量 30公克 本包裝含 2份 " + flatRows + "\n")
     #expect(plain.servingsPerPack?.approximate == false)
+    // Review of #284: a bare `~` (or `～`) on a Chinese-only pack line marks the count approximate.
+    for line in ["本包裝含 2份~", "本包裝含 2份 ～", "本包裝含 2份 (~)"] {
+        let candidate = label("每一份量 30公克\n" + line)
+        #expect(candidate.servingsPerPack?.decimalText == "2", "\(line)")
+        #expect(candidate.servingsPerPack?.approximate == true, "\(line): \(String(describing: candidate.servingsPerPack))")
+    }
+    // A tilde before the number is not the pack phrase parser v3 reads: the count is not read.
+    #expect(label("每一份量 30公克\n本包裝含 ~2份").servingsPerPack == nil)
     // A count word's 約 is stripped with it only when the count word goes; the pack stays exact
     // when nothing approximate is left.
     #expect(label("每一份量 30公克\n本包裝含 6份 (12 pieces)").servingsPerPack?.approximate == false)

@@ -57,6 +57,12 @@ private func read(_ text: String, _ bases: [LabelBasis]) -> LabelCaptureCandidat
         #expect(read(fixture.text, [.perServing, .per100g]).declineReasons == ["asserted_bases_mismatch"], "\(fixture.name)")
     }
     #expect(shape(U.referenceNotLast) == nil, "a percentage before an amount: no sheet")
+    // 8.4.16 (narrowing, review of #284): percentages with no printed reference header bind to no
+    // column, so such a table has no shape and keeps today's decline.
+    let percentNoHeader = U.serving + ["熱量 120大卡 6%", "蛋白質 3.0公克 5%", "脂肪 4.5公克 8%", "飽和脂肪 1.5公克 8%", "反式脂肪 0公克 *",
+                                       "碳水化合物 18.0公克 6%", "糖 6.0公克 *", "鈉 60毫克 3%"].joined(separator: "\n") + "\n"
+    #expect(parser.parse(percentNoHeader, inputSHA256: hash).declineReasons == ["no_basis_header"])
+    #expect(shape(percentNoHeader) == nil)
     // A table with printed headers, or any other decline, has no shape.
     #expect(shape(U.serving + "每份\n" + U.rows1.joined(separator: "\n")) == nil)
     #expect(shape("營養標示\n每份\n熱量 120大卡\n蛋白質 3.0公克 1.0公克\n") == nil)
