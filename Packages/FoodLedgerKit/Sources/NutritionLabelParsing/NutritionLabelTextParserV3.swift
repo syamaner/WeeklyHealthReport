@@ -95,6 +95,10 @@ enum PatternsV3 {
     static let noteLine = LabelPattern(#"(?i)^(?:註|備註|説明|說明|notes?\b)"#)
     /// A pack line with a "more than" mark before its count (never read as exact).
     static let packMoreThan = LabelPattern(#"(?i)^(?:本包裝包?含?|servings?\s+per\s+(?:container|pack|package))\s*[:：]?\s*(?:[>≥＞≧]|超過|大於|多於|more\s+than)"#)
+    /// A reference-intake suffix printed after a percentage value (`5% DV`, `5% Daily Value`,
+    /// `5% 每日參考值百分比`): it names the cell's column, never a row.
+    static let referenceSuffix = LabelPattern(
+        #"(?i)(?<![a-z])(?:of\s+(?:the\s+)?)?(?:dv|daily\s+values?|ri|nrv|reference\s+intakes?)(?![a-z])|每日參考值百分比|每日參考值"#)
     /// The same marks standing at the end of a label ("鈉 >", "超過").
     static let trailingGreaterThan = LabelPattern(#"(?i)\s*(?:[>≥＞≧]+|超過|大於|多於|more\s+than|greater\s+than)$"#)
 }
@@ -113,6 +117,9 @@ struct RowDraftV3 {
     var marked = false
     /// A value of the row was printed as "more than" (`>3公克`): the row is not read.
     var malformed = false
+    /// A number of the row could be read in more than one way (`1,203毫克`; a comma on a Taiwan
+    /// row): the row is not read (`ambiguous_number`).
+    var ambiguous = false
     /// A bound mark stood on a line of its own just before this row (it qualifies both rows).
     var orphanBound = false
     /// The number of label lines merged into this row (a wrapped label has two).
@@ -580,11 +587,27 @@ struct ParseStateV3 {
                 .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•")))
             moreThan = true
         }
+        // A number the value pattern had to cut inside its digits (`502千焦`, read as 50 before
+        // `2千焦` because 千焦 is not a unit) is not a value either: the row is not read
+        // (`malformed_value`), and the rest of the number is never shown as a label. Numbers
+        // separated by a space (`120 400`) keep parser v2's unit rules.
+        let cutNumber = details.contains { match in
+            match.groups[3] == nil && content[..<match.range.upperBound].last.map { $0.isASCII && $0.isNumber } == true
+                && content[match.range.upperBound...].first.map { $0.isASCII && $0.isNumber } == true
+        }
+        if cutNumber { moreThan = true }
+        // A wrapped label (`碳水化` then `合物 1,5公克`) is checked under its merged label.
+        let mergedLabel: String? = {
+            guard !cleanedLabel.isEmpty, let last = rows.last, last.values.isEmpty, RowClassifierV3.classify(last.label) == nil,
+                  RowClassifierV3.classify(cleanedLabel) == nil || RowClassifierV3.classify(last.label + " " + cleanedLabel) != nil
+            else { return nil }
+            return last.label + " " + cleanedLabel
+        }()
         // A number whose comma may be a thousands separator (`1,203毫克`, which a decimal comma
         // would make 1.203), or any comma on a Taiwan row (the template prints a decimal point),
-        // is not a value the reader can bind either: the row is not read (`malformed_value`).
-        let rowLabel = cleanedLabel.isEmpty ? (rows.last?.label ?? "") : cleanedLabel
-        if details.contains(where: { Self.isAmbiguousNumber($0.groups[2] ?? "", label: rowLabel) }) { moreThan = true }
+        // is not a value the reader can bind either: the row is not read (`ambiguous_number`).
+        let rowLabel = cleanedLabel.isEmpty ? (rows.last?.label ?? "") : (mergedLabel ?? cleanedLabel)
+        let ambiguous = details.contains { Self.isAmbiguousNumber($0.groups[2] ?? "", label: rowLabel) }
         if moreThan, cleanedLabel.isEmpty, details.isEmpty {
             // A line holding only the mark: it qualifies the row above, or the next row.
             if rows.isEmpty {
@@ -610,9 +633,7 @@ struct ParseStateV3 {
         if !cleanedLabel.isEmpty {
             rowsStarted = true
             body.append(values.isEmpty ? .labelOnly : .labelWithValues(secondLabel: Self.hasSecondLabel(content, values: details)))
-            if var last = rows.last, last.values.isEmpty,
-               RowClassifierV3.classify(last.label) == nil,
-               RowClassifierV3.classify(cleanedLabel) == nil || RowClassifierV3.classify(last.label + " " + cleanedLabel) != nil {
+            if mergedLabel != nil, var last = rows.last {
                 last.label += " " + cleanedLabel
                 last.labelLines += 1
                 last.values = values
@@ -620,11 +641,14 @@ struct ParseStateV3 {
                 last.labelLineHadValues = !values.isEmpty
                 last.lines.append(original)
                 last.malformed = last.malformed || moreThan
+                last.ambiguous = last.ambiguous || ambiguous
                 rows[rows.count - 1] = last
             } else {
                 lineGaveValues = !values.isEmpty
-                rows.append(RowDraftV3(label: cleanedLabel, indented: indented, values: values, labelLineHadValues: !values.isEmpty,
-                                       lines: [original], marked: marked, malformed: moreThan || pendingMoreThan, orphanBound: pendingBound))
+                var row = RowDraftV3(label: cleanedLabel, indented: indented, values: values, labelLineHadValues: !values.isEmpty,
+                                     lines: [original], marked: marked, malformed: moreThan || pendingMoreThan, orphanBound: pendingBound)
+                row.ambiguous = ambiguous
+                rows.append(row)
                 pendingBound = false
                 pendingMoreThan = false
             }
@@ -636,8 +660,9 @@ struct ParseStateV3 {
             body.append(.valuesOnly)
             // A value line carrying label text after (or between) its values (`>1公克 飽和脂肪`):
             // the values belong to that label, not to the row above, so the line is never
-            // attached; the label is listed as printed but not read.
-            if let dropped = Self.labelAfterValues(content, values: details) {
+            // attached; the label is listed as printed but not read. A cut number (`502千焦`) is
+            // not a label: the line is the row above's malformed value instead.
+            if !cutNumber, let dropped = Self.labelAfterValues(content, values: details) {
                 droppedLabels.append(dropped)
                 unbound.append(original)
                 return
@@ -654,6 +679,7 @@ struct ParseStateV3 {
             lineGaveValues = true
             last.lines.append(original)
             last.malformed = last.malformed || moreThan
+            last.ambiguous = last.ambiguous || ambiguous
             rows[rows.count - 1] = last
         } else {
             unbound.append(original)
@@ -687,8 +713,13 @@ struct ParseStateV3 {
     /// and marks are removed, or nil when it carries none.
     static func labelAfterValues(_ content: String, values: [(range: Range<String.Index>, groups: [String?])]) -> String? {
         let trim = CharacterSet.whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•/,，、;；|()（）*＊†<>＜＞▲●"))
-        let texts = gaps(content, values: values).compactMap { gap -> String? in
+        let texts = zip(gaps(content, values: values), values).compactMap { gap, value -> String? in
             var text = gap
+            // A reference-intake suffix after a percentage (`5% DV`, `5% Daily Value`, `5%
+            // 每日參考值百分比`) names the cell's column, not a row.
+            if value.groups[3] == "%" {
+                text = PatternsV3.referenceSuffix.split(text).joined(separator: " ")
+            }
             for word in BoundVocabulary.english.matches(in: text.lowercased()) {
                 text = text.replacingOccurrences(of: word, with: " ", options: .caseInsensitive)
             }
@@ -838,6 +869,11 @@ struct ParseStateV3 {
                     unbound += row.lines
                     continue
                 }
+                if row.ambiguous {
+                    warnings.append("row_not_read: ambiguous_number: \(row.label)")
+                    unbound += row.lines
+                    continue
+                }
                 // Every bound token in the row's span must be a recognised bound on one of its
                 // cells (`<`, `≤`, `≦`, `以下`, `未滿` and the like); any other makes the row unread.
                 // A leading row marker (`>`, `>>`) is a marker, not a bound.
@@ -968,9 +1004,9 @@ struct ParseStateV3 {
         if amountHeaders.isEmpty { return decline(["no_basis_header"]) }
         if let bindingDecline { return decline(bindingDecline) }
         if cells.isEmpty {
-            // A Taiwan table whose rows were all left unread is a table read too little, not a
-            // missing table.
-            let partly = language == .traditionalChinese && warnings.contains { $0.hasPrefix("row_not_read: ") }
+            // A table whose rows were all left unread is a table read too little, not a missing
+            // table (in any language: the text did hold rows).
+            let partly = warnings.contains { $0.hasPrefix("row_not_read: ") }
             return decline([partly ? Self.tooLittleReadCode : "no_table"])
         }
         // 3.7: fewer than 5 of the 8 Taiwan mandatory rows read in the stored column declines.
@@ -1053,7 +1089,11 @@ struct ParseStateV3 {
     /// substring), so `脂肪 abc公克` still names fat. Energy names its kcal or kJ key by the units
     /// printed, or both when neither is.
     static func duplicateKeys(_ row: RowDraftV3) -> Set<String> {
-        let head = row.label.split(whereSeparator: \.isWhitespace).first.map(String.init) ?? row.label
+        let words = row.label.split(whereSeparator: \.isWhitespace).map(String.init)
+        // An English "X from Y" phrase (`Energy from fat`, `Calories from fat`) is a row of its own,
+        // never the X row: its first word is not looked up.
+        let fromPhrase = words.count > 2 && words[1].lowercased() == "from"
+        let head = fromPhrase ? "" : (words.first ?? row.label)
         let hanHead = PatternsV3.leadingHan.firstMatch(in: row.label)?[0]
         guard let match = RowClassifierV3.classify(row.label) ?? RowClassifierV3.classify(head)
                 ?? hanHead.flatMap({ RowClassifierV3.classify($0) }) else { return [] }

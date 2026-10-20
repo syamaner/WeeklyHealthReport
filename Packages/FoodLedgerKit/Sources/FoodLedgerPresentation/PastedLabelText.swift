@@ -96,8 +96,9 @@ public enum PastedLabelText {
     public static func unreadReason(_ reason: String) -> String {
         switch reason {
         case "stacked_sequence": "Not read: from this row on, the lines are not in the order of a table."
-        case "malformed_value": "Not read: the value is printed in a form the app cannot use, such as \"more than\"."
-        case "unexplained_bound": "Not read: a word such as \"more than\" or \"at least\" is printed near this row."
+        case "malformed_value": "Not read: the value is printed in a form the app cannot use, such as “more than” or a broken number."
+        case "ambiguous_number": "Not read: the number could be read in more than one way."
+        case "unexplained_bound": "Not read: a word such as “more than” or “at least” is printed near this row."
         case "unit_off_template": "Not read: printed in a unit this label layout does not use for this row."
         case "duplicate_row": "Not read: this row is printed more than once."
         case "value_before_label": "Not read: a value is printed before this label instead of after it."

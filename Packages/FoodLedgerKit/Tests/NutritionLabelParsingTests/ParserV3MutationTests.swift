@@ -339,18 +339,32 @@ enum MutationSuite {
     }
 }
 
+/// The suite's tallies, pinned exactly (PR 2 review): any change in either direction is deliberate
+/// and is recorded in section 8 of the design.
+enum MutationTally {
+    struct Entry: Equatable, CustomStringConvertible {
+        var count = 0, declined = 0, withUnread = 0
+        var readInFull: Int { count - declined - withUnread }
+        var description: String { "\(count) mutations, \(declined) declined, \(withUnread) read with rows not read, \(readInFull) read with every row read" }
+    }
+
+    static let pinned: [String: Entry] = [
+        "(a) structure-breaking, inline and stacked": Entry(count: 324, declined: 234, withUnread: 70),
+        "(b) content-changing, inline and stacked": Entry(count: 95, declined: 2, withUnread: 30),
+    ]
+}
+
 @Test func test2MutationSuiteBindsNoWrongValue() {
     var failures: [String] = []
-    var tally: [String: (count: Int, declined: Int, withUnread: Int)] = [:]
+    var tally: [String: MutationTally.Entry] = [:]
     for fixture in MutationSuite.fixtures {
         let truth = MutationSuite.truth(fixture)
         for layout in MutationSuite.Layout.allCases {
-            let mutations = MutationSuite.structureMutations(fixture, layout) + MutationSuite.contentMutations(fixture, layout)
-            for mutation in mutations {
+            for mutation in MutationSuite.structureMutations(fixture, layout) + MutationSuite.contentMutations(fixture, layout) {
                 let outcome = MutationSuite.check(mutation, truth: truth)
                 failures += outcome.failures
-                let name = mutation.kind == .structure ? "(a) structure-breaking" : "(b) content-changing"
-                var entry = tally[name] ?? (0, 0, 0)
+                let name = (mutation.kind == .structure ? "(a) structure-breaking, " : "(b) content-changing, ") + "inline and stacked"
+                var entry = tally[name] ?? MutationTally.Entry()
                 entry.count += 1
                 if outcome.declined { entry.declined += 1 } else if outcome.unread > 0 { entry.withUnread += 1 }
                 tally[name] = entry
@@ -358,11 +372,12 @@ enum MutationSuite {
         }
     }
     for (name, entry) in tally.sorted(by: { $0.key < $1.key }) {
-        print("mutation suite \(name): \(entry.count) mutations, \(entry.declined) declined, \(entry.withUnread) read with rows not read, "
-              + "\(entry.count - entry.declined - entry.withUnread) read with every row read")
+        print("mutation suite \(name): \(entry)")
     }
-    #expect(tally.values.map(\.count).reduce(0, +) > 200, "the suite covers both classes on both fixtures and layouts")
     #expect(failures.isEmpty, "\(failures.joined(separator: "\n"))")
+    for (name, pinned) in MutationTally.pinned {
+        #expect(tally[name] == pinned, "\(name): \(tally[name].map(\.description) ?? "none"), pinned \(pinned)")
+    }
 }
 
 /// Decision 18, the accepted residual risk, pinned: in a stacked table, an exchange of the value

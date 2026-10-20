@@ -37,7 +37,7 @@ final class PastedLabelReaderV3PresentationTests: XCTestCase {
         XCTAssertEqual(source.printedButNotRead.map(\.note), [
             "Not read: from this row on, the lines are not in the order of a table.",
             "Not read: this row is printed more than once.",
-            "Not read: a word such as \"more than\" or \"at least\" is printed near this row.",
+            "Not read: a word such as “more than” or “at least” is printed near this row.",
             "Not read: a value is printed before this label instead of after it.",
             "Not read.",
         ])
@@ -67,5 +67,23 @@ final class PastedLabelReaderV3PresentationTests: XCTestCase {
         XCTAssertEqual(model.text, F.pastedText, "the text is kept")
         XCTAssertEqual(model.declineMessages, ["Only a few values could be read from this text. Try copying the table again, or use Search or Barcode."])
         XCTAssertEqual(lines.last?.first, "Pasted label declined: too_little_read", "the code goes to Developer tools only")
+    }
+
+    // MARK: Reader v3 PR 3
+
+    /// Every unread reason has its own plain sentence: the ambiguous-number rule no longer borrows
+    /// the "more than" wording, quotes are typographic, and no sentence carries a code.
+    func testEveryUnreadReasonHasItsOwnPlainCopy() {
+        let reasons = ["stacked_sequence", "malformed_value", "ambiguous_number", "unexplained_bound", "unit_off_template", "duplicate_row",
+                       "value_before_label"]
+        let sentences = reasons.map(PastedLabelText.unreadReason)
+        XCTAssertEqual(Set(sentences).count, reasons.count, "one sentence per reason")
+        XCTAssertEqual(PastedLabelText.unreadReason("ambiguous_number"), "Not read: the number could be read in more than one way.")
+        XCTAssertFalse(PastedLabelText.unreadReason("ambiguous_number").contains("“more than”"))
+        for sentence in sentences {
+            XCTAssertFalse(sentence.contains("\""), "typographic quotes only: \(sentence)")
+            XCTAssertFalse(sentence.contains("_"), sentence)
+            XCTAssertNotEqual(sentence, "Not read.", "every reason the parser emits has its own sentence")
+        }
     }
 }
