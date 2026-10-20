@@ -189,6 +189,42 @@ final class PastedLabelFollowUpPresentationTests: XCTestCase {
         XCTAssertEqual(unmatched.servingLines.first?.flag, PastedLabelText.unmatchedServingSize)
     }
 
+    /// Confirm shows a range only when it is the serving size's own (its high number is the
+    /// recorded quantity with nothing but a unit before the mark, or the range after it); a
+    /// range elsewhere on the line shows the recorded quantity, with the range note (#277).
+    func testOnlyTheServingSizesOwnRangeIsShown() throws {
+        let cases: [(printed: String, decimal: String, unit: String, shown: String)] = [
+            ("Serving size 2-3 biscuits (30g)", "30", "g", "30 g"),
+            ("每一份量2-3片（30公克）", "30", "公克", "30 g"),
+            ("Serving size 1 bar - 30g", "30", "g", "30 g"),
+            ("Serving size 1 bar – 40g", "40", "g", "40 g"),
+            ("Serving size 1 to 2 biscuits (30g)", "30", "g", "30 g"),
+            ("Serving size 25-30g", "30", "g", "25–30 g"),
+            ("Serving size 25 g - 30 g", "25", "g", "25–30 g"),
+            ("每一份量25公克至30公克", "30", "公克", "25–30 g"),
+            ("Serving size 30g-35g", "30", "g", "30–35 g"),
+            ("Serving size 30 g ‒ 35 g", "30", "g", "30–35 g"),
+            ("Serving size 2-3 biscuits (25-30g)", "30", "g", "25–30 g"),
+            ("Serving size 1 oz - 28g", "28", "g", "28 g"),
+            ("Serving size 1 kg-30g", "30", "g", "30 g"),
+            ("Serving size 1 l - 250ml", "250", "ml", "250 mL"),
+            ("Serving size 30g - 1 kg", "30", "g", "30 g"),
+            ("Serving size 25g-30g", "25", "g", "25–30 g"),
+            ("每一份量25公克-30克", "25", "公克", "25–30 g"),
+            ("每一份量25一30公克", "30", "公克", "25–30 g")
+        ]
+        for (printed, decimal, unit, shown) in cases {
+            let size = PastedLabelManifest.Candidate.ServingSize(printedText: printed, decimalText: decimal, unit: unit,
+                                                                 canonicalUnit: unit == "ml" ? "ml" : "g")
+            let source = try F.source(variant(servingSize: .some(size)))
+            let line = try XCTUnwrap(source.servingLines.first)
+            XCTAssertEqual(line.value, "\(shown) · Printed (printed: \(printed))", printed)
+            XCTAssertEqual(line.flag, PastedLabelText.rangeServingSize, printed)
+            let (confirm, _) = try F.confirm(source)
+            XCTAssertFalse(confirm.countsPastedLabelServings, printed)
+        }
+    }
+
     func testAPackPhraseOnTheServingSizeLineReadsNotReadNotNotStated() throws {
         let combined = try F.source(variant(servingSize: .some(.init(printedText: "每一份量30公克，本包裝含約10份", decimalText: "30", unit: "公克",
                                                                       canonicalUnit: "g")), pack: .some(nil)))
