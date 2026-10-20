@@ -56,7 +56,7 @@ enum NonRegression {
         for label in offTemplate {
             let removed = expected.cells.filter { $0.printedLabel == label }
             guard let entry = TaiwanRowAliases.entry(label), let template = entry.templateUnit,
-                  removed.contains(where: { $0.basis != .referenceIntake && $0.canonicalUnit != template }) else {
+                  removed.contains(where: { $0.basis != .referenceIntake && !TaiwanRowAliases.readableUnits(template: template).contains($0.canonicalUnit) }) else {
                 verdict.unexplained.append("row \(label) unread without an off-template unit")
                 continue
             }

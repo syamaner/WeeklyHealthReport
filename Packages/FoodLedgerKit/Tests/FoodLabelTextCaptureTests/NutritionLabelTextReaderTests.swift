@@ -202,16 +202,15 @@ final class NutritionLabelTextReaderTests: XCTestCase {
     // MARK: Flags, conversions and declines on synthetic text
 
     func testFlagsAreShownNotDeclinedAndACalculatedValueSatisfiesItsRow() throws {
-        // Reader v3 section 3.9 (decision 10): the Taiwan template prints energy in 大卡, so an
-        // energy row printed only in kJ is not read; its G3 flag is shown and nothing is calculated
-        // from it. (A calculated value satisfying its row is pinned on the application side by
-        // `PastedLabelApplicationContractTests`, and the kJ conversion by `PastedLabelConversionTests`.)
         let kilojoules = try review(SyntheticLabelTexts.kilojoulesOnly)
-        XCTAssertEqual(kilojoules.flags, [.init(code: "required_row_missing", concerns: "energy_kcal")])
+        XCTAssertEqual(kilojoules.flags, [], "The kcal row's G3 is satisfied by the calculated value")
         XCTAssertEqual(kilojoules.reading.gate?.flags.map(\.concerns), ["energy_kcal"], "The faithful gate still reports G3")
-        XCTAssertEqual(kilojoules.reading.conversions, [])
-        XCTAssertTrue(kilojoules.reading.candidate.warnings.contains("row_not_read: unit_off_template: 熱量"))
-        XCTAssertFalse(kilojoules.reading.candidate.cells.contains { $0.rowID.hasPrefix("energy") })
+        XCTAssertEqual(kilojoules.reading.conversions.map(\.storedText), ["419.2"])
+        let input = try builder().confirmation(kilojoules, details: .init(name: "Synthetic granola", fortification: .no),
+                                               corrections: [], locale: LedgerText("zh_TW"))
+        let energy = try XCTUnwrap(input.candidates[0].candidate.nutrients.entries.first { $0.key == .energyConsumed }).value
+        XCTAssertTrue(NutrientDerivation.isCalculated(energy))
+        XCTAssertTrue(energy.provenance.allSatisfy { $0.transforms.count == 1 })
 
         XCTAssertEqual(try review(SyntheticLabelTexts.sodiumMissing).flags, [.init(code: "required_row_missing", concerns: "sodium")])
         XCTAssertEqual(try review(SyntheticLabelTexts.packMissing).flags,
@@ -230,6 +229,27 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         XCTAssertEqual(reader.read(SyntheticLabelTexts.japanese).declineCodes, ["unsupported_language"])
         let supplement = SyntheticLabelTexts.taiwan(header: "　　　　營養補充 每份  每100公克")
         XCTAssertEqual(reader.read(supplement).declineCodes, ["not_a_food_nutrition_panel"])
+    }
+
+    /// Reader v3 section 3.9, consistent with v1 decision 6: energy is read in kcal or kJ. With
+    /// both printed, on one row or on two (the kJ line continuing the energy row), the kcal cell is
+    /// stored and the kJ cell is read but not used: nothing is calculated, never both.
+    func testKcalAndKjOnOneRowOrTwoStoreTheKcalAndKeepTheKjReadButNotUsed() throws {
+        for (name, energy) in [("one row", ["熱量  167.7 大卡  701.7 kJ  419.2 大卡  1754 kJ"]),
+                               ("two rows", ["熱量  167.7 大卡  419.2 大卡", "701.7 kJ  1754 kJ"])] {
+            let read = try review(SyntheticLabelTexts.taiwan(energy + SyntheticLabelTexts.rows.dropFirst()))
+            let candidate = read.reading.candidate
+            XCTAssertFalse(candidate.warnings.contains { $0.hasPrefix("row_not_read") }, name)
+            let stored = candidate.cells.filter { $0.headerID == read.storedHeaderID }
+            XCTAssertEqual(stored.filter { $0.nutrient == "energy_kcal" }.map(\.decimalText), ["419.2"], name)
+            XCTAssertEqual(stored.filter { $0.nutrient == "energy_kj" }.map(\.decimalText), ["1754"], name)
+            XCTAssertEqual(read.reading.conversions, [], "\(name): kcal is printed, so nothing is calculated")
+            XCTAssertEqual(read.flags, [], name)
+            let input = try builder().confirmation(read, details: .init(name: "Synthetic granola", fortification: .no),
+                                                   corrections: [], locale: LedgerText("zh_TW"))
+            let value = try XCTUnwrap(input.candidates[0].candidate.nutrients.entries.first { $0.key == .energyConsumed }).value
+            XCTAssertFalse(NutrientDerivation.isCalculated(value), name)
+        }
     }
 
     // MARK: Mapping across the port

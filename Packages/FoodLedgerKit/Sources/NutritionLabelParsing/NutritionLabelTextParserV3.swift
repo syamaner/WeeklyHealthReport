@@ -565,9 +565,11 @@ struct ParseStateV3 {
                             break rowLoop
                         }
                     }
-                    // 3.9: a mandatory Taiwan row whose unit is not the template's is not read.
-                    if let template = match.templateUnit,
-                       amounts.contains(where: { LabelVocabulary.canonicalUnit($0.unit ?? "") != template }) {
+                    // 3.9: a mandatory Taiwan row whose unit is not the template's is not read
+                    // (energy reads kcal or kJ, as under v1).
+                    if let template = match.templateUnit, amounts.contains(where: { value in
+                        !TaiwanRowAliases.readableUnits(template: template).contains(LabelVocabulary.canonicalUnit(value.unit ?? "") ?? "")
+                    }) {
                         warnings.append("row_not_read: unit_off_template: \(row.label)")
                         unbound += row.lines
                         continue

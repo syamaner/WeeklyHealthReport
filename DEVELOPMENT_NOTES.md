@@ -2116,3 +2116,17 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-20T04:17:11Z` → `2026-10-20T07:22:59Z` (`phase_usage.py --format claude --since …`). Cache writes: 3,510,548 5-minute, 0 1-hour. Exact API-equivalent USD 27.2923622. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. Reviews run after this point are not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-20b: Claude Code pasted nutrition label reader v3 PR 1, energy units round
+
+Same subagent and transcript as WHR-93-2026-10-20a, resumed after coordinator review of #280: the Taiwan unit rule reads energy in kcal or kJ (consistent with v1 decision 6), the kJ-only reader and app tests keep their v1 expectations, new tests cover kcal plus kJ on one row and on two, the doc's section 3.9 records the clarification, and one full gate run and dev-set run. Runs from `2026-10-20T07:22:59Z` (the end of WHR-93-2026-10-20a) to `2026-10-20T07:49:25Z`, just before this ledger edit.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 PR 1 energy units round (#93), implementation subagent | 14,134,147 (13,620,741) | 513,338 | 3,090 | 14,137,237 | $5.35 |
+
+Boundary: `2026-10-20T07:22:59Z` → `2026-10-20T07:49:25Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 513,338 5-minute, 0 1-hour. Exact API-equivalent USD 5.3529102. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

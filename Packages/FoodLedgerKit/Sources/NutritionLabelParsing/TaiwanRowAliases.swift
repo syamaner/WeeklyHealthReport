@@ -54,6 +54,14 @@ public enum TaiwanRowAliases {
     }
 
     static func entry(_ label: String) -> Entry? { table[normalised(label)] }
+
+    /// The units the Taiwan unit rule (3.9) reads for a mandatory row's template unit. Energy is
+    /// read in kcal or kJ: kJ is an accepted energy unit with the versioned `kj_to_kcal_v1`
+    /// conversion (v1 decision 6), so it is never a wrong-unit binding; with both printed the kcal
+    /// cell is stored and the kJ cell is read but not used, exactly as under v1.
+    static func readableUnits(template: String) -> Set<String> {
+        template == "kcal" ? ["kcal", "kJ"] : [template]
+    }
 }
 
 /// Row classification under parser v3: the Taiwan alias table first, then parser v2's English

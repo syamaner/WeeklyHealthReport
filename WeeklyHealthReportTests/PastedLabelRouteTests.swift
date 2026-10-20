@@ -147,24 +147,32 @@ final class PastedLabelRouteTests: XCTestCase {
         XCTAssertEqual(confirm.missingSourceDetails, [.fortification])
     }
 
-    /// Reader v3 section 3.9 (decision 10): the Taiwan template prints energy in 大卡, so an energy
-    /// row printed only in kJ is not read. Confirm shows its G3 "Not read" flag, nothing is
-    /// calculated from it, and the user can enter it. (The calculated-energy display for stored
-    /// readings is pinned by `PastedLabelPresentationTests`.)
-    func testAKilojouleOnlyTaiwanEnergyRowIsNotReadAndIsFlagged() throws {
+    func testAKilojouleOnlyLabelShowsCalculatedEnergyEverywhere() throws {
         let root = try makeRoot()
         let model = root.pastedLabelTextModel(locale: Locale(identifier: "en_GB"))
         model.name = "Synthetic oat crackers"
         model.fortification = .no
         model.text = Self.kilojoulesOnly
         let source = try XCTUnwrap(model.readLabel(), "\(model.declineMessages)")
-        XCTAssertEqual(source.manifest.parserVersion, "nutrition-label-text-parser-v3")
-        XCTAssertTrue(source.manifest.candidate.warnings.contains("row_not_read: unit_off_template: 熱量"))
-        XCTAssertTrue(source.manifest.conversions.isEmpty, "nothing is calculated from an unread row")
-        XCTAssertTrue(source.manifest.flagsShown.contains { $0.concerns == "energy_kcal" }, "the G3 flag is shown")
         let energy = try XCTUnwrap(source.rows.first { $0.id == "energy_kcal" })
-        XCTAssertNotEqual(energy.origin, .calculated(rule: "kj_to_kcal_v1"))
-        XCTAssertNotNil(energy.flag)
+        XCTAssertEqual(energy.origin, .calculated(rule: "kj_to_kcal_v1"))
+        // Review Q1: the gate's G3 on the kcal row is satisfied by the calculated value.
+        XCTAssertNil(energy.flag)
+        XCTAssertFalse(source.review?.flags.contains { $0.concerns == "energy_kcal" } ?? true, "not in the review's flags")
+        XCTAssertFalse(source.manifest.flagsShown.contains { $0.concerns == "energy_kcal" }, "not in flags_shown")
+        XCTAssertTrue(energy.value.hasPrefix("about "))
+        XCTAssertTrue(energy.originText.hasPrefix("Calculated from 1754 kJ (printed)"))
+        let confirm = root.model(for: try XCTUnwrap(source.input), prefillSourceQuantity: false)
+        _ = root.pastedLabelConfirmation(confirm, source: source, editLabelText: {}, leave: {})
+        confirm.send(.setQuantity(100, .grams))
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult)
+        let detail = try XCTUnwrap(try root.foodLogService.savedEntry(saved.logItem.logItemID))
+        XCTAssertEqual(detail.valueOrigins[.energyConsumed], .calculated(rule: "kj_to_kcal_v1"))
+        XCTAssertTrue(PastedLabelSavedEntryText.reportText(detail)?.contains("Calculated from 1754 kJ (printed), kcal = kJ ÷ 4.184") == true)
+        let day = try root.intakeProjection(for: saved.logItemVersion.occurredAt)
+        XCTAssertEqual(day.summary.totals.first { $0.key == .energyConsumed }?.includesEstimates, true,
+                       "a calculated contribution marks the day total as including estimates")
     }
 
     /// Review R2: after a decline the user takes Search foods instead and logs there; no

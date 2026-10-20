@@ -254,7 +254,7 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
         ("鈉 60毫克 200毫克", "鈉 0.06公克 0.2公克", "sodium"),
         ("糖 6.0公克 20.0公克", "糖 6000毫克 20000毫克", "sugars"),
         ("蛋白質 3.0公克 10.0公克", "蛋白質 3.0微克 10.0微克", "protein"),
-        ("熱量 120大卡 400大卡", "熱量 502 kJ 1674 kJ", "energy_kcal"),
+        ("熱量 120大卡 400大卡", "熱量 120 Cal 400 Cal", "energy_kcal"),
         ("反式脂肪 0公克 0公克", "反式脂肪 0毫克 0毫克", "trans_fat")
     ]
     for (from, to, nutrient) in cases {
@@ -266,6 +266,17 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
         #expect(cell(candidate, nutrient) == nil)
         #expect(candidate.cells.count == 14, "only the off-template row is unread")
         #expect(!candidate.wouldMarkReady)
+    }
+    // Energy is read in kcal or kJ (v1 decision 6): kJ only, kcal and kJ on one row, or on two.
+    for body in [rows.replacingOccurrences(of: "熱量 120大卡 400大卡", with: "熱量 502 kJ 1674 kJ"),
+                 rows.replacingOccurrences(of: "熱量 120大卡 400大卡", with: "熱量 120大卡 502 kJ 400大卡 1674 kJ"),
+                 rows.replacingOccurrences(of: "熱量 120大卡 400大卡", with: "熱量 120大卡 400大卡\n502 kJ 1674 kJ")] {
+        let candidate = parse(label(body: body))
+        #expect(!candidate.declined, "\(body)")
+        #expect(candidate.warnings.isEmpty, "\(candidate.warnings)")
+        #expect(cell(candidate, "energy_kj")?.decimalText == "1674")
+        #expect(cell(candidate, "energy_kcal")?.decimalText == (body.contains("大卡") ? "400" : nil))
+        #expect(candidate == NutritionLabelTextParser().parse(label(body: body), inputSHA256: hash), "as parser v2 reads it")
     }
     // Optional rows keep v2's unit sets; English rows are not Taiwan rows.
     let fibre = parse(label(body: rows + "\n膳食纖維 500毫克 1500毫克"))
