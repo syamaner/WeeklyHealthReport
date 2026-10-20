@@ -2353,3 +2353,20 @@ Runs from `2026-10-20T13:56:58Z` to `2026-10-20T14:23:01Z`, just before this led
 Boundary: `phase_usage.py --format claude --since 2026-10-20T13:56:58Z`. Cache writes: 680,634 5-minute, 0 1-hour. Exact API-equivalent USD 6.6220376 at the recorded counts. The output count is a lower bound: 56 of the 59 messages in this window record at most 32 output tokens, so the total and the API-equivalent figure are lower bounds too.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-20n: Claude Code pasted nutrition label reader v3 PR 3, focused re-review round
+
+Same subagent and transcript, continued. It covers:
+- the previous round's ledger edit, commits, push and PR update;
+- the four findings of the focused re-review of `e51f7940` (flattened pack counts, multiplied servings, count words, conflict warnings);
+- the dev-set rerun and one full gate run.
+
+Runs from `2026-10-20T14:23:01Z` to `2026-10-20T14:39:20Z`, just before this ledger edit. Pricing as in WHR-93-2026-10-20i; API-equivalent comparison, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 PR 3 focused re-review round (#93), implementation subagent | 15,948,952 (15,239,340) | 709,558 | ≥ 5,735 (lower bound) | ≥ 15,954,687 | $6.71 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-20T14:23:01Z`. Cache writes: 709,558 5-minute, 0 1-hour. Exact API-equivalent USD 6.710574 at the recorded counts. The output count is a lower bound: 48 of the 55 messages in this window record at most 32 output tokens, so the total and the API-equivalent figure are lower bounds too.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
