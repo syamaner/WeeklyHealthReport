@@ -838,7 +838,7 @@ Recorded the same way as 8.1 to 8.3. Each point follows from 8.4.1 to 8.4.15 or 
   - **A failed Change.** If the new option's source cannot be built, Confirm keeps its model (amount and time), its earlier choice and its corrections, and says "The values could not be changed. Your earlier choice is kept."; no new Confirm opens in its place.
   - **Confirm's pinned bar (#282).** At accessibility text sizes, or when the bar would hold more than two warnings, hints or estimates, only Log stays pinned; the warnings, the hint beside Log and the volume estimate move to a "Before you log" section at the end of the content, and warning text is never truncated. The Fortified? picker on the label text screen lists its answers inline at accessibility sizes.
 - **From the final review of #284:**
-  - **`at` in whole milliseconds on both sides.** `PastedLabelBasisChoice.milliseconds` truncates, with one tolerance: a value less than 1 µs (0.001 ms) from a whole millisecond, on either side, is that millisecond, so a value up to 1 µs below a whole millisecond rounds up to it (the only case where `at` is later than the clock's reading; a sub-millisecond part of 1 µs or more always truncates), so a capture that went through the store's millisecondsSince1970 Double round trip gives the same whole milliseconds as before it; a test saves and reopens re-stamped choices on both stores, on exact boundaries and with sub-millisecond parts.
+  - **`at` in whole milliseconds on both sides.** `PastedLabelBasisChoice.milliseconds` truncates, with one tolerance: a value less than 1 µs (0.001 ms) from a whole millisecond, on either side, is that millisecond, so a value less than 1 µs below a whole millisecond rounds up to it (the only case where `at` is later than the clock's reading; a sub-millisecond part of 1 µs or more always truncates), so a capture that went through the store's millisecondsSince1970 Double round trip gives the same whole milliseconds as before it; a test saves and reopens re-stamped choices on both stores, on exact boundaries and with sub-millisecond parts.
   - **A serving size printed in another form** (for example `1包`) with two unheaded columns declines `unheaded_columns_serving_size_not_in_g_or_ml`: "… there is no serving size in grams or millilitres …".
   - **A disabled Log keeps one short line beside it** when only Log is pinned ("Not ready to log yet. See “Before you log” below."); the full hint, styled like the warnings (left-aligned, with an icon), is in "Before you log", which is never shown empty.
   - **A failed choice is never silent:** from Change, "The values could not be changed. Your earlier choice is kept."; after Read label, "This choice could not be applied. Nothing was saved, and your text is kept."
@@ -940,18 +940,27 @@ The versions they compose with were frozen earlier and stay so: `label-capture-d
 **Pinned by a test.** `ReaderV3FreezeTests` (`Packages/FoodLedgerKit/Tests/FoodLabelTextCaptureTests/`) pins, with no label text:
 
 1. the five version strings, and that new readings are written with parser v3;
-2. a SHA-256 of a canonical listing of the frozen rule tables: the alias table and the recognised-but-not-stored list, the voluntary bracket, the layout precedence, the row markers, parser v3's approximation lists and a set of its patterns, the bound vocabulary, serving v3's grammar copy and closed lists, the serving method table, the admitted pipelines, the manifest versions, the options table and checks v2's constants. This hash never changes while these versions exist;
-3. a SHA-256 of every file of the `NutritionLabelParsing` module (sources and resources; a new file there fails the test too) and of the application files that implement serving v3, manifest v2 and the options function. A file hash may be re-pinned only when a new version is added beside the frozen one in the same file, with pins 1 and 2 unchanged and the reason recorded in this section. A change that alters what a frozen version does is never re-pinned.
+2. a SHA-256 of a canonical listing of the frozen rule tables: the alias table and the recognised-but-not-stored list, the voluntary bracket, the layout precedence, the row markers, parser v3's approximation lists and a set of its patterns, the bound vocabulary, serving v3's grammar copy and closed lists, the serving method table, the admitted pipelines, the manifest versions, the options table and checks v2's constants. **Every list in it is filtered to the frozen versions** (the serving method table for parsers v2 and v3, the serving versions v1 to v3, the three frozen pipelines and the two manifest versions, each listed with whether it is still admitted), so adding a version is additive and leaves this hash unchanged. This hash never changes while these versions exist;
+3. a SHA-256 of every file of the `NutritionLabelParsing` module (sources and resources; a new file there fails the test too), of the application files that implement serving v3, manifest v2 and the options function, of the files the fresh-set harness uses to read and bind values (`LabelReading.swift`, `PastedLabelSource.swift`, `PastedLabelConfirmation.swift` and the adapter `NutritionLabelTextReader.swift`), and of the committed harness and scorer (`FreshSet/FreshSetProtocol.swift`, `FreshSet/FreshSetStepTests.swift`).
+
+**Re-pin rules for pin 3, closed:**
+
+- **A new version beside a frozen one** in a pinned file (for example serving v4 in the serving policy file): re-pin that file's hash, with pins 1 and 2 unchanged and the reason recorded under "Re-pins after the freeze" below.
+- **A new file in `NutritionLabelParsing` holding only a new version** (for example a parser v4 type): add its key to the test, with pins 1 and 2 unchanged and the reason recorded below.
+- **A comment-only change in a pinned file is still a change.** It is not made before the release check (12.2) has reported. After it, it needs a recorded re-pin whose pull request shows a diff of comments only, reviewed by an independent reviewer.
+- **A change that alters what a frozen version does** is never re-pinned: it is a new version.
+
+**Re-pins after the freeze:** none.
 
 **Re-pins after the freeze:** none.
 
 ### 12.2 Fresh-set protocol (7.4, decisions 15, 20 and 22)
 
-Written down in the same commit as the freeze, before any fresh label is collected. Every step is mechanical; where a step meets a case it does not name, the label is skipped with the reason `other` and a one-line note in the skip log, never decided case by case.
+Written down in the same commit as the freeze, before any fresh label is collected, together with the committed harness and scorer (`Packages/FoodLedgerKit/Tests/FoodLabelTextCaptureTests/FreshSet/`, pinned by 12.1). Every step is mechanical; where a step meets a case it does not name, the label is skipped with the reason `other` and a one-line note in the skip log, never decided case by case. **Every `other` note is listed to the owner before the text seal**; the owner may only confirm the skip or record that the protocol is amended (in a new commit, before collection continues), never take the label in.
 
 **Roles.** Four roles, kept apart:
 
-- the **collector** (an agent or the owner) selects and saves labels under 12.2.1 to 12.2.4; it never runs the reader on a fresh text;
+- the **collector** (an agent or the owner) selects and saves labels under 12.2.1 to 12.2.4; it never runs the reader on a fresh text, and has never seen the development set's per-label results or the parser source (it may hold the exclusion list of 12.2.1);
 - the **transcriber** (an agent in its own session) writes the expected values under 12.2.5; it never sees reader output, the parser source, this repository's tests or the development set's results;
 - the **owner** verifies the transcriptions under 12.2.6 and makes the release decision;
 - the **runner** (an agent or the owner) performs the run under 12.2.7 only after both seals of 12.2.6 exist.
@@ -1058,53 +1067,84 @@ A result is **eligible** when all of these hold:
 
 **Saving an eligible label.** On the product page as it loads (the default variant when the page has a selector):
 
-1. a full-page screenshot, and a screenshot in which the whole nutrition table is legible (for a PDF, the page or pages holding the table, as images);
-2. the **pasted text**: select from the first line of the nutrition section (the 營養標示 title or, with no title, the first serving line or column heading) to the last line of the table, including footnotes directly under it, copy with the system copy command in Safari on macOS (Preview for a PDF), and save the clipboard's plain text exactly as copied, in UTF-8, with no edit of any kind;
-3. `source.json`: the label ID (F01, F02, … in collection order), slot, category, page kind, site name, page address, time of capture, and the SHA-256 of the text file.
+1. a full-page screenshot, and a screenshot in which the whole nutrition table is legible (for a PDF, the page or pages holding the table, rendered as images), saved in `collection/<label ID>/`;
+2. the **pasted text**: select from the first line of the nutrition section (the 營養標示 title or, with no title, the first serving line or column heading) to the last line of the table, including footnotes directly under it, copy with the system copy command in Safari on macOS (Preview for a PDF), and save the clipboard's plain text exactly as copied, in UTF-8, with no edit of any kind, as `texts/<label ID>.txt`;
+3. `collection/<label ID>/source.json`: the label ID (F01, F02, … in collection order), slot, category, page kind, site name, page address and time of capture.
 
-The **text bundle** is then sealed: a file listing `<sha256>  <label ID>/text.txt` for every label, sorted by label ID, and the SHA-256 of that listing, recorded with the UTC time in `seals.txt`. From that moment the texts are frozen: no text is edited, added or removed.
+The **text seal** follows the owner's review of the `other` notes: the committed step `seal-texts` (below) records in `seals.txt` the SHA-256 of a listing of `<sha256>  texts/<label ID>.txt` lines, sorted, with the number of files and the UTC time. From that moment the texts are frozen: no text is edited, added or removed.
+
+**The committed steps.** Each step is one opt-in test run, skipped in the gates:
+
+```
+WHR_FRESH_SET_DIR=<private folder> WHR_FRESH_SET_STEP=<step> swift test --package-path Packages/FoodLedgerKit --filter FreshSetStepTests
+```
+
+with `<step>` one of `seal-texts`, `validate`, `seal-1`, `seal-2`, `run` and `score`. The private folder must be absolute and outside every git checkout (the step refuses a folder with a `.git` in any ancestor). A seal is never replaced, and each requires the one before it.
 
 #### 12.2.5 Blind transcription (decision 22)
 
-The transcriber, in a session of its own, receives only each label's screenshots, its PDF page images where present, its pasted text and these instructions; nothing else from the run folder, and no access to this repository's sources, tests, Developer tools or the development set's files. For each label it writes one file, `transcription/<label ID>.json`, holding what the **label as shown in the screenshot** prints (the screenshot decides where the pasted text differs; each difference is listed in a `text_differs` note):
+The transcriber, in a session of its own, receives **only** each label's screenshots and its PDF page renders where present, and these instructions. It **never** sees the pasted text, reader output, this repository's sources or tests, Developer tools or the development set's files. For each label it writes one file, `transcription/<label ID>.json`, holding what the label as shown in the screenshot prints, in the schema `reader-v3-fresh-transcription-v1`:
 
-- the serving size as printed (number and unit, or "not printed") and the servings per pack as printed (number, with any 約, or "not printed");
-- each column: its heading as printed and its basis (`per_serving`, `per_100g`, `per_100ml`, `reference_intake`), or "heading not printed";
-- each row in printed order: the printed label, the nutrient it is from the closed list (energy kcal, energy kJ, protein, fat, saturated fat, trans fat, carbohydrate, sugars, added sugars, fibre, sodium, or "other"), and for each column the value as printed: comparator (`=`, `<`, `<=`), number as printed, unit as printed, or "not printed".
+- `label_id`; `serving_size`: `{number, unit}` as printed, or `null` when not printed; `servings_per_pack`: `{number, approximate}` (approximate when 約 or "about" is printed), or `null`;
+- `columns`, in printed order: `{heading, basis}`, where `heading` is the heading as printed (or `null` when the label prints none) and `basis` is `per_serving`, `per_100g`, `per_100ml` or `reference_intake` as the heading states it, or `null` when the label states no basis for that column anywhere;
+- `rows`, in printed order: `{label, nutrient, values}`, where `nutrient` is one of `energy_kcal`, `energy_kj`, `protein`, `fat`, `saturates`, `trans_fat`, `carbohydrate`, `sugars`, `added_sugars`, `fibre`, `sodium`, `salt` or `other`, and `values` has one entry per column: `{comparator, number, unit}` as printed (comparator `=`, `<` or `<=`; the number in ASCII digits with at most one decimal point; the unit exactly as printed), or `null` when that column prints nothing for the row;
+- `notes`: anything else, in plain words.
 
-When every file is written, the **transcription bundle** is sealed the same way as the text bundle (sorted per-file SHA-256 listing, then the listing's SHA-256), with the UTC time, in `seals.txt`. This is **seal 1**, recorded before any reader run.
+The step `validate` checks every file against the schema and the unit table of 12.2.8; a file that fails is fixed by the transcriber before seal 1. When every file passes, the step `seal-1` records **seal 1**: the SHA-256 of the sorted per-file listing of `transcription/`, with the UTC time, before any reader run.
 
 #### 12.2.6 Owner verification
 
-The owner checks each transcription against its source on a local **review page** (an HTML file in the private run folder, never published): for each label, the screenshots, the pasted text and the transcription side by side, with a mark per value ("as printed" or "corrected to …"). The page states seal 1's hash at the top. There is no reader output anywhere on it, because the reader has not run.
+The owner checks each transcription against its source on a local **review page** (an HTML file in the private run folder, never published): for each label, the screenshots and the transcription side by side, with a mark per value ("as printed" or "corrected to …"). The page states seal 1's hash at the top. There is no reader output anywhere on it, because the reader has not run.
 
-Every owner correction is logged in `transcription-corrections.json` (label, value, before, after, reason) as a **transcription correction**, never as a reader result, and applied to the transcription file. When the owner has verified every label, the verified bundle is sealed again (**seal 2**). The run may start only after seal 2.
+Every owner correction is logged in `transcription-corrections.json` (label, value, before, after, reason) as a **transcription correction**, never as a reader result, and applied to the transcription file. When the owner has verified every label, the step `seal-2` records **seal 2**. The run may start only after seal 2.
+
+**The seal-2 transcription is final for scoring.** A dispute raised after the run (the owner or anyone else thinks a transcribed value is wrong) does not change it: the reader's value is still scored against seal 2, a disputed value counts as a **wrong value** when it differs, and the dispute is reported beside it; a dispute is never used to pass. **Any change to a transcription after seal 2 voids the run**: the steps `run` and `score` refuse to work when the transcriptions or the texts differ from their seals.
 
 #### 12.2.7 The run
 
-1. **Build.** Check out the freeze reference and build the reader harness (a small executable outside the repository that runs the app's Read label decision: `PastedLabelReader` with `NutritionLabelTextReader` and `SHA256Digester`, writing one JSON result per text). Record the commit and the harness's own SHA-256.
-2. **Basis choices without judgement.** When the outcome is "needs a basis choice", the harness chooses the arrangement whose bases equal the verified transcription's column bases (seal 2), through the application's choosing step. When the transcription says the heading is not printed on the label either, or its bases are not among the options offered, the label counts as **declined** (`basis_not_sure` or `basis_not_offered`), as "I'm not sure" would end it.
-3. **One run** is one execution of the harness over every frozen text. An **infrastructure failure** (a build, tool or machine failure that produces no reader output for a label) is rerun with **no change** to code, harness, texts or transcriptions, for the labels that have no output; each attempt is recorded in `run-log.txt`. Any output the reader produced counts, and its results stand.
-4. **Device build.** The owner pastes each frozen text into a build of the freeze reference on the owner's iPhone (the distribution of 5.1, which the freeze allows) and records, per label, the outcome and every value Confirm shows. Each displayed value is compared in the same way as the harness's, and the device's outcome must equal the harness's; a difference is reported as a defect.
+1. **Build.** Check out the freeze reference. The harness is the committed step `run` (`FreshSetProtocol.swift`): the app's Read label decision, `PastedLabelReader` with `NutritionLabelTextReader` and `SHA256Digester`, one JSON result per text in `run/`, in the schema `reader-v3-fresh-run-v1`. Record the commit in `run-log.txt`; the harness and scorer files are pinned by 12.1, so the commit fixes them.
+2. **Basis choices without judgement.** When the outcome is "needs a basis choice", the harness chooses the arrangement whose bases are the seal-2 transcription's amount column bases, in column order, through the application's choosing step. When any of those bases is `null` (the label states no basis either), the label counts as **declined** `basis_not_sure`, as "I'm not sure" would end it; when the arrangement is not among the options offered, it counts as declined `basis_not_offered`.
+3. **One run** is one execution of the harness over every frozen text. An **infrastructure failure** is a failure of the environment, not of the reader: a build, tool or machine failure that produces no reader output for a label. It is rerun **once** with **no change** to code, harness, texts or transcriptions, for the labels that have no output (the step `run` skips labels that have one); each attempt is recorded in `run-log.txt`. A failure that repeats on that unchanged rerun of the same text counts as a **reader defect** and fails the check. Any output the reader produced counts, and its results stand.
+4. **Device build.** The owner pastes each frozen text into a build of the freeze reference on the owner's iPhone (the distribution of 5.1, which the freeze allows). Where the basis sheet appears, the owner chooses by the same rule as item 2: the seal-2 transcription's bases, and "I'm not sure" when a basis is `null` or the arrangement is not offered. The owner records, per label, the outcome and every value Confirm shows. Each displayed value is scored in the same way as the harness's, and the device's outcome must equal the harness's; a difference is reported as a defect, and a wrong value on the device fails the check like one in the harness.
+5. **Owner's check, as a user.** On each accepted Confirm of the device build, the owner then checks the values against the label image as a user would and corrects what they notice; this check never changes the scoring of items 1 to 4. The values that still differ from the seal-2 transcription after that check are the **residual errors after the owner's check** (7.4 item 6, v1 section 9), reported, not gating.
 
 #### 12.2.8 Scoring and the bar
 
-**A value checked** is every value the reader binds in a table that reaches Confirm (every cell in every column, the serving size and the pack count), compared with the verified transcription for the same row, column, basis and unit. A **wrong value** is one whose comparator, number (exact decimal equality) or canonical unit differs from the transcription, or one bound where the transcription says "not printed". A row the reader leaves "Not read" is not a wrong value; it counts toward the correction burden.
+The step `score` (`FreshSet.score`) applies these rules exactly; they were fixed before collection.
 
-**The bar (gating): zero wrong values** in every table that reaches Confirm, harness and device build alike, including values under a basis chosen as in 12.2.7 item 2. **Any wrong value fails the check:** release stops, the fix is a new parser version (or a new version of whichever frozen component caused it), and **the set is spent**: it becomes development evidence, and the next release check needs a new fresh set, collected under a protocol committed with that version's freeze.
+**Unit table** (the scorer's own, closed; a transcription unit outside it fails `validate`): 大卡, 千卡, kcal, Kcal, KCAL → kcal; kJ, KJ, kj, 千焦 → kJ; 公克, 克, g → g; 毫克, mg → mg; 微克, µg, μg, mcg → µg; 毫升, ml, mL → ml; % → %.
 
-**Reported, not gating** (repository counts only):
+**Matching.** A bound cell is matched to the transcription by its column's basis (the transcription column with the same `basis`) and its nutrient (the one transcription row with that `nutrient`; a cell the reader left unrecognised is matched to the one `other` row whose label, with spaces removed, is the same). No match, or more than one, is a wrong value.
+
+**A value checked** is every value the reader binds in a table that reaches Confirm: every cell in every column, every calculated value, the serving size and the pack count.
+
+**A wrong value** is a checked value for which any of these holds:
+
+- its comparator differs from the transcription's;
+- its number differs from the transcription's number by exact decimal equality (6.0 equals 6, nothing else is equal);
+- its canonical unit differs from the transcription unit mapped through the unit table;
+- it is bound where the transcription has `null` (not printed);
+- for the serving size, its number or canonical unit differs; for the pack count, its number or its "approximate" mark differs;
+- **for a calculated value** (kJ to kcal, salt to sodium, `pasted-label-conversions-v1`): its operand (the printed source value the conversion recorded, with its comparator and unit) differs from the transcription's printed source value. The arithmetic of the conversion rule itself is fixed by the conversion's version and its own tests, so a calculated value with a correct operand is correct.
+
+A row the reader leaves "Not read" is not a wrong value; it counts toward the correction burden.
+
+**The bar (gating): zero wrong values** in every table that reaches Confirm, harness and device build alike, including values under a basis chosen as in 12.2.7 items 2 and 4. **Any wrong value fails the check:** release stops, the fix is a new parser version (or a new version of whichever frozen component caused it), and **the set is spent**: it becomes development evidence, and the next release check needs a new fresh set, collected under a protocol committed with that version's freeze.
+
+**Reported, not gating** (repository counts only; the step `score` writes them to `results/summary.json`):
 
 - **decline rate**: labels declined (including `basis_not_sure` and `basis_not_offered`) out of all labels, with counts by reason; goal **at most 25%** (decision 16);
-- **correction burden**: per accepted table, the stored column's ledger values (energy, protein, fat, saturated fat, carbohydrate, sugars, fibre, sodium) that the label prints but Confirm leaves unread, plus the serving size and pack count printed but not read; the mean, the **median (goal at most 1)** and the share of tables needing any;
+- **correction burden**: per accepted table, the stored column's ledger values (energy, protein, fat, saturated fat, carbohydrate, sugars, fibre, sodium) that the label prints but Confirm leaves unread (a calculated kcal counts as read), plus the serving size and pack count printed but not read; the mean, the **median (goal at most 1)** and the share of tables needing any;
 - rows "Printed but not read", basis choices needed, flags and warnings shown, by code;
+- **residual errors after the owner's check** (12.2.7 item 5);
+- disputes raised after the run, each beside the value it concerns;
 - the **statistical limit**: with n values checked and zero wrong, the per-value wrong-value rate is below 3/n with 95% confidence (the rule of three); with t tables reaching Confirm and none wrong, the per-table rate is below 3/t. The report states both with the actual n and t, and never claims a zero rate.
 
 Missing the decline or burden goal does not block release when the bar passes; it is reported and informs the next version.
 
 ### 12.3 Privacy (decision 20)
 
-All real-text material lives in one private folder, **outside every git checkout and outside synced cloud storage**: `~/WHR-label-eval-private/reader-v3-fresh-set/`, with `excluded-development-set.json`, `collection/` (per-label folders, the skip log, search screenshots), `seals.txt`, `transcription/`, `transcription-corrections.json`, `review/`, `run/` and `results/`. Texts, screenshots, page addresses, product names, transcriptions, per-label results and **every hash** (text, bundle and seal hashes) stay there. Tools write only there. Seal hashes appear only in `seals.txt` and on the private review page; the release-check pull request states that seal 1 and seal 2 were "recorded before the run", with their dates, and never quotes a hash.
+All real-text material lives in one private folder, **outside every git checkout and outside synced cloud storage**: `~/WHR-label-eval-private/reader-v3-fresh-set/`, with `excluded-development-set.json`, `collection/` (per-label folders, the skip log, search screenshots), `texts/`, `seals.txt`, `transcription/`, `transcription-corrections.json`, `review/`, `run/` and `results/`. Texts, screenshots, page addresses, product names, transcriptions, per-label results and **every hash** (text, bundle and seal hashes) stay there. Tools write only there. Seal hashes appear only in `seals.txt` and on the private review page; the release-check pull request states that seal 1 and seal 2 were "recorded before the run", with their dates, and never quotes a hash.
 
 The **repository** receives counts only: labels collected by category and page kind, candidates opened, skips by reason, development-set exclusions, fallbacks used, and the results of 12.2.8; plus the freeze reference commit and the dates of seal 1, seal 2 and the run. Every pull request touching the fresh set carries the checklist item of 1.4.
 

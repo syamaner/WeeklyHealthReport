@@ -117,7 +117,7 @@ public struct PastedLabelBasisChoice: Equatable, Sendable {
 
     /// Whole milliseconds (gate re-check, medium 3): the value is truncated toward the earlier
     /// millisecond, with one tolerance. A value less than 1 µs (0.001 ms) from a whole millisecond,
-    /// on either side, is that millisecond; so a value up to 1 µs **below** a whole millisecond
+    /// on either side, is that millisecond; so a value less than 1 µs **below** a whole millisecond
     /// rounds **up** to it rather than truncating to the one before. This is the only case in which
     /// the result is later than the date. It exists because a date that went through the store's
     /// millisecondsSince1970 Double round trip may land a hair below its millisecond, and both

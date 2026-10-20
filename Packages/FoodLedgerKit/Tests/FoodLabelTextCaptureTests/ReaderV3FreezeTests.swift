@@ -16,12 +16,17 @@ import XCTest
 /// 2. a SHA-256 of a canonical listing of the frozen rule tables (aliases, layout precedence, row
 ///    markers, approximation lists, the serving grammar copy, the serving method table, the
 ///    admitted pipelines, the options table, the checks v2 constants and a set of parser v3
-///    patterns). It must **never** change while these versions exist;
-/// 3. a SHA-256 of each source file that implements the frozen behaviour. A change to one of
-///    these files fails here. If the change is a new version added beside the frozen one (for
-///    example serving v4 in the same policy file), re-pin only that file's hash, with pins 1 and 2
-///    unchanged and the reason recorded in section 12 of the reader v3 document. A change that
-///    alters what a frozen version does is never re-pinned: it is a new version.
+///    patterns). Every list is filtered to the frozen versions, so adding a version (a new
+///    parser, pipeline, serving method or manifest) is additive and leaves this hash unchanged.
+///    It must **never** change while these versions exist;
+/// 3. a SHA-256 of each file that implements the frozen behaviour or that the fresh-set harness
+///    uses to read and bind values. A change to one of these files fails here, comments included.
+///    Rules for a re-pin (section 12.1): a new version added beside the frozen one in the same
+///    file, or a new file in `NutritionLabelParsing` holding only a new version (a new key here),
+///    with pins 1 and 2 unchanged and the reason recorded in section 12.1; a comment-only change
+///    waits until after the release check, and then needs a recorded re-pin with a diff showing
+///    comments only, reviewed. A change that alters what a frozen version does is never re-pinned:
+///    it is a new version.
 ///
 /// No label text, value or product name is here: only rule tables and source hashes.
 final class ReaderV3FreezeTests: XCTestCase {
@@ -43,7 +48,7 @@ final class ReaderV3FreezeTests: XCTestCase {
 
     // MARK: 2. Frozen rule tables
 
-    static let frozenRuleTablesSHA256 = "5732ae4e9d3fca303791cd741ab855dc514545f2363a6a262fa0abea127735d5"
+    static let frozenRuleTablesSHA256 = "58c7068d802ae6f8709cf66882d3997169c4f93f50a91cc891f9a81d276365e4"
 
     func testFrozenRuleTablesAreUnchanged() {
         let listing = Self.ruleTableListing()
@@ -51,6 +56,15 @@ final class ReaderV3FreezeTests: XCTestCase {
         XCTAssertEqual(digest, Self.frozenRuleTablesSHA256,
                        "A frozen rule table changed. That is a new version and a new fresh set (reader v3 section 12). Listing:\n\(listing)")
     }
+
+    static let frozenParsers = ["nutrition-label-text-parser-v2", "nutrition-label-text-parser-v3"]
+    static let frozenServingVersions = ["pasted-label-serving-v1", "pasted-label-serving-v2", "pasted-label-serving-v3"]
+    static let frozenManifests = ["pasted-nutrition-label-v1", "pasted-nutrition-label-v2"]
+    static let frozenPipelines: [(String, String)] = [
+        ("pasted-nutrition-label-v1", "nutrition-label-text-parser-v2:label-capture-decline-gate-v2:label-arithmetic-checks-v1:pasted-label-conversions-v1"),
+        ("pasted-nutrition-label-v1", "nutrition-label-text-parser-v3:label-capture-decline-gate-v2:label-arithmetic-checks-v1:pasted-label-conversions-v1"),
+        ("pasted-nutrition-label-v2", "nutrition-label-text-parser-v3:label-capture-decline-gate-v2:label-arithmetic-checks-v2:pasted-label-conversions-v1"),
+    ]
 
     /// One line per rule, in a fixed order, sorted where the source is a set or a dictionary.
     static func ruleTableListing() -> String {
@@ -82,14 +96,15 @@ final class ReaderV3FreezeTests: XCTestCase {
         add("serving-lists", PastedLabelServingPolicy.approximateWords.sorted() + PastedLabelServingPolicy.approximateMarks
             + [PastedLabelServingPolicy.rangeMarks, PastedLabelServingPolicy.separators, PastedLabelServingPolicy.marker,
                PastedLabelServingPolicy.weightOrVolumeUnits])
-        add("serving-method-table", [PastedLabelSource.parserVersionV2, PastedLabelSource.parserVersionV3, "nutrition-label-text-parser-v4"].map { parser in
+        // Filtered to the frozen versions: a later version adds entries without changing these lines.
+        add("serving-method-table", Self.frozenParsers.map { parser in
             let methods = PastedLabelServingPolicy.methods(parserVersion: parser)
             return "\(parser)\t\(methods?.perServing ?? "none")\t\(methods?.per100 ?? "none")"
-        } + PastedLabelServingPolicy.admittedVersions)
-        add("admitted-pipelines", PastedLabelSource.admittedPipelines.keys.sorted().flatMap { key in
-            PastedLabelSource.admittedPipelines[key]!.map { key + "\t" + $0 }
+        } + Self.frozenServingVersions.map { "\($0)\tadmitted=\(PastedLabelServingPolicy.admittedVersions.contains($0))" })
+        add("admitted-pipelines", Self.frozenPipelines.map { manifest, pipeline in
+            "\(manifest)\t\(pipeline)\tadmitted=\(PastedLabelSource.admittedPipelines[manifest]?.contains(pipeline) == true)"
         })
-        add("manifest-versions", PastedLabelEvidenceManifest.versions)
+        add("manifest-versions", Self.frozenManifests.map { "\($0)\tadmitted=\(PastedLabelEvidenceManifest.versions.contains($0))" })
         add("basis-options", [1, 2].flatMap { columns in
             [PastedLabelBasisOptions.ServingUnit.none, .grams, .millilitres].map { unit in
                 let options = PastedLabelBasisOptions.options(amountColumnCount: columns, servingUnit: unit)
@@ -104,7 +119,9 @@ final class ReaderV3FreezeTests: XCTestCase {
 
     // MARK: 3. Frozen source files
 
-    /// Paths relative to the FoodLedgerKit package root.
+    /// Paths relative to the FoodLedgerKit package root: the frozen versions' own files, the files
+    /// the fresh-set harness uses to read and bind values (`LabelReading`, `PastedLabelSource`,
+    /// `PastedLabelConfirmation`, the adapter) and the committed harness and scorer.
     static let frozenSources: [String: String] = [
         "Sources/NutritionLabelParsing/FlattenedLine.swift": "2671cb5d9f3b216c9190303e16207495be5dfccd242423542efdcf0b11d8cead",
         "Sources/NutritionLabelParsing/LabelArithmeticChecks.swift": "8f361669e8dba5bb935e8af3af0b5effa2c9a06ef8632388738adb9d9def600d",
@@ -120,7 +137,13 @@ final class ReaderV3FreezeTests: XCTestCase {
         "Sources/NutritionLabelParsing/TaiwanRowAliases.swift": "57d9a6ee8fc52c2f47880c3a56cc0a3dc164a15e91f9b96d1bcdbc5daec10b6d",
         "Sources/NutritionLabelParsing/Resources/gate-v2-marker-classes-v1.txt": "65761772f268b4c7ec41d096ebd4ac9f01f10a1fe5e8bf7144898781f7855109",
         "Sources/NutritionLabelParsing/Resources/gate-v2-simplified-only-v1.txt": "a75bd032fb24c234686bc808ab1926cc502380f8421d2ba833bdceffb9dfafa5",
-        "Sources/FoodLedgerApplication/PastedLabelBasisChoice.swift": "989bfd5a22477d9be3e64b22d32f7ef576b5bc5ec1ec9774fb703dba599c7194",
+        "Sources/FoodLedgerApplication/LabelReading.swift": "b082f9c0a26b31c4a463ba3123cc748bc2b224110b6d7b1c406793b83db2ebb7",
+        "Sources/FoodLedgerApplication/PastedLabelSource.swift": "fdb22210774a02783817b2fc76d8b4238929d4863da113a248e1a3e65a36afd4",
+        "Sources/FoodLedgerApplication/PastedLabelConfirmation.swift": "4f62b0b53b8a3f2e3856375e9eab2828239838b0a178317dd25f00c820d8a677",
+        "Sources/FoodLabelTextCapture/NutritionLabelTextReader.swift": "d442eef620f913c51434777f5a7db54f4caaf9e7c3a52f9c705a1c22aea471b6",
+        "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetProtocol.swift": "bc3c45325985dca1c75f39faabacda1eac86ca1bbf5d8ea10c799bbafcbbbc3f",
+        "Tests/FoodLabelTextCaptureTests/FreshSet/FreshSetStepTests.swift": "891c2b360abd857133d912ffdeeb8ec5bdc71b0ed9e5c350c7722f306e5e8639",
+        "Sources/FoodLedgerApplication/PastedLabelBasisChoice.swift": "4b36617823f0ab5236dc13587e1a0c62f73a77b4f826c891f844b85fccefc13f",
         "Sources/FoodLedgerApplication/PastedLabelManifestV2.swift": "dd2e1a7e6288efac802d7545716d781a15cec89c9b55d662591cd3448b95bdf5",
         "Sources/FoodLedgerApplication/PastedLabelServingPolicy.swift": "bca53615081e45bb4f5470614de66aa2b5267caf37973663c41508e2d6e65cc1",
         "Sources/FoodLedgerApplication/PastedLabelServingSizeGrammarV3.swift": "baca78391070ff9ca61bcb1ee290f2223a4b19535a6611b571b3f6907221d259",
