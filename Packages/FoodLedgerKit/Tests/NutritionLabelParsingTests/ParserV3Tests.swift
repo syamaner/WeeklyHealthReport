@@ -358,6 +358,81 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     #expect(ParseStateV3.markedRow(">> 3公克") == nil)
 }
 
+/// Re-review of #280: a "more than" mark split from its value across lines (after the label, or on
+/// a line of its own) still makes the row unread, stacked and inline, Chinese and English.
+@Test func aMoreThanMarkSplitAcrossLinesIsNeverReadAsExact() {
+    let stackedHead = "營養標示\n每一份量30公克\n本包裝含8份\n每份\n熱量\n120大卡\n蛋白質\n3.0公克\n"
+    for tail in ["鈉 超過\n1000毫克", "鈉\n超過\n1000毫克", "鈉\n>\n1000毫克", "鈉 >\n1000毫克", "鈉 ＞\n1000毫克", "鈉\n≥\n1000毫克"] {
+        let candidate = parse(stackedHead + tail)
+        #expect(!candidate.cells.contains { $0.nutrient == "sodium" }, "\(tail): \(candidate.cells.map(\.printedText))")
+        #expect(!candidate.cells.contains { $0.decimalText == "1000" }, "\(tail)")
+        #expect(!candidate.wouldMarkReady, "\(tail)")
+        if !candidate.declined { #expect(candidate.warnings.contains("row_not_read: malformed_value: 鈉"), "\(tail): \(candidate.warnings)") }
+    }
+    for tail in ["Sodium more than\n1000mg", "Sodium\nmore than\n1000mg", "Sodium >\n1000mg"] {
+        let candidate = parse("Per 100g\nEnergy\n1500kJ\nProtein\n2g\n" + tail)
+        #expect(!candidate.cells.contains { $0.nutrient == "sodium" }, "\(tail): \(candidate.cells.map(\.printedText))")
+        #expect(!candidate.wouldMarkReady, "\(tail)")
+    }
+    for line in ["鈉 超過 60毫克 200毫克", "鈉 60毫克 超過200毫克", "鈉 > 60毫克 > 200毫克", "鈉 60毫克以上 200毫克以上"] {
+        let candidate = parse(label(body: rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: line)))
+        #expect(!candidate.cells.contains { $0.nutrient == "sodium" }, "\(line)")
+        #expect(candidate.cells.count == 14, "\(line)")
+    }
+}
+
+/// Bound words (reader v3 PR 1 re-review): ≦ and a trailing 以下 are "at most", 未滿 is "less
+/// than"; a trailing 以上 ("at least") cannot be held, so the row is not read. Bounds stay bounds.
+@Test func boundWordsStayBoundsAndAtLeastIsNotRead() {
+    let cases: [(String, LabelComparator, String)] = [
+        ("鈉 5 毫克 以下 10 毫克 以下", .lessOrEqual, "10 毫克 以下"), ("鈉 ≦5毫克 ≦10毫克", .lessOrEqual, "≦10毫克"),
+        ("鈉 未滿 5毫克 未滿 10毫克", .less, "未滿 10毫克"), ("鈉 5毫克以下 10毫克以下", .lessOrEqual, "10毫克以下")
+    ]
+    for (line, comparator, printed) in cases {
+        let candidate = parse(label(body: rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: line)))
+        #expect(!candidate.declined, "\(line): \(candidate.declineReasons)")
+        #expect(candidate.warnings.isEmpty, "\(line): \(candidate.warnings)")
+        #expect(cell(candidate, "sodium")?.comparator == comparator, "\(line)")
+        #expect(cell(candidate, "sodium")?.decimalText == "10", "\(line)")
+        #expect(cell(candidate, "sodium")?.printedText == printed, "\(line)")
+    }
+    let atLeast = parse(label(body: rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: "鈉 5 毫克 以上 10 毫克 以上")))
+    #expect(cell(atLeast, "sodium") == nil)
+    #expect(atLeast.warnings.contains("row_not_read: malformed_value: 鈉"))
+}
+
+@Test func aServingSizeOrPackCountPrintedAsMoreThanIsNotRead() {
+    for line in ["每一份量 超過30公克", "每一份量30公克以上", "每一份量 >30公克", "Serving size more than 30g"] {
+        let candidate = parse(label("營養標示\n\(line)\n本包裝含8份\n"))
+        #expect(candidate.servingSize?.decimalText == nil, "\(line)")
+        #expect(!candidate.cells.contains { $0.servingConversion == "30公克" || $0.servingConversion == "30g" }, "\(line)")
+    }
+    for line in ["本包裝含超過8份", "本包裝含8份以上", "本包裝 > 8 份", "Servings per container more than 8"] {
+        let candidate = parse(label("營養標示\n每一份量30公克\n\(line)\n"))
+        #expect(!candidate.declined, "\(line): \(candidate.declineReasons)")
+        #expect(candidate.servingsPerPack == nil, "\(line)")
+        #expect(candidate.cells.count == 16, "\(line)")
+    }
+    #expect(parse(label("營養標示\n每一份量30公克，本包裝含8份以上\n")).servingsPerPack == nil)
+}
+
+@Test func knownEnglishTopLevelRowsIgnoreBullets() {
+    let candidate = parse("Typical values\tPer 100g\nCarbohydrate\t50g\n• Sugars\t5g\n• Fat\t10g\n• Protein\t2g\n")
+    #expect(cell(candidate, "sugars")?.parentRowID == "carbohydrate")
+    #expect(cell(candidate, "fat")?.parentRowID == nil)
+    #expect(cell(candidate, "protein")?.parentRowID == nil)
+}
+
+/// Two rows binding the same nutrient and column (a `*` row before the real one): the reader
+/// never picks one; both are not read, so the row is flagged on Confirm (G3).
+@Test func duplicateRowsAreBothUnread() {
+    let candidate = parse(label("營養標示\n每一份量30公克\n本包裝含8份\n", body: "每份\n熱量 120大卡\n*鈉 50毫克\n鈉 2000毫克"))
+    #expect(!candidate.declined, "\(candidate.declineReasons)")
+    #expect(!candidate.cells.contains { $0.nutrient == "sodium" })
+    #expect(candidate.warnings.filter { $0.hasPrefix("row_not_read: duplicate_row: 鈉") }.count == 2)
+    #expect(cell(candidate, "energy_kcal", .perServing)?.decimalText == "120")
+}
+
 @Test func aStarredLineRepeatingAReadRowIsAFootnote() {
     for footnote in ["*鈉 2000毫克", "*鈉每日參考值2000毫克", "*熱量 2000大卡"] {
         let candidate = parse(label(body: rows + "\n" + footnote))
@@ -457,6 +532,14 @@ private func label(_ before: String = "營養標示\n" + servingLines, body: Str
     let twoRows = NonRegression.explain(v2: NutritionLabelTextParser().parse(gap, inputSHA256: hash), v3: parse(gap), text: gap)
     #expect(twoRows.items == [.hanBetweenValues])
     #expect(twoRows.unexplained.isEmpty)
+    for bound in ["鈉 5 毫克 以下 10 毫克 以下", "鈉 5 毫克 以上 10 毫克 以上", "鈉 60毫克 200毫克\n*鈉 50毫克 120毫克"] {
+        let text = label(body: rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: bound))
+        let verdict = NonRegression.explain(v2: NutritionLabelTextParser().parse(text, inputSHA256: hash), v3: parse(text), text: text)
+        #expect(verdict.unexplained.isEmpty, "\(bound): \(verdict.unexplained)")
+    }
+    let boundVerdict = label(body: rows.replacingOccurrences(of: "鈉 60毫克 200毫克", with: "鈉 5 毫克 以下 10 毫克 以下"))
+    #expect(NonRegression.explain(v2: NutritionLabelTextParser().parse(boundVerdict, inputSHA256: hash), v3: parse(boundVerdict),
+                                  text: boundVerdict).items == [.boundsAndDuplicates])
     let titled = label("【營養標示】\n" + servingLines)
     let read = NonRegression.explain(v2: NutritionLabelTextParser().parse(titled, inputSHA256: hash), v3: parse(titled))
     #expect(!read.unexplained.isEmpty, "a case v2 declined and v3 reads needs the truth oracle")

@@ -252,6 +252,24 @@ final class NutritionLabelTextReaderTests: XCTestCase {
         }
     }
 
+    /// Bounds stay bounds through the reader (reader v3 PR 1 re-review): 以下 and ≦ reach
+    /// Confirm as "at most"; a duplicated row is not read and its flag is shown.
+    func testBoundWordsReachConfirmAsBoundsAndDuplicateRowsAreFlagged() throws {
+        let rows = SyntheticLabelTexts.rows.dropLast() + ["鈉  101 毫克 以下  252 毫克 以下"]
+        let read = try review(SyntheticLabelTexts.taiwan(Array(rows)))
+        let sodium = read.reading.candidate.cells.filter { $0.nutrient == "sodium" }
+        XCTAssertEqual(sodium.map(\.comparator), ["<=", "<="])
+        let input = try builder().confirmation(read, details: .init(name: "Synthetic granola", fortification: .no),
+                                               corrections: [], locale: LedgerText("zh_TW"))
+        let value = try XCTUnwrap(input.candidates[0].candidate.nutrients.entries.first { $0.key == .sodium }).value
+        guard case .bounded = value else { return XCTFail("sodium must stay a bound: \(value)") }
+
+        let duplicated = SyntheticLabelTexts.taiwan(["*鈉  50 毫克  120 毫克"] + Array(SyntheticLabelTexts.rows))
+        let flagged = try review(duplicated)
+        XCTAssertFalse(flagged.reading.candidate.cells.contains { $0.nutrient == "sodium" })
+        XCTAssertTrue(flagged.flags.contains(.init(code: "required_row_missing", concerns: "sodium")), "\(flagged.flags)")
+    }
+
     // MARK: Mapping across the port
 
     func testTheCandidateMirrorEncodesTheParserCandidateBytes() throws {

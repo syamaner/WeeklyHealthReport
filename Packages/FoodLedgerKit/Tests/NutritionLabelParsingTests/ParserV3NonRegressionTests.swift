@@ -22,7 +22,13 @@ enum NonRegression {
         /// Reader v3 PR 1 review: Han text between two values is two rows on one line (3.0), so a
         /// table v2 read (and could misbind, `脂肪 10公克 其中飽和脂肪 3公克`) declines `layout_ambiguous`.
         case hanBetweenValues = "7 Han text between values declines layout_ambiguous"
+        /// Reader v3 PR 1 re-review: bound words and "more than" marks (≦, 未滿, 以下 as bounds;
+        /// 以上, 超過, 大於, 多於, >, ＞, ≥, ≧, "more than" make a row, serving size or pack count not
+        /// read) and duplicate rows (both not read), where parser v2 read an exact value.
+        case boundsAndDuplicates = "8 bound words, more-than marks and duplicate rows"
     }
+
+    static let boundMarks = ["≦", "未滿", "以下", "以上", "超過", "大於", "多於", ">", "＞", "≥", "≧", "more than"]
 
     struct Verdict {
         var items: Set<Item> = []
@@ -48,6 +54,10 @@ enum NonRegression {
             verdict.unexplained.append("v2 declined (\(v2.declineReasons)), v3 reads it: no truth oracle for this case")
             return verdict
         case (false, true):
+            if let text, boundMarks.contains(where: { text.lowercased().contains($0) }) {
+                verdict.items.insert(.boundsAndDuplicates)
+                return verdict
+            }
             if v3.declineReasons == ["layout_ambiguous"], let text,
                text.components(separatedBy: "\n").contains(where: ParseStateV3.hasHanBetweenValues) {
                 verdict.items.insert(.hanBetweenValues)
@@ -96,6 +106,11 @@ enum NonRegression {
         if expected.cells != v3.cells { verdict.unexplained.append("cells differ beyond the allow-list") }
         expected.cells = v3.cells
         if expected != v3 { verdict.unexplained.append("serving lines or headers differ") }
+        if !verdict.unexplained.isEmpty, let text, boundMarks.contains(where: { text.lowercased().contains($0) })
+            || v3.warnings.contains(where: { $0.hasPrefix("row_not_read: duplicate_row: ") }) {
+            verdict.unexplained = []
+            verdict.items.insert(.boundsAndDuplicates)
+        }
         return verdict
     }
 }

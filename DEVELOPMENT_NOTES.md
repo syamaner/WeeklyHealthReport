@@ -2153,3 +2153,25 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-20T07:49:25Z` → `2026-10-20T08:24:53Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,553,863 5-minute, 0 1-hour. Exact API-equivalent USD 12.5653176. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. The reviewers' own sessions are not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-20d: Claude Code pasted nutrition label reader v3 PR 1, re-review round
+
+Same subagent and transcript as WHR-93-2026-10-20a, resumed for the re-review of #280 at `613d4d60`. This round:
+- a "more than" mark split from its value (after the label or on its own line) makes the row unread;
+- the bound words ≦, 未滿 and 以下 stay bounds, while 以上 is not read;
+- a serving size or pack count printed as "more than" is not read;
+- known English top-level rows ignore bullets;
+- duplicate rows are both unread;
+- adds non-regression allow-list item 8.
+
+It also includes one full gate run and one dev-set run. The round runs from `2026-10-20T08:24:53Z` (the end of WHR-93-2026-10-20c) to `2026-10-20T08:53:36Z`, just before this ledger edit.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 PR 1 re-review round (#93), implementation subagent | 16,743,612 (16,695,684) | 47,864 | 1,873 | 16,745,485 | $3.62 |
+
+Boundary: `2026-10-20T08:24:53Z` → `2026-10-20T08:53:36Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 47,864 5-minute, 0 1-hour. Exact API-equivalent USD 3.6161728. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. The reviewers' own sessions are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

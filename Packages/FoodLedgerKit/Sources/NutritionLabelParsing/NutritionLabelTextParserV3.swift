@@ -80,6 +80,16 @@ enum PatternsV3 {
     /// "More than" before a number: the reader has no such comparator, so such a value is never
     /// read as exact (it makes its row unread).
     static let greaterThan = LabelPattern(#"(?i)(?:[>≥＞≧]|超過|大於|多於|more\s+than|greater\s+than)\s*\d"#)
+    /// Parser v2's value pattern with two more bound comparators, ≦ (at most) and 未滿 (less than),
+    /// and 以下 or 以上 allowed straight after the unit (`5毫克以下`).
+    static let value = LabelPattern(
+        #"(?<![\p{L}\p{N}.,])(less than|<=|≤|≦|＜|<|少於|未滿)?\s*(\d+(?:[.,]\d+)?)\s*(kJ|kj|KJ|Kj|kcal|Kcal|KCAL|kCal|Cal|cal|mcg|mg|µg|μg|mL|ml|g|%|大卡|千卡|公克|毫克|微克|毫升|克)?(?!(?!以[下上])\p{L})"#
+    )
+    /// A bound word printed after a value: 以下 (at most) or 以上 (at least, which the reader
+    /// cannot hold, so the row is not read).
+    static let boundSuffix = LabelPattern(#"^\s*(以下|以上)"#)
+    /// A pack line with a "more than" mark before its count (never read as exact).
+    static let packMoreThan = LabelPattern(#"(?i)^(?:本包裝包?含?|servings?\s+per\s+(?:container|pack|package))\s*[:：]?\s*(?:[>≥＞≧]|超過|大於|多於|more\s+than)"#)
     /// The same marks standing at the end of a label ("鈉 >", "超過").
     static let trailingGreaterThan = LabelPattern(#"(?i)\s*(?:[>≥＞≧]+|超過|大於|多於|more\s+than|greater\s+than)$"#)
 }
@@ -129,6 +139,8 @@ struct ParseStateV3 {
     /// Split lines joined before the first row, applied at the end only outside stacked tables.
     var servingJoin: Join?
     var packJoin: (join: Join, approximate: Bool, decimal: String)?
+    /// A "more than" mark on a line of its own before any row: the next row is not read.
+    var pendingMoreThan = false
 
     var servingClaimed: Bool { servingSize != nil || servingJoin != nil }
     var packClaimed: Bool { servingsPerPack != nil || packJoin != nil }
@@ -159,9 +171,17 @@ struct ParseStateV3 {
                 return
             }
         }
+        if PatternsV3.packMoreThan.contains(content) {
+            // "More than N servings" is not a count the reader can hold: the pack count is not read.
+            unbound.append(content)
+            lastLineWasHeader = false
+            return
+        }
         for pattern in PatternsV3.servingsPerPack {
             if let groups = pattern.firstMatch(in: content), let number = groups[2] {
-                if !packClaimed {
+                if Self.hasMoreThan(content) {
+                    unbound.append(content)
+                } else if !packClaimed {
                     servingsPerPack = LabelServingsPerPack(printedText: content, decimalText: number, approximate: groups[1] != nil)
                 } else {
                     unbound.append(content)
@@ -293,6 +313,8 @@ struct ParseStateV3 {
     /// value cut at the pack phrase.
     static func servingSize(printed: String, value: String) -> LabelServingSize {
         let cut = cutAtPackPhrase(value)
+        // A serving size printed as "more than" (`超過30公克`, `30公克以上`) is not read.
+        if hasMoreThan(cut) { return LabelServingSize(printedText: printed, decimalText: nil, unit: nil, canonicalUnit: nil) }
         let source = Patterns.parenthesised.firstMatch(in: cut)?[1] ?? cut
         if let groups = Patterns.servingQuantity.firstMatch(in: source) ?? Patterns.servingQuantity.firstMatch(in: cut),
            let number = groups[1], let unit = groups[2] {
@@ -305,12 +327,29 @@ struct ParseStateV3 {
     static func packCount(inServingLine line: String, value: String) -> LabelServingsPerPack? {
         guard let match = PatternsV3.packPhrase.matchDetails(in: value).first else { return nil }
         let phrase = String(value[match.range.lowerBound...])
+        if hasMoreThan(phrase) { return nil }
         for pattern in [PatternsV3.chinesePackPhrase, PatternsV3.englishPackPhrase] {
             if let groups = pattern.firstMatch(in: phrase), let number = groups[2] {
                 return LabelServingsPerPack(printedText: line, decimalText: number, approximate: groups[1] != nil)
             }
         }
         return nil
+    }
+
+    /// A "more than" mark before a number, or 以上 anywhere.
+    static func hasMoreThan(_ text: String) -> Bool {
+        PatternsV3.greaterThan.contains(text) || text.contains("以上")
+    }
+
+    /// The values of a line under parser v3: parser v2's pattern plus ≦ and 未滿, each extended
+    /// over a 以下 or 以上 printed straight after it, so the bound stays with its value.
+    static func valueMatches(_ content: String) -> [(range: Range<String.Index>, groups: [String?])] {
+        PatternsV3.value.matchDetails(in: content).map { match in
+            let after = String(content[match.range.upperBound...])
+            guard let suffix = PatternsV3.boundSuffix.matchDetails(in: after).first else { return match }
+            let end = content.index(match.range.upperBound, offsetBy: after.distance(from: after.startIndex, to: suffix.range.upperBound))
+            return (match.range.lowerBound..<end, match.groups + [suffix.groups[1]])
+        }
     }
 
     // MARK: Headers and rows
@@ -396,7 +435,7 @@ struct ParseStateV3 {
             content = rest
             marked = true
         }
-        let details = Patterns.value.matchDetails(in: content)
+        let details = Self.valueMatches(content)
         let label: String
         if let first = details.first {
             label = String(content[content.startIndex..<first.range.lowerBound])
@@ -406,18 +445,31 @@ struct ParseStateV3 {
         var cleanedLabel = label
             .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•")))
         // "More than" is not a value the reader can hold: its marks never stay in a label, and the
-        // row that receives such a value is not read (`row_not_read: malformed_value`).
-        let moreThan = PatternsV3.greaterThan.contains(content)
+        // row that receives such a value is not read (`row_not_read: malformed_value`), whether
+        // the mark is on the value's line, after the label, or on a line of its own.
+        var moreThan = PatternsV3.greaterThan.contains(content) || details.contains { $0.groups.count > 4 && $0.groups[4] == "以上" }
         if let mark = PatternsV3.trailingGreaterThan.matchDetails(in: cleanedLabel).first {
             cleanedLabel = String(cleanedLabel[..<mark.range.lowerBound])
                 .trimmingCharacters(in: .whitespaces.union(CharacterSet(charactersIn: "\u{3000}\t:：-–·•")))
+            moreThan = true
+        }
+        if moreThan, cleanedLabel.isEmpty, details.isEmpty {
+            // A line holding only the mark: it qualifies the row above, or the next row.
+            if rows.isEmpty {
+                pendingMoreThan = true
+            } else {
+                rows[rows.count - 1].malformed = true
+                rows[rows.count - 1].lines.append(original)
+            }
+            unbound.append(original)
+            return
         }
         let values = details.map { match -> PrintedValue in
             let printed = String(content[match.range]).trimmingCharacters(in: .whitespaces)
             let comparator: LabelComparator
             switch match.groups[1] {
-            case "<=", "≤": comparator = .lessOrEqual
-            case nil: comparator = .equal
+            case "<=", "≤", "≦": comparator = .lessOrEqual
+            case nil: comparator = match.groups.count > 4 && match.groups[4] == "以下" ? .lessOrEqual : .equal
             default: comparator = .less
             }
             return PrintedValue(printedText: printed, comparator: comparator, decimalText: match.groups[2] ?? "", unit: match.groups[3])
@@ -437,7 +489,8 @@ struct ParseStateV3 {
                 rows[rows.count - 1] = last
             } else {
                 rows.append(RowDraftV3(label: cleanedLabel, indented: indented, values: values, labelLineHadValues: !values.isEmpty,
-                                       lines: [original], marked: marked, malformed: moreThan))
+                                       lines: [original], marked: marked, malformed: moreThan || pendingMoreThan))
+                pendingMoreThan = false
             }
         } else if !values.isEmpty {
             guard !rows.isEmpty else {
@@ -492,7 +545,7 @@ struct ParseStateV3 {
 
     /// Whether a line has Han text between two of its values (the non-regression allow-list).
     static func hasHanBetweenValues(_ line: String) -> Bool {
-        gaps(line, values: Patterns.value.matchDetails(in: line)).dropLast().contains { PatternsV3.hanRun.contains($0) }
+        gaps(line, values: valueMatches(line)).dropLast().contains { PatternsV3.hanRun.contains($0) }
     }
 
     static func isStackedEnergy(row: RowDraftV3, adding values: [PrintedValue]) -> Bool {
@@ -558,6 +611,7 @@ struct ParseStateV3 {
         // every row never chain one row under another (3.1 rule 5).
         var lastTopLevelMarked = false
         var bindingDecline: [String]?
+        var cellRows: [Int] = []
         if declineReasons.isEmpty, !rows.isEmpty, !amountHeaders.isEmpty {
             let byBasis = Dictionary(grouping: headers, by: \.basis)
             for (_, group) in byBasis where group.count > 1 {
@@ -568,7 +622,9 @@ struct ParseStateV3 {
         if declineReasons.isEmpty, bindingDecline == nil, !rows.isEmpty, !amountHeaders.isEmpty {
             rowLoop: for (index, row) in rows.enumerated() {
                 let classified = RowClassifierV3.classify(row.label)
-                let indented = row.indented || (row.marked && lastTopLevel != nil && !lastTopLevelMarked)
+                // Known top-level rows stay top-level however they are marked, as on the alias path.
+                let topLevel = classified.map { Self.topLevelKeys.contains($0.key) } ?? false
+                let indented = row.indented || (row.marked && lastTopLevel != nil && !lastTopLevelMarked && !topLevel)
                 let rowKey: String
                 let parent: String?
                 switch classified {
@@ -662,6 +718,7 @@ struct ParseStateV3 {
                 let nutrientFor: (String) -> String = { key in classified == nil ? "unrecognised" : key }
                 for group in groups {
                     for (header, value) in zip(amountHeaders, group.values) {
+                        cellRows.append(index)
                         cells.append(ParseState.cell(rowID: group.key, parent: parent, nutrient: nutrientFor(group.key), label: row.label,
                                                      header: header, value: value, servingSize: servingSize))
                     }
@@ -669,9 +726,25 @@ struct ParseStateV3 {
                 let energyKeys = groups.map(\.key)
                 let percentKey = classified?.row == .energy ? (energyKeys.contains("energy_kcal") ? "energy_kcal" : (energyKeys.first ?? "energy_kcal")) : rowKey
                 for (header, value) in zip(referenceHeaders, percentages) {
+                    cellRows.append(index)
                     cells.append(ParseState.cell(rowID: percentKey, parent: parent, nutrient: nutrientFor(percentKey), label: row.label,
                                                  header: header, value: value, servingSize: servingSize))
                 }
+            }
+        }
+
+        // Two rows binding the same nutrient in the same column: the reader never picks one, so
+        // both rows are not read and the row's flag shows on Confirm (`row_not_read: duplicate_row`).
+        var rowsByCell: [String: Set<Int>] = [:]
+        for (cell, row) in zip(cells, cellRows) where cell.nutrient != "unrecognised" {
+            rowsByCell[cell.nutrient + "@" + cell.headerID, default: []].insert(row)
+        }
+        let duplicated = Set(rowsByCell.values.filter { $0.count > 1 }.flatMap { $0 })
+        if !duplicated.isEmpty {
+            cells = zip(cells, cellRows).filter { !duplicated.contains($0.1) }.map(\.0)
+            for index in duplicated.sorted() {
+                warnings.append("row_not_read: duplicate_row: \(rows[index].label)")
+                unbound += rows[index].lines
             }
         }
 
@@ -702,6 +775,8 @@ struct ParseStateV3 {
     /// One warning per joined line, each at most once: the serving line (3.1 rule 3, the string
     /// serving v3 relies on) and the pack line (rule 4).
     static let joinedWarning = "serving_line_joined"
+    /// Rows that are top-level in every supported layout.
+    static let topLevelKeys: Set<String> = ["energy", "fat", "carbohydrate", "protein", "sodium", "salt", "fibre"]
     static let joinedPackWarning = "serving_line_joined: servings_per_pack"
 
     /// `unsupported_script` (G1) and `not_a_food_nutrition_panel` (G2), in gate rule order, when
