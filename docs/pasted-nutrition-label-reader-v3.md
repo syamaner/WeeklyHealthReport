@@ -2,6 +2,8 @@
 
 Status: **owner-approved, 20 October 2026.** The owner answered decisions 1 to 17 "yes to all", in session, on 20 October 2026, after the architecture gate, and approved decisions 18 to 22, which the gate revision added, in session the same day. It is a versioned amendment to the reader behind the pasted nutrition label route of [pasted nutrition label v1](pasted-nutrition-label-v1.md) so that it reads the common real Taiwan paste layouts that parser v2 declines today. It follows the owner's decision of 20 October 2026, in session: improve the reader against a real-text development set, then run the release check once on a **fresh** set of at least 20 real labels the reader has never seen.
 
+**Frozen, 21 October 2026 (section 12):** parser v3, `taiwan-row-aliases-v1`, checks v2, serving v3 and manifest v2 are frozen as of the commit that adds section 12, which also commits the fresh-set protocol (12.2). Any later change to them is a new version and needs a new fresh set.
+
 **PR 4 design (section 8.4), 20 October 2026:** written for its own architecture gate pass before any PR 4 production code; decisions 24 to 26 (section 9.4) were made by the owner in session the same day.
 
 **Architecture gate, 20 October 2026, on `3ccd9f24`: PASS WITH CHANGES.** Every finding is applied in this revision; section 11 maps each finding to where it is addressed, section 9.1 records the decided wording (marked "tightened" where the gate changed it) and section 9.2 records the decisions the revision added.
@@ -287,7 +289,7 @@ Extending the table is a new alias version and a new parser version. The English
 | Serving policy | `pasted-label-serving-v1`, `-v2` | add `pasted-label-serving-v3` (section 5.6, decision 12) |
 | Candidate schema | `label-capture-candidate-v1` | unchanged |
 
-**Parser v3 accumulates across PRs until it is frozen.** As with serving v2 (v1 section 6.3), a version that no distributed build carries can still be amended. It is frozen at the earlier of the release check's freeze commit (section 7.4) and the **first distribution** of any build carrying parser v3 or serving v3 (gate finding 19). "Distribution" means any TestFlight or App Store build, or any install on a device used with real food data, including the owner's own phone. No such build may carry parser v3 or serving v3 before the freeze; if one must, the freeze happens at that commit. After the freeze any change is parser v4 (or serving v4).
+**Parser v3 accumulates across PRs until it is frozen.** As with serving v2 (v1 section 6.3), a version that no distributed build carries can still be amended. It is frozen at the earlier of the release check's freeze commit (section 7.4) and the **first distribution** of any build carrying parser v3 or serving v3 (gate finding 19). "Distribution" means any TestFlight or App Store build, or any install on a device used with real food data, including the owner's own phone. No such build may carry parser v3 or serving v3 before the freeze; if one must, the freeze happens at that commit. After the freeze any change is parser v4 (or serving v4). **Frozen on 21 October 2026, before any distribution: section 12.**
 
 ### 5.2 Admitted pipelines
 
@@ -410,7 +412,7 @@ The 24-label development set is re-run against each PR's build, outside the repo
 
 ### 7.4 Release check on a fresh set (gate finding 17)
 
-The owner's decision of 20 October 2026 makes this the release gate for parser v3 (it replaces, for Taiwan, the pending v1 section 9 check, which was run on the development set and is now spent).
+The owner's decision of 20 October 2026 makes this the release gate for parser v3 (it replaces, for Taiwan, the pending v1 section 9 check, which was run on the development set and is now spent). **The executable protocol is section 12.2**, committed with the freeze; where it is more specific than the items below, it governs.
 
 1. **Freeze and commit the rules first.** In one commit, before any fresh label is collected: the freeze (parser v3, alias table, manifest, serving and checks versions) and a written **selection and eligibility rule** (named sources and listings, the order products are taken in, what makes a label eligible, for example a Taiwan nutrition table present and copyable, and the allowed skip reasons). The commit hash is the freeze reference.
 2. **Collect afterwards, by that rule.** At least 24 public Taiwan labels (the development set's size; the bar is at least 20), none from a product in the development set (checked by product name and by text hash, outside the repository). Stratified like the development set: about 15 retailer pages across at least five retailers, 5 manufacturer pages, 4 PDFs. Every skipped candidate is logged with its skip reason; the repository gets only skip counts by reason.
@@ -451,7 +453,7 @@ Each PR runs the full validation gates, adds its ledger row to `DEVELOPMENT_NOTE
 2. **Partial reading and the stacked layout.** 3.2, 3.8, `too_little_read`, "Printed but not read" on Confirm (port, view model, copy), and the mutation suite as a standing test. Tests 2, 3, 15.
 3. **Flattened lines, basis in the energy line, bilingual.** 3.4, 3.5, 3.6, `flattened_table_ambiguous`, the two-panel copy (3.7). Tests 1, 14, 16, and test 2 extended.
 4. **Basis choice.** 3.3 (including the energy-line hint of decision 23, shown on the sheet and never preselected), manifest v2, verification, the options function, the sheet, "Chosen by you" and Change, the contract-version check (decision 13), and checks v2 (decision 5). Tests 7, 8, 9, 10. Needs its own architecture gate pass and a simulator journey.
-5. **Freeze and release check.** The freeze and selection-rule commit, then section 7.4, the results file of counts, and the `docs/releases/unreleased.md` row.
+5. **Freeze and release check.** The freeze and selection-rule commit (5a, section 12), then section 7.4 under 12.2, the results file of counts, and the `docs/releases/unreleased.md` row (5b).
 
 PRs 2 and 3 change the parser only and can ship in either order after PR 1; PR 4 is the only persisted-format change. No build carrying any of PRs 1 to 4 is distributed before the freeze (5.1).
 
@@ -674,7 +676,7 @@ public protocol LabelTextReading: Sendable {
 | `header_id` | the asserted header's ID |
 | `basis` | `per_serving`, `per_100g` or `per_100ml` |
 | `offered` | the arrangement identifiers shown, in order (8.4.3); the same list on every record |
-| `at` | a JSON **integer** of whole milliseconds since 1970 (`Int64`), from the injected clock at the moment of the choice, truncated at stamping; the same on every record. The decoder rejects a non-integer, and the verifier requires `at` no later than the evidence's `capturedAt` (gate re-check, medium 3) |
+| `at` | a JSON **integer** of whole milliseconds since 1970 (`Int64`), from the injected clock at the moment of the choice, truncated at stamping (with the 1 µs tolerance recorded in 8.4.16); the same on every record. The decoder rejects a non-integer, and the verifier requires `at` no later than the evidence's `capturedAt` (gate re-check, medium 3) |
 
 **One dispatcher.** `PastedLabelEvidenceManifest` is an application enum, `.v1(PastedLabelManifest)` or `.v2(PastedLabelManifestV2)`. v2 reuses v1's nested types (identity mapping, candidate mirror, conversion, flag, correction); its `basis_choices` records decode strictly. A v2 release's `schema_version` is `pasted-nutrition-label-v2:<format>`, pinned in the goldens. Its `decode(_:)` reads only the `version` member first (a probe that is not strict), then strictly decodes exactly the matching type; any other version is `nil`. It exposes the shared fields (`pastedText`, `candidate`, `storedHeaderID`, `corrections`, `conversions`, versions, `warningsShown`, `name`, `brand`, `identityMapping`, `labelFormat`), `version`, and `basisChoices` (empty for v1), and encodes the case it holds. `PastedLabelEvidenceManifest.versions` is exactly `[pasted-nutrition-label-v1, pasted-nutrition-label-v2]`. The shared rules (stored basis, expected nutrients, corrections, servings, origins, the misread report) take the dispatcher, so there is one derivation for both versions and no copy.
 
@@ -836,7 +838,7 @@ Recorded the same way as 8.1 to 8.3. Each point follows from 8.4.1 to 8.4.15 or 
   - **A failed Change.** If the new option's source cannot be built, Confirm keeps its model (amount and time), its earlier choice and its corrections, and says "The values could not be changed. Your earlier choice is kept."; no new Confirm opens in its place.
   - **Confirm's pinned bar (#282).** At accessibility text sizes, or when the bar would hold more than two warnings, hints or estimates, only Log stays pinned; the warnings, the hint beside Log and the volume estimate move to a "Before you log" section at the end of the content, and warning text is never truncated. The Fortified? picker on the label text screen lists its answers inline at accessibility sizes.
 - **From the final review of #284:**
-  - **`at` in whole milliseconds on both sides.** `PastedLabelBasisChoice.milliseconds` takes a value within a microsecond of a whole millisecond as that millisecond, so a capture that went through the store's millisecondsSince1970 Double round trip gives the same whole milliseconds as before it; a test saves and reopens re-stamped choices on both stores, on exact boundaries and with sub-millisecond parts.
+  - **`at` in whole milliseconds on both sides.** `PastedLabelBasisChoice.milliseconds` truncates, with one tolerance: a value less than 1 µs (0.001 ms) from a whole millisecond, on either side, is that millisecond, so a value up to 1 µs below a whole millisecond rounds up to it (the only case where `at` is later than the clock's reading; a sub-millisecond part of 1 µs or more always truncates), so a capture that went through the store's millisecondsSince1970 Double round trip gives the same whole milliseconds as before it; a test saves and reopens re-stamped choices on both stores, on exact boundaries and with sub-millisecond parts.
   - **A serving size printed in another form** (for example `1包`) with two unheaded columns declines `unheaded_columns_serving_size_not_in_g_or_ml`: "… there is no serving size in grams or millilitres …".
   - **A disabled Log keeps one short line beside it** when only Log is pinned ("Not ready to log yet. See “Before you log” below."); the full hint, styled like the warnings (left-aligned, with an icon), is in "Before you log", which is never shown empty.
   - **A failed choice is never silent:** from Change, "The values could not be changed. Your earlier choice is kept."; after Read label, "This choice could not be applied. Nothing was saved, and your text is kept."
@@ -914,3 +916,207 @@ The owner answered decisions 1 to 17 "yes to all", in session, on 20 October 202
 | Low | 15. Definition of "read" for `too_little_read` | 3.7; 7.5; decision 3 |
 | Low | 16. Chinese header decides; conflicting English header declines | 3.6 rule 1; 7.5; decision 7 |
 | Low | 18. Real-text privacy enforcement; format inference stays v1 | 1.4; 3.6 rule 6; 5.1; decision 20 |
+
+## 12. Freeze (step 5a, 21 October 2026)
+
+### 12.1 What is frozen
+
+As of the commit that adds this section, the following are **frozen**:
+
+| Component | Version |
+|---|---|
+| Parser | `nutrition-label-text-parser-v3`, with the layout precedence of 3.0 |
+| Row aliases | `taiwan-row-aliases-v1` |
+| Arithmetic checks for chosen-basis readings | `label-arithmetic-checks-v2` |
+| Serving policy for a per 100 column of a parser-v3 manifest | `pasted-label-serving-v3`, with its grammar copy and its closed lists |
+| Manifest for a chosen-basis reading | `pasted-nutrition-label-v2`, with its verifier, the options function of 8.4.3 and the `at` rule of 8.4.16 |
+
+The versions they compose with were frozen earlier and stay so: `label-capture-decline-gate-v2`, `label-arithmetic-checks-v1`, `pasted-label-conversions-v1`, `pasted-label-format-inference-v1`, `pasted-nutrition-label-v1`, `pasted-label-serving-v1` and `-v2`, and the candidate schema `label-capture-candidate-v1`.
+
+**The freeze reference** is the commit on `main` that merges the pull request adding this section. Its hash is recorded in the private run folder (12.3) and in the release-check pull request; it cannot be written here, because a commit cannot name itself. Section 5.1's "earlier of the release check's freeze commit and the first distribution" is settled: this is the freeze, and it comes before any distribution.
+
+**After the freeze, any change to what a frozen version does is a new version** (parser v4, `taiwan-row-aliases-v2`, checks v3, serving v4, manifest v3), and a new version needs a **new fresh set** for its release check: the set collected under 12.2 measures this freeze and nothing else. A change that does not alter a frozen version's behaviour (a new version added beside it, a comment elsewhere) does not unfreeze anything.
+
+**Pinned by a test.** `ReaderV3FreezeTests` (`Packages/FoodLedgerKit/Tests/FoodLabelTextCaptureTests/`) pins, with no label text:
+
+1. the five version strings, and that new readings are written with parser v3;
+2. a SHA-256 of a canonical listing of the frozen rule tables: the alias table and the recognised-but-not-stored list, the voluntary bracket, the layout precedence, the row markers, parser v3's approximation lists and a set of its patterns, the bound vocabulary, serving v3's grammar copy and closed lists, the serving method table, the admitted pipelines, the manifest versions, the options table and checks v2's constants. This hash never changes while these versions exist;
+3. a SHA-256 of every file of the `NutritionLabelParsing` module (sources and resources; a new file there fails the test too) and of the application files that implement serving v3, manifest v2 and the options function. A file hash may be re-pinned only when a new version is added beside the frozen one in the same file, with pins 1 and 2 unchanged and the reason recorded in this section. A change that alters what a frozen version does is never re-pinned.
+
+**Re-pins after the freeze:** none.
+
+### 12.2 Fresh-set protocol (7.4, decisions 15, 20 and 22)
+
+Written down in the same commit as the freeze, before any fresh label is collected. Every step is mechanical; where a step meets a case it does not name, the label is skipped with the reason `other` and a one-line note in the skip log, never decided case by case.
+
+**Roles.** Four roles, kept apart:
+
+- the **collector** (an agent or the owner) selects and saves labels under 12.2.1 to 12.2.4; it never runs the reader on a fresh text;
+- the **transcriber** (an agent in its own session) writes the expected values under 12.2.5; it never sees reader output, the parser source, this repository's tests or the development set's results;
+- the **owner** verifies the transcriptions under 12.2.6 and makes the release decision;
+- the **runner** (an agent or the owner) performs the run under 12.2.7 only after both seals of 12.2.6 exist.
+
+#### 12.2.1 Exclusions: the development set
+
+Every **site** and every **product** in the development set (1.1) is excluded. The development set's sites, by name only:
+
+- retailers: 愛買 (FE Amart), PChome 24h 購物, 東森購物 (ETMall), Yahoo 奇摩購物中心, 全聯 (PX Go);
+- manufacturer sites, by domain name: 00foods.com, green-n-safe.com, isun.hc.net.tw, oldpotrice.com, snackcontainerbase.com, top-most.com.tw;
+- specification PDF sites, by domain name: emporium.com.tw, powerred.com.tw.
+
+The retailers are excluded on every domain they use, image servers included.
+
+The exclusion list itself (site, brand, product name and the SHA-256 of each development text) is kept **outside the repository**, as `excluded-development-set.json` in the private run folder (12.3), written before collection starts from the development set's own records. A fresh candidate is excluded when its site is on the list, when its brand and product name match a development product (a different pack size of the same product counts as the same product), or, after copying, when its text's SHA-256 equals a development text's. The repository gets only the number of candidates excluded this way.
+
+#### 12.2.2 Strata and slots
+
+24 slots, fixed in this order. Each slot names a category and a page kind (15 retailer pages, 5 manufacturer pages and 4 PDFs, as in the development set). Layout is never a stratum: the layouts are whatever the selected labels print, and layout is never a reason to take or skip a label.
+
+| Slot | Category | Page kind |
+|---|---|---|
+| 1 | Snacks and biscuits | Retailer |
+| 2 | Drinks | Retailer |
+| 3 | Dairy | Retailer |
+| 4 | Cereal and oats | Retailer |
+| 5 | Sauces and condiments | Retailer |
+| 6 | Instant noodles | Retailer |
+| 7 | Frozen | Retailer |
+| 8 | Confectionery | Retailer |
+| 9 | Nuts and dried fruit | Retailer |
+| 10 | Bread and bakery | Retailer |
+| 11 | Snacks and biscuits | Retailer |
+| 12 | Dairy | Retailer |
+| 13 | Cereal and oats | Retailer |
+| 14 | Nuts and dried fruit | Retailer |
+| 15 | Bread and bakery | Retailer |
+| 16 | Snacks and biscuits | Manufacturer |
+| 17 | Drinks | Manufacturer |
+| 18 | Dairy | Manufacturer |
+| 19 | Cereal and oats | Manufacturer |
+| 20 | Confectionery | Manufacturer |
+| 21 | Drinks | PDF |
+| 22 | Sauces and condiments | PDF |
+| 23 | Instant noodles | PDF |
+| 24 | Frozen | PDF |
+
+Categories, each with its one search term and what belongs to it (a product outside its slot's definition is skipped `wrong_category`):
+
+| Category | Search term | Belongs |
+|---|---|---|
+| Snacks and biscuits | 餅乾 | biscuits, crackers, cookies, crisps, puffed snacks |
+| Drinks | 飲料 | ready-to-drink tea, juice, coffee, soy and soft drinks (not milk) |
+| Dairy | 牛奶 | milk, flavoured milk, yoghurt, cheese |
+| Cereal and oats | 燕麥 | oats, muesli, granola, breakfast cereal |
+| Sauces and condiments | 醬料 | sauces, soy sauce, dressings, condiments |
+| Instant noodles | 泡麵 | instant noodles, cup and bowl noodles |
+| Frozen | 冷凍食品 | foods sold frozen (dumplings, meals, ice cream) |
+| Confectionery | 糖果 | sweets, chocolate, gummies |
+| Nuts and dried fruit | 堅果 | nuts, seeds, dried fruit |
+| Bread and bakery | 麵包 | bread, toast, buns, cakes, pastries |
+
+#### 12.2.3 Search procedure
+
+**Retailer slots (1 to 15)**, in slot order, over this fixed list of retailers, none of them in the development set:
+
+1. momo 購物網 (momoshop.com.tw)
+2. 家樂福線上購物 (Carrefour Taiwan online)
+3. 大潤發 (RT-Mart online)
+4. 博客來 (books.com.tw)
+5. friDay 購物
+6. 樂天市場 (Rakuten Taiwan)
+7. 生活市集 (buy123.com.tw)
+8. 好市多線上購物 (Costco Taiwan online)
+9. 屈臣氏 (Watsons Taiwan online)
+10. 康是美 (Cosmed online)
+
+Slot 1 starts at retailer 1. Each later retailer slot starts at the retailer after the one that supplied the previous retailer label, wrapping from 10 to 1. For the slot: on the current retailer, run the site's own search with the category's term, keep the site's default sort (record its name), and open the results **in listed order**, page after page, up to the first 20 results. A tile marked as an advertisement (廣告, 贊助, AD) is not a result. The first result that is eligible (12.2.4) fills the slot. If none of the first 20 is eligible, or the search returns nothing, the retailer is **exhausted for this category** (logged) and the slot moves to the next retailer in the list. A retailer that has supplied 2 labels is skipped (`site_cap`).
+
+**Manufacturer slots (16 to 20) and PDF slots (21 to 24)**, in slot order: a web search on Google, signed out, in a private window, with the interface in Traditional Chinese and the region set to Taiwan. The query is the category's term followed by ` 營養標示` (manufacturer slots), or by ` 營養標示 filetype:pdf` (PDF slots). Open the organic results in listed order, up to the first 30; ads, "People also ask", image, video and shopping blocks are not results. A manufacturer slot takes the first eligible page on the brand owner's own site (the brand on the product is the site's owner, as its header, footer or about page states); a retailer, marketplace, news, blog, forum or recipe page is skipped `not_source_kind`. A PDF slot takes the first eligible PDF (served as a PDF) whose nutrition table has a text layer, from a manufacturer, importer or retailer. A site that has supplied 2 labels is skipped (`site_cap`), across all kinds.
+
+**Fallbacks**, applied in this order and each logged:
+
+1. A manufacturer or PDF slot with no eligible result in its first 30 becomes a retailer slot of the same category, filled by the retailer procedure in its slot position (`kind_fallback`).
+2. A retailer slot for which every retailer is exhausted or capped is left unfilled (`slot_unfilled`).
+3. If fewer than 24 labels are collected after slot 24, the slot table is walked again from slot 1, filling only unfilled slots and then, while still short, adding one more label per slot in slot order, under the same procedure and caps, until there are 24 labels or a full walk adds none.
+4. Fewer than 20 labels after that: stop. There is no run; the shortfall and the skip counts are reported, and the protocol is amended in a new commit before any further collection.
+
+**Recorded outside the repository for every result opened:** the slot, the site, the search term, the sort, the result position, the time, and either the label ID it became or its skip reason. Search results pages are saved as screenshots.
+
+#### 12.2.4 Eligibility and skip reasons
+
+A result is **eligible** when all of these hold:
+
+1. it is a food sold in Taiwan, with a page in Traditional Chinese and a Taiwan nutrition table (營養標示, or a table with the Taiwan template's rows in Chinese);
+2. the nutrition table is **selectable text**: in the page's HTML, or in a PDF's text layer. A table that is only an image (or only inside an image of the pack) is not;
+3. it is not in the development set (12.2.1) and not a duplicate of a label already collected (same brand and product name; a different pack size is a duplicate, a different flavour is not);
+4. it is not a supplement: no capsules, tablets, powders sold as 保健食品, 營養補充品 or 膳食補充品, no infant formula and no food for special medical purposes;
+5. it is in its slot's category (12.2.2);
+6. the page opens without a login, a CAPTCHA or a regional block;
+7. its site has supplied fewer than 2 labels.
+
+**Skip reasons (closed list):** `table_image`, `no_nutrition_table`, `blocked`, `duplicate`, `development_set`, `non_taiwan`, `supplement`, `wrong_category`, `not_source_kind`, `site_cap`, `other` (with a one-line note). A page holding two or more panels (two flavours) is eligible: it is a layout as it occurs.
+
+**Saving an eligible label.** On the product page as it loads (the default variant when the page has a selector):
+
+1. a full-page screenshot, and a screenshot in which the whole nutrition table is legible (for a PDF, the page or pages holding the table, as images);
+2. the **pasted text**: select from the first line of the nutrition section (the 營養標示 title or, with no title, the first serving line or column heading) to the last line of the table, including footnotes directly under it, copy with the system copy command in Safari on macOS (Preview for a PDF), and save the clipboard's plain text exactly as copied, in UTF-8, with no edit of any kind;
+3. `source.json`: the label ID (F01, F02, … in collection order), slot, category, page kind, site name, page address, time of capture, and the SHA-256 of the text file.
+
+The **text bundle** is then sealed: a file listing `<sha256>  <label ID>/text.txt` for every label, sorted by label ID, and the SHA-256 of that listing, recorded with the UTC time in `seals.txt`. From that moment the texts are frozen: no text is edited, added or removed.
+
+#### 12.2.5 Blind transcription (decision 22)
+
+The transcriber, in a session of its own, receives only each label's screenshots, its PDF page images where present, its pasted text and these instructions; nothing else from the run folder, and no access to this repository's sources, tests, Developer tools or the development set's files. For each label it writes one file, `transcription/<label ID>.json`, holding what the **label as shown in the screenshot** prints (the screenshot decides where the pasted text differs; each difference is listed in a `text_differs` note):
+
+- the serving size as printed (number and unit, or "not printed") and the servings per pack as printed (number, with any 約, or "not printed");
+- each column: its heading as printed and its basis (`per_serving`, `per_100g`, `per_100ml`, `reference_intake`), or "heading not printed";
+- each row in printed order: the printed label, the nutrient it is from the closed list (energy kcal, energy kJ, protein, fat, saturated fat, trans fat, carbohydrate, sugars, added sugars, fibre, sodium, or "other"), and for each column the value as printed: comparator (`=`, `<`, `<=`), number as printed, unit as printed, or "not printed".
+
+When every file is written, the **transcription bundle** is sealed the same way as the text bundle (sorted per-file SHA-256 listing, then the listing's SHA-256), with the UTC time, in `seals.txt`. This is **seal 1**, recorded before any reader run.
+
+#### 12.2.6 Owner verification
+
+The owner checks each transcription against its source on a local **review page** (an HTML file in the private run folder, never published): for each label, the screenshots, the pasted text and the transcription side by side, with a mark per value ("as printed" or "corrected to …"). The page states seal 1's hash at the top. There is no reader output anywhere on it, because the reader has not run.
+
+Every owner correction is logged in `transcription-corrections.json` (label, value, before, after, reason) as a **transcription correction**, never as a reader result, and applied to the transcription file. When the owner has verified every label, the verified bundle is sealed again (**seal 2**). The run may start only after seal 2.
+
+#### 12.2.7 The run
+
+1. **Build.** Check out the freeze reference and build the reader harness (a small executable outside the repository that runs the app's Read label decision: `PastedLabelReader` with `NutritionLabelTextReader` and `SHA256Digester`, writing one JSON result per text). Record the commit and the harness's own SHA-256.
+2. **Basis choices without judgement.** When the outcome is "needs a basis choice", the harness chooses the arrangement whose bases equal the verified transcription's column bases (seal 2), through the application's choosing step. When the transcription says the heading is not printed on the label either, or its bases are not among the options offered, the label counts as **declined** (`basis_not_sure` or `basis_not_offered`), as "I'm not sure" would end it.
+3. **One run** is one execution of the harness over every frozen text. An **infrastructure failure** (a build, tool or machine failure that produces no reader output for a label) is rerun with **no change** to code, harness, texts or transcriptions, for the labels that have no output; each attempt is recorded in `run-log.txt`. Any output the reader produced counts, and its results stand.
+4. **Device build.** The owner pastes each frozen text into a build of the freeze reference on the owner's iPhone (the distribution of 5.1, which the freeze allows) and records, per label, the outcome and every value Confirm shows. Each displayed value is compared in the same way as the harness's, and the device's outcome must equal the harness's; a difference is reported as a defect.
+
+#### 12.2.8 Scoring and the bar
+
+**A value checked** is every value the reader binds in a table that reaches Confirm (every cell in every column, the serving size and the pack count), compared with the verified transcription for the same row, column, basis and unit. A **wrong value** is one whose comparator, number (exact decimal equality) or canonical unit differs from the transcription, or one bound where the transcription says "not printed". A row the reader leaves "Not read" is not a wrong value; it counts toward the correction burden.
+
+**The bar (gating): zero wrong values** in every table that reaches Confirm, harness and device build alike, including values under a basis chosen as in 12.2.7 item 2. **Any wrong value fails the check:** release stops, the fix is a new parser version (or a new version of whichever frozen component caused it), and **the set is spent**: it becomes development evidence, and the next release check needs a new fresh set, collected under a protocol committed with that version's freeze.
+
+**Reported, not gating** (repository counts only):
+
+- **decline rate**: labels declined (including `basis_not_sure` and `basis_not_offered`) out of all labels, with counts by reason; goal **at most 25%** (decision 16);
+- **correction burden**: per accepted table, the stored column's ledger values (energy, protein, fat, saturated fat, carbohydrate, sugars, fibre, sodium) that the label prints but Confirm leaves unread, plus the serving size and pack count printed but not read; the mean, the **median (goal at most 1)** and the share of tables needing any;
+- rows "Printed but not read", basis choices needed, flags and warnings shown, by code;
+- the **statistical limit**: with n values checked and zero wrong, the per-value wrong-value rate is below 3/n with 95% confidence (the rule of three); with t tables reaching Confirm and none wrong, the per-table rate is below 3/t. The report states both with the actual n and t, and never claims a zero rate.
+
+Missing the decline or burden goal does not block release when the bar passes; it is reported and informs the next version.
+
+### 12.3 Privacy (decision 20)
+
+All real-text material lives in one private folder, **outside every git checkout and outside synced cloud storage**: `~/WHR-label-eval-private/reader-v3-fresh-set/`, with `excluded-development-set.json`, `collection/` (per-label folders, the skip log, search screenshots), `seals.txt`, `transcription/`, `transcription-corrections.json`, `review/`, `run/` and `results/`. Texts, screenshots, page addresses, product names, transcriptions, per-label results and **every hash** (text, bundle and seal hashes) stay there. Tools write only there. Seal hashes appear only in `seals.txt` and on the private review page; the release-check pull request states that seal 1 and seal 2 were "recorded before the run", with their dates, and never quotes a hash.
+
+The **repository** receives counts only: labels collected by category and page kind, candidates opened, skips by reason, development-set exclusions, fallbacks used, and the results of 12.2.8; plus the freeze reference commit and the dates of seal 1, seal 2 and the run. Every pull request touching the fresh set carries the checklist item of 1.4.
+
+### 12.4 Next
+
+Step 5b, after this freeze merges: build the exclusion list, collect under 12.2, transcribe, verify, run once and report counts in a results file and in the release-check pull request, with the `docs/releases/unreleased.md` row.
+
+### 12.5 Carried from the final review of #284 (presentation only, in the freeze commit)
+
+None of these changes a frozen version.
+
+- **A failed choice is said after the sheet has gone.** Choosing clears the sheet before the failure is known, and an alert raised on the presenting screen while its sheet is still dismissing can be dropped. The failure now waits in the view model and is raised from the sheet's `onDismiss` (`basisSheetDidDisappear`), for the first sheet ("This choice could not be applied. …") and for Change ("The values could not be changed. …") alike; closing the screen drops a waiting failure.
+- **"Before you log"** is shown through `FoodConfirmationView.showsBeforeLog(pinsOnlyLog:…)` with the view's own `pinsOnlyLog`, so the tested function and the view use one condition.
+- **The Change sheet's note.** `PastedLabelBasisSheetView.offersSearch(hasSearch:fromChange:)` is the one condition for the Search button and the footer's note, with a view-level test on the first sheet and the Change sheet.
+- **`at` wording.** The 1 µs tolerance of `PastedLabelBasisChoice.milliseconds` is stated exactly (8.4.6, 8.4.16), with boundary tests.

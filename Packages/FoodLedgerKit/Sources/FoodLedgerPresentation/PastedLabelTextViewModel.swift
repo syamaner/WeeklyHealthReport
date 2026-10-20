@@ -51,9 +51,17 @@ public final class PastedLabelTextViewModel: ObservableObject {
     /// "Changing what the values are for replaces your corrections." is showing (from Change).
     @Published public var asksToReplaceCorrectionsOnBasisChange = false
     /// Change chose an option whose source could not be built: Confirm keeps the earlier choice.
+    /// Set once the sheet has gone (`basisSheetDidDisappear`), so the sheet's own dismissal never
+    /// drops the alert.
     @Published public var basisChangeFailed = false
-    /// The first choice could not be applied: nothing was written and the text is kept.
+    /// The first choice could not be applied: nothing was written and the text is kept. Set once
+    /// the sheet has gone, as above.
     @Published public var basisChoiceFailed = false
+    /// A failed choice waiting for the sheet to finish dismissing (carried from the final review
+    /// of #284): `apply` clears the sheet first, and an alert raised on the presenting screen
+    /// while its sheet is still dismissing can be dropped.
+    private enum PendingFailure { case choice, change }
+    private var pendingFailure: PendingFailure?
     private var pendingArrangement: PastedLabelBasisOptions.Arrangement?
     /// The request the current Confirm's choice was made on, bound to its text (8.4.9).
     private var confirmRequest: PastedLabelBasisChoiceRequest?
@@ -237,7 +245,7 @@ public final class PastedLabelTextViewModel: ObservableObject {
         guard let choose, let review = try? choose(arrangement, request) else {
             // Never silent (final review of #284): from Change the earlier choice is kept and
             // said so; after Read label nothing was written and the text stays.
-            if sheet.fromChange { basisChangeFailed = true } else { basisChoiceFailed = true }
+            pendingFailure = sheet.fromChange ? .change : .choice
             return nil
         }
         // From Change, Confirm keeps its model (amount and time stay) with the new review. If the
@@ -247,7 +255,7 @@ public final class PastedLabelTextViewModel: ObservableObject {
             do {
                 try confirm.replace(review: review)
             } catch {
-                basisChangeFailed = true
+                pendingFailure = .change
                 return nil
             }
             recordDiagnostics(["Pasted label basis changed: " + arrangement.identifier])
@@ -278,6 +286,17 @@ public final class PastedLabelTextViewModel: ObservableObject {
         basisSheet = nil
         pendingArrangement = nil
         asksToReplaceCorrectionsOnBasisChange = false
+    }
+
+    /// The sheet has finished dismissing (its `onDismiss`, however it closed): a failed choice is
+    /// now said, on the screen that presented the sheet.
+    public func basisSheetDidDisappear() {
+        guard basisSheet == nil, let failure = pendingFailure else { return }
+        pendingFailure = nil
+        switch failure {
+        case .choice: basisChoiceFailed = true
+        case .change: basisChangeFailed = true
+        }
     }
 
     /// Change on Confirm's basis line: the sheet with nothing preselected and the current choice
@@ -334,6 +353,7 @@ public final class PastedLabelTextViewModel: ObservableObject {
         confirmRequest = nil
         basisSheet = nil
         pendingArrangement = nil
+        pendingFailure = nil
         asksToReplaceCorrections = false
         asksToReplaceCorrectionsOnBasisChange = false
         recordDiagnostics([])

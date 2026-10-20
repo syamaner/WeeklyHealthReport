@@ -763,9 +763,11 @@ struct PastedLabelFlowView: View {
                     // replaced the path): the flow has ended, so nothing is kept.
                     .onDisappear { model.confirmDisappeared(stillPushed: showsConfirmation) }
                     // Reader v3 8.4.9: Change on Confirm's basis line. Dismissing keeps the
-                    // choice on Confirm; "I'm not sure" drops Confirm and keeps the text.
+                    // choice on Confirm; "I'm not sure" drops Confirm and keeps the text. A failed
+                    // change is said once the sheet has gone (onDismiss), never dropped by it.
                     .sheet(item: Binding(get: { model.basisSheet.flatMap { $0.fromChange ? $0 : nil } },
-                                         set: { if $0 == nil { model.basisSheetDismissed() } })) { _ in
+                                         set: { if $0 == nil { model.basisSheetDismissed() } }),
+                           onDismiss: { model.basisSheetDidDisappear() }) { _ in
                         PastedLabelBasisSheetView(model: model, open: open, closeConfirm: { showsConfirmation = false })
                     }
                     .alert(PastedLabelText.basisChangeFailed, isPresented: $model.basisChangeFailed) {

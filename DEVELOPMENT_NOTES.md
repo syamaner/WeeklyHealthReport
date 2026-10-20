@@ -2439,3 +2439,19 @@ Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 21
 Boundary: `phase_usage.py --format claude --since 2026-10-20T17:32:44Z --until 2026-10-20T17:43:35Z`. Cache writes: 30,399 5-minute, 0 1-hour. Exact API-equivalent USD 3.695907 at the recorded counts. The output count is a lower bound: 41 of the 51 messages in this window record at most 32 output tokens, so the total and the API-equivalent figure are lower bounds too. The reviewers' and QA agents' usage is not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-21a: Claude Code pasted nutrition label reader v3 freeze (step 5a)
+
+One implementation subagent, its own transcript (`subagents/agent-a52730ba6529ab9db.jsonl`), for reader v3 step 5a (`docs/pasted-nutrition-label-reader-v3.md` section 12): the freeze of parser v3, `taiwan-row-aliases-v1`, checks v2, serving v3 and manifest v2 with `ReaderV3FreezeTests`, the fresh-set protocol (12.2), the carry-overs from the final review of #284 and one full gate run. No label was collected and nothing ran on real data.
+
+Runs from the phase's start (`2026-10-20T17:56:32Z`, captured with `date -u`) to `2026-10-20T18:30:35Z`, just before this ledger edit.
+
+Pricing: re-checked on 21 October 2026 (local date) against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output, unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 freeze (#93), implementation subagent | 19,905,582 (19,416,501) | 488,899 | ≥ 15,725 (lower bound) | ≥ 19,921,307 | $6.64 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-20T17:56:32Z --until 2026-10-20T18:30:35Z` on the subagent transcript alone. Cache writes: 488,899 5-minute, 0 1-hour. Exact API-equivalent USD 6.6430232 at the recorded counts. The output count is a lower bound: 133 of the 164 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The orchestrating session and any reviewers are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

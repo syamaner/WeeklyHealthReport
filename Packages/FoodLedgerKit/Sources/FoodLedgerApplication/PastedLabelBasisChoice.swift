@@ -107,17 +107,22 @@ public struct PastedLabelBasisChoice: Equatable, Sendable {
     public let arrangement: PastedLabelBasisOptions.Arrangement
     /// The arrangement identifiers offered, in order.
     public let offered: [String]
-    /// Whole milliseconds since 1970, truncated from the injected clock at the choice.
+    /// Whole milliseconds since 1970 from the injected clock at the choice, by `milliseconds(_:)`:
+    /// truncated, except within 1 µs of a whole millisecond.
     public let at: Int64
 
     public init(arrangement: PastedLabelBasisOptions.Arrangement, offered: [String], at: Int64) {
         self.arrangement = arrangement; self.offered = offered; self.at = at
     }
 
-    /// Truncation to whole milliseconds (gate re-check, medium 3).
-    /// A value within a microsecond of a whole millisecond is that millisecond, so a date that
-    /// went through a millisecondsSince1970 Double round trip (and may land a hair below its
-    /// millisecond) gives the same whole milliseconds on both sides of `at <= capturedAt`.
+    /// Whole milliseconds (gate re-check, medium 3): the value is truncated toward the earlier
+    /// millisecond, with one tolerance. A value less than 1 µs (0.001 ms) from a whole millisecond,
+    /// on either side, is that millisecond; so a value up to 1 µs **below** a whole millisecond
+    /// rounds **up** to it rather than truncating to the one before. This is the only case in which
+    /// the result is later than the date. It exists because a date that went through the store's
+    /// millisecondsSince1970 Double round trip may land a hair below its millisecond, and both
+    /// sides of `at <= capturedAt` must give the same whole milliseconds. A sub-millisecond part of
+    /// 1 µs or more is always truncated.
     public static func milliseconds(_ date: Date) -> Int64 {
         let value = date.timeIntervalSince1970 * 1000
         let nearest = value.rounded()
