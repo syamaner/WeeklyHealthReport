@@ -12,6 +12,17 @@ public struct PastedLabelTextView: View {
     private let scanBarcode: (() -> Void)?
     private let leave: () -> Void
     @State private var report: PastedLabelMisreadPreviewModel?
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
+    private var fortifiedPicker: some View {
+        Picker(PastedLabelText.fortifiedQuestion, selection: $model.fortification) {
+            Text("Not answered").tag(PastedLabelIdentity.FortificationAnswer.unanswered)
+            Text("Yes").tag(PastedLabelIdentity.FortificationAnswer.yes)
+            Text("No").tag(PastedLabelIdentity.FortificationAnswer.no)
+        }
+        .frame(minHeight: 44)
+        .accessibilityHint(PastedLabelText.fortifiedHelp)
+    }
 
     public init(model: PastedLabelTextViewModel, openConfirm: @escaping (PastedLabelSourceModel) -> Void,
                 search: (() -> Void)? = nil, scanBarcode: (() -> Void)? = nil, leave: @escaping () -> Void) {
@@ -28,13 +39,13 @@ public struct PastedLabelTextView: View {
                 TextField(PastedLabelText.brandField, text: $model.brand)
                     .accessibilityLabel("Brand, optional")
                     .frame(minHeight: 44)
-                Picker(PastedLabelText.fortifiedQuestion, selection: $model.fortification) {
-                    Text("Not answered").tag(PastedLabelIdentity.FortificationAnswer.unanswered)
-                    Text("Yes").tag(PastedLabelIdentity.FortificationAnswer.yes)
-                    Text("No").tag(PastedLabelIdentity.FortificationAnswer.no)
+                // #282: at accessibility sizes the menu picker truncated its value ("Not a…ered");
+                // the inline style lists every answer in full on its own row.
+                if dynamicTypeSize.isAccessibilitySize {
+                    fortifiedPicker.pickerStyle(.inline)
+                } else {
+                    fortifiedPicker
                 }
-                .frame(minHeight: 44)
-                .accessibilityHint(PastedLabelText.fortifiedHelp)
             } header: { Text("Food") } footer: { Text(PastedLabelText.fortifiedHelp) }
 
             if !model.declineMessages.isEmpty {
@@ -96,6 +107,92 @@ public struct PastedLabelTextView: View {
             Button(PastedLabelText.cancel, role: .cancel) { model.cancelReadAgain() }
         }
         .sheet(item: $report) { PastedLabelMisreadPreviewSheet(model: $0) { report = nil } }
+        .alert(PastedLabelText.basisChoiceFailed, isPresented: $model.basisChoiceFailed) {
+            Button("OK", role: .cancel) {}
+        }
+        // Reader v3 8.4.8: the basis sheet after Read label (Change presents it over Confirm).
+        .sheet(item: Binding(get: { model.basisSheet.flatMap { $0.fromChange ? nil : $0 } },
+                             set: { if $0 == nil { model.basisSheetDismissed() } })) { _ in
+            PastedLabelBasisSheetView(model: model, open: openConfirm, search: search, closeConfirm: {})
+        }
+    }
+}
+
+/// The basis sheet (reader v3 sections 3.3 and 8.4.8): "These values have no column heading.
+/// What are they for?" It renders the application's options in order, each with its warning,
+/// with nothing preselected; the hint is shown and never chosen. "I'm not sure" goes back to the
+/// label text. Native grouped style, 44 pt targets, VoiceOver labels.
+public struct PastedLabelBasisSheetView: View {
+    @ObservedObject private var model: PastedLabelTextViewModel
+    private let open: (PastedLabelSourceModel) -> Void
+    private let search: (() -> Void)?
+    /// Closes Confirm when "I'm not sure" from Change drops it.
+    private let closeConfirm: () -> Void
+
+    public init(model: PastedLabelTextViewModel, open: @escaping (PastedLabelSourceModel) -> Void,
+                search: (() -> Void)? = nil, closeConfirm: @escaping () -> Void) {
+        self.model = model; self.open = open; self.search = search; self.closeConfirm = closeConfirm
+    }
+
+    public var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(PastedLabelText.basisQuestion)
+                    if let hint = model.basisHint {
+                        Label(hint, systemImage: "info.circle").font(.subheadline)
+                            .accessibilityIdentifier("pastedLabel.basisHint")
+                    }
+                }
+                Section {
+                    ForEach(model.basisOptions) { option in
+                        Button {
+                            if let confirm = model.chooseBasis(option.arrangement) { open(confirm) }
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(option.title)
+                                if option.isCurrent {
+                                    // Primary, not the button's tint or secondary: readable in light and dark mode.
+                                    Text(PastedLabelText.currentChoice).font(.caption.weight(.semibold)).foregroundStyle(Color.primary)
+                                }
+                                ForEach(option.warnings, id: \.self) { warning in
+                                    Label(warning, systemImage: "exclamationmark.triangle").font(.caption)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                        }
+                        .accessibilityLabel(([option.title] + (option.isCurrent ? [PastedLabelText.currentChoice] : []) + option.warnings)
+                            .joined(separator: ", "))
+                        .accessibilityIdentifier("pastedLabel.basis." + option.id)
+                    }
+                    if model.perServingUnavailable {
+                        Text(PastedLabelText.perServingUnavailable).font(.footnote).foregroundStyle(.secondary)
+                    }
+                }
+                Section {
+                    Button(PastedLabelText.basisNotSure) {
+                        if model.basisNotSure() { closeConfirm() }
+                    }
+                    .frame(minHeight: 44)
+                    .accessibilityIdentifier("pastedLabel.basisNotSure")
+                    if let search, model.basisSheet?.fromChange != true {
+                        Button(PastedLabelText.searchInstead) {
+                            model.basisSheetDismissed()
+                            search()
+                        }
+                        .frame(minHeight: 44)
+                    }
+                } footer: { Text(PastedLabelText.basisNotSureNote(offersSearch: search != nil && model.basisSheet?.fromChange != true)) }
+            }
+            .navigationTitle(PastedLabelText.basisSheetTitle)
+            .pastedLabelInlineTitle()
+            .alert(PastedLabelText.replaceCorrectionsOnBasisChange, isPresented: $model.asksToReplaceCorrectionsOnBasisChange) {
+                Button(PastedLabelText.changeBasisConfirm, role: .destructive) {
+                    if let confirm = model.confirmBasisChange() { open(confirm) }
+                }
+                Button(PastedLabelText.cancel, role: .cancel) { model.cancelBasisChange() }
+            }
+        }
     }
 }
 
@@ -114,6 +211,18 @@ struct PastedLabelSourceSections: View {
                 .font(.subheadline)
                 .accessibilityLabel(PastedLabelText.disclaimer)
             Text(model.sourceLine).font(.subheadline).foregroundStyle(.secondary)
+                .accessibilityIdentifier("pastedLabel.sourceLine")
+            // Reader v3 8.4.11 and decision 24: the energy line's note when it differed from the
+            // choice, never a block; Change reopens the basis sheet.
+            if let note = model.basisHintNote {
+                Label(note, systemImage: "info.circle").font(.caption)
+            }
+            if model.canChangeBasis, let changeBasis = model.changeBasis, editLabelText != nil {
+                Button(PastedLabelText.changeBasis, action: changeBasis)
+                    .frame(minHeight: 44)
+                    .accessibilityLabel("Change what the values are for")
+                    .accessibilityIdentifier("pastedLabel.changeBasis")
+            }
             if let basisFlag = model.basisFlag {
                 Label(basisFlag, systemImage: "exclamationmark.triangle").font(.subheadline)
             }

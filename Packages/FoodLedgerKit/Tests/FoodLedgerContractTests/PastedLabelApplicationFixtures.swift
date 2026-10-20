@@ -75,8 +75,29 @@ final class StubLabelTextReader: LabelTextReading, @unchecked Sendable {
 
     var calls: Int { lock.withLock { _calls } }
 
-    func read(_ text: String, textSHA256: String) -> LabelReading {
+    func read(_ text: String, textSHA256: String, assertedBases: AssertedBases?) -> LabelReading {
         lock.withLock { _calls += 1 }
         return reading
+    }
+}
+
+/// A `LabelTextReading` that returns a reading per asserted arrangement and records the bases it
+/// received, so a test proves the application passes them through the port (reader v3 8.4.2).
+final class ScriptedLabelTextReader: LabelTextReading, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _received: [AssertedBases?] = []
+    let unasserted: LabelReading
+    let asserted: [String: LabelReading]
+
+    init(unasserted: LabelReading, asserted: [String: LabelReading]) {
+        self.unasserted = unasserted; self.asserted = asserted
+    }
+
+    var received: [AssertedBases?] { lock.withLock { _received } }
+
+    func read(_ text: String, textSHA256: String, assertedBases: AssertedBases?) -> LabelReading {
+        lock.withLock { _received.append(assertedBases) }
+        guard let assertedBases else { return unasserted }
+        return asserted[PastedLabelBasisOptions.Arrangement(assertedBases.columns).identifier] ?? unasserted
     }
 }

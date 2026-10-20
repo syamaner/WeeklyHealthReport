@@ -35,6 +35,9 @@ public enum PastedLabelSource {
     public static let parserVersion = parserVersionV3
     public static let gateVersion = "label-capture-decline-gate-v2"
     public static let arithmeticVersion = "label-arithmetic-checks-v1"
+    /// Checks v1 plus the basis plausibility check, for a read with asserted bases (reader v3
+    /// section 8.4.4, decision 5); written only under manifest v2.
+    public static let arithmeticVersionV2 = "label-arithmetic-checks-v2"
     public static let conversionVersion = "pasted-label-conversions-v1"
 
     /// Closed and append-only: each manifest version is tied to its admitted pipelines,
@@ -44,6 +47,9 @@ public enum PastedLabelSource {
         PastedLabelManifest.version: [
             [parserVersionV2, gateVersion, arithmeticVersion, conversionVersion].joined(separator: ":"),
             [parserVersionV3, gateVersion, arithmeticVersion, conversionVersion].joined(separator: ":")
+        ],
+        PastedLabelManifestV2.version: [
+            [parserVersionV3, gateVersion, arithmeticVersionV2, conversionVersion].joined(separator: ":")
         ]
     ]
 
@@ -63,13 +69,18 @@ public enum PastedLabelSource {
         "salt_to_sodium_v1": Rule(nutrient: "sodium", sourceNutrient: "salt", sourceUnit: "g", operandUnit: "g_salt", factorText: "2.5")
     ]
 
-    public static func pipeline(_ manifest: PastedLabelManifest) -> String {
+    public static func pipeline(_ manifest: PastedLabelEvidenceManifest) -> String {
         [manifest.parserVersion, manifest.gateVersion, manifest.arithmeticVersion, manifest.conversionVersion].joined(separator: ":")
     }
 
-    public static func schemaVersion(_ manifest: PastedLabelManifest) -> String {
-        PastedLabelManifest.version + ":" + manifest.labelFormat
+    public static func pipeline(_ manifest: PastedLabelManifest) -> String { pipeline(.v1(manifest)) }
+
+    /// `<manifest version>:<format>`: `pasted-nutrition-label-v1:…` or `pasted-nutrition-label-v2:…`.
+    public static func schemaVersion(_ manifest: PastedLabelEvidenceManifest) -> String {
+        manifest.version + ":" + manifest.labelFormat
     }
+
+    public static func schemaVersion(_ manifest: PastedLabelManifest) -> String { schemaVersion(.v1(manifest)) }
 
     public static func manifestReference(hash: SHA256Digest, cell: PastedLabelManifest.Candidate.Cell) -> String {
         "manifest-sha256=\(hash.value);header=\(cell.headerID);row=\(cell.rowID);literal=\(cell.printedText)"
@@ -87,11 +98,20 @@ public enum PastedLabelSource {
     public static func confirmation(manifest: PastedLabelManifest, evidenceID: EvidenceID, capturedAt: Date, locale: LedgerText,
                                     encoder: any CanonicalEncoding, digester: any Digesting,
                                     conversions: (any PastedLabelConversionChecking)?) throws -> PopulatedFoodConfirmation {
+        try confirmation(manifest: .v1(manifest), evidenceID: evidenceID, capturedAt: capturedAt, locale: locale,
+                         encoder: encoder, digester: digester, conversions: conversions)
+    }
+
+    /// As above for either manifest version: the evidence's capture-method version is the
+    /// manifest's own (reader v3 section 8.4.6).
+    public static func confirmation(manifest: PastedLabelEvidenceManifest, evidenceID: EvidenceID, capturedAt: Date, locale: LedgerText,
+                                    encoder: any CanonicalEncoding, digester: any Digesting,
+                                    conversions: (any PastedLabelConversionChecking)?) throws -> PopulatedFoodConfirmation {
         let manifestData = try encoder.encode(manifest)
         guard isCanonical(manifestData, encoder: encoder) else { throw PastedLabelSourceError.invalidManifest("canonical bytes") }
         let manifestHash = try digester.sha256(manifestData)
         let evidence = try CaptureEvidence(evidenceID: evidenceID, kind: .labelText, capturedAt: capturedAt, locale: locale,
-            captureMethod: LedgerText(captureMethod), captureMethodVersion: LedgerText(PastedLabelManifest.version),
+            captureMethod: LedgerText(captureMethod), captureMethodVersion: LedgerText(manifest.version),
             originalPayload: .text(LedgerText(String(decoding: manifestData, as: UTF8.self))), byteHash: manifestHash)
         let release = try SourceRelease(sourceReleaseID: ExternalIdentifier("pasted-label:" + manifestHash.value),
             sourceID: ExternalIdentifier(sourceID), releasedAt: capturedAt,
@@ -115,21 +135,24 @@ public enum PastedLabelSource {
               release.sourceID.value == sourceID,
               source.evidenceIDs.count == 1,
               let evidence = input.evidence.first(where: { $0.evidenceID == source.evidenceIDs[0] }),
-              evidence.kind == .labelText, evidence.captureMethodVersion.value == PastedLabelManifest.version,
+              evidence.kind == .labelText, PastedLabelEvidenceManifest.isVersion(evidence.captureMethodVersion.value),
               evidence.captureMethod.value == captureMethod, evidence.attachment == nil,
               case let .text(payload) = evidence.originalPayload else { return false }
         let data = Data(payload.value.utf8)
+        // The decoded version must be the evidence's own: a v1 manifest relabelled v2, or the
+        // reverse, fails (reader v3 section 8.4.6).
         guard let hash = try? digester.sha256(data), evidence.byteHash == hash, release.manifestHash == hash,
-              isCanonical(data, encoder: encoder), let manifest = PastedLabelManifest.decode(data),
+              isCanonical(data, encoder: encoder), let manifest = PastedLabelEvidenceManifest.decode(data),
+              manifest.version == evidence.captureMethodVersion.value,
               let expected = try? expectedCandidate(manifest: manifest, release: release, evidence: evidence,
                                                     digester: digester, conversions: conversions) else { return false }
         return expected == candidate
     }
 
-    /// Canonical bytes only: the stored bytes must decode as a strict v1 manifest and re-encode
-    /// to exactly themselves (no other whitespace, key order or escaping is admitted).
+    /// Canonical bytes only: the stored bytes must decode as a strict manifest of a known version
+    /// and re-encode to exactly themselves (no other whitespace, key order or escaping is admitted).
     public static func isCanonical(_ data: Data, encoder: any CanonicalEncoding) -> Bool {
-        guard let manifest = PastedLabelManifest.decode(data), let encoded = try? encoder.encode(manifest) else { return false }
+        guard let manifest = PastedLabelEvidenceManifest.decode(data), let encoded = try? encoder.encode(manifest) else { return false }
         return encoded == data
     }
 
@@ -141,7 +164,7 @@ public enum PastedLabelSource {
         guard source.evidenceIDs.count == 1,
               let evidence = input.evidence.first(where: { $0.evidenceID == source.evidenceIDs[0] }),
               case let .text(payload) = evidence.originalPayload,
-              let manifest = PastedLabelManifest.decode(Data(payload.value.utf8)) else {
+              let manifest = PastedLabelEvidenceManifest.decode(Data(payload.value.utf8)) else {
             throw PastedLabelSourceError.invalidManifest("evidence")
         }
         // Variant, barcode and pack facts are never part of a pasted label's source candidate; a
@@ -151,7 +174,7 @@ public enum PastedLabelSource {
     }
 
     /// The candidate a manifest yields, after checking the release and evidence it is bound to.
-    static func expectedCandidate(manifest: PastedLabelManifest, release: SourceRelease, evidence: CaptureEvidence,
+    static func expectedCandidate(manifest: PastedLabelEvidenceManifest, release: SourceRelease, evidence: CaptureEvidence,
                                   digester: any Digesting, conversions: (any PastedLabelConversionChecking)?) throws -> PopulatedFoodCandidate {
         let hash = release.manifestHash
         guard release.sourceID.value == sourceID,
@@ -169,6 +192,7 @@ public enum PastedLabelSource {
               manifest.launchScope.contains(manifest.labelFormat) else {
             throw PastedLabelSourceError.invalidManifest("release")
         }
+        try checkBasisChoices(manifest, evidence: evidence)
         let basis = try storedBasis(manifest)
         guard manifest.identityMapping.isCoherent(servingBasis: basis) else { throw PastedLabelSourceError.invalidManifest("identity") }
         let nutrients = try expectedNutrients(manifest: manifest, basis: basis, hash: hash, release: release,
@@ -187,7 +211,66 @@ public enum PastedLabelSource {
     /// column with a readable serving size (or one the user entered, recorded as a correction)
     /// is `perServing(quantity)`. Without one it is settled as `perServing(1 count)`: values per
     /// one serving, with no weight or volume, so only an amount in servings can scale it.
-    public static func storedBasis(_ manifest: PastedLabelManifest) throws -> ResolutionBasis {
+    public static func storedBasis(_ manifest: PastedLabelManifest) throws -> ResolutionBasis { try storedBasis(.v1(manifest)) }
+
+    public static func servingSizeCorrection(_ manifest: PastedLabelManifest) throws -> PositiveQuantity? {
+        try servingSizeCorrection(.v1(manifest))
+    }
+
+    // MARK: Basis choices (reader v3 section 8.4.6)
+
+    /// The verification each manifest version adds about its amount headers' bases:
+    ///
+    /// - v1: every amount header has printed text (a chosen basis needs manifest v2), and
+    ///   `basis_hint:energy_line` is never shown;
+    /// - v2: every amount header is asserted (empty printed text, no serving conversion), one
+    ///   `basis_choices` record per amount header in header order with its basis; `offered` and
+    ///   `at` the same on every record; `offered` equal to the options function on the stored
+    ///   candidate and holding the chosen arrangement; `at` no later than the evidence's capture;
+    ///   asserted per-serving cells carry the serving size's conversion (or `unknown`), as the
+    ///   parser writes for a per-serving header with none; and `basis_hint:energy_line` only with
+    ///   exactly one hint warning on the candidate, after every other warning code.
+    static func checkBasisChoices(_ manifest: PastedLabelEvidenceManifest, evidence: CaptureEvidence) throws {
+        let candidate = manifest.candidate
+        let amount = candidate.headers.filter { $0.basis != "reference_intake" }
+        let reference = candidate.headers.filter { $0.basis == "reference_intake" }
+        let shown = manifest.warningsShown.filter { $0 == PastedLabelCodes.basisHintShown }
+        switch manifest {
+        case .v1:
+            guard amount.allSatisfy({ !$0.printedText.isEmpty }), shown.isEmpty else {
+                throw PastedLabelSourceError.invalidManifest("v1 basis")
+            }
+        case let .v2(m):
+            let choices = m.basisChoices
+            guard !amount.isEmpty, amount.allSatisfy({ $0.printedText.isEmpty && $0.servingConversion == nil }),
+                  reference.allSatisfy({ !$0.printedText.isEmpty }),
+                  choices.count == amount.count,
+                  zip(choices, amount).allSatisfy({ $0.headerID == $1.headerID && $0.basis == $1.basis }),
+                  let first = choices.first, choices.allSatisfy({ $0.offered == first.offered && $0.at == first.at }),
+                  let options = PastedLabelBasisOptions.options(for: candidate), options.map(\.identifier) == first.offered else {
+                throw PastedLabelSourceError.invalidManifest("basis choices")
+            }
+            let chosen = choices.compactMap { AssertedBases.Basis(rawValue: $0.basis) }
+            guard chosen.count == choices.count, first.offered.contains(PastedLabelBasisOptions.Arrangement(chosen).identifier),
+                  first.at <= PastedLabelBasisChoice.milliseconds(evidence.capturedAt) else {
+                throw PastedLabelSourceError.invalidManifest("basis choice")
+            }
+            let servingConversion = candidate.servingSize.flatMap { size in size.decimalText.flatMap { decimal in size.unit.map { decimal + $0 } } }
+                ?? "unknown"
+            let perServing = Set(amount.filter { $0.basis == "per_serving" }.map(\.headerID))
+            guard candidate.cells.filter({ perServing.contains($0.headerID) }).allSatisfy({ $0.servingConversion == servingConversion }) else {
+                throw PastedLabelSourceError.invalidManifest("asserted serving conversion")
+            }
+            if !shown.isEmpty {
+                let hints = candidate.warnings.filter { $0.hasPrefix(PastedLabelCodes.basisHintWarningPrefix) }
+                guard shown.count == 1, hints.count == 1, manifest.warningsShown.last == PastedLabelCodes.basisHintShown else {
+                    throw PastedLabelSourceError.invalidManifest("basis hint shown")
+                }
+            }
+        }
+    }
+
+    public static func storedBasis(_ manifest: PastedLabelEvidenceManifest) throws -> ResolutionBasis {
         let headers = manifest.candidate.headers
         let fixed = headers.first { $0.basis == "per_100g" || $0.basis == "per_100ml" } ?? headers.first { $0.basis == "per_serving" }
         guard let header = fixed, header.headerID == manifest.storedHeaderID,
@@ -209,7 +292,7 @@ public enum PastedLabelSource {
     /// The serving size the user corrected or entered on Confirm, if any: at most one record, in
     /// the stored column, exact, in grams or millilitres. A correction names the printed readable
     /// serving size it replaces; an entry is allowed only when none was read.
-    public static func servingSizeCorrection(_ manifest: PastedLabelManifest) throws -> PositiveQuantity? {
+    public static func servingSizeCorrection(_ manifest: PastedLabelEvidenceManifest) throws -> PositiveQuantity? {
         let entries = manifest.corrections.filter { $0.nutrient == PastedLabelManifest.Correction.servingSize }
         guard entries.count <= 1 else { throw PastedLabelSourceError.invalidManifest("serving size corrections") }
         guard let entry = entries.first else { return nil }
@@ -270,7 +353,7 @@ public enum PastedLabelSource {
 
     // MARK: Nutrients (sections 3.4, 3.5 and 6.1)
 
-    static func expectedNutrients(manifest: PastedLabelManifest, basis: ResolutionBasis, hash: SHA256Digest,
+    static func expectedNutrients(manifest: PastedLabelEvidenceManifest, basis: ResolutionBasis, hash: SHA256Digest,
                                   release: SourceRelease, evidence: CaptureEvidence,
                                   conversions checker: (any PastedLabelConversionChecking)?) throws -> NutrientSet {
         let column = manifest.candidate.cells.filter {
@@ -348,7 +431,7 @@ public enum PastedLabelSource {
     /// an exact positive number of servings in the stored column's record. It gives no nutrient
     /// and no basis, but it may feed the whole-pack amount option (`PastedLabelServingPolicy.wholePack`,
     /// contract section 2.3).
-    static func checkServingsPerPack(_ manifest: PastedLabelManifest) throws {
+    static func checkServingsPerPack(_ manifest: PastedLabelEvidenceManifest) throws {
         let entries = manifest.corrections.filter { $0.nutrient == PastedLabelManifest.Correction.servingsPerPack }
         guard entries.count <= 1 else { throw PastedLabelSourceError.invalidManifest("servings per pack entries") }
         guard let entry = entries.first else { return }
@@ -371,7 +454,7 @@ public enum PastedLabelSource {
     /// A corrected value names the cell it replaced: a printed cell of the nutrient, or, for a
     /// calculated value, the source cell of its verified conversion. An entered value replaces nothing.
     static func checkCorrection(_ correction: PastedLabelManifest.Correction, key: NutrientKey, labelNutrient: String,
-                                manifest: PastedLabelManifest, column: [PastedLabelManifest.Candidate.Cell],
+                                manifest: PastedLabelEvidenceManifest, column: [PastedLabelManifest.Candidate.Cell],
                                 conversionSource: PastedLabelManifest.Candidate.Cell?) throws {
         guard correction.headerID == manifest.storedHeaderID, correction.corrected.unit == key.canonicalUnit.rawValue,
               ["=", "<", "<="].contains(correction.corrected.comparator) else {
@@ -442,7 +525,7 @@ public enum PanelSourceAdmission {
                 || release(input, $0.sourceReleaseID).map { ids.contains($0.sourceID.value) } == true }
             || release(input, source.sourceReleaseID).map { ids.contains($0.sourceID.value) } == true
             || input.evidence.contains { source.evidenceIDs.contains($0.evidenceID)
-                && $0.captureMethodVersion.value == PastedLabelManifest.version }
+                && PastedLabelEvidenceManifest.isVersion($0.captureMethodVersion.value) }
     }
 
     /// Fails closed: every panel value, and every manual declaration claiming an admitted

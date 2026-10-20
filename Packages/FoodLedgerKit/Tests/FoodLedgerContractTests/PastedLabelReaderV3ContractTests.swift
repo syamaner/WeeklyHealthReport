@@ -33,8 +33,11 @@ final class PastedLabelReaderV3ContractTests: XCTestCase {
             "pasted-nutrition-label-v1": [
                 "nutrition-label-text-parser-v2:label-capture-decline-gate-v2:label-arithmetic-checks-v1:pasted-label-conversions-v1",
                 "nutrition-label-text-parser-v3:label-capture-decline-gate-v2:label-arithmetic-checks-v1:pasted-label-conversions-v1"
+            ],
+            "pasted-nutrition-label-v2": [
+                "nutrition-label-text-parser-v3:label-capture-decline-gate-v2:label-arithmetic-checks-v2:pasted-label-conversions-v1"
             ]
-        ], "append-only: the parser-v2 entry is kept; manifest v2's entry arrives with PR 4")
+        ], "append-only: the parser-v2 entry is kept; manifest v2's one entry arrived with PR 4")
         XCTAssertEqual(PastedLabelSource.parserVersion, "nutrition-label-text-parser-v3", "a new reading writes the newest pipeline")
         XCTAssertNoThrow(try F.input(F.manifest(parserVersion: Self.v2)))
         XCTAssertNoThrow(try F.input(F.manifest(parserVersion: Self.v3)))

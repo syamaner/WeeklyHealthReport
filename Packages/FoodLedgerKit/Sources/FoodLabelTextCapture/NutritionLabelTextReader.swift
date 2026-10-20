@@ -16,12 +16,30 @@ public struct NutritionLabelTextReader: LabelTextReading {
 
     public init() {}
 
+    /// The versions of an ordinary read (checks v1).
     public static let versions = LabelReading.Versions(parser: NutritionLabelTextParserV3.version, gate: LabelDeclineGate.version,
         arithmetic: LabelArithmeticChecks.version, conversion: PastedLabelConversions.version,
         formatInference: LabelFormatInference.version)
+    /// The versions of a read with asserted bases (checks v2; reader v3 section 8.4.5).
+    public static let assertedVersions = LabelReading.Versions(parser: NutritionLabelTextParserV3.version, gate: LabelDeclineGate.version,
+        arithmetic: LabelArithmeticChecksV2.version, conversion: PastedLabelConversions.version,
+        formatInference: LabelFormatInference.version)
 
-    public func read(_ text: String, textSHA256: String) -> LabelReading {
-        let candidate = parser.parse(text, route: "A", inputSHA256: textSHA256)
+    /// Reader v3 section 8.4.2: with `assertedBases`, parser v3 reads the text with them in place
+    /// of the amount headers that were never printed (declining `asserted_bases_mismatch` when they
+    /// do not fit) and the checks are v2; without, an ordinary read, and a `no_basis_header`
+    /// decline carries the parser's unheaded shape as `UnheadedTable`.
+    public func read(_ text: String, textSHA256: String, assertedBases: AssertedBases?) -> LabelReading {
+        let candidate: LabelCaptureCandidate
+        var unheaded: UnheadedTable?
+        if let assertedBases {
+            candidate = parser.parse(text, route: "A", inputSHA256: textSHA256, assertedBases: assertedBases.columns.map(Self.basis))
+        } else {
+            candidate = parser.parse(text, route: "A", inputSHA256: textSHA256)
+            if candidate.declineReasons == ["no_basis_header"] {
+                unheaded = parser.unheadedShape(text, route: "A", inputSHA256: textSHA256).map(Self.unheadedTable)
+            }
+        }
         let format = LabelFormatInference.infer(candidate)
         var gate: LabelReading.Gate?
         var checks: [LabelReading.Check] = []
@@ -31,13 +49,42 @@ public struct NutritionLabelTextReader: LabelTextReading {
             let report = LabelDeclineGate.apply(candidate, format: gateFormat).report
             gate = LabelReading.Gate(format: gateFormat.rawValue, skipped: report.skipped?.rawValue,
                                      hardDeclines: report.hardDeclineCodes, flags: Self.flags(report, candidate: candidate))
-            checks = LabelArithmeticChecks.check(LabelArithmeticTable(candidate, format: gateFormat)).checks.map(Self.check)
+            let table = LabelArithmeticTable(candidate, format: gateFormat)
+            if assertedBases != nil {
+                let amountBases = candidate.headers.filter { $0.basis != .referenceIntake }.map(\.basis.rawValue)
+                checks = LabelArithmeticChecksV2.check(table, amountBases: amountBases).checks.map(Self.check)
+            } else {
+                checks = LabelArithmeticChecks.check(table).checks.map(Self.check)
+            }
         }
         if let storedHeaderID {
             conversions = PastedLabelConversions.conversions(for: candidate, storedHeaderID: storedHeaderID).map { Self.conversion($0.record) }
         }
         return LabelReading(origin: .pastedText, textSHA256: textSHA256, candidate: Self.candidate(candidate), format: format.rawValue,
-                            gate: gate, checks: checks, conversions: conversions, storedHeaderID: storedHeaderID, versions: Self.versions)
+                            gate: gate, checks: checks, conversions: conversions, storedHeaderID: storedHeaderID,
+                            versions: assertedBases == nil ? Self.versions : Self.assertedVersions, unheadedTable: unheaded)
+    }
+
+    static func basis(_ basis: AssertedBases.Basis) -> LabelBasis {
+        switch basis {
+        case .perServing: .perServing
+        case .per100g: .per100g
+        case .per100ml: .per100ml
+        }
+    }
+
+    static func unheadedTable(_ shape: NutritionLabelTextParserV3.UnheadedShape) -> UnheadedTable {
+        let hint = shape.energyLineHint.flatMap { hint -> UnheadedTable.EnergyLineHint? in
+            AssertedBases.Basis(rawValue: hint.basis.rawValue).map { UnheadedTable.EnergyLineHint(printedText: hint.printedText, basis: $0) }
+        }
+        return UnheadedTable(amountColumnCount: shape.amountColumnCount, referenceColumnPrinted: shape.referenceColumnPrinted,
+            servingSize: shape.servingSize.map {
+                .init(printedText: $0.printedText, decimalText: $0.decimalText, unit: $0.unit, canonicalUnit: $0.canonicalUnit)
+            },
+            servingsPerPack: shape.servingsPerPack.map {
+                .init(printedText: $0.printedText, decimalText: $0.decimalText, approximate: $0.approximate)
+            },
+            energyLineHint: hint)
     }
 
     // MARK: Mapping

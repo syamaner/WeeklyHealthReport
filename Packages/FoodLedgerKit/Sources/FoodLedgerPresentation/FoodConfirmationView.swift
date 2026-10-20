@@ -586,6 +586,7 @@ public struct FoodConfirmationView: View {
     private let showsCancelButton: Bool
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.locale) private var locale
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     /// The focused amount field, if any; "Done" above the decimal pad clears it (#212).
     @FocusState private var editingAmount: AmountFieldFocus?
     @State private var showsCorrection = false
@@ -692,6 +693,9 @@ public struct FoodConfirmationView: View {
                 Text("Need to correct the food itself? Choose a different match, or edit the details from the entry after logging.")
             }
             recoverySection
+            // #282 and the journey QA of #284: when the pinned bar would crowd out the content,
+            // its warnings, hint and estimate scroll here, beside the Log area; Log stays pinned.
+            if pinsOnlyLog && hasBeforeLogContent { beforeLogSection }
         }
         .amountKeyboardDismissal($editingAmount)
         .navigationTitle(model.state.reopened == nil ? "Confirm food" : "Edit food")
@@ -867,6 +871,88 @@ public struct FoodConfirmationView: View {
         }
     }
 
+    /// Whether the bottom bar keeps only Log pinned and moves its warnings, hint and estimate into
+    /// the scrolling content: at accessibility text sizes, or when the bar would hold more than
+    /// two of them (about a third of the screen). Warning text is never truncated either way.
+    public static func pinsOnlyLog(isAccessibilitySize: Bool, warningCount: Int, hasBlockedReason: Bool, hasEstimate: Bool) -> Bool {
+        isAccessibilitySize || warningCount + (hasBlockedReason ? 1 : 0) + (hasEstimate ? 1 : 0) > 2
+    }
+
+    private var pinsOnlyLog: Bool {
+        Self.pinsOnlyLog(isAccessibilitySize: dynamicTypeSize.isAccessibilitySize, warningCount: pastedLabel?.warnings.count ?? 0,
+                         hasBlockedReason: model.blockedReason != nil, hasEstimate: model.volumeEstimateLogBarAction != nil)
+    }
+
+    @ViewBuilder
+    private var logWarnings: some View {
+        // Pasted label warnings (section 4): near Log, never blocking, never a pass badge.
+        if let warnings = pastedLabel?.warnings, !warnings.isEmpty {
+            ForEach(warnings, id: \.self) { warning in
+                Label(warning, systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityLabel("Warning. \(warning)")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var estimateButton: some View {
+        // Secondary and next to Log, so the sourced estimate is not missed when Log
+        // would save without nutrition. It only applies the estimate; Log still saves.
+        if let estimate = model.volumeEstimateLogBarAction {
+            Button {
+                model.applyAvailableVolumeConversion()
+            } label: {
+                Text(estimate.title)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+            }
+            .buttonStyle(.bordered)
+            .disabled(!estimate.isEnabled)
+            .accessibilityLabel(estimate.accessibilityLabel)
+            .accessibilityHint(FoodConfirmationViewModel.VolumeEstimateLogBarAction.accessibilityHint)
+        }
+    }
+
+    @ViewBuilder
+    private var blockedReasonText: some View {
+        if let reason = model.blockedReason {
+            Text(reason).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// The one line pinned beside a disabled Log when the full hint is in "Before you log".
+    public static let pinnedBlockedReason = "Not ready to log yet. See “Before you log” below."
+
+    /// Whether "Before you log" has anything to show; an empty section is never rendered.
+    public static func showsBeforeLog(pinsOnlyLog: Bool, warningCount: Int, hasBlockedReason: Bool, hasEstimate: Bool) -> Bool {
+        pinsOnlyLog && (warningCount > 0 || hasBlockedReason || hasEstimate)
+    }
+
+    private var hasBeforeLogContent: Bool {
+        Self.showsBeforeLog(pinsOnlyLog: true, warningCount: pastedLabel?.warnings.count ?? 0,
+                            hasBlockedReason: model.blockedReason != nil, hasEstimate: model.volumeEstimateLogBarAction != nil)
+    }
+
+    /// The bar's warnings, hint and estimate as the last content section when only Log is pinned.
+    /// The hint is styled like the warnings: left-aligned, with an icon.
+    private var beforeLogSection: some View {
+        Section("Before you log") {
+            logWarnings
+            estimateButton
+            if let reason = model.blockedReason {
+                Label(reason, systemImage: "info.circle")
+                    .font(.footnote)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
+
     @ViewBuilder
     private var logBar: some View {
         if Self.exitTitles(isSaved: model.savedResult != nil, showsCancelButton: showsCancelButton,
@@ -880,29 +966,9 @@ public struct FoodConfirmationView: View {
             .background(.bar)
         } else {
             VStack(spacing: 6) {
-                // Pasted label warnings (section 4): above Log, never blocking, never a pass badge.
-                if let warnings = pastedLabel?.warnings, !warnings.isEmpty {
-                    ForEach(warnings, id: \.self) { warning in
-                        Label(warning, systemImage: "exclamationmark.triangle")
-                            .font(.footnote)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .accessibilityLabel("Warning. \(warning)")
-                    }
-                }
-                // Secondary and next to Log, so the sourced estimate is not missed when Log
-                // would save without nutrition. It only applies the estimate; Log still saves.
-                if let estimate = model.volumeEstimateLogBarAction {
-                    Button {
-                        model.applyAvailableVolumeConversion()
-                    } label: {
-                        Text(estimate.title)
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity, minHeight: 44)
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(!estimate.isEnabled)
-                    .accessibilityLabel(estimate.accessibilityLabel)
-                    .accessibilityHint(FoodConfirmationViewModel.VolumeEstimateLogBarAction.accessibilityHint)
+                if !pinsOnlyLog {
+                    logWarnings
+                    estimateButton
                 }
                 Button {
                     Self.logTapped(model, leave: leave, logged: logged)
@@ -915,8 +981,12 @@ public struct FoodConfirmationView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(!model.canLog)
                 .accessibilityHint(model.blockedReason ?? (model.state.reopened == nil ? "Logs this food with the amount and time shown" : "Saves your changes and keeps the original as history"))
-                if let reason = model.blockedReason {
-                    Text(reason).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                if !pinsOnlyLog {
+                    blockedReasonText
+                } else if model.blockedReason != nil {
+                    // Beside the disabled Log, one short line (it may wrap); the full hint scrolls.
+                    Text(Self.pinnedBlockedReason).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(.horizontal)

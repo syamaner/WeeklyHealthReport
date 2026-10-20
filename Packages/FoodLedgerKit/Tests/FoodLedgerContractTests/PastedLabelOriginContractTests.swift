@@ -15,7 +15,7 @@ final class PastedLabelOriginContractTests: XCTestCase {
         let input = try F.input(manifest)
         let candidate = try XCTUnwrap(input.candidates.first)
         let stored = try XCTUnwrap(PastedLabelValueOrigins.manifest(input, candidate: candidate))
-        XCTAssertEqual(stored, manifest)
+        XCTAssertEqual(stored, .v1(manifest))
         let origins = PastedLabelValueOrigins.origins(candidate.candidate.nutrients, manifest: stored)
         XCTAssertEqual(origins[.energyConsumed], .calculated(rule: "kj_to_kcal_v1"))
         XCTAssertEqual(origins[.sodium], .calculated(rule: "salt_to_sodium_v1"))
@@ -95,5 +95,6 @@ final class PastedLabelOriginContractTests: XCTestCase {
         func decline(_ code: String) -> String { "decline:\(code)" }
         func warning(_ code: String) -> String { "warning:\(code)" }
         func versions(_ versions: PastedLabelMisreadReport.Versions) -> String { versions.parser }
+        func basis(_ basis: String, origin: PastedLabelBasisOrigin) -> String { "basis:\(basis)" }
     }
 }

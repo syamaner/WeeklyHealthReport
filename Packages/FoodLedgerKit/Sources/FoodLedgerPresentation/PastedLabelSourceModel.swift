@@ -48,12 +48,12 @@ public final class PastedLabelSourceModel: ObservableObject {
         public let note: String
     }
 
-    @Published public private(set) var manifest: PastedLabelManifest
+    @Published public private(set) var manifest: PastedLabelEvidenceManifest
     @Published public private(set) var nutrients: NutrientSet
     @Published public private(set) var corrections: [PastedLabelManifest.Correction]
     /// The input Confirm logs, rebuilt after each change. Nil for a stored entry.
     @Published public private(set) var input: PopulatedFoodConfirmation?
-    public let review: PastedLabelReview?
+    @Published public private(set) var review: PastedLabelReview?
     private var details: PastedLabelDetails
     private let builder: PastedLabelConfirmation?
     private let locale: LedgerText?
@@ -74,8 +74,13 @@ public final class PastedLabelSourceModel: ObservableObject {
         self.input = input
     }
 
-    /// A stored entry, read-only.
-    public init(stored manifest: PastedLabelManifest, nutrients: NutrientSet) {
+    /// A stored v1 entry, read-only.
+    public convenience init(stored manifest: PastedLabelManifest, nutrients: NutrientSet) {
+        self.init(stored: .v1(manifest), nutrients: nutrients)
+    }
+
+    /// A stored entry of either manifest version, read-only.
+    public init(stored manifest: PastedLabelEvidenceManifest, nutrients: NutrientSet) {
         review = nil; builder = nil; locale = nil
         details = PastedLabelDetails(name: manifest.name, brand: manifest.brand)
         self.manifest = manifest
@@ -105,14 +110,37 @@ public final class PastedLabelSourceModel: ObservableObject {
     }
 
     public var sourceLine: String {
-        PastedLabelText.sourceLine(basis: storedHeader?.basis ?? "", format: manifest.labelFormat)
+        PastedLabelText.sourceLine(basis: storedHeader?.basis ?? "", format: manifest.labelFormat, origin: basisOrigin)
     }
+
+    // MARK: The basis choice (reader v3 section 8.4)
+
+    /// Printed, or chosen by the user (8.4.11): from the review on Confirm, from the stored
+    /// manifest otherwise; the same derivation either way.
+    public var basisOrigin: PastedLabelBasisOrigin { review?.basisOrigin ?? manifest.basisOrigin }
+
+    /// "per 100 g · Chosen by you", through the one basis formatter.
+    public var basisLine: String { PastedLabelText.basisLine(basis: storedHeader?.basis ?? "", origin: basisOrigin) }
+
+    /// Decision 24: the energy line's note when it differed from the choice; never a block.
+    public var basisHintNote: String? { PastedLabelText.basisHintNote(basisOrigin) }
+
+    /// Change is offered on a new reading whose bases the user chose.
+    public var canChangeBasis: Bool { isEditable && review?.basisChoice != nil && changeBasis != nil }
+
+    /// Opens the basis sheet from Confirm (set by the label text screen's model).
+    public var changeBasis: (() -> Void)?
+
+    /// The arrangement the user chose, labelled "Current choice" on the Change sheet.
+    public var currentArrangement: PastedLabelBasisOptions.Arrangement? { review?.basisChoice?.arrangement }
 
     public var flags: [LabelReading.Flag] { manifest.flagsShown.map { LabelReading.Flag(code: $0.code, concerns: $0.concerns) } }
 
     /// G5: no per 100 g or ml column was read; shown above the values.
     public var basisFlag: String? {
-        flags.first { $0.code == PastedLabelCodes.requiredBasisMissing }.map { PastedLabelText.flagMessage($0, headers: manifest.candidate.headers) }
+        flags.first { $0.code == PastedLabelCodes.requiredBasisMissing }.map {
+            PastedLabelText.flagMessage($0, headers: manifest.candidate.headers, servingUnit: manifest.candidate.servingSize?.canonicalUnit)
+        }
     }
 
     /// The stored label nutrients, in the reader's fixed order.
@@ -288,7 +316,10 @@ public final class PastedLabelSourceModel: ObservableObject {
             let cells = manifest.candidate.cells.enumerated().filter { $0.element.headerID == header.headerID }.map { index, cell in
                 Evidence(id: "\(header.headerID)-\(index)", title: cell.printedLabel, printedText: cell.printedText, note: "Evidence only")
             }
-            return ("Other column: \(PastedLabelText.basisLabel(header.basis)) (\(header.printedText))", cells)
+            // A header with empty printed text (a chosen basis) is named by its basis label only.
+            let title = header.printedText.isEmpty ? "Other column: \(PastedLabelText.basisLabel(header.basis))"
+                : "Other column: \(PastedLabelText.basisLabel(header.basis)) (\(header.printedText))"
+            return (title, cells)
         }
     }
 
@@ -298,7 +329,10 @@ public final class PastedLabelSourceModel: ObservableObject {
         return nutrients.entries.filter { !shown.contains($0.key) }.map { FoodNutritionReviewPresentation.label($0.key) }
     }
 
-    public var warnings: [String] { manifest.warningsShown.map(PastedLabelText.warningMessage) }
+    /// The warnings shown; the energy line's hint is on the basis line instead (8.4.12).
+    public var warnings: [String] {
+        manifest.warningsShown.filter { $0 != PastedLabelCodes.basisHintShown }.map(PastedLabelText.warningMessage)
+    }
 
     /// Whether the serving line (`serving_size`) or the pack line (`servings_per_pack`) was read
     /// from two lines of the label and shown as such.
@@ -358,6 +392,21 @@ public final class PastedLabelSourceModel: ObservableObject {
         do { try rebuild(corrections) } catch { self.details = previous }
     }
 
+    /// Reader v3 8.4.9: Change chose another arrangement. Confirm keeps this model (so its
+    /// amount and time stay); the review is replaced and every correction cleared, which the user
+    /// agreed to before this is called.
+    public func replace(review newReview: PastedLabelReview) throws {
+        guard review != nil, builder != nil, locale != nil else { throw PastedLabelSourceError.invalidManifest("stored entry") }
+        let previous = review
+        review = newReview
+        do {
+            try rebuild([])
+        } catch {
+            review = previous
+            throw error
+        }
+    }
+
     private func rebuild(_ corrections: [PastedLabelManifest.Correction]) throws {
         guard let review, let builder, let locale else { return }
         let input = try builder.confirmation(review, details: details, corrections: corrections, locale: locale)
@@ -377,9 +426,7 @@ public final class PastedLabelSourceModel: ObservableObject {
     /// The report preview's text: the values as read (not the user's corrections), with the
     /// pasted text, serving lines, warnings and versions. Never a name or brand.
     public var reportText: String {
-        let report = review.map { PastedLabelMisreadReport(pastedText: $0.pastedText, reading: $0.reading, declineCodes: [],
-                                                          warningCodes: $0.warningCodes) }
-            ?? PastedLabelMisreadReport(manifest: manifest)
+        let report = review.map { PastedLabelMisreadReport(review: $0) } ?? PastedLabelMisreadReport(manifest: manifest)
         return report.text(wording: PastedLabelReportText())
     }
 }

@@ -25,6 +25,10 @@ public enum NutrientValueOrigin: Equatable, Hashable, Sendable {
     /// predicate (`NutrientDerivation`) and the manifest's correction records and flags. Only
     /// the manifest decides between "not read" and "not stated".
     public static func project(_ value: NutrientValue, key: NutrientKey, manifest: PastedLabelManifest) -> NutrientValueOrigin {
+        project(value, key: key, manifest: .v1(manifest))
+    }
+
+    public static func project(_ value: NutrientValue, key: NutrientKey, manifest: PastedLabelEvidenceManifest) -> NutrientValueOrigin {
         if case let .unknown(reason) = value {
             // Printed but unusable as it stands (an ambiguous row or another unit): not read.
             guard reason == .notDeclared else { return .unknown(.notRead) }
@@ -68,22 +72,27 @@ public enum PastedLabelValueOrigins {
         PastedLabelSource.ledgerKeys.first { $0.value == key }?.key
     }
 
-    /// Every ledger key, in catalogue order, with its origin.
+    /// A v1 manifest's origins (the dispatcher's `.v1` case).
     public static func origins(_ nutrients: NutrientSet, manifest: PastedLabelManifest) -> [NutrientKey: NutrientValueOrigin] {
+        origins(nutrients, manifest: .v1(manifest))
+    }
+
+    /// Every ledger key, in catalogue order, with its origin.
+    public static func origins(_ nutrients: NutrientSet, manifest: PastedLabelEvidenceManifest) -> [NutrientKey: NutrientValueOrigin] {
         Dictionary(uniqueKeysWithValues: nutrients.entries.map { ($0.key, NutrientValueOrigin.project($0.value, key: $0.key, manifest: manifest)) })
     }
 
     /// The pasted-label manifest a candidate's evidence carries, or nil for any other route.
     /// It decodes the stored bytes only; verification is the save and reopen services' job.
-    public static func manifest(evidence: [CaptureEvidence], evidenceIDs: [EvidenceID]) -> PastedLabelManifest? {
+    public static func manifest(evidence: [CaptureEvidence], evidenceIDs: [EvidenceID]) -> PastedLabelEvidenceManifest? {
         guard let stored = evidence.first(where: { evidenceIDs.contains($0.evidenceID)
-                  && $0.captureMethodVersion.value == PastedLabelManifest.version }),
+                  && PastedLabelEvidenceManifest.isVersion($0.captureMethodVersion.value) }),
               case let .text(payload) = stored.originalPayload else { return nil }
-        return PastedLabelManifest.decode(Data(payload.value.utf8))
+        return PastedLabelEvidenceManifest.decode(Data(payload.value.utf8))
     }
 
     /// The manifest of the candidate selected on Confirm, or nil for any other route.
-    public static func manifest(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> PastedLabelManifest? {
+    public static func manifest(_ input: PopulatedFoodConfirmation, candidate: PopulatedFoodCandidate) -> PastedLabelEvidenceManifest? {
         guard input.sourceReleases.contains(where: { $0.sourceReleaseID == candidate.candidate.sourceReleaseID
                   && $0.sourceID.value == PastedLabelSource.sourceID }) else { return nil }
         return manifest(evidence: input.evidence, evidenceIDs: candidate.candidate.evidenceIDs)
