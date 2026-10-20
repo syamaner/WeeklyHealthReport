@@ -74,14 +74,14 @@ final class PastedLabelOriginContractTests: XCTestCase {
         XCTAssertEqual(report.values.filter { $0.origin == .printed }.count, manifest.candidate.cells.count)
         XCTAssertEqual(report.servingSize, "每一份量30公克")
         XCTAssertEqual(report.servingsPerPack, "本包裝含10份")
-        XCTAssertEqual(report.versions.parser, PastedLabelSource.parserVersion)
+        XCTAssertEqual(report.versions.parser, manifest.parserVersion, "the stored manifest's parser")
         let text = report.text(wording: Words())
         XCTAssertEqual(text, PastedLabelMisreadReport(manifest: manifest).text(wording: Words()), "deterministic")
         for withheld in [manifest.name, manifest.brand ?? "", "5.4", "2.0"] {
             XCTAssertFalse(text.contains(withheld), "\(withheld) is not in the allow-list")
         }
         let declined = PastedLabelMisreadReport(pastedText: "x", reading: nil, declineCodes: ["text_too_long"], warningCodes: [])
-        XCTAssertEqual(declined.text(wording: Words()), "T\n\nP\nx\n\nD\ndecline:text_too_long\n\nV\nnutrition-label-text-parser-v2")
+        XCTAssertEqual(declined.text(wording: Words()), "T\n\nP\nx\n\nD\ndecline:text_too_long\n\nV\nnutrition-label-text-parser-v3")
     }
 
     private struct Words: PastedLabelReportWording {

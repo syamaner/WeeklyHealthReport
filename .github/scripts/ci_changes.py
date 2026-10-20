@@ -51,6 +51,8 @@ CODE_READ_DOCS = {
     "docs/nutrition-label-capture-evaluation-v1.md",
     # Cited by the pasted-label parsing package, its parity tests and the day-bucketing code.
     "docs/pasted-nutrition-label-v1.md",
+    # Cited by parser v3, the serving v3 policy and their tests (reader v3, #93).
+    "docs/pasted-nutrition-label-reader-v3.md",
     "docs/healthkit-day-bucketing-v1.md",
 }
 CODE_READ_DOC_PREFIXES = ("docs/fixtures/",)

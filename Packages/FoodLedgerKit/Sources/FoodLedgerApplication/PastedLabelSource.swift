@@ -26,15 +26,25 @@ public enum PastedLabelSource {
     public static let captureMethod = "User pasted nutrition label"
     public static let licence = "User-supplied label text; no redistribution licence inferred."
     public static let attribution = "Pasted nutrition label"
-    public static let parserVersion = "nutrition-label-text-parser-v2"
+    /// The parser of the first pasted-label release; stored entries keep it and still verify.
+    public static let parserVersionV2 = "nutrition-label-text-parser-v2"
+    /// `nutrition-label-text-parser-v3` (`docs/pasted-nutrition-label-reader-v3.md`), with
+    /// `taiwan-row-aliases-v1` and the layout precedence of its section 3.0.
+    public static let parserVersionV3 = "nutrition-label-text-parser-v3"
+    /// The parser a new reading is written with.
+    public static let parserVersion = parserVersionV3
     public static let gateVersion = "label-capture-decline-gate-v2"
     public static let arithmeticVersion = "label-arithmetic-checks-v1"
     public static let conversionVersion = "pasted-label-conversions-v1"
 
     /// Closed and append-only: each manifest version is tied to its admitted pipelines,
-    /// `<parser>:<gate>:<arithmetic>:<conversion>`. Entries are never removed or rekeyed.
+    /// `<parser>:<gate>:<arithmetic>:<conversion>`. Entries are never removed or rekeyed
+    /// (reader v3 section 5.2); a new reading writes the newest pipeline for its manifest version.
     public static let admittedPipelines: [String: [String]] = [
-        PastedLabelManifest.version: [[parserVersion, gateVersion, arithmeticVersion, conversionVersion].joined(separator: ":")]
+        PastedLabelManifest.version: [
+            [parserVersionV2, gateVersion, arithmeticVersion, conversionVersion].joined(separator: ":"),
+            [parserVersionV3, gateVersion, arithmeticVersion, conversionVersion].joined(separator: ":")
+        ]
     ]
 
     /// The v1 mapping from the reader's nutrient keys to ledger keys. Rows without a ledger key

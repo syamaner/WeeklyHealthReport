@@ -2,8 +2,8 @@ import Foundation
 import FoodLedgerDomain
 
 /// Closed serving policy for pasted labels (contract section 6.3), a sibling of
-/// `food-source-declared-serving-v1`. Two append-only method versions, chosen by the stored
-/// column and never by the user:
+/// `food-source-declared-serving-v1`. Three append-only method versions, chosen by the stored
+/// column and the manifest's parser version (`methods(parserVersion:)`), never by the user:
 ///
 /// `pasted-label-serving-v1`, a stored per-serving column:
 /// - case 2, `perServing(q)` with q in grams or millilitres: servings are converted through the
@@ -18,6 +18,11 @@ import FoodLedgerDomain
 /// or one printed as approximate ("about"), offers no servings. Grams or millilitres are
 /// accepted as for any per-100 basis.
 ///
+/// `pasted-label-serving-v3` (reader v3 section 5.6, decision 12), a stored per 100 g (per
+/// 100 ml) column of a parser-v3 manifest: v2's rules, with the serving value located by
+/// parser v3's grammar (`PastedLabelServingSizeGrammarV3`), cut at a pack phrase on the same line,
+/// and a bilingual line scanned for approximation outside the segment too.
+///
 /// Nothing is inferred: no weight is ever given to a case 3 serving, and no serving size is
 /// taken from the other column. The source must be a pasted-label release; save verification of
 /// its manifest still runs before policy. v1 is unchanged: its records keep their bytes and
@@ -25,10 +30,25 @@ import FoodLedgerDomain
 public enum PastedLabelServingPolicy {
     /// The per-serving method (stored column per serving).
     public static let version = "pasted-label-serving-v1"
-    /// The per-100 method (stored column per 100 g or per 100 ml, with a qualifying serving size).
+    /// The per-100 method of a parser-v2 manifest (stored column per 100 g or per 100 ml, with a
+    /// qualifying serving size).
     public static let per100Version = "pasted-label-serving-v2"
+    /// The per-100 method of a parser-v3 manifest (reader v3 section 5.6).
+    public static let per100VersionV3 = "pasted-label-serving-v3"
     /// Append-only: every method a stored pasted-label servings conversion may name.
-    public static let admittedVersions = [version, per100Version]
+    public static let admittedVersions = [version, per100Version, per100VersionV3]
+
+    /// The closed method table of reader v3 section 5.6: the methods for a per-serving and a per
+    /// 100 g or ml stored column, by the manifest's `parser_version`. Any other parser version has
+    /// none: Confirm offers no servings and no whole pack, a servings conversion is refused at
+    /// save and a stored one fails reopen.
+    public static func methods(parserVersion: String) -> (perServing: String, per100: String)? {
+        switch parserVersion {
+        case PastedLabelSource.parserVersionV2: (version, per100Version)
+        case PastedLabelSource.parserVersionV3: (version, per100VersionV3)
+        default: nil
+        }
+    }
 
     /// Printed approximation markers that disqualify a printed serving size under v2 (contract
     /// section 6.3; fixed for v2). They are looked for only in the serving-size segment
@@ -76,11 +96,12 @@ public enum PastedLabelServingPolicy {
         let source = candidate.candidate
         guard input.sourceReleases.contains(where: { $0.sourceReleaseID == source.sourceReleaseID
                   && $0.sourceID.value == PastedLabelSource.sourceID }),
-              let manifest = manifest(input, candidate: candidate) else { return nil }
+              let manifest = manifest(input, candidate: candidate),
+              let methods = methods(parserVersion: manifest.parserVersion) else { return nil }
         switch source.identity.servingBasis {
-        case let .perServing(serving): return (serving, version)
-        case .per100Grams: return per100Serving(manifest, unit: .grams).map { ($0, per100Version) }
-        case .per100Millilitres: return per100Serving(manifest, unit: .millilitres).map { ($0, per100Version) }
+        case let .perServing(serving): return (serving, methods.perServing)
+        case .per100Grams: return per100Serving(manifest, unit: .grams).map { ($0, methods.per100) }
+        case .per100Millilitres: return per100Serving(manifest, unit: .millilitres).map { ($0, methods.per100) }
         case .perUnit, .named, .unknown: return nil
         }
     }
@@ -160,6 +181,7 @@ public enum PastedLabelServingPolicy {
         -> (quantity: PositiveQuantity, origin: NutrientValueOrigin)? {
         let entry = manifest.corrections.first { $0.nutrient == PastedLabelManifest.Correction.servingSize }
         let origin: NutrientValueOrigin = entry.map { $0.kind == .corrected ? .correctedByYou : .enteredByYou } ?? .printed
+        guard methods(parserVersion: manifest.parserVersion) != nil else { return nil }
         switch basis {
         case let .perServing(quantity) where quantity.unit != .count: return (quantity, origin)
         case .per100Grams: return per100Serving(manifest, unit: .grams).map { ($0, origin) }
@@ -176,15 +198,15 @@ public enum PastedLabelServingPolicy {
         return PastedLabelManifest.decode(Data(payload.value.utf8))
     }
 
-    /// v2: the user's serving-size correction or entry when there is one (validated as for any
-    /// column), else the printed serving size unless it is printed as approximate; only in the
-    /// unit of the per-100 basis.
+    /// v2 and v3: the user's serving-size correction or entry when there is one (validated as for
+    /// any column), else the printed serving size if the manifest's method reads it as exact; only
+    /// in the unit of the per-100 basis.
     static func per100Serving(_ manifest: PastedLabelManifest, unit: QuantityUnit) -> PositiveQuantity? {
         let size: PositiveQuantity?
         do {
             if let corrected = try PastedLabelSource.servingSizeCorrection(manifest) {
                 size = corrected
-            } else if let printed = manifest.candidate.servingSize, exactness(printed) == .exact {
+            } else if let printed = manifest.candidate.servingSize, exactness(printed, parserVersion: manifest.parserVersion) == .exact {
                 size = PastedLabelSource.servingQuantity(printed)
             } else {
                 size = nil
@@ -233,27 +255,31 @@ public enum PastedLabelServingPolicy {
               String(value[number]) == decimal, String(value[matchedUnit]) == unit else { return nil }
         let numberRange = match.range(at: 1)
         let base = String(value[..<range.upperBound])
-        let after = String(value[range.upperBound...])
+        return (base + segmentTail(String(value[range.upperBound...]), unit: unit), numberRange)
+    }
+
+    /// The tail v2 step 3 adds to the segment from the text after the recorded quantity, or "".
+    static func segmentTail(_ after: String, unit: String) -> String {
         let afterRange = NSRange(after.startIndex..., in: after)
         func matched(_ pattern: NSRegularExpression?) -> String? {
             pattern?.firstMatch(in: after, range: afterRange).flatMap { Range($0.range, in: after) }.map { String(after[$0]) }
         }
         // ± straight after the quantity always joins it: "30g ± 2%", "30 g ±".
-        if let tolerance = matched(plusMinusPattern) { return (base + tolerance, numberRange) }
+        if let tolerance = matched(plusMinusPattern) { return tolerance }
         // A tilde or wave dash with no number after it joins it: "30g ~", "30g 〜" (not "30g ~ 2 pieces").
-        if let tilde = matched(trailingTildePattern) { return (base + tilde, numberRange) }
+        if let tilde = matched(trailingTildePattern) { return tilde }
         // A range mark joins it when its number is followed by the same unit, any listed weight or
         // volume unit, or the end of the value: "30g-35g", "30g-35 grams", "30g~35".
         let rangeTail = try? NSRegularExpression(pattern: #"^\s*"# + rangeMarks + #"\s*[0-9][0-9.]*\s*(?:"#
             + NSRegularExpression.escapedPattern(for: unit) + #"(?![\p{L}])|"# + weightOrVolumeUnits + "|$)", options: [.caseInsensitive])
-        if let tail = matched(rangeTail) { return (base + tail, numberRange) }
-        if let tail = matched(afterBracketWordPattern) { return (base + tail, numberRange) }
-        guard let tail = matched(trailingWordPattern) else { return (base, numberRange) }
+        if let tail = matched(rangeTail) { return tail }
+        if let tail = matched(afterBracketWordPattern) { return tail }
+        guard let tail = matched(trailingWordPattern) else { return "" }
         // Inside a bracket, a marker followed by a count of something that is not a weight or
         // volume ("（約2片）", "(about 2 biscuits)") qualifies that count, not the serving size.
         let rest = String(after.dropFirst(tail.count))
-        if tail.contains(where: { $0 == "(" || $0 == "（" }), countsPieces(rest) { return (base, numberRange) }
-        return (base + tail, numberRange)
+        if tail.contains(where: { $0 == "(" || $0 == "（" }), countsPieces(rest) { return "" }
+        return tail
     }
 
     static let plusMinusPattern = try! NSRegularExpression(pattern: #"^\s*(?:±|\+/-|\+-)"#)
@@ -303,6 +329,120 @@ public enum PastedLabelServingPolicy {
         guard !matches.isEmpty else { return approximate(segment) ? .approximate : .exact }
         let recorded = size.unit.flatMap(unitFamily)
         return .range(own: matches.lazy.compactMap { ownRange($0, in: segment, number: number, recordedUnit: recorded) }.first)
+    }
+
+    /// How the method for `parserVersion` reads a printed serving size (reader v3 section 5.6):
+    /// v2's reading for a parser-v2 manifest, v3's for a parser-v3 manifest, and `unmatched` (no
+    /// servings) for any other parser version.
+    public static func exactness(_ size: PastedLabelManifest.Candidate.ServingSize, parserVersion: String) -> Exactness {
+        switch parserVersion {
+        case PastedLabelSource.parserVersionV2: exactness(size)
+        case PastedLabelSource.parserVersionV3: exactnessV3(size)
+        default: .unmatched
+        }
+    }
+
+    // MARK: pasted-label-serving-v3 (reader v3 section 5.6)
+
+    /// The serving value of a parser-v3 serving line: the label pattern's capture group (step 2),
+    /// cut at the first pack phrase with trailing spaces and `,` `，` `、` `/` `／` removed (step 3).
+    public static func valueV3(_ printedText: String) -> String? {
+        typealias G = PastedLabelServingSizeGrammarV3
+        guard let label = G.label.firstMatch(in: printedText, range: NSRange(printedText.startIndex..., in: printedText)),
+              let valueRange = Range(label.range(at: 1), in: printedText) else { return nil }
+        let value = String(printedText[valueRange])
+        guard let pack = G.packPhrase.firstMatch(in: value, range: NSRange(value.startIndex..., in: value)),
+              let packRange = Range(pack.range, in: value) else { return value }
+        var head = String(value[..<packRange.lowerBound])
+        while let last = head.last, last.isWhitespace || ",，、/／".contains(last) { head.removeLast() }
+        return head
+    }
+
+    /// Steps 4 and 5: the quantity located as v2 does, in the value from step 3, and the segment
+    /// as v2 step 3, with one v3 tail rule first: a tilde or wave dash followed by a bracketed or
+    /// 約/about piece count ("30公克～約2片", "30公克～（2片）") is that count, as the bracket
+    /// piece-count exception, so the segment ends at the quantity. A tilde before a weight or
+    /// volume ("30g ~ 35g", "30公克～約35公克") is still a range or a mark.
+    public static func locatedV3(_ size: PastedLabelManifest.Candidate.ServingSize) -> (segment: String, number: NSRange, value: String)? {
+        guard let decimal = size.decimalText, let unit = size.unit, let value = valueV3(size.printedText) else { return nil }
+        typealias G = PastedLabelServingSizeGrammarV3
+        let whole = NSRange(value.startIndex..., in: value)
+        var quantity: NSTextCheckingResult?
+        if let bracket = G.parenthesised.firstMatch(in: value, range: whole) {
+            quantity = G.quantity.firstMatch(in: value, range: bracket.range(at: 1))
+        }
+        quantity = quantity ?? G.quantity.firstMatch(in: value, range: whole)
+        guard let match = quantity, let range = Range(match.range, in: value),
+              let number = Range(match.range(at: 1), in: value), let matchedUnit = Range(match.range(at: 2), in: value),
+              String(value[number]) == decimal, String(value[matchedUnit]) == unit else { return nil }
+        let numberRange = match.range(at: 1)
+        let base = String(value[..<range.upperBound])
+        let after = String(value[range.upperBound...])
+        if let tilde = tildePiecesPattern.firstMatch(in: after, range: NSRange(after.startIndex..., in: after)),
+           let tail = Range(tilde.range, in: after), countsPieces(String(after[tail.upperBound...])) {
+            return (base, numberRange, value)
+        }
+        return (base + segmentTail(after, unit: unit), numberRange, value)
+    }
+
+    /// A tilde or wave dash, then an opening bracket, a 約/about-type marker or both, before a count.
+    static let tildePiecesPattern = try! NSRegularExpression(
+        pattern: #"^\s*[~～〜]\s*(?:[(（]\s*(?:"# + markerWord + #"\s*)?|"# + markerWord + #"\s*)"#, options: [.caseInsensitive])
+    static let markerWord = #"(?:(?:about|approx|approximate|approximately|around|ca|circa|roughly)(?![A-Za-z])\.?|[約约])"#
+
+    /// v3's range: v2's, with a listed weight or volume unit allowed between the low number and
+    /// the mark as well as up to three other characters ("25 grams - 30g" is a range).
+    static let rangePatternV3 = try! NSRegularExpression(
+        pattern: #"([0-9][0-9.]*)\s*(?:"# + weightOrVolumeUnits + #"|[^0-9\s]{0,3}?)\s*"# + rangeMarks + #"\s*([0-9][0-9.]*)"#,
+        options: [.caseInsensitive])
+    static let lowUnitPatternV3 = try! NSRegularExpression(
+        pattern: #"\s*("# + weightOrVolumeUnits + #"|[^0-9\s]{0,3}?)\s*"# + rangeMarks + #"\s*[0-9]"#, options: [.caseInsensitive])
+    static let bilingualPattern = try! NSRegularExpression(pattern: "[A-Za-z]{2,}")
+
+    /// Steps 6 and 7: approximate when the segment holds anything v2 lists, or, for a bilingual
+    /// value (a run of two or more ASCII letters), when anywhere in the value from step 3 holds
+    /// one of v2's words or marks; a range whose other end has no unit is shown as the recorded
+    /// quantity with the range note unless it is the "25-30g" pattern.
+    static func exactnessV3(_ size: PastedLabelManifest.Candidate.ServingSize) -> Exactness {
+        guard let (segment, number, value) = locatedV3(size) else { return .unmatched }
+        let matches = rangePatternV3.matches(in: segment, range: NSRange(segment.startIndex..., in: segment))
+        if !matches.isEmpty {
+            let recorded = size.unit.flatMap(unitFamily)
+            return .range(own: matches.lazy.compactMap { ownRangeV3($0, in: segment, number: number, recordedUnit: recorded) }.first)
+        }
+        if approximate(segment) { return .approximate }
+        if bilingualPattern.firstMatch(in: value, range: NSRange(value.startIndex..., in: value)) != nil, approximateMarksOrWords(value) {
+            return .approximate
+        }
+        return .exact
+    }
+
+    /// v2's words and marks only (no range), anywhere in a text.
+    static func approximateMarksOrWords(_ text: String) -> Bool {
+        if approximateMarks.contains(where: { text.contains($0) }) { return true }
+        if circaAbbreviationPattern.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil { return true }
+        let words = text.lowercased().split { !($0.isASCII && $0.isLetter) }.map(String.init)
+        return words.contains { approximateWords.contains($0) }
+    }
+
+    /// v3's own range: as v2, except that when the recorded quantity is the low number the high
+    /// number must carry a unit of the same family ("30g-35g"; not "30g - 2" or "30g~35"), and a
+    /// listed unit word may stand after the low number ("25 grams - 30g").
+    static func ownRangeV3(_ match: NSTextCheckingResult, in segment: String, number: NSRange, recordedUnit: String?) -> PrintedRange? {
+        guard let recordedUnit, let low = Range(match.range(at: 1), in: segment),
+              let high = Range(match.range(at: 2), in: segment) else { return nil }
+        let range = PrintedRange(low: String(segment[low]), high: String(segment[high]))
+        if match.range(at: 1).location == number.location {
+            let afterHigh = segment[high.upperBound...].drop { $0.isWhitespace }.prefix { $0.isLetter }
+            return !afterHigh.isEmpty && unitFamily(String(afterHigh)) == recordedUnit ? range : nil
+        }
+        guard match.range(at: 2).location == number.location else { return nil }
+        let start = match.range(at: 1).location + match.range(at: 1).length
+        let rest = NSRange(location: start, length: (segment as NSString).length - start)
+        guard let between = lowUnitPatternV3.firstMatch(in: segment, options: [.anchored, .withTransparentBounds], range: rest),
+              let unit = Range(between.range(at: 1), in: segment) else { return nil }
+        let text = segment[unit]
+        return text.isEmpty || unitFamily(String(text)) == recordedUnit ? range : nil
     }
 
     /// Whether a range is the serving size's own (what Confirm shows; any range refuses

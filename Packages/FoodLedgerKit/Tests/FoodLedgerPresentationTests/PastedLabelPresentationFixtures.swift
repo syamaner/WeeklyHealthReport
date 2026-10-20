@@ -68,7 +68,7 @@ enum LabelFixtures {
                                                                               unit: "公克", canonicalUnit: "g")
 
     /// The per 100 g reading: Confirm stores h2. Its printed 30 g serving size qualifies for
-    /// `pasted-label-serving-v2`; pass another (or nil) to test the cases that do not.
+    /// `pasted-label-serving-v3` (a parser-v3 reading); pass another (or nil) to test the cases that do not.
     static func reading(text: String = pastedText, checks: [LabelReading.Check] = [],
                         servingSize: PastedLabelManifest.Candidate.ServingSize? = printedServingSize) -> LabelReading {
         let candidate = PastedLabelManifest.Candidate(route: "A", inputSHA256: hash(text), declined: false, declineReasons: [],

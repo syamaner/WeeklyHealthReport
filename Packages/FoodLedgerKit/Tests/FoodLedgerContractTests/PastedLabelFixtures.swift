@@ -75,7 +75,7 @@ enum PastedLabelFixtures {
     static func manifest(answer: PastedLabelIdentity.FortificationAnswer = .no, candidate: PastedLabelManifest.Candidate? = nil,
                          conversions: [PastedLabelManifest.Conversion] = [kcal, sodium],
                          corrections: [PastedLabelManifest.Correction] = corrections,
-                         parserVersion: String = PastedLabelSource.parserVersion, brand: String? = "Synthetic Mill") throws -> PastedLabelManifest {
+                         parserVersion: String = PastedLabelSource.parserVersionV2, brand: String? = "Synthetic Mill") throws -> PastedLabelManifest {
         PastedLabelManifest(pastedText: pastedText, pastedTextSHA256: try textHash(), parserVersion: parserVersion,
             gateVersion: PastedLabelSource.gateVersion, arithmeticVersion: PastedLabelSource.arithmeticVersion,
             conversionVersion: PastedLabelSource.conversionVersion, labelFormat: "taiwan_nutrition_labelling",
@@ -99,7 +99,8 @@ enum PastedLabelFixtures {
     /// stored column's basis (`per_100g` or `per_100ml`) and the user's corrections.
     static func per100Manifest(servingSize: PastedLabelManifest.Candidate.ServingSize?,
                                servingsPerPack: PastedLabelManifest.Candidate.ServingsPerPack? = nil,
-                               basis: String = "per_100g", corrections: [PastedLabelManifest.Correction] = []) throws -> PastedLabelManifest {
+                               basis: String = "per_100g", corrections: [PastedLabelManifest.Correction] = [],
+                               parserVersion: String = PastedLabelSource.parserVersionV2) throws -> PastedLabelManifest {
         let full = try candidate()
         let headers = full.headers.map { $0.headerID == "h2" ? .init(headerID: "h2", printedText: basis == "per_100ml" ? "每100毫升" : "每100公克",
                                                                       basis: basis, servingConversion: nil) : $0 }
@@ -107,7 +108,7 @@ enum PastedLabelFixtures {
             wouldMarkReady: full.wouldMarkReady, language: full.language, servingSize: servingSize, servingsPerPack: servingsPerPack,
             headers: headers, cells: full.cells, warnings: [])
         let servingBasis: ResolutionBasis = basis == "per_100ml" ? .per100Millilitres : .per100Grams
-        return PastedLabelManifest(pastedText: pastedText, pastedTextSHA256: try textHash(), parserVersion: PastedLabelSource.parserVersion,
+        return PastedLabelManifest(pastedText: pastedText, pastedTextSHA256: try textHash(), parserVersion: parserVersion,
             gateVersion: PastedLabelSource.gateVersion, arithmeticVersion: PastedLabelSource.arithmeticVersion,
             conversionVersion: PastedLabelSource.conversionVersion, labelFormat: "taiwan_nutrition_labelling",
             launchScope: ["taiwan_nutrition_labelling"], identityMapping: try .init(fortificationAnswer: .no, servingBasis: servingBasis),
@@ -117,7 +118,8 @@ enum PastedLabelFixtures {
 
     /// A label printed per serving only (`h1`), with or without a readable serving size:
     /// section 6.3 case 2 (`perServing(30 g)`) or case 3 (`perServing(1 count)`).
-    static func perServingManifest(readableServingSize: Bool) throws -> PastedLabelManifest {
+    static func perServingManifest(readableServingSize: Bool,
+                                   parserVersion: String = PastedLabelSource.parserVersionV2) throws -> PastedLabelManifest {
         let full = try candidate()
         let size = readableServingSize ? full.servingSize : nil
         let candidate = PastedLabelManifest.Candidate(route: "A", inputSHA256: full.inputSHA256, declined: false, declineReasons: [],
@@ -126,7 +128,7 @@ enum PastedLabelFixtures {
             cells: full.cells.filter { $0.headerID == "h1" }, warnings: [])
         let basis: ResolutionBasis = readableServingSize ? .perServing(try PositiveQuantity(value: 30, unit: .grams))
             : .perServing(try PositiveQuantity(value: 1, unit: .count))
-        return PastedLabelManifest(pastedText: pastedText, pastedTextSHA256: try textHash(), parserVersion: PastedLabelSource.parserVersion,
+        return PastedLabelManifest(pastedText: pastedText, pastedTextSHA256: try textHash(), parserVersion: parserVersion,
             gateVersion: PastedLabelSource.gateVersion, arithmeticVersion: PastedLabelSource.arithmeticVersion,
             conversionVersion: PastedLabelSource.conversionVersion, labelFormat: "taiwan_nutrition_labelling",
             launchScope: ["taiwan_nutrition_labelling"], identityMapping: try .init(fortificationAnswer: .no, servingBasis: basis),

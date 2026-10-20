@@ -2102,3 +2102,17 @@ Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on 
 Boundary: `2026-10-20T02:44:21Z` → `2026-10-20T04:11:50Z` (`phase_usage.py --format claude --since … --until …`). Cache writes: 1,199,670 5-minute, 0 1-hour (long gate waits expired the prompt cache). Exact API-equivalent USD 6.8287718. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-20a: Claude Code pasted nutrition label reader v3 PR 1
+
+One implementation subagent, its own transcript (`subagents/agent-a719b511711dbeda7.jsonl`), for reader v3 PR 1 (`docs/pasted-nutrition-label-reader-v3.md` section 8): parser v3 beside the frozen parser v2 (lines before the table, `taiwan-row-aliases-v1`, the Taiwan unit rule, layout precedence and gate input coverage), `pasted-label-serving-v3` with its parser-version method table and grammar copy, the admitted pipeline entry, golden parser-v2 and parser-v3 manifests, the non-regression test on the 314 frozen cases, the dev-set run outside the repository and one full gate run. Runs from the phase's start (`2026-10-20T04:17:11Z`, captured with `date -u`) to `2026-10-20T07:22:59Z`, just before this ledger edit.
+
+Pricing: the 11 October 2026 rates, as in WHR-93-2026-10-19b, not re-checked on the day. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 PR 1 (#93), implementation subagent | 47,089,345 (43,578,491) | 3,510,548 | 51,135 | 47,140,480 | $27.29 |
+
+Boundary: `2026-10-20T04:17:11Z` → `2026-10-20T07:22:59Z` (`phase_usage.py --format claude --since …`). Cache writes: 3,510,548 5-minute, 0 1-hour. Exact API-equivalent USD 27.2923622. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots. Reviews run after this point are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

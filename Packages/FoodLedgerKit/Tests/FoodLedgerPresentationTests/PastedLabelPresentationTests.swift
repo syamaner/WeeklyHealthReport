@@ -334,7 +334,7 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertTrue(confirm.canLog, confirm.blockedReason ?? "")
         confirm.log()
         let saved = try XCTUnwrap(confirm.savedResult)
-        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v2")
+        XCTAssertEqual(saved.quantityConversion?.methodVersion.value, "pasted-label-serving-v3", "a new reading is parser v3, so its per 100 method is v3")
         XCTAssertEqual(saved.quantityConversion?.convertedQuantity, try PositiveQuantity(value: 300, unit: .grams), "10 servings × 30 g")
         XCTAssertEqual(saved.productVersion.identity.servingBasis, .per100Grams)
     }
@@ -460,7 +460,7 @@ final class PastedLabelPresentationTests: XCTestCase {
         XCTAssertFalse(report.contains("370.5"))
         XCTAssertTrue(report.contains("Protein (蛋白質) per 100 g: 5.2公克 · Printed"), "the values as read, not the correction")
         XCTAssertTrue(report.contains("Serving size: 每一份量30公克"))
-        XCTAssertTrue(report.contains("nutrition-label-text-parser-v2, label-capture-decline-gate-v2, label-arithmetic-checks-v1, pasted-label-conversions-v1"))
+        XCTAssertTrue(report.contains("nutrition-label-text-parser-v3, label-capture-decline-gate-v2, label-arithmetic-checks-v1, pasted-label-conversions-v1"))
         for withheld in ["Synthetic oat crackers", "Synthetic Mill", "5.4"] { XCTAssertFalse(report.contains(withheld), withheld) }
         XCTAssertEqual(report, try F.source().reportText, "deterministic")
         let preview = PastedLabelMisreadPreviewModel(report: report)

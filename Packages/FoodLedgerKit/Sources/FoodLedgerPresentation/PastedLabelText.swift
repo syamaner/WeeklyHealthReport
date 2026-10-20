@@ -93,7 +93,7 @@ public enum PastedLabelText {
     public static let otherNutrientsNote = "The label does not state these. They stay unknown, never zero."
     public static let notStated = "Not stated"
     public static let notRead = "Not read"
-    /// Shown beside a printed serving size that `pasted-label-serving-v2` cannot use because it is
+    /// Shown beside a printed serving size that `pasted-label-serving-v2` or `-v3` cannot use because it is
     /// approximate (contract section 6.3): the exception is visible, never silent.
     public static let approximateServingSize = "Approximate, so servings are not offered. Correct the serving size to log in servings."
     public static let rangeServingSize = "Range, so servings are not offered. Correct the serving size to log in servings."
@@ -111,6 +111,14 @@ public enum PastedLabelText {
 
     /// Shown beside a printed "about" servings-per-pack count: read, but never a whole pack (section 2.3).
     public static let approximatePack = "Approximate, so it is not used for Whole pack."
+    /// Shown beside a printed pack count of zero: read as printed, never a whole pack (reader v3
+    /// section 3.1 rule 6, decision 17).
+    public static let zeroPack = "Printed as 0, so whole pack is not offered."
+
+    /// Whether a printed count is zero ("0", "0.0").
+    public static func isPrintedZero(_ decimalText: String) -> Bool {
+        decimalText.contains("0") && decimalText.allSatisfy { $0 == "0" || $0 == "." }
+    }
 
     /// A unit code as shown in the interface: "mL" for the stored code "ml"; others unchanged.
     public static func unitLabel(_ code: String) -> String { code == "ml" ? "mL" : code }

@@ -166,6 +166,7 @@ public enum PastedLabelCodes {
     public static let formatAmbiguous = "format_ambiguous"
     public static let noTable = "no_table"
     public static let unreadableTable = "unreadable_table"
+    public static let layoutAmbiguous = "layout_ambiguous"
 
     public enum Kind: String, Sendable { case hardDecline = "hard_decline", flag }
 
@@ -214,6 +215,8 @@ public enum PastedLabelCodes {
             "energy_without_unit": decline(.valuesNotBound),
             "value_without_unit": decline(.valuesNotBound),
             "unrecognised_unit": decline(.valuesNotBound),
+            // Parser v3 (reader v3 section 3.0, decision 19): a body that is not exactly one layout.
+            layoutAmbiguous: decline(.unreadableTable),
             textTooLong: decline(.textTooLong),
             unreadableTable: decline(.unreadableTable),
             // Gate G3 to G6: flags on Confirm, never a decline.
