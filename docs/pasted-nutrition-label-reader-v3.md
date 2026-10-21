@@ -1049,6 +1049,15 @@ Slot 1 starts at retailer 1. Each later retailer slot starts at the retailer aft
 
 **Recorded outside the repository for every result opened:** the slot, the site, the search term, the sort, the result position, the time, and either the label ID it became or its skip reason. Search results pages are saved as screenshots.
 
+**Amendment 1 (owner, 21 October 2026, under fallback 4, before the text seal and before any reader run on fresh text).** The first collection walk reached slot 16 with 9 labels from 830 retailer results opened: most Taiwan retailer pages print the nutrition table as an image. Nothing about the collected labels' reader output was known when this amendment was made (the reader has not run on any fresh text). From this commit:
+
+1. **Retailer result limit:** up to the first **50** results per retailer and category instead of 20. A retailer and category already searched under the old limit continue from result 21 in the same saved order (the first walk's search screenshots fix that order); a site that reshuffles on reload continues from the first load's screenshot.
+2. **More retailers**, appended to the fixed list in this order, none in the development set: 11. 蝦皮購物 (shopee.tw), 12. 松果購物 (pcone.com.tw), 13. udn買東西 (shopping.udn.com), 14. 森森購物 (u-mall.com.tw). The rotation wraps from 14 to 1.
+3. **Owner rulings on the first walk:** 萬家福線上購物 (online.uni-prosperity.com.tw), to which 家樂福線上購物 now redirects, is retailer 2; 大潤發 is unreachable and is logged exhausted each time its turn comes; listings sold by 愛買 are excluded on every site (it is a development-set retailer, so "excluded on every domain they use" covers its shops on marketplaces); the first walk's three `other` skips stand (a multi-flavour combo listing with no single contiguous table, and two ready-to-drink oat drinks that fit neither the Drinks nor the Cereal and oats definition).
+4. **Environment for slots 16 to 24:** the Google search runs in a Safari private window (signed out), as written above; PDFs are copied from Preview as written in 12.2.4.
+
+The nine labels already collected keep their IDs and slots. Collection resumes at slot 16, then applies fallbacks 1 to 4 with the amended limits; the re-walk of fallback 3 re-searches unfilled slots under the 50-result limit and the longer retailer list.
+
 #### 12.2.4 Eligibility and skip reasons
 
 A result is **eligible** when all of these hold:
