@@ -1058,6 +1058,14 @@ Slot 1 starts at retailer 1. Each later retailer slot starts at the retailer aft
 
 The nine labels already collected keep their IDs and slots. Collection resumes at slot 16, then applies fallbacks 1 to 4 with the amended limits; the re-walk of fallback 3 re-searches unfilled slots under the 50-result limit and the longer retailer list.
 
+**Amendment 2 (owner, 22 October 2026, before the text seal and before any reader run on fresh text).** The resumed walk stopped at slot 21 with 14 labels: three of the four retailers added by Amendment 1 are closed or block automated visits (蝦皮購物 shows a traffic-verification page, udn買東西 closed in 2021, 森森購物 closed in 2025 and points to a development-set retailer), and the working retailers are near their caps. From this commit:
+
+1. **Site cap:** at most **3** labels per site instead of 2, across all page kinds. A retailer previously skipped `site_cap` at 2 labels is eligible again for its third.
+2. **PDF slots (21 to 24):** each candidate PDF is listed to the owner (file name, site and size) before it is downloaded; only listed and approved files are saved, into the private folder, and opened in Preview.
+3. **Owner ruling on the resumed walk:** its `other` skip stands (a brand-site category page listing several products, each with its own one-line 營養標示, with no single contiguous nutrition section).
+
+The fourteen labels already collected keep their IDs and slots. Collection resumes at slot 21, then applies fallback 3 (the re-walk of unfilled slots, then one more label per slot in slot order) under the 50-result limit and the cap of 3, and fallback 4 if still short of 20.
+
 #### 12.2.4 Eligibility and skip reasons
 
 A result is **eligible** when all of these hold:
