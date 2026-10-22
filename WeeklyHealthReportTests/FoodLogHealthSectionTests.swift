@@ -3,6 +3,7 @@ import FoodGenericSearch
 import FoodLedgerApplication
 import FoodLedgerDomain
 import FoodLedgerGRDB
+import FoodLedgerPresentation
 @testable import WeeklyHealthReport
 
 // Contract tests for docs/health-food-and-water-v1.md (#214): the section, its
@@ -41,6 +42,8 @@ final class FoodLogHealthSectionTests: XCTestCase {
         Days Logged: 6 / 7 days
         Logged Energy: 2,010 kcal per day (5 complete days)
         Incomplete Energy Days: 1
+        Logged Fibre: 24 g per day (4 complete days)
+        Incomplete Fibre Days: 2
         Plain Water: 1,750 mL per day (4 days)
         Logged in this app; not a measure of everything eaten or drunk.
 
@@ -114,6 +117,8 @@ final class FoodLogHealthSectionTests: XCTestCase {
         Days Logged: 1 / 7 days
         Logged Energy: Insufficient history
         Incomplete Energy Days: 1
+        Logged Fibre: Insufficient history
+        Incomplete Fibre Days: 1
         Plain Water: 500 mL per day (1 day)
         Logged in this app; not a measure of everything eaten or drunk.
         """)
@@ -122,17 +127,18 @@ final class FoodLogHealthSectionTests: XCTestCase {
 
     func testNoPlainWaterSaysNoDataNeverZero() {
         let block = Self.copyAllBlock(.available(Self.summary(
-            Self.dates.prefix(3).map { FoodLogFixtures.day($0, energy: 1_999.6) }
+            Self.dates.prefix(3).map { FoodLogFixtures.day($0, energy: 1_999.6, fibre: 25.4) }
         )))
         XCTAssertEqual(block, """
         Food and water
         Days Logged: 3 / 7 days
         Logged Energy: 2,000 kcal per day (3 complete days)
+        Logged Fibre: 25 g per day (3 complete days)
         Plain Water: No data
         Logged in this app; not a measure of everything eaten or drunk.
         """)
         XCTAssertFalse(block.contains("0 mL"))
-        XCTAssertFalse(block.contains("Incomplete"), "the incomplete row is left out at 0")
+        XCTAssertFalse(block.contains("Incomplete"), "the incomplete rows are left out at 0")
     }
 
     func testNothingLoggedSaysSoAndNeverZeroKilocalories() {
@@ -150,9 +156,9 @@ final class FoodLogHealthSectionTests: XCTestCase {
     func testWaterOnlyDaysMixedInCountOnlyTowardsPlainWater() {
         let dates = Self.dates
         let block = Self.copyAllBlock(.available(Self.summary([
-            FoodLogFixtures.day(dates[0], energy: 1_800, water: 1_000),
-            FoodLogFixtures.day(dates[1], energy: 2_000),
-            FoodLogFixtures.day(dates[2], energy: 2_200),
+            FoodLogFixtures.day(dates[0], energy: 1_800, water: 1_000, fibre: 18),
+            FoodLogFixtures.day(dates[1], energy: 2_000, fibre: 20),
+            FoodLogFixtures.day(dates[2], energy: 2_200, fibre: 22),
             FoodLogFixtures.waterOnly(dates[3], water: 1_500),
             FoodLogFixtures.waterOnly(dates[4], water: 2_000),
             FoodLogFixtures.waterOnly(dates[5], water: 500),
@@ -162,6 +168,7 @@ final class FoodLogHealthSectionTests: XCTestCase {
         Food and water
         Days Logged: 3 / 7 days
         Logged Energy: 2,000 kcal per day (3 complete days)
+        Logged Fibre: 20 g per day (3 complete days)
         Plain Water: 1,200 mL per day (5 days)
         Logged in this app; not a measure of everything eaten or drunk.
         """)
@@ -221,6 +228,44 @@ final class FoodLogHealthSectionTests: XCTestCase {
         XCTAssertTrue(onlyIncompleteWater.contains("Plain Water: Insufficient history (1 incomplete day left out)"))
     }
 
+    /// Contract v1.2 (#288), owner decision 9: fibre follows the energy rule.
+    /// A known minimum never becomes an average, no known fibre is never 0 g,
+    /// estimates are labelled and water-only days stay outside.
+    func testFibreRowsFollowTheEnergyRule() {
+        let dates = Self.dates
+        let block = Self.copyAllBlock(.available(Self.summary([
+            FoodLogFixtures.day(dates[0], energy: 2_000, fibre: 21.6, fibreEstimates: true),
+            FoodLogFixtures.day(dates[1], energy: 2_000, fibre: 26.4),
+            FoodLogFixtures.day(dates[2], energy: 2_000, fibre: 70, fibreIncomplete: 2),
+            FoodLogFixtures.day(dates[3], energy: 2_000),
+            FoodLogFixtures.waterOnly(dates[4], water: 1_000)
+        ])))
+        XCTAssertEqual(block, """
+        Food and water
+        Days Logged: 4 / 7 days
+        Logged Energy: 2,000 kcal per day (4 complete days)
+        Logged Fibre: 24 g per day (2 complete days), includes estimates
+        Incomplete Fibre Days: 2
+        Plain Water: 1,000 mL per day (1 day)
+        Logged in this app; not a measure of everything eaten or drunk.
+        """)
+        XCTAssertFalse(block.contains("70"), "a known minimum is never shown as an average")
+
+        let noKnownFibre = Self.copyAllBlock(.available(Self.summary([
+            FoodLogFixtures.day(dates[0], energy: 1_500),
+            FoodLogFixtures.day(dates[1], energy: 1_700)
+        ])))
+        XCTAssertTrue(noKnownFibre.contains("Logged Fibre: Insufficient history\nIncomplete Fibre Days: 2"), noKnownFibre)
+        XCTAssertFalse(noKnownFibre.contains("0 g"), "unknown fibre is never 0 g")
+
+        let display = Self.document(foodLog: .available(Self.normalWeek())).forDisplay()
+        let rows = display.sections.first { $0.id == .foodLog }?.rows ?? []
+        XCTAssertEqual(rows.map(\.id), [
+            "food-days-logged", "food-energy-average", "food-energy-incomplete",
+            "food-fibre-average", "food-fibre-incomplete", "food-plain-water-average"
+        ])
+    }
+
     /// Logged energy is never netted against, or shown beside, active energy (D9).
     func testNoNetBalanceOrIntakeWording() {
         let block = Self.copyAllBlock(.available(Self.normalWeek())).lowercased()
@@ -255,6 +300,8 @@ final class FoodLogHealthSectionTests: XCTestCase {
             "Days logged: 6 / 7 days",
             "Logged energy: 2,010 kcal per day (5 complete days)",
             "Incomplete energy days: 1",
+            "Logged fibre: 24 g per day (4 complete days)",
+            "Incomplete fibre days: 2",
             "Plain water: 1,750 mL per day (4 days)"
         ])
         XCTAssertEqual(section.footer, ReportDocument.foodLogFooter)
@@ -319,17 +366,22 @@ final class FoodLogHealthSectionTests: XCTestCase {
     func testDeveloperToolsShowEachDaysInputsAndTheFailureMessage() {
         let lines = FoodLogReportDiagnostics.lines(.available(Self.normalWeek()))
         XCTAssertEqual(lines.first, Line(title: "Policy", detail: "health_food_log_period_v1"))
-        XCTAssertEqual(lines.count, 4 + 7)
-        XCTAssertEqual(lines[2].detail, "2010.08 kcal, estimates no")
-        XCTAssertEqual(lines[4], Line(
-            title: "2026-09-03",
-            detail: "4 entries (3 food); energy 1900 kcal, 0 incomplete, estimates no; plain water 1500 mL, 0 incomplete, estimates no; energy complete, water complete"
-        ))
+        XCTAssertEqual(lines.count, 6 + 7)
+        XCTAssertEqual(lines[2], Line(title: "Fibre days", detail: "4 complete, 2 incomplete"))
+        XCTAssertEqual(lines[3].detail, "2010.08 kcal, estimates no")
+        XCTAssertEqual(lines[4], Line(title: "Fibre mean", detail: "24 g, estimates no"))
         XCTAssertEqual(lines[6], Line(
-            title: "2026-09-05",
-            detail: "0 entries (0 food); energy none; plain water none; not logged, no plain water"
+            title: "2026-09-03",
+            detail: "4 entries (3 food); energy 1900 kcal, 0 incomplete, estimates no; plain water 1500 mL, 0 incomplete, estimates no; fibre 22 g, 0 incomplete, estimates no; energy complete, water complete, fibre complete"
         ))
-        XCTAssertTrue(lines[8].detail.hasSuffix("energy incomplete, water complete"), lines[8].detail)
+        XCTAssertEqual(lines[8], Line(
+            title: "2026-09-05",
+            detail: "0 entries (0 food); energy none; plain water none; fibre none; not logged, no plain water, fibre not logged"
+        ))
+        XCTAssertTrue(lines[10].detail.hasSuffix("energy incomplete, water complete, fibre complete"), lines[10].detail)
+        XCTAssertTrue(lines[11].detail.contains("fibre 10 g, 1 incomplete, estimates no"), lines[11].detail)
+        XCTAssertTrue(lines[12].detail.contains("fibre unknown, 3 incomplete"), lines[12].detail)
+        XCTAssertTrue(lines[12].detail.hasSuffix("fibre incomplete"), lines[12].detail)
 
         XCTAssertEqual(FoodLogReportDiagnostics.lines(.failed("disk I/O")), [Line(title: "Read failed", detail: "disk I/O")])
         let failures = Self.snapshot(foodLog: .failed("disk I/O")).readFailures
@@ -490,7 +542,14 @@ final class FoodLogHealthSectionTests: XCTestCase {
         let foodEnergy = try XCTUnwrap(day.entries.first { $0.logItemID == food.logItem.logItemID }?.energyKcal)
         XCTAssertEqual(facts[1].energy?.knownAmount ?? -1, foodEnergy, accuracy: 1e-9)
         XCTAssertEqual(facts[1].energy?.incompleteContributions, 0)
+        // v1.2 (#288): fibre is the day's food fibre; plain water adds exactly 0 g and a
+        // water-only day has no fibre total.
+        XCTAssertNil(facts[0].fibre)
+        let dayFibre = try XCTUnwrap(day.totals?.first { $0.key == .fiber })
+        XCTAssertEqual(facts[1].fibre?.knownAmount, dayFibre.knownAmount)
+        XCTAssertEqual(facts[1].fibre?.incompleteContributions, dayFibre.incompleteContributions)
         let summary = FoodLogPeriodSummary.make(days: facts, reportingDates: [twoDaysAgo, yesterday])
+        XCTAssertEqual(summary.days.first?.fibre, .notLogged, "a water-only day stays outside the fibre average")
         XCTAssertEqual(summary.loggedDayCount, 1)
         XCTAssertEqual(summary.days.first?.energy, .notLogged)
         XCTAssertEqual(summary.completeEnergyDayCount, 1)
@@ -514,6 +573,50 @@ final class FoodLogHealthSectionTests: XCTestCase {
         XCTAssertEqual(summary.incompleteEnergyDayCount, 1)
         XCTAssertNil(summary.averageEnergyKilocalories)
         XCTAssertEqual(summary.averagePlainWaterMillilitres, 250)
+    }
+
+    /// #288 review: the report reader takes fibre from the Food Log day totals, so the strip
+    /// must carry it. If fibre ever left the strip, the reader would see no fibre total.
+    func testReaderSourceCarriesFibre() {
+        XCTAssertTrue(FoodLogDayContent.stripKeys.contains(.fiber), "FoodLogPeriodReader reads fibre from the strip totals")
+    }
+
+    /// #288 review: plain water plus a food without fibre. Water's exact 0 g is the only known
+    /// fibre, so the day total is a known minimum of 0 g: "0 g+" with the footnote on Home and in
+    /// the Food Log strip, and an incomplete fibre day in the report (never a 0 g complete day).
+    func testRealAdapterWaterAndFibrelessFoodIsAKnownMinimumOfZeroAndIncomplete() async throws {
+        let ledger = try makeLedger()
+        let root = ledger.root
+        let saved = try saveReviewedWebEntry(root)
+        let date = saved.logItemVersion.reportingDate.value
+        _ = try logWater(root, on: date)
+
+        let facts = try await root.foodLogPeriodReader.dayFacts(for: [date])
+        let fibre = try XCTUnwrap(facts.first?.fibre)
+        XCTAssertEqual(fibre.knownAmount, 0, "plain water is exactly 0 g")
+        XCTAssertEqual(fibre.incompleteContributions, 1, "the food's unknown fibre")
+        let summary = FoodLogPeriodSummary.make(days: facts, reportingDates: [date])
+        XCTAssertEqual(summary.days.map(\.fibre), [.incomplete])
+        XCTAssertEqual(summary.incompleteFibreDayCount, 1)
+        XCTAssertNil(summary.averageFibreGrams)
+        let block = Self.copyAllBlock(.available(summary))
+        XCTAssertTrue(block.contains("Logged Fibre: Insufficient history\nIncomplete Fibre Days: 1"), block)
+
+        let gb = Locale(identifier: "en_GB")
+        let day = try root.foodLogService.day(reportingDate: date)
+        let stripFibre = try XCTUnwrap(day.totals?.first { $0.key == .fiber })
+        XCTAssertEqual(FoodLogText.total(stripFibre, locale: gb), "0 g+")
+        XCTAssertEqual(FoodLogText.totalAccessibility(stripFibre, locale: gb), "Fibre, at least 0 grams")
+
+        let projection = try root.intakeProjection(for: root.confirmationNow, calendar: root.confirmationDayCalendar)
+        try XCTSkipUnless(projection.summary.itemCount == 2, "the entry was saved on another day than Home's today")
+        let plainWater = try root.plainWaterTotal(for: root.confirmationNow, calendar: root.confirmationDayCalendar)
+        guard case .logged(let logged) = FoodHomeCardContent.make(projection: projection, plainWater: plainWater, locale: gb) else {
+            return XCTFail("Expected a logged card")
+        }
+        XCTAssertEqual(logged.nutrients.last?.label, "Fibre")
+        XCTAssertEqual(logged.nutrients.last?.value, "0 g+")
+        XCTAssertEqual(logged.footnote, "Some values are unknown for 1 entry, so totals marked + are known minimums.")
     }
 
     /// Two current heads for one entry (a removal committed against a stale view)

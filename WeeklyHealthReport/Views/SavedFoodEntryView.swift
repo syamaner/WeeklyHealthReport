@@ -151,13 +151,13 @@ struct SavedFoodEntryView: View {
         switch detail.nutrition {
         case let .calculated(totals):
             Section("Nutrition") {
-                ForEach(FoodLogDayContent.stripKeys, id: \.rawValue) { key in
+                ForEach(FoodLogDayContent.entryFlagKeys, id: \.rawValue) { key in
                     if let total = totals.first(where: { $0.key == key }) {
                         LabeledContent(FoodLogText.label(key), value: PastedLabelSavedEntryText.value(total, detail: detail))
                     }
                 }
                 DisclosureGroup("All nutrients") {
-                    ForEach(totals.filter { !FoodLogDayContent.stripKeys.contains($0.key) }, id: \.key.rawValue) { total in
+                    ForEach(totals.filter { !FoodLogDayContent.entryFlagKeys.contains($0.key) }, id: \.key.rawValue) { total in
                         LabeledContent(FoodLogText.label(total.key), value: PastedLabelSavedEntryText.value(total, detail: detail))
                     }
                 }

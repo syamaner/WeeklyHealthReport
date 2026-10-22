@@ -333,6 +333,8 @@ final class HealthReportFormatterTests: XCTestCase {
         Days Logged: 6 / 7 days
         Logged Energy: 2,010 kcal per day (5 complete days)
         Incomplete Energy Days: 1
+        Logged Fibre: 24 g per day (4 complete days)
+        Incomplete Fibre Days: 2
         Plain Water: 1,750 mL per day (4 days)
         Logged in this app; not a measure of everything eaten or drunk.
 

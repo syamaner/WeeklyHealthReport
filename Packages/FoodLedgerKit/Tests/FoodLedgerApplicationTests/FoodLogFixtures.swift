@@ -16,7 +16,7 @@ enum FoodLogFixtures {
         let provenance = NutrientProvenance(sourceKind: .manualDeclaration, sourceID: try ExternalIdentifier("physical_package"),
             sourceReleaseID: try ExternalIdentifier("package:fixture-v1"), evidenceID: try id(1, EvidenceTag.self), capturedAt: date)
         let known: [NutrientKey: Double] = [.energyConsumed: 200, .protein: 10, .carbohydrates: 30]
-            .merging(fatKnown ? [.fatTotal: 5] : [:]) { first, _ in first }
+            .merging(fatKnown ? [.fatTotal: 5, .fiber: 10] : [:]) { first, _ in first }
         return try NutrientSet(entries: NutrientKey.allCases.map { key in
             guard let amount = known[key] else { return try NutrientEntry(key: key, value: .unknown(.notDeclared)) }
             return try NutrientEntry(key: key, value: .measured(ExactNutrientValue(amount: amount, unit: key.canonicalUnit,
@@ -25,7 +25,7 @@ enum FoodLogFixtures {
         })
     }
 
-    /// Records with product versions 3 (fat unknown) and 13 (fat known), resolutions 5 and 15.
+    /// Records with product versions 3 (fat and fibre unknown) and 13 (fat and fibre known), resolutions 5 and 15.
     static func records() throws -> LedgerMutation {
         var mutation = LedgerMutation()
         for (offset, fatKnown) in [(0, false), (10, true)] {

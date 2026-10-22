@@ -74,6 +74,8 @@ extension ReportDocument {
         "food-days-logged": "Days logged",
         "food-energy-average": "Logged energy",
         "food-energy-incomplete": "Incomplete energy days",
+        "food-fibre-average": "Logged fibre",
+        "food-fibre-incomplete": "Incomplete fibre days",
         "food-plain-water-average": "Plain water"
     ]
 
