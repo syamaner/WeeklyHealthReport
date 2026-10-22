@@ -1049,6 +1049,24 @@ final class QuickAddAppTests: XCTestCase {
         }
     }
 
+    /// #288 QA: a day whose protein, carbohydrates, fat and fibre are unknown puts "Unknown" in
+    /// four of the five strip columns; at standard sizes it stays one whole word (scaled, never
+    /// broken mid-word), and at accessibility sizes the strip stacks (renders attached).
+    func testFoodLogStripKeepsUnknownWholeInFiveColumns() throws {
+        let root = try makeRoot()
+        let confirm = root.model(for: try exactInput(), prefillSourceQuantity: false)
+        confirm.send(.setQuantity(150, .grams))
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult, "\(confirm.state.phase)")
+        let day = try root.foodLogService.day(reportingDate: saved.logItemVersion.reportingDate.value)
+        XCTAssertEqual(day.totals?.map { FoodLogText.total($0) }.filter { $0 == "Unknown" }.count, 4)
+        let navigation = AppNavigationCoordinator(defaults: UserDefaults(suiteName: "fibre-strip-\(UUID().uuidString)")!)
+        for size in [DynamicTypeSize.large, .accessibility3] {
+            render(NavigationStack { FoodLogView(root: root, navigation: navigation) }.environment(\.dynamicTypeSize, size),
+                   "Food Log - unknown strip - \(size)")
+        }
+    }
+
     private func render<V: View>(_ content: V, _ name: String) {
         let host = UIHostingController(rootView: content)
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))

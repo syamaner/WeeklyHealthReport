@@ -2540,7 +2540,7 @@ Token totals are not evidence of productivity, quality or provider efficiency.
 
 One implementation subagent, its own transcript (`subagents/agent-a5d20ce9d01ad07f8.jsonl`), for #288. It covers the owner-approved contract amendments (phase 4 F10, the phase 6 Home amendment, `health-food-and-water-v1.md` v1.2 with decisions 8 and 9), the README update, the implementation, the tests, a simulator render check and one full gate run. The earlier stop-and-report pass of the same subagent (2026-10-22T17:05:44Z to 17:07:20Z, before the owner's approval) is outside this boundary.
 
-Runs from the phase's start (`2026-10-22T17:07:20Z`, captured with `date -u` after the approval arrived) to `2026-10-22T17:30:22Z`, just before this ledger edit.
+Runs from the phase's start (`2026-10-22T17:07:20Z`, captured with `date -u` after the approval arrived) to `2026-10-22T17:30:22Z`, just before this ledger edit. Boundary times are UTC; the owner decisions are dated by the local calendar (UTC+8), where these UTC times fall on 23 October 2026, which is why the docs say 23 October while the boundary says 22 October.
 
 Pricing: re-checked on 23 October 2026 (local date) against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output, unchanged. API-equivalent comparison under a Claude subscription, not a charge.
 
@@ -2549,5 +2549,27 @@ Pricing: re-checked on 23 October 2026 (local date) against Anthropic's official
 | Fibre visibility (#288), implementation subagent | 11,546,895 (11,400,648) | 146,109 | ≥ 3,001 (lower bound) | ≥ 11,549,896 | $3.07 (lower bound) |
 
 Boundary: `phase_usage.py --format claude --since 2026-10-22T17:07:20Z --until 2026-10-22T17:30:22Z` on the subagent transcript alone. Cache writes: 146,109 5-minute, 0 1-hour. Exact API-equivalent USD 3.0712466 at the recorded counts. The output count is a lower bound: 112 of the 122 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The orchestrating session and any reviewers are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-288-2026-10-23b: Claude Code fibre visibility, review round
+
+This is the same subagent and transcript as WHR-288-2026-10-23a. It covers the end of the first round (that row's ledger edit, the commit, the push and PR #292) and then the review round for #292:
+- "Unknown" now stays one word in the five-column strip at standard sizes and stacks at accessibility sizes, with a render test;
+- a test that pins fibre in the strip keys the report reader uses;
+- a real-ledger test for water plus a food without fibre (a known 0 g, so "0 g+", and an incomplete report day);
+- the policy identifier is now explained in the contract;
+- the UTC versus local dates are explained in the ledger;
+- one full gate run.
+
+The round runs from `2026-10-22T17:30:23Z` (one second after WHR-288-2026-10-23a's end) to `2026-10-22T18:06:08Z`, just before this ledger edit. These times are UTC, which is 23 October local time (UTC+8).
+
+Pricing uses the Claude Opus 5.5 rates re-checked on the official pricing page on 23 October 2026 local time (WHR-288-2026-10-23a), which are unchanged. This is an API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Fibre visibility review round (#288), implementation subagent | 7,145,970 (6,674,402) | 471,508 | ≥ 895 (lower bound) | ≥ 7,146,865 | $3.71 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-22T17:30:23Z --until 2026-10-22T18:06:08Z` on the subagent transcript alone. Cache writes were 471,508 5-minute and 0 1-hour. The exact API-equivalent is USD 3.7105604 at the recorded counts. The output count is a lower bound: 40 of the 44 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The orchestrating session and the reviewers are not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
