@@ -4,7 +4,9 @@ import SwiftUI
 
 @MainActor
 public final class FoodConfirmationViewModel: ObservableObject {
-    @Published public private(set) var state: FoodConfirmationState
+    @Published public private(set) var state: FoodConfirmationState {
+        didSet { if state.correction == nil && correctionAppliedOnConfirm { correctionAppliedOnConfirm = false } }
+    }
     @Published public private(set) var savedResult: StoredFoodConfirmation?
     private let saveAction: @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
     /// Writes `save_favourite_v1` for the logged entry version (#198). Nil hides "Save as favourite".
@@ -530,8 +532,21 @@ public final class FoodConfirmationViewModel: ObservableObject {
     }
 
     /// Set once the user applied food details on this Confirm, so the correction is marked with
-    /// a visible confirmation rather than only a caption.
+    /// a visible confirmation rather than only a caption. Reset whenever the correction is gone
+    /// (`state`'s observer), so a later carried-over correction is not announced as the user's.
     @Published private var correctionAppliedOnConfirm = false
+
+    /// The button that opens the Food details sheet, or nil: "Add food details" while source
+    /// details are missing, otherwise "Correct food details" for a saved entry or once details
+    /// were applied, so an applied correction can be reopened before Log (#276).
+    public var foodDetailsActionTitle: String? {
+        if !missingSourceDetails.isEmpty { return Self.addFoodDetailsTitle }
+        if state.reopened != nil || state.correction != nil { return Self.correctFoodDetailsTitle }
+        return nil
+    }
+
+    public static let addFoodDetailsTitle = "Add food details"
+    public static let correctFoodDetailsTitle = "Correct food details"
 
     /// The confirmation shown on Confirm, and announced to VoiceOver, after food details were
     /// applied (#276). Nil once the correction no longer stands (for example another match).
@@ -819,15 +834,13 @@ public struct FoodConfirmationView: View {
                 Label(FoodLogRequirementText.text(.sourceIdentityMissing(model.missingSourceDetails)),
                       systemImage: "exclamationmark.triangle")
                     .font(.subheadline)
-                Button("Add food details") { showsCorrection = true }
+            }
+            if let title = model.foodDetailsActionTitle {
+                Button(title) { showsCorrection = true }
                     .frame(minHeight: 44)
             }
             if model.state.input.candidates.count > 1 && model.state.reopened == nil {
                 Button("Choose a different match") { showsMatches = true }
-                    .frame(minHeight: 44)
-            }
-            if model.state.reopened != nil {
-                Button("Correct food details") { showsCorrection = true }
                     .frame(minHeight: 44)
             }
         }

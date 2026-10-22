@@ -2551,3 +2551,19 @@ Pricing: re-checked on 23 October 2026 (local date) against Anthropic's official
 Boundary: `phase_usage.py --format claude --since 2026-10-22T17:05:44Z --until 2026-10-22T17:30:48Z` on the subagent transcript alone. Cache writes: 342,333 5-minute, 0 1-hour. Exact API-equivalent USD 6.2015934 at the recorded counts. The output count is a lower bound: 166 of the 249 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The orchestrating session and any reviewers are not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-285-2026-10-23b: Claude Code Food details sheet fixes, journey QA fix round
+
+Same subagent and transcript as WHR-285-2026-10-23a. Covers the end of the first round (its ledger edit, commit, push and PR #293) and the fixes from the invariant review and journey QA of #293: one normalised reason text shared by the field and the draft (pasted line breaks collapse to single spaces, any inserted line break ends editing, Return over a selection keeps the text); the refusal cleared when the answers change; "Correct food details" after Apply on a new entry; visible labels on the sheet's text fields and sentence-case values; the applied flag reset whenever the correction is gone; view-model tests, a hosted UITextView test of paste and Return; one full gate run.
+
+Runs from `2026-10-22T17:30:49Z` (one second after WHR-285-2026-10-23a's end) to `2026-10-22T18:06:12Z`, just before this ledger edit.
+
+Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 23 October 2026 (WHR-285-2026-10-23a), unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Food details sheet journey QA fix round (#285, #276), implementation subagent | 12,428,224 (12,062,989) | 365,165 | ≥ 10,198 (lower bound) | ≥ 12,438,422 | $4.44 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-22T17:30:49Z --until 2026-10-22T18:06:12Z` on the subagent transcript alone. Cache writes: 365,165 5-minute, 0 1-hour. Exact API-equivalent USD 4.4426628 at the recorded counts. The output count is a lower bound: 59 of the 72 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The orchestrating session and the reviewers are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

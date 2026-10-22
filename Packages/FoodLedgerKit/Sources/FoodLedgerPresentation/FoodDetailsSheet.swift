@@ -88,13 +88,37 @@ public struct FoodDetailsDraft: Equatable, Sendable {
     /// One edit of the reason field (#285). The reason is a single note that wraps while typed, so
     /// Return finishes the field instead of adding a line: an edit that only inserts one line
     /// break keeps the previous text and reports `finishes`. Pasted line breaks become spaces.
+    ///
+    /// The returned text is what both the field shows and the draft stores, so they never drift.
+    /// Any inserted line break finishes the field:
+    /// - Return, at the caret or over a selection, keeps the previous text unchanged;
+    /// - a paste containing line breaks keeps the pasted text with each line break (and the spaces
+    ///   around it) collapsed to one space, trimmed at both ends, so no blank line remains.
     public static func reasonEdit(from old: String, to new: String) -> (text: String, finishes: Bool) {
-        guard new.contains(where: \.isNewline) else { return (new, false) }
-        if new.count == old.count + 1, new.filter({ !$0.isNewline }) == old, new.filter(\.isNewline).count == 1 {
-            return (old, true)
+        let breaks = new.indices.filter { new[$0].isNewline }
+        guard let first = breaks.first else { return (new, false) }
+        if breaks.count == 1 {
+            // Return: everything before and after the break is the old text around the caret or
+            // the replaced selection.
+            let prefix = new[..<first], suffix = new[new.index(after: first)...]
+            if old.hasPrefix(prefix), old.hasSuffix(suffix), prefix.count + suffix.count <= old.count {
+                return (old, true)
+            }
         }
-        let joined = new.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline).joined(separator: " ")
-        return (joined, false)
+        return (collapsingLineBreaks(new), true)
+    }
+
+    /// Each run of line breaks, with the spaces and tabs around it, becomes one space; the result
+    /// is trimmed. Text without line breaks is unchanged.
+    public static func collapsingLineBreaks(_ text: String) -> String {
+        var pieces: [Substring] = []
+        for line in text.split(omittingEmptySubsequences: true, whereSeparator: \.isNewline) {
+            let trimmed = line.drop(while: { $0 == " " || $0 == "\t" })
+            let end = trimmed.lastIndex(where: { $0 != " " && $0 != "\t" })
+            guard let end else { continue }
+            pieces.append(trimmed[...end])
+        }
+        return pieces.joined(separator: " ")
     }
 
     public static let invalidDetailsMessage =
@@ -113,12 +137,16 @@ public struct FoodDetailsForm: View {
     @Binding private var draft: FoodDetailsDraft
     private let applied: () -> Void
     @State private var failure: String?
+    /// The reason as the field shows it; every edit is normalised once and written to both this
+    /// and the draft, so the field and the stored reason stay identical (#285).
+    @State private var reasonText: String
     @FocusState private var reasonFocused: Bool
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     public init(model: FoodConfirmationViewModel, draft: Binding<FoodDetailsDraft>, applied: @escaping () -> Void) {
         self.model = model
         _draft = draft
+        _reasonText = State(initialValue: draft.wrappedValue.reason)
         self.applied = applied
     }
 
@@ -134,15 +162,15 @@ public struct FoodDetailsForm: View {
     public var body: some View {
         Form {
             Section("Food details") {
-                TextField("Product name", text: $draft.name)
-                TextField("Brand (optional)", text: $draft.brand)
-                TextField("Variant (optional)", text: $draft.variant)
+                labelledField("Product name", $draft.name, prompt: "Required")
+                labelledField("Brand", $draft.brand, prompt: "Optional")
+                labelledField("Variant", $draft.variant, prompt: "Optional")
                 picker("Item class", $draft.itemClass,
                        [ItemClass.food, .fortifiedFood, .supplement, .drink, .water].map { ($0.rawValue, Self.label($0.rawValue)) })
                 picker("Preparation", $draft.preparation,
                        [PreparationKind.asSold, .raw, .cooked, .reheated, .named, .unknown].map { ($0.rawValue, Self.label($0.rawValue)) })
                 if draft.preparation == PreparationKind.named.rawValue {
-                    TextField("Preparation method", text: $draft.preparationMethod)
+                    labelledField("Preparation method", $draft.preparationMethod, prompt: "Required")
                 }
                 picker("Bone", $draft.bone,
                        [BoneState.withBone, .boneless, .notApplicable, .unknown].map { ($0.rawValue, Self.label($0.rawValue)) })
@@ -150,7 +178,7 @@ public struct FoodDetailsForm: View {
                        [SkinState.skinOn, .skinless, .notApplicable, .unknown].map { ($0.rawValue, Self.label($0.rawValue)) })
                 picker("Drained state", $draft.drained,
                        [DrainedState.drained, .undrained, .notApplicable, .unknown].map { ($0.rawValue, Self.label($0.rawValue)) })
-                TextField("Packing medium", text: $draft.packingMedium)
+                labelledField("Packing medium", $draft.packingMedium, prompt: "Optional")
                     .accessibilityHint("A blank packing medium remains unresolved")
                 picker("Fortification", $draft.fortification,
                        [FortificationState.fortified, .unfortified, .unknown].map { ($0.rawValue, Self.label($0.rawValue)) })
@@ -168,6 +196,29 @@ public struct FoodDetailsForm: View {
                     .font(.caption)
             }
         }
+        // A refusal describes the answers it refused; any change to them clears it.
+        .onChange(of: draft) { _, _ in failure = nil }
+        .onChange(of: reasonText) { _, new in reasonChanged(new) }
+    }
+
+    /// One edit of the reason field: normalised once, then written to the field and the draft
+    /// alike; an inserted line break ends editing.
+    private func reasonChanged(_ new: String) {
+        let edit = FoodDetailsDraft.reasonEdit(from: draft.reason, to: new)
+        if edit.text != new { reasonText = edit.text }
+        if draft.reason != edit.text { draft.reason = edit.text }
+        if edit.finishes { reasonFocused = false }
+    }
+
+    /// A text field with its name shown above it, so a filled field keeps its label (and neither
+    /// truncates at the largest text sizes); the field itself only holds a short prompt.
+    private func labelledField(_ title: String, _ text: Binding<String>, prompt: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title).accessibilityHidden(true)
+            TextField(title, text: text, prompt: Text(prompt))
+                .frame(minHeight: 44)
+                .accessibilityLabel(title)
+        }
     }
 
     /// The reason keeps a visible label above the field, so neither truncates at the largest text
@@ -175,11 +226,7 @@ public struct FoodDetailsForm: View {
     private var reasonField: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(Self.reasonTitle).accessibilityHidden(true)
-            TextField(Self.reasonTitle, text: Binding(get: { draft.reason }, set: { new in
-                let edit = FoodDetailsDraft.reasonEdit(from: draft.reason, to: new)
-                draft.reason = edit.text
-                if edit.finishes { reasonFocused = false }
-            }), prompt: Text("Required"), axis: .vertical)
+            TextField(Self.reasonTitle, text: $reasonText, prompt: Text("Required"), axis: .vertical)
                 .focused($reasonFocused)
                 .submitLabel(.done)
                 .frame(minHeight: 44)
@@ -227,7 +274,9 @@ public struct FoodDetailsForm: View {
         }
     }
 
-    private static func label(_ value: String) -> String {
-        value.replacingOccurrences(of: "_", with: " ").capitalized
+    /// Sentence case for a stored value, matching the app's copy: "as_sold" reads "As sold".
+    public static func label(_ value: String) -> String {
+        let words = value.replacingOccurrences(of: "_", with: " ").lowercased()
+        return words.prefix(1).uppercased() + words.dropFirst()
     }
 }
