@@ -569,6 +569,58 @@ final class FoodLogAppTests: XCTestCase {
         XCTAssertEqual(unsupported.buttonTitle, "Scan barcode", "never 'Scan again' before a scanner opened")
     }
 
+    /// #285 and #276: the Food details sheet at standard and the largest text size, the full
+    /// "Nutrition basis" value and reason label (visual checks attached), then Confirm after Apply
+    /// showing the correction confirmation, with nothing saved.
+    func testFoodDetailsSheetAtLargestTextAndConfirmAfterApply() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        let search = try root.genericFoodSearchModel(locale: Locale(identifier: "en_GB"))
+        search.query = "clementine"
+        search.search()
+        guard case let .results(route) = search.phase else { throw XCTSkip("Expected offline fruit candidates") }
+        let candidate = try XCTUnwrap(route.confirmation.candidates.first)
+        let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence, sourceReleases: route.confirmation.sourceReleases,
+            candidates: [candidate], expectedIdentity: candidate.candidate.identity, expectedEdibleQuantity: candidate.candidate.edibleQuantity)
+        let model = root.model(for: input)
+        for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility5, "accessibility5")] {
+            let draft = FoodDetailsDraft(model: model)
+            // The largest sizes stack each title above its full, wrapping value (#285).
+            XCTAssertEqual(FoodDetailsForm.stacksTitles(at: size), size.isAccessibilitySize, name)
+            renderTall(NavigationStack {
+                FoodDetailsForm(model: model, draft: .constant(draft)) {}.navigationTitle("Food details")
+            }.environment(\.dynamicTypeSize, size), "Food details - \(name)")
+        }
+        XCTAssertEqual(FoodDetailsForm.basisOptions.map(\.1), ["Keep populated basis", "Per 100 g", "Per 100 mL"])
+        var draft = FoodDetailsDraft(model: model)
+        draft.reason = "Synthetic: package states the details"
+        XCTAssertTrue(model.applyFoodDetails(draft))
+        XCTAssertEqual(model.correctionNotice, FoodConfirmationViewModel.correctionAppliedForLog)
+        XCTAssertNil(model.savedResult, "Apply is not a save; Log is")
+        XCTAssertEqual(model.logButtonTitle.hasPrefix("Log"), true, "Log stays the only save")
+        renderTall(NavigationStack { FoodConfirmationView(model: model) {} }
+            .environment(\.dynamicTypeSize, .accessibility5), "Confirm after Apply - accessibility5")
+    }
+
+    /// Renders into a tall window so a whole form lays out and attaches the image (SwiftUI text
+    /// is not exposed as UIKit labels or accessibility elements in a hosted test).
+    private func renderTall<V: View>(_ content: V, _ name: String) {
+        let host = UIHostingController(rootView: content)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 4000))
+        window.rootViewController = host
+        window.isHidden = false
+        host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { window.layer.render(in: $0.cgContext) }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = name; attachment.lifetime = .keepAlways
+        add(attachment)
+        XCTAssertEqual(image.size.width, 390)
+        window.isHidden = true
+    }
+
     private func renderPolish<V: View>(_ content: V, _ name: String) {
         let host = UIHostingController(rootView: content)
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
