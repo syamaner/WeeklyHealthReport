@@ -247,6 +247,65 @@ final class FoodLogPeriodSummaryTests: XCTestCase {
         XCTAssertEqual(summary.completeWaterDayCount, 2)
     }
 
+    // MARK: Fibre (contract v1.2, #288)
+
+    /// Owner decision 9: the energy rule. Any unknown fibre contribution, or no
+    /// known fibre, leaves the day out of the mean and counts it; never 0 g.
+    func testFibreDaysAreClassifiedLikeEnergy() {
+        let dates = FoodLogFixtures.dates(count: 5)
+        let summary = FoodLogPeriodSummary.make(days: [
+            FoodLogFixtures.day(dates[0], energy: 1_800, fibre: 20),
+            FoodLogFixtures.day(dates[1], energy: 1_800, fibre: 9, fibreIncomplete: 1),
+            FoodLogFixtures.day(dates[2], energy: 1_800),
+            FoodLogFixtures.waterOnly(dates[3], water: 500),
+            Facts(reportingDate: dates[4], entryCount: 2, foodEntryCount: 2,
+                  energy: .init(knownAmount: 100, incompleteContributions: 0, includesEstimates: false), plainWater: nil)
+        ], reportingDates: dates)
+        XCTAssertEqual(summary.days.map(\.fibre), [
+            .complete(grams: 20), .incomplete, .incomplete, .notLogged, .incomplete
+        ], "a logged day with no fibre total read is unknown, not 0 g")
+        XCTAssertEqual(summary.completeFibreDayCount, 1)
+        XCTAssertEqual(summary.incompleteFibreDayCount, 3, "the water-only day is outside the count")
+        XCTAssertEqual(summary.averageFibreGrams, 20)
+    }
+
+    func testFibreMeanWeightsCompleteDaysEquallyAndLeavesKnownMinimumsOut() throws {
+        let dates = FoodLogFixtures.dates(count: 4)
+        let summary = FoodLogPeriodSummary.make(days: [
+            FoodLogFixtures.day(dates[0], energy: 1_000, entries: 1, fibre: 10),
+            FoodLogFixtures.day(dates[1], energy: 3_000, entries: 9, fibre: 31.5),
+            FoodLogFixtures.day(dates[2], energy: 2_000, fibre: 90, fibreIncomplete: 1),
+            FoodLogFixtures.waterOnly(dates[3], water: 2_000)
+        ], reportingDates: dates)
+        XCTAssertEqual(try XCTUnwrap(summary.averageFibreGrams), 20.75, accuracy: 1e-9)
+        XCTAssertEqual(summary.completeFibreDayCount, 2)
+        XCTAssertEqual(summary.incompleteFibreDayCount, 1)
+        XCTAssertFalse(summary.fibreIncludesEstimates)
+    }
+
+    func testNoKnownFibreGivesNoAverageNeverZero() {
+        let dates = FoodLogFixtures.dates(count: 3)
+        let summary = FoodLogPeriodSummary.make(days: dates.map { FoodLogFixtures.day($0, energy: 2_000) },
+                                                reportingDates: dates)
+        XCTAssertNil(summary.averageFibreGrams)
+        XCTAssertEqual(summary.incompleteFibreDayCount, 3)
+        XCTAssertEqual(summary.averageEnergyKilocalories, 2_000, "energy is independent of fibre")
+    }
+
+    func testFibreEstimatesPropagateOnlyFromAveragedDays() {
+        let dates = FoodLogFixtures.dates(count: 2)
+        let incompleteEstimate = FoodLogPeriodSummary.make(days: [
+            FoodLogFixtures.day(dates[0], energy: 1_000, fibre: 20),
+            FoodLogFixtures.day(dates[1], energy: 1_000, fibre: 5, fibreIncomplete: 1, fibreEstimates: true)
+        ], reportingDates: dates)
+        XCTAssertFalse(incompleteEstimate.fibreIncludesEstimates)
+        let completeEstimate = FoodLogPeriodSummary.make(days: [
+            FoodLogFixtures.day(dates[0], energy: 1_000, fibre: 20, fibreEstimates: true)
+        ], reportingDates: dates)
+        XCTAssertTrue(completeEstimate.fibreIncludesEstimates)
+        XCTAssertFalse(completeEstimate.energyIncludesEstimates, "fibre estimates never label energy")
+    }
+
     func testNormalWeekFixtureMatchesTheContractExample() throws {
         let summary = FoodLogFixtures.normalWeek(dates: FoodLogFixtures.dates(count: 7))
         XCTAssertEqual(summary.loggedDayCount, 6)
@@ -255,6 +314,9 @@ final class FoodLogPeriodSummaryTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(summary.averageEnergyKilocalories), 2_010.08, accuracy: 1e-9)
         XCTAssertEqual(summary.completeWaterDayCount, 4)
         XCTAssertEqual(summary.averagePlainWaterMillilitres, 1_750)
+        XCTAssertEqual(summary.completeFibreDayCount, 4)
+        XCTAssertEqual(summary.incompleteFibreDayCount, 2)
+        XCTAssertEqual(summary.averageFibreGrams, 24)
     }
 }
 
@@ -285,7 +347,10 @@ enum FoodLogFixtures {
         water: Double? = nil,
         waterIncomplete: Int = 0,
         waterEstimates: Bool = false,
-        entries: Int = 3
+        entries: Int = 3,
+        fibre: Double? = nil,
+        fibreIncomplete: Int = 0,
+        fibreEstimates: Bool = false
     ) -> FoodLogDayFacts {
         FoodLogDayFacts(
             reportingDate: date,
@@ -302,7 +367,13 @@ enum FoodLogFixtures {
                     incompleteContributions: waterIncomplete,
                     includesEstimates: waterEstimates
                 )
-            }
+            },
+            // No fibre given means no entry had fibre: unknown, never 0 g.
+            fibre: FoodLogDayFacts.Total(
+                knownAmount: fibre,
+                incompleteContributions: fibre == nil ? entries : fibreIncomplete,
+                includesEstimates: fibreEstimates
+            )
         )
     }
 
@@ -327,15 +398,17 @@ enum FoodLogFixtures {
     }
 
     /// The contract's example week: 6 / 7 days logged, a 2,010 kcal mean over
-    /// five complete days, one incomplete energy day and plain water on four days.
+    /// five complete days, one incomplete energy day and plain water on four days;
+    /// v1.2 (#288) fibre: a 24 g mean over four complete fibre days and two
+    /// incomplete ones (a known minimum and no known fibre).
     static func normalWeekFacts(dates: [String]) -> [FoodLogDayFacts] {
         [
-            day(dates[0], energy: 1_900, water: 1_500),
-            day(dates[1], energy: 2_100, water: 2_000),
+            day(dates[0], energy: 1_900, water: 1_500, fibre: 22),
+            day(dates[1], energy: 2_100, water: 2_000, fibre: 26),
             // dates[2] not logged
-            day(dates[3], energy: 1_950, water: 1_750),
-            day(dates[4], energy: 800, energyIncomplete: 1, water: 1_750),
-            day(dates[5], energy: 2_050),
+            day(dates[3], energy: 1_950, water: 1_750, fibre: 23),
+            day(dates[4], energy: 800, energyIncomplete: 1, water: 1_750, fibre: 25),
+            day(dates[5], energy: 2_050, fibre: 10, fibreIncomplete: 1),
             day(dates[6], energy: 2_050.4)
         ]
     }

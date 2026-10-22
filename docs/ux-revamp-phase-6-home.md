@@ -9,13 +9,15 @@ Order: (1) behaviour-neutral pure extractions (weight lookback function, `BloodP
 | Block | Content | States |
 |---|---|---|
 | Header | Weekday and date, large title "Today", gear to Settings | |
-| Food card | "Food logged", link to Food Log; energy kcal and entry count; protein, carbohydrates, fat; "Plain water logged" (phase 5 Q8); "+" on a known minimum with one footnote ("Fat unknown for 1 entry, so 41 g is a known minimum.") | Empty ("Nothing logged yet today", never 0 kcal), partial, failed with Try again, loading |
+| Food card | "Food logged", link to Food Log; energy kcal and entry count; protein, carbohydrates, fat, fibre (amended 23 October 2026, #288); "Plain water logged" (phase 5 Q8); "+" on a known minimum with one footnote ("Fat unknown for 1 entry, so 41 g is a known minimum.") | Empty ("Nothing logged yet today", never 0 kcal), partial, failed with Try again, loading |
 | Add food | Prominent button to Add food | |
 | Quick add | Up to four chips (`FavouritesProjection.todayCount`), built-in Water 250 mL when no favourite is stored; "Manage favourites" to `favourites`; chips open the quick-add sheet (phase 5) | Empty: "No favourites yet" and Manage favourites; unreadable: "Favourites could not be read." and Review favourites |
 | Health · today so far | Steps so far, active energy so far, sleep last night ("so far" before noon), latest weight and blood pressure with times; link to Health; footer "Today is still in progress. Health summaries use completed days." plus "As of HH:mm" | Per row: loading, value, no data or no access, failed; whole card: Health unavailable |
 | Today's notes | Today's note count, opens today's notes | No notes ("None yet") |
 
 Home is today only. Day navigation and recent-day previews move to Food Log (#197).
+
+**Amendment, 23 October 2026 (owner decision, #288).** The food card gains a "Fibre" row after Fat (`FoodHomeCardContent.nutrientKeys` gains `fiber`). It is today's food-log fibre total so far under `food-intake-summary-v3`, the same figure as the Food Log strip: "18 g", "18 g+" with the card's one footnote when an entry's fibre is unknown, "Unknown" when no entry has fibre (never 0 g), the "Includes estimates" caption when known values include estimates, and VoiceOver "Fibre, at least 18 grams". Plain water contributes exactly 0 g (food-quick-add-contract-v1 Q1). The row follows the card's existing Dynamic Type layout and appears in Today's Full Page with the card's words. It stays a Home value (D10): it never enters Copy all, the Health report or the export.
 
 ## Home cards contributed per feature
 

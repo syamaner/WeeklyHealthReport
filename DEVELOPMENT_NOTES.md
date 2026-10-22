@@ -2535,3 +2535,19 @@ Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 21
 Boundary: `phase_usage.py --format claude --since 2026-10-20T19:40:35Z` on the subagent transcript alone, taken at `2026-10-20T19:56:18Z`. Cache writes: 42,438 5-minute, 0 1-hour. Exact API-equivalent USD 3.0928254 at the recorded counts. The output count is a lower bound: 42 of the 55 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The reviewers' usage is not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-288-2026-10-23a: Claude Code fibre on Today, Food Log and the Health report
+
+One implementation subagent, its own transcript (`subagents/agent-a5d20ce9d01ad07f8.jsonl`), for #288. It covers the owner-approved contract amendments (phase 4 F10, the phase 6 Home amendment, `health-food-and-water-v1.md` v1.2 with decisions 8 and 9), the README update, the implementation, the tests, a simulator render check and one full gate run. The earlier stop-and-report pass of the same subagent (2026-10-22T17:05:44Z to 17:07:20Z, before the owner's approval) is outside this boundary.
+
+Runs from the phase's start (`2026-10-22T17:07:20Z`, captured with `date -u` after the approval arrived) to `2026-10-22T17:30:22Z`, just before this ledger edit.
+
+Pricing: re-checked on 23 October 2026 (local date) against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output, unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Fibre visibility (#288), implementation subagent | 11,546,895 (11,400,648) | 146,109 | ≥ 3,001 (lower bound) | ≥ 11,549,896 | $3.07 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-22T17:07:20Z --until 2026-10-22T17:30:22Z` on the subagent transcript alone. Cache writes: 146,109 5-minute, 0 1-hour. Exact API-equivalent USD 3.0712466 at the recorded counts. The output count is a lower bound: 112 of the 122 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The orchestrating session and any reviewers are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

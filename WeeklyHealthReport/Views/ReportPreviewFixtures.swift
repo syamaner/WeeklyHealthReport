@@ -180,7 +180,7 @@ enum ReportPreviewFixtures {
     }
 
     /// Synthetic food log: six of seven days logged, one with an unknown energy
-    /// contribution, plain water on four days.
+    /// contribution, plain water on four days, fibre complete on four days.
     private static func syntheticFoodLog(period: ReportPeriod) -> FoodLogPeriodSummary {
         let dates = FoodLogPeriodSummary.reportingDates(for: period, calendar: .autoupdatingCurrent)
         let facts = dates.enumerated().compactMap { index, date -> FoodLogDayFacts? in
@@ -198,7 +198,12 @@ enum ReportPreviewFixtures {
                     knownAmount: 1_750,
                     incompleteContributions: 0,
                     includesEstimates: false
-                ) : nil
+                ) : nil,
+                fibre: FoodLogDayFacts.Total(
+                    knownAmount: index == 6 ? nil : (index == 5 ? 10 : 24),
+                    incompleteContributions: index == 6 ? 4 : (index == 5 ? 1 : 0),
+                    includesEstimates: false
+                )
             )
         }
         return FoodLogPeriodSummary.make(days: facts, reportingDates: dates)

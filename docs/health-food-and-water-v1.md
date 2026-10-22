@@ -1,8 +1,8 @@
 # Health food and water section v1 (#214)
 
-Version 1.1. Status: **approved by the owner, 16 October 2026; every decision in section 9 takes its recommended option. Amended by the owner, 16 October 2026 (v1.1): a day with only plain water is not a logged food day** (decision 7; the invariant review found that water-only days would otherwise raise "Days logged" and enter the energy average as 0 kcal days). Policy identifier: `health_food_log_period_v1`. Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md)); wireframe `designs/ux-revamp-v1/Health.dc.html` ("Logged energy" tile, "Food and water" section).
+Version 1.2. Status: **approved by the owner, 16 October 2026; every decision in section 9 takes its recommended option. Amended by the owner, 16 October 2026 (v1.1): a day with only plain water is not a logged food day** (decision 7; the invariant review found that water-only days would otherwise raise "Days logged" and enter the energy average as 0 kcal days). **Amended by the owner, 23 October 2026 (v1.2, #288): the section adds logged fibre** (decisions 8 and 9), with the same day rule and aggregation as logged energy; existing rows are byte-identical. Policy identifier: `health_food_log_period_v1`. Deferred from UX revamp phase 7 ([ux-revamp-phase-7-health-export.md](ux-revamp-phase-7-health-export.md)); wireframe `designs/ux-revamp-v1/Health.dc.html` ("Logged energy" tile, "Food and water" section).
 
-**Proposal:** yes, the Health report shows what was **logged in this app's food log** for the selected completed days: average logged energy per complete day and average plain water per day it was logged, with logged-day coverage. Both are food-log facts, labelled "logged", not measured intake. HealthKit dietary data stays export-only, as README already says.
+**Proposal:** yes, the Health report shows what was **logged in this app's food log** for the selected completed days: average logged energy per complete day, average logged fibre per complete fibre day (v1.2) and average plain water per day it was logged, with logged-day coverage. Both are food-log facts, labelled "logged", not measured intake. HealthKit dietary data stays export-only, as README already says.
 
 ## 1. Day rules
 
@@ -15,15 +15,18 @@ Version 1.1. Status: **approved by the owner, 16 October 2026; every decision in
 `FoodLogDayContent` for one reporting date (`FoodLedgerApplication/FoodLogDayContent.swift`) already gives:
 
 - `totals`, which is nil when the day has no current entries. The energy total is `FoodIntakeTotal(key: .energyConsumed)` with `knownAmount`, `incompleteContributions` and `includesEstimates` (summary policy `food-intake-summary-v3`, which adds one rule to v2: a calculated pasted-label value sets `includesEstimates`; see [pasted-nutrition-label-v1.md](pasted-nutrition-label-v1.md) section 3.5).
+- The fibre total (v1.2) is `FoodIntakeTotal(key: .fiber)` in the same `totals` (the strip gains fibre, phase 4 F10), with the same three fields.
 - `plainWater`, which is nil when no plain water was logged. It is a known minimum when `incompleteContributions > 0` (`PlainWaterDayTotal`).
 
-Day classification (v1.1). A **food entry** is a current entry that is not plain water; plain water entries are identified by the saved entry's `isPlainWater` (`PlainWaterReference.isPlainWater`). Energy for a day is the `energyConsumed` total over its food entries: plain water contributes exactly 0 kcal, and a plain water entry that cannot be scaled is not counted as an incomplete energy contribution.
+Day classification (v1.1). A **food entry** is a current entry that is not plain water; plain water entries are identified by the saved entry's `isPlainWater` (`PlainWaterReference.isPlainWater`). Energy for a day is the `energyConsumed` total over its food entries: plain water contributes exactly 0 kcal, and a plain water entry that cannot be scaled is not counted as an incomplete energy contribution. Fibre (v1.2) follows the same rule: plain water contributes exactly 0 g fibre (food-quick-add-contract-v1 Q1), a plain water entry that cannot be scaled is not counted as an incomplete fibre contribution, and a water-only day is not logged, so it stays outside the fibre average and the incomplete fibre count.
 
 | Day | Rule |
 |---|---|
 | Not logged | No current food entry: no entries (`totals == nil`), or plain water only (decision 7). Not zero, and not in "Days logged", the energy average or the incomplete count |
 | Logged, energy complete | At least one food entry, `knownAmount != nil` and `incompleteContributions == 0` |
 | Logged, energy incomplete | At least one food entry, otherwise. The known subtotal is a minimum and is left out of the average (decision 3) |
+| Fibre complete (v1.2) | At least one food entry, a known fibre amount and no unknown fibre contribution. Enters the fibre average |
+| Fibre incomplete (v1.2) | At least one food entry, otherwise: any unknown fibre contribution, or no known fibre at all. Left out of the fibre average and counted (decision 9). Never 0 g |
 | Water day | `plainWater != nil` with `incompleteContributions == 0`, whether or not the day has food entries (a water-only day counts towards the water average) |
 | Water incomplete | `plainWater` with `incompleteContributions > 0`. Left out of the average and counted |
 
@@ -32,19 +35,22 @@ Superseded and removed versions never contribute. Competing current heads make t
 ## 3. Values and rounding
 
 - **Logged energy:** the arithmetic mean of complete days' energy totals, with each day weighted equally. kcal, rounded to a whole number with grouping, only in presentation.
+- **Logged fibre (v1.2):** the arithmetic mean of complete fibre days' totals, each day weighted equally (the same aggregation as logged energy). g, rounded to a whole number with grouping, only in presentation.
 - **Plain water:** the mean over complete water days. mL, rounded to a whole number. It is plain water entries only (the Home and Food Log figure), never water contained in foods. The label says "Plain water".
 - **Coverage:** "6 / 7 days logged" (the existing `dayCoverage` style), plus incomplete counts when not zero.
 - If any day in an average includes estimates, the value carries the existing "includes estimates" wording.
 
 ## 4. Rows and states
 
-Section id `foodLog`, title "Food and water" in Copy all and on screen. Row ids: `food-days-logged`, `food-energy-average`, `food-energy-incomplete`, `food-plain-water-average`, plus the usual `-loading`, `-no-data`, `-failed` and `-no-completed-days` state rows.
+Section id `foodLog`, title "Food and water" in Copy all and on screen. Row ids: `food-days-logged`, `food-energy-average`, `food-energy-incomplete`, `food-fibre-average` (v1.2), `food-fibre-incomplete` (v1.2), `food-plain-water-average`, plus the usual `-loading`, `-no-data`, `-failed` and `-no-completed-days` state rows.
 
 ```text
 Food and water
 Days Logged: 6 / 7 days
 Logged Energy: 2,010 kcal per day (5 complete days)
 Incomplete Energy Days: 1
+Logged Fibre: 24 g per day (4 complete days)
+Incomplete Fibre Days: 2
 Plain Water: 1,750 mL per day (4 days)
 Logged in this app; not a measure of everything eaten or drunk.
 ```
@@ -55,10 +61,11 @@ Logged in this app; not a measure of everything eaten or drunk.
 | No completed days | Same as Steps: "There are no completed days in this period yet." |
 | Nothing logged in the period | "No food logged in this period." Never 0 kcal. When plain water was logged (water-only days, v1.1), the `Plain Water` row follows with its average |
 | Logged but no complete energy day | `Logged Energy: Insufficient history` plus the counts |
+| Logged but no complete fibre day (v1.2) | `Logged Fibre: Insufficient history` plus `Incomplete Fibre Days` |
 | No plain water logged | `Plain Water: No data` |
 | Read failed | "Could not read the food log." The technical message appears only in Developer tools. This is distinct from the Apple Health wording |
 
-The incomplete-days row is left out when the count is 0. The footer line is fixed copy.
+The incomplete-days rows (energy and fibre) are left out when their count is 0. The fibre rows sit after the energy rows and before `Plain Water`; on screen and in Full Page they read "Logged fibre" and "Incomplete fibre days". When nothing is logged, no fibre row appears ("No food logged in this period." as before). The footer line is fixed copy.
 
 ## 5. Consistency
 
@@ -67,10 +74,10 @@ The incomplete-days row is left out when the count is 0. The footer line is fixe
 | Health screen | New section (placement owned by #216, see [health-report-section-groups-v1.md](health-report-section-groups-v1.md)). New "Logged energy" tile pinned to `food-energy-average` with `food-days-logged` (decision 4) |
 | Copy all | Adds the section block above. Tiles are not copied |
 | Full Page | The same section in display wording |
-| Developer tools | New "Food log (Health report)" section: each reporting date, entry count, unrounded energy known amount, incomplete contributions, estimate flag, plain water and its flags, and each day's classification |
+| Developer tools | New "Food log (Health report)" section: each reporting date, entry count, unrounded energy known amount, incomplete contributions, estimate flag, plain water and its flags, and each day's classification. v1.2 adds a "Fibre days" and a "Fibre mean" line and, per date, the unrounded fibre known amount, incomplete contributions, estimate flag and fibre classification |
 | Daily JSON, stored records | No change. Read-only use of existing records; no schema, ledger or archive change |
 
-No net, balance or deficit with active energy (today-so-far D9 applies here as well). No target, protein, macro or interpretation (protein and macros stay with #145).
+No net, balance or deficit with active energy (today-so-far D9 applies here as well). No target, protein, macro or interpretation (protein and macros stay with #145); fibre (v1.2) is a logged amount with no target or reference value.
 
 ## 6. Architecture gate
 
@@ -90,7 +97,7 @@ HealthKit stays read-only and is not touched. No new egress: the section leaves 
 
 ## 8. Not in scope
 
-Protein and other nutrients (#145), trends (#147), the HealthKit dietary energy comparison, and food in the Daily JSON export (#97).
+Protein and other nutrients apart from fibre (#145), trends (#147), the HealthKit dietary energy comparison, and food in the Daily JSON export (#97).
 
 ## 9. Owner decisions
 
@@ -101,3 +108,5 @@ Protein and other nutrients (#145), trends (#147), the HealthKit dietary energy 
 5. **Show the section when nothing has ever been logged?** Recommended: yes, with "No food logged in this period.", so every surface has the same sections.
 6. **Include protein, as the wireframe shows?** Recommended: no; leave it to #145.
 7. **(v1.1, decided by the owner 16 October 2026) Is a day with only plain water a logged food day?** No. It counts towards the plain water average but is left out of "Days logged", the energy average and the incomplete count. For example, three food days and four water-only days give "Days Logged: 3 / 7 days" and an energy average over the three food days. A period with only plain water shows "No food logged in this period." followed by the `Plain Water` row.
+8. **(v1.2, decided by the owner 23 October 2026, #288) Should the section show logged fibre?** Yes: `Logged Fibre` (`food-fibre-average`) and `Incomplete Fibre Days` (`food-fibre-incomplete`) after the energy rows, with the Developer tools columns in section 5. Existing rows, the tile and the footer are unchanged.
+9. **(v1.2, decided by the owner 23 October 2026, #288) How are days with partial fibre treated?** Like energy (decision 3): a day with any unknown fibre contribution, or no known fibre, is left out of the fibre average and counted as an incomplete fibre day, never 0 g. Plain water is exactly 0 g fibre, and water-only days stay outside the fibre average, as in v1.1. The alternative (averaging known subtotals labelled "at least") was not chosen.

@@ -244,6 +244,19 @@ enum HealthReportFormatter {
         return includesEstimates ? "\(value), includes estimates" : value
     }
 
+    /// Food and water v1.2 (#288): "24 g per day (4 complete days)", whole
+    /// grams with grouping, labelled like logged energy when estimated.
+    static func loggedFibreAverage(
+        _ grams: Double,
+        completeDays: Int,
+        includesEstimates: Bool,
+        locale: Locale = .autoupdatingCurrent
+    ) -> String {
+        let days = "\(count(completeDays, locale: locale)) complete \(completeDays == 1 ? "day" : "days")"
+        let value = "\(integer(grams, locale: locale)) g per day (\(days))"
+        return includesEstimates ? "\(value), includes estimates" : value
+    }
+
     /// Food and water (#214): "1,750 mL per day (4 days)". Incomplete plain
     /// water days are left out of the average and named after it.
     static func plainWaterAverage(

@@ -133,7 +133,7 @@ struct FoodLogView: View {
     private func totalsSection(_ totals: [FoodIntakeTotal], plainWater: FoodIntakeTotal?) -> some View {
         Section {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), alignment: .leading),
-                                     count: dynamicTypeSize.isAccessibilitySize ? 1 : 4), alignment: .leading, spacing: 8) {
+                                     count: dynamicTypeSize.isAccessibilitySize ? 1 : max(totals.count, 1)), alignment: .leading, spacing: 8) {
                 ForEach(totals, id: \.key.rawValue) { total in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(FoodLogText.stripLabel(total.key)).font(.caption).foregroundStyle(.secondary)
