@@ -60,4 +60,28 @@ final class FoodIntakeSummaryTests: XCTestCase {
         XCTAssertNil(overflow.totals.first { $0.key == .protein }?.knownAmount)
         XCTAssertEqual(overflow.totals.first { $0.key == .protein }?.incompleteContributions, 1)
     }
+
+    /// v4 (#287): an overflow keeps v3's amount and incomplete count and adds only the flag.
+    func testOverflowSetsTheV4FlagAndKeepsTheV3Fields() throws {
+        let large = FoodIntakeContribution(
+            quantity: try PositiveQuantity(value: Double.greatestFiniteMagnitude, unit: .grams),
+            basis: .per100Grams, nutrients: try nutrients(Double.greatestFiniteMagnitude))
+        let small = FoodIntakeContribution(
+            quantity: try PositiveQuantity(value: 100, unit: .grams), basis: .per100Grams, nutrients: try nutrients(8))
+        let protein = try XCTUnwrap(FoodIntakeSummary(contributions: [small, large]).totals.first { $0.key == .protein })
+        XCTAssertEqual(protein, FoodIntakeTotal(key: .protein, knownAmount: nil, incompleteContributions: 2,
+                                                includesEstimates: false, overflowed: true))
+        XCTAssertEqual(FoodIntakeSummary.version, "food-intake-summary-v4")
+    }
+
+    func testNothingKnownIsNotAnOverflow() throws {
+        let empty = FoodIntakeSummary(contributions: [])
+        XCTAssertTrue(empty.totals.allSatisfy { !$0.overflowed && $0.knownAmount == nil && $0.incompleteContributions == 0 })
+        let unknownBasis = FoodIntakeSummary(contributions: [FoodIntakeContribution(
+            quantity: try PositiveQuantity(value: 100, unit: .grams), basis: .unknown, nutrients: try nutrients(8))])
+        let protein = try XCTUnwrap(unknownBasis.totals.first { $0.key == .protein })
+        XCTAssertFalse(protein.overflowed)
+        XCTAssertNil(protein.knownAmount)
+        XCTAssertEqual(protein.incompleteContributions, 1)
+    }
 }

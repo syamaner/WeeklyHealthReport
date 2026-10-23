@@ -143,7 +143,7 @@ public struct NutrientTransform: Codable, Equatable, Sendable {
     }
 }
 
-public enum ProvenanceSourceKind: String, Codable, Sendable {
+public enum ProvenanceSourceKind: String, Codable, CaseIterable, Sendable {
     case userVerifiedPanel = "user_verified_panel"
     case manualDeclaration = "manual_declaration"
     case exactProductDataset = "exact_product_dataset"

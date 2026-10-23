@@ -14,7 +14,7 @@ Version 1.2. Status: **approved by the owner, 16 October 2026; every decision in
 
 `FoodLogDayContent` for one reporting date (`FoodLedgerApplication/FoodLogDayContent.swift`) already gives:
 
-- `totals`, which is nil when the day has no current entries. The energy total is `FoodIntakeTotal(key: .energyConsumed)` with `knownAmount`, `incompleteContributions` and `includesEstimates` (summary policy `food-intake-summary-v3`, which adds one rule to v2: a calculated pasted-label value sets `includesEstimates`; see [pasted-nutrition-label-v1.md](pasted-nutrition-label-v1.md) section 3.5).
+- `totals`, which is nil when the day has no current entries. The energy total is `FoodIntakeTotal(key: .energyConsumed)` with `knownAmount`, `incompleteContributions` and `includesEstimates` (summary policy `food-intake-summary-v4`: v3 added one rule to v2, a calculated pasted-label value sets `includesEstimates`, see [pasted-nutrition-label-v1.md](pasted-nutrition-label-v1.md) section 3.5; v4 only adds an `overflowed` flag for the food daily export, see [food-daily-export-contract-v1.md](food-daily-export-contract-v1.md), and this section's display is unchanged).
 - The fibre total (v1.2) is `FoodIntakeTotal(key: .fiber)` in the same `totals` (the strip gains fibre, phase 4 F10), with the same three fields.
 - `plainWater`, which is nil when no plain water was logged. It is a known minimum when `incompleteContributions > 0` (`PlainWaterDayTotal`).
 
