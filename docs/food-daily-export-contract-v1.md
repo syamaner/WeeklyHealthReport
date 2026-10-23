@@ -165,6 +165,19 @@ Allowed egress table, Google Drive row: now also lists the exact reviewed food d
 - Privacy policy: the implementation PR applies the approved wording above and bumps the effective date.
 - Device: the owner exports a day and compares the food file with the app's Food log and Developer tools. Simulator runs prove software behaviour only.
 
+## Implementation decisions (owner, 24 October 2026)
+
+Decided one at a time during review of the implementation PR; each confirms the shape the implementation already had, except D4, which changed the exported URL.
+
+- **D4** Web source URLs drop their query string and fragment (see Excluded).
+- **D5** A reviewed web value keeps `source_release_id` (`reviewed-web:<manifest SHA-256>`). It is an opaque hash that matches the value to its local review record, and it is not "something else from the proposal" under D2.
+- **D6** An entry with no known value and no provenance anywhere blocks the day's food file (fail closed), like an unmapped source kind. No save route is known to create one.
+- **D7** The file carries a top-level `notes` object of three fixed sentences: `occurred_at` rendering, unknown never zero with sparse micronutrients expected, and plain water already inside `summary.water`. Constant text only.
+- **D8** Bounded values also carry `estimated` (an estimated bound) and `lower_closed` / `upper_closed`; `plain_water` carries `included_in_summary_water: true`.
+- **D9** `weight_basis` maps the ledger's measured to `declared`, estimated to `estimated`, and no weight declaration (water in mL included) to `unknown`.
+- **D10** `app_context` holds `app_version` and `app_build` from the app's Info.plist. The health export has no such fields, so "as in the health export" above means "in the same position", not the same keys.
+- **D11** The bundled privacy policy's effective date is 24 October 2026, the intended merge date; bump it if the merge slips.
+
 ## Out of scope
 
 Adding food to the health envelope, HealthKit food writes (#97), range or multi-day food files, background or automatic export, and any new nutrient keys (augmentation adds values through new ledger versions without changing this file's meaning).
