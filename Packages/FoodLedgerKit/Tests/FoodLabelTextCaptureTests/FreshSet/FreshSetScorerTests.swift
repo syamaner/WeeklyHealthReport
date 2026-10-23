@@ -437,6 +437,61 @@ final class FreshSetScorerTests: XCTestCase {
         XCTAssertEqual(FreshSet.score(asPer100, twoPer100).wrong, [])
     }
 
+    // MARK: Amendment 3 (owner, 23 October 2026, before seal 2)
+
+    func testACompoundUnitOfOneCanonicalUnitMaps() {
+        for (printed, canonical) in [("大卡/kcal", "kcal"), ("公克/g", "g"), ("毫克/mg", "mg"), ("公克(g)", "g"), ("毫升/mL", "ml"),
+                                     ("公克（g）", "g"), ("毫克／mg", "mg"), ("kcal/大卡", "kcal")] {
+            XCTAssertEqual(FreshSet.unit(printed), canonical, printed)
+        }
+        for printed in ["公克/mg", "大卡/kJ", "公克(mg)", "公克/", "/g", "公克/公撮", "公克(g", "公克/g/g"] {
+            XCTAssertNil(FreshSet.unit(printed), printed)
+        }
+        let t = Self.baseTranscription {
+            $0[0] = .init(label: "熱量", nutrient: "energy_kcal", values: [Self.v("167.7", "大卡/kcal"), Self.v("419.2", "大卡/kcal")])
+            $0[1] = .init(label: "蛋白質", nutrient: "protein", values: [Self.v("6.0", "公克(g)"), Self.v("15.1", "公克/g")])
+            $0[8] = .init(label: "鈉", nutrient: "sodium", values: [Self.v("101", "毫克/mg"), Self.v("252", "毫克（mg）")])
+        }
+        XCTAssertEqual(FreshSet.problems(t, expectedID: "S01"), [], "a compound unit needs no outside_table")
+        XCTAssertEqual(FreshSet.score(run(SyntheticLabelTexts.base, t), t).wrong, [])
+        let mixed = Self.baseTranscription { $0[1] = .init(label: "蛋白質", nutrient: "protein", values: [Self.v("6.0", "公克/mg"), Self.v("15.1", "公克")]) }
+        XCTAssertEqual(FreshSet.problems(mixed, expectedID: "S01"), ["蛋白質: unit 公克/mg without outside_table"])
+    }
+
+    func testANonNumericMarkerInAReferenceCell() throws {
+        let marker = T.Value(comparator: "=", number: "*", unit: "", outsideTable: true)
+        let base = Self.baseTranscription()
+        let t = T(schema: base.schema, labelID: "S01", servingSize: base.servingSize, servingsPerPack: base.servingsPerPack,
+                  columns: base.columns + [.init(heading: "每日參考值百分比", basis: "reference_intake")],
+                  rows: base.rows.map { .init(label: $0.label, nutrient: $0.nutrient,
+                                              values: $0.values + [$0.nutrient == "trans_fat" ? marker : T.Value(comparator: "=", number: "5", unit: "%")]) },
+                  notes: [])
+        XCTAssertEqual(FreshSet.problems(t, expectedID: "S01"), [], "validate accepts the marker form")
+        XCTAssertTrue(FreshSet.isMarker(marker))
+        XCTAssertFalse(FreshSet.isMarker(T.Value(comparator: "=", number: "*", unit: "", outsideTable: nil)), "the form needs outside_table")
+        XCTAssertFalse(FreshSet.isMarker(T.Value(comparator: "=", number: "5*", unit: "", outsideTable: true)), "a marker holds no digit")
+        let result = run(SyntheticLabelTexts.base, base)
+        // The reader read no reference column: the marker cell is unbound, never wrong.
+        XCTAssertEqual(FreshSet.score(result, t).wrong, [])
+        func withReferenceCell(_ decimalText: String) throws -> FreshSet.RunResult {
+            try mutate(result) { object in
+                var candidate = object["candidate"] as! [String: Any]
+                var headers = candidate["headers"] as! [[String: Any]]
+                headers.append(["header_id": "header_3", "printed_text": "每日參考值百分比", "basis": "reference_intake"])
+                candidate["headers"] = headers
+                var cells = candidate["cells"] as! [[String: Any]]
+                var cell = cells.first { ($0["nutrient"] as? String) == "trans_fat" }!
+                cell["header_id"] = "header_3"; cell["basis"] = "reference_intake"; cell["comparator"] = "="
+                cell["decimal_text"] = decimalText; cell["unit"] = "%"; cell["canonical_unit"] = "%"; cell["printed_text"] = decimalText
+                cells.append(cell)
+                candidate["cells"] = cells
+                object["candidate"] = candidate
+            }
+        }
+        XCTAssertEqual(FreshSet.score(try withReferenceCell("*"), t).wrong, [], "the same marker bound is not wrong")
+        XCTAssertEqual(FreshSet.score(try withReferenceCell("5"), t).wrong.count, 1, "a number bound where the label prints * is wrong")
+    }
+
     func testTheSummaryStatesTheStatisticalLimit() {
         func score(_ id: String, burden: Int, wrong: [String] = []) -> FreshSet.Score {
             .init(labelID: id, outcome: "usable", declineCodes: [], valuesChecked: 50, wrong: wrong, correctionBurden: burden,
