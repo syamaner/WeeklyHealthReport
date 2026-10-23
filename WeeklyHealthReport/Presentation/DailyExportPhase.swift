@@ -187,3 +187,62 @@ enum DriveExportAvailability: Equatable {
             : "This build has no Google OAuth client configuration (GoogleOAuthClientID and GoogleOAuthRedirectScheme in Info.plist), so Export never prepares or sends a file and the Drive rows in Export and Settings are plain text."
     }
 }
+
+/// One file's latest result on Export (#287, D3): health and food are reported separately.
+enum DailyExportFileResult {
+    static func line(_ outcome: DailyExportOutcomeRecord?) -> String {
+        guard let outcome else { return "Not sent" }
+        switch outcome.kind {
+        case .verified, .unchangedVerified, .cancelledAfterSubmissionVerified: return "Exported and verified"
+        case .cancelledBeforeSubmission: return "Cancelled before sending"
+        case .failed: return "Not verified"
+        }
+    }
+}
+
+/// The prepared food file's size and entry count, for the Food log row.
+enum DailyExportFoodSummary {
+    static func line(_ food: DailyFoodExportPreview) -> String {
+        let entries = food.document.entries.count
+        let count = entries == 0 ? "no entries" : entries == 1 ? "1 entry" : "\(entries) entries"
+        return "\(count) · \(food.bytes.count.formatted()) bytes"
+    }
+}
+
+/// The Developer tools fields for the food daily export (#287): schema version, byte count,
+/// SHA-256 and entry count of the prepared file, and the Drive record's file ID and token.
+/// The food file's local Drive record, as plain values.
+struct DailyFoodDriveRecord: Equatable {
+    let fileID: String
+    let lastVerifiedToken: String?
+}
+
+enum FoodDailyExportDeveloperFields {
+    static func fields(_ preparation: DailyFoodExportPreparation,
+                       record: DailyFoodDriveRecord?) -> [DailyExportLastExportFormatter.DeveloperField] {
+        typealias Field = DailyExportLastExportFormatter.DeveloperField
+        var fields: [Field]
+        switch preparation {
+        case .prepared(let food):
+            fields = [
+                Field(label: "Schema version", value: "\(food.document.foodDailySchemaVersion)"),
+                Field(label: "Report date", value: food.reportDate),
+                Field(label: "Byte count", value: "\(food.bytes.count)"),
+                Field(label: "SHA-256", value: food.sha256),
+                Field(label: "Entry count", value: "\(food.document.entries.count)"),
+                Field(label: "Ordering token", value: food.orderingToken)
+            ]
+        case .blocked(let block):
+            fields = [Field(label: "Prepared file", value: "Blocked: \(block.line)")]
+        case .off:
+            fields = [Field(label: "Prepared file", value: "Food log is off")]
+        case .unavailable:
+            fields = [Field(label: "Prepared file", value: "No food ledger in this build")]
+        case .notPrepared:
+            fields = [Field(label: "Prepared file", value: "Not prepared")]
+        }
+        fields.append(Field(label: "Drive file ID", value: record?.fileID ?? "None"))
+        fields.append(Field(label: "Last verified token", value: record?.lastVerifiedToken ?? "None"))
+        return fields
+    }
+}

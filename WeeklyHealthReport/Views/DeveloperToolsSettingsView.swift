@@ -24,6 +24,7 @@ struct DeveloperToolsSettingsView: View {
                         .textSelection(.enabled)
                     if let dailyExport { DailyExportRecordRows(session: dailyExport) }
                 }
+                if let dailyExport { FoodDailyExportDeveloperSection(session: dailyExport) }
             }
             #if DEBUG
             Section("Health report") {
@@ -81,6 +82,46 @@ private struct DailyExportRecordRows: View {
             }
         } else {
             LabeledContent("Selected day record", value: "No account or folder")
+        }
+    }
+}
+
+/// The prepared food file and its Drive record (#287), so an export is reproducible on device.
+private struct FoodDailyExportDeveloperSection: View {
+    @ObservedObject var session: DailyDriveSessionController
+    @State private var exactJSON: String?
+
+    var body: some View {
+        Section {
+            let reportDate = session.foodPreparation.preview?.reportDate
+                ?? session.lastFoodExportOfSelectedDay?.reportDate
+            let record = reportDate.flatMap { session.foodDriveRecord(for: $0) }
+            ForEach(FoodDailyExportDeveloperFields.fields(session.foodPreparation, record: record), id: \.label) { field in
+                LabeledContent(field.label, value: field.value)
+                    .textSelection(.enabled)
+            }
+            if session.foodPreparation.preview != nil {
+                Button("View exact JSON") { exactJSON = session.makeExactFoodPreviewText() }
+            }
+        } header: {
+            Text("Food daily export")
+        } footer: {
+            Text("The prepared food file and this iPhone's record of it in Drive. Nothing here is sent.")
+        }
+        .sheet(isPresented: Binding(get: { exactJSON != nil }, set: { if !$0 { exactJSON = nil } })) {
+            NavigationStack {
+                ScrollView([.horizontal, .vertical]) {
+                    Text(exactJSON ?? "")
+                        .font(.system(.caption, design: .monospaced))
+                        .textSelection(.enabled)
+                        .padding()
+                }
+                .navigationTitle("Food daily export")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) { Button("Done") { exactJSON = nil } }
+                }
+            }
         }
     }
 }
