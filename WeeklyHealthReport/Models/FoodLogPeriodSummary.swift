@@ -30,6 +30,11 @@ struct FoodLogDayFacts: Equatable, Sendable {
     /// Plain water in mL (plain water entries only, never water in foods). Nil
     /// when no plain water was logged (no data; never 0 mL).
     let plainWater: Total?
+    /// Logged fibre in g over the day's food entries (contract v1.2, #288).
+    /// Plain water contributes exactly 0 g, and an unscalable plain water
+    /// entry is not an incomplete fibre contribution. Nil means no fibre total
+    /// was read, which a logged day treats as unknown fibre (never 0 g).
+    var fibre: Total? = nil
 }
 
 /// The Health report's Food and water figures for the selected completed days
@@ -59,12 +64,26 @@ struct FoodLogPeriodSummary: Equatable, Sendable {
         case incomplete
     }
 
+    /// Contract v1.2 (#288), fibre column: the energy rule applied to fibre
+    /// (owner decision 9).
+    enum FibreDay: Equatable, Sendable {
+        /// No current food entry. Not 0 g, and not in the fibre average or the
+        /// incomplete count (a water-only day stays outside, as in v1.1).
+        case notLogged
+        /// Every fibre contribution counted; the day enters the fibre average.
+        case complete(grams: Double)
+        /// Any unknown fibre contribution, or no known fibre at all. Left out
+        /// of the average and counted.
+        case incomplete
+    }
+
     struct Day: Equatable, Sendable {
         let reportingDate: String
         /// Nil when the reader returned nothing for the date (treated as not logged).
         let facts: FoodLogDayFacts?
         let energy: EnergyDay
         let water: WaterDay
+        let fibre: FibreDay
     }
 
     /// One entry per completed day in the period, in order.
@@ -81,6 +100,13 @@ struct FoodLogPeriodSummary: Equatable, Sendable {
     let averageEnergyKilocalories: Double?
     /// Any day in the energy average includes estimates.
     let energyIncludesEstimates: Bool
+    let completeFibreDayCount: Int
+    let incompleteFibreDayCount: Int
+    /// Mean of complete fibre days' grams, each day weighted equally. Nil when
+    /// no day is complete. Unrounded; presentation rounds.
+    let averageFibreGrams: Double?
+    /// Any day in the fibre average includes estimates.
+    let fibreIncludesEstimates: Bool
     let completeWaterDayCount: Int
     let incompleteWaterDayCount: Int
     /// Mean over complete plain water days. Nil when there is none. Unrounded.
@@ -99,18 +125,25 @@ struct FoodLogPeriodSummary: Equatable, Sendable {
                 reportingDate: date,
                 facts: fact,
                 energy: energyDay(fact),
-                water: waterDay(fact)
+                water: waterDay(fact),
+                fibre: fibreDay(fact)
             )
         }
 
         var energyValues: [Double] = []
         var energyEstimates = false
+        var fibreValues: [Double] = []
+        var fibreEstimates = false
         var waterValues: [Double] = []
         var waterEstimates = false
         for day in days {
             if case .complete(let kilocalories) = day.energy {
                 energyValues.append(kilocalories)
                 energyEstimates = energyEstimates || day.facts?.energy?.includesEstimates == true
+            }
+            if case .complete(let grams) = day.fibre {
+                fibreValues.append(grams)
+                fibreEstimates = fibreEstimates || day.facts?.fibre?.includesEstimates == true
             }
             if case .complete(let millilitres) = day.water {
                 waterValues.append(millilitres)
@@ -125,6 +158,10 @@ struct FoodLogPeriodSummary: Equatable, Sendable {
             incompleteEnergyDayCount: days.filter { $0.energy == .incomplete }.count,
             averageEnergyKilocalories: mean(energyValues),
             energyIncludesEstimates: energyEstimates,
+            completeFibreDayCount: fibreValues.count,
+            incompleteFibreDayCount: days.filter { $0.fibre == .incomplete }.count,
+            averageFibreGrams: mean(fibreValues),
+            fibreIncludesEstimates: fibreEstimates,
             completeWaterDayCount: waterValues.count,
             incompleteWaterDayCount: days.filter { $0.water == .incomplete }.count,
             averagePlainWaterMillilitres: mean(waterValues),
@@ -155,6 +192,14 @@ struct FoodLogPeriodSummary: Equatable, Sendable {
         guard let facts, facts.foodEntryCount > 0, let energy = facts.energy else { return .notLogged }
         guard let known = energy.knownAmount, energy.incompleteContributions == 0 else { return .incomplete }
         return .complete(kilocalories: known)
+    }
+
+    private static func fibreDay(_ facts: FoodLogDayFacts?) -> FibreDay {
+        guard let facts, facts.foodEntryCount > 0 else { return .notLogged }
+        guard let fibre = facts.fibre, let known = fibre.knownAmount, fibre.incompleteContributions == 0 else {
+            return .incomplete
+        }
+        return .complete(grams: known)
     }
 
     private static func waterDay(_ facts: FoodLogDayFacts?) -> WaterDay {

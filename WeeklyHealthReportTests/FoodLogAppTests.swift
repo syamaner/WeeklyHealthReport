@@ -252,6 +252,58 @@ final class FoodLogAppTests: XCTestCase {
         window.isHidden = true
     }
 
+    /// #288: today's fibre on Home's food card equals the Food Log strip's Fibre total for the same
+    /// day, plain water adds 0 g, and both screens render at default and accessibility sizes in the
+    /// simulator (renders attached).
+    func testHomeAndFoodLogShowTheSameFibreForToday() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let defaults = isolatedDefaults()
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory), userDefaults: defaults)
+        let saved = try saveClementine(root)
+        let date = saved.logItemVersion.reportingDate.value
+        let foodOnly = try XCTUnwrap(try root.foodLogService.day(reportingDate: date).totals?.first { $0.key == .fiber })
+        let water = root.quickAddSheetModel(try root.quickAddPreparation(.builtInWater))
+        water.log()
+        XCTAssertNotNil(water.savedResult)
+
+        let day = try root.foodLogService.day(reportingDate: date)
+        XCTAssertEqual(day.totals?.map(\.key), FoodLogDayContent.stripKeys)
+        let fibre = try XCTUnwrap(day.totals?.first { $0.key == .fiber })
+        XCTAssertEqual(fibre.knownAmount, foodOnly.knownAmount, "plain water adds exactly 0 g fibre")
+        XCTAssertEqual(fibre.incompleteContributions, foodOnly.incompleteContributions)
+        XCTAssertFalse(day.entries.contains { $0.unknownKeys.contains(.fiber) }, "no per-entry fibre flag (F10)")
+
+        let home = FoodHomeModel(root: root)
+        home.reload()
+        guard case .logged(let logged) = home.state else { return XCTFail("Expected a logged card, got \(home.state)") }
+        let row = try XCTUnwrap(logged.nutrients.last)
+        XCTAssertEqual(row.label, "Fibre")
+        XCTAssertEqual(row.value, FoodLogText.total(fibre, locale: .autoupdatingCurrent), "Home and the Food Log agree")
+        XCTAssertEqual(row.accessibilityLabel, FoodLogText.totalAccessibility(fibre, locale: .autoupdatingCurrent))
+        XCTAssertNotEqual(row.value, "0 g")
+
+        let navigation = AppNavigationCoordinator(defaults: defaults)
+        for size in [DynamicTypeSize.large, .accessibility3] {
+            let screens: [(String, AnyView)] = [
+                ("Home food card", AnyView(NavigationStack { Form { FoodHomeCard(model: home) } }.environment(\.dynamicTypeSize, size))),
+                ("Food Log", AnyView(NavigationStack { FoodLogView(root: root, navigation: navigation) }.environment(\.dynamicTypeSize, size)))
+            ]
+            for (name, view) in screens {
+                let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+                window.rootViewController = UIHostingController(rootView: view)
+                window.isHidden = false
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+                let image = UIGraphicsImageRenderer(bounds: window.bounds).image { window.layer.render(in: $0.cgContext) }
+                let attachment = XCTAttachment(image: image)
+                attachment.name = "\(name) - fibre - \(size)"; attachment.lifetime = .keepAlways
+                add(attachment)
+                XCTAssertEqual(image.size.width, 390)
+                window.isHidden = true
+            }
+        }
+    }
+
     /// A root on a fixed clock and calendar (09:42:17 BST on 14 October 2026), so the backdating
     /// window cannot move under the test at midnight.
     private func fixedDayRoot(_ directory: URL, _ defaults: UserDefaults) throws -> FoodLedgerCompositionRoot {
@@ -994,6 +1046,24 @@ final class QuickAddAppTests: XCTestCase {
             let confirm = root.model(for: try exactInput(), savesFavourite: true)
             render(NavigationStack { FoodConfirmationView(model: confirm) {} }
                 .environment(\.dynamicTypeSize, size).preferredColorScheme(scheme), "Confirm - save as favourite \(name)")
+        }
+    }
+
+    /// #288 QA: a day whose protein, carbohydrates, fat and fibre are unknown puts "Unknown" in
+    /// four of the five strip columns; at standard sizes it stays one whole word (scaled, never
+    /// broken mid-word), and at accessibility sizes the strip stacks (renders attached).
+    func testFoodLogStripKeepsUnknownWholeInFiveColumns() throws {
+        let root = try makeRoot()
+        let confirm = root.model(for: try exactInput(), prefillSourceQuantity: false)
+        confirm.send(.setQuantity(150, .grams))
+        confirm.log()
+        let saved = try XCTUnwrap(confirm.savedResult, "\(confirm.state.phase)")
+        let day = try root.foodLogService.day(reportingDate: saved.logItemVersion.reportingDate.value)
+        XCTAssertEqual(day.totals?.map { FoodLogText.total($0) }.filter { $0 == "Unknown" }.count, 4)
+        let navigation = AppNavigationCoordinator(defaults: UserDefaults(suiteName: "fibre-strip-\(UUID().uuidString)")!)
+        for size in [DynamicTypeSize.large, .accessibility3] {
+            render(NavigationStack { FoodLogView(root: root, navigation: navigation) }.environment(\.dynamicTypeSize, size),
+                   "Food Log - unknown strip - \(size)")
         }
     }
 

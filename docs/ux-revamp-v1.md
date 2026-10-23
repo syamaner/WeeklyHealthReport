@@ -38,7 +38,7 @@ All destinations are values of one route type handled by one navigation coordina
 
 | Screen | Purpose | Key states | Phase |
 |---|---|---|---|
-| Home | Today's food (energy, protein, carbohydrates, fat, water, entry count), Add food, quick-add chips, health today so far, notes | Empty log, partial coverage, health unavailable, loading | #199 |
+| Home | Today's food (energy, protein, carbohydrates, fat, fibre, water, entry count), Add food, quick-add chips, health today so far, notes | Empty log, partial coverage, health unavailable, loading | #199 |
 | Add food | One search field taking food and amount in the user's words; barcode, paste or dictate, favourites; favourites and recent foods | No recents, no favourites | #196 |
 | Search results | Detected amount and preparation as editable chips; plain result rows; one progress line with Stop; online additions as their own group; "Not what you ate?" with web lookup and barcode | Searching, stopped, no result, conflicting query, offline | #196 |
 | Web lookup | One suggested source with match type, quoted text behind a disclosure, "Use this source", other sources | No key, no usable source, conflicting source, unavailable | #196 |

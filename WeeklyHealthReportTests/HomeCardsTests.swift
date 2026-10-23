@@ -83,7 +83,9 @@ final class HomeCardsTests: XCTestCase {
         }
         XCTAssertEqual(logged.energy.value, "1,240 kcal")
         XCTAssertEqual(logged.entryCount, "3 entries")
-        XCTAssertEqual(logged.nutrients.map(\.value), ["68 g", "150.5 g", "41 g+"])
+        XCTAssertEqual(logged.nutrients.map(\.label), ["Protein", "Carbohydrates", "Fat", "Fibre"])
+        XCTAssertEqual(logged.nutrients.map(\.value), ["68 g", "150.5 g", "41 g+", "Unknown"],
+                       "no fibre total is Unknown, never 0 g (#288)")
         XCTAssertEqual(logged.footnote, "Some values are unknown for 1 entry, so totals marked + are known minimums.")
         XCTAssertEqual(logged.water.label, "Plain water logged")
         XCTAssertEqual(logged.water.value, "730 mL")
@@ -95,7 +97,7 @@ final class HomeCardsTests: XCTestCase {
                                                                     plainWater: nil, locale: gb, incompleteEntries: 0) else { return XCTFail("logged") }
         XCTAssertEqual(noWater.water.value, "No data", "no plain water is No data, never 0 mL")
         XCTAssertNil(noWater.footnote)
-        XCTAssertEqual(noWater.nutrients.map(\.value), ["Unknown", "Unknown", "Unknown"])
+        XCTAssertEqual(noWater.nutrients.map(\.value), ["Unknown", "Unknown", "Unknown", "Unknown"])
     }
 
     /// Several known minimums still make one short line (owner decision F), not one sentence per
@@ -141,6 +143,35 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(FoodHomeCardContent.incompleteEntries([complete], dayTotals: day, plainWater: water), 3)
     }
 
+    /// #288 (phase 6 amendment): today's fibre so far after Fat, with the card's
+    /// known-minimum mark, footnote, estimate caption and VoiceOver wording.
+    func testFibreRowFollowsFatWithKnownMinimumAndEstimates() throws {
+        let gb = Locale(identifier: "en_GB")
+        let totals = [
+            total(.energyConsumed, 900), total(.protein, 40), total(.carbohydrates, 100), total(.fatTotal, 30),
+            FoodIntakeTotal(key: .fiber, knownAmount: 18.4, incompleteContributions: 1, includesEstimates: true)
+        ]
+        guard case .logged(let logged) = FoodHomeCardContent.make(itemCount: 3, totals: totals, plainWater: nil, locale: gb,
+                                                                  incompleteEntries: 1) else {
+            return XCTFail("Expected a logged card")
+        }
+        let fibre = try XCTUnwrap(logged.nutrients.last)
+        XCTAssertEqual(fibre.label, "Fibre")
+        XCTAssertEqual(fibre.value, "18.4 g+")
+        XCTAssertEqual(fibre.caption, "Includes estimates")
+        XCTAssertEqual(fibre.accessibilityLabel, "Fibre, at least 18.4 grams, includes estimates")
+        XCTAssertEqual(logged.footnote, "Some values are unknown for 1 entry, so totals marked + are known minimums.",
+                       "fibre shares the card's one footnote")
+
+        let unknown = [total(.energyConsumed, 900), FoodIntakeTotal(key: .fiber, knownAmount: nil, incompleteContributions: 2, includesEstimates: false)]
+        guard case .logged(let none) = FoodHomeCardContent.make(itemCount: 2, totals: unknown, plainWater: nil, locale: gb,
+                                                                incompleteEntries: 2) else { return XCTFail("logged") }
+        XCTAssertEqual(none.nutrients.last?.value, "Unknown", "never 0 g")
+        XCTAssertEqual(none.nutrients.last?.accessibilityLabel, "Fibre, unknown")
+        XCTAssertEqual(none.footnote, "Some values are unknown for 2 entries.")
+
+    }
+
     /// Review fix: the Food Log's "Includes estimates" caption also shows on Home.
     func testEstimatedTotalsKeepTheirCaption() throws {
         let gb = Locale(identifier: "en_GB")
@@ -153,7 +184,7 @@ final class HomeCardsTests: XCTestCase {
             return XCTFail("Expected a logged card")
         }
         XCTAssertEqual(logged.energy.caption, "Includes estimates")
-        XCTAssertEqual(logged.nutrients.map(\.caption), ["Includes estimates", nil, nil])
+        XCTAssertEqual(logged.nutrients.map(\.caption), ["Includes estimates", nil, nil, nil])
         XCTAssertEqual(logged.energy.accessibilityLabel, "Energy, 300 kilocalories, includes estimates")
         XCTAssertEqual(logged.nutrients[0].accessibilityLabel, "Protein, 12 grams, includes estimates")
         XCTAssertNil(logged.water.caption)
@@ -271,8 +302,8 @@ final class HomeCardsTests: XCTestCase {
         let state = FoodHomeCardContent.make(itemCount: 3, totals: totals, plainWater: nil, locale: gb, incompleteEntries: 1)
         let section = FoodHomeCardContent.fullPageSection(state)
         XCTAssertEqual(section.title, "Food logged")
-        XCTAssertEqual(section.rows.map(\.label), ["Energy", nil, "Protein", "Carbohydrates", "Fat", "Plain water logged"])
-        XCTAssertEqual(section.rows.map(\.value), ["1,240 kcal", "3 entries", "68 g", "150.5 g", "41 g+", "No data"])
+        XCTAssertEqual(section.rows.map(\.label), ["Energy", nil, "Protein", "Carbohydrates", "Fat", "Fibre", "Plain water logged"])
+        XCTAssertEqual(section.rows.map(\.value), ["1,240 kcal", "3 entries", "68 g", "150.5 g", "41 g+", "Unknown", "No data"])
         XCTAssertEqual(section.rows[0].note, "Includes estimates")
         XCTAssertEqual(section.footer, "Some values are unknown for 1 entry, so totals marked + are known minimums.")
         XCTAssertEqual(FoodHomeCardContent.fullPageSection(.empty).rows, [.init(value: "Nothing logged yet today")])
