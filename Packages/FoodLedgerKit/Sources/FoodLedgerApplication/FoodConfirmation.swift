@@ -843,6 +843,8 @@ public final class FoodConfirmationService: @unchecked Sendable {
            FoodLogEditComparison.reusesConversion(old, entered: entered, draft: value) {
             return (old, false)
         }
+        // count-conversion-method-v1: the method namespace is closed; there is no estimate code.
+        guard CountConversionMethod.admits(value.methodVersion) else { throw FoodConfirmationSaveError.invalidQuantity }
         return (try QuantityConversionVersion(
             quantityConversionVersionID: ids.makeID(QuantityConversionVersionTag.self),
             ordinal: VersionOrdinal((previous?.quantityConversion?.ordinal.value ?? 0) + 1),
