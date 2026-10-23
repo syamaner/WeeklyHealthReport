@@ -28,6 +28,13 @@ Labels by category: snacks 4, drinks 4, cereal 3, sauces and condiments 3, dairy
 
 Skips by reason (2,157 in all): `no_nutrition_table` 1,139, `wrong_category` 699, `not_source_kind` 213, `development_set` 47, `table_image` 27, `supplement` 20, `other` 10, `duplicate` 1, `non_taiwan` 1.
 
+Fallbacks used:
+
+- **`kind_fallback` for slots 17 to 24 (8 slots).** The 5 manufacturer slots (17 to 20) had no eligible page on a manufacturer's own site. The PDF slots (21 to 24) had no eligible packaged-food table with a text layer. Of the 8 approved PDFs for slot 21, 4 were made-to-order drink sheets (`other`) and 4 had no text layer (`table_image`). Slots 22 to 24 had no PDF candidates from a manufacturer, importer or retailer.
+- **Fallback 3 (re-walk)** filled slots 11, 13 and 14. Slots 7 (frozen), 12 (dairy) and 15 (bread) were still unfilled before the extra-label pass.
+- **The one-more-label-per-slot pass** added labels to slots 1, 2 and 5 to reach 24.
+- **Fallback 4** was not needed.
+
 ## Results (section 12.2.8)
 
 **The bar passes: zero wrong values in every table that reached Confirm.**
@@ -48,6 +55,14 @@ Skips by reason (2,157 in all): `no_nutrition_table` 1,139, `wrong_category` 699
 | Share of tables needing any correction | 0.182 |
 
 Declines by reason: `multiple_panels` 5, `count_mismatch` 2, `no_basis_header` 2, `basis_not_sure` 2, `flattened_table_ambiguous` 1, `multiple_complete_panels` 1.
+
+Flags shown on the 11 labels that reached Confirm, by code: `required_serving_declaration_missing` 10, `required_row_missing` 1. Warnings shown, by code: `serving_scaling` 1.
+
+| Also reported (section 12.2.8) | Value |
+| --- | --- |
+| Residual errors after the owner's check | 0 (no wrong value in accepted tables) |
+| Disputes raised after the run | None |
+| Device-build outcome compared with the harness (section 12.2.7 item 4) | Pending: done on the TestFlight build with the owner's device check; this file is updated then |
 
 **Statistical limit (rule of three).** With 136 values checked and none wrong, the per-value wrong-value rate is below 3/136 = 0.022 with 95% confidence; with 11 tables reaching Confirm and none wrong, the per-table rate is below 3/11 = 0.273. Neither is a claim of a zero rate.
 
