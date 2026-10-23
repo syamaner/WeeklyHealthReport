@@ -160,7 +160,38 @@ enum FreshSet {
         "毫升": "ml", "ml": "ml", "cc": "ml",
         "%": "%",
     ]
-    static func unit(_ printed: String) -> String? { units[printed] ?? units[printed.lowercased()] }
+    static func unit(_ printed: String) -> String? { singleUnit(printed) ?? compoundUnit(printed) }
+
+    static func singleUnit(_ printed: String) -> String? { units[printed] ?? units[printed.lowercased()] }
+
+    /// Amendment 3 (owner, 23 October 2026, before seal 2): a bilingual unit printed as two units
+    /// of the table joined by `/` or `／` (`大卡/kcal`), or with the second in ASCII or full-width
+    /// brackets (`公克(g)`, `公克（g）`), maps to their canonical unit when both parts map to the
+    /// **same** one. Parts that map to different canonical units, or that do not map, leave the
+    /// compound unmapped.
+    static func compoundUnit(_ printed: String) -> String? {
+        let parts: [String]
+        if let slash = printed.firstIndex(where: { $0 == "/" || $0 == "／" }) {
+            parts = [String(printed[..<slash]), String(printed[printed.index(after: slash)...])]
+        } else if let open = printed.firstIndex(where: { $0 == "(" || $0 == "（" }), let last = printed.last, last == ")" || last == "）" {
+            parts = [String(printed[..<open]), String(printed[printed.index(after: open)..<printed.index(before: printed.endIndex)])]
+        } else {
+            return nil
+        }
+        guard parts.allSatisfy({ !$0.isEmpty }), let first = singleUnit(parts[0]), let second = singleUnit(parts[1]),
+              first == second else { return nil }
+        return first
+    }
+
+    /// Amendment 3: a value cell that prints a non-numeric marker instead of a number (the `*` of
+    /// a reference-intake column whose reference value is not established) is transcribed as
+    /// `{"comparator": "=", "number": "<marker as printed>", "unit": "", "outside_table": true}`,
+    /// where the marker holds no digit. The reader leaving that cell unbound, or binding exactly
+    /// the same marker, is not wrong; binding any number there is.
+    static func isMarker(_ value: Transcription.Value) -> Bool {
+        value.outsideTable == true && value.comparator == "=" && value.unit.isEmpty && !value.number.isEmpty
+            && !value.number.contains(where: \.isNumber)
+    }
 
     static func decimal(_ text: String) -> Decimal? {
         guard text.range(of: #"^[0-9]+(\.[0-9]+)?$"#, options: .regularExpression) != nil else { return nil }
@@ -442,6 +473,7 @@ enum FreshSet {
     /// matches, so a reader value bound to it is wrong.
     static func same(comparator read: String, number: String, unit readUnit: String, readLabel: String,
                      as value: Transcription.Value, printedLabel: String) -> Bool {
+        if isMarker(value) { return number == value.number }
         guard let printedComparator = comparator(value.comparator), read == printedComparator,
               let readNumber = rowNumber(number, rowLabel: readLabel), let printed = rowNumber(value.number, rowLabel: printedLabel),
               let canonical = unit(value.unit) else { return false }

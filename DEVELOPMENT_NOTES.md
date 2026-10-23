@@ -2587,3 +2587,19 @@ Pricing: Claude Opus 5.5 at USD 4/M base input, 5/M 5-minute cache write, 8/M 1-
 Boundary: `phase_usage.py --format claude --include-subagents` (whole session), taken at `2026-10-23T04:38:48Z`. Cache writes: 386,612 5-minute, 326,891 1-hour. Exact API-equivalent USD 7.9293282 at the recorded counts. Output may be undercounted where streaming snapshots record partial counts; this was not checked. The interrupted gate pass is included as far as its transcript reached.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-23a: Claude Code pasted nutrition label reader v3 fresh-set Amendment 3
+
+Same subagent and transcript as WHR-93-2026-10-21a, resumed for Amendment 3 (`docs/pasted-nutrition-label-reader-v3.md` 12.2.5 and 12.2.8, owner decisions of 23 October 2026): compound bilingual units in the scorer's unit table, the transcription form and scoring of a non-numeric marker cell, synthetic tests, the scorer re-pin and one full gate run. Nothing in the private folder was read.
+
+Runs from the phase's start (`2026-10-23T06:02:29Z`, captured with `date -u`) to `2026-10-23T06:22:34Z`, just before this ledger edit.
+
+Pricing: re-checked on 23 October 2026 against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output, unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 fresh-set Amendment 3 (#93), implementation subagent | 11,106,329 (10,547,899) | 558,388 | 12,861 | 11,119,190 | $5.16 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-23T06:02:29Z` on the subagent transcript alone, taken at `2026-10-23T06:22:34Z`. Cache writes: 558,388 5-minute, 0 1-hour. Exact API-equivalent USD 5.1589078 at the recorded counts. None of the 38 messages in this window records 32 output tokens or fewer, so the output count is not marked as a lower bound. The coordinator's and reviewers' usage is not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

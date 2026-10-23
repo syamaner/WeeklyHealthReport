@@ -950,7 +950,9 @@ The versions they compose with were frozen earlier and stay so: `label-capture-d
 - **A comment-only change in a pinned file is still a change.** It is not made before the release check (12.2) has reported. After it, it needs a recorded re-pin whose pull request shows a diff of comments only, reviewed by an independent reviewer.
 - **A change that alters what a frozen version does** is never re-pinned: it is a new version.
 
-**Re-pins after the freeze:** none.
+**Re-pins after the freeze:**
+
+- `FreshSet/FreshSetProtocol.swift`, 23 October 2026: Amendment 3 (12.2.8), an owner decision before seal 2 and before any reader run on fresh text. It changes only the scorer's unit table (bilingual compound units) and the scoring of a non-numeric marker cell. Pins 1 and 2 are unchanged, and no reader file changes.
 
 ### 12.2 Fresh-set protocol (7.4, decisions 15, 20 and 22)
 
@@ -1107,6 +1109,10 @@ The transcriber, in a session of its own, receives **only** each label's screens
 
 **Every printed form is recorded verbatim**, never adjusted to fit; the scorer maps comparators and units through its closed equivalence tables (12.2.8) before comparing. A form with no mapping there is recorded verbatim too: a unit such as 公撮, 片, 包 or full-width ｇ, a comparator such as `>`, a number that is not plain ASCII digits (full-width digits), or a serving printed only as a count (`2片`). A number with a comma (`1,5`) is recorded as printed too; it needs `outside_table` only where the comma rule of 12.2.8 cannot read it on that row. Such a value or serving size carries `"outside_table": true`. The step `validate` accepts it; it refuses only a value outside the lists that is **not** marked, so no label becomes impossible to transcribe after the text seal.
 
+**A bilingual unit is recorded as printed** (`大卡/kcal`, `公克(g)`); it needs no `outside_table` when both parts map to the same canonical unit (Amendment 3, 12.2.8).
+
+**A value cell that prints a non-numeric marker instead of a number** (for example the `*` of a reference-intake column whose reference value is not established) is recorded in exactly this form: `{"comparator": "=", "number": "<the marker as printed>", "unit": "", "outside_table": true}`, where the marker holds no digit (Amendment 3). `validate` accepts it.
+
 The step `validate` checks every file against the schema and the unit table of 12.2.8; a file that fails is fixed by the transcriber before seal 1. When every file passes, the step `seal-1` records **seal 1**: the SHA-256 of the sorted per-file listing of `transcription/`, with the UTC time, before any reader run.
 
 #### 12.2.6 Owner verification
@@ -1133,6 +1139,7 @@ The step `score` (`FreshSet.score`) applies these rules exactly; they were fixed
 
 - **Comparators:** `=` → `=`; `<`, `＜`, 未滿, 少於 → `<`; `<=`, `≦`, `≤`, 以下 → `<=`.
 - **Units**, looked up exactly or, failing that, lowercased (so kCal, KCAL, Kj, G, MG, Ml and mL all map): 大卡, 千卡, kcal → kcal; cal (so Cal) → cal, kept apart from kcal because the reader binds `Cal` as its own `cal` on a row it does not recognise, in a table that reaches Confirm (an energy row in Cal is left unread, 3.9); kj, 千焦 → kJ; 公克, 克, g, gr, gm → g; 毫克, mg → mg; 微克, µg, μg, mcg → µg; 毫升, ml, cc → ml; % → %. Full-width forms (ｇ) are not mapped.
+- **Compound units (Amendment 3):** two units of the table joined by `/` or `／` (`大卡/kcal`, `毫升/mL`), or with the second in ASCII or full-width brackets (`公克(g)`, `毫克（mg）`), map to their canonical unit when **both parts map to the same one**. Parts that map to different canonical units (`公克/mg`), or that do not map, leave the compound unmapped, so it stays `outside_table`.
 - **Numbers with a comma**, printed or read, use **exactly the reader's per-row comma rule**, by calling the reader's own function (`ParseStateV3.isAmbiguousNumber`) with the row's label: a comma followed by exactly three digits (`1,500`), or any comma on a Taiwan alias row (`脂肪 1,5公克`), is ambiguous, so the number is unparsable; any other single comma between digits is a decimal point (`維生素C 1,5毫克` is 1.5). The transcriber's verbatim number is read with the transcription row's label and the reader's `decimal_text` with the cell's label. An unparsable number bound by the reader is wrong; unread, it is not. Serving and pack lines holding a comma are never read by the reader (8.3), so their numbers are plain decimals. A parity test checks the rule against the reader on synthetic rows.
 
 **Columns.** A reader header is matched to the one transcription column with the same `basis`. When the transcription has **two or more columns with that basis** (for example per 100 g as sold and per 100 g as prepared), the header is matched by position among the **amount columns** (reference-intake columns are left out on both sides) only when the reader read exactly the transcription's amount columns, in the same order and with the same bases; otherwise the match is ambiguous and every value bound under that header is a wrong value. The first column of a basis is never taken silently.
@@ -1153,6 +1160,10 @@ The step `score` (`FreshSet.score`) applies these rules exactly; they were fixed
 **Calculated beside printed (reported, never gating).** `pasted-label-conversions-v1` calculates kcal whenever the stored column has a kJ cell and no kcal cell, and sodium likewise from salt, so a printed kcal (or sodium) row the reader left unread gets a calculated value on Confirm. When the label prints that target in the column, the score reports a **calculated vs printed discrepancy** (both values and their difference, or "not comparable" for another comparator or unit), counts it, and counts the unread printed row in the correction burden; it never makes the calculated value wrong. The reason: labels compute kcal from the macronutrients with factors (for example the EU's, or Taiwan's own rounding rules) that need not equal 1 kcal = 4.184 kJ, and sodium printed beside salt may be rounded independently, so a difference measures the label's own arithmetic, not a reader binding error. A printed target recorded `outside_table` is never compared.
 
 A row the reader leaves "Not read" is not a wrong value; it counts toward the correction burden.
+
+**A non-numeric marker cell (Amendment 3).** Where the transcription records a marker (12.2.5), the reader leaving that cell unbound is not wrong, and binding it as exactly the same marker is not wrong; binding any number there is a wrong value.
+
+**Amendment 3 (owner, 23 October 2026, in session, before seal 2 and before any reader run on fresh text).** The owner's verification found bilingual units printed as one unit (`大卡/kcal`, `公克(g)`) and three reference-intake cells that print only `*`. The owner's ruling: keep bilingual units as printed, and the scorer's tables must admit these printed forms. From this commit, the compound-unit rule and the marker form and scoring above apply. The reader's rules are untouched (pin 2 unchanged); the scorer file is re-pinned (12.1).
 
 **The bar (gating): zero wrong values** in every table that reaches Confirm, harness and device build alike, including values under a basis chosen as in 12.2.7 items 2 and 4. **Any wrong value fails the check:** release stops, the fix is a new parser version (or a new version of whichever frozen component caused it), and **the set is spent**: it becomes development evidence, and the next release check needs a new fresh set, collected under a protocol committed with that version's freeze.
 
