@@ -2603,3 +2603,19 @@ Pricing: re-checked on 23 October 2026 against Anthropic's official pricing page
 Boundary: `phase_usage.py --format claude --since 2026-10-23T06:02:29Z` on the subagent transcript alone, taken at `2026-10-23T06:22:34Z`. Cache writes: 558,388 5-minute, 0 1-hour. Exact API-equivalent USD 5.1589078 at the recorded counts. None of the 38 messages in this window records 32 output tokens or fewer, so the output count is not marked as a lower bound. The coordinator's and reviewers' usage is not included.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-24a: Claude Code pasted nutrition label release PR (step 5 of #93)
+
+A fresh subagent preparing the release PR of `docs/pasted-nutrition-label-v1.md` section 8.6 item 5: the release-check results file of counts (`docs/pasted-nutrition-label-reader-v3-release-check.md`), the `docs/releases/unreleased.md` entry for the paste route, the privacy policy effective date and this row. Documentation only. Nothing in the private run folder was read; the counts were supplied by the coordinator.
+
+Runs from the subagent transcript's first message (`2026-10-23T17:05:05Z`, 24 October 2026 local) to `2026-10-23T17:06:55Z`, just before this ledger edit. The start was taken from the transcript, which holds only this phase, rather than captured with `date -u` at the start.
+
+Pricing: the rates recorded for WHR-93-2026-10-23a (checked on 23 October 2026 against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output), not re-checked on 24 October 2026. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label release PR (#93), implementation subagent | 1,822,218 (1,722,949) | 99,227 | 9,833 | 1,832,051 | $1.04 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-23T17:05:05Z` on the subagent transcript alone. Cache writes: 99,227 5-minute, 0 1-hour. Exact API-equivalent USD 1.0375528 at the recorded counts. None of the 22 messages in this window records 32 output tokens or fewer, so the output count is not marked as a lower bound. Excluded and unmeasured: the coordinator, the fresh-set collection, blind transcription, owner verification, the run and scoring (other agents and the owner), and the commit, push and PR steps after this edit.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

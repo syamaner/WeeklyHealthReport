@@ -1,5 +1,5 @@
 WeeklyHealthReport privacy policy
-Effective 19 October 2026
+Effective 24 October 2026
 
 WeeklyHealthReport is a local health-reporting and food-recording app developed by Sertan Yamaner / qbq Solutions Ltd. Contact: proxy@sertan.com. We do not operate an app account service, analytics service, advertising system or backend that receives your health records. We do not sell your data, track you across apps, or use your health data for advertising or model training.
 
