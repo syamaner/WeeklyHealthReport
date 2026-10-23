@@ -1131,11 +1131,19 @@ public struct FoodConfirmationView: View {
                     Text("mL").tag(QuantityUnit.millilitres)
                 }
                 .onChange(of: conversionUnit) { _, _ in updateConversion() }
-                TextField("How was this weight or volume measured?", text: $conversionMethod)
+                // A visible label: a placeholder-only field reads as already filled (#296).
+                Text(ConversionFields.methodTitle).font(.subheadline)
+                TextField(ConversionFields.methodTitle, text: $conversionMethod, prompt: Text(ConversionFields.methodPrompt))
                     .onChange(of: conversionMethod) { _, _ in updateConversion() }
-                    .accessibilityHint("Required provenance for a count or portion conversion")
-                if model.state.quantity.conversion == nil {
-                    Label("Enter the total edible weight or volume and how you measured it", systemImage: "exclamationmark.triangle")
+                    .accessibilityLabel(ConversionFields.methodTitle)
+                    .accessibilityHint("Required. Describe how you measured the weight or volume, for example kitchen scale.")
+                    .accessibilityIdentifier("confirm.conversionMethod")
+                if model.state.quantity.conversion == nil,
+                   let requirement = ConversionFields(text: conversionText, unit: conversionUnit, method: conversionMethod)
+                    .requirementText(locale: locale) {
+                    Label(requirement, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .accessibilityIdentifier("confirm.conversionRequirement")
                 }
             }
             ForEach(model.plateRequirements, id: \.self) { Text($0).font(.caption) }
@@ -1371,6 +1379,30 @@ public struct FoodConfirmationView: View {
 
         /// The fields after a unit change: empty, grams.
         public static let cleared = ConversionFields(text: "", unit: .grams, method: "")
+
+        /// The method field's visible label. The field is free text: the method is the user's own
+        /// provenance words, never chosen or filled in for them.
+        public static let methodTitle = "How you measured it (required)"
+        public static let methodPrompt = "For example, kitchen scale"
+
+        /// The field-local requirement naming exactly which part is still missing, or nil when the
+        /// fields describe a conversion. Presentation only: the Log rule stays
+        /// `countNeedsMeasuredAmount`, unchanged.
+        public func requirementText(locale: Locale) -> String? {
+            guard draft(locale: locale) == nil else { return nil }
+            let amount = FoodAmountFieldText.parse(text, locale: locale)
+                .flatMap { try? PositiveQuantity(value: $0, unit: unit) }
+            let hasMethod = (try? LedgerText(method)) != nil
+            switch (amount, hasMethod) {
+            case let (amount?, false):
+                let unitText = unit == .millilitres ? "mL" : "g"
+                return "Add how you measured the \(FoodNutritionReviewPresentation.number(amount.value)) \(unitText), for example kitchen scale or package weight. If you did not measure it, use ‘Enter measured weight’ and choose ‘I estimated it’."
+            case (nil, true):
+                return "Enter the total edible weight or volume, greater than zero."
+            default:
+                return "Enter the total edible weight or volume and how you measured it."
+            }
+        }
 
         /// The conversion these fields describe, or nil when any part is missing or invalid.
         public func draft(locale: Locale) -> QuantityConversionDraft? {

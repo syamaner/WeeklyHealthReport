@@ -434,6 +434,42 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertNil(FoodConfirmationView.ConversionFields(text: "150", unit: .grams, method: " ").draft(locale: locale))
     }
 
+    /// #296: three eggs, 168 g and an empty method. Log stays blocked by the unchanged rule, and the
+    /// field-local text names the one missing part instead of repeating the whole requirement.
+    func testCountConversionNamesTheMissingMethodAndTheRuleIsUnchanged() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in throw CocoaError(.fileWriteUnknown) }
+        let locale = Locale(identifier: "en_GB")
+        model.chooseQuantityUnit(.count)
+        model.send(.setQuantity(3, .count))
+        let weightOnly = FoodConfirmationView.ConversionFields(text: "168", unit: .grams, method: "")
+        model.send(.setConversion(weightOnly.draft(locale: locale)))
+        XCTAssertEqual(model.requirements, [.countNeedsMeasuredAmount])
+        XCTAssertFalse(model.canLog)
+        XCTAssertEqual(weightOnly.requirementText(locale: locale),
+                       "Add how you measured the 168 g, for example kitchen scale or package weight. If you did not measure it, use ‘Enter measured weight’ and choose ‘I estimated it’.")
+        XCTAssertEqual(FoodConfirmationView.ConversionFields(text: "168", unit: .grams, method: "  ").requirementText(locale: locale),
+                       weightOnly.requirementText(locale: locale), "whitespace is not a method")
+        XCTAssertEqual(FoodConfirmationView.ConversionFields(text: "200", unit: .millilitres, method: "").requirementText(locale: locale)?
+            .hasPrefix("Add how you measured the 200 mL"), true)
+        XCTAssertEqual(FoodConfirmationView.ConversionFields(text: "", unit: .grams, method: "kitchen scale").requirementText(locale: locale),
+                       "Enter the total edible weight or volume, greater than zero.")
+        XCTAssertEqual(FoodConfirmationView.ConversionFields(text: "0", unit: .grams, method: "kitchen scale").requirementText(locale: locale),
+                       "Enter the total edible weight or volume, greater than zero.")
+        XCTAssertEqual(FoodConfirmationView.ConversionFields.cleared.requirementText(locale: locale),
+                       "Enter the total edible weight or volume and how you measured it.")
+
+        // The method is the user's own words, stored as typed; nothing is chosen for them.
+        let complete = FoodConfirmationView.ConversionFields(text: "168", unit: .grams, method: "kitchen scale")
+        XCTAssertNil(complete.requirementText(locale: locale))
+        model.send(.setConversion(complete.draft(locale: locale)))
+        XCTAssertTrue(model.requirements.isEmpty)
+        XCTAssertTrue(model.canLog)
+        XCTAssertEqual(model.state.quantity.conversion?.methodVersion.value, "kitchen scale")
+        XCTAssertNil(model.state.quantity.conversion?.sourceReleaseID)
+        XCTAssertNil(model.state.quantity.conversion?.evidenceID)
+        XCTAssertNil(model.state.quantity.directWeight, "the count conversion never becomes a weight declaration")
+    }
+
     func testReferenceBasisAndConsumedPreviewNeverInferDensity() throws {
         let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
             throw CocoaError(.fileWriteUnknown)
