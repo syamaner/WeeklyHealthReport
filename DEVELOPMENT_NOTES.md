@@ -2572,6 +2572,36 @@ Pricing uses the Claude Opus 5.5 rates re-checked on the official pricing page o
 
 Boundary: `phase_usage.py --format claude --since 2026-10-22T17:30:23Z --until 2026-10-22T18:06:08Z` on the subagent transcript alone. Cache writes were 471,508 5-minute and 0 1-hour. The exact API-equivalent is USD 3.7105604 at the recorded counts. The output count is a lower bound: 40 of the 44 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The orchestrating session and the reviewers are not included.
 
+## WHR-287-2026-10-23a: Claude Code food daily export contract v1 (#287)
+
+One Claude Code session (`24b00822-0d01-424f-8a4a-844576d995cb`) with its subagents: two read-only mapping agents (food document, Drive pipeline), three architecture-gate passes (one blocked, one interrupted by a restart, one passed with corrections) and the drafting of `docs/food-daily-export-contract-v1.md`, the egress amendment and the owner decisions D1 to D3. Design discussion with the owner is inside the boundary. No production code.
+
+Runs for the whole session, from its first message (`2026-10-22T04:50:16Z`) to `2026-10-23T04:38:48Z`, just before this ledger edit. No phase boundary was captured at the start; the session contains only this work, so whole-session usage is the boundary.
+
+Pricing: Claude Opus 5.5 at USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output, as recorded in WHR-93-2026-10-21a. Base input, cache read and output agree with the Claude API skill's model table (cached 6 October 2026); cache-write rates were not re-checked on 23 October. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Food daily export contract v1 (#287), session and subagents | 13,065,356 (12,351,561) | 713,503 | 45,483 | 13,110,839 | $7.93 |
+
+Boundary: `phase_usage.py --format claude --include-subagents` (whole session), taken at `2026-10-23T04:38:48Z`. Cache writes: 386,612 5-minute, 326,891 1-hour. Exact API-equivalent USD 7.9293282 at the recorded counts. Output may be undercounted where streaming snapshots record partial counts; this was not checked. The interrupted gate pass is included as far as its transcript reached.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-93-2026-10-23a: Claude Code pasted nutrition label reader v3 fresh-set Amendment 3
+
+Same subagent and transcript as WHR-93-2026-10-21a, resumed for Amendment 3 (`docs/pasted-nutrition-label-reader-v3.md` 12.2.5 and 12.2.8, owner decisions of 23 October 2026): compound bilingual units in the scorer's unit table, the transcription form and scoring of a non-numeric marker cell, synthetic tests, the scorer re-pin and one full gate run. Nothing in the private folder was read.
+
+Runs from the phase's start (`2026-10-23T06:02:29Z`, captured with `date -u`) to `2026-10-23T06:22:34Z`, just before this ledger edit.
+
+Pricing: re-checked on 23 October 2026 against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output, unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Pasted label reader v3 fresh-set Amendment 3 (#93), implementation subagent | 11,106,329 (10,547,899) | 558,388 | 12,861 | 11,119,190 | $5.16 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-23T06:02:29Z` on the subagent transcript alone, taken at `2026-10-23T06:22:34Z`. Cache writes: 558,388 5-minute, 0 1-hour. Exact API-equivalent USD 5.1589078 at the recorded counts. None of the 38 messages in this window records 32 output tokens or fewer, so the output count is not marked as a lower bound. The coordinator's and reviewers' usage is not included.
+
 Token totals are not evidence of productivity, quality or provider efficiency.
 
 ## WHR-287-2026-10-23a: Claude Code food daily export contract v1 (#287)
