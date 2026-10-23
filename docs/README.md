@@ -47,6 +47,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 
 - [Workout interval enrichment contract](workout-interval-enrichment-contract.md), [accepted distance amendment](accepted-workout-distance-amendment.md), [heart-rate readings contract](workout-heart-rate-readings-contract.md)
 - [Daily export contract](daily-export-contract.md) and [Google Drive export plan](google-drive-export-plan.md)
+- [Food daily export v1](food-daily-export-contract-v1.md) (#287): the food log as a separate daily JSON file in the same Drive folder (owner-approved 23 October 2026)
 - [Google Cloud setup](google-drive-cloud-setup.md) and [product setup](google-drive-product-setup.md)
 
 ## Engineering
