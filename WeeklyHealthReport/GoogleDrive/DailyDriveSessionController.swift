@@ -222,6 +222,9 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
     @Published private(set) var lastFoodExportOfSelectedDay: DailyExportLastExportLookup?
     @Published private(set) var foodFileReplacementReason: FileReplacementReason?
     private var retainingFoodAfterHealthVerification = false
+    /// Set by Cancel export for the whole Export action, so a food file that has not started
+    /// yet is never sent after the person cancelled (the food coordinator is idle until then).
+    private var exportCancellationRequested = false
 
     /// What Export sends as the food file: off, unavailable in this build, blocked or prepared.
     var foodPreparation: DailyFoodExportPreparation {
@@ -526,12 +529,13 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 throw Failure.noDestination
             }
 
-            try await self.exportCoordinator.abandonDestination(
+            // The food registry follows the health registry on every lifecycle path (#287). Food
+            // goes first: if it fails, nothing is abandoned and the action can be retried as is.
+            try await self.foodExportCoordinator.abandonDestination(
                 accountID: candidate.accountID,
                 folderID: candidate.folderID
             )
-            // The food registry follows the health registry on every lifecycle path (#287).
-            try await self.foodExportCoordinator.abandonDestination(
+            try await self.exportCoordinator.abandonDestination(
                 accountID: candidate.accountID,
                 folderID: candidate.folderID
             )
@@ -665,7 +669,11 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
         }
         await run("Submitting the reviewed preview and verifying Drive…") {
             self.exporting = true
-            defer { self.exporting = false }
+            self.exportCancellationRequested = false
+            defer {
+                self.exporting = false
+                self.exportCancellationRequested = false
+            }
             var healthError: Error?
             if let health {
                 do {
@@ -675,7 +683,12 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
                 }
             }
             if let food {
-                await self.exportFood(food, account: account, destination: destination)
+                if self.exportCancellationRequested {
+                    self.applyFoodExportOutcome(.success(.cancelledBeforeSubmission), exportedFood: food,
+                                                accountID: account.id, folderID: destination.folderID)
+                } else {
+                    await self.exportFood(food, account: account, destination: destination)
+                }
             }
             if let healthError { throw healthError }
         }
@@ -879,6 +892,7 @@ final class DailyDriveSessionController: NSObject, ObservableObject, DailyExport
 
     func cancelExport() {
         guard exporting else { return }
+        exportCancellationRequested = true
         status = "Cancellation requested. If submission began, verification must finish before the result is known."
         Task {
             await exportCoordinator.requestCancellation()

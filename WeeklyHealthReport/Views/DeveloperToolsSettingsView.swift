@@ -106,7 +106,7 @@ private struct FoodDailyExportDeveloperSection: View {
         } header: {
             Text("Food daily export")
         } footer: {
-            Text("The prepared food file and this iPhone's record of it in Drive. Nothing here is sent.")
+            Text("The prepared food file and this iPhone’s record of it in Drive. Nothing here is sent.")
         }
         .sheet(isPresented: Binding(get: { exactJSON != nil }, set: { if !$0 { exactJSON = nil } })) {
             NavigationStack {

@@ -70,7 +70,8 @@ final class FoodIntakeSummaryTests: XCTestCase {
             quantity: try PositiveQuantity(value: 100, unit: .grams), basis: .per100Grams, nutrients: try nutrients(8))
         let protein = try XCTUnwrap(FoodIntakeSummary(contributions: [small, large]).totals.first { $0.key == .protein })
         XCTAssertEqual(protein, FoodIntakeTotal(key: .protein, knownAmount: nil, incompleteContributions: 2,
-                                                includesEstimates: false, overflowed: true))
+                                                includesEstimates: true, overflowed: true),
+                       "the fixture's protein is augmented, so the v3 estimate flag stays set")
         XCTAssertEqual(FoodIntakeSummary.version, "food-intake-summary-v4")
     }
 

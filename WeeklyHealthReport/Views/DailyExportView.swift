@@ -54,7 +54,7 @@ struct DailyExportView: View {
             Section {
                 Text("Workouts include heart-rate summaries and zones, active energy estimated by Apple Health, distance (including treadmill distance you accepted) and PacePrompt intervals when they are available. An interval’s distance may cover only part of it. Each heart-rate reading keeps its time and source. Anything missing is marked as unavailable; gaps are never filled in.")
                     .font(.caption)
-                if session.foodLogAvailable {
+                if session.foodLogAvailable && driveAvailability != .unavailableInBuild {
                     Text("With Food log on, a separate food file is sent to the same folder: the foods you logged that day, their amounts and times, nutrient values with their sources and the day’s totals. Unknown values stay unknown, never zero. It never includes pasted label text, receipts, photos, captured web page text or search queries.")
                         .font(.caption)
                 }
@@ -339,7 +339,10 @@ struct DailyExportView: View {
     /// The Food log row (#287): a separate food file for the same day, with its own preview.
     @ViewBuilder
     private var foodLogRows: some View {
-        if session.foodLogAvailable {
+        if driveAvailability == .unavailableInBuild {
+            // Nothing can be sent in this build, so no Food log choice is offered (D2 of journey QA).
+            EmptyView()
+        } else if session.foodLogAvailable {
             Toggle("Food log", isOn: Binding(
                 get: { session.foodLogEnabled },
                 set: { session.setFoodLogEnabled($0) }

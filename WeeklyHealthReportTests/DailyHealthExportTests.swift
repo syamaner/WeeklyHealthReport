@@ -3214,12 +3214,29 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
     private var storedFiles: [String: (descriptor: DailyDriveUploadDescriptor, content: Data)] = [:]
     private(set) var uploadedNames: [String] = []
 
-    func storedFileNames() -> [String] { storedFiles.values.map(\.descriptor.name).sorted() }
+    private var pauseUploads = false
+    private var uploadContinuation: CheckedContinuation<Void, Never>?
+    /// Uploads whose name starts with this prefix get 404 (`.stores` only).
+    var missingPrefix: String?
 
-    private func store(_ descriptor: DailyDriveUploadDescriptor, _ content: Data) throws {
+    func storedFileNames() -> [String] { storedFiles.values.map(\.descriptor.name).sorted() }
+    func setMissingPrefix(_ prefix: String?) { missingPrefix = prefix }
+    func removeStoredFiles(prefix: String) {
+        storedFiles = storedFiles.filter { !$0.value.descriptor.name.hasPrefix(prefix) }
+    }
+    func pauseNextUpload() { pauseUploads = true }
+    func isUploadPaused() -> Bool { uploadContinuation != nil }
+    func resumeUpload() { uploadContinuation?.resume(); uploadContinuation = nil }
+
+    private func store(_ descriptor: DailyDriveUploadDescriptor, _ content: Data) async throws {
         uploadedNames.append(descriptor.name)
         guard case let .stores(prefix) = fileOutcome else { return }
         if let prefix, descriptor.name.hasPrefix(prefix) { throw URLError(.timedOut) }
+        if let missingPrefix, descriptor.name.hasPrefix(missingPrefix) { throw DailyDriveAPI.Failure.httpStatus(404, nil) }
+        if pauseUploads {
+            pauseUploads = false
+            await withCheckedContinuation { uploadContinuation = $0 }
+        }
         storedFiles[descriptor.id] = (descriptor, content)
     }
 
@@ -3321,7 +3338,7 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
         case .uncertain: throw URLError(.unsupportedURL)
         case .notFound: throw DailyDriveAPI.Failure.httpStatus(404, nil)
         case .acceptedThenTrashed: return
-        case .stores: try store(descriptor, content)
+        case .stores: try await store(descriptor, content)
         }
     }
 
@@ -3333,7 +3350,7 @@ private actor PreparationDriveTransportFixture: DailyDriveSessionTransporting {
         uploadCount += 1
         guard case .stores = fileOutcome else { throw URLError(.unsupportedURL) }
         guard storedFiles[descriptor.id] != nil else { throw DailyDriveAPI.Failure.httpStatus(404, nil) }
-        try store(descriptor, content)
+        try await store(descriptor, content)
     }
 
     func fileMetadata(
@@ -4466,6 +4483,48 @@ extension DailyHealthExportTests {
         attachment.name = "Export with Food log"
         attachment.lifetime = .keepAlways
         add(attachment)
+    }
+
+    /// Review fix: cancelling while the health file is uploading never sends the food file.
+    @MainActor
+    func testCancellingDuringTheHealthUploadNeverSendsTheFoodFile() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: nil))
+        let (session, _) = try await makeFoodSession(drive: drive)
+        await drive.pauseNextUpload()
+        let export = Task { await session.exportPreview() }
+        let deadline = Date().addingTimeInterval(5)
+        while Date() < deadline, !(await drive.isUploadPaused()) { try await Task.sleep(nanoseconds: 10_000_000) }
+        XCTAssertTrue(session.exporting)
+        session.cancelExport()
+        await drive.resumeUpload()
+        await export.value
+        let uploaded = await drive.uploadedNames
+        XCTAssertEqual(uploaded, ["health-daily-2026-09-06.json"], "no food transport call after Cancel")
+        XCTAssertEqual(session.lastFoodExportOutcome?.kind, .cancelledBeforeSubmission)
+        XCTAssertNotNil(session.foodPreparation.preview, "the food file stays prepared for a later Export")
+    }
+
+    /// The reverse of the food override test: a missing health file never abandons the food identity.
+    @MainActor
+    func testAMissingHealthFileOverrideLeavesTheFoodIdentityForTheSameDate() async throws {
+        let drive = PreparationDriveTransportFixture(createOutcomes: [], fileOutcome: .stores(failingPrefix: nil))
+        let health = ControllerMemoryDailyIdentityStore()
+        let food = ControllerMemoryDailyIdentityStore()
+        let (session, _) = try await makeFoodSession(drive: drive, identityStore: health, foodIdentityStore: food)
+        await session.exportPreview()
+        XCTAssertEqual(try health.load()?.identities.count, 1)
+        XCTAssertEqual(try food.load()?.identities.count, 1)
+
+        // The health file disappears from Drive (and cannot be recreated); the food file stays.
+        await drive.removeStoredFiles(prefix: "health-daily")
+        await drive.setMissingPrefix("health-daily")
+        await session.refreshPreview()
+        await session.exportPreview()
+        XCTAssertNotNil(session.fileReplacementReason, "the health file is marked for replacement")
+        XCTAssertNil(session.foodFileReplacementReason)
+        await session.confirmFileReplacementOverride(documentType: .health)
+        XCTAssertEqual(try health.load()?.identities.count, 0)
+        XCTAssertEqual(try food.load()?.identities.count, 1, "the food identity for the same date is untouched")
     }
 
     @MainActor
