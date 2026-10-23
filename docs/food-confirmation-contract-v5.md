@@ -178,6 +178,7 @@ Food entries are not exported today (#97). `DailyHealthExport` currently admits 
 
 - Domain identity compatibility, candidate selection, nutrition values, quantity, conversion, plate and direct-weight rules, unknown nutrient semantics, provenance, generic, recipe and named-serving policies and the reviewed web gate.
 - No new difference kinds, no free-text decisions, no inference of eaten state or nutrients.
+- Amended 23 October 2026 by [count-conversion-method-v1.md](count-conversion-method-v1.md): the method for a count conversion is a closed choice, and "Estimated by eye" is an estimated direct weight, not a conversion. `countNeedsMeasuredAmount` is unchanged.
 - Deferred: Save as favourite (#198), shared When for a list import, count quantity guides, query-derived differences, backdating beyond seven days, food in Daily JSON (#97).
 
 ## 13. Owner decisions (recommended, awaiting approval)
