@@ -2649,3 +2649,19 @@ Pricing: re-checked on 23 October 2026 against Anthropic's official pricing page
 Boundary: `phase_usage.py --format claude --since 2026-10-23T06:02:45Z --until 2026-10-23T06:40:19Z` on the subagent transcript alone. Cache writes: 884,367 5-minute, 0 1-hour. Exact API-equivalent USD 9.0802218 at the recorded counts. None of the 229 usage entries in this window records 32 or fewer output tokens, so no streaming-snapshot lower bound applies. The orchestrating session is not included, and no reviewer subagents were run.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-299-2026-10-23: Claude Code count conversion method picker
+
+The same implementation subagent and transcript as WHR-296-2026-10-23 (`subagents/agent-ae2732c13ca727cda.jsonl`), for #299, after the owner's decision of 23 October 2026. It covers the issue, the contract amendment (`docs/count-conversion-method-v1.md` and its pointers), the implementation, the view-model, contract and hosted simulator tests, a simulator walk of the egg route, one full gate run and the commits.
+
+Runs from the phase's start (`2026-10-23T06:46:13Z`, captured with `date -u` when the decision arrived) to `2026-10-23T07:02:29Z`, just before this ledger edit. These times are UTC (23 October local time, UTC+8). The gap after WHR-296-2026-10-23's end (`06:40:19Z`) is that phase's PR and handback and is in neither row.
+
+Pricing uses the Claude Opus 5.5 rates re-checked on the official pricing page on 23 October 2026 (WHR-296-2026-10-23), unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Count conversion method picker (#299), implementation subagent | 26,895,040 (26,133,235) | 761,651 | 50,513 | 26,945,553 | $10.05 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-23T06:46:13Z --until 2026-10-23T07:02:29Z` on the subagent transcript alone. Cache writes: 761,651 5-minute, 0 1-hour. Exact API-equivalent USD 10.045778 at the recorded counts. The orchestrating session is not included, and no reviewer subagents were run.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
