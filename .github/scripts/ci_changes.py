@@ -33,6 +33,8 @@ AGENT_MARKDOWN_PREFIXES = (".agents/", ".claude/")
 CODE_READ_DOCS = {
     "docs/food-healthkit-write-plan.md",
     "docs/privacy-policy.txt",
+    # Cited by the food daily export builder, Drive policy and their tests (#287).
+    "docs/food-daily-export-contract-v1.md",
     # Cited by contract tests and fixtures; edits run full CI.
     "docs/generic-food-review-manifest-v2.md",
     # Cited by the today-so-far projection, its tests and Developer tools.
