@@ -110,7 +110,7 @@ A day with no entries still produces a file: `entries: []`, every nutrient `none
 
 Raw attachments, receipts, pasted label text, OCR geometry, captured web page text and quotations, search queries, credentials, Keychain data, search indexes, drafts, favourites, inventory and transient diagnostics never enter this file.
 
-For reviewed web proposals, `provenance` includes the public source URL and its content hash, which identify where a value came from and hold no personal data; nothing else from the proposal is exported. (D2, owner decision 23 October 2026.)
+For reviewed web proposals, `provenance` includes the public source URL and its content hash, which identify where a value came from and hold no personal data; nothing else from the proposal is exported. (D2, owner decision 23 October 2026.) The URL is exported as scheme, host, port and path only: its query string and fragment are dropped, so search words in a page address never leave (owner decision 24 October 2026).
 
 ## Byte form
 

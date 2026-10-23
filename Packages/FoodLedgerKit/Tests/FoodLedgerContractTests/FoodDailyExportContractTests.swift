@@ -1,5 +1,5 @@
 import Foundation
-import FoodLedgerApplication
+@testable import FoodLedgerApplication
 import FoodLedgerDomain
 import FoodLedgerTestSupport
 import XCTest
@@ -29,7 +29,7 @@ final class FoodDailyExportContractTests: XCTestCase {
         if kind == .reviewedWebProposal {
             return NutrientProvenance(sourceKind: kind, sourceID: try ExternalIdentifier("reviewed-web-proposal"),
                 sourceReleaseID: try ExternalIdentifier("reviewed-web:" + String(repeating: "a", count: 64)),
-                recordID: try ExternalIdentifier("https://example.org/soup/nutrition#proposal=c1"),
+                recordID: try ExternalIdentifier("https://example.org/soup/nutrition?q=lentil+soup&ref=search#proposal=c1"),
                 evidenceID: try id(77, EvidenceTag.self), capturedAt: LedgerFixtures.date,
                 responseHash: try SHA256Digest(String(repeating: "b", count: 64)),
                 manifestReference: try LedgerText("manifest-sha256=fixture;candidate=c1"))
@@ -202,6 +202,8 @@ final class FoodDailyExportContractTests: XCTestCase {
         XCTAssertNil(energy.contentHash)
         let text = String(decoding: try FoodDailyExportSerializer.encode(document), as: UTF8.self)
         XCTAssertFalse(text.contains("#proposal="), "the record's proposal suffix stays local")
+        XCTAssertFalse(text.contains("lentil+soup"), "a query string (search words) never leaves")
+        XCTAssertFalse(text.contains("?"), "no query string at all")
         XCTAssertFalse(text.contains("manifest-sha256"), "manifest references stay local")
     }
 
@@ -467,5 +469,15 @@ final class FoodDailyExportContractTests: XCTestCase {
         let golden = try Data(contentsOf: directory.appendingPathComponent("food-daily-empty-day.json"))
         let spaced = Data(String(decoding: golden, as: UTF8.self).replacingOccurrences(of: #"{"app_context""#, with: #"{ "app_context""#).utf8)
         XCTAssertNotEqual(try FoodDailyExportSerializer.encode(FoodDailyExportSerializer.decode(spaced)), spaced)
+    }
+}
+
+extension FoodDailyExportContractTests {
+    func testPublicSourceURLKeepsOnlySchemeHostAndPath() {
+        XCTAssertEqual(FoodDailyExportBuilder.publicSourceURL("https://example.org/a/b?q=soup#proposal=c1"), "https://example.org/a/b")
+        XCTAssertEqual(FoodDailyExportBuilder.publicSourceURL("https://user:pw@example.org:8443/x?y=1"), "https://example.org:8443/x")
+        XCTAssertEqual(FoodDailyExportBuilder.publicSourceURL("https://example.org/plain"), "https://example.org/plain")
+        XCTAssertNil(FoodDailyExportBuilder.publicSourceURL("not a url"))
+        XCTAssertNil(FoodDailyExportBuilder.publicSourceURL("file:///etc/hosts"))
     }
 }

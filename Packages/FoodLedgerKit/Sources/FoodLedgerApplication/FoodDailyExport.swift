@@ -548,16 +548,28 @@ public enum FoodDailyExportBuilder {
 
     private static func provenance(_ provenance: NutrientProvenance) -> FoodDailyExportProvenance {
         let web = provenance.sourceKind == .reviewedWebProposal
-        // The record ID of a reviewed web value is "<page URL>#proposal=<candidate>"; only the URL leaves.
-        let url = web ? provenance.recordID.map { record in
-            record.value.range(of: "#proposal=").map { String(record.value[..<$0.lowerBound]) } ?? record.value
-        } : nil
+        let url = web ? provenance.recordID.flatMap { publicSourceURL($0.value) } : nil
         return FoodDailyExportProvenance(
             sourceKind: provenance.sourceKind.rawValue, sourceReleaseID: provenance.sourceReleaseID.value,
             transforms: provenance.transforms.map {
                 FoodDailyExportTransform(transformID: $0.transformID.value, transformVersion: $0.transformVersion.value)
             },
             sourceURL: url, contentHash: web ? provenance.responseHash?.value : nil)
+    }
+
+    /// The page address a reviewed web value came from: scheme, host, port and path only. The
+    /// record ID is "<page URL>#proposal=<candidate>"; the fragment and any query string (which
+    /// could carry search words) never leave (owner decision 24 October 2026). Nil when the
+    /// record is not an http(s) address, so nothing unparsed is exported.
+    static func publicSourceURL(_ record: String) -> String? {
+        guard var components = URLComponents(string: record),
+              let scheme = components.scheme?.lowercased(), scheme == "https" || scheme == "http",
+              components.host?.isEmpty == false else { return nil }
+        components.query = nil
+        components.fragment = nil
+        components.user = nil
+        components.password = nil
+        return components.string
     }
 
     private static func basis(_ basis: ResolutionBasis) -> FoodDailyExportBasis {
