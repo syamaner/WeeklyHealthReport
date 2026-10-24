@@ -14,6 +14,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 - [Food identity and nutrition contract](food-identity-nutrition-contract.md)
 - [Food confirmation contract v2](food-confirmation-contract-v2.md)
 - [Direct edible weight v1](direct-edible-weight-contract-v1.md), [count conversion method v1](count-conversion-method-v1.md), [half-item count v1](half-item-count-contract-v1.md), [recipe source serving v1](recipe-source-serving-contract-v1.md)
+- [Count portion estimate v1](count-portion-estimate-v1.md) (#307): a cited typical egg weight pre-filled as a labelled estimate, one count word ("pieces") and the amount method shown after saving (owner-approved 24 October 2026)
 - [CoFID whole-milk volume admission v1](cofid-whole-milk-volume-admission-v1.md)
 - [Intake home projection v1](intake-home-projection-v1.md) and [intake management v2](intake-management-v2.md) (removal, restoration, reporting day)
 - [Today-so-far health projection v1](today-so-far-projection-v1.md) (Home provisional health highlights, separate from report and export) and the [phase 6 Home plan](ux-revamp-phase-6-home.md)

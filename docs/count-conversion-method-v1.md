@@ -38,6 +38,8 @@ There is no free-text option on a new entry, and nothing is chosen for the user:
 
 The count rule itself, source-backed and offered volume conversions, pasted-label servings, recipe and source servings, plate subtraction, direct weight v1, the Daily JSON food export (it carries no conversion method), and the absence of any size guide. A source-backed egg size guide still needs a new source, a contract and owner approval.
 
+Amended 24 October 2026 by [count-portion-estimate-v1.md](count-portion-estimate-v1.md) (#307): allow-listed whole raw and boiled egg records pre-fill a cited typical weight as a labelled estimate (`count_portion_guide_v1:*`), the method choice and amount use one layout, and counts read "pieces" everywhere.
+
 ## 6. Contract tests
 
 1. Kitchen scale and package weight save a conversion with exactly their v1 code; reopen restores the same choice and the shown label.
