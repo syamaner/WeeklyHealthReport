@@ -251,19 +251,31 @@ public struct FoodEdibleWeightGuide: Equatable, Sendable {
 
 `evidenceID` and `measuredOverride` are removed (a user correction is a separate method, not an override of the guide); `guideID` and `guideVersion` fold into `code`; the release moves to the port. `FoodEdibleWeightEstimate` is removed; the calculation is `FoodQuantityCalculator` count × grams.
 
+### v5 sites updated to v6 (gate G1, G2)
+
+| Site | Today | Change and effect |
+|---|---|---|
+| `WeeklyHealthReport/GoogleDrive/DailyFoodDriveExport.swift:19` | `summaryVersion = "food-intake-summary-v5"` hard-coded | Derived from `FoodIntakeSummary.version` (the existing equality test at `DailyFoodDriveExportTests.swift:127` stays) so the writer cannot drift |
+| `WeeklyHealthReport/GoogleDrive/DailyFoodDriveExport.swift:22` | accepted set {v4, v5} | {v4, v5, v6}; files already on Drive keep passing reconcile and recovery |
+| `Packages/FoodLedgerKit/Sources/FoodLedgerDomain/FoodIntakeSummary.swift:40,48` | v5 | v6 and its doc comment |
+| `WeeklyHealthReport/Models/FoodLogPeriodSummary.swift:8` | describes v5 | Describes v6; the Health report period food summary takes `includesEstimates` from the same v6 day projection, so a day with a guide or milk volume entry reads as including estimates in the report |
+| `WeeklyHealthReport/FoodLedger/FoodLedgerCompositionRoot.swift:509` | describes v5 | Describes v6; `FoodLogPeriodReader` logic unchanged (it already copies `includesEstimates`) |
+| `WeeklyHealthReport/FoodLedger/FoodHomeCards.swift:58` | describes v5 plain water rule | Comment names v6 (the plain water rule is unchanged); the Home card's estimate caption now also reflects quantity estimates |
+| `FoodIntakeProjection.swift:22`, `FoodLogDayContent.swift:56`, `FoodDailyExport.swift:397` | v5 in comments | v6 in comments; no logic change beyond C6 |
+
 ### Dependency direction
 
 Presentation and infrastructure depend on application; application depends on domain. The adapter implements the application-owned port; nothing in domain or application imports Foundation bundles, CryptoKit, GRDB or SwiftUI for this feature. `check-boundaries.sh` is unchanged because no target is added.
 
 ### Invariants (closed)
 
-1. A guide is offered only for an allow-listed record and release, unit pieces and a positive finite count; never for grams, millilitres, servings, source-declared servings, recipe servings or pasted-label servings.
+1. A guide is offered only for an allow-listed record and release, unit pieces and a positive finite count; never for grams, millilitres, servings, source-declared servings, recipe servings or pasted-label servings. Applicability is decided by the existing serving policies, not by `unit == .count` alone: no guide when `FoodSourceServingPolicy.applies`, `PastedLabelServingPolicy.servingsOnly` or the source-recipe check holds for the selected candidate (gate G6).
 2. Nothing is saved without the Log press; the estimate and the word Estimate are on the primary screen whenever Log would save them, and the Log button says "about".
 3. A guide save equals count × the selected size's grams exactly, with that size's code and the guide release; the service resolves the entry itself and refuses anything else, even with the view model bypassed.
 4. A guide estimate is always a quantity estimate in every projection; Kitchen scale and Package weight are measured; Estimated by eye stays an estimate. Typed method text is never an estimate without the matching release.
 5. Nutrition provenance is untouched: the selected record's nutrients scale from the estimated grams; no USDA nutrient enters a CoFID entry; unknown nutrients stay unknown.
 6. Food records stay append-only; edits write a new log version and, for a new amount or size, a new conversion version.
-7. No new egress. The ReaderV3Freeze pinned files (`Sources/NutritionLabelParsing/*` listed in `ReaderV3FreezeTests.swift`, `PastedLabelManifest.swift`, `LabelReading.swift`, `PastedLabelSource.swift`, `PastedLabelConfirmation.swift`, `NutritionLabelTextReader.swift` and `FreshSetProtocol.swift`) are out of scope, and `ReaderV3FreezeTests` must pass unchanged as a gate.
+7. No new egress. The ReaderV3Freeze pinned files are out of scope; the authoritative list is `ReaderV3FreezeTests.frozenSources` in `Packages/FoodLedgerKit/Tests/FoodLabelTextCaptureTests/ReaderV3FreezeTests.swift` (gate G5), and `ReaderV3FreezeTests` must pass unchanged as a gate.
 
 ### Extension axes (open)
 
@@ -283,13 +295,17 @@ Presentation and infrastructure depend on application; application depends on do
 7. Byte stability: existing conversion, declaration, release and operation fixtures, including `legacy-v1` and `legacy-v2`, re-encode and verify unchanged; archive food contract and schema identity unchanged.
 8. Estimate rule (C6, F6): guide codes with the guide release, the milk rule ID with the PHE release, and estimated declarations are estimates; the same method text without the matching release prefix, `user_count_conversion_v1:*`, measured declarations, typed legacy text and plain grams are not.
 9. Summary v6 (F1): a day with a guide entry and a day with a milk volume entry set `includesEstimates` in `FoodIntakeSummary` and in the Daily JSON summary; `summary_version` is `food-intake-summary-v6`; validators and the Drive identity policy accept v4, v5 and v6 and reject an unknown version; the v4 and v5 goldens still decode, re-encode byte for byte and pass; a new v6 golden pins a guide day; entry `weight_basis` for a guide entry is `unknown`.
-10. Cross-surface consistency (F7): one guide fixture and one milk fixture produce the same estimate status and amount wording on the Food Log row, saved entry, Recent, Health report food section and Copy all, and the matching v6 summary flag.
+10. Cross-surface consistency (F7, G2): one guide fixture and one milk fixture produce the same estimate status and amount wording on the Food Log row, saved entry, Recent, Health report food section and Copy all, the matching v6 summary flag, and the same `includesEstimates` on the Health report period food summary (`FoodLogDayFacts` energy and fibre), which reads the same v6 day projection.
 11. Method projection table: each row of section 5 maps to its label; legacy typed text renders `Recorded: <text>`.
 12. Count word (F5): `FoodAmountNoun` gives `1 piece`, `3 pieces`; servings give `2 servings`. A source scan over `Packages/FoodLedgerKit/Sources/FoodLedgerPresentation`, the application files named `*Presentation*.swift` and `WeeklyHealthReport/FoodLedger` fails on `.unit.rawValue` inside user-facing string interpolation and on the literals `"count"`, `"unit"` and `"units"` used as amount words; persisted, parsed and export uses of `count` are exempt by an explicit named allow-list in the test.
 13. Log label (F8): an estimated quantity (guide, estimated by eye, milk volume) reads `Log about 215 kcal`; a measured or direct amount reads `Log 215 kcal`.
 14. History: count, size, weight-only, method and no change produce the section 5 strings; "3 pieces to 3 pieces" never appears.
 15. Retry recovery, removal and restoration keep the guide conversion.
 16. `ReaderV3FreezeTests` passes with no change to the pinned hashes (F10).
+17. Manifest and frozen table agree (G3): every manifest entry's code, size, grams and derivation equals the frozen application table, and every frozen code is in the manifest; C9 refuses a save when the port's grams for a code differ from the frozen table.
+18. No save without Log (G4): with the pre-fill shown and no Log press, the service records zero saves and the ledger zero writes.
+19. Release present (G4): whenever the size choice shows, the guide `SourceRelease` is in `input.sourceReleases`; a guide save whose release is in neither the input nor the store fails closed.
+20. Applicability through the serving policies (G6): explicit cases for a source-declared serving, pasted-label servings only, a source recipe, grams and millilitres on an allow-listed record, each with no guide.
 
 ## 9. Not changing, or deferred
 
