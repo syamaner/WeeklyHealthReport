@@ -123,9 +123,24 @@ public enum FoodSearchResultText {
         case let .forAmount(kcal, quantity):
             parts.append("\(FoodDisplayNumber.kcal(Double(kcal))) kcal for \(FoodDisplayNumber.quantity(quantity.value, unit: quantity.unit == .millilitres ? "mL" : "g"))")
         case let .basisOnly(basis):
-            parts.append(basisLabel(basis) + (summary.family == .packagedProduct ? " on label" : ""))
+            let label = basisLabel(basis) + (summary.family == .packagedProduct ? " on label" : "")
+            // Stated energy per 100 g or per 100 mL (#308); unknown shows the basis alone, never 0.
+            if let kcal = summary.basisEnergyKcal {
+                parts.append("\(FoodDisplayNumber.kcal(Double(kcal))) kcal \(label)")
+            } else {
+                parts.append(label)
+            }
         }
         return parts.joined(separator: " · ")
+    }
+
+    /// Confirm's source line names the source with the search row's words ("US reference"),
+    /// so one food never has two source names (#308). A generic estimate stays labelled as an
+    /// estimate; a source outside the closed families keeps the plain "Generic food estimate".
+    public static func confirmSourceName(family: FoodSearchResultSummary.SourceFamily, isGenericEstimate: Bool) -> String? {
+        guard isGenericEstimate else { return nil }
+        if family == .otherSource { return "Generic food estimate" }
+        return "\(self.family(family)) · estimate"
     }
     public static func family(_ family: FoodSearchResultSummary.SourceFamily) -> String {
         switch family {

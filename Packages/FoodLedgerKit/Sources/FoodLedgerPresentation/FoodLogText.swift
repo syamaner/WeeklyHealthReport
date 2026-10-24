@@ -17,6 +17,18 @@ public enum FoodLogText {
     }
 
     public static let totalsFootnote = "Known values only. “+” means at least one entry has this nutrient unknown."
+
+    /// The totals strip footnote, only when a figure actually shows "+" (a known minimum), as
+    /// Home words its footnote only when needed (#308). Nil when every figure is complete or
+    /// wholly unknown, so the "+" is never explained where none is shown.
+    public static func totalsFootnote(_ totals: [FoodIntakeTotal], plainWater: FoodIntakeTotal?) -> String? {
+        (totals + [plainWater].compactMap { $0 }).contains(where: showsPlus) ? totalsFootnote : nil
+    }
+
+    /// Whether a strip figure carries "+": a known part with at least one unknown contribution.
+    public static func showsPlus(_ total: FoodIntakeTotal) -> Bool {
+        total.knownAmount != nil && total.incompleteContributions > 0
+    }
     public static let emptyTitle = "No food logged"
     public static let emptyMessage = "An empty log does not mean no food was eaten."
     public static let swipeFootnote = "Swipe an entry to remove it. Removed entries can be restored."
@@ -55,6 +67,17 @@ public enum FoodLogText {
     public static let savedEntryFootnote = "Edit keeps the original as history. Exports already sent are not changed."
     public static let estimateNotice = "Unknown details stay unknown"
 
+    /// A nutrient the source leaves unknown, in plain language for Source details (#308), never
+    /// the raw reason identifier ("Unknown (notDeclared)").
+    public static func unknownNutrient(_ reason: UnknownReason) -> String {
+        switch reason {
+        case .notDeclared: "Unknown, not stated by the source"
+        case .noCompatibleSource: "Unknown, no matching source"
+        case .missingConversion: "Unknown, could not be converted"
+        case .conflictingEvidence: "Unknown, the sources disagree"
+        }
+    }
+
     // MARK: Numbers
 
     static func number(_ value: Double, fraction: ClosedRange<Int> = 0...1, locale: Locale) -> String {
@@ -92,11 +115,12 @@ public enum FoodLogText {
         return total.incompleteContributions > 0 ? "\(plainWaterLabel), at least \(value)" : "\(plainWaterLabel), \(value)"
     }
 
-    /// "1,240", "68 g", "41 g+", or "Unknown" when no entry has a known value.
+    /// "1,240 kcal", "68 g", "41 g+", or "Unknown" when no entry has a known value. Energy
+    /// carries its unit like every other figure (#308).
     public static func total(_ total: FoodIntakeTotal, locale: Locale = .current) -> String {
         guard let amount = total.knownAmount else { return "Unknown" }
         let value = total.key == .energyConsumed
-            ? kcal(amount, locale: locale)
+            ? "\(kcal(amount, locale: locale)) kcal"
             : "\(number(amount, locale: locale)) \(total.key.canonicalUnit.rawValue)"
         return total.incompleteContributions > 0 ? value + "+" : value
     }

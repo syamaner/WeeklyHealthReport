@@ -1,12 +1,15 @@
 import Foundation
 
 extension ReportDocument {
-    /// The Copy all text (README "What gets copied"). Labels, values and order are
-    /// the document's own, with one capitalised heading line before each
-    /// group (`groupedSections`, #216, contract v1.1); only a failed read is
-    /// reworded to "Could not read Apple Health." (or, for the food log,
-    /// "Could not read the food log.") so no technical message reaches
-    /// the clipboard. Developer tools keeps each read's message
+    /// The Copy all text (README "What gets copied", docs/health-copy-all-v2.md).
+    /// Since v2 (#308) it is the screen's own wording: the display document's
+    /// section titles, row labels and footers (`forDisplay()`), so Copy all and
+    /// the Health screen never name a metric two ways. Values and order are the
+    /// document's, with one capitalised heading line before each group
+    /// (`groupedSections`, #216, contract v1.1); a failed read reads
+    /// "Could not read Apple Health." (or, for the food log, "Could not read
+    /// the food log.") so no technical message reaches the clipboard.
+    /// Developer tools keeps each read's message
     /// (`ReportPresentationSnapshot.readFailures`).
     func plainText(
         generatedAt: Date,
@@ -25,7 +28,7 @@ extension ReportDocument {
             "Generated: \(generatedTimestamp)"
         ].joined(separator: "\n")
 
-        let groupText = groupedSections.flatMap { grouped in
+        let groupText = forDisplay().groupedSections.flatMap { grouped in
             [Self.copyAllGroupHeading(grouped.heading)] + grouped.sections.map(Self.copyAllBlock)
         }
 

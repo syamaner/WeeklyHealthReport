@@ -10,9 +10,27 @@ public protocol FavouriteSaving: AnyObject {
     func projection() throws -> FavouritesProjection
     @discardableResult
     func saveFavourite(logItemVersionID: LogItemVersionID) throws -> FavouriteVersion
+    /// The matching active favourite for each version (same food, source, preparation and amount),
+    /// read in one pass (#308).
+    func activeFavourites(matching logItemVersionIDs: [LogItemVersionID]) throws -> [LogItemVersionID: FavouriteVersion]
 }
 
 extension FavouritesService: FavouriteSaving {}
+
+public extension FavouriteSaving {
+    /// The active favourite matching this version (#308). The default matches the bound version
+    /// only; `FavouritesService` also matches the same source, preparation and amount.
+    func activeFavourite(matchingSourceOf logItemVersionID: LogItemVersionID) throws -> FavouriteVersion? {
+        try activeFavourites(matching: [logItemVersionID])[logItemVersionID]
+    }
+
+    func activeFavourites(matching logItemVersionIDs: [LogItemVersionID]) throws -> [LogItemVersionID: FavouriteVersion] {
+        let projection = try projection()
+        var result: [LogItemVersionID: FavouriteVersion] = [:]
+        for id in logItemVersionIDs { result[id] = projection.activeFavourite(boundTo: id) }
+        return result
+    }
+}
 
 /// Where one logged version stands with respect to favourites.
 public enum FavouriteSaveState: Equatable, Sendable {
@@ -72,11 +90,14 @@ public final class FavouriteSaveModel: ObservableObject {
     /// Marks each version already pinned by an active favourite. A version saved here keeps
     /// "Saved as favourite"; one whose favourite was removed elsewhere becomes available again.
     /// When favourites cannot be read the control stays available and a save reports its own result.
+    /// A version counts as a favourite when an active favourite has the same food, source,
+    /// preparation and amount, so re-logging a favourite keeps "Already a favourite" (#308). The
+    /// matches are read once per refresh, not once per row.
     public func refresh(_ ids: [LogItemVersionID]) {
-        let projection = try? store.projection()
+        let matches = try? store.activeFavourites(matching: ids)
         var next: [LogItemVersionID: FavouriteSaveState] = [:]
         for id in ids {
-            let active = projection?.activeFavourite(boundTo: id) != nil
+            let active = matches?[id] != nil
             switch (states[id], active) {
             case (.saved?, true): next[id] = .saved
             case (_, true): next[id] = .alreadyFavourite
@@ -105,7 +126,7 @@ public final class FavouriteSaveModel: ObservableObject {
     }
 
     private func projectionHasActive(_ id: LogItemVersionID) -> Bool {
-        (try? store.projection().activeFavourite(boundTo: id)) != nil
+        (try? store.activeFavourite(matchingSourceOf: id)) != nil
     }
 
     /// One save for this version. Ignored while saving or once it is a favourite.
@@ -113,6 +134,11 @@ public final class FavouriteSaveModel: ObservableObject {
         switch state(for: id) {
         case .saving, .saved, .alreadyFavourite: return
         case .available, .failed: break
+        }
+        // The same food and source became a favourite elsewhere: say so, write nothing (#308).
+        if (try? store.projection().activeFavourite(boundTo: id)) == nil, projectionHasActive(id) {
+            states[id] = .alreadyFavourite
+            return
         }
         states[id] = .saving
         do {

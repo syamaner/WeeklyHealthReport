@@ -162,7 +162,10 @@ struct FoodLogView: View {
                 .monospacedDigit()
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(FoodLogText.plainWaterAccessibility(plainWater))
-        } footer: { Text(FoodLogText.totalsFootnote) }
+        } footer: {
+            // Only when a figure shows "+", as on Home (#308).
+            if let footnote = FoodLogText.totalsFootnote(totals, plainWater: plainWater) { Text(footnote) }
+        }
     }
 
     /// Plain water only (#304): the empty-day copy instead of nutrient totals (never 0, never a

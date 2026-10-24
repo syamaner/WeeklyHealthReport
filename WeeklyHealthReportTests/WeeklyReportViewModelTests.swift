@@ -795,9 +795,12 @@ extension WeeklyReportViewModelTests {
             }
         }
         // Tiles repeat section values and are never copied.
-        for tileOnly in ["Summary", "Resting heart rate", "Morning blood pressure"] {
+        for tileOnly in ["Summary", "Morning blood pressure"] {
             XCTAssertFalse(expected.contains(tileOnly), tileOnly)
         }
+        // Since Copy all v2 (#308) "Resting heart rate average" is a copied row label, so the
+        // tile title is checked as a line of its own.
+        XCTAssertFalse(expected.components(separatedBy: "\n").contains("Resting heart rate"))
     }
 
     func testCopyAllGateIsClosedOnlyWhileRefreshing() async {

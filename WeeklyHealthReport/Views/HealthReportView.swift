@@ -45,20 +45,22 @@ struct HealthReportView: View {
     @State private var copied = false
 
     var body: some View {
-        let document = ReportDocument(snapshot: viewModel.presentationSnapshot(
+        let snapshot = viewModel.presentationSnapshot(
             includesMedicationSection: Self.includesMedicationSection,
             showsMorningBloodPressureDetails:
                 presentationState.showsMorningBloodPressureDetails,
             showsEveningBloodPressureDetails:
                 presentationState.showsEveningBloodPressureDetails
-        )).forDisplay()
+        )
+        let document = ReportDocument(snapshot: snapshot).forDisplay()
         let tiles = HealthSummaryTiles.make(from: Self.expandedDocument(viewModel: viewModel).forDisplay())
+        let failureBanner = HealthReadFailureBanner.make(failures: snapshot.readFailures)
         return Form {
             Section {
                 Picker("Reporting period", selection: $viewModel.selection) {
                     ForEach(ReportPeriodSelection.allCases) { selection in
+                        // VoiceOver reads the visible title ("This week"), #308.
                         Text(Self.shortTitle(for: selection))
-                            .accessibilityLabel(selection.rawValue)
                             .tag(selection)
                     }
                 }
@@ -75,13 +77,39 @@ struct HealthReportView: View {
                 .accessibilityElement(children: .combine)
             }
 
-            Section("Summary") {
+            if let failureBanner {
+                Section {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Label(HealthReadFailureBanner.title, systemImage: "exclamationmark.triangle")
+                            .font(.headline)
+                        Text(failureBanner.message)
+                            .font(.subheadline)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(failureBanner.accessibilityLabel)
+                    .accessibilityIdentifier("health.readFailureBanner")
+                    Button("Try again") {
+                        Task { await viewModel.refresh() }
+                    }
+                    .frame(minHeight: 44)
+                    .disabled(viewModel.state == .loading)
+                }
+            }
+
+            Section {
                 LazyVGrid(columns: tileColumns, alignment: .leading, spacing: 12) {
                     ForEach(tiles) { tile in
                         HealthSummaryTileView(tile: tile)
                     }
                 }
                 .padding(.vertical, 4)
+            } header: {
+                Text("Summary")
+            } footer: {
+                if let footnote = HealthSummaryTiles.noDataFootnote(for: tiles) {
+                    Text(footnote)
+                }
             }
 
             ForEach(document.groupedSections) { grouped in

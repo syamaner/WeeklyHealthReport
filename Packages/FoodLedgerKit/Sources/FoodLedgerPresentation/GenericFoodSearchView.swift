@@ -300,6 +300,27 @@ public final class GenericFoodSearchViewModel: ObservableObject {
         let online = Set(onlineAddedIDs)
         return route.matches.filter { !online.contains($0.searchID) }
     }
+    /// "Best matches" keeps close name matches only; the rest of the ranked list keeps its
+    /// order under "Other matches" (#308). Presentation grouping, never ranking or identity.
+    public var closeMatches: [GenericFoodMatch] {
+        let food = parsedQuery?.food ?? query
+        return bestMatches.filter { Self.isCloseNameMatch($0, food: food) }
+    }
+    public var otherMatches: [GenericFoodMatch] {
+        let food = parsedQuery?.food ?? query
+        return bestMatches.filter { !Self.isCloseNameMatch($0, food: food) }
+    }
+    /// A close name match is an exact name, or a primary name (before the first comma) whose
+    /// lexical terms are all in the searched food, or that contains every searched term
+    /// ("Bananas, raw" and "Heinz Baked Beans" are close for "banana" and "baked beans";
+    /// "Babyfood, cereal, oatmeal, with bananas" is not).
+    public static func isCloseNameMatch(_ match: GenericFoodMatch, food: String) -> Bool {
+        if match.isExactName { return true }
+        let requested = Set(GenericFoodRankingPolicy.terms(food))
+        let head = Set(GenericFoodRankingPolicy.terms(String(match.candidate.name.value.split(separator: ",", maxSplits: 1).first ?? "")))
+        guard !requested.isEmpty, !head.isEmpty else { return false }
+        return head.isSubset(of: requested) || requested.isSubset(of: head)
+    }
     public var onlineMatches: [GenericFoodMatch] {
         guard case let .results(route) = phase else { return [] }
         let online = Set(onlineAddedIDs)
@@ -356,10 +377,12 @@ public struct GenericFoodSearchView: View {
         _developerToolsEnabled = AppStorage(wrappedValue: false, FoodSearchDeveloperTools.storageKey, store: preferences)
     }
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+
     public var body: some View {
         Form {
             Section {
-                TextField("Food and amount, e.g. 150 g grilled chicken", text: $model.query)
+                TextField(FoodSearchFieldText.prompt(example: "150 g grilled chicken", at: dynamicTypeSize), text: $model.query)
                     .accessibilityLabel("Food and amount")
                     .submitLabel(.search)
                     .onSubmit { if model.activeEnrichmentStage == nil { model.search() } }
@@ -423,7 +446,7 @@ public struct GenericFoodSearchView: View {
                 }
             }
         }
-        .navigationTitle("Search results")
+        .accessibleNavigationTitle("Search results")
         .sheet(isPresented: $editsAmount) {
             NavigationStack { FoodSearchAmountEditor(initial: model.effectiveAmount) { model.amountOverride = $0 } }
         }
@@ -431,24 +454,38 @@ public struct GenericFoodSearchView: View {
         .onDisappear { model.stopEnrichment() }
     }
 
+    /// Side by side at standard sizes; stacked full width at accessibility sizes so each chip
+    /// wraps whole words instead of breaking "Amount" or "preparation" mid-word (#308).
     @ViewBuilder private var chips: some View {
-        HStack(spacing: 8) {
-            Button { editsAmount = true } label: {
-                Text(model.effectiveAmount.map { "Amount: " + FoodSearchResultText.amount($0) } ?? "Add amount")
-            }
-            .buttonStyle(.bordered).buttonBorderShape(.capsule).font(.footnote)
-            .accessibilityHint("Change the amount used for energy and on the confirmation")
-            Menu {
-                Button("Any preparation") { choosePreparation(nil) }
-                Button("Raw") { choosePreparation(.raw) }
-                Button("Cooked") { choosePreparation(.cooked) }
-            } label: {
-                Text(FoodSearchResultText.preparationChip(model.effectivePreparation))
-            }
-            .buttonStyle(.bordered).buttonBorderShape(.capsule).font(.footnote)
-            .accessibilityHint("Raw and cooked are different foods")
+        if FoodSearchFieldText.stacksChips(at: dynamicTypeSize) {
+            VStack(alignment: .leading, spacing: 8) { amountChip; preparationChip }
+                .frame(minHeight: 44)
+        } else {
+            HStack(spacing: 8) { amountChip; preparationChip }
+                .frame(minHeight: 44)
         }
-        .frame(minHeight: 44)
+    }
+
+    private var amountChip: some View {
+        Button { editsAmount = true } label: {
+            Text(model.effectiveAmount.map { "Amount: " + FoodSearchResultText.amount($0) } ?? "Add amount")
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .buttonStyle(.bordered).buttonBorderShape(.capsule).font(.footnote)
+        .accessibilityHint("Change the amount used for energy and on the confirmation")
+    }
+
+    private var preparationChip: some View {
+        Menu {
+            Button("Any preparation") { choosePreparation(nil) }
+            Button("Raw") { choosePreparation(.raw) }
+            Button("Cooked") { choosePreparation(.cooked) }
+        } label: {
+            Text(FoodSearchResultText.preparationChip(model.effectivePreparation))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .buttonStyle(.bordered).buttonBorderShape(.capsule).font(.footnote)
+        .accessibilityHint("Raw and cooked are different foods")
     }
 
     private func choosePreparation(_ kind: PreparationKind?) {
@@ -522,8 +559,11 @@ public struct GenericFoodSearchView: View {
         case .declined:
             Section("No food selected") { Text("Change the description to try again.") }
         case let .results(route):
-            if !model.bestMatches.isEmpty {
-                Section("Best matches") { ForEach(model.bestMatches, id: \.searchID) { row($0, route: route) } }
+            if !model.closeMatches.isEmpty {
+                Section("Best matches") { ForEach(model.closeMatches, id: \.searchID) { row($0, route: route) } }
+            }
+            if !model.otherMatches.isEmpty {
+                Section("Other matches") { ForEach(model.otherMatches, id: \.searchID) { row($0, route: route) } }
             }
             if !model.onlineMatches.isEmpty {
                 Section("Added from online database") { ForEach(model.onlineMatches, id: \.searchID) { row($0, route: route) } }

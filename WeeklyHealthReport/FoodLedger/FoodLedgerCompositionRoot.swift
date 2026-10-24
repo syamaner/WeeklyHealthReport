@@ -198,7 +198,7 @@ final class FoodLedgerCompositionRoot {
         let clock = confirmationClock
         return FoodConfirmationViewModel(state: state, volumeConversionOffering: offering, portionGuides: countPortionGuides,
                                          now: { clock.now() }, calendar: confirmationCalendar,
-                                         favouriteAction: favouriteAction,
+                                         favouriteAction: favouriteAction(unlessFavourite: state),
                                          whenNotice: FoodLogText.whenNotice(when)) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
@@ -209,6 +209,26 @@ final class FoodLedgerCompositionRoot {
     /// Writes `save_favourite_v1` for a logged entry version (Confirm's "Save as favourite").
     var favouriteAction: @MainActor @Sendable (LogItemVersionID) throws -> Void {
         { [favourites] versionID in _ = try favourites.saveFavourite(logItemVersionID: versionID) }
+    }
+
+    /// Re-logging a favourite (Recent or quick add) does not offer Save as favourite again
+    /// (#308): the favourite follows its food, source, preparation and amount, not only the entry
+    /// it was saved from. The amount is the one Confirm opens with; a different amount is a
+    /// different favourite and keeps the offer. A read failure keeps the offer, as before.
+    private func favouriteAction(unlessFavourite state: FoodConfirmationState) -> (@MainActor @Sendable (LogItemVersionID) throws -> Void)? {
+        guard let key = Self.favouriteMatchKey(state) else { return favouriteAction }
+        let isFavourite = (try? favourites.hasActiveFavourite(key)) ?? false
+        return isFavourite ? nil : favouriteAction
+    }
+
+    /// The opening Confirm state's favourite key: its source, preparation (a correction's when
+    /// present) and prefilled amount. Nil without an amount.
+    static func favouriteMatchKey(_ state: FoodConfirmationState) -> FavouritesService.FavouriteMatchKey? {
+        guard let value = state.quantity.value else { return nil }
+        let source = state.selectedCandidate.candidate
+        let preparation = state.correction?.identity.preparation.kind ?? source.identity.preparation.kind
+        return FavouritesService.FavouriteMatchKey(sourceReleaseID: source.sourceReleaseID, recordID: source.recordID,
+                                                   preparation: preparation, amountValue: value, amountUnit: state.quantity.unit)
     }
 
     func favouritesModel() -> FavouritesViewModel { FavouritesViewModel(store: favourites) }
@@ -276,7 +296,7 @@ final class FoodLedgerCompositionRoot {
         }
         return FoodConfirmationViewModel(state: prepared, volumeConversionOffering: offering, portionGuides: countPortionGuides, now: { clock.now() },
                                          calendar: confirmationCalendar,
-                                         favouriteAction: favouriteAction, whenNotice: whenNotice) { [confirmations, ids] state in
+                                         favouriteAction: favouriteAction(unlessFavourite: prepared), whenNotice: whenNotice) { [confirmations, ids] state in
             try confirmations.save(state, operationID: ids.makeID(OperationTag.self), idempotencyKey: nil)
         }
     }

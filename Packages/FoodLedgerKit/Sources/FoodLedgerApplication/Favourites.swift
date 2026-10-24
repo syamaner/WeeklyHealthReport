@@ -139,6 +139,76 @@ public final class FavouritesService: @unchecked Sendable {
         try FavouritesProjection(records: reader.favouriteRecords())
     }
 
+    // MARK: Favourite by food, source and amount (#308, read-only)
+
+    /// What makes two entries "the same favourite" (#308): the source record (release and record,
+    /// the Recent foods de-duplication key), the preparation and the amount (value and unit). A
+    /// favourite is bound to one logged version (`save_favourite_v1`) and re-logging it writes a new
+    /// entry, so "Already a favourite" follows this key rather than only the bound version. The same
+    /// food at a different amount (banana 100 g and banana 150 g) is a different favourite and can
+    /// still be saved. Reads only; no record, binding or format changes.
+    public struct FavouriteMatchKey: Hashable, Sendable {
+        public let sourceReleaseID: String
+        public let recordID: String
+        public let preparation: PreparationKind
+        public let amountValue: Double
+        public let amountUnit: QuantityUnit
+
+        public init(sourceReleaseID: ExternalIdentifier, recordID: ExternalIdentifier, preparation: PreparationKind,
+                    amountValue: Double, amountUnit: QuantityUnit) {
+            self.sourceReleaseID = sourceReleaseID.value; self.recordID = recordID.value
+            self.preparation = preparation; self.amountValue = amountValue; self.amountUnit = amountUnit
+        }
+    }
+
+    /// The active favourite matching this logged version: bound to it, or with the same key.
+    public func activeFavourite(matchingSourceOf logItemVersionID: LogItemVersionID) throws -> FavouriteVersion? {
+        try activeFavourites(matching: [logItemVersionID])[logItemVersionID]
+    }
+
+    /// The matching active favourite for each version, reading each favourite's key once per call
+    /// (not once per version), so a list refresh costs favourites plus versions reads.
+    public func activeFavourites(matching logItemVersionIDs: [LogItemVersionID]) throws -> [LogItemVersionID: FavouriteVersion] {
+        let projection = try projection()
+        var byKey: [FavouriteMatchKey: FavouriteVersion]?
+        var result: [LogItemVersionID: FavouriteVersion] = [:]
+        for id in logItemVersionIDs {
+            if let bound = projection.activeFavourite(boundTo: id) { result[id] = bound; continue }
+            guard let key = try matchKey(loggedVersion: id) else { continue }
+            if byKey == nil { byKey = try favouritesByKey(projection) }
+            if let favourite = byKey?[key] { result[id] = favourite }
+        }
+        return result
+    }
+
+    /// Whether an active favourite has this key, for Confirm's "Save as favourite" on a re-log.
+    public func hasActiveFavourite(_ key: FavouriteMatchKey) throws -> Bool {
+        try favouritesByKey(projection())[key] != nil
+    }
+
+    private func favouritesByKey(_ projection: FavouritesProjection) throws -> [FavouriteMatchKey: FavouriteVersion] {
+        var map: [FavouriteMatchKey: FavouriteVersion] = [:]
+        for favourite in projection.favourites {
+            guard case let .savedEntry(bound) = favourite.binding,
+                  let stored = try confirmations.pinnedConfirmation(bound) else { continue }
+            let source = stored.candidateDecision.candidate
+            let key = FavouriteMatchKey(sourceReleaseID: source.sourceReleaseID, recordID: source.recordID,
+                                        preparation: stored.productVersion.identity.preparation.kind,
+                                        amountValue: favourite.defaultAmount.value, amountUnit: favourite.defaultAmount.unit)
+            if map[key] == nil { map[key] = favourite }
+        }
+        return map
+    }
+
+    private func matchKey(loggedVersion id: LogItemVersionID) throws -> FavouriteMatchKey? {
+        guard let stored = try confirmations.pinnedConfirmation(id) else { return nil }
+        let source = stored.candidateDecision.candidate
+        let amount = FoodConfirmationService.lastEnteredAmount(stored.logItemVersion, conversion: stored.quantityConversion)
+        return FavouriteMatchKey(sourceReleaseID: source.sourceReleaseID, recordID: source.recordID,
+                                 preparation: stored.productVersion.identity.preparation.kind,
+                                 amountValue: amount.value, amountUnit: amount.unit)
+    }
+
     // MARK: Save as favourite (save_favourite_v1)
 
     /// Saves a favourite bound to one logged entry version. Returns the existing active favourite

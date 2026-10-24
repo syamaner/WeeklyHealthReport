@@ -1118,8 +1118,11 @@ public struct FoodConfirmationView: View {
         var parts: [String] = []
         if let scope = model.state.reviewedWebProposalScope {
             parts.append(scope == .representativeEstimate ? "Reviewed web estimate" : "Reviewed web product")
-        } else if model.state.isGenericEstimate {
-            parts.append("Generic food estimate")
+        } else if let name = FoodSearchResultText.confirmSourceName(
+            family: FoodSearchResultSummary.family(candidate: model.state.selectedCandidate.candidate,
+                                                   releases: model.state.input.sourceReleases),
+            isGenericEstimate: model.state.isGenericEstimate) {
+            parts.append(name)
         }
         let preparation = model.displayedIdentity.preparation
         if preparation.kind != .unknown { parts.append(Self.preparationLabel(preparation).lowercased()) }
@@ -1969,7 +1972,7 @@ public struct FoodConfirmationView: View {
         case let .augmented(value): "\(number(value.amount)) \(value.unit.rawValue) augmented"
         case let .bounded(value):
             "\(value.lower.map(number) ?? "open")–\(value.upper.map(number) ?? "open") \(value.unit.rawValue) bounded"
-        case let .unknown(reason): "Unknown (\(String(describing: reason).replacingOccurrences(of: "_", with: " ")))"
+        case let .unknown(reason): FoodLogText.unknownNutrient(reason)
         }
     }
 

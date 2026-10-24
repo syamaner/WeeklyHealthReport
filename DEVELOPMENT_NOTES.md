@@ -2784,3 +2784,21 @@ Boundary: `phase_usage.py --format claude --since 2026-10-24T08:54:35Z --until 2
 Fold-in row: same transcript, `phase_usage.py --format claude --since 2026-10-24T11:17:15Z --until 2026-10-24T15:56:49Z` (end captured with `date -u`). It covers the PR, the merge of main after #311, the invariant review fixes (servings predicate, reopened corrected eggs, header method, reuse bound to the record, method as an estimate, contract tests 6, 9, 10 and 15), the USDA allow-list release fix and manifest regeneration, the journey QA fix (method shown once), and the gate reruns. It spans a session restart, whose context reload accounts for most of the 12,475,498 5-minute cache writes. Exact API-equivalent USD 75.662556. The final gate run, this ledger edit, the commit, push and PR edit are outside the row.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-308-2026-10-24: Claude Code presentation follow-ups (search, Health, Dynamic Type, Food Log, favourites)
+
+One implementation subagent and transcript (`subagents/agent-a0bd4f1b781e0136d.jsonl`) for #308, owner-approved for autonomous delivery on 24 October 2026, plus one read-only invariant-review subagent (`subagents/agent-a52e8292a1648bd00.jsonl`) it launched. The implementation window runs from `2026-10-24T13:16:33Z` (captured with `date -u` at the start) to `2026-10-24T15:58:13Z`, just before this ledger edit (UTC). It includes exploration, the code, docs and tests, the review fixes, several narrow and full gate runs, and a session restart. The final gate rerun, the commit, the push and the PR come after the boundary and are not measured.
+
+Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output); they were not re-checked on the day of this entry. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Presentation follow-ups (#308), implementation subagent | 49,515,911 (46,973,183) | 2,542,332 | 116,748 | 49,632,659 | $24.44 |
+| Presentation follow-ups (#308), invariant reviewer | 835,793 (769,502) | 66,255 | 8,735 | 844,528 | $0.66 |
+| Presentation follow-ups (#308), review fold-in, implementation subagent | 16,867,179 (16,468,370) | 398,717 | 26,175 | 16,893,354 | $5.81 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T13:16:33Z --until 2026-10-24T15:58:13Z` on the implementation transcript alone; the reviewer row is its whole transcript. Cache writes: 2,542,332 and 66,255 5-minute, 0 1-hour. Exact API-equivalent USD 24.4428406 and 0.6600194. The orchestrating session is not included.
+
+Review fold-in: `phase_usage.py --format claude --since 2026-10-24T15:58:13Z --until 2026-10-24T16:21:37Z` on the implementation transcript. It includes the first commit, push and PR #314, and then the coordinator's review points: favourites matched on source, preparation and amount, one read per list refresh, and the docs index and section groups notes. It also covers a gate rerun in which the simulator-backed `xcodebuild` gates were blocked by a CoreSimulator version mismatch. Cache writes: 398,717 5-minute, 0 1-hour. Exact API-equivalent USD 5.811127. Same rates.
+
+Token totals are not evidence of productivity, quality or provider efficiency.

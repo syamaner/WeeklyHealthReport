@@ -234,6 +234,9 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(logged.energy.accessibilityLabel, "Energy, 300 kilocalories, includes estimates")
         XCTAssertEqual(logged.nutrients[0].accessibilityLabel, "Protein, 12 grams, includes estimates")
         XCTAssertNil(logged.water.caption)
+        // #308: one note for the card, in its footer, whatever the number of estimated rows.
+        XCTAssertEqual(logged.estimatesNote, "Includes estimates")
+        XCTAssertEqual(logged.footer, "Includes estimates.")
         let model = FoodHomeModel(root: nil)
         for size in [DynamicTypeSize.large, .accessibility3] {
             render(NavigationStack { Form { FoodHomeCard(model: model) }.environment(\.dynamicTypeSize, size) },
@@ -350,8 +353,9 @@ final class HomeCardsTests: XCTestCase {
         XCTAssertEqual(section.title, "Food logged")
         XCTAssertEqual(section.rows.map(\.label), ["Energy", nil, "Protein", "Carbohydrates", "Fat", "Fibre", "Plain water logged"])
         XCTAssertEqual(section.rows.map(\.value), ["1,240 kcal", "3 entries", "68 g", "150.5 g", "41 g+", "Unknown", "No data"])
-        XCTAssertEqual(section.rows[0].note, "Includes estimates")
-        XCTAssertEqual(section.footer, "Some values are unknown for 1 entry, so totals marked + are known minimums.")
+        // #308: one card-level "Includes estimates" line in the footer, never a per-row note.
+        XCTAssertEqual(section.rows.compactMap(\.note), [])
+        XCTAssertEqual(section.footer, "Includes estimates.\nSome values are unknown for 1 entry, so totals marked + are known minimums.")
         XCTAssertEqual(FoodHomeCardContent.fullPageSection(.empty).rows, [.init(value: "Nothing logged yet today")])
         XCTAssertEqual(FoodHomeCardContent.fullPageSection(.loading).rows, [.init(value: "Loading food log")])
 

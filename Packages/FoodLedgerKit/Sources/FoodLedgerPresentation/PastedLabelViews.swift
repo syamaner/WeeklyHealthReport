@@ -81,7 +81,7 @@ public struct PastedLabelTextView: View {
                 .frame(minHeight: 44)
             } footer: { Text(PastedLabelText.nothingSaved) }
         }
-        .navigationTitle(PastedLabelText.title)
+        .accessibleNavigationTitle(PastedLabelText.title)
         .alert(PastedLabelText.readAgainTitle, isPresented: $model.asksToReplaceCorrections) {
             Button(PastedLabelText.readAgain, role: .destructive) {
                 if let confirm = model.confirmReadAgain() { openConfirm(confirm) }
@@ -127,6 +127,12 @@ public struct PastedLabelBasisSheetView: View {
         PastedLabelText.basisNotSureNote(offersSearch: offersSearch(hasSearch: hasSearch, fromChange: fromChange))
     }
 
+    /// From Change only: the amount and its unit are kept, so a per 100 mL to per 100 g change
+    /// is not mistaken for a unit change (#308). Nil on the first sheet, where no amount exists.
+    public static func basisChangeNote(fromChange: Bool) -> String? {
+        fromChange ? PastedLabelText.basisChangeKeepsAmount : nil
+    }
+
     public var body: some View {
         NavigationStack {
             Form {
@@ -161,6 +167,8 @@ public struct PastedLabelBasisSheetView: View {
                     if model.perServingUnavailable {
                         Text(PastedLabelText.perServingUnavailable).font(.footnote).foregroundStyle(.secondary)
                     }
+                } footer: {
+                    if let note = Self.basisChangeNote(fromChange: model.basisSheet?.fromChange == true) { Text(note) }
                 }
                 Section {
                     Button(PastedLabelText.basisNotSure) {

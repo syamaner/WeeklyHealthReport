@@ -58,6 +58,8 @@ CODE_READ_DOCS = {
     "docs/healthkit-day-bucketing-v1.md",
     # Cited by the pasted-label fortification policy, Confirm copy and their tests (#306).
     "docs/pasted-label-confirm-v1.md",
+    # Cited by the Copy all renderer and its golden tests (#308).
+    "docs/health-copy-all-v2.md",
     # Cited by the count portion guides, the estimate and method rules and their tests (#307).
     "docs/count-portion-estimate-v1.md",
 }

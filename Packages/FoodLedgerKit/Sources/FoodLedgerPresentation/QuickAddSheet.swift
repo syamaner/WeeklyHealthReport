@@ -311,7 +311,7 @@ public struct QuickAddSheet: View {
             }
         }
         .amountKeyboardDismissal($editingAmount)
-        .navigationTitle(model.title)
+        .accessibleNavigationTitle(model.title)
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
