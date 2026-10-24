@@ -2704,7 +2704,7 @@ One `claude-opus-5-5` implementation subagent (branch `fix/305-first-launch-home
 
 Runs from the subagent's first transcript message (`2026-10-24T06:39:54Z`) to `2026-10-24T07:14:30Z`, just before this ledger edit. No start time was captured with `date -u`; the boundary is the transcript's own first timestamp, so the row covers the whole subagent transcript up to the edit. These times are UTC (24 October local time, UTC+8). No subagents were launched; the orchestrator's usage is outside the row. This ledger edit, the commit, the push and the PR are outside the row. No OpenRouter or other provider call was made.
 
-Pricing: the Claude Opus 5.5 rates re-checked on 23 October 2026 (WHR-296-2026-10-23), not re-checked on 24 October: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+Pricing: Claude Opus 5.5 rates re-checked on 24 October 2026 against Anthropic's official pricing page (the same check as WHR-304-2026-10-24), unchanged from 23 October: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
 
 | Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
 | --- | ---: | ---: | ---: | ---: | ---: |
