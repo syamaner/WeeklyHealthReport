@@ -361,24 +361,39 @@ final class FoodConfirmationReducerTests: XCTestCase {
         XCTAssertEqual(FoodConfirmationPolicy.unresolvedIdentity(unknown, allowingEstimate: true), [])
     }
 
-    func testGuidePreviewKeepsCountEvidenceEstimateAndMeasuredOverrideSeparate() throws {
-        let candidate = try fixtureInput().candidates[0]
-        let guide = try FoodEdibleWeightGuide(foodRecordID: candidate.candidate.recordID,
-            foodSourceReleaseID: candidate.candidate.sourceReleaseID, guideID: ExternalIdentifier("synthetic:guide"),
-            guideVersion: LedgerText("test-v1"), size: LedgerText("Synthetic size"), edibleGramsPerPiece: 40,
-            sourceReleaseID: ExternalIdentifier("synthetic:portion-source"), evidenceID: id(1, EvidenceTag.self))
-        let preview = try guide.estimate(for: candidate, count: 2,
-            measuredOverride: PositiveQuantity(value: 85, unit: .grams))
-        XCTAssertEqual(preview.count.value, 2)
-        XCTAssertEqual(preview.guide, guide)
-        XCTAssertEqual(preview.estimatedEdibleWeight.value, 80)
-        XCTAssertEqual(preview.finalEdibleWeight.value, 85)
-        XCTAssertThrowsError(try guide.estimate(for: candidate, count: 0))
-        XCTAssertThrowsError(try guide.estimate(for: candidate, count: .infinity))
-        XCTAssertThrowsError(try guide.estimate(for: candidate, count: 2,
-            measuredOverride: PositiveQuantity(value: 85, unit: .millilitres)))
-        let other = try fixtureInput(candidateCount: 2).candidates[1]
-        XCTAssertThrowsError(try guide.estimate(for: other, count: 2))
+    /// count-portion-estimate-v1: the state holds only the size code; the total is derived from
+    /// the count and the frozen table, a count change keeps the size, any other unit, a measured
+    /// or estimated weight, a conversion or a candidate switch drops it.
+    func testGuideSizeIsACodeOnlyAndItsTotalFollowsTheCount() throws {
+        let large = try LedgerText("count_portion_guide_v1:usda_sr_legacy_171287_88374")
+        var state = FoodConfirmationState(input: try fixtureInput(candidateCount: 2))
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(3, .count))
+        FoodConfirmationReducer.reduce(state: &state, action: .setPortionGuide(large))
+        XCTAssertEqual(state.quantity.portionGuideCode, large)
+        XCTAssertNil(state.quantity.conversion)
+        XCTAssertEqual(try state.quantity.calculatedEdibleQuantity(), try PositiveQuantity(value: 150, unit: .grams))
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(4, .count))
+        XCTAssertEqual(state.quantity.portionGuideCode, large)
+        XCTAssertEqual(try state.quantity.calculatedEdibleQuantity(), try PositiveQuantity(value: 200, unit: .grams))
+        FoodConfirmationReducer.reduce(state: &state, action: .setPortionGuide(try LedgerText("count_portion_guide_v1:not_in_table")))
+        XCTAssertEqual(state.quantity.portionGuideCode, large, "an unknown code is refused")
+        FoodConfirmationReducer.reduce(state: &state, action: .beginDirectWeight)
+        XCTAssertNil(state.quantity.portionGuideCode)
+        FoodConfirmationReducer.reduce(state: &state, action: .endDirectWeight)
+        FoodConfirmationReducer.reduce(state: &state, action: .setPortionGuide(large))
+        FoodConfirmationReducer.reduce(state: &state, action: .setConversion(QuantityConversionDraft(
+            convertedQuantity: try PositiveQuantity(value: 120, unit: .grams),
+            methodVersion: try XCTUnwrap(CountConversionMethod.kitchenScale.storedCode))))
+        XCTAssertNil(state.quantity.portionGuideCode)
+        FoodConfirmationReducer.reduce(state: &state, action: .setPortionGuide(large))
+        XCTAssertNil(state.quantity.conversion, "a size replaces a typed conversion")
+        FoodConfirmationReducer.reduce(state: &state, action: .selectCandidate(1))
+        XCTAssertNil(state.quantity.portionGuideCode, "a candidate switch drops the size")
+        FoodConfirmationReducer.reduce(state: &state, action: .setPortionGuide(large))
+        FoodConfirmationReducer.reduce(state: &state, action: .setQuantity(150, .grams))
+        XCTAssertNil(state.quantity.portionGuideCode, "grams drop the size")
+        FoodConfirmationReducer.reduce(state: &state, action: .setPortionGuide(large))
+        XCTAssertNil(state.quantity.portionGuideCode, "no size on grams")
     }
 
     func testDirectWeightRequiresSeparateGramsAndExplicitBasisAndPreservesOriginalInput() throws {

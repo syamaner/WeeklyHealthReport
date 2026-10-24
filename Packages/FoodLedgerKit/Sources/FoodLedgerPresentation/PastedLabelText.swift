@@ -526,7 +526,7 @@ public enum PastedLabelSavedEntryText {
     /// through a serving size.
     public static func servingSizeLine(_ detail: SavedFoodEntryDetail) -> String? {
         guard let size = detail.servingSize else { return nil }
-        let unit = size.quantity.unit == .millilitres ? "mL" : size.quantity.unit.rawValue
+        let unit = size.quantity.unit == .millilitres ? "mL" : FoodAmountNoun.unit(size.quantity.unit, value: size.quantity.value)
         return "Serving size \(FoodDisplayNumber.amount(size.quantity.value, fraction: 0...2)) \(unit) · \(NutrientOriginText.tag(size.origin))"
     }
 

@@ -40,7 +40,7 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertEqual(model.sourceUnitAction?.actionTitle, "Enter grams instead")
         model.applyAvailableVolumeConversion()
         XCTAssertNil(model.unitBasisMismatch, "the estimate reaches the gram basis")
-        XCTAssertEqual(model.logButtonTitle, "Log 130 kcal")
+        XCTAssertEqual(model.logButtonTitle, "Log about 130 kcal", "an estimated quantity reads about (count-portion-estimate-v1, gate F8)")
         // The main screen names the estimate plainly; the method identifier stays in its details.
         XCTAssertEqual(model.conversionMethodLabel, "Whole milk volume estimate (1.03 g per mL, PHE)")
         XCTAssertFalse(try XCTUnwrap(model.conversionMethodLabel).contains("cofid-"))
@@ -94,7 +94,7 @@ final class FoodConfirmationPresentationTests: XCTestCase {
 
         model.applyAvailableVolumeConversion()
         XCTAssertNil(model.volumeEstimateLogBarAction, "hidden once applied")
-        XCTAssertEqual(model.logButtonTitle, "Log 130 kcal", "the action's energy is the applied Log total")
+        XCTAssertEqual(model.logButtonTitle, "Log about 130 kcal", "the action's energy is the applied Log total")
         model.removeOfferedVolumeConversion()
         XCTAssertNotNil(model.volumeEstimateLogBarAction, "offered again after removal")
 
@@ -440,16 +440,16 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         let locale = Locale(identifier: "en_GB")
         let weightOnly = FoodConfirmationView.ConversionFields(text: "168", unit: .grams, method: nil)
         XCTAssertNil(weightOnly.draft(locale: locale))
-        XCTAssertEqual(weightOnly.requirementText(locale: locale),
-                       "Choose how you got the 168 g: kitchen scale, package weight or estimated by eye.")
-        XCTAssertEqual(FoodConfirmationView.ConversionFields(text: "200", unit: .millilitres, method: nil).requirementText(locale: locale)?
-            .hasPrefix("Choose how you got the 200 mL"), true)
+        // count-portion-estimate-v1 copy (#307).
+        XCTAssertEqual(weightOnly.requirementText(locale: locale), "Choose how you got the weight.")
+        XCTAssertEqual(FoodConfirmationView.ConversionFields(text: "200", unit: .millilitres, method: nil).requirementText(locale: locale),
+                       "Choose how you got the weight.")
         XCTAssertEqual(FoodConfirmationView.ConversionFields(text: "", unit: .grams, method: .choice(.kitchenScale)).requirementText(locale: locale),
-                       "Enter the total edible weight or volume, greater than zero.")
+                       "Enter the total weight.")
         XCTAssertEqual(FoodConfirmationView.ConversionFields(text: "0", unit: .grams, method: .choice(.packageWeight)).requirementText(locale: locale),
-                       "Enter the total edible weight or volume, greater than zero.")
+                       "Enter the total weight.")
         XCTAssertEqual(FoodConfirmationView.ConversionFields.cleared.requirementText(locale: locale),
-                       "Enter the total edible weight or volume and choose how you got it.")
+                       "Enter the total weight and choose how you got it.")
         XCTAssertNil(FoodConfirmationView.ConversionFields(text: "168", unit: .grams, method: .choice(.estimatedByEye)).draft(locale: locale),
                      "an estimate is never a measured conversion")
 

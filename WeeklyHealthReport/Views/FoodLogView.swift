@@ -248,7 +248,7 @@ struct FoodLogView: View {
             // Stacked at accessibility sizes so words never break mid-word.
             VStack(alignment: .leading, spacing: 4) {
                 Text(entry.name).foregroundStyle(.primary)
-                Text("\(time(entry.occurredAt)) · \(FoodLogText.amount(entry.quantity))").foregroundStyle(.secondary)
+                Text("\(time(entry.occurredAt)) · \(FoodLogText.entryAmount(entry))").foregroundStyle(.secondary)
                 Text(FoodLogText.entryEnergy(entry)).foregroundStyle(.secondary)
                 if !flags.isEmpty { Text(flags).foregroundStyle(.secondary) }
             }
@@ -260,7 +260,7 @@ struct FoodLogView: View {
                     .frame(minWidth: 44, alignment: .leading)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(entry.name).foregroundStyle(.primary)
-                    Text(FoodLogText.amount(entry.quantity)).font(.subheadline).foregroundStyle(.secondary)
+                    Text(FoodLogText.entryAmount(entry)).font(.subheadline).foregroundStyle(.secondary)
                     if !flags.isEmpty { Text(flags).font(.caption).foregroundStyle(.secondary) }
                 }
                 Spacer(minLength: 8)

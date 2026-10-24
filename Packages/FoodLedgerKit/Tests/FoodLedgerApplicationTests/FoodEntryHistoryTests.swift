@@ -46,7 +46,8 @@ final class FoodEntryHistoryTests: XCTestCase {
             try F.log(800, version: 802, ordinal: 2, supersedes: 801, value: 480, unit: .millilitres, conversion: 902)
         ], conversions: [first, second])
         XCTAssertEqual(events[0].kind, .changed(amount: .init(from: try q(1, .count), to: try q(2, .count),
-            edibleFrom: try q(240, .millilitres), edibleTo: try q(480, .millilitres)), time: nil))
+            edibleFrom: try q(240, .millilitres), edibleTo: try q(480, .millilitres),
+            methodFrom: .recorded("fixture"), methodTo: .recorded("fixture")), time: nil))
     }
 
     func testCorrectionWithQuantityChangeIsOneCorrectedEvent() throws {

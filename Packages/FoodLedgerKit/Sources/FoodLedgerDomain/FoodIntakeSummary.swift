@@ -37,7 +37,10 @@ public struct FoodIntakeTotal: Equatable, Sendable {
     }
 }
 
-/// `food-intake-summary-v5`: v4 plus one rule (#304, health-food-and-water-v1.3): a plain water
+/// `food-intake-summary-v6`: v5 plus one rule (#307, count-portion-estimate-v1, C6 and C13): a contribution
+/// whose quantity is a source-backed estimate (a count portion guide size or the whole-milk volume
+/// rule, `FoodQuantityEstimate`) sets `includesEstimates`, as an estimated weight already did.
+/// v5 is v4 plus one rule (#304, health-food-and-water-v1.3): a plain water
 /// contribution (`isPlainWater`) adds nothing to any total except water and makes no nutrient known;
 /// its unknown values stay incomplete. `foodItemCount` counts the entries that are not plain water.
 /// v4 is v3 plus the `overflowed` flag (food daily export contract v1, #287).
@@ -45,7 +48,7 @@ public struct FoodIntakeTotal: Equatable, Sendable {
 /// pasted-label conversions) sets `includesEstimates`. Values the user corrected or entered
 /// (`manual_declaration`) do not (owner decision 13).
 public struct FoodIntakeSummary: Equatable, Sendable {
-    public static let version = "food-intake-summary-v5"
+    public static let version = "food-intake-summary-v6"
     /// Every current entry, plain water included.
     public let itemCount: Int
     /// Current entries that are not plain water (v5).
