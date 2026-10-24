@@ -2618,4 +2618,18 @@ Pricing: the rates recorded for WHR-93-2026-10-23a (checked on 23 October 2026 a
 
 Boundary: `phase_usage.py --format claude --since 2026-10-23T17:05:05Z` on the subagent transcript alone. Cache writes: 99,227 5-minute, 0 1-hour. Exact API-equivalent USD 1.0375528 at the recorded counts. None of the 22 messages in this window records 32 output tokens or fewer, so the output count is not marked as a lower bound. Excluded and unmeasured: the coordinator, the fresh-set collection, blind transcription, owner verification, the run and scoring (other agents and the owner), and the commit, push and PR steps after this edit.
 
+## WHR-287-2026-10-23b: Claude Code food daily export implementation (#287)
+
+One Claude Code session (`61ae142b-5df7-43e5-ad0b-55302df93dc7`), started from the contract session, with its two subagents (invariant-reviewer and journey-qa). It covers the implementation to `docs/food-daily-export-contract-v1.md`: summary v4, the builder, serializer and goldens, the food identity policy, registry and coordinator, the session controller and Export screen, Developer tools, the privacy policy wording, the tests, the review fixes and the gate runs. No owner discussion is inside the boundary.
+
+Runs from the phase's start (`2026-10-23T04:48:14Z`, captured with `date -u` at the first command) to `2026-10-23T05:45:12Z`, just before this ledger edit. The final app test gate, the PR and the handover come after the boundary and are not included.
+
+Pricing uses the Claude Opus 5.5 rates re-checked on the official pricing page on 23 October 2026 local time (WHR-288-2026-10-23a): USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Food daily export implementation (#287), session and subagents | 56,269,897 (55,643,118) | 626,285 | 203,060 | 56,472,957 | $19.45 |
+
+Boundary: `phase_usage.py --format claude --include-subagents --since 2026-10-23T04:48:14Z --until 2026-10-23T05:45:12Z`. Cache writes: 251,787 5-minute, 374,498 1-hour. Exact API-equivalent USD 19.4467186 at the recorded counts. Output may be undercounted where streaming snapshots record partial counts; this was not checked.
+
 Token totals are not evidence of productivity, quality or provider efficiency.

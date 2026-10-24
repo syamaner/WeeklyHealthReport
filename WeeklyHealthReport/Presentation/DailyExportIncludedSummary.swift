@@ -101,6 +101,9 @@ enum DailyExportLastExportFormatter {
     /// `DailyHealthExportIdentityPolicy.historicalOrderingVersion` (a test pins it);
     /// Presentation does not depend on the Drive policy type.
     static let historicalOrderingVersion = "historical-v2"
+    /// The food file's ordering token prefix; must equal
+    /// `DailyFoodExportIdentityPolicy.orderingVersion` (a test pins it).
+    static let foodOrderingVersion = "food-v1"
 
     /// "Last export of this day from this iPhone: 11/10/26 - 13:05, data up
     /// to 13:02". The cutoff is shown as a time alone when it falls after
@@ -178,6 +181,11 @@ enum DailyExportLastExportFormatter {
         switch parts.count {
         case 1: timestamp = dataAsOf
         case 3 where parts[0] == historicalOrderingVersion: timestamp = parts[1]
+        case 3 where parts[0] == foodOrderingVersion:
+            // The food file's millisecond cutoff (#287).
+            let formatter = ISO8601DateFormatter()
+            formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            return formatter.date(from: parts[1])
         default: return nil
         }
         let formatter = ISO8601DateFormatter()

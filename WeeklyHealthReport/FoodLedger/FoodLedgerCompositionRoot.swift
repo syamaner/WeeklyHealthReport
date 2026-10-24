@@ -498,10 +498,15 @@ final class FoodLedgerCompositionRoot {
     }
 }
 
+/// The food daily export's ledger snapshot (#287): the archive's records, read once per refresh.
+extension FoodLedgerCompositionRoot: DailyFoodLedgerSnapshotReading {
+    func dailyFoodExportSnapshot() throws -> LedgerMutation { try store.archiveState().records }
+}
+
 /// Maps `FoodLogReadingService.day(reportingDate:)` to the Health report's plain day facts
 /// (docs/health-food-and-water-v1.md, section 6). Plain water is `PlainWaterDayTotal` (plain water
 /// entries only, never water in foods). Energy, and fibre (contract v1.2, #288), is the day's total under
-/// `food-intake-summary-v3` over its food entries: plain water entries are identified by the saved
+/// `food-intake-summary-v4` over its food entries: plain water entries are identified by the saved
 /// entry's `isPlainWater` (the existing saved-entry read) and do not make a logged food day
 /// (contract v1.1). They contribute exactly 0 kcal, so the known energy is unchanged; a plain water
 /// entry that cannot be scaled is taken out of the incomplete count. Competing current versions
