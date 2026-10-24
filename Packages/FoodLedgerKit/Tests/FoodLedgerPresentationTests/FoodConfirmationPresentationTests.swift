@@ -610,6 +610,101 @@ final class FoodConfirmationPresentationTests: XCTestCase {
         XCTAssertEqual(model.consumedNutrition.first { $0.key == .protein }?.knownAmount, 16)
     }
 
+    /// #276: Apply in the Food details sheet records the correction on Confirm with a visible,
+    /// announced confirmation, and saves nothing; Log stays the only save.
+    func testApplyingFoodDetailsConfirmsTheCorrectionWithoutSaving() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
+            XCTFail("Applying food details does not save"); throw CocoaError(.fileWriteUnknown)
+        }
+        XCTAssertNil(model.correctionNotice)
+        var draft = FoodDetailsDraft(model: model)
+        XCTAssertEqual(draft.name, model.displayedName.value)
+        XCTAssertFalse(draft.canApply, "a reason is required")
+        XCTAssertFalse(model.applyFoodDetails(draft))
+        XCTAssertNil(model.state.correction)
+        draft.reason = "Package says unfortified"
+        draft.fortification = FortificationState.unfortified.rawValue
+        draft.basis = .per100Millilitres
+        XCTAssertTrue(model.applyFoodDetails(draft))
+        let correction = try XCTUnwrap(model.state.correction)
+        XCTAssertEqual(correction.reason.value, "Package says unfortified")
+        XCTAssertEqual(correction.identity.fortification, .unfortified)
+        XCTAssertEqual(correction.identity.servingBasis, .per100Millilitres)
+        XCTAssertEqual(correction.nutrients, model.state.selectedCandidate.candidate.nutrients, "source nutrients kept")
+        XCTAssertEqual(model.correctionNotice, FoodConfirmationViewModel.correctionAppliedForLog)
+        XCTAssertNil(model.savedResult)
+        XCTAssertEqual(model.state.phase, .editing)
+        // The sheet reopens on the applied details, keeping the reason the user typed.
+        let reopened = FoodDetailsDraft(model: model, reason: draft.reason)
+        XCTAssertEqual(reopened.fortification, FortificationState.unfortified.rawValue)
+        XCTAssertEqual(reopened.reason, "Package says unfortified")
+    }
+
+    /// #276: an invalid answer is refused visibly instead of silently, and changes nothing.
+    func testInvalidFoodDetailsAreRefusedWithoutChangingConfirm() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in throw CocoaError(.fileWriteUnknown) }
+        var draft = FoodDetailsDraft(model: model)
+        draft.reason = "Named method missing"
+        draft.preparation = PreparationKind.named.rawValue
+        draft.preparationMethod = "  "
+        XCTAssertTrue(draft.canApply)
+        XCTAssertNil(draft.correction(for: model.state.selectedCandidate))
+        XCTAssertFalse(model.applyFoodDetails(draft))
+        XCTAssertNil(model.state.correction)
+        XCTAssertNil(model.correctionNotice)
+        XCTAssertFalse(FoodDetailsDraft.invalidDetailsMessage.isEmpty)
+    }
+
+    /// #285: Return finishes the reason field instead of adding a line; pasted line breaks join.
+    func testReasonFieldReturnFinishesAndPastedLinesJoin() {
+        XCTAssertTrue(FoodDetailsDraft.reasonEdit(from: "Label", to: "Labels") == ("Labels", false))
+        XCTAssertTrue(FoodDetailsDraft.reasonEdit(from: "Label ", to: "Label  ") == ("Label  ", false),
+                      "typing without a line break is never rewritten")
+        XCTAssertTrue(FoodDetailsDraft.reasonEdit(from: "Label", to: "Label\n") == ("Label", true))
+        XCTAssertTrue(FoodDetailsDraft.reasonEdit(from: "Label says", to: "Label\n says") == ("Label says", true),
+                      "Return mid-text also finishes")
+        XCTAssertTrue(FoodDetailsDraft.reasonEdit(from: "", to: "\n") == ("", true))
+        // Review note 1: Return over a selection ends the field and keeps the old text.
+        XCTAssertTrue(FoodDetailsDraft.reasonEdit(from: "Label says unfortified", to: "Label \n unfortified")
+                      == ("Label says unfortified", true))
+        XCTAssertTrue(FoodDetailsDraft.reasonEdit(from: "Label", to: "\n") == ("Label", true), "Return over everything")
+        // D1: a paste with line breaks collapses each break to one space, trims and finishes.
+        XCTAssertTrue(FoodDetailsDraft.reasonEdit(from: "Label", to: "Label first\nsecond") == ("Label first second", true))
+        XCTAssertTrue(FoodDetailsDraft.reasonEdit(from: "", to: "third\n\nfourth  \n  alpha beta\n")
+                      == ("third fourth alpha beta", true))
+        XCTAssertTrue(FoodDetailsDraft.reasonEdit(from: "", to: "\n\n") == ("", true))
+        XCTAssertEqual(FoodDetailsDraft.collapsingLineBreaks("a \r\n b"), "a b")
+        XCTAssertEqual(FoodDetailsDraft.collapsingLineBreaks("no breaks"), "no breaks")
+    }
+
+    /// #276 D3 and review note 4: after Apply on a new entry the sheet stays reachable as
+    /// "Correct food details"; the notice goes when the correction does.
+    func testFoodDetailsActionAndNoticeFollowTheCorrection() throws {
+        let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in throw CocoaError(.fileWriteUnknown) }
+        let before = model.foodDetailsActionTitle
+        XCTAssertTrue(before == nil || before == FoodConfirmationViewModel.addFoodDetailsTitle)
+        var draft = FoodDetailsDraft(model: model)
+        draft.reason = "Package says unfortified"
+        XCTAssertTrue(model.applyFoodDetails(draft))
+        if model.missingSourceDetails.isEmpty {
+            XCTAssertEqual(model.foodDetailsActionTitle, FoodConfirmationViewModel.correctFoodDetailsTitle)
+        }
+        XCTAssertNotNil(model.correctionNotice)
+        model.send(.selectCandidate(0))
+        XCTAssertNil(model.state.correction, "choosing a match clears the correction")
+        XCTAssertNil(model.correctionNotice)
+        XCTAssertEqual(model.foodDetailsActionTitle, before)
+    }
+
+    /// D4: picker values read in sentence case, like the rest of the copy.
+    func testFoodDetailsValuesUseSentenceCase() {
+        XCTAssertEqual(FoodDetailsForm.label(PreparationKind.asSold.rawValue), "As sold")
+        XCTAssertEqual(FoodDetailsForm.label(SkinState.skinOn.rawValue), "Skin on")
+        XCTAssertEqual(FoodDetailsForm.label(ItemClass.fortifiedFood.rawValue), "Fortified food")
+        XCTAssertEqual(FoodDetailsForm.label(BoneState.notApplicable.rawValue), "Not applicable")
+        XCTAssertEqual(FoodDetailsForm.label(FortificationState.unknown.rawValue), "Unknown")
+    }
+
     func testUserPresentationCorrectionDoesNotRenameTheRetainedSourceCandidate() throws {
         let model = FoodConfirmationViewModel(state: try fixtureState(knownProtein: true)) { _ in
             XCTFail("Editing presentation does not save"); throw CocoaError(.fileWriteUnknown)

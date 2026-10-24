@@ -4,7 +4,9 @@ import SwiftUI
 
 @MainActor
 public final class FoodConfirmationViewModel: ObservableObject {
-    @Published public private(set) var state: FoodConfirmationState
+    @Published public private(set) var state: FoodConfirmationState {
+        didSet { if state.correction == nil && correctionAppliedOnConfirm { correctionAppliedOnConfirm = false } }
+    }
     @Published public private(set) var savedResult: StoredFoodConfirmation?
     private let saveAction: @MainActor (FoodConfirmationState) throws -> StoredFoodConfirmation
     /// Writes `save_favourite_v1` for the logged entry version (#198). Nil hides "Save as favourite".
@@ -524,8 +526,50 @@ public final class FoodConfirmationViewModel: ObservableObject {
     public func send(_ action: FoodConfirmationAction) {
         FoodConfirmationReducer.reduce(state: &state, action: action)
         // The user answered "Add food details" again: the not-carried notice no longer applies.
-        if case .applyCorrection = action { sourceDetailsNotice = nil }
+        if case .applyCorrection = action {
+            sourceDetailsNotice = nil
+            correctionAppliedOnConfirm = true
+        }
     }
+
+    /// The Food details sheet's Apply (#276): records the typed details as a correction on
+    /// Confirm. Returns false, changing nothing, when an answer is invalid. Nothing is saved;
+    /// Log (or Save changes) stays the only save.
+    @discardableResult
+    public func applyFoodDetails(_ draft: FoodDetailsDraft) -> Bool {
+        guard savedResult == nil, draft.canApply, let correction = draft.correction(for: state.selectedCandidate) else { return false }
+        send(.applyCorrection(correction))
+        return true
+    }
+
+    /// Set once the user applied food details on this Confirm, so the correction is marked with
+    /// a visible confirmation rather than only a caption. Reset whenever the correction is gone
+    /// (`state`'s observer), so a later carried-over correction is not announced as the user's.
+    @Published private var correctionAppliedOnConfirm = false
+
+    /// The button that opens the Food details sheet, or nil: "Add food details" while source
+    /// details are missing, otherwise "Correct food details" for a saved entry or once details
+    /// were applied, so an applied correction can be reopened before Log (#276).
+    public var foodDetailsActionTitle: String? {
+        if !missingSourceDetails.isEmpty { return Self.addFoodDetailsTitle }
+        if state.reopened != nil || state.correction != nil { return Self.correctFoodDetailsTitle }
+        return nil
+    }
+
+    public static let addFoodDetailsTitle = "Add food details"
+    public static let correctFoodDetailsTitle = "Correct food details"
+
+    /// The confirmation shown on Confirm, and announced to VoiceOver, after food details were
+    /// applied (#276). Nil once the correction no longer stands (for example another match).
+    public var correctionNotice: String? {
+        guard correctionAppliedOnConfirm, state.correction != nil else { return nil }
+        return state.reopened == nil ? Self.correctionAppliedForLog : Self.correctionAppliedForEdit
+    }
+
+    public static let correctionAppliedForLog =
+        "Food details corrected. Log saves the correction as a new version with this entry."
+    public static let correctionAppliedForEdit =
+        "Food details corrected. Save changes saves the correction as a new version."
 
     public func save() {
         guard state.phase != .saving else { return }
@@ -602,19 +646,10 @@ public struct FoodConfirmationView: View {
     @FocusState private var editingAmount: AmountFieldFocus?
     @State private var showsCorrection = false
     @State private var showsMatches = false
-    @State private var correctionName = ""
-    @State private var correctionBrand = ""
-    @State private var correctionVariant = ""
-    @State private var correctionReason = ""
-    @State private var correctionPreparation = PreparationKind.unknown.rawValue
-    @State private var correctionPreparationMethod = ""
-    @State private var correctionBone = BoneState.unknown.rawValue
-    @State private var correctionSkin = SkinState.unknown.rawValue
-    @State private var correctionDrained = DrainedState.unknown.rawValue
-    @State private var correctionPackingMedium = ""
-    @State private var correctionFortification = FortificationState.unknown.rawValue
-    @State private var correctionItemClass = ItemClass.food.rawValue
-    @State private var correctionBasis = CorrectionBasis.keepPopulated
+    /// The Food details sheet's answers; nil until Confirm appears and loads them.
+    @State private var correctionDraft: FoodDetailsDraft?
+    /// Set by Apply so the confirmation is announced once the sheet has closed (#276).
+    @State private var announcesCorrection = false
     @State private var totalText = ""
     @State private var directWeightText = ""
     @State private var emptyPlateText = ""
@@ -725,9 +760,12 @@ public struct FoodConfirmationView: View {
             }
         }
         .safeAreaInset(edge: .bottom) { logBar }
-        .sheet(isPresented: $showsCorrection) {
+        .sheet(isPresented: $showsCorrection, onDismiss: announceCorrection) {
             NavigationStack {
-                Form { correctionSection }
+                FoodDetailsForm(model: model, draft: correctionDraftBinding) {
+                    announcesCorrection = true
+                    showsCorrection = false
+                }
                     .navigationTitle("Food details")
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) { Button("Close") { showsCorrection = false } }
@@ -759,10 +797,7 @@ public struct FoodConfirmationView: View {
         }
         .animation(reduceMotion ? nil : .default, value: model.state.selectedCandidateIndex)
         .onAppear {
-            correctionName = model.displayedName.value
-            correctionBrand = model.displayedBrand?.value ?? ""
-            correctionVariant = model.displayedVariant?.value ?? ""
-            loadIdentityCorrection(model.state.selectedCandidate)
+            if correctionDraft == nil { correctionDraft = FoodDetailsDraft(model: model) }
             if let value = model.state.quantity.value { totalText = editableNumber(value) }
             directWeightText = model.state.quantity.directWeight?.totalGrams.map(editableNumber) ?? ""
             if let conversion = model.state.quantity.conversion {
@@ -798,7 +833,11 @@ public struct FoodConfirmationView: View {
                model.state.isSourceRecipe || model.state.reviewedWebProposalScope != nil {
                 ForEach(metadata.materialDifferences, id: \.value) { Text($0.value).font(.caption) }
             }
-            if model.state.correction != nil { Text("Uses your food correction").font(.caption) }
+            if let notice = model.correctionNotice {
+                Label(notice, systemImage: "checkmark.circle").font(.subheadline)
+            } else if model.state.correction != nil {
+                Text("Uses your food correction").font(.caption)
+            }
             if let notice = model.sourceDetailsNotice {
                 Label(notice, systemImage: "exclamationmark.triangle").font(.subheadline)
             }
@@ -806,15 +845,13 @@ public struct FoodConfirmationView: View {
                 Label(FoodLogRequirementText.text(.sourceIdentityMissing(model.missingSourceDetails)),
                       systemImage: "exclamationmark.triangle")
                     .font(.subheadline)
-                Button("Add food details") { showsCorrection = true }
+            }
+            if let title = model.foodDetailsActionTitle {
+                Button(title) { showsCorrection = true }
                     .frame(minHeight: 44)
             }
             if model.state.input.candidates.count > 1 && model.state.reopened == nil {
                 Button("Choose a different match") { showsMatches = true }
-                    .frame(minHeight: 44)
-            }
-            if model.state.reopened != nil {
-                Button("Correct food details") { showsCorrection = true }
                     .frame(minHeight: 44)
             }
         }
@@ -1249,77 +1286,15 @@ public struct FoodConfirmationView: View {
         }
     }
 
-    private var correctionSection: some View {
-        Section("Food details") {
-            TextField("Product name", text: $correctionName)
-            TextField("Brand (optional)", text: $correctionBrand)
-            TextField("Variant (optional)", text: $correctionVariant)
-            Picker("Item class", selection: $correctionItemClass) {
-                ForEach([ItemClass.food, .fortifiedFood, .supplement, .drink, .water], id: \.rawValue) {
-                    Text(Self.label($0.rawValue)).tag($0.rawValue)
-                }
-            }
-            Picker("Preparation", selection: $correctionPreparation) {
-                ForEach([PreparationKind.asSold, .raw, .cooked, .reheated, .named, .unknown], id: \.rawValue) {
-                    Text(Self.label($0.rawValue)).tag($0.rawValue)
-                }
-            }
-            if correctionPreparation == PreparationKind.named.rawValue {
-                TextField("Preparation method", text: $correctionPreparationMethod)
-            }
-            Picker("Bone", selection: $correctionBone) {
-                ForEach([BoneState.withBone, .boneless, .notApplicable, .unknown], id: \.rawValue) {
-                    Text(Self.label($0.rawValue)).tag($0.rawValue)
-                }
-            }
-            Picker("Skin", selection: $correctionSkin) {
-                ForEach([SkinState.skinOn, .skinless, .notApplicable, .unknown], id: \.rawValue) {
-                    Text(Self.label($0.rawValue)).tag($0.rawValue)
-                }
-            }
-            Picker("Drained state", selection: $correctionDrained) {
-                ForEach([DrainedState.drained, .undrained, .notApplicable, .unknown], id: \.rawValue) {
-                    Text(Self.label($0.rawValue)).tag($0.rawValue)
-                }
-            }
-            TextField("Packing medium", text: $correctionPackingMedium)
-                .accessibilityHint("A blank packing medium remains unresolved")
-            Picker("Fortification", selection: $correctionFortification) {
-                ForEach([FortificationState.fortified, .unfortified, .unknown], id: \.rawValue) {
-                    Text(Self.label($0.rawValue)).tag($0.rawValue)
-                }
-            }
-            Picker("Nutrition basis", selection: $correctionBasis) {
-                Text("Keep populated basis").tag(CorrectionBasis.keepPopulated)
-                Text("Per 100 g").tag(CorrectionBasis.per100Grams)
-                Text("Per 100 mL").tag(CorrectionBasis.per100Millilitres)
-            }
-            TextField("Reason for correction", text: $correctionReason, axis: .vertical)
-            Button("Apply correction as a new version") {
-                guard let name = try? LedgerText(correctionName),
-                      let reason = try? LedgerText(correctionReason),
-                      let identity = makeCorrectedIdentity(),
-                      let itemClass = ItemClass(rawValue: correctionItemClass) else { return }
-                let selected = model.state.selectedCandidate
-                model.send(.applyCorrection(FoodCorrection(
-                    name: name,
-                    brand: try? Self.optionalText(correctionBrand),
-                    variant: try? Self.optionalText(correctionVariant),
-                    identity: identity,
-                    itemClass: itemClass,
-                    nutrients: selected.candidate.nutrients,
-                    reason: reason
-                )))
-            }
-            .disabled(
-                correctionName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    || correctionReason.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            )
-            Text("Corrections keep your reason and the original source evidence.")
-                .font(.caption)
-            Text("Enter only details you know. Missing catalogue facts remain unknown. Fortified identity must use the fortified-food item class.")
-                .font(.caption)
-        }
+    private var correctionDraftBinding: Binding<FoodDetailsDraft> {
+        Binding(get: { correctionDraft ?? FoodDetailsDraft(model: model) }, set: { correctionDraft = $0 })
+    }
+
+    /// After Apply closed the sheet: VoiceOver hears the confirmation that Confirm now shows.
+    private func announceCorrection() {
+        guard announcesCorrection else { return }
+        announcesCorrection = false
+        if let notice = model.correctionNotice { AccessibilityNotification.Announcement(notice).post() }
     }
 
     @ViewBuilder
@@ -1353,11 +1328,7 @@ public struct FoodConfirmationView: View {
             totalText = model.state.quantity.value.map(editableNumber) ?? ""
             directWeightText = model.state.quantity.directWeight?.totalGrams.map(editableNumber) ?? ""
             conversionText = model.state.quantity.conversion.map { editableNumber($0.convertedQuantity.value) } ?? ""
-            let selected = model.state.selectedCandidate
-            correctionName = selected.name.value
-            correctionBrand = selected.brand?.value ?? ""
-            correctionVariant = selected.variant?.value ?? ""
-            loadIdentityCorrection(selected)
+            correctionDraft = FoodDetailsDraft(model: model, reason: correctionDraft?.reason ?? "")
         })
     }
 
@@ -1522,64 +1493,6 @@ public struct FoodConfirmationView: View {
 
     private static func label(_ value: String) -> String {
         value.replacingOccurrences(of: "_", with: " ").capitalized
-    }
-
-    private enum CorrectionBasis: Hashable {
-        case keepPopulated
-        case per100Grams
-        case per100Millilitres
-    }
-
-    private func loadIdentityCorrection(_ selected: PopulatedFoodCandidate) {
-        let identity = model.displayedIdentity
-        correctionPreparation = identity.preparation.kind.rawValue
-        correctionPreparationMethod = identity.preparation.method?.value ?? ""
-        correctionBone = identity.bone.rawValue
-        correctionSkin = identity.skin.rawValue
-        correctionDrained = identity.drained.rawValue
-        if case let .named(value) = identity.packingMedium {
-            correctionPackingMedium = value.value
-        } else {
-            correctionPackingMedium = ""
-        }
-        correctionFortification = identity.fortification.rawValue
-        correctionItemClass = (model.state.correction?.itemClass ?? model.state.reopened?.productVersion.itemClass ?? selected.itemClass).rawValue
-        correctionBasis = .keepPopulated
-    }
-
-    private func makeCorrectedIdentity() -> DecisiveIdentity? {
-        guard let preparationKind = PreparationKind(rawValue: correctionPreparation),
-              let bone = BoneState(rawValue: correctionBone),
-              let skin = SkinState(rawValue: correctionSkin),
-              let drained = DrainedState(rawValue: correctionDrained),
-              let fortification = FortificationState(rawValue: correctionFortification) else { return nil }
-        let method = preparationKind == .named ? try? Self.optionalText(correctionPreparationMethod) : nil
-        guard let preparation = try? PreparationState(kind: preparationKind, method: method) else { return nil }
-        let packing: PackingMediumState
-        if let value = try? Self.optionalText(correctionPackingMedium) { packing = .named(value) }
-        else { packing = .unknown }
-        let selected = model.state.selectedCandidate.candidate.identity
-        let basis: ResolutionBasis
-        switch correctionBasis {
-        case .keepPopulated: basis = selected.servingBasis
-        case .per100Grams: basis = .per100Grams
-        case .per100Millilitres: basis = .per100Millilitres
-        }
-        return try? DecisiveIdentity(
-            preparation: preparation,
-            bone: bone,
-            skin: skin,
-            drained: drained,
-            packingMedium: packing,
-            fortification: fortification,
-            declaredFortificants: fortification == .fortified ? selected.declaredFortificants : [],
-            servingBasis: basis
-        )
-    }
-
-    private static func optionalText(_ value: String) throws -> LedgerText? {
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : try LedgerText(trimmed)
     }
 
     private static func preparationLabel(_ value: PreparationState) -> String {

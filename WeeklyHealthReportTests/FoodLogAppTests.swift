@@ -621,6 +621,113 @@ final class FoodLogAppTests: XCTestCase {
         XCTAssertEqual(unsupported.buttonTitle, "Scan barcode", "never 'Scan again' before a scanner opened")
     }
 
+    /// #285 and #276: the Food details sheet at standard and the largest text size, the full
+    /// "Nutrition basis" value and reason label (visual checks attached), then Confirm after Apply
+    /// showing the correction confirmation, with nothing saved.
+    func testFoodDetailsSheetAtLargestTextAndConfirmAfterApply() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        let search = try root.genericFoodSearchModel(locale: Locale(identifier: "en_GB"))
+        search.query = "clementine"
+        search.search()
+        guard case let .results(route) = search.phase else { throw XCTSkip("Expected offline fruit candidates") }
+        let candidate = try XCTUnwrap(route.confirmation.candidates.first)
+        let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence, sourceReleases: route.confirmation.sourceReleases,
+            candidates: [candidate], expectedIdentity: candidate.candidate.identity, expectedEdibleQuantity: candidate.candidate.edibleQuantity)
+        let model = root.model(for: input)
+        for (size, name) in [(DynamicTypeSize.large, "standard"), (.accessibility5, "accessibility5")] {
+            let draft = FoodDetailsDraft(model: model)
+            // The largest sizes stack each title above its full, wrapping value (#285).
+            XCTAssertEqual(FoodDetailsForm.stacksTitles(at: size), size.isAccessibilitySize, name)
+            renderTall(NavigationStack {
+                FoodDetailsForm(model: model, draft: .constant(draft)) {}.navigationTitle("Food details")
+            }.environment(\.dynamicTypeSize, size), "Food details - \(name)")
+        }
+        XCTAssertEqual(FoodDetailsForm.basisOptions.map(\.1), ["Keep populated basis", "Per 100 g", "Per 100 mL"])
+        var draft = FoodDetailsDraft(model: model)
+        draft.reason = "Synthetic: package states the details"
+        XCTAssertTrue(model.applyFoodDetails(draft))
+        XCTAssertEqual(model.correctionNotice, FoodConfirmationViewModel.correctionAppliedForLog)
+        XCTAssertNil(model.savedResult, "Apply is not a save; Log is")
+        XCTAssertEqual(model.logButtonTitle.hasPrefix("Log"), true, "Log stays the only save")
+        renderTall(NavigationStack { FoodConfirmationView(model: model) {} }
+            .environment(\.dynamicTypeSize, .accessibility5), "Confirm after Apply - accessibility5")
+    }
+
+    /// #285 D1: in the hosted sheet, pasting a reason with line breaks shows and stores one line
+    /// (no blank line, no double spaces) and ends editing; Done (Return) after typing, and Return
+    /// over a selection, end editing and keep the text. Driven through the field's UITextView.
+    func testReasonFieldPasteAndReturnInTheHostedSheet() throws {
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
+        let root = try FoodLedgerCompositionRoot(fileManager: IntakeRenderFileManager(directory: directory),
+                                                 userDefaults: isolatedDefaults())
+        let search = try root.genericFoodSearchModel(locale: Locale(identifier: "en_GB"))
+        search.query = "clementine"
+        search.search()
+        guard case let .results(route) = search.phase else { throw XCTSkip("Expected offline fruit candidates") }
+        let candidate = try XCTUnwrap(route.confirmation.candidates.first)
+        let input = try PopulatedFoodConfirmation(evidence: route.confirmation.evidence, sourceReleases: route.confirmation.sourceReleases,
+            candidates: [candidate], expectedIdentity: candidate.candidate.identity, expectedEdibleQuantity: candidate.candidate.edibleQuantity)
+        let model = root.model(for: input)
+        let box = DraftBox(FoodDetailsDraft(model: model))
+        let host = UIHostingController(rootView: DraftBoxForm(model: model, box: box))
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 3000))
+        window.rootViewController = host
+        window.isHidden = false
+        addTeardownBlock { window.isHidden = true }
+        host.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        let field = try XCTUnwrap(Self.descendants(host.view).compactMap { $0 as? UITextView }.first,
+                                  "the reason is the sheet's only multi-line field")
+        func settle() { RunLoop.main.run(until: Date().addingTimeInterval(0.3)) }
+
+        // Paste with line breaks.
+        XCTAssertTrue(field.becomeFirstResponder()); settle()
+        field.insertText("third\n\nfourth  \n  alpha beta\n"); settle()
+        XCTAssertEqual(box.draft.reason, "third fourth alpha beta")
+        XCTAssertEqual(field.text, box.draft.reason, "the field shows exactly the stored reason")
+        XCTAssertFalse(field.text.contains(where: \.isNewline), "no blank line remains")
+        XCTAssertFalse(field.isFirstResponder, "a pasted line break ends editing")
+
+        // Typing then Done (Return) keeps the text and ends editing, adding nothing.
+        XCTAssertTrue(field.becomeFirstResponder()); settle()
+        field.selectedRange = NSRange(location: (field.text as NSString).length, length: 0)
+        field.insertText(" gamma"); settle()
+        XCTAssertEqual(box.draft.reason, "third fourth alpha beta gamma")
+        field.insertText("\n"); settle()
+        XCTAssertEqual(box.draft.reason, "third fourth alpha beta gamma")
+        XCTAssertEqual(field.text, box.draft.reason)
+        XCTAssertFalse(field.isFirstResponder, "Done ends editing")
+
+        // Review note 1: Return over a selection keeps the old text.
+        XCTAssertTrue(field.becomeFirstResponder()); settle()
+        field.selectedRange = NSRange(location: 6, length: 6)
+        field.insertText("\n"); settle()
+        XCTAssertEqual(box.draft.reason, "third fourth alpha beta gamma")
+        XCTAssertEqual(field.text, box.draft.reason)
+        XCTAssertFalse(field.isFirstResponder)
+    }
+
+    /// Renders into a tall window so a whole form lays out and attaches the image (SwiftUI text
+    /// is not exposed as UIKit labels or accessibility elements in a hosted test).
+    private func renderTall<V: View>(_ content: V, _ name: String) {
+        let host = UIHostingController(rootView: content)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 4000))
+        window.rootViewController = host
+        window.isHidden = false
+        host.view.setNeedsLayout(); host.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { window.layer.render(in: $0.cgContext) }
+        let attachment = XCTAttachment(image: image)
+        attachment.name = name; attachment.lifetime = .keepAlways
+        add(attachment)
+        XCTAssertEqual(image.size.width, 390)
+        window.isHidden = true
+    }
+
     private func renderPolish<V: View>(_ content: V, _ name: String) {
         let host = UIHostingController(rootView: content)
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
@@ -666,6 +773,21 @@ final class FoodLogAppTests: XCTestCase {
         let defaults = UserDefaults(suiteName: name)!
         addTeardownBlock { defaults.removePersistentDomain(forName: name) }
         return defaults
+    }
+}
+
+/// Holds a Food details draft the way Confirm does, so a hosted test can read what the sheet stored.
+@MainActor
+private final class DraftBox: ObservableObject {
+    @Published var draft: FoodDetailsDraft
+    init(_ draft: FoodDetailsDraft) { self.draft = draft }
+}
+
+private struct DraftBoxForm: View {
+    let model: FoodConfirmationViewModel
+    @ObservedObject var box: DraftBox
+    var body: some View {
+        NavigationStack { FoodDetailsForm(model: model, draft: $box.draft) {} }
     }
 }
 

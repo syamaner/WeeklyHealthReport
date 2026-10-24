@@ -2536,6 +2536,38 @@ Boundary: `phase_usage.py --format claude --since 2026-10-20T19:40:35Z` on the s
 
 Token totals are not evidence of productivity, quality or provider efficiency.
 
+## WHR-285-2026-10-23a: Claude Code Food details sheet fixes (#285, #276)
+
+One implementation subagent, its own transcript (`subagents/agent-a1a23672b1637b119.jsonl`), for the Food details sheet opened from Confirm: the sheet extracted into `FoodDetailsForm` with a `FoodDetailsDraft`, pickers that stack title above a wrapping value at accessibility text sizes, a visible reason label with Return finishing the field, Apply closing the sheet with a confirmation on Confirm announced to VoiceOver, view-model and hosted render tests, a partial simulator walk at the largest text size and one full gate run.
+
+Runs from the phase's start (`2026-10-22T17:05:44Z`, captured with `date -u`) to `2026-10-22T17:30:48Z`, just before this ledger edit.
+
+Pricing: re-checked on 23 October 2026 (local date) against Anthropic's official pricing page for Claude Opus 5.5: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output, unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Food details sheet fixes (#285, #276), implementation subagent | 21,363,543 (21,020,982) | 342,333 | ≥ 14,241 (lower bound) | ≥ 21,377,784 | $6.20 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-22T17:05:44Z --until 2026-10-22T17:30:48Z` on the subagent transcript alone. Cache writes: 342,333 5-minute, 0 1-hour. Exact API-equivalent USD 6.2015934 at the recorded counts. The output count is a lower bound: 166 of the 249 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The orchestrating session and any reviewers are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-285-2026-10-23b: Claude Code Food details sheet fixes, journey QA fix round
+
+Same subagent and transcript as WHR-285-2026-10-23a. Covers the end of the first round (its ledger edit, commit, push and PR #293) and the fixes from the invariant review and journey QA of #293: one normalised reason text shared by the field and the draft (pasted line breaks collapse to single spaces, any inserted line break ends editing, Return over a selection keeps the text); the refusal cleared when the answers change; "Correct food details" after Apply on a new entry; visible labels on the sheet's text fields and sentence-case values; the applied flag reset whenever the correction is gone; view-model tests, a hosted UITextView test of paste and Return; one full gate run.
+
+Runs from `2026-10-22T17:30:49Z` (one second after WHR-285-2026-10-23a's end) to `2026-10-22T18:06:12Z`, just before this ledger edit.
+
+Pricing: the Claude Opus 5.5 rates re-checked on the official pricing page on 23 October 2026 (WHR-285-2026-10-23a), unchanged. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Food details sheet journey QA fix round (#285, #276), implementation subagent | 12,428,224 (12,062,989) | 365,165 | ≥ 10,198 (lower bound) | ≥ 12,438,422 | $4.44 (lower bound) |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-22T17:30:49Z --until 2026-10-22T18:06:12Z` on the subagent transcript alone. Cache writes: 365,165 5-minute, 0 1-hour. Exact API-equivalent USD 4.4426628 at the recorded counts. The output count is a lower bound: 59 of the 72 messages in this window record at most 32 output tokens (streaming snapshots), so the total and the API-equivalent figure are lower bounds too. The orchestrating session and the reviewers are not included.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
+
 ## WHR-288-2026-10-23a: Claude Code fibre on Today, Food Log and the Health report
 
 One implementation subagent, its own transcript (`subagents/agent-a5d20ce9d01ad07f8.jsonl`), for #288. It covers the owner-approved contract amendments (phase 4 F10, the phase 6 Home amendment, `health-food-and-water-v1.md` v1.2 with decisions 8 and 9), the README update, the implementation, the tests, a simulator render check and one full gate run. The earlier stop-and-report pass of the same subagent (2026-10-22T17:05:44Z to 17:07:20Z, before the owner's approval) is outside this boundary.
