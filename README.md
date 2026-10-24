@@ -27,7 +27,7 @@ examples; the repository does not contain exported or personal HealthKit values.
 | --- | --- |
 | Body | Latest weight and recording time, weight trend, body fat and trend, waist circumference and four-week trend |
 | Daily activity | Average daily steps, active energy, Apple Exercise Time, workout count, type, duration and start time |
-| Food and water | From this app's own food log, not Apple Health: days logged, average logged energy per complete day and average plain water per day it was logged |
+| Food and water | From this app's own food log, not Apple Health: days logged, average logged energy per complete day, average logged fibre per complete fibre day and average plain water per day it was logged |
 | Heart and sleep | Blood pressure, resting heart rate, HRV, sleep and days with Apple Watch data |
 | Fitness estimates | Latest VO₂ max with four-week, three-month and six-month averages, plus blood oxygen |
 | Glucose | A weekly average calculated from daily values, observed range and days with data |
@@ -89,7 +89,12 @@ Nothing is uploaded until you review that snapshot and tap **Export**.
    Today's picker label shows the refresh cutoff once a snapshot is prepared.
    Review the **Included** list: Health data as of the cutoff, the nutrition
    source, notes and the exact file's byte count. Tap **Exact file** to inspect
-   the actual bytes prepared for upload. Food-log entries are not exported yet.
+   the actual bytes prepared for upload. With **Food log** on (the default
+   when Drive is connected), the same refresh also prepares a separate
+   `food-daily-YYYY-MM-DD.json` for the day: the foods you logged, their
+   amounts, nutrient values with their sources and the day's totals, with
+   unknown values left unknown. It goes to the same folder and has its own
+   result (`docs/food-daily-export-contract-v1.md`).
 5. Tap **Export**. The screen reports verified only from a verified Drive result. Refresh first if a saved note or relevant
    selection changed, because the previous preview is deliberately made stale
    rather than silently altered.
@@ -122,14 +127,14 @@ raw media and transient capture data. Creating schema v4 does not enable or call
 provider; local food-archive export/import remains a separate explicit action.
 
 The app opens on **Today** ([phase 6 plan](docs/ux-revamp-phase-6-home.md)): a food card
-with today's logged energy, protein, carbohydrates, fat and plain water (linking to the
+with today's logged energy, protein, carbohydrates, fat, fibre and plain water (linking to the
 Food Log), **Add food**, quick-add chips, a provisional **Health · today so far** card
 (steps, active energy, last night's sleep, latest weight and blood pressure, with an
 "As of" time; its plain header is not a link, and its **Health summaries** row ("Completed days") opens Health, with
 Export one tap further) and today's notes. The Food Log
 ([phase 4 plan](docs/ux-revamp-phase-4-food-log.md)) has previous and next day buttons
-and a date picker; a totals strip for energy, protein, carbohydrates and fat, where "+"
-marks a known minimum and an empty day shows no totals; entries by time with an
+and a date picker; a totals strip for energy, protein, carbohydrates, fat and fibre, where "+"
+marks a known minimum, a nutrient no entry has reads "Unknown" (never 0) and an empty day shows no totals; entries by time with an
 estimate label and per-entry unknown flags; swipe to remove, with a collapsed Removed
 section and Restore; and a read-only saved entry with nutrition for the amount, source,
 history, Edit (which saves a new version and keeps the original as history) and Remove
@@ -464,6 +469,8 @@ Food and water
 Days Logged: 6 / 7 days
 Logged Energy: 2,010 kcal per day (5 complete days)
 Incomplete Energy Days: 1
+Logged Fibre: 24 g per day (4 complete days)
+Incomplete Fibre Days: 2
 Plain Water: 1,750 mL per day (4 days)
 Logged in this app; not a measure of everything eaten or drunk.
 
@@ -563,7 +570,7 @@ Three day rules stay separate. Health report summaries use completed days; the D
 - **Apple Exercise Time:** one HealthKit `cumulativeSum` statistic covers the exact report interval and is converted to minutes. Raw samples are not summed manually.
 - **Active energy:** one HealthKit `cumulativeSum` statistic covers the exact report interval and is converted to kcal. This is an activity measurement, not total energy expenditure.
 - **Workouts:** the app reads `HKWorkout` samples whose start date is inside the report interval. It shows the count, summed duration, activity type, duration and local start time in `dd/MM/yy - HH:mm` format. Functional Strength Training is shortened to `FST`. A workout crossing midnight belongs to the day on which it started. An empty result is shown as **No data** because HealthKit does not distinguish missing read access from an empty history.
-- **Food and water (logged in this app):** specified in [health-food-and-water-v1.md](docs/health-food-and-water-v1.md) (policy `health_food_log_period_v1`). Each completed day maps to one food-log reporting date, and entries count on the date stored when they were logged or backdated; today is excluded. A day with no current food entry is not logged, never zero; a day with only plain water is not a logged food day either (contract v1.1), but its water counts towards the plain water average. Logged energy is the mean of complete days' totals, each day weighted equally; a day with any unknown energy contribution is left out of the mean and counted as an incomplete energy day. Plain water counts plain water entries only (the Home and Food Log figure, never water in foods), averaged over the days it was logged; no plain water is **No data**, never 0 mL. Values are rounded only for display. Logged energy is never netted against active energy, and Apple Health dietary data is not read for this section. Developer Diagnostics lists each date's inputs under "Food log (Health report)".
+- **Food and water (logged in this app):** specified in [health-food-and-water-v1.md](docs/health-food-and-water-v1.md) (policy `health_food_log_period_v1`). Each completed day maps to one food-log reporting date, and entries count on the date stored when they were logged or backdated; today is excluded. A day with no current food entry is not logged, never zero; a day with only plain water is not a logged food day either (contract v1.1), but its water counts towards the plain water average. Logged energy is the mean of complete days' totals, each day weighted equally; a day with any unknown energy contribution is left out of the mean and counted as an incomplete energy day. Logged fibre (contract v1.2, #288) uses the same rule: the mean of complete fibre days' totals in grams, each day weighted equally; a logged day with any unknown fibre contribution, or no known fibre at all, is left out and counted under "Incomplete Fibre Days", never shown as 0 g. Plain water contributes exactly 0 g fibre, and a water-only day stays outside the fibre mean. Home's Fibre row and the Food Log strip show the selected day's own total ("18 g", "18 g+" as a known minimum, or "Unknown"); Home's is the separate "today so far" projection and never enters the report. Plain water counts plain water entries only (the Home and Food Log figure, never water in foods), averaged over the days it was logged; no plain water is **No data**, never 0 mL. Values are rounded only for display. Logged energy is never netted against active energy, and Apple Health dietary data is not read for this section. Developer Diagnostics lists each date's inputs under "Food log (Health report)".
 - **Sleep:** only `asleepUnspecified`, `asleepCore`, `asleepDeep` and `asleepREM` samples are included. `awake` and `inBed` are excluded. Included intervals from all sources are clipped and combined so overlaps count once. Each report date is a local noon-to-noon night bucket ending on that wake date. Only nights with visible asleep time enter the average.
 - **Medications on iOS 26 or later:** the person chooses individual medications through Apple's medication access sheet. The app queries active and archived authorised concepts, then includes only `HKMedicationDoseEvent` samples with a `taken` status and a start time inside the selected completed-day period. Events are grouped by HealthKit's [stable medication concept identifier](https://developer.apple.com/documentation/healthkit/hkmedicationconcept/identifier), independently of query or display order, so a changed strength appears as a separate row and concepts with the same display name remain separate. When refreshes overlap, only the newest relevant full-report or medication-only refresh may publish medication state. Each row reports the latest logged quantity and time plus the number of taken events. Diagnostics lists every event. Medications without a visible taken event are omitted from copied text. Missing events are never treated as a missed dose or non-adherence.
 - **Nutrition in Daily JSON Export:** the app supports all 39 current HealthKit dietary quantity types through one fixed catalogue. It uses source-filtered HealthKit `cumulativeSum` statistics and converts energy to kcal, water to mL and nutrients to the catalogue's g, mg or mcg unit at the query boundary. Source discovery builds a complete local snapshot and replaces the previous snapshot atomically only after every query succeeds; concurrent source-filtered reads therefore see either the previous or the next complete selection map, while failure or cancellation preserves the previous map. The current schema v3 retains the nutrition payload introduced in schema v2: today's partial total through the captured cutoff and exactly seven chronological completed-day states per nutrient. Current and previous averages are arithmetic means over visible sampled days and state both sampled and reporting days. A signed current-minus-previous trend is available only with 7/7 visible days in both windows; otherwise it is `insufficient_data`. Missing source-filtered statistics remain `no_data_or_access`, never zero. Nutrition is not added to the weekly screen, copied report or Diagnostics and has no target, score or interpretation.

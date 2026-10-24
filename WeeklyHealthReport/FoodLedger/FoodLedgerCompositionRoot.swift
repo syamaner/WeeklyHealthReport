@@ -498,10 +498,15 @@ final class FoodLedgerCompositionRoot {
     }
 }
 
+/// The food daily export's ledger snapshot (#287): the archive's records, read once per refresh.
+extension FoodLedgerCompositionRoot: DailyFoodLedgerSnapshotReading {
+    func dailyFoodExportSnapshot() throws -> LedgerMutation { try store.archiveState().records }
+}
+
 /// Maps `FoodLogReadingService.day(reportingDate:)` to the Health report's plain day facts
 /// (docs/health-food-and-water-v1.md, section 6). Plain water is `PlainWaterDayTotal` (plain water
-/// entries only, never water in foods). Energy is the day's `energyConsumed` total under
-/// `food-intake-summary-v3` over its food entries: plain water entries are identified by the saved
+/// entries only, never water in foods). Energy, and fibre (contract v1.2, #288), is the day's total under
+/// `food-intake-summary-v4` over its food entries: plain water entries are identified by the saved
 /// entry's `isPlainWater` (the existing saved-entry read) and do not make a logged food day
 /// (contract v1.1). They contribute exactly 0 kcal, so the known energy is unchanged; a plain water
 /// entry that cannot be scaled is taken out of the incomplete count. Competing current versions
@@ -521,6 +526,8 @@ struct FoodLogPeriodReader: FoodLogPeriodReading {
         let water = try content.entries.filter { try isPlainWater($0.logItemID) }
         let foodEntryCount = content.entries.count - water.count
         let energy = content.totals?.first { $0.key == .energyConsumed }
+        let fibre = content.totals?.first { $0.key == .fiber }
+        // An unscalable plain water entry has no nutrient at all, so its missing energy marks it.
         let unscaledWater = water.filter { $0.energyKcal == nil }.count
         return FoodLogDayFacts(
             reportingDate: content.reportingDate,
@@ -534,7 +541,13 @@ struct FoodLogPeriodReader: FoodLogPeriodReading {
             plainWater: content.plainWater.map {
                 FoodLogDayFacts.Total(knownAmount: $0.knownAmount, incompleteContributions: $0.incompleteContributions,
                                       includesEstimates: $0.includesEstimates)
-            }
+            },
+            // v1.2 (#288): the same rule as energy. Plain water is exactly 0 g fibre.
+            fibre: foodEntryCount == 0 ? nil : FoodLogDayFacts.Total(
+                knownAmount: fibre?.knownAmount,
+                incompleteContributions: fibre.map { max($0.incompleteContributions - unscaledWater, 0) } ?? foodEntryCount,
+                includesEstimates: fibre?.includesEstimates ?? false
+            )
         )
     }
 }

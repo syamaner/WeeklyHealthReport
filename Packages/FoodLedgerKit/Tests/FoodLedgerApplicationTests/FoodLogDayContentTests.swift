@@ -13,9 +13,11 @@ final class FoodLogDayContentTests: XCTestCase {
         return FoodLogDayContent(projection: projection, reportingDate: F.day, estimates: estimates)
     }
 
-    func testStripHasFourNutrientsAndNeverWater() throws {
+    func testStripHasFiveNutrientsWithFibreAndNeverWater() throws {
         let day = try content([F.log(800, version: 801, product: 13, resolution: 15)])
-        XCTAssertEqual(FoodLogDayContent.stripKeys, [.energyConsumed, .protein, .carbohydrates, .fatTotal])
+        XCTAssertEqual(FoodLogDayContent.stripKeys, [.energyConsumed, .protein, .carbohydrates, .fatTotal, .fiber])
+        XCTAssertEqual(FoodLogDayContent.entryFlagKeys, [.energyConsumed, .protein, .carbohydrates, .fatTotal],
+                       "per-entry flags stay F3 (#288)")
         XCTAssertEqual(try XCTUnwrap(day.totals).map(\.key), FoodLogDayContent.stripKeys)
         XCTAssertFalse(FoodLogDayContent.stripKeys.contains(.water))
     }
@@ -35,6 +37,25 @@ final class FoodLogDayContentTests: XCTestCase {
 
         let unknownFat = try content([F.log(810, version: 811)])
         XCTAssertNil(try XCTUnwrap(unknownFat.totals).first { $0.key == .fatTotal }?.knownAmount, "unknown, never zero")
+    }
+
+    /// #288 (F10): fibre is a strip total with the same known-minimum and unknown rules.
+    func testFibreIsAKnownMinimumWhenOneEntryLacksItAndUnknownWhenNoneHasIt() throws {
+        let day = try content([
+            F.log(800, version: 801, product: 13, resolution: 15, occurredAt: F.date),
+            F.log(810, version: 811, occurredAt: F.date.addingTimeInterval(60))
+        ])
+        let fibre = try XCTUnwrap(day.totals?.first { $0.key == .fiber })
+        XCTAssertEqual(fibre.knownAmount, 15)
+        XCTAssertEqual(fibre.incompleteContributions, 1, "a known minimum")
+
+        let complete = try XCTUnwrap(try content([F.log(800, version: 801, product: 13, resolution: 15)]).totals?.first { $0.key == .fiber })
+        XCTAssertEqual(complete.knownAmount, 15)
+        XCTAssertEqual(complete.incompleteContributions, 0)
+
+        let unknown = try XCTUnwrap(try content([F.log(810, version: 811)]).totals?.first { $0.key == .fiber })
+        XCTAssertNil(unknown.knownAmount, "unknown, never 0 g")
+        XCTAssertEqual(unknown.incompleteContributions, 1)
     }
 
     func testEmptyDayHasNoTotals() throws {
@@ -81,7 +102,8 @@ final class FoodLogDayContentTests: XCTestCase {
         XCTAssertEqual(day.entries[1].unknownKeys, [.fatTotal])
         XCTAssertTrue(day.entries[1].isEstimate)
         // mL against per 100 g cannot be scaled: every strip nutrient is unknown, energy included.
-        XCTAssertEqual(day.entries[2].unknownKeys, FoodLogDayContent.stripKeys)
+        XCTAssertEqual(day.entries[2].unknownKeys, FoodLogDayContent.entryFlagKeys)
+        XCTAssertFalse(day.entries.contains { $0.unknownKeys.contains(.fiber) }, "fibre is never a per-entry flag (F10)")
         XCTAssertNil(day.entries[2].energyKcal)
         let energy = try XCTUnwrap(day.totals?.first { $0.key == .energyConsumed })
         XCTAssertEqual(energy.incompleteContributions, 1)

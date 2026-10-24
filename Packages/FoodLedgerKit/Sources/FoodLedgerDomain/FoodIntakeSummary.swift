@@ -19,18 +19,23 @@ public struct FoodIntakeTotal: Equatable, Sendable {
     public let knownAmount: Double?
     public let incompleteContributions: Int
     public let includesEstimates: Bool
+    /// The sum overflowed (v4): `knownAmount` is nil and every contribution counts as incomplete,
+    /// exactly as in v3, but the total is distinguishable from a day where nothing is known.
+    public let overflowed: Bool
 
-    public init(key: NutrientKey, knownAmount: Double?, incompleteContributions: Int, includesEstimates: Bool) {
+    public init(key: NutrientKey, knownAmount: Double?, incompleteContributions: Int, includesEstimates: Bool, overflowed: Bool = false) {
         self.key = key; self.knownAmount = knownAmount
         self.incompleteContributions = incompleteContributions; self.includesEstimates = includesEstimates
+        self.overflowed = overflowed
     }
 }
 
-/// `food-intake-summary-v3`: v2 plus one rule. A contribution whose value is calculated
-/// (`NutrientDerivation.isCalculated`, pasted-label conversions) sets `includesEstimates`.
-/// Values the user corrected or entered (`manual_declaration`) do not (owner decision 13).
+/// `food-intake-summary-v4`: v3 plus the `overflowed` flag (food daily export contract v1, #287).
+/// v3 is v2 plus one rule: a contribution whose value is calculated (`NutrientDerivation.isCalculated`,
+/// pasted-label conversions) sets `includesEstimates`. Values the user corrected or entered
+/// (`manual_declaration`) do not (owner decision 13).
 public struct FoodIntakeSummary: Equatable, Sendable {
-    public static let version = "food-intake-summary-v3"
+    public static let version = "food-intake-summary-v4"
     public let itemCount: Int
     public let totals: [FoodIntakeTotal]
 
@@ -56,7 +61,8 @@ public struct FoodIntakeSummary: Equatable, Sendable {
                 let scaled = amount * scale
                 guard scaled.isFinite, (sum + scaled).isFinite else {
                     // An overflow invalidates the subtotal, not just one contribution.
-                    return FoodIntakeTotal(key: key, knownAmount: nil, incompleteContributions: contributions.count, includesEstimates: estimated)
+                    return FoodIntakeTotal(key: key, knownAmount: nil, incompleteContributions: contributions.count, includesEstimates: estimated,
+                                           overflowed: true)
                 }
                 sum += scaled; known += 1
             }

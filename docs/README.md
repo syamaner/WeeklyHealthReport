@@ -13,13 +13,14 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 
 - [Food identity and nutrition contract](food-identity-nutrition-contract.md)
 - [Food confirmation contract v2](food-confirmation-contract-v2.md)
-- [Direct edible weight v1](direct-edible-weight-contract-v1.md), [half-item count v1](half-item-count-contract-v1.md), [recipe source serving v1](recipe-source-serving-contract-v1.md)
+- [Direct edible weight v1](direct-edible-weight-contract-v1.md), [count conversion method v1](count-conversion-method-v1.md), [half-item count v1](half-item-count-contract-v1.md), [recipe source serving v1](recipe-source-serving-contract-v1.md)
 - [CoFID whole-milk volume admission v1](cofid-whole-milk-volume-admission-v1.md)
 - [Intake home projection v1](intake-home-projection-v1.md) and [intake management v2](intake-management-v2.md) (removal, restoration, reporting day)
 - [Today-so-far health projection v1](today-so-far-projection-v1.md) (Home provisional health highlights, separate from report and export) and the [phase 6 Home plan](ux-revamp-phase-6-home.md)
 - Health follow-up drafts awaiting owner approval: [steps trend v1](health-steps-trend-v1.md) (#215), [food and water section v1](health-food-and-water-v1.md) (#214), [section groups v1](health-report-section-groups-v1.md) (#216), [Export included summary v1](daily-export-included-summary-v1.md) (#217)
 - [Pasted nutrition label v1](pasted-nutrition-label-v1.md) (#93): pasted or typed label text read on device to Confirm (owner-approved 18 October 2026; awaiting architecture-gate review)
 - [Pasted nutrition label reader v3](pasted-nutrition-label-reader-v3.md) (#93): parser v3 for the real Taiwan paste layouts v2 declines, with an assisted basis choice and a fresh-set release check (owner-approved 20 October 2026)
+- [Pasted nutrition label reader v3 release check](pasted-nutrition-label-reader-v3-release-check.md) (#93): counts from the fresh-set release check of 24 October 2026 (bar passed; owner decision to ship)
 - [HealthKit day bucketing v1](healthkit-day-bucketing-v1.md) (#49): daily collection queries honour the injected calendar, with an alignment check and a per-day fallback (owner-approved 18 October 2026)
 - [Food drafts and common foods](food-drafts-and-common-foods.md), [food list import](food-list-import.md)
 - [Food list lexical v4](food-list-lexical-v4.md) (locale-aware list amount grammar) and [v5](food-list-lexical-v5.md) (vague portions such as "a handful" need an amount)
@@ -47,6 +48,7 @@ Start with [`../AGENTS.md`](../AGENTS.md) for working rules and [privacy and egr
 
 - [Workout interval enrichment contract](workout-interval-enrichment-contract.md), [accepted distance amendment](accepted-workout-distance-amendment.md), [heart-rate readings contract](workout-heart-rate-readings-contract.md)
 - [Daily export contract](daily-export-contract.md) and [Google Drive export plan](google-drive-export-plan.md)
+- [Food daily export v1](food-daily-export-contract-v1.md) (#287): the food log as a separate daily JSON file in the same Drive folder (owner-approved 23 October 2026)
 - [Google Cloud setup](google-drive-cloud-setup.md) and [product setup](google-drive-product-setup.md)
 
 ## Engineering

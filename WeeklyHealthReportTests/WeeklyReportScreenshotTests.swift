@@ -281,6 +281,8 @@ final class WeeklyReportScreenshotTests: XCTestCase {
         foodLog|food-days-logged|Days Logged|6 / 7 days|standard
         foodLog|food-energy-average|Logged Energy|2,010 kcal per day (5 complete days)|standard
         foodLog|food-energy-incomplete|Incomplete Energy Days|1|standard
+        foodLog|food-fibre-average|Logged Fibre|24 g per day (4 complete days)|standard
+        foodLog|food-fibre-incomplete|Incomplete Fibre Days|2|standard
         foodLog|food-plain-water-average|Plain Water|1,750 mL per day (4 days)|standard
         footer|foodLog|Logged in this app; not a measure of everything eaten or drunk.
         section|weight|Weight

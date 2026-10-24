@@ -18,9 +18,17 @@ final class DailyDestinationCoordinator {
 
     private var partitions = DailyDestinationPartitions()
     private var trashedDestinationCandidate: DailyDestinationBinding?
-    private var fileReplacementCandidate: FileReplacementCandidate?
+    /// One candidate per document type (#287): a missing food file never abandons the health
+    /// identity for the same date, and the reverse.
+    private var fileReplacementCandidates: [DailyExportDocumentType: (candidate: FileReplacementCandidate, reason: FileReplacementReason)] = [:]
     private(set) var destinationPartitionsAvailable = true
-    private(set) var fileReplacementReason: FileReplacementReason?
+
+    /// The health file's replacement reason (the original single-file API).
+    var fileReplacementReason: FileReplacementReason? { fileReplacementReason(for: .health) }
+
+    func fileReplacementReason(for documentType: DailyExportDocumentType) -> FileReplacementReason? {
+        fileReplacementCandidates[documentType]?.reason
+    }
 
     var canForgetTrashedDestination: Bool {
         trashedDestinationCandidate != nil
@@ -138,8 +146,8 @@ final class DailyDestinationCoordinator {
         if trashedDestinationCandidate?.accountID != accountID {
             clearTrashedDestinationCandidate()
         }
-        if fileReplacementCandidate?.accountID != accountID {
-            clearFileReplacementCandidate()
+        for (type, entry) in fileReplacementCandidates where entry.candidate.accountID != accountID {
+            fileReplacementCandidates[type] = nil
         }
     }
 
@@ -152,9 +160,10 @@ final class DailyDestinationCoordinator {
 
     func fileReplacementCandidate(
         accountID: String,
-        folderID: String?
+        folderID: String?,
+        documentType: DailyExportDocumentType = .health
     ) -> (accountID: String, folderID: String, reportDate: String)? {
-        guard let candidate = fileReplacementCandidate,
+        guard let candidate = fileReplacementCandidates[documentType]?.candidate,
               candidate.accountID == accountID,
               candidate.folderID == folderID else { return nil }
         return (candidate.accountID, candidate.folderID, candidate.reportDate)
@@ -183,37 +192,42 @@ final class DailyDestinationCoordinator {
         accountID: String,
         folderID: String,
         reportDate: String,
-        reason: FileReplacementReason
+        reason: FileReplacementReason,
+        documentType: DailyExportDocumentType = .health
     ) {
-        fileReplacementCandidate = FileReplacementCandidate(
-            accountID: accountID,
-            folderID: folderID,
-            reportDate: reportDate
+        fileReplacementCandidates[documentType] = (
+            FileReplacementCandidate(accountID: accountID, folderID: folderID, reportDate: reportDate),
+            reason
         )
-        fileReplacementReason = reason
     }
 
+    /// Clears the candidate of `documentType` (every type when nil). With an account, folder and
+    /// date, clears only a candidate that matches them.
     func clearFileReplacementCandidate(
         accountID: String? = nil,
         folderID: String? = nil,
-        reportDate: String? = nil
+        reportDate: String? = nil,
+        documentType: DailyExportDocumentType? = nil
     ) {
-        if let candidate = fileReplacementCandidate,
-           let accountID, let folderID, let reportDate,
-           candidate != FileReplacementCandidate(
-               accountID: accountID,
-               folderID: folderID,
-               reportDate: reportDate
-           ) {
-            return
+        let types = documentType.map { [$0] } ?? DailyExportDocumentType.allCases
+        for type in types {
+            if let candidate = fileReplacementCandidates[type]?.candidate,
+               let accountID, let folderID, let reportDate,
+               candidate != FileReplacementCandidate(
+                   accountID: accountID,
+                   folderID: folderID,
+                   reportDate: reportDate
+               ) {
+                continue
+            }
+            fileReplacementCandidates[type] = nil
         }
-        fileReplacementCandidate = nil
-        fileReplacementReason = nil
     }
 
     func clearFileReplacementCandidate(unlessReportDate reportDate: String) {
-        guard fileReplacementCandidate?.reportDate != reportDate else { return }
-        clearFileReplacementCandidate()
+        for (type, entry) in fileReplacementCandidates where entry.candidate.reportDate != reportDate {
+            fileReplacementCandidates[type] = nil
+        }
     }
 
     private func submitReservedDefaultDestination(
@@ -259,9 +273,9 @@ final class DailyDestinationCoordinator {
         accountID: String
     ) throws {
         clearTrashedDestinationCandidate()
-        if fileReplacementCandidate?.accountID != accountID
-            || fileReplacementCandidate?.folderID != folder.id {
-            clearFileReplacementCandidate()
+        for (type, entry) in fileReplacementCandidates
+        where entry.candidate.accountID != accountID || entry.candidate.folderID != folder.id {
+            fileReplacementCandidates[type] = nil
         }
         var updatedPartitions = partitions
         updatedPartitions.bind(DailyDestinationBinding(

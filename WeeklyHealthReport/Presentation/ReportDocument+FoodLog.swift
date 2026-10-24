@@ -85,6 +85,28 @@ extension ReportDocument {
                 value: HealthReportFormatter.count(summary.incompleteEnergyDayCount, locale: locale)
             ))
         }
+        // Contract v1.2 (#288): fibre follows the energy rule (owner decision 9).
+        rows.append(Row.optional(
+            id: "food-fibre-average",
+            label: "Logged Fibre",
+            value: summary.averageFibreGrams,
+            missing: .insufficientHistory,
+            format: {
+                HealthReportFormatter.loggedFibreAverage(
+                    $0,
+                    completeDays: summary.completeFibreDayCount,
+                    includesEstimates: summary.fibreIncludesEstimates,
+                    locale: locale
+                )
+            }
+        ))
+        if summary.incompleteFibreDayCount > 0 {
+            rows.append(Row(
+                "food-fibre-incomplete",
+                label: "Incomplete Fibre Days",
+                value: HealthReportFormatter.count(summary.incompleteFibreDayCount, locale: locale)
+            ))
+        }
         rows.append(plainWaterRow(summary, locale: locale))
         return rows
     }
@@ -147,8 +169,16 @@ enum FoodLogReportDiagnostics {
                     detail: "\(summary.loggedDayCount) logged of \(summary.reportingDayCount); energy \(summary.completeEnergyDayCount) complete, \(summary.incompleteEnergyDayCount) incomplete; plain water \(summary.completeWaterDayCount) complete, \(summary.incompleteWaterDayCount) incomplete"
                 ),
                 Line(
+                    title: "Fibre days",
+                    detail: "\(summary.completeFibreDayCount) complete, \(summary.incompleteFibreDayCount) incomplete"
+                ),
+                Line(
                     title: "Energy mean",
                     detail: summary.averageEnergyKilocalories.map { "\(number($0)) kcal, estimates \(yesNo(summary.energyIncludesEstimates))" } ?? "none"
+                ),
+                Line(
+                    title: "Fibre mean",
+                    detail: summary.averageFibreGrams.map { "\(number($0)) g, estimates \(yesNo(summary.fibreIncludesEstimates))" } ?? "none"
                 ),
                 Line(
                     title: "Plain water mean",
@@ -169,10 +199,13 @@ enum FoodLogReportDiagnostics {
         let energy = facts?.energy.map { total in
             "energy \(total.knownAmount.map { "\(number($0)) kcal" } ?? "unknown"), \(total.incompleteContributions) incomplete, estimates \(yesNo(total.includesEstimates))"
         } ?? "energy none"
+        let fibre = facts?.fibre.map { total in
+            "fibre \(total.knownAmount.map { "\(number($0)) g" } ?? "unknown"), \(total.incompleteContributions) incomplete, estimates \(yesNo(total.includesEstimates))"
+        } ?? "fibre none"
         let water = facts?.plainWater.map { total in
             "plain water \(total.knownAmount.map { "\(number($0)) mL" } ?? "unknown"), \(total.incompleteContributions) incomplete, estimates \(yesNo(total.includesEstimates))"
         } ?? "plain water none"
-        return "\(entries) \(entries == 1 ? "entry" : "entries") (\(food) food); \(energy); \(water); \(energyClass(day.energy)), \(waterClass(day.water))"
+        return "\(entries) \(entries == 1 ? "entry" : "entries") (\(food) food); \(energy); \(water); \(fibre); \(energyClass(day.energy)), \(waterClass(day.water)), \(fibreClass(day.fibre))"
     }
 
     private static func energyClass(_ day: FoodLogPeriodSummary.EnergyDay) -> String {
@@ -180,6 +213,14 @@ enum FoodLogReportDiagnostics {
         case .notLogged: "not logged"
         case .complete: "energy complete"
         case .incomplete: "energy incomplete"
+        }
+    }
+
+    private static func fibreClass(_ day: FoodLogPeriodSummary.FibreDay) -> String {
+        switch day {
+        case .notLogged: "fibre not logged"
+        case .complete: "fibre complete"
+        case .incomplete: "fibre incomplete"
         }
     }
 

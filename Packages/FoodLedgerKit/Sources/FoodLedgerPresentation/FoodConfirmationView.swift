@@ -166,6 +166,16 @@ public final class FoodConfirmationViewModel: ObservableObject {
                                           accessibilityLabel: "\(Self.volumeEstimateActionTitle), \(energy)", isEnabled: isEnabled)
     }
 
+    /// count-conversion-method-v1 "Estimated by eye": never a measured conversion. Opens direct
+    /// weight with the estimated basis (the user's explicit choice), keeps the count as the original
+    /// input and carries a gram amount when one was typed.
+    public func useEstimatedCountWeight(grams: Double?) {
+        guard state.quantity.unit == .count, state.quantity.directWeight == nil else { return }
+        send(.beginDirectWeight)
+        send(.setDirectWeight(grams))
+        send(.setWeightBasis(.estimated))
+    }
+
     public func removeOfferedVolumeConversion() {
         guard usesOfferedVolumeEstimate else { return }
         send(.setConversion(nil))
@@ -181,7 +191,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// identifier stays behind "Volume estimate source"; a typed method is the user's own words.
     public var conversionMethodLabel: String? {
         guard let conversion = state.quantity.conversion else { return nil }
-        return usesOfferedVolumeEstimate ? Self.offeredVolumeEstimateLabel : conversion.methodVersion.value
+        return usesOfferedVolumeEstimate ? Self.offeredVolumeEstimateLabel
+            : FoodConfirmationView.ConversionFields.storedMethodLabel(conversion.methodVersion)
     }
 
     /// The factor is PHE 2018 Annex A Table 4 (citing McCance and Widdowson), checked as 1.03 by the
@@ -644,7 +655,7 @@ public struct FoodConfirmationView: View {
     @State private var emptyPlateText = ""
     @State private var conversionText = ""
     @State private var conversionUnit = QuantityUnit.grams
-    @State private var conversionMethod = ""
+    @State private var conversionMethod: ConversionFields.MethodSelection?
     /// A pasted nutrition label's source section (#93): the live, editable model from the paste
     /// route, or the read-only model of a stored label (Edit, Recent foods, a favourite).
     @State private var pastedLabel: PastedLabelSourceModel?
@@ -792,7 +803,7 @@ public struct FoodConfirmationView: View {
             if let conversion = model.state.quantity.conversion {
                 conversionText = editableNumber(conversion.convertedQuantity.value)
                 conversionUnit = conversion.convertedQuantity.unit
-                conversionMethod = conversion.methodVersion.value
+                conversionMethod = ConversionFields.MethodSelection(stored: conversion.methodVersion)
             }
         }
     }
@@ -1168,11 +1179,28 @@ public struct FoodConfirmationView: View {
                     Text("mL").tag(QuantityUnit.millilitres)
                 }
                 .onChange(of: conversionUnit) { _, _ in updateConversion() }
-                TextField("How was this weight or volume measured?", text: $conversionMethod)
-                    .onChange(of: conversionMethod) { _, _ in updateConversion() }
-                    .accessibilityHint("Required provenance for a count or portion conversion")
-                if model.state.quantity.conversion == nil {
-                    Label("Enter the total edible weight or volume and how you measured it", systemImage: "exclamationmark.triangle")
+                // A closed choice (count-conversion-method-v1, #299); "Estimated by eye" is an
+                // estimated direct weight, never a measured conversion.
+                Picker(ConversionFields.methodTitle, selection: $conversionMethod) {
+                    Text("Choose one").tag(ConversionFields.MethodSelection?.none)
+                    if case let .recorded(text)? = conversionMethod {
+                        Text(ConversionFields.label(.recorded(text))).tag(ConversionFields.MethodSelection?.some(.recorded(text)))
+                    }
+                    ForEach(CountConversionMethod.allCases, id: \.self) { method in
+                        Text(ConversionFields.label(.choice(method))).tag(ConversionFields.MethodSelection?.some(.choice(method)))
+                    }
+                }
+                .onChange(of: conversionMethod) { _, selection in
+                    if case .choice(.estimatedByEye)? = selection { useEstimateByEye() } else { updateConversion() }
+                }
+                .accessibilityHint("Required. Kitchen scale and package weight are measured; estimated by eye logs an estimate.")
+                .accessibilityIdentifier("confirm.conversionMethod")
+                if model.state.quantity.conversion == nil,
+                   let requirement = ConversionFields(text: conversionText, unit: conversionUnit, method: conversionMethod)
+                    .requirementText(locale: locale) {
+                    Label(requirement, systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .accessibilityIdentifier("confirm.conversionRequirement")
                 }
             }
             ForEach(model.plateRequirements, id: \.self) { Text($0).font(.caption) }
@@ -1330,26 +1358,101 @@ public struct FoodConfirmationView: View {
             .draft(locale: locale)))
     }
 
-    /// The typed count conversion on Confirm: converted amount, its unit and how it was measured.
+    /// "Estimated by eye": the amount becomes an estimated direct weight with the count kept as the
+    /// original input. A typed gram amount is carried over; millilitres are never read as grams.
+    private func useEstimateByEye() {
+        let grams = ConversionFields(text: conversionText, unit: conversionUnit, method: conversionMethod)
+            .estimatedGrams(locale: locale)
+        model.useEstimatedCountWeight(grams: grams)
+        directWeightText = grams.map(editableNumber) ?? ""
+        resetConversionFields()
+    }
+
+    /// The count conversion on Confirm: converted amount, its unit and how it was obtained.
     public struct ConversionFields: Equatable, Sendable {
+        /// A closed choice (count-conversion-method-v1), or the typed text of a conversion recorded
+        /// before v1, kept unchanged on reopen.
+        public enum MethodSelection: Hashable, Sendable {
+            case choice(CountConversionMethod)
+            case recorded(LedgerText)
+
+            /// The selection that shows a stored conversion method.
+            public init(stored: LedgerText) {
+                self = CountConversionMethod(storedCode: stored).map(Self.choice) ?? .recorded(stored)
+            }
+        }
+
         public var text: String
         public var unit: QuantityUnit
-        public var method: String
+        public var method: MethodSelection?
 
-        public init(text: String, unit: QuantityUnit, method: String) {
+        public init(text: String, unit: QuantityUnit, method: MethodSelection?) {
             self.text = text; self.unit = unit; self.method = method
         }
 
-        /// The fields after a unit change: empty, grams.
-        public static let cleared = ConversionFields(text: "", unit: .grams, method: "")
+        /// The fields after a unit change: empty, grams, no method.
+        public static let cleared = ConversionFields(text: "", unit: .grams, method: nil)
 
-        /// The conversion these fields describe, or nil when any part is missing or invalid.
+        public static let methodTitle = "How you got this amount"
+
+        /// The shown label. The v1 code-to-label table is frozen by count-conversion-method-v1.
+        public static func label(_ selection: MethodSelection) -> String {
+            switch selection {
+            case .choice(.kitchenScale): "Kitchen scale"
+            case .choice(.packageWeight): "Package weight"
+            case .choice(.estimatedByEye): "Estimated by eye"
+            case let .recorded(text): "Recorded: \(text.value)"
+            }
+        }
+
+        /// The label of a stored conversion method: the v1 label for a v1 code, else the stored text.
+        public static func storedMethodLabel(_ stored: LedgerText) -> String {
+            switch MethodSelection(stored: stored) {
+            case let .choice(method): label(.choice(method))
+            case .recorded: stored.value
+            }
+        }
+
+        /// The field-local requirement naming exactly which part is still missing, or nil when the
+        /// fields describe a conversion. Presentation only: the Log rule stays
+        /// `countNeedsMeasuredAmount`, unchanged.
+        public func requirementText(locale: Locale) -> String? {
+            guard draft(locale: locale) == nil else { return nil }
+            switch (amount(locale: locale), method) {
+            case let (amount?, nil):
+                let unitText = unit == .millilitres ? "mL" : "g"
+                return "Choose how you got the \(FoodNutritionReviewPresentation.number(amount.value)) \(unitText): kitchen scale, package weight or estimated by eye."
+            case (nil, _?):
+                return "Enter the total edible weight or volume, greater than zero."
+            default:
+                return "Enter the total edible weight or volume and choose how you got it."
+            }
+        }
+
+        /// The measured conversion these fields describe, or nil when a part is missing or invalid,
+        /// or when the method is an estimate (which is never a conversion).
         public func draft(locale: Locale) -> QuantityConversionDraft? {
-            guard let value = FoodAmountFieldText.parse(text, locale: locale),
-                  let quantity = try? PositiveQuantity(value: value, unit: unit),
-                  let methodText = try? LedgerText(method) else { return nil }
+            guard let quantity = amount(locale: locale), let method else { return nil }
+            let methodText: LedgerText
+            switch method {
+            case let .choice(choice):
+                guard let code = choice.storedCode else { return nil }
+                methodText = code
+            case let .recorded(text):
+                methodText = text
+            }
             return QuantityConversionDraft(convertedQuantity: quantity, methodVersion: methodText,
                                            sourceReleaseID: nil, evidenceID: nil)
+        }
+
+        /// The gram amount carried into an estimated direct weight; nil for millilitres or no amount.
+        public func estimatedGrams(locale: Locale) -> Double? {
+            guard unit == .grams else { return nil }
+            return amount(locale: locale)?.value
+        }
+
+        private func amount(locale: Locale) -> PositiveQuantity? {
+            FoodAmountFieldText.parse(text, locale: locale).flatMap { try? PositiveQuantity(value: $0, unit: unit) }
         }
     }
 

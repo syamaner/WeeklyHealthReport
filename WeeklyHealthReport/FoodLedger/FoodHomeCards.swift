@@ -34,7 +34,8 @@ struct FoodHomeCardContent: Equatable {
     static let title = "Food logged"
     static let emptyMessage = "Nothing logged yet today"
     static let unavailableMessage = "The local food log could not be opened."
-    static let nutrientKeys: [NutrientKey] = [.protein, .carbohydrates, .fatTotal]
+    /// Rows after energy, in order. Fibre follows fat (phase 6 amendment, 23 October 2026, #288).
+    static let nutrientKeys: [NutrientKey] = [.protein, .carbohydrates, .fatTotal, .fiber]
 
     static func make(
         projection: FoodIntakeProjection,
@@ -48,7 +49,7 @@ struct FoodHomeCardContent: Equatable {
     }
 
     /// Distinct current entries behind the card's known minimums: an entry counts once when any
-    /// shown total it contributes to (energy, protein, carbohydrates, fat) lacks its value. Plain
+    /// shown total it contributes to (energy, protein, carbohydrates, fat, fibre) lacks its value. Plain
     /// water that cannot be scaled also lacks energy, so the larger count covers it.
     static func incompleteEntries(_ rows: [[FoodIntakeTotal]], dayTotals: [FoodIntakeTotal], plainWater: FoodIntakeTotal?) -> Int {
         let affected = ([NutrientKey.energyConsumed] + nutrientKeys).filter { key in

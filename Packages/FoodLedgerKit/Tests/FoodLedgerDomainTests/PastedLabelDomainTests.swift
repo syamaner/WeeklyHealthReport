@@ -70,10 +70,10 @@ final class PastedLabelDomainTests: XCTestCase {
         XCTAssertFalse(NutrientDerivation.isCalculated(.unknown(.notDeclared)))
     }
 
-    // MARK: 29. Aggregation (food-intake-summary-v3)
+    // MARK: 29. Aggregation (food-intake-summary-v3 rule, pinned at v4 since #287)
 
     func test29SummaryVersionGolden() {
-        XCTAssertEqual(FoodIntakeSummary.version, "food-intake-summary-v3")
+        XCTAssertEqual(FoodIntakeSummary.version, "food-intake-summary-v4")
     }
 
     func test29CalculatedContributionSetsIncludesEstimates() throws {

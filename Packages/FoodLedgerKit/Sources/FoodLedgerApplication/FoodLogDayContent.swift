@@ -4,9 +4,13 @@ import FoodLedgerDomain
 /// One Food Log day as structured facts (#197). Totals come from `FoodIntakeSummary` unchanged;
 /// presentation formats them. No text is produced here.
 public struct FoodLogDayContent: Sendable {
-    /// Nutrients in the totals strip and the only ones flagged per entry (F1, F3). Water is not a
-    /// strip nutrient: the strip shows plain water logged separately (#198, Q8).
-    public static let stripKeys: [NutrientKey] = [.energyConsumed, .protein, .carbohydrates, .fatTotal]
+    /// Nutrients in the totals strip (F1, amended by F10 on 23 October 2026, #288: fibre after fat).
+    /// Water is not a strip nutrient: the strip shows plain water logged separately (#198, Q8).
+    public static let stripKeys: [NutrientKey] = [.energyConsumed, .protein, .carbohydrates, .fatTotal, .fiber]
+
+    /// The only nutrients flagged per entry and the saved entry's main nutrition rows (F3). Fibre is
+    /// a strip total but not a per-entry flag; in the saved entry it stays under "All nutrients".
+    public static let entryFlagKeys: [NutrientKey] = [.energyConsumed, .protein, .carbohydrates, .fatTotal]
 
     public struct Entry: Sendable, Equatable {
         public let logItemID: LogItemID
@@ -20,7 +24,7 @@ public struct FoodLogDayContent: Sendable {
         /// entry's own contribution includes estimated values (augmented nutrients or an estimated
         /// weight). Shown once.
         public let isEstimate: Bool
-        /// Strip nutrients this entry cannot contribute, in strip order.
+        /// Flagged nutrients (`entryFlagKeys`) this entry cannot contribute, in strip order.
         public let unknownKeys: [NutrientKey]
         /// Energy stated only as an upper bound, shown as a bound when `energyKcal` is nil.
         public var energyUpperBound: FoodEnergyUpperBound? = nil
@@ -66,7 +70,7 @@ public struct FoodLogDayContent: Sendable {
                          energyKcal: known[.energyConsumed] ?? nil,
                          isEstimate: estimates.contains(row.logItemID) || row.totals.contains { $0.includesEstimates }
                             || row.energyUpperBound?.isCalculated == true,
-                         unknownKeys: Self.stripKeys.filter { (known[$0] ?? nil) == nil },
+                         unknownKeys: Self.entryFlagKeys.filter { (known[$0] ?? nil) == nil },
                          energyUpperBound: row.energyUpperBound)
         }
         removed = projection.removedRows.map { row in
