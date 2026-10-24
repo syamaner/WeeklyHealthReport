@@ -50,6 +50,33 @@ final class PastedLabelConfirmV1PresentationTests: XCTestCase {
         XCTAssertTrue(relog.showsEstimateNoticeInFortification, "the notice sits below the answers")
     }
 
+    /// Invariant re-check of b555285d: a re-log or favourite of a stored Yes or No label asks
+    /// nothing, shows the answer read-only, and a Not stated tap changes nothing.
+    func testAReLogOfAnAnsweredLabelShowsTheAnswerAndAsksNothing() throws {
+        for (answer, shown) in [(PastedLabelIdentity.FortificationAnswer.yes, "Yes"), (.no, "No")] {
+            let editable = try F.source(details: PastedLabelDetails(name: "Synthetic oat crackers", brand: "Synthetic Mill", fortification: answer))
+            let input = try XCTUnwrap(editable.input)
+            let manifest = try XCTUnwrap(PastedLabelValueOrigins.manifest(input, candidate: input.candidates[0]))
+            let stored = PastedLabelSourceModel(stored: manifest, nutrients: input.candidates[0].candidate.nutrients)
+            for relog in [false, true] {
+                let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, prefillSourceQuantity: false)) { _ in
+                    throw FoodConfirmationSaveError.noAcceptedCandidate
+                }
+                if relog { model.answersLabelFortification(for: stored) }
+                XCTAssertFalse(model.asksLabelFortification, "\(answer)")
+                XCTAssertEqual(model.reopenedLabelFortification, shown)
+                XCTAssertNil(model.foodDetailsActionTitle)
+                model.send(.setQuantity(40, .grams))
+                XCTAssertEqual(model.requirements, [])
+                XCTAssertTrue(model.canLog)
+                model.answerLabelFortification(.notStated)
+                XCTAssertNil(model.state.decisions[.fortification], "a Not stated tap is a no-op")
+                XCTAssertFalse(model.savesEstimate)
+                XCTAssertEqual(model.requirements, [])
+            }
+        }
+    }
+
     // MARK: Unanswered Confirm: copy, decisions loop and Food details
 
     func testUnansweredAsksInLabelWordingWithNoCatalogueRemedy() throws {
@@ -198,9 +225,32 @@ final class PastedLabelConfirmV1PresentationTests: XCTestCase {
         for version in PastedLabelServingPolicy.admittedVersions {
             XCTAssertEqual(FoodConfirmationView.ConversionFields.storedMethodLabel(try! LedgerText(version)), "From the label’s serving size")
         }
-        XCTAssertEqual(PastedLabelText.conversionMethodLabel(FoodNamedServingPolicy.version), "From the recipe’s serving")
-        XCTAssertEqual(PastedLabelText.conversionMethodLabel(FoodSourceServingPolicy.version), "From the source’s serving size")
-        XCTAssertNil(PastedLabelText.conversionMethodLabel("weighed at home"), "user-typed text stays as typed")
+        XCTAssertEqual(FoodLogText.conversionMethodLabel(FoodNamedServingPolicy.version), "From the recipe’s serving")
+        XCTAssertEqual(FoodLogText.conversionMethodLabel(FoodSourceServingPolicy.version), "From the source’s serving size")
+        XCTAssertNil(FoodLogText.conversionMethodLabel("weighed at home"), "user-typed text stays as typed")
+    }
+
+    /// Journey QA D2 to D4: servings wording, re-log Source copy and one estimate notice.
+    func testServingsWordingReLogCopyAndOneEstimateNotice() throws {
+        XCTAssertEqual(QuickAddText.amount(1, unit: .count, servings: true), "1 serving")
+        XCTAssertEqual(QuickAddText.amount(2, unit: .count, servings: true), "2 servings")
+        XCTAssertEqual(QuickAddText.amount(1, unit: .count), "1 piece", "other sources keep pieces")
+        XCTAssertEqual(QuickAddText.countWord(servings: true), "servings")
+
+        let (editable, _) = try confirm()
+        XCTAssertEqual(editable.sourceFooter, PastedLabelText.sourceFooter)
+        editable.send(.setQuantity(40, .grams))
+        editable.answerLabelFortification(.notStated)
+        XCTAssertTrue(editable.showsEstimateNoticeInFortification, "the Food section does not repeat it")
+        XCTAssertFalse(editable.showsSeparateEstimateNotice, "the Not stated footer is the one notice")
+
+        let source = try F.source(details: Self.unanswered)
+        let input = try XCTUnwrap(source.input)
+        let relog = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, prefillSourceQuantity: false)) { _ in
+            throw FoodConfirmationSaveError.noAcceptedCandidate
+        }
+        XCTAssertEqual(relog.sourceFooter, "To change the label’s name, text or values, paste the label again from Add food.")
+        XCTAssertFalse(relog.sourceFooter.contains("different match"))
     }
 
     func testTheSavedEntryShowsAPastedLabelsFortificationOnce() throws {

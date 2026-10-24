@@ -365,9 +365,48 @@ final class PastedLabelConfirmV1ContractTests: XCTestCase {
                 itemClass: .fortifiedFood, nutrients: stored.candidate.nutrients, reason: LedgerText("Synthetic: vitamins added."))))
             FoodConfirmationReducer.reduce(state: &viaDetails, action: .accept)
             XCTAssertEqual(requirements(viaDetails), [])
+            // A re-log or favourite of an answered Yes or No label asks nothing and saves as exact.
+            for (index, saved) in [yes, no].enumerated() {
+                var relogAnswered = try XCTUnwrap(service.relogState(logItemID: saved.logItem.logItemID))
+                FoodConfirmationReducer.reduce(state: &relogAnswered, action: .accept)
+                XCTAssertEqual(FoodLogPolicy.pendingDifferences(relogAnswered), [], harness.name)
+                XCTAssertEqual(requirements(relogAnswered), [], harness.name)
+                XCTAssertFalse(FoodLogPolicy.savesEstimate(relogAnswered))
+                let again = try service.save(relogAnswered, operationID: LedgerFixtures.operationID(30_806 + index))
+                XCTAssertEqual(again.assertions, [], "exact (\(harness.name))")
+                var favouriteAnswered = FoodConfirmationState(input: try service.favouriteInput(saved), prefillSourceQuantity: false)
+                FoodConfirmationReducer.reduce(state: &favouriteAnswered, action: .setQuantity(40, .grams))
+                FoodConfirmationReducer.reduce(state: &favouriteAnswered, action: .accept)
+                XCTAssertEqual(requirements(favouriteAnswered), [], harness.name)
+                let fromFavourite = try service.save(favouriteAnswered, operationID: LedgerFixtures.operationID(30_808 + index))
+                XCTAssertEqual(fromFavourite.assertions, [], harness.name)
+            }
             XCTAssertEqual(PastedLabelFortificationText.value(corrected, manifest: try XCTUnwrap(PastedLabelValueOrigins.manifest(
                 evidence: corrected.evidence, evidenceIDs: corrected.candidateDecision.candidate.evidenceIDs))),
                 "Not stated or not answered, then corrected in food details")
+        }
+    }
+
+    /// Journey QA D2: a pasted-label favourite logged in servings knows its count is servings.
+    func testAPastedLabelFavouriteInServingsSaysServings() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let service = try F.service(harness)
+            var servings = state(try input(.no, evidence: 31_300))
+            FoodConfirmationReducer.reduce(state: &servings, action: .setQuantity(1, .count))
+            XCTAssertNotNil(servings.pastedLabelServing, "the fixture states a serving")
+            let inServings = try service.save(servings, operationID: LedgerFixtures.operationID(31_300))
+            let inGrams = try service.save(state(try input(.no, evidence: 31_301)), operationID: LedgerFixtures.operationID(31_301))
+            let reader = try XCTUnwrap(harness.committer as? any FavouriteReading)
+            let favourites = try FavouritesService(ledger: LedgerFixtures.service(harness.committer), reader: reader,
+                confirmations: service, clock: LedgerFixtures.clock, ids: RandomLedgerIDGenerator(), digester: SHA256Digester())
+            let servingsFavourite = try favourites.saveFavourite(logItemVersionID: inServings.logItemVersion.logItemVersionID)
+            let gramsFavourite = try favourites.saveFavourite(logItemVersionID: inGrams.logItemVersion.logItemVersionID)
+            XCTAssertEqual(servingsFavourite.defaultAmount.unit, .count)
+            XCTAssertTrue(favourites.amountIsServings(servingsFavourite), harness.name)
+            XCTAssertFalse(favourites.amountIsServings(gramsFavourite), harness.name)
+            let prepared = try favourites.prepare(.favourite(servingsFavourite))
+            XCTAssertNotNil(prepared.state.pastedLabelServing, "the sheet's count is servings")
         }
     }
 

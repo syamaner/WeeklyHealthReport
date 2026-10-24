@@ -219,6 +219,12 @@ final class FoodLedgerCompositionRoot {
     /// favourites cannot be read or have competing versions.
     func quickAddItems() -> [QuickAddItem]? { try? favourites.projection().quickAddItems }
 
+    /// Whether a quick-add item's count amount means servings of a pasted label (#306).
+    func favouriteAmountIsServings(_ item: QuickAddItem) -> Bool {
+        guard case let .favourite(version) = item else { return false }
+        return favourites.amountIsServings(version)
+    }
+
     /// Rebuilds a fresh confirmation for a quick-add item. Writes nothing.
     func quickAddPreparation(_ item: QuickAddItem) throws -> QuickAddPreparation { try favourites.prepare(item) }
 
@@ -693,6 +699,7 @@ struct AddFoodFlowView: View {
                     pasteLabel: { showsLabel = true },
                     favourites: { showsFavourites = true },
                     favouriteItems: quickAddItems,
+                    favouriteAmountIsServings: { root.favouriteAmountIsServings($0) },
                     quickAdd: { quickAddRequest = $0 },
                     favouriteSaving: favouriteSaving,
                     listImportNote: FoodLogText.listImportNote(entryDay: finish?.entryDay),

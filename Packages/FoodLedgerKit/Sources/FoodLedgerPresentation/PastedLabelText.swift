@@ -47,18 +47,13 @@ public enum PastedLabelText {
         }
     }
 
-    /// Plain copy for a stored quantity conversion method; identifiers stay in Developer tools.
-    public static func conversionMethodLabel(_ methodVersion: String) -> String? {
-        if PastedLabelServingPolicy.admittedVersions.contains(methodVersion) { return "From the label’s serving size" }
-        switch methodVersion {
-        case FoodNamedServingPolicy.version: return "From the recipe’s serving"
-        case FoodSourceServingPolicy.version: return "From the source’s serving size"
-        default: return nil
-        }
-    }
+    /// A pasted-label servings conversion's method, in plain copy (#306).
+    public static let servingConversionMethod = "From the label’s serving size"
 
     public static let fortificationNotApplied = "The answer could not be applied. Your earlier answer is kept."
     public static let fortificationRequirement = "Answer whether the label says vitamins or minerals are added."
+    /// A re-log or favourite of a stored label: its text and values cannot be edited here.
+    public static let sourceFooterStored = "To change the label’s name, text or values, paste the label again from Add food."
     public static let sourceFooter = "To change the name, brand or text, use Edit label text. To change a value, correct it in Nutrition from the label."
 
     /// Why Read label is disabled, or nil when it is enabled.

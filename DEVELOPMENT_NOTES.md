@@ -2713,11 +2713,14 @@ Pricing uses the Claude Opus 5.5 rates recorded in WHR-296-2026-10-23 (USD 4/M b
 | Pasted label Confirm implementation (#306), implementation subagent | 27,635,404 (26,874,726) | 760,494 | 67,804 | 27,703,208 | $10.53 |
 | Pasted label Confirm invariant-review fixes (#306), implementation subagent | 9,078,911 (8,677,186) | 401,677 | 17,928 | 9,096,839 | $4.10 |
 | Pasted label Confirm journey-QA notes (#306), implementation subagent | 20,665,745 (19,300,378) | 1,365,271 | 30,966 | 20,696,711 | $11.31 |
+| Pasted label Confirm re-check and journey-QA re-walk fixes (#306), implementation subagent | 30,416,923 (26,955,525) | 3,461,276 | 37,090 | 30,454,013 | $23.44 |
 
 Boundary: `phase_usage.py --format claude --since 2026-10-24T06:56:31Z --until 2026-10-24T07:37:02Z` on the subagent transcript alone. Cache writes: 760,494 5-minute, 0 1-hour. Exact API-equivalent USD 10.5342312 at the recorded counts. The orchestrating session and the architecture-gate reviewer are not included.
 
 Invariant-review fixes: `phase_usage.py --format claude --since 2026-10-24T07:37:02Z --until 2026-10-24T08:00:04Z` on the same transcript. The window also holds the PR opening and handback after the implementation row. Cache writes: 401,677 5-minute, 0 1-hour. Exact API-equivalent USD 4.1025742. The invariant reviewer and the journey QA run are not included.
 
 Journey-QA notes: `phase_usage.py --format claude --since 2026-10-24T08:00:04Z --until 2026-10-24T08:53:14Z` on the same transcript, including the previous handback and a full gate run. Cache writes: 1,365,271 5-minute, 0 1-hour. Exact API-equivalent USD 11.3061346.
+
+Re-check and re-walk fixes: `phase_usage.py --format claude --since 2026-10-24T08:53:14Z --until 2026-10-24T10:13:31Z` on the same transcript, including the previous handback and two full gate runs (one app-test rerun after a test compile fix). Cache writes: 3,461,276 5-minute, 0 1-hour. Exact API-equivalent USD 23.439773.
 
 Token totals are not evidence of productivity, quality or provider efficiency.

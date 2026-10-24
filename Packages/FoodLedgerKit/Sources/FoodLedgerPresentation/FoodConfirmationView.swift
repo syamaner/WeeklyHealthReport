@@ -417,8 +417,13 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// Whether the Fortification section asks the question on this Confirm.
     public var labelFortificationApplies: Bool { PastedLabelFortificationPolicy.applies(state) }
 
-    /// Whether this Confirm asks the Fortification question (any new pasted-label Confirm).
-    public var asksLabelFortification: Bool { labelFortificationApplies && state.reopened == nil }
+    /// Whether this Confirm asks the Fortification question: an editable reading, or a re-log or
+    /// favourite of a stored label whose fortification is still unknown. A stored Yes or No is
+    /// shown read-only instead (invariant re-check of b555285d).
+    public var asksLabelFortification: Bool {
+        labelFortificationApplies && state.reopened == nil
+            && (state.answersLabelFortification || state.selectedCandidate.candidate.identity.fortification == .unknown)
+    }
 
     /// Whether Yes and No can be answered inline: only an editable source can be rebuilt.
     public var answersLabelFortificationInline: Bool { asksLabelFortification && state.answersLabelFortification }
@@ -432,11 +437,30 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// choosing Not stated moves nothing above the finger (journey QA of 381e694e).
     public var showsEstimateNoticeInFortification: Bool { asksLabelFortification && savesEstimate }
 
-    /// The recorded answer, read-only, on a reopened pasted-label entry (section 5.1), else nil.
+    /// Whether the footer adds the generic estimate notice: never after Not stated, whose own
+    /// footer already says the entry is an estimate (one notice, #306 journey QA D4).
+    public var showsSeparateEstimateNotice: Bool { showsEstimateNoticeInFortification && labelFortification != .notStated }
+
+    /// The Source footer. A pasted label never suggests another match: an editable reading points
+    /// to Edit label text and corrections; a re-log or favourite to pasting the label again (D3).
+    public var sourceFooter: String {
+        let pasted = PastedLabelFortificationPolicy.isPastedLabel(state.input, candidate: state.selectedCandidate)
+        guard pasted, state.reopened == nil else {
+            return "Need to correct the food itself? Choose a different match, or edit the details from the entry after logging."
+        }
+        return state.answersLabelFortification ? PastedLabelText.sourceFooter : PastedLabelText.sourceFooterStored
+    }
+
+    /// The recorded answer, read-only: on a reopened pasted-label entry (section 5.1), or on a
+    /// re-log or favourite of a stored label already answered Yes or No. Nil when the question is
+    /// asked or the source is not a pasted label.
     public var reopenedLabelFortification: String? {
-        guard let reopened = state.reopened,
+        guard !asksLabelFortification,
               let manifest = PastedLabelValueOrigins.manifest(state.input, candidate: state.selectedCandidate) else { return nil }
-        return PastedLabelFortificationText.value(reopened, manifest: manifest)
+        if let reopened = state.reopened { return PastedLabelFortificationText.value(reopened, manifest: manifest) }
+        guard labelFortificationApplies else { return nil }
+        return PastedLabelFortificationText.value(answer: manifest.identityMapping.fortificationAnswer,
+                                                  recordsNotStated: false, corrected: false)
     }
 
     public var labelFortification: LabelFortification {
@@ -455,7 +479,7 @@ public final class FoodConfirmationViewModel: ObservableObject {
     /// Yes and No rebuild the source with the manifest answer; Not stated records the existing
     /// typed `not_sure` decision with the source left unknown (C2).
     public func answerLabelFortification(_ answer: LabelFortification) {
-        guard labelFortificationApplies, state.reopened == nil, savedResult == nil else { return }
+        guard asksLabelFortification, savedResult == nil else { return }
         labelFortificationFailure = nil
         switch answer {
         case .unanswered: return
@@ -466,6 +490,8 @@ public final class FoodConfirmationViewModel: ObservableObject {
                     return
                 }
             }
+            // Only a pending difference is decided: a known fortification has nothing to record.
+            guard FoodLogPolicy.pendingDifferences(state).contains(.fortification) else { return }
             send(.decideDifference(.fortification, .notSure))
         case .yes, .no:
             guard let source = labelSource else { return }
@@ -853,8 +879,7 @@ public struct FoodConfirmationView: View {
                     nutritionSection
                 }
             } header: { Text("Source") } footer: {
-                Text(model.asksLabelFortification ? PastedLabelText.sourceFooter
-                     : "Need to correct the food itself? Choose a different match, or edit the details from the entry after logging.")
+                Text(model.sourceFooter)
             }
             recoverySection
             // #282 and the journey QA of #284: when the pinned bar would crowd out the content,
@@ -1013,7 +1038,7 @@ public struct FoodConfirmationView: View {
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(model.labelFortificationFooter)
-                    if model.showsEstimateNoticeInFortification {
+                    if model.showsSeparateEstimateNotice {
                         Label(FoodConfirmationViewModel.estimateNotice, systemImage: "info.circle")
                             .accessibilityLabel(FoodConfirmationViewModel.estimateNotice)
                     }
@@ -1557,7 +1582,7 @@ public struct FoodConfirmationView: View {
             case .choice(.kitchenScale): "Kitchen scale"
             case .choice(.packageWeight): "Package weight"
             case .choice(.estimatedByEye): "Estimated by eye"
-            case let .recorded(text): "Recorded: \(PastedLabelText.conversionMethodLabel(text.value) ?? text.value)"
+            case let .recorded(text): "Recorded: \(FoodLogText.conversionMethodLabel(text.value) ?? text.value)"
             }
         }
 
@@ -1565,7 +1590,7 @@ public struct FoodConfirmationView: View {
         public static func storedMethodLabel(_ stored: LedgerText) -> String {
             switch MethodSelection(stored: stored) {
             case let .choice(method): label(.choice(method))
-            case .recorded: PastedLabelText.conversionMethodLabel(stored.value) ?? stored.value
+            case .recorded: FoodLogText.conversionMethodLabel(stored.value) ?? stored.value
             }
         }
 

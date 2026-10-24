@@ -346,4 +346,16 @@ public final class FavouritesService: @unchecked Sendable {
         guard let pinned = try? confirmations.pinnedConfirmation(id), (try? confirmations.favouriteInput(pinned)) != nil else { return nil }
         return try? confirmations.isEstimate(pinned)
     }
+
+    /// Whether a favourite's count amount means servings of a pasted label (#306 journey QA): the
+    /// pinned entry was logged in servings through a pasted-label serving conversion. False for
+    /// any other source, a non-count amount, or a pinned entry that cannot be read.
+    public func amountIsServings(_ version: FavouriteVersion) -> Bool {
+        guard version.defaultAmount.unit == .count, case let .savedEntry(id) = version.binding,
+              let pinned = try? confirmations.pinnedConfirmation(id) else { return false }
+        let release = pinned.sourceReleases.first { $0.sourceReleaseID == pinned.candidateDecision.candidate.sourceReleaseID }
+        let entered = FoodConfirmationService.lastEnteredAmount(pinned.logItemVersion, conversion: pinned.quantityConversion)
+        return PastedLabelServingPolicy.isServingsAmount(enteredUnit: entered.unit, conversion: pinned.quantityConversion,
+                                                         sourceID: release?.sourceID.value)
+    }
 }

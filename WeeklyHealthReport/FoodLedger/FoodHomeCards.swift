@@ -178,6 +178,9 @@ final class FoodHomeModel: ObservableObject {
         }
         quickAdd = root.quickAddItems().map { .items(Array($0.prefix(FavouritesProjection.todayCount))) } ?? .unreadable
     }
+
+    /// Whether a chip's count amount means servings of a pasted label (#306).
+    func amountIsServings(_ item: QuickAddItem) -> Bool { root?.favouriteAmountIsServings(item) ?? false }
 }
 
 enum FoodHomeCards {
@@ -189,7 +192,7 @@ enum FoodHomeCards {
                 },
                 // Add food is only a control, so Full Page omits it.
                 HomeCard(id: .addFood) { _ in AnyView(AddFoodHomeCard(available: model.root != nil)) },
-                HomeCard(id: .quickAdd, fullPage: { _ in QuickAddHomeCard.fullPageSection(model.quickAdd) }) { _ in
+                HomeCard(id: .quickAdd, fullPage: { _ in QuickAddHomeCard.fullPageSection(model.quickAdd, servings: model.amountIsServings) }) { _ in
                     AnyView(QuickAddHomeCard(model: model))
                 }
             ],
@@ -293,7 +296,8 @@ struct QuickAddHomeCard: View {
 
     /// Full Page lists each chip's name and default amount; the chips themselves
     /// and the favourites links are controls. Nil when the card is hidden.
-    static func fullPageSection(_ state: FoodHomeModel.QuickAddState) -> TodayFullPageDocument.Section? {
+    static func fullPageSection(_ state: FoodHomeModel.QuickAddState,
+                                servings: (QuickAddItem) -> Bool = { _ in false }) -> TodayFullPageDocument.Section? {
         typealias Row = TodayFullPageDocument.Row
         switch state {
         case .unavailable:
@@ -301,7 +305,7 @@ struct QuickAddHomeCard: View {
         case .items(let items):
             let rows = items.isEmpty
                 ? [Row(value: noFavourites)]
-                : items.map { Row(QuickAddText.title($0), value: QuickAddText.defaultAmount($0)) }
+                : items.map { Row(QuickAddText.title($0), value: QuickAddText.defaultAmount($0, servings: servings($0))) }
             return .init(title: title, rows: rows)
         case .unreadable:
             return .init(title: title, rows: [Row(value: unreadable)])
@@ -317,7 +321,7 @@ struct QuickAddHomeCard: View {
                 if items.isEmpty {
                     Text(Self.noFavourites).foregroundStyle(.secondary)
                 } else {
-                    QuickAddChipRow(items: items) { model.quickAddRequest = $0 }
+                    QuickAddChipRow(items: items, servings: model.amountIsServings) { model.quickAddRequest = $0 }
                         .listRowInsets(EdgeInsets(top: 8, leading: 12, bottom: 8, trailing: 12))
                 }
                 NavigationLink("Manage favourites", value: AppRoute.favourites)
