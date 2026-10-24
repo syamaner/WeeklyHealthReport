@@ -634,38 +634,72 @@ final class FoodSearchQuantityNativeTests: XCTestCase {
         }
     }
 
-    /// #296: eggs by count on Confirm show the method field's label as visible text, not only as
-    /// grey placeholder text, and Log stays blocked by the unchanged count rule.
-    func testEggsByCountShowTheMethodFieldLabelOnConfirm() async throws {
-        let ids = NativeQuantityIDs()
-        let search = try GenericFoodSearchViewModel(searcher: try CoFIDGenericFoodSearch(ids: ids), locale: LedgerText("en_GB"))
-        search.query = "egg"; search.search()
-        let input = try XCTUnwrap(search.confirmation(at: 0))
-        let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, queryQuantity: nil)) { _ in
-            throw CocoaError(.fileWriteUnknown)
-        }
-        model.chooseQuantityUnit(.count)
-        model.send(.setQuantity(3, .count))
-        XCTAssertEqual(model.requirements, [.countNeedsMeasuredAmount])
+    /// #296 / #299 (count-conversion-method-v1): the egg route in the simulator with each method.
+    /// Confirm renders the count block, Log stays blocked until a method is chosen, and a real
+    /// GRDB save stores kitchen scale and package weight as their v1 codes and "Estimated by eye"
+    /// as an estimated direct weight with no conversion.
+    func testEggsByCountLogWithEachConversionMethod() async throws {
+        let locale = Locale(identifier: "en_GB")
+        var calendar = Calendar(identifier: .gregorian); calendar.timeZone = .current
+        for method in CountConversionMethod.allCases {
+            let ids = NativeQuantityIDs()
+            let search = try GenericFoodSearchViewModel(searcher: try CoFIDGenericFoodSearch(ids: ids), locale: LedgerText("en_GB"))
+            search.query = "egg"; search.search()
+            let input = try XCTUnwrap(search.confirmation(at: 0))
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let store = try FoodLedgerGRDBStore(databaseURL: directory.appendingPathComponent("ledger.sqlite"),
+                                               attachmentsRoot: directory.appendingPathComponent("attachments"))
+            let ledger = FoodLedgerService(actorID: try LedgerID("00000000-0000-0000-0000-000000000999"), committer: store,
+                clock: SystemLedgerClock(), encoder: FoundationCanonicalJSONEncoder(), digester: SHA256Digester())
+            let service = FoodConfirmationService(ledger: ledger, reader: store, clock: SystemLedgerClock(), ids: ids,
+                digester: SHA256Digester(), calendar: calendar)
+            let model = FoodConfirmationViewModel(state: FoodConfirmationState(input: input, queryQuantity: nil)) { state in
+                try service.save(state, operationID: ids.makeID(OperationTag.self))
+            }
+            model.chooseQuantityUnit(.count)
+            model.send(.setQuantity(3, .count))
+            let typed = FoodConfirmationView.ConversionFields(text: "168", unit: .grams, method: nil)
+            model.send(.setConversion(typed.draft(locale: locale)))
+            XCTAssertEqual(model.requirements, [.countNeedsMeasuredAmount], "\(method)")
 
-        let host = NativeHostingController(rootView: NavigationStack { FoodConfirmationView(model: model, leave: {}) })
-        let scene = try testScene()
-        let previous = scene.windows.first(where: \.isKeyWindow)
-        let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 390, height: 2_400)
-        window.rootViewController = host; window.makeKeyAndVisible()
-        defer { window.isHidden = true; previous?.makeKey() }
-        try await waitForHostAppearance(host, window: window)
-        // The UIKit text field's placeholder is the example, not the field's question: the question is
-        // now a separate visible label (SwiftUI text, which this UILabel scan does not see).
-        try await waitForNativeState("Confirm should show the method field with an example placeholder",
-            diagnostics: { "\(self.nativeText(host.view))" }) {
+            let host = NativeHostingController(rootView: NavigationStack { FoodConfirmationView(model: model, leave: {}) })
+            let scene = try testScene()
+            let previous = scene.windows.first(where: \.isKeyWindow)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 390, height: 2_400)
+            window.rootViewController = host; window.makeKeyAndVisible()
+            defer { window.isHidden = true; previous?.makeKey() }
+            try await waitForHostAppearance(host, window: window)
+            try await waitForNativeState("Confirm should render the count block for \(method)",
+                diagnostics: { "\(self.nativeText(host.view))" }) {
+                host.view.layoutIfNeeded()
+                return self.nativeText(host.view).contains("Converted edible amount")
+            }
+            XCTAssertFalse(descendants(host.view).contains { $0.accessibilityIdentifier == "confirm.conversionMethod" && $0 is UITextField },
+                           "the method is a picker, not a free-text field")
+
+            // What the picker does for each choice.
+            var chosen = typed; chosen.method = .choice(method)
+            if method == .estimatedByEye {
+                model.useEstimatedCountWeight(grams: chosen.estimatedGrams(locale: locale))
+            } else {
+                model.send(.setConversion(chosen.draft(locale: locale)))
+            }
             host.view.layoutIfNeeded()
-            return self.nativeText(host.view).contains(FoodConfirmationView.ConversionFields.methodPrompt)
+            XCTAssertTrue(model.canLog, "\(method): \(model.requirements)")
+            model.log()
+            let saved = try XCTUnwrap(model.savedResult, "\(method)")
+            switch method {
+            case .kitchenScale, .packageWeight:
+                XCTAssertEqual(saved.quantityConversion?.methodVersion, method.storedCode)
+                XCTAssertNil(saved.logItemVersion.weightDeclaration)
+            case .estimatedByEye:
+                XCTAssertNil(saved.quantityConversion, "an estimate is never a measured conversion")
+                XCTAssertEqual(saved.logItemVersion.weightDeclaration?.basis, .estimated)
+                XCTAssertEqual(saved.logItemVersion.weightDeclaration?.originalInput, try PositiveQuantity(value: 3, unit: .count))
+            }
         }
-        XCTAssertFalse(nativeText(host.view).contains("How was this weight or volume measured?"),
-                       "the required question must not live only in grey placeholder text")
-        XCTAssertFalse(model.canLog)
     }
 
     /// Visual evidence for #196 with synthetic data only: Add food (recents, empty), Search results
