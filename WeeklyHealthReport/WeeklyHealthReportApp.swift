@@ -96,7 +96,8 @@ struct WeeklyHealthReportApp: App {
             // The search screen reads this key from the food ledger's store.
             developerTools: AboutSettingsContribution.developerToolsToggle(
                 defaults: foodLedger?.userDefaults ?? defaults
-            )
+            ),
+            driveExportAvailable: driveExportAvailable
         )
     }
 

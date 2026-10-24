@@ -2697,3 +2697,19 @@ Pricing uses the Claude Opus 5.5 rates re-checked on the official pricing page o
 Boundary: `phase_usage.py --format claude --since 2026-10-23T06:46:13Z --until 2026-10-23T07:02:29Z` on the subagent transcript alone. Cache writes: 761,651 5-minute, 0 1-hour. Exact API-equivalent USD 10.045778 at the recorded counts. The orchestrating session is not included, and no reviewer subagents were run.
 
 Token totals are not evidence of productivity, quality or provider efficiency.
+
+## WHR-305-2026-10-24: Claude Code first launch lands on Home
+
+One `claude-opus-5-5` implementation subagent (branch `fix/305-first-launch-home`), transcript `subagents/agent-a839d4c3188627bdd.jsonl` in session `7521cbba-58e0-451b-ad06-633ab6b5a737`, for #305. It covers the issue, reading the navigation coordinator, routes, Settings and composition root, the simulator reproduction (iPhone Air: clean reinstalls, and a stored Export before and after the fix), the restore rule, the navigation tests and every gate (one earlier app test run was abandoned when the simulator failed to launch the test host).
+
+Runs from the subagent's first transcript message (`2026-10-24T06:39:54Z`) to `2026-10-24T07:14:30Z`, just before this ledger edit. No start time was captured with `date -u`; the boundary is the transcript's own first timestamp, so the row covers the whole subagent transcript up to the edit. These times are UTC (24 October local time, UTC+8). No subagents were launched; the orchestrator's usage is outside the row. This ledger edit, the commit, the push and the PR are outside the row. No OpenRouter or other provider call was made.
+
+Pricing: Claude Opus 5.5 rates re-checked on 24 October 2026 against Anthropic's official pricing page (the same check as WHR-304-2026-10-24), unchanged from 23 October: USD 4/M base input, 5/M 5-minute cache write, 8/M 1-hour cache write, 0.20/M cache read, 20/M output. API-equivalent comparison under a Claude subscription, not a charge.
+
+| Phase | Input (cached) | Cache-write | Output | Total | API-equivalent |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| First launch lands on Home (#305), implementation subagent | 6,363,330 (5,902,531) | 460,689 | 30,985 | 6,394,315 | $4.10 |
+
+Boundary: `phase_usage.py --format claude --since 2026-10-24T06:39:54Z --until 2026-10-24T07:14:30Z` on the subagent transcript alone. Cache writes: 460,689 5-minute, 0 1-hour. Exact API-equivalent USD 4.1040912. The output count is as the transcript records it and is likely a lower bound, because messages record streaming-time snapshots.
+
+Token totals are not evidence of productivity, quality or provider efficiency.
