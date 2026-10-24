@@ -105,6 +105,26 @@ final class PastedLabelConfirmV1PresentationTests: XCTestCase {
         XCTAssertFalse(model.savesEstimate)
     }
 
+    /// Test 6: Yes or No after Not stated clears the decision; Not stated after Yes returns the
+    /// source to unknown; Read again starts unanswered (covered with Back to Confirm below).
+    func test06ChangingTheAnswerClearsOrRecordsTheDecision() throws {
+        let (model, source) = try confirm()
+        model.send(.setQuantity(40, .grams))
+        model.answerLabelFortification(.notStated)
+        XCTAssertEqual(model.state.decisions[.fortification], .notSure)
+        for answer in [FoodConfirmationViewModel.LabelFortification.yes, .no] {
+            model.answerLabelFortification(answer)
+            XCTAssertNil(model.state.decisions[.fortification], "\(answer) clears Not stated")
+            XCTAssertEqual(model.labelFortification, answer)
+            XCTAssertFalse(model.savesEstimate)
+            model.answerLabelFortification(.notStated)
+            XCTAssertEqual(source.fortificationAnswer, .unanswered, "the source is unknown again")
+            XCTAssertEqual(model.state.decisions[.fortification], .notSure)
+            XCTAssertTrue(model.savesEstimate)
+        }
+        XCTAssertTrue(model.canLog, model.blockedReason ?? "")
+    }
+
     func test10EveryRebuildKeepsYesAndNo() throws {
         for answer in [FoodConfirmationViewModel.LabelFortification.yes, .no] {
             let (model, source) = try confirm()

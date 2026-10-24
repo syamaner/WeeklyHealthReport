@@ -167,6 +167,82 @@ final class PastedLabelConfirmV1ContractTests: XCTestCase {
         }
     }
 
+    /// Invariant review of 381e694e: a Food details correction on a reopened Not stated entry is
+    /// held to the unchanged v5 rule. Unknown fortification blocks; a known answer saves as exact.
+    func test07ACorrectionOnAReopenedNotStatedEntryMustCompleteFortification() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let service = try F.service(harness)
+            let saved = try service.save(notStated(try input(evidence: 30_550)), operationID: LedgerFixtures.operationID(30_550))
+            func corrected(_ answer: PastedLabelIdentity.FortificationAnswer) throws -> FoodConfirmationState {
+                var reopened = try XCTUnwrap(service.reopen(logItemID: saved.logItem.logItemID))
+                let source = reopened.selectedCandidate
+                FoodConfirmationReducer.reduce(state: &reopened, action: .applyCorrection(try FoodCorrection(
+                    name: LedgerText("Synthetic oat crackers, renamed"), brand: source.brand, variant: nil,
+                    identity: try PastedLabelIdentity.identity(fortification: answer, servingBasis: .per100Grams),
+                    itemClass: PastedLabelIdentity.itemClass(answer), nutrients: source.candidate.nutrients,
+                    reason: LedgerText("Synthetic: renamed."))))
+                FoodConfirmationReducer.reduce(state: &reopened, action: .accept)
+                return reopened
+            }
+            let unknown = try corrected(.unanswered)
+            XCTAssertFalse(PastedLabelFortificationPolicy.applies(unknown))
+            XCTAssertEqual(requirements(unknown), [.sourceIdentityMissing([.fortification])], harness.name)
+            XCTAssertThrowsError(try service.save(unknown, operationID: LedgerFixtures.operationID(30_551))) {
+                XCTAssertEqual($0 as? FoodConfirmationSaveError, .unmetRequirements([.sourceIdentityMissing([.fortification])]))
+            }
+            for (index, answer) in [PastedLabelIdentity.FortificationAnswer.yes, .no].enumerated() {
+                let state = try corrected(answer)
+                XCTAssertEqual(requirements(state), [], "\(answer)")
+                XCTAssertFalse(FoodLogPolicy.savesEstimate(state), "a corrected known identity is exact (\(answer))")
+                let version = try service.save(state, operationID: LedgerFixtures.operationID(30_552 + index))
+                XCTAssertEqual(version.productVersion.identity.fortification, answer == .yes ? .fortified : .unfortified)
+                XCTAssertFalse(FoodEntryEstimateStatus.isEstimate(version, restoredInput: state.input), harness.name)
+            }
+        }
+    }
+
+    // MARK: 4 and 8. Archive round trips and reopen
+
+    /// Test 4 (archive round trip, no library entry) and test 8 (answered Yes and No entries): every
+    /// saved pasted-label answer exports, imports and re-encodes byte for byte, and reopens with
+    /// the same answer and estimate status.
+    func test04And08AnsweredAndNotStatedEntriesRoundTripByteForByte() throws {
+        for harness in try LedgerFixtures.harnesses() {
+            defer { harness.cleanup() }
+            let service = try F.service(harness)
+            let yes = try service.save(state(try input(.yes, evidence: 31_200)), operationID: LedgerFixtures.operationID(31_200))
+            let no = try service.save(state(try input(.no, evidence: 31_201)), operationID: LedgerFixtures.operationID(31_201))
+            let notStated = try service.save(notStated(try input(evidence: 31_202)), operationID: LedgerFixtures.operationID(31_202))
+            let archive = try XCTUnwrap(harness.committer as? any FoodArchiveLedgerAccess)
+            XCTAssertEqual(try archive.archiveState().records.libraryEntries, [], "an estimate save creates no library entry")
+            let bundle = try FoodArchiveGenerator().generate(state: archive.archiveState(), ledgerID: LedgerText("pasted"),
+                createdAt: LedgerFixtures.date, creatingActorID: LedgerFixtures.id(900, ActorTag.self))
+            XCTAssertEqual(try FoodArchiveVerifier().verify(bundle).manifest.foodContractVersion, 7, harness.name)
+            for destination in try LedgerFixtures.harnesses() {
+                defer { destination.cleanup() }
+                let live = try XCTUnwrap(destination.committer as? any FoodArchiveLedgerAccess)
+                let importer = FoodArchiveImportService(live: live, staging: InMemoryFoodArchiveStaging())
+                _ = try importer.apply(importer.dryRun(bundle))
+                let again = try FoodArchiveGenerator().generate(state: live.archiveState(), ledgerID: LedgerText("pasted"),
+                    createdAt: LedgerFixtures.date, creatingActorID: LedgerFixtures.id(900, ActorTag.self))
+                XCTAssertEqual(again, bundle, "\(harness.name)->\(destination.name)")
+                let restored = try F.service(destination)
+                for (saved, expected) in [(yes, "Yes"), (no, "No"), (notStated, "Not stated")] {
+                    let reopened = try XCTUnwrap(restored.reopen(logItemID: saved.logItem.logItemID))
+                    let stored = try XCTUnwrap(reopened.reopened)
+                    XCTAssertEqual(stored.assertions, saved.assertions, expected)
+                    XCTAssertEqual(stored.productVersion, saved.productVersion, expected)
+                    let manifest = try XCTUnwrap(PastedLabelValueOrigins.manifest(evidence: stored.evidence,
+                        evidenceIDs: stored.candidateDecision.candidate.evidenceIDs))
+                    XCTAssertEqual(PastedLabelFortificationText.value(stored, manifest: manifest), expected)
+                    XCTAssertEqual(FoodLogPolicy.savesEstimate(reopened), expected == "Not stated", expected)
+                    XCTAssertEqual(reopened.unresolvedIdentity, [], expected)
+                }
+            }
+        }
+    }
+
     // MARK: 11. One scope predicate; a forged source is refused before C4
 
     func test11AForgedPastedSourceIsRefusedByAdmissionBeforeAnyRequirement() throws {
@@ -207,8 +283,8 @@ final class PastedLabelConfirmV1ContractTests: XCTestCase {
             (.no, false, false, "No"), (.no, true, false, "No"),
             (.no, false, true, "No, then corrected in food details"), (.no, true, true, "No, then corrected in food details"),
             (.unanswered, true, false, "Not stated"),
-            (.unanswered, true, true, "Not stated, then corrected in food details"),
-            (.unanswered, false, true, "Not answered (corrected in food details)"),
+            (.unanswered, true, true, "Not stated or not answered, then corrected in food details"),
+            (.unanswered, false, true, "Not stated or not answered, then corrected in food details"),
             (.unanswered, false, false, "Not answered")
         ]
         for (answer, notStated, corrected, expected) in rows {
@@ -269,7 +345,7 @@ final class PastedLabelConfirmV1ContractTests: XCTestCase {
             XCTAssertTrue(requirements(relog).contains(.sourceIdentityMissing([.fortification])), "a re-log keeps today's rule")
             XCTAssertEqual(PastedLabelFortificationText.value(corrected, manifest: try XCTUnwrap(PastedLabelValueOrigins.manifest(
                 evidence: corrected.evidence, evidenceIDs: corrected.candidateDecision.candidate.evidenceIDs))),
-                "Not answered (corrected in food details)")
+                "Not stated or not answered, then corrected in food details")
         }
     }
 

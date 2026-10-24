@@ -64,7 +64,7 @@ British spelling, plain language, no emoji. New strings live in `PastedLabelText
 | Footer, unanswered | `Check the ingredients or claims on the pack. Choose Not stated if the text you have does not say, for example a nutrition table without its ingredients.` |
 | Footer, Yes | `Saved as a fortified food.` |
 | Footer, No | `Saved as not fortified.` |
-| Footer, Not stated | `Fortification stays unknown, so this entry is marked as an estimate. The label's values are kept as read.` |
+| Footer, Not stated | `Fortification stays unknown, so this entry is marked as an estimate. The label’s values are kept as read.` (curly apostrophe, as the route's other copy) |
 | Failed answer change | `The answer could not be applied. Your earlier answer is kept.` |
 
 ### 4.2 Requirement and bar
@@ -100,8 +100,7 @@ The pasted-label details show `Fortification on the label: <value>`, from one **
 | `no` | any | no | `No` |
 | `no` | any | yes | `No, then corrected in food details` |
 | `unanswered` | yes | no | `Not stated` |
-| `unanswered` | yes | yes | `Not stated, then corrected in food details` |
-| `unanswered` | no | yes | `Not answered (corrected in food details)` (entries saved before this change) |
+| `unanswered` | any | yes | `Not stated or not answered, then corrected in food details` (a correction's version carries only the correction assertion, so an earlier Not stated cannot be told apart; section 14) |
 | `unanswered` | no | no | `Not answered` |
 
 A `yes` or `no` manifest with a `not_sure` decision cannot be saved (C5 and the stale-decision rule), but the function still answers from the manifest, so it never fails. Table-tested row by row (8.5.13).
@@ -277,3 +276,6 @@ Where the build narrowed or completed the spec:
 - **Section 4.5 surface.** "Fortification on the label" is shown on the saved entry (`SavedFoodEntryView`). Developer tools list only the current reading's lines (no stored entries, v5 section 5), and a new reading is always unanswered, so no Developer tools line is added.
 - **Test 16.** The Daily JSON check pins that a Not stated entry exports exactly the same entry keys as a No entry (no new field), rather than a byte-pinned golden file, because the existing export tests build their own synthetic days.
 - **Reopened entries.** The Fortification section shows the recorded answer read-only through the 4.5 formatter on any reopened pasted-label entry.
+- **Invariant review of `381e694e` (BLOCK, fixed).** C4 never applies while a Food details correction is applied (`state.correction != nil`), for new and reopened entries alike: a correction carries no decision record, so its identity must be complete under the unchanged v5 rule. Without this, reopening a Not stated entry and applying a correction that left fortification unknown saved an exact entry with unknown fortification. Contract test: on a reopened Not stated entry, a correction with fortification unknown raises `sourceIdentityMissing([.fortification])`, and a correction to fortified or unfortified saves as exact.
+- **4.5 after a correction.** Stores fill a saved entry's assertions from its current product and resolution versions, and the reader has no lookup by assertion ID, so the `supersedes_assertion_id` chain cannot be walked cheaply. The two corrected `unanswered` rows are therefore one row, "Not stated or not answered, then corrected in food details".
+- **Test 4, library entries.** A pasted-label candidate carries no library aliases, so the D6 check (no library entry) holds trivially; the test pins that the archive has none after a Not stated save.

@@ -12,9 +12,11 @@ public enum PastedLabelFortificationPolicy {
     }
 
     /// C4: an editable pasted-label source (the transient state flag), or a reopened pasted-label
-    /// entry whose current version recorded Not stated. Re-logs and favourites have neither.
+    /// entry whose current version recorded Not stated. Re-logs and favourites have neither. Never
+    /// while a Food details correction is applied: a correction carries no decision, so its
+    /// identity must be complete under the unchanged v5 rule.
     public static func applies(_ state: FoodConfirmationState) -> Bool {
-        guard isPastedLabel(state.input, candidate: state.selectedCandidate) else { return false }
+        guard state.correction == nil, isPastedLabel(state.input, candidate: state.selectedCandidate) else { return false }
         if let reopened = state.reopened { return recordsNotStated(reopened) }
         return state.answersLabelFortification
     }

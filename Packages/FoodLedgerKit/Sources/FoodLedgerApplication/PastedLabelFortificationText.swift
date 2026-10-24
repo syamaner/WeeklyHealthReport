@@ -13,8 +13,10 @@ public enum PastedLabelFortificationText {
         case .yes: return corrected ? "Yes" + suffix : "Yes"
         case .no: return corrected ? "No" + suffix : "No"
         case .unanswered:
-            if recordsNotStated { return corrected ? "Not stated" + suffix : "Not stated" }
-            return corrected ? "Not answered (corrected in food details)" : "Not answered"
+            // A correction's version carries only the correction assertion, so an earlier Not
+            // stated cannot be read from it; the corrected row says so (spec section 14).
+            if corrected { return "Not stated or not answered" + suffix }
+            return recordsNotStated ? "Not stated" : "Not answered"
         }
     }
 
